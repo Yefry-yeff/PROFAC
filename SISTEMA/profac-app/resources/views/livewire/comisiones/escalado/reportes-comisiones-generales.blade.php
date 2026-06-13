@@ -175,6 +175,233 @@ table.dataTable tbody td { font-size: 13px; vertical-align: middle; }
 .empty-state p { font-size: 14px; margin: 0; }
 .select2-container { z-index: 999 !important; width: 100% !important; }
 .select2-dropdown  { z-index: 3050 !important; }
+
+.nom-detalle-btn {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 10px;
+}
+.nom-detalle-btn:hover {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.modal-nomina-detalle {
+    width: calc(100vw - 140px) !important;
+    max-width: 1120px !important;
+    margin: 1.2rem auto !important;
+}
+
+#modalDetalleNomina .modal-dialog {
+    width: calc(100vw - 140px) !important;
+    max-width: 1120px !important;
+}
+
+@media (max-width: 1199.98px) {
+    .modal-nomina-detalle,
+    #modalDetalleNomina .modal-dialog {
+        width: calc(100vw - 56px) !important;
+        max-width: calc(100vw - 56px) !important;
+    }
+}
+
+@media (max-width: 991.98px) {
+    .modal-nomina-detalle,
+    #modalDetalleNomina .modal-dialog {
+        width: calc(100vw - 24px) !important;
+        max-width: calc(100vw - 24px) !important;
+        margin: .5rem auto !important;
+    }
+}
+
+#modalDetalleNomina .modal-content {
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 14px 30px rgba(15, 23, 42, .20);
+}
+
+#modalDetalleNomina .modal-body {
+    max-height: 68vh;
+    overflow-y: auto;
+    background: #f8fafc;
+    padding: 10px 12px 12px;
+}
+
+#modalDetalleNomina .table-responsive {
+    overflow-x: auto;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: #fff;
+}
+
+#dtNominaDetalle thead th {
+    white-space: nowrap;
+    background: #f1f5f9;
+    color: #334155;
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .35px;
+    border-bottom: 1px solid #dbe3ee;
+}
+
+#dtNominaDetalle td {
+    font-size: 12.5px;
+    vertical-align: middle;
+    color: #334155;
+}
+
+#dtNominaDetalle td.resumen-productos-col {
+    min-width: 180px;
+    max-width: 220px;
+    vertical-align: middle;
+}
+
+#modalProductosFactura .modal-dialog {
+    width: calc(100vw - 120px) !important;
+    max-width: 1100px !important;
+}
+
+#modalProductosFactura .modal-content {
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid #dbe3ee;
+    box-shadow: 0 18px 36px rgba(15, 23, 42, .22);
+}
+
+#modalProductosFactura .modal-header {
+    background: #0f172a;
+    color: #fff;
+    padding: 10px 14px;
+}
+
+#modalProductosFactura .modal-body {
+    background: #f8fafc;
+    padding: 12px;
+}
+
+#dtProductosFactura thead th {
+    white-space: nowrap;
+    background: #eef2f7;
+    color: #334155;
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+#dtProductosFactura td {
+    font-size: 12px;
+    color: #334155;
+    vertical-align: middle;
+}
+
+#dtNominaDetalle tbody tr:nth-child(even) td {
+    background: #fcfdff;
+}
+
+#dtNominaDetalle tbody tr:hover td {
+    background: #f8fafc !important;
+}
+
+#modalDetalleNomina .modal-header {
+    border-bottom: 1px solid rgba(255,255,255,.15);
+    padding: 10px 14px;
+}
+
+#modalDetalleNomina .modal-title {
+    font-size: 13px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#modalDetalleNomina .close {
+    opacity: .92;
+    text-shadow: none;
+}
+
+#modalDetalleNomina .close:hover {
+    opacity: 1;
+}
+
+.mdn-btn-excel {
+    background: #dcfce7;
+    color: #166534;
+    border: 1px solid #86efac;
+    font-weight: 700;
+    font-size: 11px;
+    border-radius: 8px;
+    padding: 5px 9px;
+}
+
+.mdn-btn-excel:hover {
+    background: #bbf7d0;
+    color: #14532d;
+}
+
+#modalDetalleNomina .dataTables_wrapper .dataTables_length,
+#modalDetalleNomina .dataTables_wrapper .dataTables_filter {
+    margin: 2px 0 8px;
+}
+
+#modalDetalleNomina .dataTables_wrapper .dataTables_length label,
+#modalDetalleNomina .dataTables_wrapper .dataTables_filter label {
+    font-size: 11px;
+    color: #64748b;
+    font-weight: 700;
+}
+
+#modalDetalleNomina .dataTables_wrapper .dataTables_length select,
+#modalDetalleNomina .dataTables_wrapper .dataTables_filter input {
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    height: 30px;
+    padding: 0 10px;
+    background: #fff;
+    color: #334155;
+}
+
+#modalDetalleNomina .dataTables_wrapper .dataTables_info {
+    font-size: 11px;
+    color: #64748b;
+    font-weight: 600;
+}
+
+#modalDetalleNomina .dataTables_wrapper .dataTables_paginate .paginate_button {
+    border-radius: 7px !important;
+    border: 1px solid #dbe3ee !important;
+    background: #fff !important;
+    color: #334155 !important;
+    margin: 0 2px;
+    min-width: 30px;
+    height: 30px;
+    line-height: 16px;
+    font-size: 12px;
+}
+
+#modalDetalleNomina .dataTables_wrapper .dataTables_paginate .paginate_button.current {
+    background: #0f766e !important;
+    color: #fff !important;
+    border-color: #0f766e !important;
+}
+
+#modalDetalleNomina .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+    background: #f8fafc !important;
+    color: #0f172a !important;
+}
+
+.mdn-subtitle {
+    color: #c7d2fe;
+    font-size: 10px;
+    font-weight: 600;
+    margin-top: 2px;
+}
 </style>
 @endpush
 
@@ -193,42 +420,6 @@ table.dataTable tbody td { font-size: 13px; vertical-align: middle; }
     </div>
     <div class="rrhh-badge-periodo" id="badgePeriodo">
         <i class="fa fa-calendar mr-1"></i><span id="textPeriodo"></span>
-    </div>
-</div>
-
-{{-- KPI CARDS --}}
-<div class="row mb-4">
-    <div class="col-md-3 mb-3">
-        <div class="kpi-card kpi-purple">
-            <div class="kpi-icon"><i class="fa fa-money-bill-wave"></i></div>
-            <div class="kpi-label">Total Comisiones</div>
-            <div class="kpi-value" id="kpiComision">—</div>
-            <div class="kpi-sub">Lempiras en el período</div>
-        </div>
-    </div>
-    <div class="col-md-3 mb-3">
-        <div class="kpi-card kpi-blue">
-            <div class="kpi-icon"><i class="fa fa-users"></i></div>
-            <div class="kpi-label">Empleados Activos</div>
-            <div class="kpi-value" id="kpiEmpleados">—</div>
-            <div class="kpi-sub">Con comisiones generadas</div>
-        </div>
-    </div>
-    <div class="col-md-3 mb-3">
-        <div class="kpi-card kpi-green">
-            <div class="kpi-icon"><i class="fa fa-file-invoice"></i></div>
-            <div class="kpi-label">Facturas Procesadas</div>
-            <div class="kpi-value" id="kpiFacturas">—</div>
-            <div class="kpi-sub">Facturas que generaron comisión</div>
-        </div>
-    </div>
-    <div class="col-md-3 mb-3">
-        <div class="kpi-card kpi-amber">
-            <div class="kpi-icon"><i class="fa fa-chart-line"></i></div>
-            <div class="kpi-label">Promedio / Empleado</div>
-            <div class="kpi-value" id="kpiPromedio">—</div>
-            <div class="kpi-sub">Comisión promedio del período</div>
-        </div>
     </div>
 </div>
 
@@ -274,41 +465,6 @@ table.dataTable tbody td { font-size: 13px; vertical-align: middle; }
                 <i class="fa fa-clipboard-list"></i> Nómina
             </a>
         </li>
-        <li class="nav-item">
-            <a class="nav-link" data-toggle="tab" href="#tab-detalle" role="tab">
-                <i class="fa fa-user-check"></i> Detalle Empleado
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" data-toggle="tab" href="#tab-ranking" role="tab">
-                <i class="fa fa-trophy"></i> Ranking
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" data-toggle="tab" href="#tab-rol" role="tab">
-                <i class="fa fa-users-cog"></i> Por Rol
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" data-toggle="tab" href="#tab-facturas" role="tab">
-                <i class="fa fa-file-invoice-dollar"></i> Por Factura
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" data-toggle="tab" href="#tab-productos" role="tab">
-                <i class="fa fa-boxes"></i> Por Producto
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" data-toggle="tab" href="#tab-comparativo" role="tab">
-                <i class="fa fa-chart-area"></i> Comparativo Mensual
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" data-toggle="tab" href="#tab-reversiones" role="tab">
-                <i class="fa fa-undo"></i> Reversiones
-            </a>
-        </li>
     </ul>
 
     <div class="tab-content rrhh-tab-content" id="rrhhTabContent">
@@ -331,7 +487,7 @@ table.dataTable tbody td { font-size: 13px; vertical-align: middle; }
             </div>
             <div id="nominaInfo" style="display:none;background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:10px;padding:12px 16px;font-size:13px;color:#166534;margin-bottom:14px;">
                 <i class="fa fa-info-circle mr-2"></i>
-                Consolidado por <strong>empleado / rol / mes</strong> — base para cálculo de nómina.
+                Consolidado por <strong>empleado / mes</strong> utilizando acreditaciones reales ya generadas.
                 Total del período: <strong id="nominaTotal">—</strong>
             </div>
             <div id="nominaEmptyState" class="empty-state">
@@ -344,16 +500,17 @@ table.dataTable tbody td { font-size: 13px; vertical-align: middle; }
                         <tr>
                             <th style="width:40px;">#</th>
                             <th>Empleado</th>
-                            <th>Rol</th>
+                            <th>Roles</th>
                             <th>Mes</th>
-                            <th class="text-center">Facturas Generadas</th>
+                            <th class="text-center">Facturas Comisionadas</th>
                             <th class="text-right">Comisión Total (L.)</th>
+                            <th class="text-center" style="width:110px;">Detalle</th>
                         </tr>
                     </thead>
                     <tbody></tbody>
                     <tfoot>
                         <tr style="font-weight:800;background:#f8fafc;">
-                            <td colspan="5" class="text-right" style="padding-right:12px;">TOTAL PERÍODO:</td>
+                            <td colspan="6" class="text-right" style="padding-right:12px;">TOTAL PERÍODO:</td>
                             <td class="text-right monto-com" id="nominaFooterTotal">—</td>
                         </tr>
                     </tfoot>
@@ -361,247 +518,91 @@ table.dataTable tbody td { font-size: 13px; vertical-align: middle; }
             </div>
         </div>
 
-        {{-- TAB 2: DETALLE EMPLEADO --}}
-        <div class="tab-pane fade" id="tab-detalle" role="tabpanel">
-            <div class="tab-toolbar">
-                <div class="tab-title">
-                    <i class="fa fa-user-check" style="color:#2563eb;"></i>
-                    Detalle de Comisiones por Empleado
+    </div>
+</div>
+
+{{-- MODAL DETALLE NÓMINA --}}
+<div class="modal fade" id="modalDetalleNomina" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-nomina-detalle" role="document">
+        <div class="modal-content">
+            <div class="modal-header" style="background:#1e1b4b;color:#fff;">
+                <div>
+                    <h5 class="modal-title" id="mdnTitulo">
+                        <i class="fa fa-list-alt"></i>Detalle de Comisiones
+                    </h5>
+                    <div class="mdn-subtitle">Trazabilidad de cálculo por factura comisionada</div>
                 </div>
-                <button class="btn-export" onclick="exportarExcel('empleado')">
-                    <i class="fa fa-file-excel"></i> Exportar Excel
-                </button>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <button type="button" class="btn btn-sm mdn-btn-excel" onclick="exportarDetalleNominaExcel()">
+                        <i class="fa fa-file-excel mr-1"></i>Exportar Excel
+                    </button>
+                    <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
+                </div>
             </div>
-            <div style="background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:12px 16px;font-size:13px;color:#1d4ed8;margin-bottom:14px;">
-                <i class="fa fa-info-circle mr-2"></i>
-                Seleccione un <strong>empleado específico</strong> en el filtro superior para ver el detalle producto por producto.
-            </div>
-            <div id="detalleEmptyState" class="empty-state">
-                <i class="fa fa-user-check"></i>
-                <p>Seleccione un empleado en el filtro superior y presione <strong>Generar Reporte</strong></p>
-            </div>
-            <div id="detalleTableWrap" style="display:none;">
-                <table id="dtDetalle" class="table table-hover table-sm w-100">
-                    <thead>
-                        <tr>
-                            <th>Fecha Cierre</th>
-                            <th>Factura</th>
-                            <th>Cliente</th>
-                            <th>Producto</th>
-                            <th class="text-center">Cantidad</th>
-                            <th class="text-right">Monto Comisión (L.)</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table id="dtNominaDetalle" class="table table-hover table-sm w-100">
+                        <thead>
+                            <tr>
+                                <th>Factura</th>
+                                <th>Cliente</th>
+                                <th>Fecha Cierre</th>
+                                <th>Rol Comisionado</th>
+                                <th class="text-right">Comisión Original</th>
+                                <th class="text-right">Retención Aplicada</th>
+                                <th class="text-right">Comisión Final</th>
+                                <th>Resumen por Producto / Escala</th>
+                                <th class="text-center">Estado</th>
+                                <th>Observaciones de Reversa</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
             </div>
         </div>
+    </div>
+</div>
 
-        {{-- TAB 3: RANKING --}}
-        <div class="tab-pane fade" id="tab-ranking" role="tabpanel">
-            <div class="tab-toolbar">
-                <div class="tab-title">
-                    <i class="fa fa-trophy" style="color:#d97706;"></i>
-                    Ranking de Empleados — Mejor Comisión
+<div class="modal fade" id="modalProductosFactura" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title mb-0" id="mpfTitulo">Detalle de Productos</h5>
+                    <div style="font-size:11px;opacity:.8;" id="mpfSubtitulo">Desglose real por factura comisionada</div>
                 </div>
-                <button class="btn-export" onclick="exportarExcel('ranking')">
-                    <i class="fa fa-file-excel"></i> Exportar Excel
-                </button>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <button type="button" class="btn btn-sm mdn-btn-excel" onclick="exportarProductosFacturaExcel()">
+                        <i class="fa fa-file-excel mr-1"></i>Exportar Excel
+                    </button>
+                    <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
+                </div>
             </div>
-            <div id="rankingEmptyState" class="empty-state">
-                <i class="fa fa-trophy"></i>
-                <p>Seleccione un período y presione <strong>Generar Reporte</strong></p>
-            </div>
-            <div id="rankingTableWrap" style="display:none;">
-                <table id="dtRanking" class="table table-hover table-sm w-100">
-                    <thead>
-                        <tr>
-                            <th style="width:50px;text-align:center;">Pos.</th>
-                            <th>Empleado</th>
-                            <th>Rol</th>
-                            <th class="text-center">Meses Activos</th>
-                            <th class="text-right">Mejor Mes (L.)</th>
-                            <th class="text-right">Promedio / Mes (L.)</th>
-                            <th class="text-right">Total Comisión (L.)</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table id="dtProductosFactura" class="table table-sm table-hover w-100 mb-0">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th>Categoría Cliente Escala</th>
+                                <th>Categoría Precio Vendida</th>
+                                <th class="text-right">%</th>
+                                <th class="text-right">Cantidad</th>
+                                <th class="text-right">Precio Venta</th>
+                                <th class="text-right">Comisión</th>
+                            </tr>
+                        </thead>
+                        <tbody id="mpfBody"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
-
-        {{-- TAB 4: POR ROL --}}
-        <div class="tab-pane fade" id="tab-rol" role="tabpanel">
-            <div class="tab-toolbar">
-                <div class="tab-title">
-                    <i class="fa fa-users-cog" style="color:#7c3aed;"></i>
-                    Comisiones por Rol
-                </div>
-                <button class="btn-export" onclick="exportarExcel('rol')">
-                    <i class="fa fa-file-excel"></i> Exportar Excel
-                </button>
-            </div>
-            <div id="rolEmptyState" class="empty-state">
-                <i class="fa fa-users-cog"></i>
-                <p>Seleccione un período y presione <strong>Generar Reporte</strong></p>
-            </div>
-            <div id="rolTableWrap" style="display:none;">
-                <table id="dtRol" class="table table-hover table-sm w-100">
-                    <thead>
-                        <tr>
-                            <th>Rol</th>
-                            <th>Empleado</th>
-                            <th class="text-right">Total Comisiones (L.)</th>
-                            <th class="text-center">Facturas</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-            </div>
-        </div>
-
-        {{-- TAB 5: POR FACTURA --}}
-        <div class="tab-pane fade" id="tab-facturas" role="tabpanel">
-            <div class="tab-toolbar">
-                <div class="tab-title">
-                    <i class="fa fa-file-invoice-dollar" style="color:#059669;"></i>
-                    Auditoría — Comisiones por Factura
-                </div>
-                <button class="btn-export" onclick="exportarExcel('facturas')">
-                    <i class="fa fa-file-excel"></i> Exportar Excel
-                </button>
-            </div>
-            <div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:10px;padding:12px 16px;font-size:13px;color:#166534;margin-bottom:14px;">
-                <i class="fa fa-shield-alt mr-2"></i>
-                Trazabilidad completa: cada factura cerrada con su empleado, monto de venta y comisión generada.
-            </div>
-            <div id="facturasEmptyState" class="empty-state">
-                <i class="fa fa-file-invoice-dollar"></i>
-                <p>Seleccione un período y presione <strong>Generar Reporte</strong></p>
-            </div>
-            <div id="facturasTableWrap" style="display:none;">
-                <table id="dtFacturas" class="table table-hover table-sm w-100">
-                    <thead>
-                        <tr>
-                            <th>Factura / CAI</th>
-                            <th>Cliente</th>
-                            <th>Empleado</th>
-                            <th class="text-right">Total Venta (L.)</th>
-                            <th class="text-right">Comisión (L.)</th>
-                            <th class="text-center">% Efectivo</th>
-                            <th class="text-center">Fecha Cierre</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-            </div>
-        </div>
-
-        {{-- TAB 6: POR PRODUCTO --}}
-        <div class="tab-pane fade" id="tab-productos" role="tabpanel">
-            <div class="tab-toolbar">
-                <div class="tab-title">
-                    <i class="fa fa-boxes" style="color:#7c3aed;"></i>
-                    Comisiones por Producto
-                </div>
-                <button class="btn-export" onclick="exportarExcel('productos')">
-                    <i class="fa fa-file-excel"></i> Exportar Excel
-                </button>
-            </div>
-            <div id="productosEmptyState" class="empty-state">
-                <i class="fa fa-boxes"></i>
-                <p>Seleccione un período y presione <strong>Generar Reporte</strong></p>
-            </div>
-            <div id="productosTableWrap" style="display:none;">
-                <table id="dtProductos" class="table table-hover table-sm w-100">
-                    <thead>
-                        <tr>
-                            <th>Producto</th>
-                            <th>Código</th>
-                            <th class="text-center">Unidades Vendidas</th>
-                            <th class="text-right">Total Comisión (L.)</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-            </div>
-        </div>
-
-        {{-- TAB 7: COMPARATIVO MENSUAL --}}
-        <div class="tab-pane fade" id="tab-comparativo" role="tabpanel">
-            <div class="tab-toolbar">
-                <div class="tab-title">
-                    <i class="fa fa-chart-area" style="color:#2563eb;"></i>
-                    Comparativo Mensual de Comisiones
-                </div>
-                <button class="btn-export" onclick="exportarExcel('comparativo')">
-                    <i class="fa fa-file-excel"></i> Exportar Excel
-                </button>
-            </div>
-            <div id="comparativoEmptyState" class="empty-state">
-                <i class="fa fa-chart-area"></i>
-                <p>Seleccione un rango de meses y presione <strong>Generar Reporte</strong></p>
-            </div>
-            <div id="comparativoTableWrap" style="display:none;">
-                <table id="dtComparativo" class="table table-hover table-sm w-100">
-                    <thead>
-                        <tr>
-                            <th>Mes</th>
-                            <th class="text-center">Empleados Activos</th>
-                            <th class="text-center">Roles</th>
-                            <th class="text-right">Mayor Comisión Individual (L.)</th>
-                            <th class="text-right">Menor Comisión Individual (L.)</th>
-                            <th class="text-right">Total Comisiones (L.)</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-            </div>
-        </div>
-
-        {{-- TAB 8: COMISIONES REVERSADAS --}}
-        <div class="tab-pane fade" id="tab-reversiones" role="tabpanel">
-            <div class="tab-toolbar">
-                <div class="tab-title">
-                    <i class="fa fa-undo" style="color:#dc2626;"></i>
-                    Auditoría de Comisiones Reversadas
-                </div>
-                <button class="btn-export" onclick="exportarExcel('reversiones')">
-                    <i class="fa fa-file-excel"></i> Exportar Excel
-                </button>
-            </div>
-            <div style="background:#fef2f2;border:1.5px solid #fecaca;border-radius:10px;padding:12px 16px;font-size:13px;color:#991b1b;margin-bottom:14px;">
-                <i class="fa fa-info-circle mr-2"></i>
-                Registro histórico de anulaciones de pago que impactaron comisiones: quién anuló, factura afectada, motivo y total revertido.
-            </div>
-            <div id="reversionesEmptyState" class="empty-state">
-                <i class="fa fa-undo"></i>
-                <p>Seleccione un período y presione <strong>Generar Reporte</strong></p>
-            </div>
-            <div id="reversionesTableWrap" style="display:none;">
-                <table id="dtReversiones" class="table table-hover table-sm w-100">
-                    <thead>
-                        <tr>
-                            <th>Fecha</th>
-                            <th>Factura / CAI</th>
-                            <th>Cliente</th>
-                            <th>Anulado por</th>
-                            <th class="text-right">Abono Anulado (L.)</th>
-                            <th class="text-right">Total Revertido (L.)</th>
-                            <th class="text-center">Comisiones Afectadas</th>
-                            <th class="text-center">Factura Reabierta</th>
-                            <th>Motivo</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-            </div>
-        </div>
-
     </div>
 </div>
 </div>{{-- /Livewire root --}}
 
 @push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="{{ asset('js/js_proyecto/comisiones/Escalado/reportesComisionesGenerales.js') }}"></script>
 @endpush

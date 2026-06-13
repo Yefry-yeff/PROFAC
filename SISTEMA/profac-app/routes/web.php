@@ -281,6 +281,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     // Rutas nuevas: estadísticas, nómina, ranking y comparativo
     Route::get('/comision/reporte/stats',       [ReportesComisionesGenerales::class, 'stats']);
     Route::get('/comision/reporte/nomina',      [ReportesComisionesGenerales::class, 'reporteNomina']);
+    Route::get('/comision/reporte/nomina/detalle', [ReportesComisionesGenerales::class, 'detalleNomina']);
     Route::get('/comision/reporte/ranking',     [ReportesComisionesGenerales::class, 'reporteRanking']);
     Route::get('/comision/reporte/comparativo', [ReportesComisionesGenerales::class, 'reporteComparativo']);
 
