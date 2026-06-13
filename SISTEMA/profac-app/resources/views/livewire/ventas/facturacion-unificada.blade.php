@@ -2322,13 +2322,10 @@
 
                 // Pre-llenar campos adicionales de la oferta duplicada
                 if (_ofertaDuplicada) {
-                    // Fecha vencimiento: solo sobreescribir si el tipo de pago es crédito (id=2)
-                    // Para crédito, la fecha calculada por sumarDiasCredito() se reemplaza
-                    // con la fecha original de la oferta.
-                    if (_ofertaDuplicada.fecha_vencimiento && selPago.value == 2) {
-                        let fv = document.getElementById('fecha_vencimiento');
-                        fv.readOnly = false;
-                        fv.value = _ofertaDuplicada.fecha_vencimiento;
+                    // Mantener el vencimiento calculado desde el cliente seleccionado.
+                    // El plazo del documento original no debe imponerse sobre el crédito actual.
+                    if (selPago.value == 2) {
+                        sumarDiasCredito();
                     }
                     // Descuento
                     if (_ofertaDuplicada.porc_descuento) {

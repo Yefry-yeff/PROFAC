@@ -915,22 +915,39 @@ class PrefacturaController
         }
 
         // ── Calcular fecha_vencimiento ────────────────────────────────────
-        // fecha_vencimiento = fecha_actual_al_facturar + días_de_crédito_aprobados
+        // Para ventas a crédito, si existe fecha de vencimiento aprobada en
+        // revisión de crédito, se respeta exactamente esa fecha.
+        // Si no existe, se calcula desde la fecha de emisión de la factura.
         //
-        // Fuente de días (en orden de prioridad):
-        //   1. credito_revision.dias_credito_aprobados  (aprobado formalmente por el revisor)
-        //   2. cliente.dias_credito                     (configuración global del cliente)
-        //   3. Diferencia de fechas en la cotización ganadora (ruta sin revisión formal)
+        // Fuente de días (en orden de prioridad para cálculo por días):
+        //   1. credito_revision.dias_credito_aprobados
+        //   2. Diferencia entre fecha_aprobacion y fecha_vencimiento_credito
+        //   3. Diferencia de fechas en la cotización ganadora
+        //   4. cliente.dias_credito
         $fechaEmision = now()->toDateString();
         if ($tipoPago === 2) {
+            $fechaVencimientoAprobado = ($creditoAprobadoReg && !empty($creditoAprobadoReg->fecha_vencimiento_credito))
+                ? \Carbon\Carbon::parse($creditoAprobadoReg->fecha_vencimiento_credito)->toDateString()
+                : null;
+
+            if ($fechaVencimientoAprobado) {
+                $fechaVencimiento = $fechaVencimientoAprobado;
+                $diasCredito = max(0, (int) \Carbon\Carbon::parse($fechaEmision)
+                    ->diffInDays(\Carbon\Carbon::parse($fechaVencimiento), false));
+            } else {
             // 1. Días aprobados explícitamente en la revisión de crédito
             if ($creditoAprobadoReg && !is_null($creditoAprobadoReg->dias_credito_aprobados)) {
                 $diasCredito = (int) $creditoAprobadoReg->dias_credito_aprobados;
             } else {
-                // 2. Configuración global del cliente
-                $diasCredito = $pf->cliente_id
-                    ? (int) (DB::table('cliente')->where('id', $pf->cliente_id)->value('dias_credito') ?? 0)
-                    : 0;
+                // 2. Diferencia de fechas aprobadas en revisión (si existe)
+                $diasCredito = 0;
+                if ($creditoAprobadoReg
+                    && !empty($creditoAprobadoReg->fecha_aprobacion)
+                    && !empty($creditoAprobadoReg->fecha_vencimiento_credito)) {
+                    $diasCredito = max(0, (int) \Carbon\Carbon::parse($creditoAprobadoReg->fecha_aprobacion)
+                        ->diffInDays(\Carbon\Carbon::parse($creditoAprobadoReg->fecha_vencimiento_credito), false));
+                }
+
                 // 3. Diferencia de fechas de la cotización ganadora
                 if ($diasCredito === 0) {
                     if ($diasCotizacionGanadora > 0) {
@@ -945,11 +962,20 @@ class PrefacturaController
                         }
                     }
                 }
+
+                // 4. Configuración global del cliente (último fallback)
+                if ($diasCredito === 0) {
+                    $diasCredito = $pf->cliente_id
+                        ? (int) (DB::table('cliente')->where('id', $pf->cliente_id)->value('dias_credito') ?? 0)
+                        : 0;
+                }
+            }
+                $fechaVencimiento = \Carbon\Carbon::parse($fechaEmision)->addDays($diasCredito)->toDateString();
             }
         } else {
             $diasCredito = 0;
+            $fechaVencimiento = $fechaEmision;
         }
-        $fechaVencimiento = \Carbon\Carbon::parse($fechaEmision)->addDays($diasCredito)->toDateString();
 
         // ── Obtener productos de la prefactura ────────────────────────────
         $productos = DB::table('prefactura_has_producto')
@@ -1077,6 +1103,67 @@ class PrefacturaController
 
         $facturaId = (int) ($payload['idFactura'] ?? 0);
 
+        // Alinear días y vencimiento con lo calculado para el flujo, porque
+        // guardarVenta usa cliente.dias_credito por defecto en el campo dias_credito.
+        if ($facturaId > 0) {
+            DB::table('factura')
+                ->where('id', $facturaId)
+                ->update([
+                    'dias_credito'      => $diasCredito,
+                    'fecha_vencimiento' => $fechaVencimiento,
+                    'updated_at'        => now(),
+                ]);
+        }
+
+        // Asegurar registro en aplicacion_pagos para que estado de cuenta e
+        // historial de crédito reflejen la factura generada por flujo directo.
+        $aplicacionPagoId = DB::table('aplicacion_pagos')
+            ->where('factura_id', $facturaId)
+            ->orderByDesc('id')
+            ->value('id');
+
+        if (!$aplicacionPagoId && $facturaId > 0) {
+            try {
+                DB::statement('SET @estado = NULL, @msjResultado = NULL');
+                DB::statement(
+                    "CALL sp_aplicacion_pagos('2', ?, ?, ?, 'na', '0', '0', '0', @estado, @msjResultado)",
+                    [
+                        (int) $pf->cliente_id,
+                        (int) (Auth::id() ?? 1),
+                        (int) $facturaId,
+                    ]
+                );
+            } catch (\Throwable $spEx) {
+                // Fallback mínimo para no dejar la factura fuera del estado de cuenta.
+                DB::table('aplicacion_pagos')->updateOrInsert(
+                    ['factura_id' => (int) $facturaId],
+                    [
+                        'cliente_id'          => (int) $pf->cliente_id,
+                        'total_factura_cargo' => (float) ($pf->total ?? 0),
+                        'retencion_isv_factura' => 0,
+                        'estado_retencion_isv'  => 0,
+                        'retencion_aplicada'    => 0,
+                        'total_notas_credito'   => 0,
+                        'total_nodas_debito'    => 0,
+                        'credito_abonos'        => 0,
+                        'movimiento_suma'       => 0,
+                        'movimiento_resta'      => 0,
+                        'saldo'                 => (float) ($pf->total ?? 0),
+                        'ultimo_usr_actualizo'  => (int) (Auth::id() ?? 0),
+                        'estado'                => 1,
+                        'estado_cerrado'        => 0,
+                        'updated_at'            => now(),
+                        'created_at'            => now(),
+                    ]
+                );
+            }
+
+            $aplicacionPagoId = DB::table('aplicacion_pagos')
+                ->where('factura_id', $facturaId)
+                ->orderByDesc('id')
+                ->value('id');
+        }
+
         // ── Actualizar prefactura a 'convertida' ──────────────────────────
         DB::table('prefactura')
             ->where('id', $id)
@@ -1145,7 +1232,7 @@ class PrefacturaController
             }
 
             // Cobro pendiente
-            $aplicacionPagoId = DB::table('aplicacion_pagos')
+            $aplicacionPagoId = $aplicacionPagoId ?: DB::table('aplicacion_pagos')
                 ->where('factura_id', $facturaId)->orderByDesc('id')->value('id');
             $cobroPendiente = DB::table('historico_flujo')
                 ->where('flujo_id', $flujoId)->where('tipo_tramite_id', $TIPO_COBRO)

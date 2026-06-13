@@ -513,6 +513,11 @@ class RevisionCreditos extends Component
         $this->puedeAutorizar = empty($bloqueos);
     }
 
+    // DEPRECATED: Esta función ya no debe usarse.
+    // Los ajustes de crédito de un flujo se persisten SOLO en credito_revision,
+    // sin modificar la tabla global cliente.
+    // Mantenida solo como referencia histórica.
+    /*
     private function aplicarAjustesCreditoCliente(): void
     {
         if (!$this->clienteId) {
@@ -566,6 +571,7 @@ class RevisionCreditos extends Component
         $this->diasCreditoActual  = $diasNuevo;
         $this->evaluarReglasAutorizacion();
     }
+    */
 
     // ─────────────────────────────────────────────────────────────────────
     // ACCIONES
@@ -633,24 +639,16 @@ class RevisionCreditos extends Component
         try {
             $ip = request()->ip();
 
-            // Si se ajustó crédito/días desde esta pantalla, persistir antes de aprobar
-            if (
-                abs((float) $this->montoCreditoEditable - (float) $this->montoCreditoActual) > 0.0001
-                || (int) $this->diasCreditoEditable !== (int) $this->diasCreditoActual
-            ) {
-                $this->aplicarAjustesCreditoCliente();
-                $this->evaluarReglasAutorizacion();
-                if (!$this->puedeAutorizar) {
-                    throw new \RuntimeException($this->bloqueosAutorizacion[0] ?? 'No se pudo validar el crédito actualizado.');
-                }
-            }
+            // Los datos de crédito editados en esta pantalla (monto, días) se persisten SOLO
+            // en la tabla credito_revision de este flujo, sin modificar la configuración
+            // global del cliente en la tabla cliente.
 
             $cr             = CreditoRevision::where('flujo_id', $this->flujoId)->latest('id')->first();
             $estadoAnterior = $cr ? $cr->estado : null;
 
-            // Días de crédito aprobados: usar el valor editable actual (puede ser
-            // el original del cliente o el ajustado por el revisor).
-            // Para ventas de contado (diasSolicitados = 0) siempre es 0.
+            // Días de crédito aprobados por operación:
+            // usan el valor editado en esta pantalla (puede diferir de cliente.dias_credito).
+            // Para contado siempre es 0.
             $diasAprobados = ($this->tipoPagoSolicitud === 'contado')
                 ? 0
                 : max(0, (int) $this->diasCreditoEditable);
