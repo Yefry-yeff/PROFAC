@@ -505,8 +505,8 @@ class RevisionCreditos extends Component
             $bloqueos[] = 'El monto de la factura excede el crédito disponible del cliente.';
         }
 
-        if ($this->diasSolicitadosCredito > $this->diasCreditoEditable) {
-            $bloqueos[] = 'Los días solicitados exceden los días de crédito permitidos para el cliente.';
+        if ($this->diasCreditoEditable > $this->diasSolicitadosCredito) {
+            $bloqueos[] = 'Los días aprobados no pueden ser mayores que los días solicitados en el flujo.';
         }
 
         $this->bloqueosAutorizacion = $bloqueos;
@@ -624,9 +624,6 @@ class RevisionCreditos extends Component
         if (!$this->flujoId) return;
 
         $dtAprobacion = now();
-        $dtVencimiento = $this->fechaVencimientoOferta
-            ? Carbon::createFromFormat('Y-m-d', $this->fechaVencimientoOferta)
-            : null;
 
         // Reglas obligatorias de autorización de crédito
         $this->evaluarReglasAutorizacion();
@@ -647,17 +644,26 @@ class RevisionCreditos extends Component
             $estadoAnterior = $cr ? $cr->estado : null;
 
             // Días de crédito aprobados por operación:
-            // usan el valor editado en esta pantalla (puede diferir de cliente.dias_credito).
+            // usan el valor editado en esta pantalla (puede ser menor o igual al solicitado).
             // Para contado siempre es 0.
             $diasAprobados = ($this->tipoPagoSolicitud === 'contado')
                 ? 0
                 : max(0, (int) $this->diasCreditoEditable);
+
+            $dtVencimiento = null;
+            if ($this->tipoPagoSolicitud !== 'contado' && $this->fechaEmisionOferta) {
+                $dtVencimiento = Carbon::createFromFormat('Y-m-d', $this->fechaEmisionOferta)
+                    ->addDays($diasAprobados);
+            }
 
             if ($cr) {
                 $cr->update([
                     'estado'                    => CreditoRevision::APROBADO,
                     'cotizacion_id'             => $this->cotizacionId,
                     'fecha_aprobacion'          => $dtAprobacion->toDateString(),
+                    'fecha_emision_solicitada'  => $this->fechaEmisionOferta,
+                    'fecha_vencimiento_solicitada' => $this->fechaVencimientoOferta,
+                    'dias_credito_solicitados'  => max(0, (int) $this->diasSolicitadosCredito),
                     'fecha_vencimiento_credito' => $dtVencimiento ? $dtVencimiento->toDateString() : null,
                     'dias_credito_aprobados'    => $diasAprobados,
                     'motivo_rechazo'            => null,
@@ -671,6 +677,9 @@ class RevisionCreditos extends Component
                     'cotizacion_id'             => $this->cotizacionId,
                     'estado'                    => CreditoRevision::APROBADO,
                     'fecha_aprobacion'          => $dtAprobacion->toDateString(),
+                    'fecha_emision_solicitada'  => $this->fechaEmisionOferta,
+                    'fecha_vencimiento_solicitada' => $this->fechaVencimientoOferta,
+                    'dias_credito_solicitados'  => max(0, (int) $this->diasSolicitadosCredito),
                     'fecha_vencimiento_credito' => $dtVencimiento ? $dtVencimiento->toDateString() : null,
                     'dias_credito_aprobados'    => $diasAprobados,
                     'observaciones'             => trim($this->observaciones) ?: null,
@@ -686,7 +695,7 @@ class RevisionCreditos extends Component
                 'Crédito aprobado. Fecha: ' . $dtAprobacion->format('d/m/Y')
                 . ($dtVencimiento ? '. Vence: ' . $dtVencimiento->format('d/m/Y') : '')
                 . '. Oferta: L ' . number_format((float) $this->montoTotalOferta, 2)
-                . '. Días solicitados: ' . (int) $this->diasSolicitadosCredito,
+                . '. Días aprobados: ' . (int) $diasAprobados,
                 $ip
             );
 

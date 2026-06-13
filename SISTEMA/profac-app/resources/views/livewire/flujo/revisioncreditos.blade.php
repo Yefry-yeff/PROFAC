@@ -262,7 +262,7 @@
                                          <input type="text"
                                              wire:model.lazy="montoCreditoEditableTexto"
                                                class="form-control" style="border-radius:8px; font-size:13px;">
-                                        <small class="text-muted">Editable y se actualiza en cliente</small>
+                                                                                <small class="text-muted">Editable solo para este flujo</small>
                                     </div>
                                     <div class="col-md-4 mb-3">
                                         <label style="font-size:12px; font-weight:700; color:#2e7d32;">Monto disponible</label>
@@ -276,7 +276,7 @@
                                         <input type="number" min="0"
                                                wire:model.debounce.300ms="diasCreditoEditable"
                                                class="form-control" style="border-radius:8px; font-size:13px;">
-                                        <small class="text-muted">Editable y se actualiza en cliente</small>
+                                             <small class="text-muted">Editable solo para este flujo</small>
                                     </div>
                                 </div>
 

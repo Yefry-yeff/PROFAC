@@ -52,6 +52,12 @@ class CreateCreditoRevisionTables extends Migration
 
                 $table->date('fecha_aprobacion')->nullable()
                       ->comment('Fecha en que el crédito fue autorizado');
+                    $table->date('fecha_emision_solicitada')->nullable()
+                        ->comment('Fecha de emisión solicitada por el flujo');
+                    $table->date('fecha_vencimiento_solicitada')->nullable()
+                        ->comment('Fecha de vencimiento solicitada por el flujo');
+                    $table->unsignedInteger('dias_credito_solicitados')->nullable()
+                        ->comment('Días de crédito solicitados por el flujo');
                 $table->date('fecha_vencimiento_credito')->nullable()
                       ->comment('Fecha hasta la que es válida la autorización');
 
