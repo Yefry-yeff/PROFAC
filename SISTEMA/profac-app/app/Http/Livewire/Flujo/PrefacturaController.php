@@ -235,6 +235,8 @@ class PrefacturaController
                 pr.id as codigo,
                 pr.nombre,
                 pr.descripcion,
+                COALESCE(b.nombre, '') as bodega,
+                COALESCE(sec.numeracion, '') as seccion,
                 IF(php.isv_producto = 0, 'SI', 'NO') as excento,
                 FORMAT(php.precio_unidad, 2) as precio,
                 FORMAT(php.cantidad, 2) as cantidad,
@@ -242,6 +244,9 @@ class PrefacturaController
                 COALESCE(um.nombre, '') as medida
             FROM prefactura_has_producto php
             INNER JOIN producto pr ON pr.id = php.producto_id
+            LEFT JOIN seccion sec ON sec.id = php.seccion_id
+            LEFT JOIN segmento seg ON seg.id = sec.segmento_id
+            LEFT JOIN bodega b ON b.id = seg.bodega_id
             LEFT JOIN unidad_medida_venta umv ON umv.id = php.unidad_medida_venta_id
             LEFT JOIN unidad_medida um ON um.id = umv.unidad_medida_id
             WHERE php.prefactura_id = ?

@@ -78,6 +78,8 @@ class ModalFlujoPedido extends Component
     public bool $prefacturaVencida       = false;
     public bool $prefacturaPuedeFacturar = true;
     public array $prefacturaStockFaltante = [];
+    public bool $prefacturaReservaCompleta = true;
+    public array $prefacturaReservaFaltante = [];
     public $mostrarAutorizacionPrefactura = false;
     public $accionAutorizacionPrefactura  = null;
     public $codigoAutorizacion            = '';
@@ -253,6 +255,9 @@ class ModalFlujoPedido extends Component
      */
     public function abrirDesdeFlujo(int $flujoId): void
     {
+        $this->prefacturaReservaCompleta = true;
+        $this->prefacturaReservaFaltante = [];
+
         $flujo = DB::table('flujo')->where('id', $flujoId)->first();
         if (!$flujo) return;
 
@@ -660,7 +665,6 @@ class ModalFlujoPedido extends Component
      */
     private function cargarPreciosDuplicarPedido(): void
     {
-        if (!$this->flujoId || !$this->pedidoData) return;
 
         $clienteId        = (int) $this->pedidoData['cliente_id'];
         $nuevaCategoriaId = DB::table('cliente')
@@ -820,8 +824,6 @@ class ModalFlujoPedido extends Component
                 ->where('c.id', $cotizacionId)
                 ->select(
                     'c.id', 'c.nombre_cliente', 'c.RTN', 'c.total', 'c.isv',
-                    'c.sub_total', 'c.porc_descuento', 'c.monto_descuento',
-                    'c.fecha_emision', 'c.fecha_vencimiento', 'c.created_at', 'c.cliente_id',
                     'c.estado_id as cotizacion_estado_id',
                     'hf.observaciones as hf_observaciones'
                 )
@@ -1781,6 +1783,8 @@ class ModalFlujoPedido extends Component
             $this->prefacturaVencida = false;
             $this->prefacturaPuedeFacturar = true;
             $this->prefacturaStockFaltante = [];
+            $this->prefacturaReservaCompleta = true;
+            $this->prefacturaReservaFaltante = [];
             return;
         }
         $pref = DB::table('prefactura')
@@ -1794,6 +1798,8 @@ class ModalFlujoPedido extends Component
             $this->prefacturaVencida = false;
             $this->prefacturaPuedeFacturar = true;
             $this->prefacturaStockFaltante = [];
+            $this->prefacturaReservaCompleta = true;
+            $this->prefacturaReservaFaltante = [];
             return;
         }
 
@@ -1809,14 +1815,23 @@ class ModalFlujoPedido extends Component
 
         $this->prefacturaData = array_merge((array) $pref, ['productos' => $productos]);
 
+        // Regla todo-o-nada de reserva: si no cubre cantidades completas, no debe apartar.
+        $this->prefacturaReservaFaltante = $this->obtenerFaltantesInventarioPrefactura((int) $pref->id, true);
+        $this->prefacturaReservaCompleta = empty($this->prefacturaReservaFaltante);
+
         if ($this->prefacturaVencida) {
             // Al vencer, la reserva de esta prefactura se considera liberada.
             // Para facturar se requiere revalidar stock disponible actual.
             $this->prefacturaStockFaltante = $this->obtenerFaltantesInventarioPrefactura((int) $pref->id, true);
             $this->prefacturaPuedeFacturar = empty($this->prefacturaStockFaltante);
         } else {
-            $this->prefacturaStockFaltante = [];
-            $this->prefacturaPuedeFacturar = true;
+            if ($this->prefacturaReservaCompleta) {
+                $this->prefacturaStockFaltante = [];
+                $this->prefacturaPuedeFacturar = true;
+            } else {
+                $this->prefacturaStockFaltante = $this->prefacturaReservaFaltante;
+                $this->prefacturaPuedeFacturar = false;
+            }
         }
     }
 

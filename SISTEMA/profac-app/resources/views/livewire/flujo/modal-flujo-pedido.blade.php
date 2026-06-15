@@ -1786,9 +1786,15 @@
                                 <i class="mr-1 fa fa-file-text"></i> Facturada
                             </span>
                             @else
-                            <span style="background:#e8f5e9; color:#1b5e20; border-radius:8px; padding:1px 8px; font-size:10px; font-weight:700;">
-                                <i class="mr-1 fa fa-check-circle"></i> Activa
-                            </span>
+                                @if ($prefacturaReservaCompleta)
+                                <span style="background:#e8f5e9; color:#1b5e20; border-radius:8px; padding:1px 8px; font-size:10px; font-weight:700;">
+                                    <i class="mr-1 fa fa-check-circle"></i> Activa
+                                </span>
+                                @else
+                                <span style="background:#fff3e0; color:#e65100; border-radius:8px; padding:1px 8px; font-size:10px; font-weight:700;">
+                                    <i class="mr-1 fa fa-exclamation-triangle"></i> Activa sin reserva
+                                </span>
+                                @endif
                             @endif
                         </div>
                     </div>
@@ -1893,6 +1899,25 @@
                             @foreach ($prefacturaStockFaltante as $faltante)
                             <li>
                                 {{ $faltante['producto'] }}: solicitado {{ $faltante['solicitado'] }}, disponible {{ $faltante['disponible'] }}
+                            </li>
+                            @endforeach
+                        </ul>
+                        @endif
+                    </div>
+                    @endif
+
+                    @if (!$prefacturaReservaCompleta)
+                    <div style="margin-top:10px; background:#fff3e0; border:1px solid #ffcc80;
+                                border-radius:10px; padding:10px 12px; font-size:12px; color:#7b4f00;">
+                        <div style="font-weight:700; color:#e65100; margin-bottom:5px;">
+                            <i class="mr-1 fa fa-lock"></i>
+                            Esta prefactura no aparta producto porque no cuenta con la cantidad total requerida.
+                        </div>
+                        @if (!empty($prefacturaReservaFaltante))
+                        <ul style="margin:0; padding-left:18px;">
+                            @foreach ($prefacturaReservaFaltante as $faltante)
+                            <li>
+                                {{ $faltante['producto'] }}: requerido {{ $faltante['solicitado'] }}, disponible {{ $faltante['disponible'] }}.
                             </li>
                             @endforeach
                         </ul>
