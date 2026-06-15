@@ -139,31 +139,41 @@ class RevisionCreditos extends Component
             ->where('tipo_tramite_id', 10)
             ->groupBy('flujo_id');
 
+        // Última oferta registrada en historial (fallback cuando no viene en hf.tramite_id)
+        $latestOfertaSub = DB::table('historico_flujo')
+            ->select('flujo_id', DB::raw('MAX(id) as max_id'))
+            ->where('tipo_tramite_id', 2)
+            ->groupBy('flujo_id');
+
+        // Último estado en credito_revision por flujo (evita duplicados por join múltiple)
+        $latestCreditoSub = DB::table('credito_revision')
+            ->select('flujo_id', DB::raw('MAX(id) as max_id'))
+            ->groupBy('flujo_id');
+
         $q = DB::table('flujo as f')
             ->joinSub($latestRevSub, 'lrev', fn($j) => $j->on('lrev.flujo_id', '=', 'f.id'))
             ->join('historico_flujo as hf', 'hf.id', '=', 'lrev.max_id')
-            ->leftJoin('historico_flujo as hfof', function ($j) {
-                $j->on('hfof.flujo_id', '=', 'f.id')
-                  ->where('hfof.tipo_tramite_id', 2)
-                  ->where('hfof.observaciones', 'ganadora');
-            })
-            ->leftJoin('cotizacion as c', 'c.id', '=', 'hfof.tramite_id')
+            ->leftJoinSub($latestOfertaSub, 'lof', fn($j) => $j->on('lof.flujo_id', '=', 'f.id'))
+            ->leftJoin('historico_flujo as hfof', 'hfof.id', '=', 'lof.max_id')
+            ->leftJoin('cotizacion as c', 'c.id', '=', 'hf.tramite_id')
+            ->leftJoin('cotizacion as co', 'co.id', '=', 'hfof.tramite_id')
             ->leftJoin('pedido as p', DB::raw('CAST(f.identificacion AS UNSIGNED)'), '=', 'p.id')
-            ->leftJoin('credito_revision as cr', 'cr.flujo_id', '=', 'f.id')
+            ->leftJoinSub($latestCreditoSub, 'lcr', fn($j) => $j->on('lcr.flujo_id', '=', 'f.id'))
+            ->leftJoin('credito_revision as cr', 'cr.id', '=', 'lcr.max_id')
             ->leftJoin('users as ur', 'ur.id', '=', 'cr.usuario_revision')
             ->select(
                 'f.id as flujo_id',
                 'f.identificacion',
                 'hf.created_at as fecha_revision',
                 'hf.updated_at as fecha_accion',
-                'hfof.tramite_id as cotizacion_id',
-                'c.cliente_id',
-                'c.fecha_emision as fecha_emision_oferta',
-                'c.fecha_vencimiento as fecha_vencimiento_oferta',
-                'c.total as monto_total_oferta',
-                DB::raw('GREATEST(DATEDIFF(c.fecha_vencimiento, c.fecha_emision), 0) as dias_solicitados_credito'),
-                DB::raw("COALESCE(c.nombre_cliente, p.observaciones, CONCAT('Flujo #', f.id)) as cliente"),
-                DB::raw("COALESCE(c.RTN, '') as rtn"),
+                DB::raw('COALESCE(hf.tramite_id, hfof.tramite_id, cr.cotizacion_id) as cotizacion_id'),
+                DB::raw('COALESCE(c.cliente_id, co.cliente_id) as cliente_id'),
+                DB::raw('COALESCE(c.fecha_emision, co.fecha_emision, cr.fecha_emision_solicitada) as fecha_emision_oferta'),
+                DB::raw('COALESCE(c.fecha_vencimiento, co.fecha_vencimiento, cr.fecha_vencimiento_solicitada) as fecha_vencimiento_oferta'),
+                DB::raw('COALESCE(c.total, co.total, 0) as monto_total_oferta'),
+                DB::raw('COALESCE(cr.dias_credito_solicitados, GREATEST(DATEDIFF(COALESCE(c.fecha_vencimiento, co.fecha_vencimiento), COALESCE(c.fecha_emision, co.fecha_emision)), 0), 0) as dias_solicitados_credito'),
+                DB::raw("COALESCE(c.nombre_cliente, co.nombre_cliente, p.observaciones, CONCAT('Flujo #', f.id)) as cliente"),
+                DB::raw("COALESCE(c.RTN, co.RTN, '') as rtn"),
                 'hf.observaciones as obs_revision',
                 'hf.estado_id',
                 'cr.estado as estado_credito',
@@ -172,14 +182,6 @@ class RevisionCreditos extends Component
                 'cr.motivo_rechazo',
                 'cr.observaciones as obs_credito',
                 'ur.name as usuario_aprobador'
-            )
-            ->groupBy(
-                'f.id', 'f.identificacion', 'hf.created_at', 'hf.updated_at',
-                'hfof.tramite_id', 'c.cliente_id', 'c.fecha_emision', 'c.fecha_vencimiento', 'c.total',
-                'c.nombre_cliente', 'p.observaciones', 'c.RTN',
-                'hf.observaciones', 'hf.estado_id', 'cr.estado',
-                'cr.fecha_aprobacion', 'cr.fecha_vencimiento_credito', 'cr.motivo_rechazo',
-                'cr.observaciones', 'ur.name'
             );
 
         switch ($tipo) {
@@ -201,12 +203,15 @@ class RevisionCreditos extends Component
                 $q->where(function ($s) use ($term) {
                     $s->where('f.id', (int) $term)
                       ->orWhere('f.identificacion', $term)
+                      ->orWhere('hf.tramite_id', (int) $term)
                       ->orWhere('hfof.tramite_id', (int) $term);
                 });
             } else {
                 $q->where(function ($s) use ($like) {
                     $s->where('c.nombre_cliente', 'LIKE', $like)
+                      ->orWhere('co.nombre_cliente', 'LIKE', $like)
                       ->orWhere('c.RTN', 'LIKE', $like)
+                      ->orWhere('co.RTN', 'LIKE', $like)
                       ->orWhere('p.observaciones', 'LIKE', $like);
                 });
             }

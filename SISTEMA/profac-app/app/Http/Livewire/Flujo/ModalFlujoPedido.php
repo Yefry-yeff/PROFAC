@@ -2080,9 +2080,11 @@ class ModalFlujoPedido extends Component
 
         $printUrl = '/factura/cooporativo/' . $factura->id;
         $printCopiaUrl = '/factura/cooporativoCopia/' . $factura->id;
+        $printActaRecUrl = '/facturaCoor/actaRec/' . $factura->id;
         if ((int) ($factura->tipo_venta_id ?? 0) === 3) {
             $printUrl = '/exonerado/factura/' . $factura->id;
             $printCopiaUrl = '/exonerado/facturaCopia/' . $factura->id;
+            $printActaRecUrl = '/exonerado/actaRec/' . $factura->id;
         }
 
         $this->facturaData = array_merge((array) $factura, [
@@ -2091,6 +2093,7 @@ class ModalFlujoPedido extends Component
             'tramite_tipo_id'=> 3,
             'print_url'      => $printUrl,
             'print_copia_url'=> $printCopiaUrl,
+            'print_acta_rec_url' => $printActaRecUrl,
             'vale_id'        => $valeData ? $valeData->id : null,
             'vale_numero'    => $valeData ? $valeData->numero_vale : null,
         ]);
