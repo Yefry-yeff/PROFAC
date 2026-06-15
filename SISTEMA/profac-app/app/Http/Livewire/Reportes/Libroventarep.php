@@ -148,9 +148,23 @@ class Libroventarep extends Component
                 'users.name as VENDEDOR',
                 'cliente.nombre as CLIENTE',
                 'factura.numero_secuencia_cai as FACTURA',
-                DB::raw("ROUND(CASE WHEN factura.tipo_venta_id = 3 THEN COALESCE(factura.sub_total, 0) ELSE 0 END, 2) as EXONERADO"),
+                DB::raw("ROUND(CASE WHEN factura.tipo_venta_id = 3 THEN
+                    COALESCE(factura.sub_total, 0) - COALESCE((
+                        SELECT SUM(vhp.sub_total_s) FROM venta_has_producto vhp
+                        WHERE vhp.factura_id = factura.id
+                        AND ((DATE(factura.fecha_emision) < '2026-06-07' AND COALESCE(vhp.isv,0) = 0)
+                             OR (DATE(factura.fecha_emision) >= '2026-06-07' AND vhp.tipo_precio = '1'))
+                    ), 0)
+                ELSE 0 END, 2) as EXONERADO"),
                 DB::raw("ROUND(COALESCE(factura.sub_total_grabado, 0), 2) as GRAVADO"),
-                DB::raw("ROUND(COALESCE(factura.sub_total_excento, 0), 2) as EXCENTO"),
+                DB::raw("ROUND(CASE WHEN factura.tipo_venta_id = 3 THEN
+                    COALESCE((
+                        SELECT SUM(vhp.sub_total_s) FROM venta_has_producto vhp
+                        WHERE vhp.factura_id = factura.id
+                        AND ((DATE(factura.fecha_emision) < '2026-06-07' AND COALESCE(vhp.isv,0) = 0)
+                             OR (DATE(factura.fecha_emision) >= '2026-06-07' AND vhp.tipo_precio = '1'))
+                    ), 0)
+                ELSE COALESCE(factura.sub_total_excento, 0) END, 2) as EXCENTO"),
                 DB::raw("ROUND(COALESCE(factura.sub_total, 0), 2) as SUBTOTAL"),
                 DB::raw("ROUND(CASE WHEN factura.tipo_venta_id = 3 THEN 0 ELSE COALESCE(factura.isv, 0) END, 2) as ISV"),
                 DB::raw("ROUND(COALESCE(factura.total, 0), 2) as TOTAL"),

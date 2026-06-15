@@ -369,6 +369,18 @@ class VentasExoneradas extends Component
             $factura->codigo_exoneracion_id = $request->codigo;
             $factura->estado_editar = 1;
             $factura->sub_total_grabado = 0;
+
+            // Calcular sub_total_excento: suma de productos verdaderamente exentos (isv = 0)
+            $subTotalExcento = 0;
+            foreach ($arrayInputs as $idx) {
+                $keyISVpre = "isv" . $idx;
+                $keySTpre  = "subTotal" . $idx;
+                if ((float)($request->$keyISVpre ?? 0) == 0) {
+                    $subTotalExcento += (float)($request->$keySTpre ?? 0);
+                }
+            }
+            $factura->sub_total_excento = $subTotalExcento;
+
             $factura->numero_orden_compra_id=$request->ordenCompra;
             $factura->comentario=$request->nota_comen;
             $factura->porc_descuento =$request->porDescuento;
