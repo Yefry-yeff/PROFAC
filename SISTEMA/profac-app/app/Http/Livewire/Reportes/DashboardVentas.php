@@ -83,6 +83,11 @@ class DashboardVentas extends Component
                 WHERE php.producto_id = $alias.id
                   AND php.resta_inventario = 1
                   AND pf.estado = 'activo'
+                    AND TIMESTAMPADD(
+                        DAY,
+                        COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7),
+                        COALESCE(pf.created_at, CONCAT(COALESCE(pf.fecha_emision, CURDATE()), ' 00:00:00'))
+                        ) > NOW()
                   AND sgp.bodega_id <> 18
             ), 0)
         )";

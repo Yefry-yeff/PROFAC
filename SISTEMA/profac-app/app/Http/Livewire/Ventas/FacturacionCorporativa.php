@@ -205,7 +205,12 @@ class FacturacionCorporativa extends Component
                         SELECT SUM(php2.cantidad)
                         FROM prefactura_has_producto php2
                         INNER JOIN prefactura pf2 ON pf2.id = php2.prefactura_id
-                        WHERE pf2.estado = 'activo'
+                                                WHERE pf2.estado = 'activo'
+                                                    AND TIMESTAMPADD(
+                                                                DAY,
+                                                                COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7),
+                                                                COALESCE(pf2.created_at, CONCAT(COALESCE(pf2.fecha_emision, CURDATE()), ' 00:00:00'))
+                                                            ) > NOW()
                           {$pfExcludeClause2}
                           AND php2.producto_id = {$prodId}
                           AND php2.seccion_id  = A.seccion_id
@@ -225,7 +230,12 @@ class FacturacionCorporativa extends Component
                 SELECT SUM(php3.cantidad)
                 FROM prefactura_has_producto php3
                 INNER JOIN prefactura pf3 ON pf3.id = php3.prefactura_id
-                WHERE pf3.estado = 'activo'
+                                WHERE pf3.estado = 'activo'
+                                    AND TIMESTAMPADD(
+                                                DAY,
+                                                COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7),
+                                                COALESCE(pf3.created_at, CONCAT(COALESCE(pf3.fecha_emision, CURDATE()), ' 00:00:00'))
+                                            ) > NOW()
                   {$pfExcludeClause3}
                   AND php3.producto_id = {$prodId}
                   AND php3.seccion_id  = A.seccion_id
@@ -904,7 +914,12 @@ class FacturacionCorporativa extends Component
                         IFNULL((SELECT SUM(php2.cantidad)
                                  FROM prefactura_has_producto php2
                                  INNER JOIN prefactura pf2 ON pf2.id = php2.prefactura_id
-                                 WHERE pf2.estado = 'activo'
+                                                                 WHERE pf2.estado = 'activo'
+                                                                     AND TIMESTAMPADD(
+                                                                                 DAY,
+                                                                                 COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7),
+                                                                                 COALESCE(pf2.created_at, CONCAT(COALESCE(pf2.fecha_emision, CURDATE()), ' 00:00:00'))
+                                                                             ) > NOW()
                                    {$excludePfClause}
                                    AND php2.producto_id = " . (int)$request->$keyIdProducto . "
                                    AND php2.seccion_id  = " . (int)$request->$keyIdSeccion . "

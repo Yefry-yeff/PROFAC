@@ -1084,7 +1084,12 @@ class Cotizacion extends Component
                         SELECT SUM(php2.cantidad)
                         FROM prefactura_has_producto php2
                         INNER JOIN prefactura pf2 ON pf2.id = php2.prefactura_id
-                        WHERE pf2.estado = 'activo'
+                                                                                                WHERE pf2.estado = 'activo'
+                                                                                                        AND TIMESTAMPADD(
+                                                                                                                    DAY,
+                                                                                                                    COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7),
+                                                                                                                    COALESCE(pf2.created_at, CONCAT(COALESCE(pf2.fecha_emision, CURDATE()), ' 00:00:00'))
+                                                                                                                ) > NOW()
                           AND php2.producto_id = A.producto_id
                           AND php2.seccion_id  = A.seccion_id
                           AND php2.resta_inventario = 1

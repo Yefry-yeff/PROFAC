@@ -75,6 +75,9 @@ class ModalFlujoPedido extends Component
     public $stockErrors             = [];  // errores de inventario al crear prefactura
     public $confirmAccionPrefactura = null; // null | 'revertir' | 'anular'
     public $vencimientoProcesado    = false; // true cuando se procesó el vencimiento en esta carga
+    public bool $prefacturaVencida       = false;
+    public bool $prefacturaPuedeFacturar = true;
+    public array $prefacturaStockFaltante = [];
     public $mostrarAutorizacionPrefactura = false;
     public $accionAutorizacionPrefactura  = null;
     public $codigoAutorizacion            = '';
@@ -454,6 +457,9 @@ class ModalFlujoPedido extends Component
         $this->mensajeExito            = '';
         $this->mensajeError            = '';
         $this->prefacturaData          = null;
+        $this->prefacturaVencida       = false;
+        $this->prefacturaPuedeFacturar = true;
+        $this->prefacturaStockFaltante = [];
         $this->stockErrors             = [];
         $this->confirmAccionPrefactura = null;
         $this->facturaData             = null;
@@ -1246,6 +1252,7 @@ class ModalFlujoPedido extends Component
                 $reservado = (float) DB::table('prefactura_has_producto as php')
                     ->join('prefactura as pf', 'pf.id', '=', 'php.prefactura_id')
                     ->where('pf.estado', 'activo')
+                    ->whereRaw("TIMESTAMPADD(DAY, COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7), COALESCE(pf.created_at, CONCAT(COALESCE(pf.fecha_emision, CURDATE()), ' 00:00:00'))) > NOW()")
                     ->where('php.producto_id', $prod->producto_id)
                     ->where('php.seccion_id',  $prod->seccion_id)
                     ->where('php.resta_inventario', 1)
@@ -1560,107 +1567,71 @@ class ModalFlujoPedido extends Component
     // ─────────────────────────────────────────────────────────────────────
 
     /**
-     * Procesa el vencimiento de una prefactura:
-     * 1. Inactiva la prefactura.
-     * 2. Marca historico_flujo de la prefactura con estado_id=4 (Vencido).
-     * 3. Retrocede el flujo a Ofertas (tipo_tramite_id=2).
-     * 4. Por cada cotización del flujo, compara precios:
-     *    - Precios cambiaron → inactiva cotizacion (estado_id=2) + cotizacion_estado.
-     *    - Precios no cambiaron → cotizacion queda activa, cotizacion_estado con observación.
+     * Mantiene compatibilidad histórica al detectar una prefactura vencida.
+     * Requerimiento actual: NO inactivar ni mover estado de la prefactura,
+     * solo liberar su reserva por fecha en los cálculos de disponibilidad.
      */
     private function procesarVencimientoPrefactura(object $pref): void
     {
-        DB::beginTransaction();
+        $this->vencimientoProcesado = $this->prefacturaVencio($pref->fecha_vencimiento ?? null);
+    }
+
+    private function prefacturaVencio(?string $fechaVencimiento): bool
+    {
+        if (empty($fechaVencimiento)) {
+            return false;
+        }
+
         try {
-            // 1. Inactivar prefactura
-            DB::table('prefactura')
-                ->where('id', $pref->id)
-                ->update(['estado' => 'inactive', 'updated_at' => now()]);
+            return now()->gt(\Carbon\Carbon::parse($fechaVencimiento)->endOfDay());
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
 
-            // 2. Marcar historico_flujo de la prefactura como Vencido (estado_id=4)
-            DB::table('historico_flujo')
-                ->where('flujo_id', $this->flujoId)
-                ->where('tipo_tramite_id', 4)          // tipo_tramite_id=4 = Prefactura
-                ->where('tramite_id', $pref->id)
-                ->update(['estado_id' => 4, 'updated_at' => now()]);
+    private function obtenerFaltantesInventarioPrefactura(int $prefacturaId, bool $ignorarReservaPropia): array
+    {
+        $faltantes = [];
+        $productos = DB::table('prefactura_has_producto')
+            ->where('prefactura_id', $prefacturaId)
+            ->where('resta_inventario', 1)
+            ->whereNotNull('producto_id')
+            ->whereNotNull('seccion_id')
+            ->get(['producto_id', 'seccion_id', 'nombre_producto', 'cantidad']);
 
-            // 3. Retroceder flujo a Ofertas
-            DB::table('flujo')
-                ->where('id', $this->flujoId)
-                ->update([
-                    'tipo_tramite_id' => 2,
-                    'updated_by'      => Auth::id(),
-                    'updated_at'      => now(),
-                ]);
+        foreach ($productos as $prod) {
+            $rawStock = (float) DB::table('recibido_bodega')
+                ->where('producto_id', $prod->producto_id)
+                ->where('seccion_id', $prod->seccion_id)
+                ->where('cantidad_disponible', '>', 0)
+                ->sum('cantidad_disponible');
 
-            // 4. Validar precios por cada cotización del flujo
-            $cotizaciones = DB::table('historico_flujo')
-                ->where('flujo_id', $this->flujoId)
-                ->where('tipo_tramite_id', 2)      // tipo_tramite_id=2 = Ofertas
-                ->whereNotIn('observaciones', ['ganadora'])
-                ->whereRaw('(observaciones NOT LIKE ? OR observaciones IS NULL)', ['Anulado:%'])
-                ->pluck('tramite_id')
-                ->unique();
+            $reservadoQuery = DB::table('prefactura_has_producto as php')
+                ->join('prefactura as pf', 'pf.id', '=', 'php.prefactura_id')
+                ->where('pf.estado', 'activo')
+                ->whereRaw("TIMESTAMPADD(DAY, COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7), COALESCE(pf.created_at, CONCAT(COALESCE(pf.fecha_emision, CURDATE()), ' 00:00:00'))) > NOW()")
+                ->where('php.producto_id', $prod->producto_id)
+                ->where('php.seccion_id', $prod->seccion_id)
+                ->where('php.resta_inventario', 1);
 
-            foreach ($cotizaciones as $cotId) {
-                $preciosCambiaron = $this->verificarCambioPrecios((int) $cotId);
-
-                if ($preciosCambiaron) {
-                    // Inactivar cotización por precios desactualizados
-                    DB::table('cotizacion')
-                        ->where('id', $cotId)
-                        ->update(['estado_id' => 2, 'updated_at' => now()]);
-
-                    // Marcar en historico_flujo la oferta como VencidaPrecios
-                    DB::table('historico_flujo')
-                        ->where('flujo_id', $this->flujoId)
-                        ->where('tipo_tramite_id', 2)
-                        ->where('tramite_id', $cotId)
-                        ->update([
-                            'observaciones' => 'VencidaPrecios: Prefactura vencida, precios cambiaron',
-                            'updated_at'    => now(),
-                        ]);
-
-                    DB::table('cotizacion_estado')->insert([
-                        'cotizacion_id' => $cotId,
-                        'flujo_id'      => $this->flujoId,
-                        'ganadora'      => 4,  // 4 = Vencida / inactiva por precios
-                        'comentario'    => 'Oferta inactivada: prefactura #' . $pref->id . ' venció y los precios cambiaron',
-                        'estado_id'     => 1,
-                        'created_by'    => Auth::id(),
-                        'updated_by'    => Auth::id(),
-                        'created_at'    => now(),
-                        'updated_at'    => now(),
-                    ]);
-                } else {
-                    // Precios sin cambio: oferta vuelve a quedar disponible
-                    DB::table('historico_flujo')
-                        ->where('flujo_id', $this->flujoId)
-                        ->where('tipo_tramite_id', 2)
-                        ->where('tramite_id', $cotId)
-                        ->where('observaciones', 'ganadora')   // si estaba marcada como ganadora, limpiar
-                        ->update(['observaciones' => null, 'updated_at' => now()]);
-
-                    DB::table('cotizacion_estado')->insert([
-                        'cotizacion_id' => $cotId,
-                        'flujo_id'      => $this->flujoId,
-                        'ganadora'      => 2,
-                        'comentario'    => 'Oferta reactivada: prefactura #' . $pref->id . ' venció, precios sin cambio',
-                        'estado_id'     => 1,
-                        'created_by'    => Auth::id(),
-                        'updated_by'    => Auth::id(),
-                        'created_at'    => now(),
-                        'updated_at'    => now(),
-                    ]);
-                }
+            if ($ignorarReservaPropia) {
+                $reservadoQuery->where('pf.id', '!=', $prefacturaId);
             }
 
-            DB::commit();
-            $this->mensajeError = ''; // limpio para que el blade muestre el aviso de vencimiento
-        } catch (\Exception $e) {
-            DB::rollBack();
-            $this->mensajeError = 'Error al procesar vencimiento: ' . $e->getMessage();
+            $reservado = (float) $reservadoQuery->sum('php.cantidad');
+            $disponible = max(0.0, $rawStock - $reservado);
+            $solicitado = (float) ($prod->cantidad ?? 0);
+
+            if ($disponible + 0.0001 < $solicitado) {
+                $faltantes[] = [
+                    'producto'   => (string) ($prod->nombre_producto ?? ('Producto #' . $prod->producto_id)),
+                    'solicitado' => round($solicitado, 2),
+                    'disponible' => round($disponible, 2),
+                ];
+            }
         }
+
+        return $faltantes;
     }
 
     /**
@@ -1794,6 +1765,9 @@ class ModalFlujoPedido extends Component
     {
         if (!$this->flujoId) {
             $this->prefacturaData = null;
+            $this->prefacturaVencida = false;
+            $this->prefacturaPuedeFacturar = true;
+            $this->prefacturaStockFaltante = [];
             return;
         }
         $pref = DB::table('prefactura')
@@ -1804,21 +1778,13 @@ class ModalFlujoPedido extends Component
 
         if (!$pref) {
             $this->prefacturaData = null;
+            $this->prefacturaVencida = false;
+            $this->prefacturaPuedeFacturar = true;
+            $this->prefacturaStockFaltante = [];
             return;
         }
 
-        // ── Verificar vencimiento (solo si sigue activa) ───────────────────
-        if ($pref->estado === 'activo' && $pref->fecha_vencimiento && now()->startOfDay()->gt(
-                \Carbon\Carbon::parse($pref->fecha_vencimiento)->startOfDay()
-            )) {
-            $this->procesarVencimientoPrefactura($pref);
-            $this->prefacturaData    = null;
-            $this->vencimientoProcesado = true;
-            // Recargar las ofertas para que reflejen los nuevos estados
-            $this->cargarOfertasPedido();
-            return;
-        }
-
+        $this->prefacturaVencida = $this->prefacturaVencio($pref->fecha_vencimiento ?? null);
         $this->vencimientoProcesado = false;
 
         $productos = DB::table('prefactura_has_producto')
@@ -1829,6 +1795,16 @@ class ModalFlujoPedido extends Component
             ->toArray();
 
         $this->prefacturaData = array_merge((array) $pref, ['productos' => $productos]);
+
+        if ($this->prefacturaVencida) {
+            // Al vencer, la reserva de esta prefactura se considera liberada.
+            // Para facturar se requiere revalidar stock disponible actual.
+            $this->prefacturaStockFaltante = $this->obtenerFaltantesInventarioPrefactura((int) $pref->id, true);
+            $this->prefacturaPuedeFacturar = empty($this->prefacturaStockFaltante);
+        } else {
+            $this->prefacturaStockFaltante = [];
+            $this->prefacturaPuedeFacturar = true;
+        }
     }
 
     public function confirmarAccionPrefactura(string $accion): void
@@ -1965,6 +1941,17 @@ class ModalFlujoPedido extends Component
     public function facturarPrefacturaDirecta(): void
     {
         if (!$this->prefacturaData || !$this->flujoId) return;
+
+        if ($this->prefacturaVencida) {
+            $faltantes = $this->obtenerFaltantesInventarioPrefactura((int) $this->prefacturaData['id'], true);
+            $this->prefacturaStockFaltante = $faltantes;
+            $this->prefacturaPuedeFacturar = empty($faltantes);
+
+            if (!$this->prefacturaPuedeFacturar) {
+                $this->mensajeError = 'No es posible generar la factura porque uno o más productos ya no cuentan con inventario disponible. Actualice la prefactura antes de continuar.';
+                return;
+            }
+        }
 
         // Determinar tipo_pago con la misma lógica de prioridades que el backend:
         // 1. credito_revision aprobado:

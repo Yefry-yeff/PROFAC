@@ -472,6 +472,7 @@ class PrefacturaController
                 $reservado = (float) DB::table('prefactura_has_producto as php')
                     ->join('prefactura as pf', 'pf.id', '=', 'php.prefactura_id')
                     ->where('pf.estado', 'activo')
+                    ->whereRaw("TIMESTAMPADD(DAY, COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7), COALESCE(pf.created_at, CONCAT(COALESCE(pf.fecha_emision, CURDATE()), ' 00:00:00'))) > NOW()")
                     ->where('php.producto_id', $prod->producto_id)
                     ->where('php.seccion_id',  $prod->seccion_id)
                     ->where('php.resta_inventario', 1)
@@ -820,6 +821,19 @@ class PrefacturaController
         $pf = DB::table('prefactura')->where('id', $id)->where('estado', 'activo')->first();
         if (!$pf) {
             return response()->json(['error' => 'Prefactura no encontrada o inactiva.'], 404);
+        }
+
+        // Si la prefactura ya venció, su reserva se considera liberada y debe
+        // revalidarse la disponibilidad real antes de permitir facturar.
+        if ($this->prefacturaVencio($pf->fecha_vencimiento ?? null)) {
+            $faltantes = $this->obtenerFaltantesInventarioPrefactura((int) $pf->id, true);
+            if (!empty($faltantes)) {
+                return response()->json([
+                    'icon'         => 'warning',
+                    'warning'      => 'No es posible generar la factura porque uno o más productos ya no cuentan con inventario disponible. Actualice la prefactura antes de continuar.',
+                    'stock_errors' => $faltantes,
+                ], 422);
+            }
         }
 
         // ── Traer número de orden desde la oferta y mapearlo a FK de factura ──
@@ -1277,5 +1291,64 @@ class PrefacturaController
             'factura_id' => $facturaId,
             'print_url'  => '/factura/cooporativo/' . $facturaId,
         ], 200);
+    }
+
+    private function prefacturaVencio(?string $fechaVencimiento): bool
+    {
+        if (empty($fechaVencimiento)) {
+            return false;
+        }
+
+        try {
+            return now()->gt(Carbon::parse($fechaVencimiento)->endOfDay());
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    private function obtenerFaltantesInventarioPrefactura(int $prefacturaId, bool $ignorarReservaPropia): array
+    {
+        $faltantes = [];
+
+        $productos = DB::table('prefactura_has_producto')
+            ->where('prefactura_id', $prefacturaId)
+            ->where('resta_inventario', 1)
+            ->whereNotNull('producto_id')
+            ->whereNotNull('seccion_id')
+            ->get(['producto_id', 'seccion_id', 'nombre_producto', 'cantidad']);
+
+        foreach ($productos as $prod) {
+            $rawStock = (float) DB::table('recibido_bodega')
+                ->where('producto_id', $prod->producto_id)
+                ->where('seccion_id', $prod->seccion_id)
+                ->where('cantidad_disponible', '>', 0)
+                ->sum('cantidad_disponible');
+
+            $reservadoQuery = DB::table('prefactura_has_producto as php')
+                ->join('prefactura as pf', 'pf.id', '=', 'php.prefactura_id')
+                ->where('pf.estado', 'activo')
+                ->whereRaw("TIMESTAMPADD(DAY, COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7), COALESCE(pf.created_at, CONCAT(COALESCE(pf.fecha_emision, CURDATE()), ' 00:00:00'))) > NOW()")
+                ->where('php.producto_id', $prod->producto_id)
+                ->where('php.seccion_id', $prod->seccion_id)
+                ->where('php.resta_inventario', 1);
+
+            if ($ignorarReservaPropia) {
+                $reservadoQuery->where('pf.id', '!=', $prefacturaId);
+            }
+
+            $reservado = (float) $reservadoQuery->sum('php.cantidad');
+            $disponible = max(0.0, $rawStock - $reservado);
+            $solicitado = (float) ($prod->cantidad ?? 0);
+
+            if ($disponible + 0.0001 < $solicitado) {
+                $faltantes[] = [
+                    'producto'   => (string) ($prod->nombre_producto ?? ('Producto #' . $prod->producto_id)),
+                    'solicitado' => round($solicitado, 2),
+                    'disponible' => round($disponible, 2),
+                ];
+            }
+        }
+
+        return $faltantes;
     }
 }

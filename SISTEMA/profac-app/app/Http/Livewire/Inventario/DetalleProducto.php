@@ -181,11 +181,21 @@ class DetalleProducto extends Component
         $unidades = ModelUnidadMedida::all();
         $marcas = ModelMarca::all();
 
+        // Vigencia de reserva: fecha de creación de prefactura + días configurados.
+        $diasValidezReserva = (int) (DB::table('configuracion_prefactura')
+            ->orderByDesc('id')
+            ->value('dias_validez') ?? 7);
+        $diasValidezReserva = max(0, $diasValidezReserva);
+
         // ── Reservas por sección (FIFO) ──────────────────────────────────
         // Total reservado por seccion_id para este producto
         $reservasPorSeccion = DB::table('prefactura_has_producto as php')
             ->join('prefactura as pf', 'pf.id', '=', 'php.prefactura_id')
             ->where('pf.estado', 'activo')
+            ->whereRaw(
+                "TIMESTAMPADD(DAY, ?, COALESCE(pf.created_at, CONCAT(COALESCE(pf.fecha_emision, CURDATE()), ' 00:00:00'))) > NOW()",
+                [$diasValidezReserva]
+            )
             ->where('php.producto_id', $id)
             ->where('php.resta_inventario', 1)
             ->selectRaw('php.seccion_id, SUM(php.cantidad) as total')
@@ -198,6 +208,10 @@ class DetalleProducto extends Component
         $detalleReservasRaw = DB::table('prefactura_has_producto as php')
             ->join('prefactura as pf', 'pf.id', '=', 'php.prefactura_id')
             ->where('pf.estado', 'activo')
+            ->whereRaw(
+                "TIMESTAMPADD(DAY, ?, COALESCE(pf.created_at, CONCAT(COALESCE(pf.fecha_emision, CURDATE()), ' 00:00:00'))) > NOW()",
+                [$diasValidezReserva]
+            )
             ->where('php.producto_id', $id)
             ->where('php.resta_inventario', 1)
             ->select('php.seccion_id', 'pf.id as prefactura_id', 'pf.flujo_id',
