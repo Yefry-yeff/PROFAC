@@ -24,13 +24,32 @@ class Librocobrosrep extends Component
 
 
 
-    public function consulta(Request $request, $tipo, $fechaInicio = null, $fechaFinal = null)
+    public function consulta(Request $request, $tipo = null, $fechaInicio = null, $fechaFinal = null)
     {
-        // Normalizar: si viene 'todos' o vacío, tratar como sin filtro de fecha
-        $hasFecha = !empty($fechaInicio) && $fechaInicio !== 'todos'
-                 && !empty($fechaFinal)   && $fechaFinal   !== 'todos';
-
         try {
+            // Obtener filtros desde la request (query string o parámetros)
+            $tipo = $request->input('tipo', $tipo ?? '3');
+            $fechaInicio = $request->input('fecha_desde', $fechaInicio ?? '1900-01-01');
+            $fechaFinal = $request->input('fecha_hasta', $fechaFinal ?? date('Y-m-d'));
+            
+            // Si fecha_desde está vacía, buscar desde el inicio; si fecha_hasta está vacía, usar hoy
+            if ($request->has('fecha_desde') && !$request->input('fecha_desde')) {
+                $fechaInicio = '1900-01-01';
+            }
+            if ($request->has('fecha_hasta') && !$request->input('fecha_hasta')) {
+                $fechaFinal = date('Y-m-d');
+            }
+
+            // Parámetros de filtro adicionales
+            $cliente = $request->input('cliente');
+            $vendedor = $request->input('vendedor');
+            $banco = $request->input('banco');
+            $factura = $request->input('factura');
+
+            // Normalizar: si viene 'todos' o vacío, tratar como sin filtro de fecha
+            $hasFecha = !empty($fechaInicio) && $fechaInicio !== 'todos'
+                     && !empty($fechaFinal)   && $fechaFinal   !== 'todos';
+
             // Tipo 3 = Libro de Cobros (conciliación bancaria) — sólo abonos reales
             if ($tipo == 3) {
                 $sql = "
@@ -114,21 +133,22 @@ class Librocobrosrep extends Component
                     $bindings[] = $fechaFinal;
                 }
 
-                if ($request->filled('cliente_id')) {
+                // Aplicar filtros adicionales (convertir nombres nuevos a los nombres internos si es necesario)
+                if ($cliente) {
                     $sql .= ' AND sub._cliente_id = ?';
-                    $bindings[] = $request->cliente_id;
+                    $bindings[] = $cliente;
                 }
-                if ($request->filled('vendedor_id')) {
+                if ($vendedor) {
                     $sql .= ' AND sub._vendedor_id = ?';
-                    $bindings[] = $request->vendedor_id;
+                    $bindings[] = $vendedor;
                 }
-                if ($request->filled('banco_id')) {
+                if ($banco) {
                     $sql .= ' AND sub._banco_id = ?';
-                    $bindings[] = $request->banco_id;
+                    $bindings[] = $banco;
                 }
-                if ($request->filled('factura')) {
+                if ($factura) {
                     $sql .= ' AND sub.factura LIKE ?';
-                    $bindings[] = '%' . $request->factura . '%';
+                    $bindings[] = '%' . $factura . '%';
                 }
 
                 $sql .= ' ORDER BY sub.fecha_pago ASC, sub.cliente ASC';

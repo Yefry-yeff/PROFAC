@@ -157,7 +157,7 @@ class ReporteVentasCobros extends Component
             COALESCE(f.sub_total_grabado, 0)                           AS gravado,
             COALESCE(f.sub_total_excento, 0)                           AS exento,
             COALESCE(f.sub_total, 0)                                   AS sub_total,
-            COALESCE(f.isv, 0)                                         AS isv,
+            CASE WHEN f.tipo_venta_id = 3 THEN 0 ELSE COALESCE(f.isv, 0) END AS isv,
             COALESCE(f.total, 0)                                       AS total,
 
             /* ── Abonos ── */
@@ -765,7 +765,7 @@ class ReporteVentasCobros extends Component
                     COALESCE(f.sub_total_grabado, 0)                        AS gravado,
                     COALESCE(f.sub_total_excento, 0)                        AS exento,
                     COALESCE(f.sub_total, 0)                                AS sub_total,
-                    COALESCE(f.isv, 0)                                      AS isv,
+                    CASE WHEN f.tipo_venta_id = 3 THEN 0 ELSE COALESCE(f.isv, 0) END AS isv,
                     COALESCE(f.total, 0)                                    AS total_factura,
                     f.fecha_vencimiento,
                     DATEDIFF(
@@ -1348,7 +1348,7 @@ class ReporteVentasCobros extends Component
             COALESCE(f.sub_total_grabado, 0) AS gravado,
             COALESCE(f.sub_total_excento, 0) AS exento,
             COALESCE(f.sub_total, 0) AS sub_total,
-            COALESCE(f.isv, 0) AS isv,
+            CASE WHEN f.tipo_venta_id = 3 THEN 0 ELSE COALESCE(f.isv, 0) END AS isv,
             COALESCE(f.total, 0) AS total,
             COALESCE(ab.total_abonos, 0) AS abonos,
             0 AS pagos_directos,

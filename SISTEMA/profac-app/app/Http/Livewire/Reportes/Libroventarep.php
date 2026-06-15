@@ -15,19 +15,72 @@ class Libroventarep extends Component
 {
     public function render()
     {
-        return view('livewire.reportes.libroventarep');
+        $clientes    = DB::select("SELECT id, nombre FROM cliente ORDER BY nombre ASC");
+        $vendedores  = DB::select("SELECT id, name FROM users WHERE rol_id = 2 ORDER BY name ASC");
+        $modosPago   = DB::select("SELECT id, descripcion FROM tipo_pago_venta ORDER BY descripcion ASC");
+        return view('livewire.reportes.libroventarep', compact('clientes', 'vendedores', 'modosPago'));
     }
 
 
-    public function consulta($tipo, $fechaInicio,$fechaFinal)
+    public function consulta(Request $request, $tipo = null, $fechaInicio = null, $fechaFinal = null)
     {
         try {
-           // Pasamos los dos parámetros al procedimiento almacenado
-           $consulta = DB::select("Call sp_reportesxfecha (?, ?,?)", [$tipo, $fechaInicio, $fechaFinal]);
+            // Obtener filtros desde la request (query string o parámetros)
+            $tipo = $request->input('tipo', $tipo ?? '4');
+            $fechaInicio = $request->input('fecha_desde', $fechaInicio ?? '1900-01-01');
+            $fechaFinal = $request->input('fecha_hasta', $fechaFinal ?? date('Y-m-d'));
+            $cliente = $request->input('cliente');
+            $vendedor = $request->input('vendedor');
+            $factura = $request->input('factura');
+            $modoPago = $request->input('modo_pago');
 
-           return Datatables::of($consulta)
-               ->rawColumns([])
-               ->make(true);
+            // Si fecha_desde está vacía, buscar desde el inicio; si fecha_hasta está vacía, usar hoy
+            if ($request->has('fecha_desde') && !$request->input('fecha_desde')) {
+                $fechaInicio = '1900-01-01';
+            }
+            if ($request->has('fecha_hasta') && !$request->input('fecha_hasta')) {
+                $fechaFinal = date('Y-m-d');
+            }
+
+            // Consulta base con filtros
+            $query = DB::table('factura')
+                ->leftJoin('cliente', 'factura.cliente_id', '=', 'cliente.id')
+                ->leftJoin('users', 'factura.vendedor', '=', 'users.id')
+                ->leftJoin('tipo_pago_venta', 'factura.tipo_pago_id', '=', 'tipo_pago_venta.id')
+                ->select(
+                    'users.name as VENDEDOR',
+                    'cliente.nombre as CLIENTE',
+                    'factura.numero_secuencia_cai as FACTURA',
+                    DB::raw("ROUND(CASE WHEN factura.tipo_venta_id = 3 THEN COALESCE(factura.sub_total, 0) ELSE 0 END, 2) as EXONERADO"),
+                    DB::raw("ROUND(factura.sub_total_grabado, 2) as GRAVADO"),
+                    DB::raw("ROUND(factura.sub_total_excento, 2) as EXCENTO"),
+                    DB::raw("ROUND(factura.sub_total, 2) as SUBTOTAL"),
+                    DB::raw("ROUND(CASE WHEN factura.tipo_venta_id = 3 THEN 0 ELSE COALESCE(factura.isv, 0) END, 2) as ISV"),
+                    DB::raw("ROUND(factura.total, 2) as TOTAL"),
+                    'factura.fecha_emision as FECHA COMPRA'
+                )
+                ->whereBetween('factura.fecha_emision', [$fechaInicio, $fechaFinal])
+                ;
+
+            // Aplicar filtros adicionales
+            if ($cliente) {
+                $query->where('factura.cliente_id', $cliente);
+            }
+            if ($vendedor) {
+                $query->where('factura.vendedor', $vendedor);
+            }
+            if ($factura) {
+                $query->where('factura.numero_secuencia_cai', 'LIKE', '%' . $factura . '%');
+            }
+            if ($modoPago) {
+                $query->where('factura.tipo_pago_id', $modoPago);
+            }
+
+            $consulta = $query->orderBy('factura.fecha_emision', 'DESC')->get();
+
+            return Datatables::of($consulta)
+                ->rawColumns([])
+                ->make(true);
         } catch (QueryException $e) {
             return response()->json([
                 'message' => 'Error al listar el reporte solicitado.',
