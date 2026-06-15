@@ -717,17 +717,21 @@ class Pagos extends Component
             return response()->json(['cerrara' => false, 'ya_comisionada' => false, 'targets' => []]);
         }
 
-        // Obtener facturador y vendedor con sus roles
+        // Obtener facturador, vendedor y gestor de entrega (si existe) con sus roles
         $fila = DB::selectOne(
             "SELECT f.users_id AS facturador_id,
                     uf.rol_id   AS facturador_rol,
                     uf.name     AS facturador_nombre,
                     f.vendedor  AS vendedor_id,
                     uv.rol_id   AS vendedor_rol,
-                    uv.name     AS vendedor_nombre
+                    uv.name     AS vendedor_nombre,
+                    f.gestor_entrega AS gestor_id,
+                    ug.rol_id   AS gestor_rol,
+                    ug.name     AS gestor_nombre
              FROM factura f
              INNER JOIN users uf ON uf.id = f.users_id
              INNER JOIN users uv ON uv.id = f.vendedor
+             LEFT JOIN users ug ON ug.id = f.gestor_entrega
              WHERE f.id = ?",
             [$facturaId]
         );
@@ -798,6 +802,20 @@ class Pagos extends Component
                 'rol_id'       => $rolVendedor,
                 'rol_nombre'   => $roles[$rolVendedor] ?? 'Desconocido',
                 'tiene_escala' => isset($rolesConEscala[$rolVendedor]),
+            ];
+        }
+
+        // Capacidad 4 — Gestor de entrega con rol fijo ROL_GESTOR_ENTREGA_ID (16)
+        $gestorId = (int) ($fila->gestor_id ?? 0);
+        $rolGestor = GeneradorFacturasComision::ROL_GESTOR_ENTREGA_ID;
+        if ($gestorId > 0 && !isset($rolesDesactivados[$rolGestor])) {
+            $targets[] = [
+                'capacidad'    => 'Gestor de Entrega',
+                'tipo'         => 4,
+                'empleado'     => $fila->gestor_nombre ?? 'Sin nombre',
+                'rol_id'       => $rolGestor,
+                'rol_nombre'   => $roles[$rolGestor] ?? 'Desconocido',
+                'tiene_escala' => isset($rolesConEscala[$rolGestor]),
             ];
         }
 

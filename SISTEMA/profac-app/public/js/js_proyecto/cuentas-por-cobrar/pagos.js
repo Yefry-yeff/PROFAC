@@ -1016,7 +1016,8 @@ function renderPreviewComisiones(targets) {
     var tipoConfig = {
         1: { label: 'FACTURADOR', color: '#f59e0b' },
         2: { label: 'ROL REAL',   color: '#3b82f6' },
-        3: { label: 'VENDEDOR',   color: '#10b981' }
+        3: { label: 'VENDEDOR',   color: '#10b981' },
+        4: { label: 'GESTOR ENTREGA', color: '#0ea5e9' }
     };
 
     var html = '<div class="table-responsive">'
