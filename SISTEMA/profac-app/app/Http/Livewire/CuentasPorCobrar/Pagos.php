@@ -65,78 +65,18 @@ class Pagos extends Component
     public function listarCuentasPorCobrar($id){
         try{
 
-            /* VALIDANDO EXISTENCIA DE FACTURAS DE ESTE CLIENTE PARA CLIENTES VIEJOS*/
-            $existenciaAplicacion = DB::SELECTONE("
-
-                SELECT COUNT(*) AS existe FROM aplicacion_pagos ap
-                inner join factura fa on fa.id = ap.factura_id
-                inner join cliente cli on cli.id = fa.cliente_id
-                where cli.id = ".$id."
-
-
-            ");
-
-            $facturasActivas = DB::SELECTONE("
-
-                SELECT COUNT(*) as num
-                FROM factura fa
-                inner join cliente cli on cli.id = fa.cliente_id
-                where fa.estado_venta_id = 1 and cli.id = ".$id."
-
-
-            ");
-
-            $facturasEnPagos = DB::SELECTONE("
-
-                SELECT COUNT(*) as num
-                    from aplicacion_pagos
-                where
-                    aplicacion_pagos.factura_id in (
-                        SELECT
-                            fa.id
-                        FROM factura fa
-                            inner join cliente cli on cli.id = fa.cliente_id
-                        where
-                            fa.estado_venta_id = 1
-                            and cli.id = ".$id."
-
-                )");
-
-
-            if ($existenciaAplicacion->existe == 0) {
-
-                $cuentas2 = DB::select("
-
-                CALL sp_aplicacion_pagos('1','".$id."', '".Auth::user()->id."', '0','na','0','0','0', @estado, @msjResultado);");
-
-                //dd($cuentas2[0]->estado);
-
-                if ($cuentas2[0]->estado == -1) {
-                    return response()->json([
-                        "text" => "Ha ocurrido un error al insertar facturas en aplicacion de pagos.",
-                        "icon" => "error",
-                        "title"=>"Error!"
-                    ],402);
-                }
-
-            }else if ($facturasActivas->num > $facturasEnPagos->num) {
-                //este es el caso de un cliente nuevo o de una factura creada
-                //antes de ir al modulo de pagos
-
-
-                $cuentas3 = DB::select("
+            // Sincroniza siempre las facturas activas del cliente en aplicacion_pagos.
+            // Esto evita que una comparación por conteos deje facturas fuera del listado.
+            $cuentasSync = DB::select(" 
 
                 CALL sp_aplicacion_pagos('3','".$id."', '".Auth::user()->id."', '0','na','0','0','0', @estado, @msjResultado);");
 
-                //dd($cuentas2[0]->estado);
-
-                if ($cuentas3[0]->estado == -1) {
-                    return response()->json([
-                        "text" => "Ha ocurrido un error al insertar facturas en aplicacion de pagos.",
-                        "icon" => "error",
-                        "title"=>"Error!"
-                    ],402);
-                }
+            if ($cuentasSync[0]->estado == -1) {
+                return response()->json([
+                    "text" => "Ha ocurrido un error al sincronizar las facturas en aplicacion de pagos.",
+                    "icon" => "error",
+                    "title"=>"Error!"
+                ],402);
             }
 
             $cuentas = DB::select("
