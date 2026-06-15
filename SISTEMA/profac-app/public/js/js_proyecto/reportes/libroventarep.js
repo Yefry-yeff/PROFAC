@@ -198,7 +198,7 @@ function aplicarFiltrosLV() {
 /* ────────────────────────────────────────────────────────────────────
  *  Exportar a Excel
  * ──────────────────────────────────────────────────────────────────── */
-function _exportarConCargaLV(url) {
+function _exportarConCargaLV(url, title, detail) {
     var frameName = 'lv_export_frame_' + Date.now();
     var $iframe = $('<iframe>', { name: frameName, style: 'display:none;' });
 
@@ -225,8 +225,8 @@ function _exportarConCargaLV(url) {
     $('body').append(form);
 
     Swal.fire({
-        title: 'Generando Excel',
-        html: 'Preparando reporte...<br><small>Este proceso puede tardar varios minutos.</small>',
+        title: title || 'Generando archivo',
+        html: (detail || 'Preparando reporte...') + '<br><small>Este proceso puede tardar varios minutos.</small>',
         allowOutsideClick: false,
         allowEscapeKey: false,
         showConfirmButton: false,
@@ -253,11 +253,106 @@ function _exportarConCargaLV(url) {
     form.trigger('submit');
 }
 
+function _setCookieLV(name, value, seconds) {
+    var expires = '';
+    if (typeof seconds === 'number') {
+        var d = new Date();
+        d.setTime(d.getTime() + (seconds * 1000));
+        expires = '; expires=' + d.toUTCString();
+    }
+    document.cookie = name + '=' + encodeURIComponent(value) + expires + '; path=/';
+}
+
+function _getCookieLV(name) {
+    var prefix = name + '=';
+    var parts = document.cookie ? document.cookie.split(';') : [];
+    for (var i = 0; i < parts.length; i++) {
+        var c = parts[i].trim();
+        if (c.indexOf(prefix) === 0) {
+            return decodeURIComponent(c.substring(prefix.length));
+        }
+    }
+    return '';
+}
+
+function _exportarPdfConEsperaLV(url, title, detail) {
+    var f = getFiltrosLV();
+    var tok = $('meta[name="csrf-token"]').attr('content');
+    var downloadToken = 'lvpdf_' + Date.now() + '_' + Math.floor(Math.random() * 1000000);
+    var cookieName = 'lv_pdf_download_token';
+
+    // limpiar token previo para evitar falsos positivos en el polling
+    _setCookieLV(cookieName, '', -1);
+
+    var form = $('<form method="POST"></form>').attr('action', url);
+    var fields = {
+        _token: tok,
+        download_token: downloadToken,
+        cliente: f.cliente || '',
+        cliente_id: f.cliente || '',
+        vendedor: f.vendedor || '',
+        vendedor_id: f.vendedor || '',
+        modo_pago: f.modo_pago || '',
+        factura: f.factura || '',
+        fecha_desde: f.fecha_desde || '',
+        fecha_hasta: f.fecha_hasta || ''
+    };
+
+    $.each(fields, function(k, v) {
+        form.append($('<input type="hidden">').attr('name', k).val(v));
+    });
+
+    $('body').append(form);
+
+    Swal.fire({
+        title: title || 'Generando PDF',
+        html: (detail || 'Preparando documento...') + '<br><small>Este proceso puede tardar varios minutos.</small>',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        showConfirmButton: false,
+        didOpen: function() { Swal.showLoading(); }
+    });
+
+    var startedAt = Date.now();
+    var timer = setInterval(function() {
+        if (_getCookieLV(cookieName) === downloadToken) {
+            clearInterval(timer);
+            _setCookieLV(cookieName, '', -1);
+            Swal.close();
+        } else if (Date.now() - startedAt > (15 * 60 * 1000)) {
+            clearInterval(timer);
+            Swal.fire({
+                icon: 'warning',
+                title: 'Demora en descarga',
+                text: 'La generación del PDF sigue en proceso. Intenta nuevamente en unos minutos.'
+            });
+        }
+    }, 400);
+
+    form.trigger('submit');
+    setTimeout(function() { form.remove(); }, 1500);
+}
+
 function exportarExcelLV() {
     var f = getFiltrosLV();
     var fechaDesde = f.fecha_desde || '1900-01-01';
     var fechaHasta = f.fecha_hasta || new Date().toISOString().split('T')[0];
-    _exportarConCargaLV('/reporte/Libroventarep/exportar-excel/4/' + encodeURIComponent(fechaDesde) + '/' + encodeURIComponent(fechaHasta));
+    _exportarConCargaLV(
+        '/reporte/Libroventarep/exportar-excel/4/' + encodeURIComponent(fechaDesde) + '/' + encodeURIComponent(fechaHasta),
+        'Generando Excel',
+        'Preparando reporte...'
+    );
+}
+
+function exportarPdfLV() {
+    var f = getFiltrosLV();
+    var fechaDesde = f.fecha_desde || '1900-01-01';
+    var fechaHasta = f.fecha_hasta || new Date().toISOString().split('T')[0];
+    _exportarPdfConEsperaLV(
+        '/reporte/Libroventarep/exportar-pdf/4/' + encodeURIComponent(fechaDesde) + '/' + encodeURIComponent(fechaHasta),
+        'Generando PDF',
+        'Preparando documento...'
+    );
 }
 
 /* ────────────────────────────────────────────────────────────────────

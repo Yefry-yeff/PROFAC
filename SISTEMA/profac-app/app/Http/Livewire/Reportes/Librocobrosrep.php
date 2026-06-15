@@ -304,8 +304,15 @@ class Librocobrosrep extends Component
     $pdf = PDF::loadView('pdf.librocobrosrep', compact('data','fechaInicio','fechaFinal'))
               ->setPaper('oficio', 'landscape');
 
+    $response = $pdf->download(filename: "LibroCobros_{$fechaInicio}_a_{$fechaFinal}.pdf");
+
+    $downloadToken = (string) $request->input('download_token', '');
+    if ($downloadToken !== '') {
+        $response->withCookie(cookie('lc_pdf_download_token', $downloadToken, 5, '/', null, false, false, false, 'Lax'));
+    }
+
     // Retornar el PDF para descarga
-    return $pdf->download(filename: "LibroCobros_{$fechaInicio}_a_{$fechaFinal}.pdf");
+    return $response;
 
         } catch (QueryException $e) {
             return response()->json([

@@ -63,7 +63,7 @@ class LibroVentaExport implements FromView, WithStyles, WithDrawings, WithEvents
 
         // Row 1 – company name + RTN (right-aligned so text shows beside logo)
         $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(13);
-        $sheet->getStyle('A1')->getFont()->getColor()->setRGB('1F3864');
+        $sheet->getStyle('A1')->getFont()->getColor()->setRGB('7D3F00');
         $sheet->getStyle('A1')->getAlignment()
             ->setHorizontal(Alignment::HORIZONTAL_RIGHT)
             ->setVertical(Alignment::VERTICAL_CENTER)
@@ -72,7 +72,7 @@ class LibroVentaExport implements FromView, WithStyles, WithDrawings, WithEvents
 
         // Row 2 – report title
         $sheet->getStyle('A2')->getFont()->setBold(true)->setSize(11);
-        $sheet->getStyle('A2')->getFont()->getColor()->setRGB('1F3864');
+        $sheet->getStyle('A2')->getFont()->getColor()->setRGB('E07000');
         $sheet->getStyle('A2')->getAlignment()
             ->setHorizontal(Alignment::HORIZONTAL_CENTER)
             ->setVertical(Alignment::VERTICAL_CENTER);
@@ -91,7 +91,7 @@ class LibroVentaExport implements FromView, WithStyles, WithDrawings, WithEvents
         $sheet->getStyle('A4:J4')->getFont()->getColor()->setRGB('FFFFFF');
         $sheet->getStyle('A4:J4')->getFill()
             ->setFillType(Fill::FILL_SOLID)
-            ->getStartColor()->setRGB('1F3864');
+            ->getStartColor()->setRGB('E07000');
         $sheet->getStyle('A4:J4')->getAlignment()
             ->setHorizontal(Alignment::HORIZONTAL_CENTER)
             ->setVertical(Alignment::VERTICAL_CENTER)
@@ -161,7 +161,7 @@ class LibroVentaExport implements FromView, WithStyles, WithDrawings, WithEvents
                             $sheet->getStyle("A{$row}:J{$row}")
                                 ->getFill()
                                 ->setFillType(Fill::FILL_SOLID)
-                                ->getStartColor()->setRGB('EBF3FB');
+                                ->getStartColor()->setRGB('FFFBEB');
                         } else {
                             $sheet->getStyle("A{$row}:J{$row}")
                                 ->getFill()
@@ -178,25 +178,25 @@ class LibroVentaExport implements FromView, WithStyles, WithDrawings, WithEvents
                 $sheet->getStyle("A{$lastRow}:J{$lastRow}")
                     ->getFill()
                     ->setFillType(Fill::FILL_SOLID)
-                    ->getStartColor()->setRGB('BDD7EE');
+                    ->getStartColor()->setRGB('FFF3E0');
                 $sheet->getStyle("A{$lastRow}:J{$lastRow}")
-                    ->getFont()->getColor()->setRGB('1F3864');
+                    ->getFont()->getColor()->setRGB('7D3F00');
                 $sheet->getRowDimension($lastRow)->setRowHeight(18);
 
                 // ── Borders for the full table (row 4 → lastRow) ─────────────
                 $tableRange = "A4:J{$lastRow}";
                 $sheet->getStyle($tableRange)->getBorders()->getAllBorders()
                     ->setBorderStyle(Border::BORDER_THIN)
-                    ->getColor()->setRGB('B0C4DE');
+                    ->getColor()->setRGB('E8D5BF');
 
                 $sheet->getStyle($tableRange)->getBorders()->getOutline()
                     ->setBorderStyle(Border::BORDER_MEDIUM)
-                    ->getColor()->setRGB('1F3864');
+                    ->getColor()->setRGB('E07000');
 
                 // Thicker bottom border on column-header row
                 $sheet->getStyle("A4:J4")->getBorders()->getBottom()
                     ->setBorderStyle(Border::BORDER_MEDIUM)
-                    ->getColor()->setRGB('1F3864');
+                    ->getColor()->setRGB('B05000');
 
                 // ── Footer logo (same image, placed below the totals row) ─────
                 $footerRow = $lastRow + 3;
