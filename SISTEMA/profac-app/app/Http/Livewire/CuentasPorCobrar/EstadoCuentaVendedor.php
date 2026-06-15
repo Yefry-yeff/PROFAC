@@ -258,6 +258,11 @@ class EstadoCuentaVendedor extends Component
     {
         $estadoCuenta = DB::select("CALL estadoCuenta_sp(?)", [$idClientepdf]);
 
+        $estadoCuenta = array_map(function ($row) {
+            $row->acumulado = $row->acumulado ?? $row->Acumulado ?? 0;
+            return $row;
+        }, $estadoCuenta);
+
         if (empty($estadoCuenta)) {
             $nombreCliente = DB::table('cliente')->where('id', (int) $idClientepdf)->value('nombre') ?? 'Cliente #'.$idClientepdf;
             $sinMovimientos = true;

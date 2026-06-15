@@ -1186,6 +1186,11 @@ class Pagos extends Component
     public function imprimirEstadoCuenta($idClientepdf){
         $estadoCuenta = DB::select("CALL estadoCuenta_sp('".$idClientepdf."');");
 
+        $estadoCuenta = array_map(function ($row) {
+            $row->acumulado = $row->acumulado ?? $row->Acumulado ?? 0;
+            return $row;
+        }, $estadoCuenta);
+
         if (empty($estadoCuenta)) {
             // Sin facturas pendientes para este cliente — generar PDF informativo
             $nombreCliente = DB::table('cliente')->where('id', (int) $idClientepdf)->value('nombre') ?? 'Cliente #'.$idClientepdf;
