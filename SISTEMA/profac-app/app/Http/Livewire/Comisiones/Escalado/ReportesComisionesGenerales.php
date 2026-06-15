@@ -601,7 +601,80 @@ class ReportesComisionesGenerales extends Component
             ->orderByDesc('ce.mes_comision')
             ->orderBy('u.name');
 
-        return DataTables::of($query)->make(true);
+        $rows = $query->get()->map(function ($row) {
+            return [
+                'id'                    => (string) $row->id,
+                'empleado_id'           => (int) $row->empleado_id,
+                'empleado'              => (string) $row->empleado,
+                'mes_clave'             => (string) $row->mes_clave,
+                'mes'                   => (string) $row->mes,
+                'roles_cantidad'        => (int) $row->roles_cantidad,
+                'roles_nombres'         => (string) ($row->roles_nombres ?? ''),
+                'facturas_comisionadas' => (int) $row->facturas_comisionadas,
+                'comision_total'        => (float) $row->comision_total,
+            ];
+        })->values();
+
+        $recordsTotal = $rows->count();
+
+        $search = trim((string) $request->input('search.value', ''));
+        if ($search !== '') {
+            $needle = mb_strtolower($search, 'UTF-8');
+            $rows = $rows->filter(function (array $row) use ($needle) {
+                $haystack = mb_strtolower(implode(' ', [
+                    $row['empleado'],
+                    $row['mes_clave'],
+                    $row['mes'],
+                    $row['roles_nombres'],
+                    (string) $row['facturas_comisionadas'],
+                    number_format((float) $row['comision_total'], 2, '.', ''),
+                ]), 'UTF-8');
+
+                return str_contains($haystack, $needle);
+            })->values();
+        }
+
+        $recordsFiltered = $rows->count();
+
+        $orderCol = (int) $request->input('order.0.column', 3);
+        $orderDir = strtolower((string) $request->input('order.0.dir', 'desc')) === 'asc' ? 'asc' : 'desc';
+        $orderMap = [
+            1 => 'empleado',
+            2 => 'roles_cantidad',
+            3 => 'mes_clave',
+            4 => 'facturas_comisionadas',
+            5 => 'comision_total',
+        ];
+
+        $sortKey = $orderMap[$orderCol] ?? 'mes_clave';
+        $rows = $rows->sort(function (array $a, array $b) use ($sortKey, $orderDir) {
+            $va = $a[$sortKey] ?? null;
+            $vb = $b[$sortKey] ?? null;
+
+            if (is_numeric($va) && is_numeric($vb)) {
+                $cmp = ((float) $va <=> (float) $vb);
+            } else {
+                $cmp = strnatcasecmp((string) $va, (string) $vb);
+            }
+
+            return $orderDir === 'asc' ? $cmp : -$cmp;
+        })->values();
+
+        $draw = (int) $request->input('draw', 1);
+        $start = max(0, (int) $request->input('start', 0));
+        $length = (int) $request->input('length', 25);
+        if ($length < 0) {
+            $length = $recordsFiltered;
+        }
+
+        $data = $rows->slice($start, $length)->values()->all();
+
+        return response()->json([
+            'draw' => $draw,
+            'recordsTotal' => $recordsTotal,
+            'recordsFiltered' => $recordsFiltered,
+            'data' => $data,
+        ]);
     }
 
     /**

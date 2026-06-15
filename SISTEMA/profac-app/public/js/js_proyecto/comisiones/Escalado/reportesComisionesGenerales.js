@@ -285,10 +285,10 @@ function cargarNomina(f){
         processing:true,serverSide:true,language:lang(),order:[[3,'desc']],pageLength:25,
         ajax:{url:'/comision/reporte/nomina',data:f,type:'GET'},
         columns:[
-            {data:null,orderable:false,className:'text-muted text-center',
+            {data:null,orderable:false,searchable:false,className:'text-muted text-center',
              render:function(d,t,r,m){return m.row+1;}},
             {data:'empleado',render:function(d){return'<strong>'+esc(d)+'</strong>';}},
-            {data:null,
+            {data:null,searchable:false,
              render:function(d,t,r){
                  var cant = parseInt(r.roles_cantidad||0,10);
                  var nombres = esc(r.roles_nombres||'—');
@@ -304,7 +304,7 @@ function cargarNomina(f){
             {data:'comision_total',className:'text-right',
              render:function(d){return'<strong class="monto-com">'+fmtMoney(d)+'</strong>';}}
             ,
-            {data:null,orderable:false,className:'text-center',
+            {data:null,orderable:false,searchable:false,className:'text-center',
              render:function(d,t,r){
                  return '<button class="nom-detalle-btn" onclick="abrirDetalleNomina('+r.empleado_id+',\''+esc(r.empleado)+'\',\''+esc(r.mes_clave)+'\',\''+esc(r.mes)+'\')">'
                      + '<i class="fa fa-eye mr-1"></i>Ver'
