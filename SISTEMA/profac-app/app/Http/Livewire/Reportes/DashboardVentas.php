@@ -83,6 +83,11 @@ class DashboardVentas extends Component
                 WHERE php.producto_id = $alias.id
                   AND php.resta_inventario = 1
                   AND pf.estado = 'activo'
+                    AND TIMESTAMPADD(
+                        DAY,
+                        COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7),
+                        COALESCE(pf.created_at, CONCAT(COALESCE(pf.fecha_emision, CURDATE()), ' 00:00:00'))
+                        ) > NOW()
                   AND sgp.bodega_id <> 18
             ), 0)
         )";
@@ -131,12 +136,26 @@ class DashboardVentas extends Component
         return null;
     }
 
+    private function vendedorFacturaColumn()
+    {
+        if (Schema::hasColumn('factura', 'vendedor')) return 'vendedor';
+        return 'vendedor';
+    }
+
+    private function vendedorFacturaExpr($alias = 'f')
+    {
+        $col = $this->vendedorFacturaColumn();
+        return "$alias.$col";
+    }
+
     public function render()
     {
+        $vendExpr = $this->vendedorFacturaExpr('f');
+
         $vendedores = DB::SELECT("
             SELECT DISTINCT u.id, u.name
             FROM users u
-            INNER JOIN factura f ON f.vendedor = u.id
+            INNER JOIN factura f ON $vendExpr = u.id
             WHERE f.estado_venta_id = 1
             ORDER BY u.name
         ");
@@ -452,10 +471,11 @@ class DashboardVentas extends Component
         $tc         = $request->tipo_cliente  ? (int)$request->tipo_cliente : null;
         $vend       = $request->vendedor      ? (int)$request->vendedor     : null;
         $diaSemana  = $request->dia_semana    ?? null;
+        $vendExpr   = $this->vendedorFacturaExpr('f');
 
         $where = "f.estado_venta_id = 1 AND f.fecha_emision BETWEEN '$fi' AND '$ff'";
         if ($tc)        $where .= " AND tc.id = $tc";
-        if ($vend)      $where .= " AND f.vendedor = $vend";
+        if ($vend)      $where .= " AND $vendExpr = $vend";
         if ($diaSemana) $where .= " AND DAYNAME(f.fecha_emision) = '" . addslashes($diaSemana) . "'";
 
         $rows = DB::SELECT("
@@ -468,7 +488,7 @@ class DashboardVentas extends Component
                 AVG(f.total)                               AS ticket_promedio,
                 COALESCE(SUM(f.sub_total), 0)              AS total_sin_isv
             FROM factura f
-            INNER JOIN users u         ON u.id  = f.vendedor
+            INNER JOIN users u         ON u.id  = $vendExpr
             INNER JOIN cliente cli     ON cli.id = f.cliente_id
             INNER JOIN tipo_cliente tc ON tc.id  = cli.tipo_cliente_id
             WHERE $where
@@ -980,14 +1000,25 @@ class DashboardVentas extends Component
     // ─── Filtros / catálogos ─────────────────────────────────────────────────
     public function catalogoFiltros()
     {
+                $vendExpr = $this->vendedorFacturaExpr('f');
+
         $vendedores = DB::SELECT("
             SELECT DISTINCT u.id, u.name
             FROM users u
-            INNER JOIN factura f ON f.vendedor = u.id
+                        INNER JOIN factura f ON $vendExpr = u.id
             WHERE f.estado_venta_id = 1
               AND u.estado_id = 1
             ORDER BY u.name
         ");
+
+                $teleAsesores = DB::SELECT(" 
+                        SELECT DISTINCT u.id, u.name
+                        FROM users u
+                        INNER JOIN factura f ON f.users_id = u.id
+                        WHERE f.estado_venta_id = 1
+                            AND u.estado_id = 1
+                        ORDER BY u.name
+                ");
 
         $tiposCliente = DB::SELECT("SELECT id, descripcion FROM tipo_cliente ORDER BY descripcion");
 
@@ -1027,7 +1058,6 @@ class DashboardVentas extends Component
             INNER JOIN factura f ON f.cliente_id = cli.id
             WHERE f.estado_venta_id = 1
             ORDER BY cli.nombre
-            LIMIT 1000
         ");
 
         $sucursales = DB::SELECT(" 
@@ -1058,6 +1088,7 @@ class DashboardVentas extends Component
 
         return response()->json(compact(
             'vendedores',
+            'teleAsesores',
             'tiposCliente',
             'categorias',
             'anios',
@@ -1068,6 +1099,83 @@ class DashboardVentas extends Component
             'estadosFactura',
             'canalesVenta'
         ));
+    }
+
+    // ─── Catálogo dependiente: productos comprados por cliente en rango ───
+    public function productosPorClienteFecha(Request $request)
+    {
+        $fi      = $request->fecha_inicio ?? date('Y-01-01');
+        $ff      = $request->fecha_final  ?? date('Y-m-d');
+        $cliente = trim((string)($request->cliente ?? ''));
+
+        $where = "f.estado_venta_id = 1 AND f.fecha_emision BETWEEN ? AND ?";
+        $params = [$fi, $ff];
+
+        if ($cliente !== '') {
+            $where .= " AND cli.nombre = ?";
+            $params[] = $cliente;
+        }
+
+        $productoCodigoExpr = $this->productoCodigoExpr('p');
+
+        $rows = DB::select(" 
+            SELECT DISTINCT
+                p.id,
+                p.nombre AS nombre_producto,
+                $productoCodigoExpr AS codigo,
+                CASE
+                    WHEN COALESCE($productoCodigoExpr, '') <> '' THEN CONCAT($productoCodigoExpr, ' - ', p.nombre)
+                    ELSE p.nombre
+                END AS nombre
+            FROM factura f
+            INNER JOIN cliente cli            ON cli.id = f.cliente_id
+            INNER JOIN venta_has_producto vhp ON vhp.factura_id = f.id
+            INNER JOIN producto p             ON p.id = vhp.producto_id
+            WHERE $where
+            ORDER BY p.nombre ASC
+        ", $params);
+
+        return response()->json($rows);
+    }
+
+    // ─── Catálogo dependiente: marcas compradas por cliente en rango ──────
+    public function marcasPorClienteFecha(Request $request)
+    {
+        $fi       = $request->fecha_inicio ?? date('Y-01-01');
+        $ff       = $request->fecha_final  ?? date('Y-m-d');
+        $cliente  = trim((string)($request->cliente ?? ''));
+        $producto = trim((string)($request->producto ?? ''));
+
+        $where = "f.estado_venta_id = 1 AND f.fecha_emision BETWEEN ? AND ?";
+        $params = [$fi, $ff];
+
+        if ($cliente !== '') {
+            $where .= " AND cli.nombre = ?";
+            $params[] = $cliente;
+        }
+
+        if ($producto !== '') {
+            if (is_numeric($producto)) {
+                $where .= " AND p.id = ?";
+                $params[] = (int)$producto;
+            } else {
+                $where .= " AND p.nombre LIKE ?";
+                $params[] = "%$producto%";
+            }
+        }
+
+        $rows = DB::select(" 
+            SELECT DISTINCT m.id, m.nombre
+            FROM factura f
+            INNER JOIN cliente cli            ON cli.id = f.cliente_id
+            INNER JOIN venta_has_producto vhp ON vhp.factura_id = f.id
+            INNER JOIN producto p             ON p.id = vhp.producto_id
+            INNER JOIN marca m                ON m.id = p.marca_id
+            WHERE $where
+            ORDER BY m.nombre ASC
+        ", $params);
+
+        return response()->json($rows);
     }
 
     // ─── Evolución mensual de top clientes ─────────────────────────────────
@@ -1844,6 +1952,7 @@ class DashboardVentas extends Component
         $fi    = $request->fecha_inicio ?? date('Y-01-01');
         $ff    = $request->fecha_final  ?? date('Y-m-d');
         $vends = $request->vendedores   ?? [];
+        $vendExpr = $this->vendedorFacturaExpr('f');
 
         if (!is_array($vends)) $vends = explode(',', $vends);
         $vends = array_filter(array_map('intval', $vends));
@@ -1862,10 +1971,10 @@ class DashboardVentas extends Component
                 COALESCE(SUM(f.sub_total), 0)               AS total,
                 COUNT(DISTINCT f.id)                        AS facturas
             FROM factura f
-            INNER JOIN users u ON u.id = f.vendedor
+                        INNER JOIN users u ON u.id = $vendExpr
             WHERE f.estado_venta_id = 1
               AND f.fecha_emision BETWEEN '$fi' AND '$ff'
-              AND f.vendedor IN ($inVends)
+                            AND $vendExpr IN ($inVends)
             GROUP BY u.id, u.name, mes
             ORDER BY u.name, mes
         ");
@@ -1882,6 +1991,7 @@ class DashboardVentas extends Component
         $fi           = $request->fecha_inicio ?? date('Y-01-01');
         $ff           = $request->fecha_final  ?? date('Y-m-d');
         $vendedoresRaw = $request->vendedores  ?? '';
+        $vendExpr     = $this->vendedorFacturaExpr('f');
 
         if (!$vendedoresRaw) return response()->json([]);
 
@@ -1904,13 +2014,13 @@ class DashboardVentas extends Component
                 COUNT(DISTINCT f.id)                             AS facturas,
                 COALESCE(SUM(vhp.sub_total_s), 0)               AS total_sin_isv
             FROM factura f
-            INNER JOIN users u                   ON u.id  = f.vendedor
+                        INNER JOIN users u                   ON u.id  = $vendExpr
             INNER JOIN venta_has_producto vhp    ON vhp.factura_id = f.id
             LEFT  JOIN precios_producto_carga ppc ON ppc.id = vhp.precios_producto_carga_id
             LEFT  JOIN categoria_precios cpesc   ON cpesc.id = ppc.categoria_precios_id
             WHERE f.estado_venta_id = 1
               AND f.fecha_emision BETWEEN '$fi' AND '$ff'
-              AND f.vendedor IN ($inIds)
+                            AND $vendExpr IN ($inIds)
             GROUP BY u.id, u.name, cpesc.id, $escalaNombreExpr
             ORDER BY u.name, total_sin_isv DESC
         ");
@@ -1955,6 +2065,7 @@ class DashboardVentas extends Component
         $ff       = $request->fecha_final  ?? date('Y-m-d');
         $vendId   = $request->vendedor_id  ? (int)$request->vendedor_id  : null;
         $escalaId = $request->escala_id    !== null ? (int)$request->escala_id : null;
+        $vendExpr = $this->vendedorFacturaExpr('f');
 
         if (!$vendId) return response()->json([]);
 
@@ -1989,7 +2100,7 @@ class DashboardVentas extends Component
             INNER JOIN tipo_cliente tc           ON tc.id = cli.tipo_cliente_id
             WHERE f.estado_venta_id = 1
               AND f.fecha_emision BETWEEN '$fi' AND '$ff'
-              AND f.vendedor = $vendId
+                            AND $vendExpr = $vendId
               $escalaFilter
             GROUP BY f.id, f.cai, f.numero_factura, f.fecha_emision,
                      cli.nombre, f.nombre_cliente, cce.id, tc.descripcion,
@@ -2015,6 +2126,7 @@ class DashboardVentas extends Component
 
         $escalaPrecioExpr  = $this->categoriaPreciosLabelExpr('cpesc');
         $escalaClienteExpr = $this->clienteCategoriaEscalaLabelExpr('cce');
+        $vendExpr          = $this->vendedorFacturaExpr('f');
 
         $rows = DB::SELECT("
             SELECT
@@ -2060,7 +2172,7 @@ class DashboardVentas extends Component
             INNER JOIN cliente cli  ON cli.id = f.cliente_id
             LEFT  JOIN cliente_categoria_escala cce ON cce.id = cli.cliente_categoria_escala_id
             INNER JOIN tipo_cliente tc ON tc.id = cli.tipo_cliente_id
-            LEFT  JOIN users u      ON u.id = f.vendedor
+            LEFT  JOIN users u      ON u.id = $vendExpr
             WHERE f.id = $facturaId
         ");
 

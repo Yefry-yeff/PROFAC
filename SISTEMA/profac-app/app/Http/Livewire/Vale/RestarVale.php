@@ -202,6 +202,7 @@ class RestarVale extends Component
             }
 
             foreach($listaProductos as $producto){
+                $tipoPrecio = ($producto->ivsProducto > 0) ? '2' : '1';
                 $this->restarUnidadesInventario(
                     $producto->resta_inventario_total,
                     $producto->producto_id,
@@ -213,7 +214,8 @@ class RestarVale extends Component
                     $producto->isv,
                     $producto->total,
                     $producto->ivsProducto,
-                    $producto->unidad_venta
+                    $producto->unidad_venta,
+                    $tipoPrecio
                 );
             }
 
@@ -256,7 +258,7 @@ class RestarVale extends Component
            }
     }
 
-    public function restarUnidadesInventario($unidadesRestarInv, $idProducto, $idFactura, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad)
+    public function restarUnidadesInventario($unidadesRestarInv, $idProducto, $idFactura, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $tipoPrecio = '2')
     {
 
 
@@ -350,6 +352,7 @@ class RestarVale extends Component
                     "sub_total_s" => $subTotalSecccionado,
                     "isv_s" => $isvSecccionado,
                     "total_s" => $totalSecccionado,
+                    "tipo_precio" => $tipoPrecio,
                     "created_at" => now(),
                     "updated_at" => now(),
                 ]);

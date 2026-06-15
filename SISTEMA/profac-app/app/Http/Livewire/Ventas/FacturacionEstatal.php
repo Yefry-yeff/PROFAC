@@ -496,7 +496,12 @@ class FacturacionEstatal extends Component
                         SELECT SUM(php2.cantidad)
                         FROM prefactura_has_producto php2
                         INNER JOIN prefactura pf2 ON pf2.id = php2.prefactura_id
-                        WHERE pf2.estado = 'activo'
+                                                                                                WHERE pf2.estado = 'activo'
+                                                                                                        AND TIMESTAMPADD(
+                                                                                                                    DAY,
+                                                                                                                    COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7),
+                                                                                                                    COALESCE(pf2.created_at, CONCAT(COALESCE(pf2.fecha_emision, CURDATE()), ' 00:00:00'))
+                                                                                                                ) > NOW()
                           {$pfExcludeClause2}
                           AND php2.producto_id = {$prodId}
                           AND php2.seccion_id  = A.seccion_id
@@ -516,7 +521,12 @@ class FacturacionEstatal extends Component
                 SELECT SUM(php3.cantidad)
                 FROM prefactura_has_producto php3
                 INNER JOIN prefactura pf3 ON pf3.id = php3.prefactura_id
-                WHERE pf3.estado = 'activo'
+                                                                WHERE pf3.estado = 'activo'
+                                                                        AND TIMESTAMPADD(
+                                                                                    DAY,
+                                                                                    COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7),
+                                                                                    COALESCE(pf3.created_at, CONCAT(COALESCE(pf3.fecha_emision, CURDATE()), ' 00:00:00'))
+                                                                                ) > NOW()
                   {$pfExcludeClause3}
                   AND php3.producto_id = {$prodId}
                   AND php3.seccion_id  = A.seccion_id
@@ -832,7 +842,12 @@ class FacturacionEstatal extends Component
                     IFNULL((SELECT SUM(php2.cantidad)
                              FROM prefactura_has_producto php2
                              INNER JOIN prefactura pf2 ON pf2.id = php2.prefactura_id
-                             WHERE pf2.estado = 'activo'
+                                                                                                                 WHERE pf2.estado = 'activo'
+                                                                                                                         AND TIMESTAMPADD(
+                                                                                                                                     DAY,
+                                                                                                                                     COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7),
+                                                                                                                                     COALESCE(pf2.created_at, CONCAT(COALESCE(pf2.fecha_emision, CURDATE()), ' 00:00:00'))
+                                                                                                                                 ) > NOW()
                                {$excludePfClause}
                                AND php2.producto_id = " . (int)$request->$keyIdProducto . "
                                AND php2.seccion_id  = " . (int)$request->$keyIdSeccion . "
@@ -940,6 +955,7 @@ class FacturacionEstatal extends Component
             $factura->estado_venta_id = 1;
             $factura->cliente_id = $request->seleccionarCliente;
             $factura->vendedor = $request->vendedor;
+            $factura->gestor_entrega = $request->gestor_entrega ?: null;
             $factura->monto_comision = $montoComision;
             $factura->tipo_venta_id = 2; // estatal
             $factura->estado_factura_id = 1; // se presenta
@@ -1024,8 +1040,9 @@ class FacturacionEstatal extends Component
                 $subTotal = $request->$keySubTotal;
                 $isv = $request->$keyIsv;
                 $total = $request->$keyTotal;
+                $tipoPrecio = ($ivsProducto > 0) ? '2' : '1';
 
-                $this->restarUnidadesInventario($precios_producto_carga_id, $idPrecioSeleccionado,$precioSeleccionado ,$restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $arrayInputs[$i]);
+                $this->restarUnidadesInventario($precios_producto_carga_id, $idPrecioSeleccionado,$precioSeleccionado ,$restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $arrayInputs[$i], $tipoPrecio);
             };
 
 
@@ -1098,7 +1115,7 @@ class FacturacionEstatal extends Component
         }
     }
 
-    public function restarUnidadesInventario($precios_producto_carga_id,$idPrecioSeleccionado,$precioSeleccionado ,$unidadesRestarInv, $idProducto, $idSeccion, $idFactura, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $indice)
+    public function restarUnidadesInventario($precios_producto_carga_id,$idPrecioSeleccionado,$precioSeleccionado ,$unidadesRestarInv, $idProducto, $idSeccion, $idFactura, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $indice, $tipoPrecio = '2')
     {
         //dd("Categoria Cliente primer producto : ".$categoriaClientePrecio);
         try {
@@ -1198,6 +1215,7 @@ class FacturacionEstatal extends Component
                     "sub_total_s" => $subTotalSecccionado,
                     "isv_s" => $isvSecccionado,
                     "total_s" => $totalSecccionado,
+                    "tipo_precio" => $tipoPrecio,
                     "idPrecioSeleccionado"=>$idPrecioSeleccionado,
                     "precioSeleccionado"=>$precioSeleccionado,
 

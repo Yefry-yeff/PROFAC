@@ -102,7 +102,7 @@
 
 
                                 <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
-                                    <label class="col-form-label focus-label" for="vendedor">Seleccionar Vendedor:<span
+                                    <label class="col-form-label focus-label" for="vendedor">Asesor Comercial:<span
                                             class="text-danger">*</span> </label>
                                     <select name="vendedor" id="vendedor" class="form-group form-control" required>
                                         <option value="" selected disabled>--Seleccionar un vendedor--</option>

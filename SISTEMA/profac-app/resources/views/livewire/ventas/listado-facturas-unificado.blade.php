@@ -367,6 +367,11 @@
                 cols.push({ data: 'fecha_emision' });
                 cols.push({ data: 'nombre' });
                 cols.push({ data: 'descripcion' }); // tipo de pago
+                cols.push({ data: 'gravado' });
+                cols.push({ data: 'exento' });
+                cols.push({ data: 'exonerado' });
+                cols.push({ data: 'sub_total' });
+                cols.push({ data: 'isv' });
                 cols.push({ data: 'total' });
                 cols.push({ data: 'estado_cobro' });
                 if (!esVend) {
@@ -382,7 +387,7 @@
                 var headers = ['Tipo'];
                 if (esVend) headers.push('Cód.');
                 if (!esVend) headers.push('N° Factura');
-                headers.push('Fecha', 'Cliente', 'Tipo Pago', 'Total', 'Estado', 'Vendedor', 'Opciones');
+                headers.push('Fecha', 'Cliente', 'Tipo Pago', 'Gravado', 'Exento', 'Exonerado', 'Subtotal', 'ISV', 'Total', 'Estado', 'Vendedor', 'Opciones');
                 var html = '<tr>';
                 headers.forEach(function(h) { html += '<th>' + h + '</th>'; });
                 html += '</tr>';

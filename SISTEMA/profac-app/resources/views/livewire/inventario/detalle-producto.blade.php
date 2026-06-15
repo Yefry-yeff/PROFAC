@@ -977,7 +977,7 @@
     </div>
 
     @push('scripts')
-    <script src="{{ asset('js/js_proyecto/inventario/detalle-producto.js') }}"></script>
+    <script src="{{ asset('js/js_proyecto/inventario/detalle-producto.js') }}?v={{ filemtime(public_path('js/js_proyecto/inventario/detalle-producto.js')) }}"></script>
     <script>
     function abrirModalReservas(btn) {
         var label    = btn.getAttribute('data-seccion-label') || '';

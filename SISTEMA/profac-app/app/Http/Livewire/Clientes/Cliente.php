@@ -329,9 +329,9 @@ class Cliente extends Component
             })
             ->addColumn('estado', function ($cliente) {
                 if ($cliente->estado_cliente_id === 1) {
-                    return '<span class="badge badge-activo">ACTIVO</span>';
+                    return '<span class="estado-pill activo">● ACTIVO</span>';
                 } else {
-                    return '<span class="badge badge-inactivo">INACTIVO</span>';
+                    return '<span class="estado-pill inactivo">● INACTIVO</span>';
                 }
             })
             ->rawColumns(['opciones','estado'])
@@ -1069,6 +1069,45 @@ class Cliente extends Component
             /* Tipos de documento marcados como "tiene físico" */
             $docFisico = DB::select("SELECT tipo_documento FROM cliente_doc_fisico WHERE cliente_id = ?", [$id]);
             $docFisicoList = array_column((array)$docFisico, 'tipo_documento');
+
+            // Alinear con Cuentas por Cobrar: asegurar que aplicacion_pagos
+            // esté sincronizada con facturas activas antes de calcular disponible.
+            $existenciaAplicacion = DB::selectOne(" 
+                SELECT COUNT(*) AS existe
+                FROM aplicacion_pagos ap
+                INNER JOIN factura fa ON fa.id = ap.factura_id
+                WHERE ap.estado = 1
+                  AND fa.estado_venta_id = 1
+                  AND fa.cliente_id = ?
+            ", [$id]);
+
+            $facturasActivas = DB::selectOne(" 
+                SELECT COUNT(*) AS num
+                FROM factura fa
+                WHERE fa.estado_venta_id = 1
+                  AND fa.cliente_id = ?
+            ", [$id]);
+
+            $facturasEnPagos = DB::selectOne(" 
+                SELECT COUNT(*) AS num
+                FROM aplicacion_pagos ap
+                WHERE ap.factura_id IN (
+                    SELECT fa.id
+                    FROM factura fa
+                    WHERE fa.estado_venta_id = 1
+                      AND fa.cliente_id = ?
+                )
+            ", [$id]);
+
+            if ((int)($existenciaAplicacion->existe ?? 0) === 0) {
+                DB::select(" 
+                    CALL sp_aplicacion_pagos('1', ?, ?, '0','na','0','0','0', @estado, @msjResultado)
+                ", [$id, (int)(Auth::id() ?? 1)]);
+            } elseif ((int)($facturasActivas->num ?? 0) > (int)($facturasEnPagos->num ?? 0)) {
+                DB::select(" 
+                    CALL sp_aplicacion_pagos('3', ?, ?, '0','na','0','0','0', @estado, @msjResultado)
+                ", [$id, (int)(Auth::id() ?? 1)]);
+            }
 
             $montoDisponible = CreditoService::calcularDisponible((int)$id, (float)($datosCliente->credito_inicial ?? 0));
 

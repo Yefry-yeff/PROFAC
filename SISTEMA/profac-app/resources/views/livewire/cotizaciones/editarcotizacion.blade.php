@@ -88,7 +88,7 @@
                                 </div>
 
                                 <div class="col-12 col-md-6 col-lg-6 col-xl-6">
-                                    <label for="vendedor" class="col-form-label focus-label">Seleccionar Vendedor:<span
+                                    <label for="vendedor" class="col-form-label focus-label">Asesor Comercial:<span
                                             class="text-danger">*</span> </label>
                                     <select name="vendedor" id="vendedor" class="form-group form-control" required>
                                         <option value="" selected disabled>--Seleccionar un vendedor--</option>

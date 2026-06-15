@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 
 <head>
@@ -57,7 +57,7 @@
 
         }
     </style>
-    <title>ACTA DE RECEPCIÓN</title>
+    <title>ACTA DE RECEPCION</title>
 </head>
 
 <body>
@@ -77,9 +77,9 @@
         <img src="{{ public_path('img/membrete/Logo3.png') }}" width="800rem" style="margin-left:3%; margin-top:-25px; position:absolute;"alt="">
         <div class="card border border-dark" style="margin-left:44px;  margin-top:150px; width:45rem; height:5.5rem;">
             <div class="card-header">
-                <b> ACTA DE RECEPCIÓN </b>
-                <b style="position:absolute;right: 70px">Factura No. {{$cai->numero_factura}} </b>
-                {{-- <b style="position:absolute;right: 10px" >Factura de: {{$cai->descripcion}}</b> --}}
+                <b>ACTA DE RECEPCION No. {{$cai->numero_factura}} </b>
+                <b style="position:absolute;right: 270px"> *Original* </b>
+                <b style="position:absolute;right: 10px" >Factura de: {{$cai->descripcion}}</b>
             </div>
 
             <div class="card-body">
@@ -99,33 +99,33 @@
                 <p class="card-text" style="position:absolute;left:20px;  top:10px;"><b>Cliente: </b>{{$cliente->nombre}} - ({{ $cliente->clienteId }})</p>
                 <p class="card-text" style="position:absolute;left:20px;  top:29px; font-size: 11 px; max-width:500px"><b>Dirección:</b> {{$cliente->direccion}}</p>
 
-                <p class="card-text" style="position:absolute;left:20px;  top:47px;"><b>Correo:</b> {{$cliente->correo}}
+                <p class="card-text" style="position:absolute;left:20px;  top:54px;"><b>Correo:</b> {{$cliente->correo}}
                 </p>
                 <p class="card-text" style="position:absolute;left:20px;  top:80px; max-width:680px"><b>Notas:</b>{{ $cai->comentario }} </p>
 
 
-                {{-- <p class="card-text "  style="position:absolute;left:20px;  top:120px;"><b>Correlativo de Ord. excenta</b>
+                <p class="card-text "  style="position:absolute;left:20px;  top:127px;"><b>Correlativo de Ord. exenta</b>
                 </p>
-                <p class="card-text" style="position:absolute;left:250px;  top:120px;"><b>Constancia de registro
+                <p class="card-text" style="position:absolute;left:250px;  top:127px;"><b>Constancia de registro
                         exonerado</b></p>
-                <p class="card-text" style="position:absolute;left:500px;  top:120px;"><b>Identificativo del registro de
-                        la SAG</b></p> --}}
+                <p class="card-text" style="position:absolute;left:500px;  top:127px;"><b>Identificativo del registro de
+                        la SAG</b></p>
 
-                <p class="card-text" style="position:absolute;left:250px;  top:140px;">{{-- R-{{strtoupper($cai->codigo_exoneracion)}} --}}</p>
+                <p class="card-text" style="position:absolute;left:250px;  top:141px;">{{strtoupper($cai->codigo_exoneracion)}}</p>
 
-                <p class="card-text" style="position:absolute;left:20px;  top:140px;">{{strtoupper($cai->correlativoexo)}}</p>
+                <p class="card-text" style="position:absolute;left:20px;  top:141px;">{{strtoupper($cai->correlativoexo)}}</p>
 
 
                 <p class="card-text" style="position:absolute;left:520px;  top:10px;"><b>Fecha:</b> {{$cai->fecha_emision}}</p>
                 <p class="card-text" style="position:absolute;left:520px;  top:25px;"><b>Hora:</b> {{$cai->hora}}</p>
                 <p class="card-text" style="position:absolute;left:520px;  top:40px;"><b>Vence:</b> {{$cai->fecha_vencimiento}}</p>
                 <p class="card-text" style="position:absolute;left:520px;  top:57px;"><b>RTN:</b> {{$cliente->rtn}}</p>
-                <p class="card-text" style="position:absolute;left:520px;  top:72px;"><b>Orden:</b>
+                <p class="card-text" style="position:absolute;left:520px;  top:72px;"><b>Orden:</b>{{ $ordenCompra->numero_orden ?? "" }}
                 </p>
 
 
 
-                <p class="card-text" style="position:absolute;left:270px;  top:45px;"><b>Teléfono:</b> {{$cliente->telefono_empresa}}
+                <p class="card-text" style="position:absolute;left:270px;  top:52px;"><b>Teléfono:</b> {{$cliente->telefono_empresa}}
                 </p>
             </div>
         </div>
@@ -186,19 +186,17 @@
                 <div style=" position: relative; margin-left:44px; margin-top:30px; width:26rem; height:20rem;">
 
 
-                    <div class="card {{-- border border-dark --}}" style="position:absolute;left:0px;  width:26rem; height:15rem;">
+                    <div class="card border border-dark" style="position:absolute;left:0px;  width:26rem; height:15rem;">
                         <div class="card-body">
 
 
-                            <p class="card-text" style="position:absolute;left:10px;  top:2px; font-size:14px;"><b>Vendedor:
+                            <p class="card-text" style="position:absolute;left:10px;  top:2px; font-size:14px;"><b>Asesor comercial:
                             </b>
                             {{ $cai->vendedor }} </p>
-                            <p class="card-text" style="position:absolute;left:200px;  top:2px; font-size:14px;"><b>Facturador:
+                            <p class="card-text" style="position:absolute;left:200px;  top:2px; font-size:14px;"><b>Tele asesor:
                                 </b>
                                 {{ $cai->facturador }} </p>
-
-                            {{-- <p class="card-text" style="position:absolute;left:10px;  top:18px; font-size:14px"><b>Repartidor: </b>
-                                NULL</p> --}}
+                            <p class="card-text" style="position:absolute;left:10px;  top:18px; font-size:11px;"><b>Asesor de entrega:</b> {{ $cai->asesor_entrega ?? '' }}</p>
 
                                 <!--
 
@@ -210,7 +208,7 @@
 
 
 
-                            {{-- <p class="card-text" style="position:absolute;left:0px;  top:28px; font-size:11px;">
+                            <p class="card-text" style="position:absolute;left:0px;  top:28px; font-size:11px;">
                                 ____________________________________________________________________</p>
                             <p class="card-text" style="position:absolute;left:10px;  top:40px; font-size:11px;">1. por cada cheque
                                 devuelto se cobra 750 lempiras.</p>
@@ -229,20 +227,20 @@
                                 legales y somete a la jurisdicción de tegucigalpa municipio del distrito central.</p>
                             <p class="card-text" style="position:absolute;left:10px;  top:205px; font-size:11px">7. las entregas y
                                 creditos para cuentas con facturas vencidas serán congeladas hasta el pago de las mismas haya sido
-                                efectuado en su totalidad. --}}
+                                efectuado en su totalidad.
 
                                 @if($cai->estado_factura==1)
-                                <span style = "font-size: 10px">{{-- N{{$cai->numero}}-CF11 --}}</span></p>
+                                <span style = "font-size: 10px">N{{$cai->numero}}-CF11</span></p>
                                 @else
-                                <span style = "font-size: 10px">{{-- N{{$cai->numero}}-CF12 --}}</span></p>
+                                <span style = "font-size: 10px">N{{$cai->numero}}-CF12</span></p>
                                 @endif
 
 
                             @if($flagCentavos == false)
-                            <p class="card-text" style="position:absolute;left:35px;  top:240px; font-size:12px;">{{-- "{{$numeroLetras." CON CERO CENTAVOS"}}" --}}</p>
+                            <p class="card-text" style="position:absolute;left:35px;  top:240px; font-size:12px;">"{{$numeroLetras." CON CERO CENTAVOS"}}"</p>
 
                             @else
-                            <p class="card-text" style="position:absolute;left:35px;  top:240px; font-size:14px;">{{-- "{{$numeroLetras }}" --}}</p>
+                            <p class="card-text" style="position:absolute;left:35px;  top:240px; font-size:14px;">"{{$numeroLetras }}"</p>
                             @endif
                         </div>
                     </div>
@@ -252,20 +250,20 @@
                             <div>
                                 <p class="card-text " style="position:absolute; left:10px;  top:10px; font-size:14px;">Importe
                                     exonerado:</p>
-                                <p class="card-text" style="position:absolute;  right:10px;  top:10px; font-size:14px;">{{$importesConCentavos->sub_total}}</p>
+                                <p class="card-text" style="position:absolute;  right:10px;  top:10px; font-size:14px;">L. 0.00</p>
                             </div>
                             <div>
                                 <p class="card-text" style="position:absolute; left:10px;  top:28px; font-size:14px;">Importe Gravado 15%: </p>
-                                <p class="card-text" style="position:absolute; right:10px;  top:28px; font-size:14px;">0.00</p>
+                                <p class="card-text" style="position:absolute; right:10px;  top:28px; font-size:14px;">L. 0.00</p>
                             </div>
                             <div>
                                 <p class="card-text" style="position:absolute; left:10px;  top:46px; font-size:14px;">Importe Gravado 18%: </p>
-                                <p class="card-text" style="position:absolute; right:10px;  top:46px; font-size:14px;">0.00</p>
+                                <p class="card-text" style="position:absolute; right:10px;  top:46px; font-size:14px;">L. 0.00</p>
                             </div>
 
                             <div>
                                 <p class="card-text" style="position:absolute; left:10px;  top:64px; font-size:14px;">Importe Exento:  </p>
-                                <p class="card-text" style="position:absolute; right:10px;  top:64px; font-size:14px;">0.00</p>
+                                <p class="card-text" style="position:absolute; right:10px;  top:64px; font-size:14px;">L. {{$importesConCentavos->sub_total}}</p>
                             </div>
 
 
@@ -273,9 +271,9 @@
                             </p>
                             <p class="card-text" style="position:absolute; left:200px;  top:65px; font-size:16px;">1200.00</p> --}}
 
-                            <p class="card-text" style="position:absolute; left:10px;  top:85px; font-size:14px;">Desc. y Rebajas {{$importes->porc_descuento}}:
+                            {{--  <p class="card-text" style="position:absolute; left:10px;  top:85px; font-size:14px;">Desc. y Rebajas {{$importes->porc_descuento}}%:
                             </p>
-                            <p class="card-text" style="position:absolute; right:10px;  top:85px; font-size:14px;">L. {{$importesConCentavos->monto_descuento}}</p>
+                            <p class="card-text" style="position:absolute; right:10px;  top:85px; font-size:14px;">L. {{$importesConCentavos->monto_descuento}}</p>  --}}
 
 
                             <p class="card-text" style="position:absolute; left:10px;  top:105px; font-size:14px;">Sub Total:</p>
@@ -283,39 +281,37 @@
 
                             <p class="card-text" style="position:absolute; left:10px;  top:130px; font-size:14px;">Impuesto sobre
                                 venta 15%: </p>
-                            <p class="card-text" style="position:absolute; right:10px;  top:130px; font-size:14px;"> L.0.00</p>
+                            <p class="card-text" style="position:absolute; right:10px;  top:130px; font-size:14px;"> L. 0.00</p>
 
                             <p class="card-text" style="position:absolute; left:10px;  top:148px; font-size:14px;">Impuesto sobre
                                 venta 18%: </p>
-                            <p class="card-text" style="position:absolute; right:10px;  top:148px; font-size:14px;"> L.0.00</p>
+                            <p class="card-text" style="position:absolute; right:10px;  top:148px; font-size:14px;"> L. 0.00</p>
 
                             <p class="card-text" style="position:absolute; left:10px;  top:185px; font-size:16px;"><b>Total a
                                     Pagar: </b></p>
-                            <p class="card-text" style="position:absolute; right:10px;  top:185px; font-size:16px;"><b>{{$importesConCentavos->sub_total}}</b>
+                            <p class="card-text" style="position:absolute; right:10px;  top:185px; font-size:16px;"><b>L. {{$importesConCentavos->sub_total}}</b>
                             </p>
                         </div>
                     </div>
 
 
                     <div style="position:absolute; left:0px;   width:45rem; margin-top:300px">
-                        <p class="card-text" style="position:absolute;left:50px;  top:-235px;">
+                        <p class="card-text" style="position:absolute;left:20px;  top:10px;">
                             _______________________________________</p>
-                        <p class="card-text" style="position:absolute;left:50px;  top:-130px;">
+                        <p class="card-text" style="position:absolute;left:450px;  top:10px;">
                             _______________________________________</p>
-
-                        <p class="card-text" style="position:absolute;left:50px;  top:-215px;">{{ strtoupper($cliente->nombre) }}</p>
-
-                        <p class="card-text" style="position:absolute;left:50px;  top:-115px;">DISTRIBUCIONES VALENCIA</p>
-                        <p class="card-text" style="position:absolute;left:20px;  top:25px; max-width:250px;  ">Cliente: {{ strtoupper($cliente->nombre) }}</p>
+                        <p class="card-text" style="position:absolute;left:20px;  top:25px; max-width:500px;  ">Cliente: {{ strtoupper($cliente->nombre) }}</p>
                         <p class="card-text" style="position:absolute;left:20px;  top:40px; max-width:250px;  ">Recibido por: </p>
                         <p class="card-text" style="position:absolute;left:20px;  top:55px; max-width:250px;  ">Telefono: </p>
                         <p class="card-text" style="position:absolute;left:20px;  top:70px; max-width:250px;  "><b>*Se requiere firma y sello de recibido.*</b></p>
+                        <p class="card-text" style="position:absolute;left:495px;  top:25px;">DISTRIBUCIONES VALENCIA</p>
+                        <p class="card-text" style="position:absolute;left:460px;  top:-60px;">Original: Cliente, Copia obligado tributario emisor. </p>
                     </div>
 
                     @if ($cai->estado_venta_id == 2)
                     <div  style="position:absolute;   text-align: center; margin-top:350px;width:45rem">
                         <p style="font-size:50px">
-                            --ACTA DE RECEPCIÓN ANULADA--</p>
+                            --ACTA DE RECEPCION ANULADA--</p>
                     </div>
                     @endif
 
@@ -348,3 +344,4 @@
 </body>
 
 </html>
+

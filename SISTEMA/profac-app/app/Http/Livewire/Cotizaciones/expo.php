@@ -543,7 +543,7 @@ class expo extends Component
             C.id as codigo,
             C.nombre,
             C.descripcion,
-            if(C.isv = 0, 'SI' , 'NO' ) as excento,
+            IF(COALESCE(NULLIF(B.tipo_precio,''), IF(B.isv_producto > 0,'2','1')) = '1', 'SI', 'NO') as excento,
             FORMAT(B.precio_unidad,2) as precio,
             FORMAT(B.cantidad,2) as cantidad,
             FORMAT(B.sub_total,2) as importe,

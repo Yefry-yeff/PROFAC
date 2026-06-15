@@ -181,28 +181,38 @@ class DetalleProducto extends Component
         $unidades = ModelUnidadMedida::all();
         $marcas = ModelMarca::all();
 
-        // ── Reservas por sección (FIFO) ──────────────────────────────────
-        // Total reservado por seccion_id para este producto
-        $reservasPorSeccion = DB::table('prefactura_has_producto as php')
-            ->join('prefactura as pf', 'pf.id', '=', 'php.prefactura_id')
-            ->where('pf.estado', 'activo')
-            ->where('php.producto_id', $id)
-            ->where('php.resta_inventario', 1)
-            ->selectRaw('php.seccion_id, SUM(php.cantidad) as total')
-            ->groupBy('php.seccion_id')
-            ->pluck('total', 'seccion_id')
-            ->map(fn($v) => (float) $v)
-            ->toArray();
+        // Vigencia de reserva: fecha de creación de prefactura + días configurados.
+        $diasValidezReserva = (int) (DB::table('configuracion_prefactura')
+            ->orderByDesc('id')
+            ->value('dias_validez') ?? 7);
+        $diasValidezReserva = max(0, $diasValidezReserva);
 
-        // Detalle de prefacturas reservadas por seccion_id (para modal)
+        // ── Reservas por sección (FIFO) ──────────────────────────────────
+        // Solo cuentan prefacturas con reserva completa (todo-o-nada).
         $detalleReservasRaw = DB::table('prefactura_has_producto as php')
             ->join('prefactura as pf', 'pf.id', '=', 'php.prefactura_id')
             ->where('pf.estado', 'activo')
+            ->whereRaw(
+                "TIMESTAMPADD(DAY, ?, COALESCE(pf.created_at, CONCAT(COALESCE(pf.fecha_emision, CURDATE()), ' 00:00:00'))) > NOW()",
+                [$diasValidezReserva]
+            )
             ->where('php.producto_id', $id)
             ->where('php.resta_inventario', 1)
             ->select('php.seccion_id', 'pf.id as prefactura_id', 'pf.flujo_id',
                      'pf.nombre_cliente', 'php.cantidad', 'pf.fecha_emision', 'pf.fecha_vencimiento')
-            ->get()
+            ->get();
+
+        $cacheReservaCompleta = [];
+        $detalleReservasFiltrado = $detalleReservasRaw->filter(function ($r) use (&$cacheReservaCompleta) {
+            return $this->prefacturaTieneReservaCompleta((int) $r->prefactura_id, $cacheReservaCompleta);
+        });
+
+        $reservasPorSeccion = $detalleReservasFiltrado
+            ->groupBy('seccion_id')
+            ->map(fn($rows) => (float) $rows->sum('cantidad'))
+            ->toArray();
+
+        $detalleReservasAgrupado = $detalleReservasFiltrado
             ->groupBy('seccion_id')
             ->map(fn($rows) => $rows->map(fn($r) => (array) $r)->values()->toArray())
             ->toArray();
@@ -220,12 +230,42 @@ class DetalleProducto extends Component
             $lote->rawStock            = $rawStock;
             $lote->reservado_fila      = $reservaFila;
             $lote->disponible_fila     = max(0.0, $rawStock - $reservaFila);
-            $lote->reservas_detalle    = $sid !== null ? ($detalleReservasRaw[$sid] ?? []) : [];
+            $lote->reservas_detalle    = $sid !== null ? ($detalleReservasAgrupado[$sid] ?? []) : [];
         }
 
         $esAdmin = Auth::user()->rol_id == 1;
 
         return view('livewire.inventario.detalle-producto',  compact('producto', 'precios', 'imagenes', 'lotes', 'categorias', 'unidades', 'marcas', 'esAdmin'));
+    }
+
+    private function prefacturaTieneReservaCompleta(int $prefacturaId, array &$cache): bool
+    {
+        if (array_key_exists($prefacturaId, $cache)) {
+            return (bool) $cache[$prefacturaId];
+        }
+
+        $lineas = DB::table('prefactura_has_producto')
+            ->where('prefactura_id', $prefacturaId)
+            ->where('resta_inventario', 1)
+            ->whereNotNull('producto_id')
+            ->whereNotNull('seccion_id')
+            ->get(['producto_id', 'seccion_id', 'cantidad']);
+
+        foreach ($lineas as $linea) {
+            $rawStock = (float) DB::table('recibido_bodega')
+                ->where('producto_id', $linea->producto_id)
+                ->where('seccion_id', $linea->seccion_id)
+                ->where('cantidad_disponible', '>', 0)
+                ->sum('cantidad_disponible');
+
+            if ($rawStock + 0.0001 < (float) $linea->cantidad) {
+                $cache[$prefacturaId] = false;
+                return false;
+            }
+        }
+
+        $cache[$prefacturaId] = true;
+        return true;
     }
 
     public function unidadesVenta($id){

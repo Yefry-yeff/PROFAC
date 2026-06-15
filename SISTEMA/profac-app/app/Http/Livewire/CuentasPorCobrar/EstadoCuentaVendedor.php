@@ -101,7 +101,7 @@ class EstadoCuentaVendedor extends Component
             WHERE ap.cliente_id = ?
               AND ap.estado = 1
               AND ap.estado_cerrado <> 2
-              AND ap.saldo <> 0
+                            AND ap.saldo > 0
         ", [$id]);
 
         return DataTables::of($cuentas)
@@ -258,11 +258,24 @@ class EstadoCuentaVendedor extends Component
     {
         $estadoCuenta = DB::select("CALL estadoCuenta_sp(?)", [$idClientepdf]);
 
+        $estadoCuenta = array_map(function ($row) {
+            $row->acumulado = $row->acumulado ?? $row->Acumulado ?? 0;
+            return $row;
+        }, $estadoCuenta);
+
+        $estadoCuenta = array_values(array_filter($estadoCuenta, function ($row) {
+            return (float) ($row->saldo ?? 0) > 0;
+        }));
+
         if (empty($estadoCuenta)) {
-            abort(404, 'No se encontró información de estado de cuenta para este cliente.');
+            $nombreCliente = DB::table('cliente')->where('id', (int) $idClientepdf)->value('nombre') ?? 'Cliente #'.$idClientepdf;
+            $sinMovimientos = true;
+        } else {
+            $nombreCliente  = $estadoCuenta[0]->cliente;
+            $sinMovimientos = false;
         }
 
-        $pdf = PDF::loadView('/pdf/estadocuentaAplicacion', compact('estadoCuenta'))
+        $pdf = PDF::loadView('/pdf/estadocuentaAplicacion', compact('estadoCuenta', 'nombreCliente', 'sinMovimientos'))
                   ->setPaper('A4', 'landscape');
 
         return $pdf->stream('ESTADO_CUENTA.pdf');

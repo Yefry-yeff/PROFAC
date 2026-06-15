@@ -136,7 +136,7 @@ function cargarTabla() {
                 }
             }
         ],
-        order: [[1, 'asc']],
+        order: [[1, 'desc']],
         pageLength: 25,
         dom: '<"row"<"col-sm-6"l><"col-sm-6"f>>rt<"row"<"col-sm-5"i><"col-sm-7"p>>',
         initComplete: function() {
@@ -163,12 +163,14 @@ function cargarKpis() {
             var k = resp.kpis;
             $('#kpi_facturado').text(fmtLps(k.total_facturado));
             $('#kpi_cobrado').text(fmtLps(k.total_cobrado));
-            $('#kpi_pendiente').text(fmtLps(k.total_pendiente));
-            $('#kpi_vencido').text(fmtLps(k.total_vencido));
+            $('#kpi_pendiente').text(fmtLps(k.total_aumento_factura));
+            $('#kpi_vencido').text(fmtLps(k.total_disminucion_factura));
+            $('#kpi_saldo_pendiente').text(fmtLps(k.total_pendiente));
             $('#kpi_total_facturas').text(k.total_facturas + ' facturas');
             $('#kpi_fac_pagadas').text(k.facturas_pagadas + ' pagadas');
             $('#kpi_fac_pendientes').text(k.facturas_pendientes + ' pendientes');
-            $('#kpi_fac_vencidas').text(k.facturas_vencidas + ' vencidas');
+            $('#kpi_sub_aumento').text('');
+            $('#kpi_sub_disminucion').text('');
         }
     });
 }
@@ -235,7 +237,17 @@ function renderExpediente(resp) {
     html += metaItem('Vencimiento',    fmtFecha(c.fecha_vencimiento));
     html += metaItem('Días Crédito',   c.credito == 0 ? 'Contado' : (c.dias_credito + ' días'));
     html += metaItem('Modo Pago',      c.modo_pago);
-    html += metaItem('Estado F-01',    c.estado_f01);
+    html += '<div class="rfd-meta-item">'
+          + '<div class="rfd-meta-lbl">ESTADO F-01</div>'
+          + '<div class="rfd-meta-val" style="display:flex;align-items:center;gap:6px;">'
+          + '<span id="rfd-f01-val-' + c.factura_id + '">' + escHtml(c.flujo_forma_f01 || 'N/A') + '</span>'
+          + (c.tiene_flujo
+              ? ' <button onclick="rfdEditarF01(' + c.factura_id + ', this)" '
+                + 'style="background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.5);color:#fff;'
+                + 'border-radius:4px;padding:1px 7px;font-size:11px;cursor:pointer;" title="Editar F-01">'
+                + '<i class="fa fa-pencil"></i></button>'
+              : ' <span style="font-size:10px;opacity:.65;cursor:help;" title="Esta factura no tiene flujo asociado — no se puede editar"><i class="fa fa-lock"></i></span>')
+          + '</div></div>';
     html += metaItem('Orden Compra',   c.orden_compra || '—');
     html += metaItem('Fecha Entrega',  c.fecha_entrega ? fmtFecha(c.fecha_entrega) : 'Sin entrega');
     html += '</div></div>';
@@ -254,10 +266,34 @@ function renderExpediente(resp) {
     html += '</div>';
 
     /* Estado financiero */
+    var totalAbonos      = 0;
+    var totalNotasDebito = 0;
+    var totalNotasCredito= 0;
+    var totalRetencion   = 0;
+    $.each(ms, function(i, mov) {
+        var monto = parseFloat(mov.monto) || 0;
+        if (mov.tipo === 'ABONO' || mov.tipo === 'PAGO') totalAbonos      += monto;
+        if (mov.tipo === 'NOTA_DEBITO')                  totalNotasDebito += monto;
+        if (mov.tipo === 'NOTA_CREDITO')                 totalNotasCredito+= monto;
+        if (mov.tipo === 'RETENCION')                    totalRetencion   += monto;
+    });
+
     html += '<div class="rfd-fin-box"><h5><i class="fa fa-line-chart" style="margin-right:5px;"></i>Estado Financiero Actual</h5>';
-    html += finRow('Total Facturado', fmtLps(c.total_factura));
-    html += finRow('Total Abonado / Pagado', fmtLps(parseFloat(c.total_factura) - parseFloat(resp.saldo_final)));
-    html += '<div class="rfd-fin-row ' + saldoClass + '"><span class="lbl">Saldo Pendiente</span><span class="val">' + fmtLps(resp.saldo_final) + '</span></div>';
+    html += '<div class="rfd-fin-row"><span class="lbl">Total Facturado</span><span class="val" style="color:#111827;font-weight:600;">' + fmtLps(c.total_factura) + '</span></div>';
+    if (totalNotasDebito > 0) {
+        html += '<div class="rfd-fin-row"><span class="lbl" style="padding-left:12px;color:#6b7280;">↳ Notas de Débito</span><span class="val" style="color:#b45309;font-weight:600;">+ ' + fmtLps(totalNotasDebito) + '</span></div>';
+    }
+    if (totalNotasCredito > 0) {
+        html += '<div class="rfd-fin-row"><span class="lbl" style="padding-left:12px;color:#6b7280;">↳ Notas de Crédito</span><span class="val" style="color:#e02424;font-weight:600;">- ' + fmtLps(totalNotasCredito) + '</span></div>';
+    }
+    if (totalRetencion > 0) {
+        html += '<div class="rfd-fin-row"><span class="lbl" style="padding-left:12px;color:#6b7280;">↳ Retención ISV</span><span class="val" style="color:#0369a1;font-weight:600;">- ' + fmtLps(totalRetencion) + '</span></div>';
+    }
+    html += '<div class="rfd-fin-row"><span class="lbl">Total Abonado / Pagado</span><span class="val" style="color:#0e9f6e;font-weight:600;">' + fmtLps(totalAbonos) + '</span></div>';
+    var saldoCalculado = (parseFloat(c.total_factura) || 0) + totalNotasDebito - totalNotasCredito - totalRetencion - totalAbonos;
+    if (saldoCalculado < 0) saldoCalculado = 0;
+    var saldoClassCalc = saldoCalculado <= 0.01 ? 'saldo-0' : (parseInt(c.dias_vencidos) > 0 ? 'saldo-venc' : '');
+    html += '<div class="rfd-fin-row ' + saldoClassCalc + '"><span class="lbl">Saldo Pendiente</span><span class="val">' + fmtLps(saldoCalculado) + '</span></div>';
     html += finRow('D\u00edas Vencidos',
         (parseInt(c.dias_vencidos) > 0)
             ? '<span style="color:#e02424;font-weight:700;">' + c.dias_vencidos + ' d\u00edas</span>'
@@ -279,7 +315,10 @@ function renderExpediente(resp) {
     /* ── Timeline ── */
     html += '<div class="rfd-timeline-hdr"><i class="fa fa-history" style="margin-right:6px;"></i>Línea de Tiempo del Ciclo de Vida</div>';
     html += '<ul class="rfd-timeline">';
-    $.each(ms, function(i, mov) { html += renderMovimiento(mov); });
+    $.each(ms, function(i, mov) {
+        if (mov.tipo === 'ENTREGA' || mov.tipo === 'VALE') return;
+        html += renderMovimiento(mov);
+    });
     html += '</ul>';
 
     html += '</div>'; /* /rfd-exp-wrapper */
@@ -303,7 +342,7 @@ function estadoCobro(c, saldoFinal) {
 function renderMovimiento(mov) {
     var tipo  = (mov.tipo || '').toUpperCase();
     var monto = parseFloat(mov.monto) || 0;
-    var esCargo  = tipo === 'VENTA';
+    var esCargo  = tipo === 'VENTA' || tipo === 'NOTA_DEBITO';
     var esAbono  = !esCargo && tipo !== 'ENTREGA' && tipo !== 'VALE';
 
     var dotClass   = 'rfd-dot-' + tipo.toLowerCase();
@@ -314,7 +353,7 @@ function renderMovimiento(mov) {
 
     if (tipo !== 'ENTREGA' && tipo !== 'VALE') {
         var sign = esCargo ? '+' : '-';
-        var montoColor = esCargo ? '#e02424' : '#0e9f6e';
+        var montoColor = (tipo === 'NOTA_DEBITO') ? '#b45309' : (esCargo ? '#111827' : '#0e9f6e');
         montoHtml = '<span class="rfd-tl-monto" style="color:' + montoColor + ';">' + sign + ' ' + fmtLpsAbs(monto) + '</span>';
     }
 
@@ -367,16 +406,65 @@ function carteraItem(lbl, val) {
     return '<div class="rfd-cartera-item"><div class="ci-lbl">' + lbl + '</div><div class="ci-val">' + (val || '—') + '</div></div>';
 }
 function tipoIcon(t) {
-    var m = { VENTA:'fa-file-text-o', ENTREGA:'fa-truck', ABONO:'fa-money', PAGO:'fa-credit-card', NOTA_CREDITO:'fa-minus-circle', VALE:'fa-ticket' };
+    var m = { VENTA:'fa-file-text-o', ENTREGA:'fa-truck', ABONO:'fa-money', PAGO:'fa-credit-card', NOTA_CREDITO:'fa-minus-circle', NOTA_DEBITO:'fa-plus-circle', VALE:'fa-ticket', RETENCION:'fa-percent' };
     return m[t] || 'fa-circle-o';
 }
 function tipoLabel(t) {
-    var m = { VENTA:'Venta', ENTREGA:'Entrega', ABONO:'Abono Cr\u00e9dito', PAGO:'Pago Contado', NOTA_CREDITO:'Nota de Cr\u00e9dito', VALE:'Vale de Entrega' };
+    var m = { VENTA:'Venta', ENTREGA:'Entrega', ABONO:'Abono Crédito', PAGO:'Pago Contado', NOTA_CREDITO:'Nota de Crédito', NOTA_DEBITO:'Nota de Débito', VALE:'Vale de Entrega', RETENCION:'Retención ISV' };
     return m[t] || t;
 }
 function tipoColorMap(t) {
-    var m = { VENTA:'#1a56db', ENTREGA:'#0e9f6e', ABONO:'#d97706', PAGO:'#7c3aed', NOTA_CREDITO:'#e02424', VALE:'#e67e22' };
+    var m = { VENTA:'#1a56db', ENTREGA:'#0e9f6e', ABONO:'#d97706', PAGO:'#7c3aed', NOTA_CREDITO:'#e02424', NOTA_DEBITO:'#b45309', VALE:'#e67e22', RETENCION:'#0369a1' };
     return m[t] || '#6b7280';
+}
+
+/* ────────────────────────────────────────────────────────────────────
+ *  Edición inline del Estado F-01
+ * ──────────────────────────────────────────────────────────────────── */
+function rfdEditarF01(facturaId, btn) {
+    var spanId  = '#rfd-f01-val-' + facturaId;
+    var valAct  = $(spanId).text().trim();
+    if (valAct === 'N/A') valAct = '';
+
+    Swal.fire({
+        title: 'Editar Estado F-01',
+        input: 'text',
+        inputValue: valAct,
+        inputPlaceholder: 'Ej: F-01-2026-00123',
+        inputAttributes: { maxlength: 100 },
+        showCancelButton: true,
+        confirmButtonText: '<i class="fa fa-save"></i> Guardar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#e67e22',
+        inputLabel: 'Número de forma F-01',
+        showLoaderOnConfirm: true,
+        preConfirm: function(valor) {
+            var tok = $('meta[name="csrf-token"]').attr('content');
+            return $.ajax({
+                url: '/reporte/ventas-cobros/actualizar-f01/' + facturaId,
+                method: 'POST',
+                data: { _token: tok, valor: valor },
+            }).fail(function(xhr) {
+                var msg = xhr.responseJSON && xhr.responseJSON.mensaje
+                    ? xhr.responseJSON.mensaje
+                    : 'Error al guardar.';
+                Swal.showValidationMessage(msg);
+            });
+        },
+        allowOutsideClick: function() { return !Swal.isLoading(); }
+    }).then(function(result) {
+        if (result.isConfirmed && result.value && result.value.success) {
+            var nuevo = result.value.valor || 'N/A';
+            $(spanId).text(nuevo);
+            Swal.fire({
+                icon: 'success',
+                title: 'Actualizado',
+                text: 'Estado F-01 guardado: ' + nuevo,
+                timer: 2000,
+                showConfirmButton: false,
+            });
+        }
+    });
 }
 
 /* ────────────────────────────────────────────────────────────────────
@@ -409,7 +497,109 @@ function _exportarForm(url) {
     form.remove();
 }
 function exportarPdf()   { _exportarForm('/reporte/ventas-cobros/exportar-pdf/null/null/null/null'); }
-function exportarExcel() { _exportarForm('/reporte/ventas-cobros/exportar-excel/null/null/null/null'); }
+function exportarExcel() {
+    var f   = getFiltros();
+    var tok = $('meta[name="csrf-token"]').attr('content');
+
+    Swal.fire({
+        title: 'Generando Excel',
+        html: 'Preparando reporte...<br><small>Este proceso puede tardar varios minutos.</small>',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        showConfirmButton: false,
+        didOpen: function() { Swal.showLoading(); }
+    });
+
+    $.ajax({
+        url: '/reporte/ventas-cobros/exportar-excel-async/null/null/null/null',
+        type: 'POST',
+        dataType: 'json',
+        data: {
+            _token: tok,
+            vendedor:          f.vendedor          || '',
+            cliente:           f.cliente           || '',
+            factura:           f.factura           || '',
+            fecha_desde:       f.fecha_desde       || '',
+            fecha_hasta:       f.fecha_hasta       || '',
+            fecha_pago_desde:  f.fecha_pago_desde  || '',
+            fecha_pago_hasta:  f.fecha_pago_hasta  || '',
+            estado_cobro:      f.estado_cobro      || '',
+            estado_f01:        f.estado_f01        || '',
+            modo_pago:         f.modo_pago         || '',
+            banco:             f.banco             || '',
+            cuenta:            f.cuenta            || ''
+        },
+        success: function(resp) {
+            if (!resp || !resp.success || !resp.token) {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo iniciar la exportación.' });
+                return;
+            }
+            _pollExportExcel(resp.token);
+        },
+        error: function(xhr) {
+            var msg = (xhr.responseJSON && (xhr.responseJSON.message || xhr.responseJSON.mensaje))
+                ? (xhr.responseJSON.message || xhr.responseJSON.mensaje)
+                : 'No se pudo iniciar la exportación.';
+            Swal.fire({ icon: 'error', title: 'Error', text: msg });
+        }
+    });
+}
+
+function _pollExportExcel(token) {
+    var startedAt = Date.now();
+    var pollId = setInterval(function() {
+        $.ajax({
+            url: '/reporte/ventas-cobros/exportar-excel-estado/' + encodeURIComponent(token),
+            type: 'GET',
+            dataType: 'json',
+            success: function(resp) {
+                if (!resp || !resp.success) {
+                    return;
+                }
+
+                var st = resp.status || 'queued';
+                var pct = parseInt(resp.progress || 0, 10);
+                if (isNaN(pct)) pct = 0;
+
+                if (st === 'queued' || st === 'processing') {
+                    Swal.update({
+                        html: 'Generando archivo... ' + pct + '%<br><small>El reporte se procesa en segundo plano.</small>'
+                    });
+                    return;
+                }
+
+                if (st === 'ready') {
+                    clearInterval(pollId);
+                    Swal.close();
+                    window.location.href = '/reporte/ventas-cobros/exportar-excel-descargar/' + encodeURIComponent(token);
+                    return;
+                }
+
+                if (st === 'failed') {
+                    clearInterval(pollId);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Exportación fallida',
+                        text: resp.message || 'No se pudo generar el archivo.'
+                    });
+                }
+            },
+            error: function() {
+                // tolerar fallos transitorios de red durante el polling
+            }
+        });
+
+        // Timeout de polling en cliente (15 min)
+        if (Date.now() - startedAt > 15 * 60 * 1000) {
+            clearInterval(pollId);
+            Swal.fire({
+                icon: 'warning',
+                title: 'Demora en exportación',
+                text: 'La generación sigue en proceso. Intenta nuevamente en unos minutos.'
+            });
+        }
+    }, 2500);
+}
 
 /* ────────────────────────────────────────────────────────────────────
  *  Fechas por defecto — último mes calendario

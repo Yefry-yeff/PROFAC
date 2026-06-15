@@ -1008,6 +1008,9 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
 
     Route::get('/nota/credito/listado', ListadoNotaCredito::class);
     Route::post('/nota/credito/listar', [ListadoNotaCredito::class, 'listadoNotaCredito']);
+    Route::post('/nota/credito/kpis', [ListadoNotaCredito::class, 'kpis']);
+    Route::post('/nota/credito/exportar-excel', [ListadoNotaCredito::class, 'exportarExcel']);
+    Route::post('/nota/credito/gobierno/exportar-excel', [ListadoNotasND::class, 'exportarExcel']);
     Route::get('/nota/credito/imprimir/{idNota}', [ListadoNotaCredito::class, 'imprimirnotaCreditoOriginal']);
     Route::get('/nota/credito/imprimir/copia/{idNota}', [ListadoNotaCredito::class, 'imprimirnotaCreditoCopia']);
     Route::post('/nota/credito/anular', [CrearNotaCredito::class, 'anularNotaCredito']);
@@ -1273,6 +1276,10 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/nota/debito/lista/gobierno', ListadoNotasDebitoND::class);
     Route::get('/listado/nota/debito/gobierno/{fechaInicio}/{fechaFinal}', [ListadoNotasDebitoND::class,'listarnotasDebito']);
 
+    Route::post('/nota/debito/kpis', [ListadoNotasDebito::class,'kpis']);
+    Route::post('/nota/debito/exportar-excel', [ListadoNotasDebito::class,'exportarExcel']);
+    Route::post('/nota/debito/gobierno/exportar-excel', [ListadoNotasDebitoND::class,'exportarExcel']);
+
     Route::get('/debito/anular/{idNota}', [ListadoNotasDebitoND::class,'anularNota']);
 
     Route::get('/facturaDia', FacturaDia::class);
@@ -1312,6 +1319,8 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/reporte/dashboard/productos-x-cliente',      [DashboardVentas::class,'productosXCliente']);
     Route::get('/reporte/dashboard/facturas-x-cliente',       [DashboardVentas::class,'facturasXCliente']);
     Route::get('/reporte/dashboard/top-marcas-cli',           [DashboardVentas::class,'topMarcasCli']);
+    Route::get('/reporte/dashboard/filtros-productos-cliente', [DashboardVentas::class,'productosPorClienteFecha']);
+    Route::get('/reporte/dashboard/filtros-marcas-cliente',    [DashboardVentas::class,'marcasPorClienteFecha']);
 
     Route::get('/reporte/reporteria/consulta/{fecha_inicio}/{fecha_final}', [Reporteria::class,'consulta']);
     Route::get('/reporte/reporteria/productos', [Reporteria::class,'catalogoProductos']);
@@ -1365,13 +1374,15 @@ Route::post('/reporte/Facturasanuladasrep/exportar-excel/{tipo}/{fechaInicio}/{f
     ->name('reporte.Facturasanuladasrep.excel');
 //------------------------------- Libro de Cobros ----------------------------//
 Route::get('/reporte/Librocobrosrep', action: Librocobrosrep::class);
-Route::get('/reporte/Librocobrosrep/consulta/{tipo}/{fechaInicio}/{fechaFinal}', [Librocobrosrep::class, 'consulta']);
+Route::get('/reporte/Librocobrosrep/datos', [Librocobrosrep::class, 'consulta']);
+Route::get('/reporte/Librocobrosrep/consulta/{tipo}/{fechaInicio?}/{fechaFinal?}', [Librocobrosrep::class, 'consulta']);
 Route::post('/reporte/Librocobrosrep/exportar-pdf/{tipo}/{fechaInicio}/{fechaFinal}', [Librocobrosrep::class, 'exportarPdf'])
     ->name('reporte.Librocobrosrep.pdf');
 Route::post('/reporte/Librocobrosrep/exportar-excel/{tipo}/{fechaInicio}/{fechaFinal}', [Librocobrosrep::class, 'exportarExcel'])
     ->name('reporte.Librocobrosrep.excel');
 //------------------------------- Libro de Ventas ----------------------------//
 Route::get('/reporte/Libroventarep', Libroventarep::class);
+Route::get('/reporte/Libroventarep/datos', [Libroventarep::class, 'consulta']);
 Route::get('/reporte/Libroventarep/consulta/{tipo}/{fechaInicio}/{fechaFinal}', [Libroventarep::class, 'consulta']);
 Route::post('/reporte/Libroventarep/exportar-pdf/{tipo}/{fechaInicio}/{fechaFinal}', [Libroventarep::class, 'exportarPdf'])
     ->name('reporte.libro_venta.pdf');
@@ -1391,9 +1402,13 @@ Route::get('/reporte/ventas-cobros',                                            
 Route::get('/reporte/ventas-cobros/consulta/{vendedorId}/{clienteId}/{mes}/{anio}',                 [ReporteVentasCobros::class, 'consulta']);
 Route::post('/reporte/ventas-cobros/exportar-pdf/{vendedorId}/{clienteId}/{mes}/{anio}',            [ReporteVentasCobros::class, 'exportarPdf'])->name('reporte.ventas_cobros.pdf');
 Route::post('/reporte/ventas-cobros/exportar-excel/{vendedorId}/{clienteId}/{mes}/{anio}',          [ReporteVentasCobros::class, 'exportarExcel'])->name('reporte.ventas_cobros.excel');
+Route::post('/reporte/ventas-cobros/exportar-excel-async/{vendedorId}/{clienteId}/{mes}/{anio}',    [ReporteVentasCobros::class, 'exportarExcelAsync'])->name('reporte.ventas_cobros.excel.async');
+Route::get('/reporte/ventas-cobros/exportar-excel-estado/{token}',                                   [ReporteVentasCobros::class, 'estadoExportExcel'])->name('reporte.ventas_cobros.excel.estado');
+Route::get('/reporte/ventas-cobros/exportar-excel-descargar/{token}',                                [ReporteVentasCobros::class, 'descargarExportExcel'])->name('reporte.ventas_cobros.excel.descargar');
 Route::get('/reporte/ventas-cobros/datos',                                                          [ReporteVentasCobros::class, 'consultaDatos']);
 Route::get('/reporte/ventas-cobros/kpis',                                                           [ReporteVentasCobros::class, 'kpis']);
 Route::get('/reporte/ventas-cobros/expediente/{facturaId}',                                         [ReporteVentasCobros::class, 'expediente']);
+Route::post('/reporte/ventas-cobros/actualizar-f01/{facturaId}',                                    [ReporteVentasCobros::class, 'actualizarF01'])->name('reporte.ventas_cobros.actualizar_f01');
 
   //------------------------------- Logistica de Entregas ----------------------------//
 

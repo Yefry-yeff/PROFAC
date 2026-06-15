@@ -586,6 +586,7 @@ class Cotizacion extends Component
                 'seccion_id'=>$idSeccion,
                 'resta_inventario'=>$restaInventario,
                 'isv_producto'=>$ivsProductoAsignado,
+                'tipo_precio'=>($ivsProductoAsignado > 0) ? '2' : '1',
                 'unidad_medida_venta_id'=>$idUnidadVenta,
                 'monto_descProducto'=>$monto_descProducto,
                 'idPrecioSeleccionado'=>$idPrecioSeleccionado,
@@ -728,7 +729,7 @@ class Cotizacion extends Component
             C.id as codigo,
             C.nombre,
             C.descripcion,
-            if(C.isv = 0, 'SI' , 'NO' ) as excento,
+            IF(COALESCE(NULLIF(B.tipo_precio,''), IF(B.isv_producto > 0,'2','1')) = '1', 'SI', 'NO') as excento,
             FORMAT(B.precio_unidad,2) as precio,
             FORMAT(B.cantidad,2) as cantidad,
             FORMAT(B.sub_total,2) as importe,
@@ -1083,7 +1084,12 @@ class Cotizacion extends Component
                         SELECT SUM(php2.cantidad)
                         FROM prefactura_has_producto php2
                         INNER JOIN prefactura pf2 ON pf2.id = php2.prefactura_id
-                        WHERE pf2.estado = 'activo'
+                                                                                                WHERE pf2.estado = 'activo'
+                                                                                                        AND TIMESTAMPADD(
+                                                                                                                    DAY,
+                                                                                                                    COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7),
+                                                                                                                    COALESCE(pf2.created_at, CONCAT(COALESCE(pf2.fecha_emision, CURDATE()), ' 00:00:00'))
+                                                                                                                ) > NOW()
                           AND php2.producto_id = A.producto_id
                           AND php2.seccion_id  = A.seccion_id
                           AND php2.resta_inventario = 1

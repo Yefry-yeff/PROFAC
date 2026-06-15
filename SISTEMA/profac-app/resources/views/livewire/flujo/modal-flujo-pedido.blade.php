@@ -51,6 +51,13 @@
     .fmp-offers-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
     .fmp-offers-wrap table { min-width:480px; }
     .fmp-info-grid { display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:#666; }
+    /* Modal gestor de entrega: encima del flujo modal y su backdrop */
+    #modal-gestor-flujo { z-index: 1060 !important; }
+    /* Select2 dentro de modales Bootstrap: permitir overflow del dropdown */
+    .select2-container--open { z-index: 9999 !important; }
+    #modal-gestor-flujo .modal-dialog { overflow: visible !important; }
+    #modal-gestor-flujo .modal-content { overflow: visible !important; }
+    #modal-gestor-flujo .modal-body { overflow: visible !important; }
 </style>
 
 @php
@@ -1766,6 +1773,11 @@
                                 <i class="mr-1 fa fa-clock-o"></i>
                                 Vence: {{ \Carbon\Carbon::parse($pref['fecha_vencimiento'])->format('d/m/Y') }}
                             </span>
+                            @if ($prefacturaVencida)
+                            <span style="background:#fff3e0; color:#ef6c00; border-radius:8px; padding:1px 8px; font-size:10px; font-weight:700;">
+                                <i class="mr-1 fa fa-exclamation-triangle"></i> Vencida (reserva liberada)
+                            </span>
+                            @endif
                             <strong style="color:#e65100;">
                                 Total: L {{ number_format($pref['total'], 2) }}
                             </strong>
@@ -1774,9 +1786,15 @@
                                 <i class="mr-1 fa fa-file-text"></i> Facturada
                             </span>
                             @else
-                            <span style="background:#e8f5e9; color:#1b5e20; border-radius:8px; padding:1px 8px; font-size:10px; font-weight:700;">
-                                <i class="mr-1 fa fa-check-circle"></i> Activa
-                            </span>
+                                @if ($prefacturaReservaCompleta)
+                                <span style="background:#e8f5e9; color:#1b5e20; border-radius:8px; padding:1px 8px; font-size:10px; font-weight:700;">
+                                    <i class="mr-1 fa fa-check-circle"></i> Activa
+                                </span>
+                                @else
+                                <span style="background:#fff3e0; color:#e65100; border-radius:8px; padding:1px 8px; font-size:10px; font-weight:700;">
+                                    <i class="mr-1 fa fa-exclamation-triangle"></i> Activa sin reserva
+                                </span>
+                                @endif
                             @endif
                         </div>
                     </div>
@@ -1839,6 +1857,7 @@
                         </a>
 
                         @if (!$facturaCompletada)
+                        @if ($prefacturaPuedeFacturar)
                         <button id="btn-facturar-directo" type="button" wire:click="facturarPrefacturaDirecta"
                                 wire:loading.attr="disabled" wire:target="facturarPrefacturaDirecta"
                                 style="background:linear-gradient(135deg,#1b5e20,#2e7d32); color:#fff;
@@ -1850,6 +1869,13 @@
                                 <i class="fa fa-spinner fa-spin mr-1"></i> Procesando...
                             </span>
                         </button>
+                        @else
+                        <button type="button" disabled
+                                style="background:#cfd8dc; color:#607d8b; border:none; border-radius:8px; padding:6px 14px;
+                                       font-size:12px; font-weight:700; cursor:not-allowed; opacity:.9;">
+                            <i class="mr-1 fa fa-ban"></i> Facturar no disponible
+                        </button>
+                        @endif
                         <button type="button" wire:click="solicitarAutorizacionPrefactura('editar_factura')"
                                 style="background:linear-gradient(135deg,#0f766e,#0ea5a4); color:#fff;
                                        border:none; border-radius:8px; padding:6px 14px;
@@ -1858,6 +1884,44 @@
                         </button>
                         @endif
 
+                    </div>
+                    @endif
+
+                    @if (!$prefacturaPuedeFacturar)
+                    <div style="margin-top:10px; background:#fff8e1; border:1px solid #ffe082;
+                                border-radius:10px; padding:10px 12px; font-size:12px; color:#7b4f00;">
+                        <div style="font-weight:700; color:#e65100; margin-bottom:5px;">
+                            <i class="mr-1 fa fa-exclamation-triangle"></i>
+                            No es posible generar la factura porque uno o más productos ya no cuentan con inventario disponible. Actualice la prefactura antes de continuar.
+                        </div>
+                        @if (!empty($prefacturaStockFaltante))
+                        <ul style="margin:0; padding-left:18px;">
+                            @foreach ($prefacturaStockFaltante as $faltante)
+                            <li>
+                                {{ $faltante['producto'] }}: solicitado {{ $faltante['solicitado'] }}, disponible {{ $faltante['disponible'] }}
+                            </li>
+                            @endforeach
+                        </ul>
+                        @endif
+                    </div>
+                    @endif
+
+                    @if (!$prefacturaReservaCompleta)
+                    <div style="margin-top:10px; background:#fff3e0; border:1px solid #ffcc80;
+                                border-radius:10px; padding:10px 12px; font-size:12px; color:#7b4f00;">
+                        <div style="font-weight:700; color:#e65100; margin-bottom:5px;">
+                            <i class="mr-1 fa fa-lock"></i>
+                            Esta prefactura no aparta producto porque no cuenta con la cantidad total requerida.
+                        </div>
+                        @if (!empty($prefacturaReservaFaltante))
+                        <ul style="margin:0; padding-left:18px;">
+                            @foreach ($prefacturaReservaFaltante as $faltante)
+                            <li>
+                                {{ $faltante['producto'] }}: requerido {{ $faltante['solicitado'] }}, disponible {{ $faltante['disponible'] }}.
+                            </li>
+                            @endforeach
+                        </ul>
+                        @endif
                     </div>
                     @endif
 
@@ -2008,6 +2072,20 @@
                                   text-decoration:none; display:inline-flex; align-items:center; gap:5px;">
                             <i class="fa fa-print"></i> Imprimir factura
                         </a>
+
+                        <a href="{{ $fac['print_copia_url'] ?? ('/factura/cooporativoCopia/' . $fac['id']) }}" target="_blank"
+                           style="background:#f8f9fc; color:#455a64; border:1px solid #e8eaf0;
+                                  border-radius:8px; padding:6px 14px; font-size:12px; font-weight:700;
+                                  text-decoration:none; display:inline-flex; align-items:center; gap:5px;">
+                            <i class="fa fa-copy"></i> Imprimir copia
+                        </a>
+
+                                <a href="{{ $fac['print_acta_rec_url'] ?? (((int)($fac['tipo_venta_id'] ?? 0) === 3) ? ('/exonerado/actaRec/' . $fac['id']) : ('/facturaCoor/actaRec/' . $fac['id'])) }}" target="_blank"
+                                    style="background:#f8f9fc; color:#455a64; border:1px solid #e8eaf0;
+                                             border-radius:8px; padding:6px 14px; font-size:12px; font-weight:700;
+                                             text-decoration:none; display:inline-flex; align-items:center; gap:5px;">
+                                     <i class="fa fa-print"></i> Imprimir Acta de Recepción
+                                </a>
 
                         @if(!empty($fac['vale_id']))
                         <a href="/vale/imprimir/{{ $fac['vale_id'] }}" target="_blank"
@@ -2325,42 +2403,95 @@
         });
         window.addEventListener('fmp-facturar-directo', function(e) {
             if (!e.detail || !e.detail.url) return;
+            var detail = e.detail;
 
-            // Bloquear botón y mostrar spinner durante el POST
-            var btn = document.getElementById('btn-facturar-directo');
-            var iconSpan    = document.getElementById('btn-facturar-icon');
-            var loadingSpan = document.getElementById('btn-facturar-loading');
-            function setLoading(loading) {
-                if (!btn) return;
-                btn.disabled = loading;
-                btn.style.opacity = loading ? '0.7' : '1';
-                btn.style.cursor  = loading ? 'not-allowed' : 'pointer';
-                if (iconSpan)    iconSpan.style.display    = loading ? 'none'   : '';
-                if (loadingSpan) loadingSpan.style.display = loading ? 'inline' : 'none';
-            }
-            setLoading(true);
+            // Construir select HTML para SweetAlert2
+            var selectHtml = '<select id="swal-gestor-select" class="swal2-input" style="width:100%;margin:0;height:38px;font-size:13px;">'
+                           + '<option value="">-- Sin gestor --</option>'
+                           + '</select>'
+                           + '<div id="swal-gestor-loading" style="font-size:12px;color:#888;margin-top:6px;display:none;">Cargando gestores...</div>';
 
-            axios.post(e.detail.url, { tipo_pago: 1 })
-                .then(function(response) {
-                    var data = response.data || {};
-                    if (data.print_url) {
-                        window.open(data.print_url, '_blank');
-                    }
-                    // Recargar la página para que el flujo muestre el nuevo estado
-                    setTimeout(function() {
-                        window.location.reload();
-                    }, 800);
-                })
-                .catch(function(error) {
-                    setLoading(false);
-                    var data = error.response ? error.response.data : {};
-                    Swal.fire({
-                        icon: data.icon || 'error',
-                        title: data.title || 'Error',
-                        text: data.text || data.warning || (data.detail && data.detail.text) || data.error || 'No se pudo facturar la prefactura.',
-                        html: (data.warning && data.warning.includes('<')) ? data.warning : undefined
+            Swal.fire({
+                title: '<i class="fa fa-truck mr-2" style="color:#1565c0;"></i> Gestor de Entrega',
+                html: '<p style="font-size:13px;color:#666;margin-bottom:16px;">Seleccione el responsable de entrega (opcional).</p>'
+                    + '<select id="swal-gestor-select" style="width:100%;"></select>',
+                showCancelButton: true,
+                confirmButtonText: '<i class="fa fa-check mr-1"></i> Confirmar y Facturar',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#1b5e20',
+                cancelButtonColor: '#6c757d',
+                allowOutsideClick: false,
+                background: '#f9fbe7',
+                customClass: { popup: 'swal-gestor-popup' },
+                didOpen: function() {
+                    // Inicializar Select2 con búsqueda AJAX dentro del SweetAlert2
+                    $('#swal-gestor-select').select2({
+                        dropdownParent: $('.swal-gestor-popup'),
+                        placeholder: '-- Sin gestor --',
+                        allowClear: true,
+                        ajax: {
+                            url: '/ventas/corporativo/vendedores',
+                            data: function(params) {
+                                return { search: params.term || '', type: 'public', page: params.page || 1 };
+                            },
+                            processResults: function(data) {
+                                return { results: [{ id: '', text: '-- Sin gestor --' }].concat(data.results || []) };
+                            }
+                        }
                     });
-                });
+                    // Evitar que el clic en el dropdown de Select2 cierre el SweetAlert
+                    $(document).on('mousedown.swal2gestorfix', '.select2-container', function(e) {
+                        e.stopPropagation();
+                    });
+                },
+                willClose: function() {
+                    $(document).off('mousedown.swal2gestorfix');
+                    if ($('#swal-gestor-select').hasClass('select2-hidden-accessible')) {
+                        $('#swal-gestor-select').select2('destroy');
+                    }
+                },
+                preConfirm: function() {
+                    return $('#swal-gestor-select').val() || null;
+                }
+            }).then(function(result) {
+                if (!result.isConfirmed) return;
+                var gestorId = result.value || null;
+
+                // Bloquear botón y mostrar spinner durante el POST
+                var btn = document.getElementById('btn-facturar-directo');
+                var iconSpan    = document.getElementById('btn-facturar-icon');
+                var loadingSpan = document.getElementById('btn-facturar-loading');
+                function setLoading(loading) {
+                    if (!btn) return;
+                    btn.disabled = loading;
+                    btn.style.opacity = loading ? '0.7' : '1';
+                    btn.style.cursor  = loading ? 'not-allowed' : 'pointer';
+                    if (iconSpan)    iconSpan.style.display    = loading ? 'none'   : '';
+                    if (loadingSpan) loadingSpan.style.display = loading ? 'inline' : 'none';
+                }
+                setLoading(true);
+
+                axios.post(detail.url, { tipo_pago: detail.tipo_pago || 1, gestor_entrega: gestorId })
+                    .then(function(response) {
+                        var data = response.data || {};
+                        if (data.print_url) {
+                            window.open(data.print_url, '_blank');
+                        }
+                        setTimeout(function() {
+                            window.location.reload();
+                        }, 800);
+                    })
+                    .catch(function(error) {
+                        setLoading(false);
+                        var data = error.response ? error.response.data : {};
+                        Swal.fire({
+                            icon: data.icon || 'error',
+                            title: data.title || 'Error',
+                            text: data.text || data.warning || (data.detail && data.detail.text) || data.error || 'No se pudo facturar la prefactura.',
+                            html: (data.warning && data.warning.includes('<')) ? data.warning : undefined
+                        });
+                    });
+            });
         });
     }
 </script>

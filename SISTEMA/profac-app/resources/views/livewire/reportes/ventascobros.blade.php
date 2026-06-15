@@ -109,6 +109,7 @@
     .rfd-dot-abono        { background:#d97706; }
     .rfd-dot-pago         { background:#7c3aed; }
     .rfd-dot-nota_credito { background:#e02424; }
+    .rfd-dot-nota_debito  { background:#b45309; }
     .rfd-dot-vale         { background:#e67e22; }
     /* layout overrides */
     #page-wrapper { padding-left:0!important; padding-right:0!important; }
@@ -145,9 +146,6 @@
                     <div class="rvc-card-header">
                         <h5><i class="fa fa-file-text-o"></i> Reporte Financiero Detallado por Factura</h5>
                         <div class="d-flex" style="gap:8px">
-                            <button type="button" class="btn-rvc-action" onclick="exportarPdf()">
-                                <i class="fa fa-file-pdf-o mr-1"></i>PDF
-                            </button>
                             <button type="button" class="btn-rvc-action" onclick="exportarExcel()">
                                 <i class="fa fa-file-excel-o mr-1"></i>Excel
                             </button>
@@ -172,16 +170,22 @@
                             <span class="pill-sub" id="kpi_fac_pagadas"></span>
                         </div>
                         <div class="rvc-stat-pill">
-                            <i class="fa fa-clock-o" style="color:var(--pf-orange)"></i>
+                            <i class="fa fa-level-up" style="color:var(--pf-orange)"></i>
                             <span class="pill-val" id="kpi_pendiente">&#8212;</span>
-                            <span>Pendiente</span>
-                            <span class="pill-sub" id="kpi_fac_pendientes"></span>
+                            <span>Aumento Factura</span>
+                            <span class="pill-sub" id="kpi_sub_aumento"></span>
                         </div>
                         <div class="rvc-stat-pill red">
-                            <i class="fa fa-exclamation-triangle" style="color:#b91c1c"></i>
+                            <i class="fa fa-level-down" style="color:#b91c1c"></i>
                             <span class="pill-val" id="kpi_vencido">&#8212;</span>
-                            <span>Vencido</span>
-                            <span class="pill-sub" id="kpi_fac_vencidas"></span>
+                            <span>Disminuyo Factura</span>
+                            <span class="pill-sub" id="kpi_sub_disminucion"></span>
+                        </div>
+                        <div class="rvc-stat-pill">
+                            <i class="fa fa-clock-o" style="color:var(--pf-orange)"></i>
+                            <span class="pill-val" id="kpi_saldo_pendiente">&#8212;</span>
+                            <span>Saldo Pendiente</span>
+                            <span class="pill-sub" id="kpi_fac_pendientes"></span>
                         </div>
                     </div>
 
@@ -323,17 +327,6 @@
                                         <option value="Pendiente">Pendiente</option>
                                         <option value="Vencida">Vencida</option>
                                         <option value="Vencida Cr&#237;tica">Vencida Cr&#237;tica</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label>Estado F-01</label>
-                                    <select id="fil_estado_f01" class="form-control form-control-sm">
-                                        <option value="">&#8212; Todos &#8212;</option>
-                                        @foreach($estadosF01 as $ef)
-                                            <option value="{{ strtoupper($ef->descripcion) }}">{{ $ef->descripcion }}</option>
-                                        @endforeach
                                     </select>
                                 </div>
                             </div>

@@ -105,6 +105,22 @@
                 }
             });
 
+            $('#gestor_entrega').select2({
+                ajax:{
+                    url:'/ventas/corporativo/vendedores',
+                    data: function(params) {
+                        var query = {
+                            search: params.term,
+                            type: 'public',
+                            page: params.page || 1
+                        }
+                        return query;
+                    }
+                },
+                placeholder: '-- Seleccionar gestor --',
+                allowClear: true
+            });
+
             /*$('#seleccionarProducto').select2({
                 ajax: {
                     url: '/ventas/listar',

@@ -317,9 +317,9 @@
                                            placeholder="Se completa al seleccionar cliente">
                                 </div>
                                 <div class="col-12 col-md-4 col-lg-4 mb-3">
-                                    <label class="ofr-label">Vendedor</label>
+                                    <label class="ofr-label">Asesor Comercial <span class="req">*</span></label>
                                     <select name="vendedor" id="vendedor" class="form-control ofr-input" data-parsley-required>
-                                        <option value="" selected disabled>-- Seleccionar vendedor --</option>
+                                        <option value="" selected disabled>-- Seleccionar asesor --</option>
                                     </select>
                                 </div>
                                 <div class="col-12 col-md-4 col-lg-4 mb-3">

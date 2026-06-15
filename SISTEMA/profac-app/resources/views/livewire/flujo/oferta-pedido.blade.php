@@ -506,7 +506,7 @@
 
                     {{-- Vendedor --}}
                     <div class="col-12 col-md-6 col-lg-3 mb-3">
-                        <label class="of-label">Vendedor</label>
+                        <label class="of-label">Asesor Comercial</label>
                         <select name="vendedor" id="vendedor"
                                 class="of-select" data-parsley-required style="border-radius:9px;">
                             <option value="" selected disabled>--Seleccionar vendedor--</option>

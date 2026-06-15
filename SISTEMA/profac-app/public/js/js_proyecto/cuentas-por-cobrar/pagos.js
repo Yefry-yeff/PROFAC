@@ -23,7 +23,17 @@ $(document).on('hide.bs.modal', '.modal', function () {
 ──────────────────────────────────────────────────────────────── */
 function apCtxToggle(btn) {
     var $btn  = $(btn);
-    var $menu = $btn.siblings('.ap-ctx-menu');
+    var $menu = $btn.data('ap-menu');
+    if (!$menu || !$menu.length) {
+        $menu = $btn.siblings('.ap-ctx-menu').first();
+        if ($menu && $menu.length) {
+            $btn.data('ap-menu', $menu);
+        }
+    }
+    if (!$menu || !$menu.length) {
+        return;
+    }
+
     var isOpen = $menu.is(':visible');
 
     // Cerrar todos los menús abiertos
@@ -36,8 +46,11 @@ function apCtxToggle(btn) {
         $menu.data('ap-origin', $menu.parent());
         $menu.appendTo('body');
         $menu.data('ap-moved', true);
-        $menu.data('ap-btn', $btn);
     }
+
+    // Mantener vínculo botón <-> menú para aperturas posteriores
+    $menu.data('ap-btn', $btn);
+    $btn.data('ap-menu', $menu);
 
     var rect    = btn.getBoundingClientRect();
     var menuW   = 240;

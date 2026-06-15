@@ -116,6 +116,24 @@ class CrearComprovante extends Component
                $keyNombre = "nombre" . $arrayInputs[$j];
                $keyBodega = "bodega" . $arrayInputs[$j];
 
+               if (!isset($request->$keyIdSeccion) || !is_numeric($request->$keyIdSeccion)) {
+                   return response()->json([
+                       'icon' => 'warning',
+                       'title' => 'Advertencia!',
+                       'text' => '<p class="text-left">Debe seleccionar una bodega válida para el producto <b>' . ($request->$keyNombre ?? '') . '</b>.</p>',
+                       'idFactura' => 0,
+                   ], 200);
+               }
+
+               if (!isset($request->$keyIdProducto) || !is_numeric($request->$keyIdProducto)) {
+                   return response()->json([
+                       'icon' => 'warning',
+                       'title' => 'Advertencia!',
+                       'text' => '<p class="text-left">Producto inválido en el carrito.</p>',
+                       'idFactura' => 0,
+                   ], 200);
+               }
+
                $resultado = DB::selectONE("select
                if(sum(cantidad_disponible) is null,0,sum(cantidad_disponible)) as cantidad_disponoble
                from recibido_bodega

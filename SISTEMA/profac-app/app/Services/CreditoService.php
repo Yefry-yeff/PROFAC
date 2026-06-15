@@ -13,7 +13,7 @@ class CreditoService
      *   tabla aplicacion_pagos, mismos filtros de la vista de saldos.
      *
      * Regla:
-     *   disponible = MAX(0, MIN(limite, limite - SUM(total_factura_cargo abiertas)))
+        *   disponible = MAX(0, MIN(limite, limite - SUM(saldo pendiente)))
      *
      * Se consideran solo registros con:
      *   - estado = 1
@@ -35,8 +35,8 @@ class CreditoService
             return 0.0;
         }
 
-                $bloqueado = (float) DB::selectOne("
-                        SELECT COALESCE(SUM(ap.total_factura_cargo), 0) AS bloqueado
+                $bloqueado = (float) DB::selectOne(" 
+                    SELECT COALESCE(SUM(ap.saldo), 0) AS bloqueado
                         FROM aplicacion_pagos ap
                         WHERE ap.cliente_id = ?
                             AND ap.estado = 1

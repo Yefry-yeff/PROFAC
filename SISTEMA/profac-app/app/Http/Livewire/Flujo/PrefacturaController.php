@@ -235,13 +235,18 @@ class PrefacturaController
                 pr.id as codigo,
                 pr.nombre,
                 pr.descripcion,
-                IF(pr.isv = 0, 'SI', 'NO') as excento,
+                COALESCE(b.nombre, '') as bodega,
+                COALESCE(sec.numeracion, '') as seccion,
+                IF(php.isv_producto = 0, 'SI', 'NO') as excento,
                 FORMAT(php.precio_unidad, 2) as precio,
                 FORMAT(php.cantidad, 2) as cantidad,
                 FORMAT(php.sub_total, 2) as importe,
                 COALESCE(um.nombre, '') as medida
             FROM prefactura_has_producto php
             INNER JOIN producto pr ON pr.id = php.producto_id
+            LEFT JOIN seccion sec ON sec.id = php.seccion_id
+            LEFT JOIN segmento seg ON seg.id = sec.segmento_id
+            LEFT JOIN bodega b ON b.id = seg.bodega_id
             LEFT JOIN unidad_medida_venta umv ON umv.id = php.unidad_medida_venta_id
             LEFT JOIN unidad_medida um ON um.id = umv.unidad_medida_id
             WHERE php.prefactura_id = ?
@@ -472,6 +477,7 @@ class PrefacturaController
                 $reservado = (float) DB::table('prefactura_has_producto as php')
                     ->join('prefactura as pf', 'pf.id', '=', 'php.prefactura_id')
                     ->where('pf.estado', 'activo')
+                    ->whereRaw("TIMESTAMPADD(DAY, COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7), COALESCE(pf.created_at, CONCAT(COALESCE(pf.fecha_emision, CURDATE()), ' 00:00:00'))) > NOW()")
                     ->where('php.producto_id', $prod->producto_id)
                     ->where('php.seccion_id',  $prod->seccion_id)
                     ->where('php.resta_inventario', 1)
@@ -822,6 +828,19 @@ class PrefacturaController
             return response()->json(['error' => 'Prefactura no encontrada o inactiva.'], 404);
         }
 
+        // Si la prefactura ya venció, su reserva se considera liberada y debe
+        // revalidarse la disponibilidad real antes de permitir facturar.
+        if ($this->prefacturaVencio($pf->fecha_vencimiento ?? null)) {
+            $faltantes = $this->obtenerFaltantesInventarioPrefactura((int) $pf->id, true);
+            if (!empty($faltantes)) {
+                return response()->json([
+                    'icon'         => 'warning',
+                    'warning'      => 'No es posible generar la factura porque uno o más productos ya no cuentan con inventario disponible. Actualice la prefactura antes de continuar.',
+                    'stock_errors' => $faltantes,
+                ], 422);
+            }
+        }
+
         // ── Traer número de orden desde la oferta y mapearlo a FK de factura ──
         $ordenCompraId = null;
         $numeroOrdenOferta = '';
@@ -915,22 +934,39 @@ class PrefacturaController
         }
 
         // ── Calcular fecha_vencimiento ────────────────────────────────────
-        // fecha_vencimiento = fecha_actual_al_facturar + días_de_crédito_aprobados
+        // Para ventas a crédito, si existe fecha de vencimiento aprobada en
+        // revisión de crédito, se respeta exactamente esa fecha.
+        // Si no existe, se calcula desde la fecha de emisión de la factura.
         //
-        // Fuente de días (en orden de prioridad):
-        //   1. credito_revision.dias_credito_aprobados  (aprobado formalmente por el revisor)
-        //   2. cliente.dias_credito                     (configuración global del cliente)
-        //   3. Diferencia de fechas en la cotización ganadora (ruta sin revisión formal)
+        // Fuente de días (en orden de prioridad para cálculo por días):
+        //   1. credito_revision.dias_credito_aprobados
+        //   2. Diferencia entre fecha_aprobacion y fecha_vencimiento_credito
+        //   3. Diferencia de fechas en la cotización ganadora
+        //   4. cliente.dias_credito
         $fechaEmision = now()->toDateString();
         if ($tipoPago === 2) {
+            $fechaVencimientoAprobado = ($creditoAprobadoReg && !empty($creditoAprobadoReg->fecha_vencimiento_credito))
+                ? \Carbon\Carbon::parse($creditoAprobadoReg->fecha_vencimiento_credito)->toDateString()
+                : null;
+
+            if ($fechaVencimientoAprobado) {
+                $fechaVencimiento = $fechaVencimientoAprobado;
+                $diasCredito = max(0, (int) \Carbon\Carbon::parse($fechaEmision)
+                    ->diffInDays(\Carbon\Carbon::parse($fechaVencimiento), false));
+            } else {
             // 1. Días aprobados explícitamente en la revisión de crédito
             if ($creditoAprobadoReg && !is_null($creditoAprobadoReg->dias_credito_aprobados)) {
                 $diasCredito = (int) $creditoAprobadoReg->dias_credito_aprobados;
             } else {
-                // 2. Configuración global del cliente
-                $diasCredito = $pf->cliente_id
-                    ? (int) (DB::table('cliente')->where('id', $pf->cliente_id)->value('dias_credito') ?? 0)
-                    : 0;
+                // 2. Diferencia de fechas aprobadas en revisión (si existe)
+                $diasCredito = 0;
+                if ($creditoAprobadoReg
+                    && !empty($creditoAprobadoReg->fecha_aprobacion)
+                    && !empty($creditoAprobadoReg->fecha_vencimiento_credito)) {
+                    $diasCredito = max(0, (int) \Carbon\Carbon::parse($creditoAprobadoReg->fecha_aprobacion)
+                        ->diffInDays(\Carbon\Carbon::parse($creditoAprobadoReg->fecha_vencimiento_credito), false));
+                }
+
                 // 3. Diferencia de fechas de la cotización ganadora
                 if ($diasCredito === 0) {
                     if ($diasCotizacionGanadora > 0) {
@@ -945,11 +981,20 @@ class PrefacturaController
                         }
                     }
                 }
+
+                // 4. Configuración global del cliente (último fallback)
+                if ($diasCredito === 0) {
+                    $diasCredito = $pf->cliente_id
+                        ? (int) (DB::table('cliente')->where('id', $pf->cliente_id)->value('dias_credito') ?? 0)
+                        : 0;
+                }
+            }
+                $fechaVencimiento = \Carbon\Carbon::parse($fechaEmision)->addDays($diasCredito)->toDateString();
             }
         } else {
             $diasCredito = 0;
+            $fechaVencimiento = $fechaEmision;
         }
-        $fechaVencimiento = \Carbon\Carbon::parse($fechaEmision)->addDays($diasCredito)->toDateString();
 
         // ── Obtener productos de la prefactura ────────────────────────────
         $productos = DB::table('prefactura_has_producto')
@@ -1019,6 +1064,7 @@ class PrefacturaController
             'tipoPagoVenta'            => $tipoPago,
             'restriccion'              => 0,  // sin restricción de facturas vencidas en flujo directo
             'vendedor'                 => $pf->vendedor,
+            'gestor_entrega'           => $request->gestor_entrega ?: null,
             'porDescuento'             => $pf->porc_descuento ?? 0,
             'porDescuentoCalculado'    => $pf->monto_descuento ?? 0,
             'nota_comen'               => $pf->nota,
@@ -1075,6 +1121,67 @@ class PrefacturaController
         }
 
         $facturaId = (int) ($payload['idFactura'] ?? 0);
+
+        // Alinear días y vencimiento con lo calculado para el flujo, porque
+        // guardarVenta usa cliente.dias_credito por defecto en el campo dias_credito.
+        if ($facturaId > 0) {
+            DB::table('factura')
+                ->where('id', $facturaId)
+                ->update([
+                    'dias_credito'      => $diasCredito,
+                    'fecha_vencimiento' => $fechaVencimiento,
+                    'updated_at'        => now(),
+                ]);
+        }
+
+        // Asegurar registro en aplicacion_pagos para que estado de cuenta e
+        // historial de crédito reflejen la factura generada por flujo directo.
+        $aplicacionPagoId = DB::table('aplicacion_pagos')
+            ->where('factura_id', $facturaId)
+            ->orderByDesc('id')
+            ->value('id');
+
+        if (!$aplicacionPagoId && $facturaId > 0) {
+            try {
+                DB::statement('SET @estado = NULL, @msjResultado = NULL');
+                DB::statement(
+                    "CALL sp_aplicacion_pagos('2', ?, ?, ?, 'na', '0', '0', '0', @estado, @msjResultado)",
+                    [
+                        (int) $pf->cliente_id,
+                        (int) (Auth::id() ?? 1),
+                        (int) $facturaId,
+                    ]
+                );
+            } catch (\Throwable $spEx) {
+                // Fallback mínimo para no dejar la factura fuera del estado de cuenta.
+                DB::table('aplicacion_pagos')->updateOrInsert(
+                    ['factura_id' => (int) $facturaId],
+                    [
+                        'cliente_id'          => (int) $pf->cliente_id,
+                        'total_factura_cargo' => (float) ($pf->total ?? 0),
+                        'retencion_isv_factura' => 0,
+                        'estado_retencion_isv'  => 0,
+                        'retencion_aplicada'    => 0,
+                        'total_notas_credito'   => 0,
+                        'total_nodas_debito'    => 0,
+                        'credito_abonos'        => 0,
+                        'movimiento_suma'       => 0,
+                        'movimiento_resta'      => 0,
+                        'saldo'                 => (float) ($pf->total ?? 0),
+                        'ultimo_usr_actualizo'  => (int) (Auth::id() ?? 0),
+                        'estado'                => 1,
+                        'estado_cerrado'        => 0,
+                        'updated_at'            => now(),
+                        'created_at'            => now(),
+                    ]
+                );
+            }
+
+            $aplicacionPagoId = DB::table('aplicacion_pagos')
+                ->where('factura_id', $facturaId)
+                ->orderByDesc('id')
+                ->value('id');
+        }
 
         // ── Actualizar prefactura a 'convertida' ──────────────────────────
         DB::table('prefactura')
@@ -1144,7 +1251,7 @@ class PrefacturaController
             }
 
             // Cobro pendiente
-            $aplicacionPagoId = DB::table('aplicacion_pagos')
+            $aplicacionPagoId = $aplicacionPagoId ?: DB::table('aplicacion_pagos')
                 ->where('factura_id', $facturaId)->orderByDesc('id')->value('id');
             $cobroPendiente = DB::table('historico_flujo')
                 ->where('flujo_id', $flujoId)->where('tipo_tramite_id', $TIPO_COBRO)
@@ -1189,5 +1296,64 @@ class PrefacturaController
             'factura_id' => $facturaId,
             'print_url'  => '/factura/cooporativo/' . $facturaId,
         ], 200);
+    }
+
+    private function prefacturaVencio(?string $fechaVencimiento): bool
+    {
+        if (empty($fechaVencimiento)) {
+            return false;
+        }
+
+        try {
+            return now()->gt(Carbon::parse($fechaVencimiento)->endOfDay());
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    private function obtenerFaltantesInventarioPrefactura(int $prefacturaId, bool $ignorarReservaPropia): array
+    {
+        $faltantes = [];
+
+        $productos = DB::table('prefactura_has_producto')
+            ->where('prefactura_id', $prefacturaId)
+            ->where('resta_inventario', 1)
+            ->whereNotNull('producto_id')
+            ->whereNotNull('seccion_id')
+            ->get(['producto_id', 'seccion_id', 'nombre_producto', 'cantidad']);
+
+        foreach ($productos as $prod) {
+            $rawStock = (float) DB::table('recibido_bodega')
+                ->where('producto_id', $prod->producto_id)
+                ->where('seccion_id', $prod->seccion_id)
+                ->where('cantidad_disponible', '>', 0)
+                ->sum('cantidad_disponible');
+
+            $reservadoQuery = DB::table('prefactura_has_producto as php')
+                ->join('prefactura as pf', 'pf.id', '=', 'php.prefactura_id')
+                ->where('pf.estado', 'activo')
+                ->whereRaw("TIMESTAMPADD(DAY, COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7), COALESCE(pf.created_at, CONCAT(COALESCE(pf.fecha_emision, CURDATE()), ' 00:00:00'))) > NOW()")
+                ->where('php.producto_id', $prod->producto_id)
+                ->where('php.seccion_id', $prod->seccion_id)
+                ->where('php.resta_inventario', 1);
+
+            if ($ignorarReservaPropia) {
+                $reservadoQuery->where('pf.id', '!=', $prefacturaId);
+            }
+
+            $reservado = (float) $reservadoQuery->sum('php.cantidad');
+            $disponible = max(0.0, $rawStock - $reservado);
+            $solicitado = (float) ($prod->cantidad ?? 0);
+
+            if ($disponible + 0.0001 < $solicitado) {
+                $faltantes[] = [
+                    'producto'   => (string) ($prod->nombre_producto ?? ('Producto #' . $prod->producto_id)),
+                    'solicitado' => round($solicitado, 2),
+                    'disponible' => round($disponible, 2),
+                ];
+            }
+        }
+
+        return $faltantes;
     }
 }

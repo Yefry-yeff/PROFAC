@@ -17,6 +17,8 @@ var dashboardVentas = (function () {
     var _filtroAdvVend   = null;
     var _facturasCliData = [];   /* cache para exportación con totales */
     var _dts          = {};   /* DataTables instances */
+    var _reqCliDeps   = 0;
+    var _reqMarcDeps  = 0;
 
     /* ─── DataTables helpers ──────────────────────────────────────────────── */
     var DT_LANG = {
@@ -128,8 +130,91 @@ var dashboardVentas = (function () {
         _activarBuscadorSelect($('#prod-filtro-producto'), 'Buscar por codigo o nombre...');
         _activarBuscadorSelect($('#cli-cliente'), 'Buscar por nombre de cliente...');
         _activarBuscadorSelect($('#cli-producto'), 'Buscar producto...');
+        _activarBuscadorSelect($('#cli-marca'), 'Buscar marca...');
         _activarBuscadorSelect($('#marc-cliente'), 'Buscar cliente...');
         _activarBuscadorSelect($('#marc-producto'), 'Buscar producto...');
+    }
+
+    function _buildOptionsHtml(items, placeholder, valueKey, labelKey) {
+        var html = '<option value="">' + (placeholder || 'Todos') + '</option>';
+        (items || []).forEach(function (it) {
+            var val = it[valueKey] === null || it[valueKey] === undefined ? '' : it[valueKey];
+            var txt = it[labelKey] === null || it[labelKey] === undefined ? '' : it[labelKey];
+            html += '<option value="' + val + '">' + txt + '</option>';
+        });
+        return html;
+    }
+
+    function _refreshCliMarcasOptions() {
+        var f = getCliFilters();
+        var token = ++_reqCliDeps;
+        var selectedMarca = $('#cli-marca').val() || '';
+
+        return $.get('/reporte/dashboard/filtros-marcas-cliente', {
+            fecha_inicio: f.fecha_inicio,
+            fecha_final: f.fecha_final,
+            cliente: f.cliente,
+            producto: f.producto
+        }).then(function (rows) {
+            if (token !== _reqCliDeps) return;
+            rows = Array.isArray(rows) ? rows : [];
+
+            $('#cli-marca').html(_buildOptionsHtml(rows, 'Todas las marcas', 'id', 'nombre'));
+            if (selectedMarca && $('#cli-marca option[value="' + selectedMarca + '"]').length) {
+                $('#cli-marca').val(selectedMarca);
+            } else {
+                $('#cli-marca').val('');
+            }
+            _activarBuscadorSelect($('#cli-marca'), 'Buscar marca...');
+        });
+    }
+
+    function _refreshCliDependentCatalogs() {
+        var f = getCliFilters();
+        var token = ++_reqCliDeps;
+        var selectedProducto = $('#cli-producto').val() || '';
+
+        return $.get('/reporte/dashboard/filtros-productos-cliente', {
+            fecha_inicio: f.fecha_inicio,
+            fecha_final: f.fecha_final,
+            cliente: f.cliente
+        }).then(function (rows) {
+            if (token !== _reqCliDeps) return;
+            rows = Array.isArray(rows) ? rows : [];
+
+            $('#cli-producto').html(_buildOptionsHtml(rows, 'Todos los productos', 'id', 'nombre'));
+            if (selectedProducto && $('#cli-producto option[value="' + selectedProducto + '"]').length) {
+                $('#cli-producto').val(selectedProducto);
+            } else {
+                $('#cli-producto').val('');
+            }
+            _activarBuscadorSelect($('#cli-producto'), 'Buscar producto...');
+
+            _refreshCliMarcasOptions();
+        });
+    }
+
+    function _refreshMarcDependentCatalogs() {
+        var f = getMarkFilters();
+        var token = ++_reqMarcDeps;
+        var selectedProducto = $('#marc-producto').val() || '';
+
+        return $.get('/reporte/dashboard/filtros-productos-cliente', {
+            fecha_inicio: f.fecha_inicio,
+            fecha_final: f.fecha_final,
+            cliente: f.cliente
+        }).then(function (rows) {
+            if (token !== _reqMarcDeps) return;
+            rows = Array.isArray(rows) ? rows : [];
+
+            $('#marc-producto').html(_buildOptionsHtml(rows, 'Todos los productos', 'id', 'nombre'));
+            if (selectedProducto && $('#marc-producto option[value="' + selectedProducto + '"]').length) {
+                $('#marc-producto').val(selectedProducto);
+            } else {
+                $('#marc-producto').val('');
+            }
+            _activarBuscadorSelect($('#marc-producto'), 'Buscar producto...');
+        });
     }
 
     function syncFiltrosAnaliticaPorPestana() {
@@ -214,6 +299,9 @@ var dashboardVentas = (function () {
             $('#marc-fi').val(primerDiaMesAnterior());
             $('#marc-ff').val(ultimoDiaMesAnterior());
 
+            _refreshCliDependentCatalogs();
+            _refreshMarcDependentCatalogs();
+
             /* Auto-carga pestaña 1 */
             cargarHistorico();
         });
@@ -221,11 +309,31 @@ var dashboardVentas = (function () {
         /* Cuando se cambia a la pestaña Analítica, cargar datos automáticamente */
         $('#tab-adv').on('shown.bs.tab', function () { cargarAnalitica(); });
 
+        $('#cli-cliente, #cli-fi, #cli-ff').on('change', function () {
+            _refreshCliDependentCatalogs();
+        });
+        $('#cli-producto').on('change', function () {
+            _refreshCliMarcasOptions();
+        });
+
+        $('#marc-cliente, #marc-fi, #marc-ff').on('change', function () {
+            _refreshMarcDependentCatalogs();
+        });
+
+        $('#cmp-fi, #cmp-ff').on('change', function () {
+            _filtrarVendChecksPorFecha();
+        });
+
+        $('#tla-fi, #tla-ff').on('change', function () {
+            _filtrarTlaChecksPorFecha();
+        });
+
         /* Redimensionar charts cuando se cambia de sub-pill (Analítica) */
         $('#adv-pills a[data-toggle="pill"]').on('shown.bs.tab', function () {
             syncFiltrosAnaliticaPorPestana();
             var href = $(this).attr('href');
             if (href === '#pill-pane-cli') {
+                _refreshCliDependentCatalogs();
                 /* Recalcular anchos de columnas DataTables al hacer visible el tab */
                 setTimeout(function () {
                     Object.keys(_dts).forEach(function (id) {
@@ -233,7 +341,12 @@ var dashboardVentas = (function () {
                     });
                 }, 50);
             } else if (href === '#pill-pane-marc') {
+                _refreshMarcDependentCatalogs();
                 cargarMarcas();
+            } else if (href === '#pill-pane-comp') {
+                _filtrarVendChecksPorFecha();
+            } else if (href === '#pill-pane-tla') {
+                _filtrarTlaChecksPorFecha();
             }
             setTimeout(function () {
                 Object.keys(charts).forEach(function (id) {
@@ -273,6 +386,7 @@ var dashboardVentas = (function () {
             $('#h-tipo-cliente, #s-tipo-cliente, #a-tipo-cliente').html(tcOpts);
 
             /* Checkboxes de vendedores para comparación */
+            _vendedoresCatalogo = vendsData;
             _renderVendChecks(vendsData);
 
             /* Fechas por defecto comparación: primer día del mes actual → hoy */
@@ -280,11 +394,15 @@ var dashboardVentas = (function () {
             var _firstOfMonth = _now.getFullYear() + '-' + String(_now.getMonth() + 1).padStart(2, '0') + '-01';
             $('#cmp-fi').val(_firstOfMonth);
             $('#cmp-ff').val(todayStr());
+            _filtrarVendChecksPorFecha();
 
-            /* Checkboxes tele-asesores (misma lista de usuarios que vendedores) */
-            _renderTlaChecks(vendsData);
+            /* Checkboxes tele-asesores (users_id en factura) */
+            var tlasData = Array.isArray(data.teleAsesores) ? data.teleAsesores : vendsData;
+            _tlasCatalogo = tlasData;
+            _renderTlaChecks(tlasData);
             $('#tla-fi').val(_firstOfMonth);
             $('#tla-ff').val(todayStr());
+            _filtrarTlaChecksPorFecha();
 
             var prodOpts = '<option value="">— Seleccione un producto —</option>';
             productosData.forEach(function (p) { prodOpts += '<option value="' + p.id + '">' + p.nombre + '</option>'; });
@@ -2415,8 +2533,11 @@ var dashboardVentas = (function () {
     var _vendedoresCatalogo = [];
 
     function _renderVendChecks(vendedores) {
-        _vendedoresCatalogo = vendedores;
         var $cont = $('#cmp-vend-checks').empty();
+        if (!vendedores || !vendedores.length) {
+            $cont.append('<small class="text-muted">No hay asesores comerciales con facturas en el rango seleccionado.</small>');
+            return;
+        }
         vendedores.forEach(function (v) {
             $cont.append(
                 '<span>' +
@@ -2424,6 +2545,41 @@ var dashboardVentas = (function () {
                 '<label class="cmp-vend-label mb-0" for="cmp-v-' + v.id + '">' + v.name + '</label>' +
                 '</span>'
             );
+        });
+    }
+
+    function _filtrarVendChecksPorFecha() {
+        if (!_vendedoresCatalogo.length) {
+            _renderVendChecks([]);
+            return;
+        }
+
+        var _n = new Date();
+        var fi = $('#cmp-fi').val() || (_n.getFullYear() + '-' + String(_n.getMonth() + 1).padStart(2, '0') + '-01');
+        var ff = $('#cmp-ff').val() || todayStr();
+        var prevSel = _getVendsSeleccionados();
+        var allIds = _vendedoresCatalogo.map(function (u) { return String(u.id); });
+
+        $.get('/reporte/dashboard/top-vendedores', {
+            fecha_inicio: fi,
+            fecha_final: ff,
+            vendedores: allIds.join(',')
+        }).then(function (rows) {
+            var activos = {};
+            (rows || []).forEach(function (r) {
+                activos[String(r.vendedor_id)] = true;
+            });
+
+            var filtrados = _vendedoresCatalogo.filter(function (u) {
+                return !!activos[String(u.id)];
+            });
+
+            _renderVendChecks(filtrados);
+            prevSel.forEach(function (id) {
+                $('#cmp-v-' + id).prop('checked', true);
+            });
+        }).fail(function () {
+            _renderVendChecks([]);
         });
     }
 
@@ -2945,8 +3101,11 @@ var dashboardVentas = (function () {
     var _tlasCatalogo = [];
 
     function _renderTlaChecks(usuarios) {
-        _tlasCatalogo = usuarios;
         var $cont = $('#tla-vend-checks').empty();
+        if (!usuarios || !usuarios.length) {
+            $cont.append('<small class="text-muted">No hay tele-asesores con facturas en el rango seleccionado.</small>');
+            return;
+        }
         usuarios.forEach(function (v) {
             $cont.append(
                 '<span>' +
@@ -2954,6 +3113,41 @@ var dashboardVentas = (function () {
                 '<label class="cmp-vend-label mb-0" for="tla-v-' + v.id + '">' + v.name + '</label>' +
                 '</span>'
             );
+        });
+    }
+
+    function _filtrarTlaChecksPorFecha() {
+        if (!_tlasCatalogo.length) {
+            _renderTlaChecks([]);
+            return;
+        }
+
+        var _n = new Date();
+        var fi = $('#tla-fi').val() || (_n.getFullYear() + '-' + String(_n.getMonth() + 1).padStart(2, '0') + '-01');
+        var ff = $('#tla-ff').val() || todayStr();
+        var prevSel = _getTlasSeleccionados();
+        var allIds = _tlasCatalogo.map(function (u) { return String(u.id); });
+
+        $.get('/reporte/dashboard/top-tele-asesores', {
+            fecha_inicio: fi,
+            fecha_final: ff,
+            vendedores: allIds.join(',')
+        }).then(function (rows) {
+            var activos = {};
+            (rows || []).forEach(function (r) {
+                activos[String(r.vendedor_id)] = true;
+            });
+
+            var filtrados = _tlasCatalogo.filter(function (u) {
+                return !!activos[String(u.id)];
+            });
+
+            _renderTlaChecks(filtrados);
+            prevSel.forEach(function (id) {
+                $('#tla-v-' + id).prop('checked', true);
+            });
+        }).fail(function () {
+            _renderTlaChecks([]);
         });
     }
 

@@ -139,31 +139,41 @@ class RevisionCreditos extends Component
             ->where('tipo_tramite_id', 10)
             ->groupBy('flujo_id');
 
+        // Última oferta registrada en historial (fallback cuando no viene en hf.tramite_id)
+        $latestOfertaSub = DB::table('historico_flujo')
+            ->select('flujo_id', DB::raw('MAX(id) as max_id'))
+            ->where('tipo_tramite_id', 2)
+            ->groupBy('flujo_id');
+
+        // Último estado en credito_revision por flujo (evita duplicados por join múltiple)
+        $latestCreditoSub = DB::table('credito_revision')
+            ->select('flujo_id', DB::raw('MAX(id) as max_id'))
+            ->groupBy('flujo_id');
+
         $q = DB::table('flujo as f')
             ->joinSub($latestRevSub, 'lrev', fn($j) => $j->on('lrev.flujo_id', '=', 'f.id'))
             ->join('historico_flujo as hf', 'hf.id', '=', 'lrev.max_id')
-            ->leftJoin('historico_flujo as hfof', function ($j) {
-                $j->on('hfof.flujo_id', '=', 'f.id')
-                  ->where('hfof.tipo_tramite_id', 2)
-                  ->where('hfof.observaciones', 'ganadora');
-            })
-            ->leftJoin('cotizacion as c', 'c.id', '=', 'hfof.tramite_id')
+            ->leftJoinSub($latestOfertaSub, 'lof', fn($j) => $j->on('lof.flujo_id', '=', 'f.id'))
+            ->leftJoin('historico_flujo as hfof', 'hfof.id', '=', 'lof.max_id')
+            ->leftJoin('cotizacion as c', 'c.id', '=', 'hf.tramite_id')
+            ->leftJoin('cotizacion as co', 'co.id', '=', 'hfof.tramite_id')
             ->leftJoin('pedido as p', DB::raw('CAST(f.identificacion AS UNSIGNED)'), '=', 'p.id')
-            ->leftJoin('credito_revision as cr', 'cr.flujo_id', '=', 'f.id')
+            ->leftJoinSub($latestCreditoSub, 'lcr', fn($j) => $j->on('lcr.flujo_id', '=', 'f.id'))
+            ->leftJoin('credito_revision as cr', 'cr.id', '=', 'lcr.max_id')
             ->leftJoin('users as ur', 'ur.id', '=', 'cr.usuario_revision')
             ->select(
                 'f.id as flujo_id',
                 'f.identificacion',
                 'hf.created_at as fecha_revision',
                 'hf.updated_at as fecha_accion',
-                'hfof.tramite_id as cotizacion_id',
-                'c.cliente_id',
-                'c.fecha_emision as fecha_emision_oferta',
-                'c.fecha_vencimiento as fecha_vencimiento_oferta',
-                'c.total as monto_total_oferta',
-                DB::raw('GREATEST(DATEDIFF(c.fecha_vencimiento, c.fecha_emision), 0) as dias_solicitados_credito'),
-                DB::raw("COALESCE(c.nombre_cliente, p.observaciones, CONCAT('Flujo #', f.id)) as cliente"),
-                DB::raw("COALESCE(c.RTN, '') as rtn"),
+                DB::raw('COALESCE(hf.tramite_id, hfof.tramite_id, cr.cotizacion_id) as cotizacion_id'),
+                DB::raw('COALESCE(c.cliente_id, co.cliente_id) as cliente_id'),
+                DB::raw('COALESCE(c.fecha_emision, co.fecha_emision, cr.fecha_emision_solicitada) as fecha_emision_oferta'),
+                DB::raw('COALESCE(c.fecha_vencimiento, co.fecha_vencimiento, cr.fecha_vencimiento_solicitada) as fecha_vencimiento_oferta'),
+                DB::raw('COALESCE(c.total, co.total, 0) as monto_total_oferta'),
+                DB::raw('COALESCE(cr.dias_credito_solicitados, GREATEST(DATEDIFF(COALESCE(c.fecha_vencimiento, co.fecha_vencimiento), COALESCE(c.fecha_emision, co.fecha_emision)), 0), 0) as dias_solicitados_credito'),
+                DB::raw("COALESCE(c.nombre_cliente, co.nombre_cliente, p.observaciones, CONCAT('Flujo #', f.id)) as cliente"),
+                DB::raw("COALESCE(c.RTN, co.RTN, '') as rtn"),
                 'hf.observaciones as obs_revision',
                 'hf.estado_id',
                 'cr.estado as estado_credito',
@@ -172,14 +182,6 @@ class RevisionCreditos extends Component
                 'cr.motivo_rechazo',
                 'cr.observaciones as obs_credito',
                 'ur.name as usuario_aprobador'
-            )
-            ->groupBy(
-                'f.id', 'f.identificacion', 'hf.created_at', 'hf.updated_at',
-                'hfof.tramite_id', 'c.cliente_id', 'c.fecha_emision', 'c.fecha_vencimiento', 'c.total',
-                'c.nombre_cliente', 'p.observaciones', 'c.RTN',
-                'hf.observaciones', 'hf.estado_id', 'cr.estado',
-                'cr.fecha_aprobacion', 'cr.fecha_vencimiento_credito', 'cr.motivo_rechazo',
-                'cr.observaciones', 'ur.name'
             );
 
         switch ($tipo) {
@@ -201,12 +203,15 @@ class RevisionCreditos extends Component
                 $q->where(function ($s) use ($term) {
                     $s->where('f.id', (int) $term)
                       ->orWhere('f.identificacion', $term)
+                      ->orWhere('hf.tramite_id', (int) $term)
                       ->orWhere('hfof.tramite_id', (int) $term);
                 });
             } else {
                 $q->where(function ($s) use ($like) {
                     $s->where('c.nombre_cliente', 'LIKE', $like)
+                      ->orWhere('co.nombre_cliente', 'LIKE', $like)
                       ->orWhere('c.RTN', 'LIKE', $like)
+                      ->orWhere('co.RTN', 'LIKE', $like)
                       ->orWhere('p.observaciones', 'LIKE', $like);
                 });
             }
@@ -505,14 +510,19 @@ class RevisionCreditos extends Component
             $bloqueos[] = 'El monto de la factura excede el crédito disponible del cliente.';
         }
 
-        if ($this->diasSolicitadosCredito > $this->diasCreditoEditable) {
-            $bloqueos[] = 'Los días solicitados exceden los días de crédito permitidos para el cliente.';
+        if ($this->diasCreditoEditable > $this->diasSolicitadosCredito) {
+            $bloqueos[] = 'Los días aprobados no pueden ser mayores que los días solicitados en el flujo.';
         }
 
         $this->bloqueosAutorizacion = $bloqueos;
         $this->puedeAutorizar = empty($bloqueos);
     }
 
+    // DEPRECATED: Esta función ya no debe usarse.
+    // Los ajustes de crédito de un flujo se persisten SOLO en credito_revision,
+    // sin modificar la tabla global cliente.
+    // Mantenida solo como referencia histórica.
+    /*
     private function aplicarAjustesCreditoCliente(): void
     {
         if (!$this->clienteId) {
@@ -566,6 +576,7 @@ class RevisionCreditos extends Component
         $this->diasCreditoActual  = $diasNuevo;
         $this->evaluarReglasAutorizacion();
     }
+    */
 
     // ─────────────────────────────────────────────────────────────────────
     // ACCIONES
@@ -618,9 +629,6 @@ class RevisionCreditos extends Component
         if (!$this->flujoId) return;
 
         $dtAprobacion = now();
-        $dtVencimiento = $this->fechaVencimientoOferta
-            ? Carbon::createFromFormat('Y-m-d', $this->fechaVencimientoOferta)
-            : null;
 
         // Reglas obligatorias de autorización de crédito
         $this->evaluarReglasAutorizacion();
@@ -633,33 +641,34 @@ class RevisionCreditos extends Component
         try {
             $ip = request()->ip();
 
-            // Si se ajustó crédito/días desde esta pantalla, persistir antes de aprobar
-            if (
-                abs((float) $this->montoCreditoEditable - (float) $this->montoCreditoActual) > 0.0001
-                || (int) $this->diasCreditoEditable !== (int) $this->diasCreditoActual
-            ) {
-                $this->aplicarAjustesCreditoCliente();
-                $this->evaluarReglasAutorizacion();
-                if (!$this->puedeAutorizar) {
-                    throw new \RuntimeException($this->bloqueosAutorizacion[0] ?? 'No se pudo validar el crédito actualizado.');
-                }
-            }
+            // Los datos de crédito editados en esta pantalla (monto, días) se persisten SOLO
+            // en la tabla credito_revision de este flujo, sin modificar la configuración
+            // global del cliente en la tabla cliente.
 
             $cr             = CreditoRevision::where('flujo_id', $this->flujoId)->latest('id')->first();
             $estadoAnterior = $cr ? $cr->estado : null;
 
-            // Días de crédito aprobados: usar el valor editable actual (puede ser
-            // el original del cliente o el ajustado por el revisor).
-            // Para ventas de contado (diasSolicitados = 0) siempre es 0.
+            // Días de crédito aprobados por operación:
+            // usan el valor editado en esta pantalla (puede ser menor o igual al solicitado).
+            // Para contado siempre es 0.
             $diasAprobados = ($this->tipoPagoSolicitud === 'contado')
                 ? 0
                 : max(0, (int) $this->diasCreditoEditable);
+
+            $dtVencimiento = null;
+            if ($this->tipoPagoSolicitud !== 'contado' && $this->fechaEmisionOferta) {
+                $dtVencimiento = Carbon::createFromFormat('Y-m-d', $this->fechaEmisionOferta)
+                    ->addDays($diasAprobados);
+            }
 
             if ($cr) {
                 $cr->update([
                     'estado'                    => CreditoRevision::APROBADO,
                     'cotizacion_id'             => $this->cotizacionId,
                     'fecha_aprobacion'          => $dtAprobacion->toDateString(),
+                    'fecha_emision_solicitada'  => $this->fechaEmisionOferta,
+                    'fecha_vencimiento_solicitada' => $this->fechaVencimientoOferta,
+                    'dias_credito_solicitados'  => max(0, (int) $this->diasSolicitadosCredito),
                     'fecha_vencimiento_credito' => $dtVencimiento ? $dtVencimiento->toDateString() : null,
                     'dias_credito_aprobados'    => $diasAprobados,
                     'motivo_rechazo'            => null,
@@ -673,6 +682,9 @@ class RevisionCreditos extends Component
                     'cotizacion_id'             => $this->cotizacionId,
                     'estado'                    => CreditoRevision::APROBADO,
                     'fecha_aprobacion'          => $dtAprobacion->toDateString(),
+                    'fecha_emision_solicitada'  => $this->fechaEmisionOferta,
+                    'fecha_vencimiento_solicitada' => $this->fechaVencimientoOferta,
+                    'dias_credito_solicitados'  => max(0, (int) $this->diasSolicitadosCredito),
                     'fecha_vencimiento_credito' => $dtVencimiento ? $dtVencimiento->toDateString() : null,
                     'dias_credito_aprobados'    => $diasAprobados,
                     'observaciones'             => trim($this->observaciones) ?: null,
@@ -688,7 +700,7 @@ class RevisionCreditos extends Component
                 'Crédito aprobado. Fecha: ' . $dtAprobacion->format('d/m/Y')
                 . ($dtVencimiento ? '. Vence: ' . $dtVencimiento->format('d/m/Y') : '')
                 . '. Oferta: L ' . number_format((float) $this->montoTotalOferta, 2)
-                . '. Días solicitados: ' . (int) $this->diasSolicitadosCredito,
+                . '. Días aprobados: ' . (int) $diasAprobados,
                 $ip
             );
 

@@ -323,6 +323,9 @@
                                             <tr>
                                                 <th class="text-center" style="width:70px;">Código</th>
                                                 <th>Nombre</th>
+                                                <th style="width:220px;">Correo</th>
+                                                <th style="width:130px;">Teléfono</th>
+                                                <th style="min-width:220px;">Dirección</th>
                                                 <th class="text-center" style="width:100px;">Estado</th>
                                                 <th style="width:150px;">Vendedor</th>
                                                 <th>N° Última Factura</th>
@@ -337,6 +340,9 @@
                                                 <tr class="{{ $row->requiere_atencion === 'Sí' ? 'row-atencion' : '' }}">
                                                     <td class="text-center text-muted small">{{ $row->codigo_cliente }}</td>
                                                     <td><strong>{{ $row->nombre_cliente }}</strong></td>
+                                                    <td>{{ $row->correo }}</td>
+                                                    <td>{{ $row->telefono }}</td>
+                                                    <td>{{ $row->direccion }}</td>
                                                     <td class="text-center">
                                                         <span class="badge-estado">{{ $row->estado }}</span>
                                                     </td>

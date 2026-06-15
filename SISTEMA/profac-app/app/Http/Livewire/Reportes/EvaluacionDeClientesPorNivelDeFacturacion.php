@@ -104,15 +104,19 @@ class EvaluacionDeClientesPorNivelDeFacturacion extends Component
             SELECT
                 c.id                                                                             AS codigo_cliente,
                 c.nombre                                                                         AS nombre_cliente,
+                COALESCE(c.correo, '')                                                           AS correo,
+                COALESCE(c.telefono_empresa, '')                                                  AS telefono,
+                COALESCE(c.direccion, '')                                                         AS direccion,
                 COALESCE(ec.descripcion, 'Sin Estado')                                           AS estado,
                 COALESCE((SELECT name FROM users WHERE id = c.vendedor LIMIT 1), 'Sin Vendedor') AS vendedor,
                 uf.cai                                                                           AS numero_ultima_factura,
                 uf.fecha_emision                                                                  AS fecha_ultima_factura,
                 COALESCE(uf.total, 0)                                                            AS monto_ultima_factura,
                 COALESCE(
-                    (SELECT SUM(f3.pendiente_cobro)
-                     FROM factura f3
-                     WHERE f3.cliente_id = c.id),
+                    (SELECT SUM(ap2.saldo)
+                     FROM aplicacion_pagos ap2
+                     WHERE ap2.cliente_id = c.id
+                       AND ap2.estado = 1),
                     0
                 )                                                                                AS saldo_pendiente,
                 CASE

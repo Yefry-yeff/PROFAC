@@ -242,7 +242,12 @@ class VentasExoneradas extends Component
                     IFNULL((SELECT SUM(php2.cantidad)
                              FROM prefactura_has_producto php2
                              INNER JOIN prefactura pf2 ON pf2.id = php2.prefactura_id
-                             WHERE pf2.estado = 'activo'
+                                                                                                                 WHERE pf2.estado = 'activo'
+                                                                                                                         AND TIMESTAMPADD(
+                                                                                                                                     DAY,
+                                                                                                                                     COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7),
+                                                                                                                                     COALESCE(pf2.created_at, CONCAT(COALESCE(pf2.fecha_emision, CURDATE()), ' 00:00:00'))
+                                                                                                                                 ) > NOW()
                                {$excludePfClause}
                                AND php2.producto_id = " . (int)$request->$keyIdProducto . "
                                AND php2.seccion_id  = " . (int)$request->$keyIdSeccion . "
@@ -354,6 +359,7 @@ class VentasExoneradas extends Component
             $factura->estado_venta_id = 1;
             $factura->cliente_id = $request->seleccionarCliente;
             $factura->vendedor = $request->vendedor;
+            $factura->gestor_entrega = $request->gestor_entrega ?: null;
             $factura->monto_comision = $montoComision;
             $factura->tipo_venta_id = 3; // exonerado
             $factura->estado_factura_id = 1; // se presenta
@@ -421,13 +427,14 @@ class VentasExoneradas extends Component
                 $precio = $request->$keyPrecio;
                 $cantidad = $request->$keyCantidad;
                 $subTotal = $request->$keySubTotal;
+                $tipoPrecio = ($ivsProducto > 0) ? '2' : '1'; // '2' = gravado, '1' = exento
                 $isv = 0;
                 $total = $subTotal;
                 $ivsProducto = 0;
 
                 //dd($factura);
 
-                $this->restarUnidadesInventario($precios_producto_carga_id, $idPrecioSeleccionado,$precioSeleccionado,$restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad,$arrayInputs[$i]);
+                $this->restarUnidadesInventario($precios_producto_carga_id, $idPrecioSeleccionado,$precioSeleccionado,$restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad,$arrayInputs[$i], $tipoPrecio);
             };
 
             if ($request->tipoPagoVenta == 2) { //si el tipo de pago es credito
@@ -488,7 +495,7 @@ class VentasExoneradas extends Component
         }
     }
 
-    public function restarUnidadesInventario($precios_producto_carga_id,$idPrecioSeleccionado,$precioSeleccionado,$unidadesRestarInv, $idProducto, $idSeccion, $idFactura, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $indice)
+    public function restarUnidadesInventario($precios_producto_carga_id,$idPrecioSeleccionado,$precioSeleccionado,$unidadesRestarInv, $idProducto, $idSeccion, $idFactura, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $indice, $tipoPrecio = '1')
     {
         try {
 
@@ -583,6 +590,7 @@ class VentasExoneradas extends Component
                     "sub_total_s" => $subTotalSecccionado,
                     "isv_s" => $isvSecccionado,
                     "total_s" => $totalSecccionado,
+                    "tipo_precio" => $tipoPrecio,
                     "idPrecioSeleccionado"=>$idPrecioSeleccionado,
                     "precioSeleccionado"=>$precioSeleccionado,
                     "precios_producto_carga_id" => $precios_producto_carga_id,
@@ -720,7 +728,7 @@ class VentasExoneradas extends Component
         A.estado_venta_id,
         users.name as vendedor,
         (select name from users where id = A.users_id ) as facturador,
-        (select u.name from comprovante_entrega ce inner join users u on ce.users_id = u.id where ce.id = A.comprovante_entrega_id) as asesor_entrega
+        (select name from users where id = A.gestor_entrega) as asesor_entrega
        from factura A
        inner join cai B
        on A.cai_id = B.id
@@ -759,10 +767,10 @@ class VentasExoneradas extends Component
          total,
          COALESCE((select sum(round(vhp.sub_total_s * (p.isv / 100), 2)) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv != 0 and vhp.factura_id = ".$idFactura."),0) as isv,
          sub_total,
-         FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv != 0 and vhp.factura_id = ".$idFactura."),2) as sub_total_grabado,
+         FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp where vhp.factura_id = ".$idFactura." and ((DATE(factura.fecha_emision) < '2026-06-07' and COALESCE(vhp.isv,0) > 0) or (DATE(factura.fecha_emision) >= '2026-06-07' and vhp.tipo_precio = '2'))),2) as sub_total_grabado,
          COALESCE(sub_total_excento, 0) as sub_total_excento,
          porc_descuento,
-        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv = 0 and vhp.factura_id = ".$idFactura."),2) as subtotal_excentovale,
+        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp where vhp.factura_id = ".$idFactura." and ((DATE(factura.fecha_emision) < '2026-06-07' and COALESCE(vhp.isv,0) = 0) or (DATE(factura.fecha_emision) >= '2026-06-07' and vhp.tipo_precio = '1'))),2) as subtotal_excentovale,
          monto_descuento
          from factura
          where id = ".$idFactura);
@@ -772,9 +780,9 @@ class VentasExoneradas extends Component
          FORMAT(total,2) as total,
          FORMAT(COALESCE((select sum(round(vhp.sub_total_s * (p.isv / 100), 2)) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv != 0 and vhp.factura_id = ".$idFactura."),0),2) as isv,
          FORMAT(sub_total,2) as sub_total,
-        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv != 0 and vhp.factura_id = ".$idFactura."),2) as sub_total_grabado,
+        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp where vhp.factura_id = ".$idFactura." and ((DATE(factura.fecha_emision) < '2026-06-07' and COALESCE(vhp.isv,0) > 0) or (DATE(factura.fecha_emision) >= '2026-06-07' and vhp.tipo_precio = '2'))),2) as sub_total_grabado,
         FORMAT(COALESCE(sub_total_excento, 0),2) as sub_total_excento,
-        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv = 0 and vhp.factura_id = ".$idFactura."),2) as subtotal_excentovale,
+        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp where vhp.factura_id = ".$idFactura." and ((DATE(factura.fecha_emision) < '2026-06-07' and COALESCE(vhp.isv,0) = 0) or (DATE(factura.fecha_emision) >= '2026-06-07' and vhp.tipo_precio = '1'))),2) as subtotal_excentovale,
          FORMAT(porc_descuento,2) as porc_descuento,
          FORMAT(monto_descuento,2) as monto_descuento
          from factura where factura.id = ".$idFactura);
@@ -796,7 +804,7 @@ class VentasExoneradas extends Component
                     B.producto_id as codigo,
                     concat(C.nombre) as descripcion,
                     UPPER(J.nombre) as medida,
-                if(C.isv = 0, 'SI' , 'NO' ) as excento,
+                if(((DATE(A.fecha_emision) < '2026-06-07' and MIN(COALESCE(B.isv,0)) = 0) or (DATE(A.fecha_emision) >= '2026-06-07' and MIN(B.tipo_precio) = '1')), 'SI' , 'NO' ) as excento,
                 if(B.seccion_id = 0, 'N/A',H.nombre) as bodega,
                 if(B.seccion_id = 0, 'N/A',REPLACE(REPLACE(F.descripcion,'Seccion',''),' ', '')) as seccion,
                     FORMAT(B.precio_unidad,2) as precio,
@@ -920,7 +928,7 @@ class VentasExoneradas extends Component
         A.estado_venta_id,
         users.name as vendedor,
         (select name from users where id = A.users_id ) as facturador,
-        (select u.name from comprovante_entrega ce inner join users u on ce.users_id = u.id where ce.id = A.comprovante_entrega_id) as asesor_entrega
+        (select name from users where id = A.gestor_entrega) as asesor_entrega
        from factura A
        inner join cai B
        on A.cai_id = B.id
@@ -959,10 +967,10 @@ class VentasExoneradas extends Component
         total,
         COALESCE((select sum(round(vhp.sub_total_s * (p.isv / 100), 2)) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv != 0 and vhp.factura_id = ".$idFactura."),0) as isv,
         sub_total,
-        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv != 0 and vhp.factura_id = ".$idFactura."),2) as sub_total_grabado,
+        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp where vhp.factura_id = ".$idFactura." and ((DATE(factura.fecha_emision) < '2026-06-07' and COALESCE(vhp.isv,0) > 0) or (DATE(factura.fecha_emision) >= '2026-06-07' and vhp.tipo_precio = '2'))),2) as sub_total_grabado,
         COALESCE(sub_total_excento, 0) as sub_total_excento,
         porc_descuento,
-        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv = 0 and vhp.factura_id = ".$idFactura."),2) as subtotal_excentovale,
+        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp where vhp.factura_id = ".$idFactura." and ((DATE(factura.fecha_emision) < '2026-06-07' and COALESCE(vhp.isv,0) = 0) or (DATE(factura.fecha_emision) >= '2026-06-07' and vhp.tipo_precio = '1'))),2) as subtotal_excentovale,
         monto_descuento
         from factura
         where id = ".$idFactura);
@@ -972,10 +980,10 @@ class VentasExoneradas extends Component
         FORMAT(total,2) as total,
         FORMAT(COALESCE((select sum(round(vhp.sub_total_s * (p.isv / 100), 2)) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv != 0 and vhp.factura_id = ".$idFactura."),0),2) as isv,
         FORMAT(sub_total,2) as sub_total,
-        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv != 0 and vhp.factura_id = ".$idFactura."),2) as sub_total_grabado,
+        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp where vhp.factura_id = ".$idFactura." and ((DATE(factura.fecha_emision) < '2026-06-07' and COALESCE(vhp.isv,0) > 0) or (DATE(factura.fecha_emision) >= '2026-06-07' and vhp.tipo_precio = '2'))),2) as sub_total_grabado,
         FORMAT(COALESCE(sub_total_excento, 0),2) as sub_total_excento,
         FORMAT(porc_descuento,2) as porc_descuento,
-        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv = 0 and vhp.factura_id = ".$idFactura."),2) as subtotal_excentovale,
+        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp where vhp.factura_id = ".$idFactura." and ((DATE(factura.fecha_emision) < '2026-06-07' and COALESCE(vhp.isv,0) = 0) or (DATE(factura.fecha_emision) >= '2026-06-07' and vhp.tipo_precio = '1'))),2) as subtotal_excentovale,
         FORMAT(monto_descuento,2) as monto_descuento
         from factura where factura.id = ".$idFactura);
 
@@ -996,7 +1004,7 @@ class VentasExoneradas extends Component
                     B.producto_id as codigo,
                     concat(C.nombre) as descripcion,
                     UPPER(J.nombre) as medida,
-                if(C.isv = 0, 'SI' , 'NO' ) as excento,
+                if(((DATE(A.fecha_emision) < '2026-06-07' and MIN(COALESCE(B.isv,0)) = 0) or (DATE(A.fecha_emision) >= '2026-06-07' and MIN(B.tipo_precio) = '1')), 'SI' , 'NO' ) as excento,
                 if(B.seccion_id = 0, 'N/A',H.nombre) as bodega,
                 if(B.seccion_id = 0, 'N/A',REPLACE(REPLACE(F.descripcion,'Seccion',''),' ', '')) as seccion,
                     FORMAT(B.precio_unidad,2) as precio,
@@ -1164,10 +1172,10 @@ class VentasExoneradas extends Component
          total,
          isv,
          sub_total,
-         FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv != 0 and vhp.factura_id = ".$idFactura."),2) as sub_total_grabado,
+         FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp where vhp.factura_id = ".$idFactura." and ((DATE(factura.fecha_emision) < '2026-06-07' and COALESCE(vhp.isv,0) > 0) or (DATE(factura.fecha_emision) >= '2026-06-07' and vhp.tipo_precio = '2'))),2) as sub_total_grabado,
          COALESCE(sub_total_excento, 0) as sub_total_excento,
          porc_descuento,
-        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv = 0 and vhp.factura_id = ".$idFactura."),2) as subtotal_excentovale,
+        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp where vhp.factura_id = ".$idFactura." and ((DATE(factura.fecha_emision) < '2026-06-07' and COALESCE(vhp.isv,0) = 0) or (DATE(factura.fecha_emision) >= '2026-06-07' and vhp.tipo_precio = '1'))),2) as subtotal_excentovale,
          monto_descuento
          from factura
          where id = ".$idFactura);
@@ -1177,9 +1185,9 @@ class VentasExoneradas extends Component
          FORMAT(total,2) as total,
          FORMAT(isv,2) as isv,
          FORMAT(sub_total,2) as sub_total,
-        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv != 0 and vhp.factura_id = ".$idFactura."),2) as sub_total_grabado,
+        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp where vhp.factura_id = ".$idFactura." and ((DATE(factura.fecha_emision) < '2026-06-07' and COALESCE(vhp.isv,0) > 0) or (DATE(factura.fecha_emision) >= '2026-06-07' and vhp.tipo_precio = '2'))),2) as sub_total_grabado,
         FORMAT(COALESCE(sub_total_excento, 0),2) as sub_total_excento,
-        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv = 0 and vhp.factura_id = ".$idFactura."),2) as subtotal_excentovale,
+        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp where vhp.factura_id = ".$idFactura." and ((DATE(factura.fecha_emision) < '2026-06-07' and COALESCE(vhp.isv,0) = 0) or (DATE(factura.fecha_emision) >= '2026-06-07' and vhp.tipo_precio = '1'))),2) as subtotal_excentovale,
          FORMAT(porc_descuento,2) as porc_descuento,
          FORMAT(monto_descuento,2) as monto_descuento
          from factura where factura.id = ".$idFactura);
@@ -1189,7 +1197,7 @@ class VentasExoneradas extends Component
                     B.producto_id as codigo,
                     concat(C.nombre) as descripcion,
                     UPPER(J.nombre) as medida,
-                if(C.isv = 0, 'SI' , 'NO' ) as excento,
+                if(((DATE(A.fecha_emision) < '2026-06-07' and MIN(COALESCE(B.isv,0)) = 0) or (DATE(A.fecha_emision) >= '2026-06-07' and MIN(B.tipo_precio) = '1')), 'SI' , 'NO' ) as excento,
                 if(B.seccion_id = 0, 'N/A',H.nombre) as bodega,
                 if(B.seccion_id = 0, 'N/A',REPLACE(REPLACE(F.descripcion,'Seccion',''),' ', '')) as seccion,
                     FORMAT(B.precio_unidad,2) as precio,

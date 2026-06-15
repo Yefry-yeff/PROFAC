@@ -102,8 +102,13 @@ $('#tbl_lotes_listar').DataTable({
 
     ],
     drawCallback: function() {
-        var sum = $('#tbl_lotes_listar').DataTable().column(11).data().sum();
-        let html = 'Cantidad Total en Bodega: ' + sum
+        var api = $('#tbl_lotes_listar').DataTable();
+        var sum = 0;
+        api.column(10).data().each(function(val) {
+            var text = String(val).replace(/<[^>]*>/g, '').trim();
+            sum += parseInt(text) || 0;
+        });
+        let html = 'Cantidad Total en Bodegas: ' + sum.toLocaleString('es-HN');
         $('#total_lotes').html(html);
     }
 
