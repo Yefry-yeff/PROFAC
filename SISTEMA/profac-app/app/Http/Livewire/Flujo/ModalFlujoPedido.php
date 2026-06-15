@@ -1573,17 +1573,30 @@ class ModalFlujoPedido extends Component
      */
     private function procesarVencimientoPrefactura(object $pref): void
     {
-        $this->vencimientoProcesado = $this->prefacturaVencio($pref->fecha_vencimiento ?? null);
+        $this->vencimientoProcesado = $this->prefacturaVencio($pref);
     }
 
-    private function prefacturaVencio(?string $fechaVencimiento): bool
+    private function prefacturaVencio(?object $pref): bool
     {
-        if (empty($fechaVencimiento)) {
+        if (!$pref) {
             return false;
         }
 
         try {
-            return now()->gt(\Carbon\Carbon::parse($fechaVencimiento)->endOfDay());
+            $diasValidez = (int) (DB::table('configuracion_prefactura')
+                ->orderByDesc('id')
+                ->value('dias_validez') ?? 7);
+            $diasValidez = max(0, $diasValidez);
+
+            if (!empty($pref->created_at)) {
+                $base = \Carbon\Carbon::parse($pref->created_at);
+            } elseif (!empty($pref->fecha_emision)) {
+                $base = \Carbon\Carbon::parse($pref->fecha_emision)->startOfDay();
+            } else {
+                return false;
+            }
+
+            return now()->gt($base->copy()->addDays($diasValidez));
         } catch (\Throwable $e) {
             return false;
         }
@@ -1784,7 +1797,7 @@ class ModalFlujoPedido extends Component
             return;
         }
 
-        $this->prefacturaVencida = $this->prefacturaVencio($pref->fecha_vencimiento ?? null);
+        $this->prefacturaVencida = $this->prefacturaVencio($pref);
         $this->vencimientoProcesado = false;
 
         $productos = DB::table('prefactura_has_producto')
