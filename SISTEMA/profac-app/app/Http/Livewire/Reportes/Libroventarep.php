@@ -34,7 +34,25 @@ class Libroventarep extends Component
                 ->orderBy('factura.fecha_emision', 'DESC')
                 ->get();
 
+            $kpiTotalVendido = 0.0;
+            $kpiTotalIsv = 0.0;
+            $kpiTotalGravado = 0.0;
+            $kpiTotalRegistros = 0;
+
+            foreach ($consulta as $row) {
+                $kpiTotalRegistros++;
+                $kpiTotalVendido += (float) ($row->TOTAL ?? 0);
+                $kpiTotalIsv += (float) ($row->ISV ?? 0);
+                $kpiTotalGravado += (float) ($row->GRAVADO ?? 0);
+            }
+
             return Datatables::of($consulta)
+                ->with([
+                    'kpi_total_vendido' => round($kpiTotalVendido, 2),
+                    'kpi_total_isv' => round($kpiTotalIsv, 2),
+                    'kpi_total_gravado' => round($kpiTotalGravado, 2),
+                    'kpi_total_registros' => $kpiTotalRegistros,
+                ])
                 ->rawColumns([])
                 ->make(true);
         } catch (QueryException $e) {

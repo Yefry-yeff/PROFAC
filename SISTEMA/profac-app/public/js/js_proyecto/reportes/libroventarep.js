@@ -65,6 +65,15 @@ function cargarTablaLV() {
             url:  '/reporte/Libroventarep/datos?' + qs,
             type: 'GET',
             headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+            dataSrc: function(json) {
+                setKpisLV(
+                    json.kpi_total_vendido,
+                    json.kpi_total_isv,
+                    json.kpi_total_gravado,
+                    json.kpi_total_registros
+                );
+                return json.data;
+            },
             error: function(xhr) {
                 Swal.fire({ icon:'error', title:'Error', text: 'Error al cargar el reporte: ' + (xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : xhr.status) });
             }
@@ -85,7 +94,6 @@ function cargarTablaLV() {
         pageLength: 25,
         dom: '<"row"<"col-sm-6"l><"col-sm-6"f>>rt<"row"<"col-sm-5"i><"col-sm-7"p>>',
         initComplete: function() {
-            cargarKpisLV();
             mostrarFiltrosActivosLV();
         }
     });
@@ -94,23 +102,11 @@ function cargarTablaLV() {
 /* ────────────────────────────────────────────────────────────────────
  *  KPIs
  * ──────────────────────────────────────────────────────────────────── */
-function cargarKpisLV() {
-    if (!lvTable) return;
-    var totalVendido = 0;
-    var totalISV = 0;
-    var totalGravado = 0;
-    var totalRegistros = lvTable.data().length;
-
-    lvTable.data().each(function(row) {
-        totalVendido += parseFloat(row.TOTAL) || 0;
-        totalISV += parseFloat(row.ISV) || 0;
-        totalGravado += parseFloat(row.GRAVADO) || 0;
-    });
-
-    $('#kpi_total_vendido').text(fmtLpsLV(totalVendido));
-    $('#kpi_total_isv').text(fmtLpsLV(totalISV));
-    $('#kpi_total_gravado').text(fmtLpsLV(totalGravado));
-    $('#kpi_total_registros').text(totalRegistros);
+function setKpisLV(totalVendido, totalISV, totalGravado, totalRegistros) {
+    $('#kpi_total_vendido').text(fmtLpsLV(totalVendido || 0));
+    $('#kpi_total_isv').text(fmtLpsLV(totalISV || 0));
+    $('#kpi_total_gravado').text(fmtLpsLV(totalGravado || 0));
+    $('#kpi_total_registros').text(parseInt(totalRegistros || 0, 10));
 }
 
 /* ────────────────────────────────────────────────────────────────────
