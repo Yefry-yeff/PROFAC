@@ -511,15 +511,14 @@ class ReportesComisionesGenerales extends Component
     public function reporteNomina(Request $request)
     {
         [$fiDate, $ffDate] = $this->resolveDateRange($request);
-        $fiMes = date('Y-m-01', strtotime($fiDate));
-        $ffMes = date('Y-m-01', strtotime($ffDate));
-        $fiFecha = $fiMes . ' 00:00:00';
-        $ffFecha = date('Y-m-t 23:59:59', strtotime($ffMes));
+        $fiFecha = $fiDate . ' 00:00:00';
+        $ffFecha = $ffDate . ' 23:59:59';
         $empleadoId = (int) $request->input('empleado_id', 0);
         $rolId      = (int) $request->input('rol_id', 0);
 
-        $facturasAgg = DB::table('facturas_comision as fc')
+        $nominaBase = DB::table('facturas_comision as fc')
             ->join('factura as f', 'f.id', '=', 'fc.factura_id')
+            ->leftJoin('rol as r', 'r.id', '=', 'fc.rol_id')
             ->whereBetween('fc.fecha_cierre_factura', [$fiFecha, $ffFecha])
             ->where('fc.estado_id', 1)
             ->whereRaw(
@@ -565,40 +564,30 @@ class ReportesComisionesGenerales extends Component
                     ELSE NULL
                  END as users_comision,
                  DATE_FORMAT(fc.fecha_cierre_factura, '%Y-%m-01') as mes_comision,
-                 COUNT(DISTINCT fc.factura_id) as facturas_comisionadas"
+                 COUNT(DISTINCT fc.rol_id) as roles_cantidad,
+                 GROUP_CONCAT(DISTINCT r.nombre ORDER BY r.nombre SEPARATOR ', ') as roles_nombres,
+                 COUNT(DISTINCT fc.factura_id) as facturas_comisionadas,
+                 ROUND(SUM(fc.monto_rol), 2) as comision_total"
             );
 
-        $query = DB::table('comision_empleado as ce')
-            ->join('users as u', 'u.id', '=', 'ce.users_comision')
-            ->join('rol as r', 'r.id', '=', 'ce.rol_id')
-            ->leftJoinSub($facturasAgg, 'fa', function ($join) {
-                $join->on('fa.users_comision', '=', 'ce.users_comision')
-                     ->on('fa.mes_comision', '=', 'ce.mes_comision');
-            })
-            ->whereBetween('ce.mes_comision', [$fiMes, $ffMes])
-            ->where('ce.estado_id', 1)
-            ->when($empleadoId > 0, function ($q) use ($empleadoId) {
-                $q->where('ce.users_comision', $empleadoId);
-            })
-            ->when($rolId > 0, function ($q) use ($rolId) {
-                $q->where('ce.rol_id', $rolId);
-            })
-            ->groupBy('ce.users_comision', 'u.name', 'ce.mes_comision', 'fa.facturas_comisionadas')
+        $query = DB::query()
+            ->fromSub($nominaBase, 'n')
+            ->join('users as u', 'u.id', '=', 'n.users_comision')
             ->selectRaw(
-                "CONCAT(ce.users_comision, '-', DATE_FORMAT(ce.mes_comision, '%Y-%m')) as id,
-                 ce.users_comision as empleado_id,
+                "CONCAT(n.users_comision, '-', DATE_FORMAT(n.mes_comision, '%Y-%m')) as id,
+                 n.users_comision as empleado_id,
                  u.name as empleado,
-                 DATE_FORMAT(ce.mes_comision, '%Y-%m') as mes_clave,
+                 DATE_FORMAT(n.mes_comision, '%Y-%m') as mes_clave,
                  CONCAT(
-                    ELT(MONTH(ce.mes_comision), 'Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'),
-                    ' ', YEAR(ce.mes_comision)
+                    ELT(MONTH(n.mes_comision), 'Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'),
+                    ' ', YEAR(n.mes_comision)
                  ) as mes,
-                 COUNT(DISTINCT ce.rol_id) as roles_cantidad,
-                 GROUP_CONCAT(DISTINCT r.nombre ORDER BY r.nombre SEPARATOR ', ') as roles_nombres,
-                 COALESCE(fa.facturas_comisionadas, 0) as facturas_comisionadas,
-                 ROUND(SUM(ce.comision_acumulada), 2) as comision_total"
+                 n.roles_cantidad,
+                 COALESCE(n.roles_nombres, '') as roles_nombres,
+                 COALESCE(n.facturas_comisionadas, 0) as facturas_comisionadas,
+                 COALESCE(n.comision_total, 0) as comision_total"
             )
-            ->orderByDesc('ce.mes_comision')
+            ->orderByDesc('n.mes_comision')
             ->orderBy('u.name');
 
         $rows = $query->get()->map(function ($row) {
@@ -731,11 +720,7 @@ class ReportesComisionesGenerales extends Component
                  fc.estado_id,
                  COALESCE(fc.retencion_mora_monto, 0) as retencion_aplicada,
                  COALESCE(fc.monto_rol, 0) as comision_final,
-                 (
-                    SELECT COALESCE(SUM(pc.monto_comision * pc.cantidad), 0)
-                    FROM producto_comision pc
-                    WHERE pc.facturas_comision_id = fc.id
-                 ) as comision_original"
+                 ROUND(COALESCE(fc.monto_rol, 0) + COALESCE(fc.retencion_mora_monto, 0), 4) as comision_original"
             )
             ->orderByDesc('fc.fecha_cierre_factura')
             ->get();
