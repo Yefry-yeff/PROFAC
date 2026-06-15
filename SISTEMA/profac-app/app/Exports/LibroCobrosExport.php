@@ -89,27 +89,18 @@ class LibroCobrosExport implements FromArray, WithStyles, WithEvents, WithStrict
             $isv            = (float)($r['isv']                    ?? 0);
             $fact           = (float)($r['total_factura']          ?? 0);
             $estado         = $r['estado_factura']                 ?? '';
-            $factura        = $r['factura']                        ?? '';
-            $tienePagada    = (int)($r['factura_tiene_pagada']     ?? 1);
-
-            // Si la factura solo tiene abonos (sin pago final anulado), sub/fact = monto cobrado
-            $soloAbonos     = ($tienePagada == 0);
 
             $totCobrado += $cobrado;
 
             if ($estado === 'PAGADA') {
                 $totPagadas++;
-                $totExon += $exon;
-                $totGrav += $grav;
-                $totExen += $exen;
-                $totSub  += $sub;
-                $totIsv  += $isv;
-                $totFact += $fact;
-            } elseif ($soloAbonos) {
-                // Factura sin pago final: acumular monto cobrado en sub y fact
-                $totSub  += $cobrado;
-                $totFact += $cobrado;
             }
+            $totExon += $exon;
+            $totGrav += $grav;
+            $totExen += $exen;
+            $totSub  += $sub;
+            $totIsv  += $isv;
+            $totFact += $fact;
 
             $row = [
                 $r['fecha_pago']    ?? '',
@@ -121,12 +112,12 @@ class LibroCobrosExport implements FromArray, WithStyles, WithEvents, WithStrict
                 $r['banco']         ?? '',
                 $r['cuenta_banco']  ?? '',
                 $r['observaciones'] ?? '',
-                $estado === 'PAGADA' ? $exon  : '',
-                $estado === 'PAGADA' ? $grav  : '',
-                $estado === 'PAGADA' ? $exen  : '',
-                $estado === 'PAGADA' ? $sub   : ($soloAbonos ? $cobrado : ''),
-                $estado === 'PAGADA' ? $isv   : '',
-                $estado === 'PAGADA' ? $fact  : ($soloAbonos ? $cobrado : ''),
+                $exon,
+                $grav,
+                $exen,
+                $sub,
+                $isv,
+                $fact,
             ];
             $out[] = $row;
         }

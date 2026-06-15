@@ -49,7 +49,7 @@
     <div class="header">
         <img src="{{ public_path('img/membrete/Logo3.png') }}" alt="Logo">
         <div class="header-text">
-            <h1>DISTRIBUCIONES VALENCIA S.A. DE C.V.</h1>
+            <h1>DISTRIBUCIONES VALENCIA</h1>
             <p>RTN: 08011986138652</p>
             <p>REPORTE DE CLIENTES</p>
             <p>Generado: {{ now()->translatedFormat('d \d\e F \d\e Y H:i') }}</p>

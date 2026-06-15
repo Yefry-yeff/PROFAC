@@ -89,12 +89,103 @@ class Librocobrosrep extends Component
                                 END                                              AS estado_factura,
                                 b.nombre                                         AS banco,
                                 ac.comentario                                    AS observaciones,
-                                ROUND(IF(f.tipo_venta_id = 3, f.isv, 0), 2)    AS exonerado,
-                                ROUND(f.sub_total_grabado, 2)                   AS gravado,
-                                ROUND(f.sub_total_excento, 2)                   AS excento,
-                                ROUND(f.sub_total, 2)                           AS subtotal,
-                                ROUND(f.isv, 2)                                 AS isv,
-                                ROUND(f.total, 2)                               AS total_factura,
+                                ROUND(
+                                    CASE
+                                        WHEN COALESCE(f.sub_total, 0) > 0 THEN (
+                                            (CASE
+                                                WHEN COALESCE(f.total, 0) > 0
+                                                    THEN ROUND(ac.monto_abonado * COALESCE(f.sub_total, 0) / COALESCE(f.total, 1), 2)
+                                                ELSE ROUND(ac.monto_abonado, 2)
+                                            END)
+                                            * (CASE
+                                                WHEN f.tipo_venta_id = 3 THEN COALESCE(f.sub_total, 0)
+                                                ELSE GREATEST(
+                                                    COALESCE(f.sub_total, 0)
+                                                    - COALESCE(f.sub_total_grabado, 0)
+                                                    - COALESCE(f.sub_total_excento, 0),
+                                                    0
+                                                )
+                                            END)
+                                            / COALESCE(f.sub_total, 1)
+                                        )
+                                        ELSE 0
+                                    END,
+                                2)                                               AS exonerado,
+                                ROUND(
+                                    CASE
+                                        WHEN COALESCE(f.sub_total, 0) > 0 THEN (
+                                            (CASE
+                                                WHEN COALESCE(f.total, 0) > 0
+                                                    THEN ROUND(ac.monto_abonado * COALESCE(f.sub_total, 0) / COALESCE(f.total, 1), 2)
+                                                ELSE ROUND(ac.monto_abonado, 2)
+                                            END)
+                                            * COALESCE(f.sub_total_grabado, 0)
+                                            / COALESCE(f.sub_total, 1)
+                                        )
+                                        ELSE 0
+                                    END,
+                                2)                                               AS gravado,
+                                ROUND(
+                                    (CASE
+                                        WHEN COALESCE(f.total, 0) > 0
+                                            THEN ROUND(ac.monto_abonado * COALESCE(f.sub_total, 0) / COALESCE(f.total, 1), 2)
+                                        ELSE ROUND(ac.monto_abonado, 2)
+                                    END)
+                                    -
+                                    ROUND(
+                                        CASE
+                                            WHEN COALESCE(f.sub_total, 0) > 0 THEN (
+                                                (CASE
+                                                    WHEN COALESCE(f.total, 0) > 0
+                                                        THEN ROUND(ac.monto_abonado * COALESCE(f.sub_total, 0) / COALESCE(f.total, 1), 2)
+                                                    ELSE ROUND(ac.monto_abonado, 2)
+                                                END)
+                                                * (CASE
+                                                    WHEN f.tipo_venta_id = 3 THEN COALESCE(f.sub_total, 0)
+                                                    ELSE GREATEST(
+                                                        COALESCE(f.sub_total, 0)
+                                                        - COALESCE(f.sub_total_grabado, 0)
+                                                        - COALESCE(f.sub_total_excento, 0),
+                                                        0
+                                                    )
+                                                END)
+                                                / COALESCE(f.sub_total, 1)
+                                            )
+                                            ELSE 0
+                                        END,
+                                    2)
+                                    -
+                                    ROUND(
+                                        CASE
+                                            WHEN COALESCE(f.sub_total, 0) > 0 THEN (
+                                                (CASE
+                                                    WHEN COALESCE(f.total, 0) > 0
+                                                        THEN ROUND(ac.monto_abonado * COALESCE(f.sub_total, 0) / COALESCE(f.total, 1), 2)
+                                                    ELSE ROUND(ac.monto_abonado, 2)
+                                                END)
+                                                * COALESCE(f.sub_total_grabado, 0)
+                                                / COALESCE(f.sub_total, 1)
+                                            )
+                                            ELSE 0
+                                        END,
+                                    2),
+                                2)                                               AS excento,
+                                ROUND(
+                                    CASE
+                                        WHEN COALESCE(f.total, 0) > 0
+                                            THEN ac.monto_abonado * COALESCE(f.sub_total, 0) / COALESCE(f.total, 1)
+                                        ELSE ac.monto_abonado
+                                    END,
+                                2)                                               AS subtotal,
+                                ROUND(
+                                    CASE
+                                        WHEN f.tipo_venta_id = 3 THEN 0
+                                        WHEN COALESCE(f.total, 0) > 0 THEN
+                                            ac.monto_abonado - ROUND(ac.monto_abonado * COALESCE(f.sub_total, 0) / COALESCE(f.total, 1), 2)
+                                        ELSE 0
+                                    END,
+                                2)                                               AS isv,
+                                ROUND(ac.monto_abonado, 2)                      AS total_factura,
                                 b.cuenta                                         AS cuenta_banco,
                                 f.cliente_id                                     AS _cliente_id,
                                 f.vendedor                                       AS _vendedor_id,
@@ -155,7 +246,25 @@ class Librocobrosrep extends Component
 
                 $consulta = DB::select($sql, $bindings);
 
+                $kpiCobros = 0;
+                $kpiTotalCobrado = 0.0;
+                $facturasPagadas = [];
+
+                foreach ($consulta as $row) {
+                    $kpiCobros++;
+                    $kpiTotalCobrado += (float) ($row->monto_cobrado ?? 0);
+
+                    if (($row->estado_factura ?? '') === 'PAGADA' && !empty($row->factura)) {
+                        $facturasPagadas[(string) $row->factura] = true;
+                    }
+                }
+
                 return Datatables::of($consulta)
+                    ->with([
+                        'kpi_cobros' => $kpiCobros,
+                        'kpi_total_cobrado' => round($kpiTotalCobrado, 2),
+                        'kpi_completas' => count($facturasPagadas),
+                    ])
                     ->rawColumns([])
                     ->make(true);
             }
@@ -252,12 +361,103 @@ class Librocobrosrep extends Component
                                 END                                              AS estado_factura,
                                 b.nombre                                         AS banco,
                                 ac.comentario                                    AS observaciones,
-                                ROUND(IF(f.tipo_venta_id = 3, f.isv, 0), 2)    AS exonerado,
-                                ROUND(f.sub_total_grabado, 2)                   AS gravado,
-                                ROUND(f.sub_total_excento, 2)                   AS excento,
-                                ROUND(f.sub_total, 2)                           AS subtotal,
-                                ROUND(f.isv, 2)                                 AS isv,
-                                ROUND(f.total, 2)                               AS total_factura,
+                                ROUND(
+                                    CASE
+                                        WHEN COALESCE(f.sub_total, 0) > 0 THEN (
+                                            (CASE
+                                                WHEN COALESCE(f.total, 0) > 0
+                                                    THEN ROUND(ac.monto_abonado * COALESCE(f.sub_total, 0) / COALESCE(f.total, 1), 2)
+                                                ELSE ROUND(ac.monto_abonado, 2)
+                                            END)
+                                            * (CASE
+                                                WHEN f.tipo_venta_id = 3 THEN COALESCE(f.sub_total, 0)
+                                                ELSE GREATEST(
+                                                    COALESCE(f.sub_total, 0)
+                                                    - COALESCE(f.sub_total_grabado, 0)
+                                                    - COALESCE(f.sub_total_excento, 0),
+                                                    0
+                                                )
+                                            END)
+                                            / COALESCE(f.sub_total, 1)
+                                        )
+                                        ELSE 0
+                                    END,
+                                2)                                               AS exonerado,
+                                ROUND(
+                                    CASE
+                                        WHEN COALESCE(f.sub_total, 0) > 0 THEN (
+                                            (CASE
+                                                WHEN COALESCE(f.total, 0) > 0
+                                                    THEN ROUND(ac.monto_abonado * COALESCE(f.sub_total, 0) / COALESCE(f.total, 1), 2)
+                                                ELSE ROUND(ac.monto_abonado, 2)
+                                            END)
+                                            * COALESCE(f.sub_total_grabado, 0)
+                                            / COALESCE(f.sub_total, 1)
+                                        )
+                                        ELSE 0
+                                    END,
+                                2)                                               AS gravado,
+                                ROUND(
+                                    (CASE
+                                        WHEN COALESCE(f.total, 0) > 0
+                                            THEN ROUND(ac.monto_abonado * COALESCE(f.sub_total, 0) / COALESCE(f.total, 1), 2)
+                                        ELSE ROUND(ac.monto_abonado, 2)
+                                    END)
+                                    -
+                                    ROUND(
+                                        CASE
+                                            WHEN COALESCE(f.sub_total, 0) > 0 THEN (
+                                                (CASE
+                                                    WHEN COALESCE(f.total, 0) > 0
+                                                        THEN ROUND(ac.monto_abonado * COALESCE(f.sub_total, 0) / COALESCE(f.total, 1), 2)
+                                                    ELSE ROUND(ac.monto_abonado, 2)
+                                                END)
+                                                * (CASE
+                                                    WHEN f.tipo_venta_id = 3 THEN COALESCE(f.sub_total, 0)
+                                                    ELSE GREATEST(
+                                                        COALESCE(f.sub_total, 0)
+                                                        - COALESCE(f.sub_total_grabado, 0)
+                                                        - COALESCE(f.sub_total_excento, 0),
+                                                        0
+                                                    )
+                                                END)
+                                                / COALESCE(f.sub_total, 1)
+                                            )
+                                            ELSE 0
+                                        END,
+                                    2)
+                                    -
+                                    ROUND(
+                                        CASE
+                                            WHEN COALESCE(f.sub_total, 0) > 0 THEN (
+                                                (CASE
+                                                    WHEN COALESCE(f.total, 0) > 0
+                                                        THEN ROUND(ac.monto_abonado * COALESCE(f.sub_total, 0) / COALESCE(f.total, 1), 2)
+                                                    ELSE ROUND(ac.monto_abonado, 2)
+                                                END)
+                                                * COALESCE(f.sub_total_grabado, 0)
+                                                / COALESCE(f.sub_total, 1)
+                                            )
+                                            ELSE 0
+                                        END,
+                                    2),
+                                2)                                               AS excento,
+                                ROUND(
+                                    CASE
+                                        WHEN COALESCE(f.total, 0) > 0
+                                            THEN ac.monto_abonado * COALESCE(f.sub_total, 0) / COALESCE(f.total, 1)
+                                        ELSE ac.monto_abonado
+                                    END,
+                                2)                                               AS subtotal,
+                                ROUND(
+                                    CASE
+                                        WHEN f.tipo_venta_id = 3 THEN 0
+                                        WHEN COALESCE(f.total, 0) > 0 THEN
+                                            ac.monto_abonado - ROUND(ac.monto_abonado * COALESCE(f.sub_total, 0) / COALESCE(f.total, 1), 2)
+                                        ELSE 0
+                                    END,
+                                2)                                               AS isv,
+                                ROUND(ac.monto_abonado, 2)                      AS total_factura,
                                 b.cuenta                                         AS cuenta_banco,
                                 f.cliente_id                                     AS _cliente_id,
                                 f.vendedor                                       AS _vendedor_id,
@@ -280,17 +480,21 @@ class Librocobrosrep extends Component
 
                 $bindings = [$fechaInicio, $fechaFinal, $fechaInicio, $fechaFinal];
 
-                if ($request->filled('cliente_id')) {
+                $clienteFiltro = $request->input('cliente_id', $request->input('cliente'));
+                $vendedorFiltro = $request->input('vendedor_id', $request->input('vendedor'));
+                $bancoFiltro = $request->input('banco_id', $request->input('banco'));
+
+                if (!empty($clienteFiltro)) {
                     $sql .= ' AND sub._cliente_id = ?';
-                    $bindings[] = $request->cliente_id;
+                    $bindings[] = $clienteFiltro;
                 }
-                if ($request->filled('vendedor_id')) {
+                if (!empty($vendedorFiltro)) {
                     $sql .= ' AND sub._vendedor_id = ?';
-                    $bindings[] = $request->vendedor_id;
+                    $bindings[] = $vendedorFiltro;
                 }
-                if ($request->filled('banco_id')) {
+                if (!empty($bancoFiltro)) {
                     $sql .= ' AND sub._banco_id = ?';
-                    $bindings[] = $request->banco_id;
+                    $bindings[] = $bancoFiltro;
                 }
                 if ($request->filled('factura')) {
                     $sql .= ' AND sub.factura LIKE ?';

@@ -64,6 +64,14 @@ function cargarTablaLC() {
             url: '/reporte/Librocobrosrep/datos?' + qs,
             type: 'GET',
             headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+            dataSrc: function(json) {
+                setKpisLC(
+                    json.kpi_cobros,
+                    json.kpi_total_cobrado,
+                    json.kpi_completas
+                );
+                return json.data;
+            },
             error: function(xhr) {
                 Swal.fire({
                     icon: 'error',
@@ -93,28 +101,15 @@ function cargarTablaLC() {
         pageLength: 25,
         dom: '<"row"<"col-sm-6"l><"col-sm-6"f>>rt<"row"<"col-sm-5"i><"col-sm-7"p>>',
         initComplete: function() {
-            cargarKpisLC();
             mostrarFiltrosActivosLC();
         }
     });
 }
 
-function cargarKpisLC() {
-    var totalCobros = 0;
-    var totalCobrado = 0;
-    var facturasPagadas = 0;
-
-    $.each(lcTable.data(), function(i, row) {
-        totalCobros++;
-        totalCobrado += parseFloat(row.monto_cobrado || 0);
-        if (row.estado_factura === 'PAGADA') {
-            facturasPagadas++;
-        }
-    });
-
-    $('#lc_kpi_registros').text(totalCobros);
-    $('#lc_kpi_total_pagado').text(fmtLpsLC(totalCobrado));
-    $('#lc_kpi_completas').text(facturasPagadas);
+function setKpisLC(totalCobros, totalCobrado, facturasPagadas) {
+    $('#lc_kpi_registros').text(parseInt(totalCobros || 0, 10));
+    $('#lc_kpi_total_pagado').text(fmtLpsLC(totalCobrado || 0));
+    $('#lc_kpi_completas').text(parseInt(facturasPagadas || 0, 10));
 }
 
 function mostrarFiltrosActivosLC() {
