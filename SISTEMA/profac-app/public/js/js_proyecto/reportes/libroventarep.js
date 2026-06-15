@@ -198,38 +198,66 @@ function aplicarFiltrosLV() {
 /* ────────────────────────────────────────────────────────────────────
  *  Exportar a Excel
  * ──────────────────────────────────────────────────────────────────── */
+function _exportarConCargaLV(url) {
+    var frameName = 'lv_export_frame_' + Date.now();
+    var $iframe = $('<iframe>', { name: frameName, style: 'display:none;' });
+
+    var f = getFiltrosLV();
+    var tok = $('meta[name="csrf-token"]').attr('content');
+    var form = $('<form method="POST"></form>').attr('action', url).attr('target', frameName);
+    var fields = {
+        _token: tok,
+        cliente: f.cliente || '',
+        cliente_id: f.cliente || '',
+        vendedor: f.vendedor || '',
+        vendedor_id: f.vendedor || '',
+        modo_pago: f.modo_pago || '',
+        factura: f.factura || '',
+        fecha_desde: f.fecha_desde || '',
+        fecha_hasta: f.fecha_hasta || ''
+    };
+
+    $.each(fields, function(k, v) {
+        form.append($('<input type="hidden">').attr('name', k).val(v));
+    });
+
+    $('body').append($iframe);
+    $('body').append(form);
+
+    Swal.fire({
+        title: 'Generando Excel',
+        html: 'Preparando reporte...<br><small>Este proceso puede tardar varios minutos.</small>',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        showConfirmButton: false,
+        didOpen: function() { Swal.showLoading(); }
+    });
+
+    var closed = false;
+    var safeClose = function() {
+        if (closed) return;
+        closed = true;
+        Swal.close();
+        form.remove();
+        setTimeout(function() { $iframe.remove(); }, 800);
+    };
+
+    $iframe.on('load', function() {
+        safeClose();
+    });
+
+    setTimeout(function() {
+        safeClose();
+    }, 12000);
+
+    form.trigger('submit');
+}
+
 function exportarExcelLV() {
     var f = getFiltrosLV();
     var fechaDesde = f.fecha_desde || '1900-01-01';
     var fechaHasta = f.fecha_hasta || new Date().toISOString().split('T')[0];
-
-    var form = document.createElement('form');
-    form.method = 'POST';
-    form.action = '/reporte/Libroventarep/exportar-excel/4/' + encodeURIComponent(fechaDesde) + '/' + encodeURIComponent(fechaHasta);
-
-    var csrfMeta = document.querySelector('meta[name="csrf-token"]');
-    if (csrfMeta) {
-        var csrfInput = document.createElement('input');
-        csrfInput.type = 'hidden';
-        csrfInput.name = '_token';
-        csrfInput.value = csrfMeta.getAttribute('content');
-        form.appendChild(csrfInput);
-    }
-
-    // Agregar filtros como campos ocultos
-    $.each(f, function(k, v) {
-        if (v) {
-            var input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = k;
-            input.value = v;
-            form.appendChild(input);
-        }
-    });
-
-    document.body.appendChild(form);
-    form.submit();
-    document.body.removeChild(form);
+    _exportarConCargaLV('/reporte/Libroventarep/exportar-excel/4/' + encodeURIComponent(fechaDesde) + '/' + encodeURIComponent(fechaHasta));
 }
 
 /* ────────────────────────────────────────────────────────────────────

@@ -187,60 +187,111 @@ function aplicarFiltrosLC() {
     cargarTablaLC();
 }
 
+function _exportarFormLC(url) {
+    var f = getFiltrosLC();
+    var tok = $('meta[name="csrf-token"]').attr('content');
+    var form = $('<form method="POST"></form>').attr('action', url);
+    var fields = {
+        _token: tok,
+        cliente: f.cliente || '',
+        cliente_id: f.cliente || '',
+        vendedor: f.vendedor || '',
+        vendedor_id: f.vendedor || '',
+        banco: f.banco || '',
+        banco_id: f.banco || '',
+        factura: f.factura || '',
+        fecha_desde: f.fecha_desde || '',
+        fecha_hasta: f.fecha_hasta || ''
+    };
+
+    $.each(fields, function(k, v) {
+        form.append($('<input type="hidden">').attr('name', k).val(v));
+    });
+
+    $('body').append(form);
+    form.submit();
+    form.remove();
+}
+
+function _exportarConCargaLC(url, title, detail) {
+    var frameName = 'lc_export_frame_' + Date.now();
+    var $iframe = $('<iframe>', {
+        name: frameName,
+        style: 'display:none;'
+    });
+
+    var f = getFiltrosLC();
+    var tok = $('meta[name="csrf-token"]').attr('content');
+    var form = $('<form method="POST"></form>').attr('action', url).attr('target', frameName);
+    var fields = {
+        _token: tok,
+        cliente: f.cliente || '',
+        cliente_id: f.cliente || '',
+        vendedor: f.vendedor || '',
+        vendedor_id: f.vendedor || '',
+        banco: f.banco || '',
+        banco_id: f.banco || '',
+        factura: f.factura || '',
+        fecha_desde: f.fecha_desde || '',
+        fecha_hasta: f.fecha_hasta || ''
+    };
+
+    $.each(fields, function(k, v) {
+        form.append($('<input type="hidden">').attr('name', k).val(v));
+    });
+
+    $('body').append($iframe);
+    $('body').append(form);
+
+    Swal.fire({
+        title: title || 'Generando archivo',
+        html: (detail || 'Preparando reporte...') + '<br><small>Este proceso puede tardar varios minutos.</small>',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        showConfirmButton: false,
+        didOpen: function() { Swal.showLoading(); }
+    });
+
+    var closed = false;
+    var safeClose = function() {
+        if (closed) return;
+        closed = true;
+        Swal.close();
+        form.remove();
+        setTimeout(function() { $iframe.remove(); }, 800);
+    };
+
+    $iframe.on('load', function() {
+        safeClose();
+    });
+
+    setTimeout(function() {
+        safeClose();
+    }, 12000);
+
+    form.trigger('submit');
+}
+
 function exportarExcelLC() {
     var f = getFiltrosLC();
     var fechaDesde = f.fecha_desde || '1900-01-01';
     var fechaHasta = f.fecha_hasta || new Date().toISOString().split('T')[0];
-
-    var form = document.createElement('form');
-    form.method = 'POST';
-    form.action = '/reporte/Librocobrosrep/exportar-excel/3/' + encodeURIComponent(fechaDesde) + '/' + encodeURIComponent(fechaHasta);
-
-    var csrfMeta = document.querySelector('meta[name="csrf-token"]');
-    if (csrfMeta) {
-        var csrfInput = document.createElement('input');
-        csrfInput.type = 'hidden';
-        csrfInput.name = '_token';
-        csrfInput.value = csrfMeta.getAttribute('content');
-        form.appendChild(csrfInput);
-    }
-
-    $.each(f, function(k, v) {
-        if (v) {
-            var input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = k;
-            input.value = v;
-            form.appendChild(input);
-        }
-    });
-
-    document.body.appendChild(form);
-    form.submit();
-    document.body.removeChild(form);
+    _exportarConCargaLC(
+        '/reporte/Librocobrosrep/exportar-excel/3/' + encodeURIComponent(fechaDesde) + '/' + encodeURIComponent(fechaHasta),
+        'Generando Excel',
+        'Preparando reporte...'
+    );
 }
 
 function exportarPdfLC() {
     var f = getFiltrosLC();
     var fechaDesde = f.fecha_desde || '1900-01-01';
     var fechaHasta = f.fecha_hasta || new Date().toISOString().split('T')[0];
-
-    var form = document.createElement('form');
-    form.method = 'POST';
-    form.action = '/reporte/Librocobrosrep/exportar-pdf/3/' + encodeURIComponent(fechaDesde) + '/' + encodeURIComponent(fechaHasta);
-
-    var csrfMeta = document.querySelector('meta[name="csrf-token"]');
-    if (csrfMeta) {
-        var csrfInput = document.createElement('input');
-        csrfInput.type = 'hidden';
-        csrfInput.name = '_token';
-        csrfInput.value = csrfMeta.getAttribute('content');
-        form.appendChild(csrfInput);
-    }
-
-    document.body.appendChild(form);
-    form.submit();
-    document.body.removeChild(form);
+    _exportarConCargaLC(
+        '/reporte/Librocobrosrep/exportar-pdf/3/' + encodeURIComponent(fechaDesde) + '/' + encodeURIComponent(fechaHasta),
+        'Generando PDF',
+        'Preparando documento...'
+    );
 }
 
 /* Compatibilidad con botones existentes en la vista */
