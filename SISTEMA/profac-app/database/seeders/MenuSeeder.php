@@ -386,6 +386,7 @@ class MenuSeeder extends Seeder
                     ['nombre' => 'Reporte de Ventas', 'url' => 'facturaDia', 'icono' => 'fa fa-chart-line', 'orden' => 1, 'roles' => [1, 4, 5, 8]],
                     ['nombre' => 'Reportes Varios', 'url' => 'reporte/reporteria', 'icono' => 'fa fa-file-alt', 'orden' => 2, 'roles' => [1, 4]],
                     ['nombre' => 'Reporte Comisiones', 'url' => 'reporte/comision', 'icono' => 'fa fa-dollar', 'orden' => 3, 'roles' => [1, 8]],
+                    ['nombre' => 'Productos sin imágenes', 'url' => 'reporte/productos-sin-imagenes', 'icono' => 'fa fa-image', 'orden' => 4, 'roles' => [1, 4, 5, 7, 8]],
                 ]
             ],
         ];

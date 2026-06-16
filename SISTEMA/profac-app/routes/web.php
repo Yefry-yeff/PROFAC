@@ -1325,6 +1325,10 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/reporte/reporteria/consulta/{fecha_inicio}/{fecha_final}', [Reporteria::class,'consulta']);
     Route::get('/reporte/reporteria/productos', [Reporteria::class,'catalogoProductos']);
     Route::get('/reporte/reporteria/clientes', [Reporteria::class,'consultaClientes']);
+    Route::get('/reporte/productos-sin-imagenes', \App\Http\Livewire\Reportes\ProductosSinImagenes::class);
+    Route::get('/reporte/productos-sin-imagenes/datos', [\App\Http\Livewire\Reportes\ProductosSinImagenes::class, 'consulta']);
+    Route::post('/reporte/productos-sin-imagenes/exportar-excel', [\App\Http\Livewire\Reportes\ProductosSinImagenes::class, 'exportarExcel']);
+    Route::post('/reporte/productos-sin-imagenes/exportar-pdf', [\App\Http\Livewire\Reportes\ProductosSinImagenes::class, 'exportarPdf']);
 
 
     Route::get('/consulta/{fecha_inicio}/{fecha_final}', [FacturaDia::class,'consulta']);
