@@ -251,7 +251,8 @@ class Pagos extends Component
             ac.comentario as 'comentarioabono',
             ac.estado_abono as 'estadoAbono',
             (select name from users where id = ac.usr_registro) as 'userRegistro',
-            ac.created_at as 'fechaRegistro',
+            DATE_FORMAT(ac.fecha_pago, '%Y-%m-%d') as 'fechaPago',
+            DATE_FORMAT(ac.created_at, '%Y-%m-%d %H:%i:%s') as 'fechaRegistro',
             ac.factura_id
                 from abonos_creditos ac
                 inner join aplicacion_pagos ap on ap.id = ac.aplicacion_pagos_id

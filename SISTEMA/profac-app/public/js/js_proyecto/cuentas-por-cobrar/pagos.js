@@ -609,6 +609,9 @@ function listarAbonos() {
                         data: 'userRegistro'
                     },
                     {
+                        data: 'fechaPago'
+                    },
+                    {
                         data: 'fechaRegistro'
                     },
                     {

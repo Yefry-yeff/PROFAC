@@ -551,6 +551,8 @@ table.dataTable tbody td { font-size: 13px; vertical-align: middle; }
                                 <th class="text-right">Comisión Original</th>
                                 <th class="text-right">Retención Aplicada</th>
                                 <th class="text-right">Comisión Final</th>
+                                <th class="text-right">Base Comisionable</th>
+                                <th>Fuente Base Comisionable</th>
                                 <th>Resumen por Producto / Escala</th>
                                 <th class="text-center">Estado</th>
                                 <th>Observaciones de Reversa</th>
@@ -590,6 +592,8 @@ table.dataTable tbody td { font-size: 13px; vertical-align: middle; }
                                 <th class="text-right">%</th>
                                 <th class="text-right">Cantidad</th>
                                 <th class="text-right">Precio Venta</th>
+                                <th class="text-right">Base Comisionable</th>
+                                <th>Fuente Base</th>
                                 <th class="text-right">Comisión</th>
                             </tr>
                         </thead>

@@ -843,6 +843,8 @@ class ReportesComisionesGenerales extends Component
                     'porcentaje_comision' => round((float) $ln->porcentaje_comision, 2),
                     'cantidad' => (float) $ln->cantidad,
                     'precio_venta' => round((float) $ln->precio_venta, 2),
+                    'base_comisionable' => round(((float) $ln->cantidad) * ((float) $ln->precio_venta), 2),
+                    'fuente_base_comisionable' => 'Cantidad x Precio venta (producto_comision)',
                     'comision' => round((float) $ln->monto_comision, 2),
                 ];
 
@@ -852,11 +854,19 @@ class ReportesComisionesGenerales extends Component
                     . ' | %: ' . number_format((float) $ln->porcentaje_comision, 2)
                     . ' | Cant: ' . $cantidadFmt
                     . ' | Precio: L. ' . number_format((float) $ln->precio_venta, 2)
+                    . ' | Base: L. ' . number_format(((float) $ln->cantidad) * ((float) $ln->precio_venta), 2)
                     . ' | Comisión: L. ' . number_format((float) $ln->monto_comision, 2);
             }
         }
 
-        $data = $detalles->map(function ($row) use ($observacionesPorFc, $resumenProductosPorFc, $detalleProductosPorFc) {
+        $baseComisionablePorFc = [];
+        foreach ($detalleProductosPorFc as $fcId => $items) {
+            $baseComisionablePorFc[(int) $fcId] = (float) collect($items)->sum(function ($item) {
+                return (float) ($item['base_comisionable'] ?? 0);
+            });
+        }
+
+        $data = $detalles->map(function ($row) use ($observacionesPorFc, $resumenProductosPorFc, $detalleProductosPorFc, $baseComisionablePorFc) {
             $obs = $observacionesPorFc[(int) $row->id] ?? [];
             $obs = array_values(array_unique($obs));
             $resumenProductos = $resumenProductosPorFc[(int) $row->id] ?? [];
@@ -871,6 +881,10 @@ class ReportesComisionesGenerales extends Component
                 'comision_original'  => (float) $row->comision_original,
                 'retencion_aplicada' => (float) $row->retencion_aplicada,
                 'comision_final'     => (float) $row->comision_final,
+                'base_comisionable'  => (float) ($baseComisionablePorFc[(int) $row->id] ?? 0),
+                'fuente_base_comisionable' => !empty($detalleProductos)
+                    ? 'Suma de (Cantidad x Precio venta) de líneas en producto_comision'
+                    : 'Sin líneas de detalle para calcular base',
                 'resumen_productos'  => !empty($resumenProductos) ? implode("\n", $resumenProductos) : null,
                 'detalle_productos'  => $detalleProductos,
                 'estado'             => (int) $row->estado_id === 1 ? 'ACTIVA' : 'REVERTIDA',

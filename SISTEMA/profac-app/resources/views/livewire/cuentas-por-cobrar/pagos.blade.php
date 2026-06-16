@@ -1207,7 +1207,8 @@
                                 <th>Comentario</th>
                                 <th>Estado</th>
                                 <th>Registrado por</th>
-                                <th>Fecha</th>
+                                <th>Fecha pago</th>
+                                <th>Fecha registro</th>
                                 <th></th>
                             </tr>
                         </thead>
@@ -1222,7 +1223,8 @@
                                 <th>Comentario</th>
                                 <th>Estado</th>
                                 <th>Registrado por</th>
-                                <th>Fecha</th>
+                                <th>Fecha pago</th>
+                                <th>Fecha registro</th>
                                 <th></th>
                             </tr>
                         </tfoot>
@@ -1251,7 +1253,8 @@
                                 <th>Comentario</th>
                                 <th>Estado</th>
                                 <th>Registrado por</th>
-                                <th>Fecha</th>
+                                <th>Fecha pago</th>
+                                <th>Fecha registro</th>
                                 <th></th>
                             </tr>
                         </thead>
@@ -1265,7 +1268,8 @@
                                 <th>Comentario</th>
                                 <th>Estado</th>
                                 <th>Registrado por</th>
-                                <th>Fecha</th>
+                                <th>Fecha pago</th>
+                                <th>Fecha registro</th>
                                 <th></th>
                             </tr>
                         </tfoot>

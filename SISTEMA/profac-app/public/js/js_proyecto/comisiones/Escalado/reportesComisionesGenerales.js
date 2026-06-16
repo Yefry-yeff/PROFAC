@@ -96,7 +96,7 @@ function abrirDetalleProductosFactura(facturaComisionId){
     };
 
     $('#mpfTitulo').text('Detalle de Productos - Factura ' + (row && row.factura ? row.factura : '#'+facturaComisionId));
-    $('#mpfSubtitulo').text((row && row.cliente ? row.cliente + ' | ' : '') + 'Escala, porcentaje, cantidad, precio y comisión por línea');
+    $('#mpfSubtitulo').text((row && row.cliente ? row.cliente + ' | ' : '') + 'Escala, porcentaje, cantidad, precio, base comisionable y comisión por línea');
 
     var html = productos.map(function(item){
         return '<tr>'
@@ -106,6 +106,8 @@ function abrirDetalleProductosFactura(facturaComisionId){
             + '<td class="text-right">'+parseFloat(item.porcentaje_comision || 0).toFixed(2)+'%</td>'
             + '<td class="text-right">'+parseFloat(item.cantidad || 0).toLocaleString('es-HN',{minimumFractionDigits:0,maximumFractionDigits:2})+'</td>'
             + '<td class="text-right">'+fmtMoney(item.precio_venta || 0)+'</td>'
+                + '<td class="text-right"><strong>'+fmtMoney(item.base_comisionable || 0)+'</strong></td>'
+                + '<td>'+esc(item.fuente_base_comisionable || '—')+'</td>'
             + '<td class="text-right"><strong class="monto-com">'+fmtMoney(item.comision || 0)+'</strong></td>'
             + '</tr>';
     }).join('');
@@ -134,7 +136,7 @@ function exportarProductosFacturaExcel(){
         ['Cliente', ctx.cliente || 'No disponible'],
         ['Fecha de descarga', fechaDescarga],
         [],
-        ['Producto','Categoría Cliente Escala','Categoría Precio Vendida','%','Cantidad','Precio Venta','Comisión']
+        ['Producto','Categoría Cliente Escala','Categoría Precio Vendida','%','Cantidad','Precio Venta','Base Comisionable','Fuente Base','Comisión']
     ];
 
     productos.forEach(function(item){
@@ -145,13 +147,15 @@ function exportarProductosFacturaExcel(){
             parseFloat(item.porcentaje_comision || 0),
             parseFloat(item.cantidad || 0),
             parseFloat(item.precio_venta || 0),
+            parseFloat(item.base_comisionable || 0),
+            item.fuente_base_comisionable || '',
             parseFloat(item.comision || 0)
         ]);
     });
 
     var ws = XLSX.utils.aoa_to_sheet(data);
     ws['!merges'] = [
-        {s:{r:0,c:0}, e:{r:0,c:6}}
+        {s:{r:0,c:0}, e:{r:0,c:8}}
     ];
 
     var startRow = 7;
@@ -159,15 +163,15 @@ function exportarProductosFacturaExcel(){
     for (var r = startRow; r <= endRow; r++) {
         var pctRef = 'D' + r;
         if (ws[pctRef] && typeof ws[pctRef].v === 'number') ws[pctRef].z = '0.00%';
-        ['F','G'].forEach(function(col){
+        ['F','G','I'].forEach(function(col){
             var cellRef = col + r;
             if (ws[cellRef] && typeof ws[cellRef].v === 'number') ws[cellRef].z = '"L." #,##0.00';
         });
     }
 
-    ws['!autofilter'] = { ref: 'A6:G6' };
+    ws['!autofilter'] = { ref: 'A6:I6' };
     ws['!cols'] = [
-        {wch:40},{wch:24},{wch:24},{wch:10},{wch:12},{wch:14},{wch:14}
+        {wch:40},{wch:24},{wch:24},{wch:10},{wch:12},{wch:14},{wch:16},{wch:36},{wch:14}
     ];
 
     var wb = XLSX.utils.book_new();
@@ -388,6 +392,8 @@ function abrirDetalleNomina(empleadoId, empleadoNombre, mesClave, mesLabel){
             {data:'comision_original',className:'text-right',render:function(d){return fmtMoney(d);}},
             {data:'retencion_aplicada',className:'text-right',render:function(d){return '<span style="color:#b45309;font-weight:700;">'+fmtMoney(d)+'</span>'; }},
             {data:'comision_final',className:'text-right',render:function(d){return '<strong class="monto-com">'+fmtMoney(d)+'</strong>'; }},
+            {data:'base_comisionable',className:'text-right',render:function(d){return '<span style="font-weight:700;color:#0f766e;">'+fmtMoney(d)+'</span>'; }},
+            {data:'fuente_base_comisionable',render:function(d){return '<span style="color:#475569;">'+esc(d||'—')+'</span>'; }},
             {data:null,className:'resumen-productos-col',orderable:false,render:function(d,t,r){ return formatResumenProductosHtml(r); }},
             {data:'estado',className:'text-center',render:function(d){
                 if(String(d).toUpperCase()==='REVERTIDA'){
@@ -398,9 +404,9 @@ function abrirDetalleNomina(empleadoId, empleadoNombre, mesClave, mesLabel){
             {data:'observacion_reversa',render:function(d){return d?'<span style="color:#475569;">'+esc(d)+'</span>':'<span style="color:#94a3b8;">-</span>';}}
         ],
         columnDefs:[
-            {targets:[4,5,6], className:'text-right text-nowrap'},
-            {targets:[7,9], className:'text-left'},
-            {targets:[8], className:'text-center text-nowrap'}
+            {targets:[4,5,6,7], className:'text-right text-nowrap'},
+            {targets:[8,9,11], className:'text-left'},
+            {targets:[10], className:'text-center text-nowrap'}
         ]
     });
 }
@@ -433,7 +439,7 @@ function exportarDetalleNominaExcel(){
         ['Periodo filtrado', periodoTxt || 'No especificado'],
         ['Fecha de descarga', fechaDescarga],
         [],
-        ['Factura','Cliente','Fecha Cierre','Rol Comisionado','Comisión Original','Retención Aplicada','Comisión Final','Resumen Producto/Escala','Estado','Observaciones de Reversa']
+        ['Factura','Cliente','Fecha Cierre','Rol Comisionado','Comisión Original','Retención Aplicada','Comisión Final','Base Comisionable','Fuente Base Comisionable','Resumen Producto/Escala','Estado','Observaciones de Reversa']
     ];
 
     rows.forEach(function(r){
@@ -445,6 +451,8 @@ function exportarDetalleNominaExcel(){
             parseFloat(r.comision_original || 0),
             parseFloat(r.retencion_aplicada || 0),
             parseFloat(r.comision_final || 0),
+            parseFloat(r.base_comisionable || 0),
+            r.fuente_base_comisionable || '',
             (r.resumen_productos || '').replace(/\n/g, ' | '),
             r.estado || '',
             r.observacion_reversa || ''
@@ -453,17 +461,17 @@ function exportarDetalleNominaExcel(){
 
     var ws = XLSX.utils.aoa_to_sheet(data);
     ws['!merges'] = [
-        {s:{r:0,c:0}, e:{r:0,c:9}},
-        {s:{r:1,c:0}, e:{r:1,c:9}}
+        {s:{r:0,c:0}, e:{r:0,c:11}},
+        {s:{r:1,c:0}, e:{r:1,c:11}}
     ];
 
-    // Aplicar formato monetario a columnas E, F y G en filas de detalle.
+    // Aplicar formato monetario a columnas E, F, G y H en filas de detalle.
     // Encabezado de tabla está en fila 7, datos inician en fila 8.
     var startRow = 8;
     var endRow = startRow + rows.length - 1;
     var moneyFmt = '"L." #,##0.00';
     for (var r = startRow; r <= endRow; r++) {
-        ['E','F','G'].forEach(function(col){
+        ['E','F','G','H'].forEach(function(col){
             var cellRef = col + r;
             if (ws[cellRef] && typeof ws[cellRef].v === 'number') {
                 ws[cellRef].z = moneyFmt;
@@ -471,9 +479,9 @@ function exportarDetalleNominaExcel(){
         });
     }
 
-    ws['!autofilter'] = { ref: 'A7:J7' };
+    ws['!autofilter'] = { ref: 'A7:L7' };
     ws['!cols'] = [
-        {wch:22},{wch:28},{wch:14},{wch:22},{wch:18},{wch:18},{wch:16},{wch:55},{wch:12},{wch:38}
+        {wch:22},{wch:28},{wch:14},{wch:22},{wch:18},{wch:18},{wch:16},{wch:18},{wch:36},{wch:55},{wch:12},{wch:38}
     ];
 
     var wb = XLSX.utils.book_new();
