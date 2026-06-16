@@ -679,8 +679,23 @@ class ReportesComisionesGenerales extends Component
             return response()->json(['data' => []]);
         }
 
-        $mesInicio = $mesClave . '-01 00:00:00';
-        $mesFin    = date('Y-m-t 23:59:59', strtotime($mesClave . '-01'));
+        [$fi, $ff] = $this->resolveDateRange($request);
+
+        $mesInicioDt = Carbon::parse($mesClave . '-01 00:00:00');
+        $mesFinDt    = Carbon::parse($mesClave . '-01')->endOfMonth()->setTime(23, 59, 59);
+        $filtroInicioDt = Carbon::parse($fi . ' 00:00:00');
+        $filtroFinDt    = Carbon::parse($ff . ' 23:59:59');
+
+        // Intersección: detalle del mes seleccionado respetando el rango global filtrado.
+        $inicioConsultaDt = $mesInicioDt->greaterThan($filtroInicioDt) ? $mesInicioDt : $filtroInicioDt;
+        $finConsultaDt    = $mesFinDt->lessThan($filtroFinDt) ? $mesFinDt : $filtroFinDt;
+
+        if ($inicioConsultaDt->greaterThan($finConsultaDt)) {
+            return response()->json(['data' => []]);
+        }
+
+        $mesInicio = $inicioConsultaDt->format('Y-m-d H:i:s');
+        $mesFin    = $finConsultaDt->format('Y-m-d H:i:s');
         $mesBase   = $mesClave . '-01';
 
         $rolesEmpleadoMes = DB::table('comision_empleado')

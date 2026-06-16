@@ -23,7 +23,7 @@ use Illuminate\Support\Facades\DB;
  * ─────────────────────────────────────────────────────────────────
  *  Referencia : fecha_vencimiento
  *  Cálculo    : periodosVencidos = floor(diasTranscurridos / diasGracia)
- *  Fórmula    : montoPorPeriodo  = subtotal × (porcentaje / 100)
+ *  Fórmula    : montoPorPeriodo  = comisionOriginal × (porcentaje / 100)
  *               totalRetencion   = periodosVencidos × montoPorPeriodo
  *               comisionFinal    = max(0, comisionOriginal − totalRetencion)
  *  Log        : N registros independientes (uno por período) para auditoría completa
@@ -196,7 +196,9 @@ class AplicadorRetencionesMora
         float $montoOriginal, float $subTotal,
         string $fechaCierre, ?int $ejecutorId
     ): float {
-        $montoPorPeriodo = round($subTotal * ($porcentaje / 100), 4);
+        // Nueva regla: la retención por período se calcula sobre la comisión original,
+        // no sobre el subtotal de la factura.
+        $montoPorPeriodo = round($montoOriginal * ($porcentaje / 100), 4);
         $totalRetencion  = round($montoPorPeriodo * $periodosVencidos, 4);
         $montoFinal      = max(0.0, round($montoOriginal - $totalRetencion, 4));
 

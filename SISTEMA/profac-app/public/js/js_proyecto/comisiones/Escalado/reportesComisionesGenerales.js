@@ -327,6 +327,8 @@ function cargarNomina(f){
 }
 
 function abrirDetalleNomina(empleadoId, empleadoNombre, mesClave, mesLabel){
+    var filtrosActuales = getFiltros();
+
     $('#mdnTitulo').html('<i class="fa fa-list-alt mr-2"></i>Detalle de '+esc(empleadoNombre)+' — '+esc(mesLabel));
     $('#modalDetalleNomina').modal('show');
 
@@ -364,7 +366,12 @@ function abrirDetalleNomina(empleadoId, empleadoNombre, mesClave, mesLabel){
         ajax:{
             url:'/comision/reporte/nomina/detalle',
             type:'GET',
-            data:{empleado_id:empleadoId, mes_clave:mesClave},
+            data:{
+                empleado_id:empleadoId,
+                mes_clave:mesClave,
+                fechaInicio:filtrosActuales.fechaInicio,
+                fechaFin:filtrosActuales.fechaFin
+            },
             dataSrc:function(json){
                 detalleProductosFacturaMap = {};
                 (json.data || []).forEach(function(item){

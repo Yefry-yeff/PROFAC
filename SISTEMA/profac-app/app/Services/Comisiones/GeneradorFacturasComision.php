@@ -7,6 +7,12 @@ use App\Models\Comisiones\Escalado\modelproducto_comision;
 
 class GeneradorFacturasComision
 {
+    /** Códigos de facturación SR que fuerzan comisión por categoría más baja de la escala del cliente. */
+    const TIPOS_FACTURA_SR = [
+        'sin_restriccion_gobierno',
+        'sin_restriccion_precio',
+    ];
+
     /**
      * Rol fijo que representa la capacidad de "facturador" en comision_escala.
      * Se usa independientemente del rol real del usuario que creó la factura.
@@ -26,6 +32,27 @@ class GeneradorFacturasComision
 
     /** Rol fijo que representa al gestor de entrega (Gestor de entregas). */
     const ROL_GESTOR_ENTREGA_ID = 16;
+
+    /**
+     * Obtiene la categoría de precio "más baja" para una escala de cliente.
+     * Prioriza menor porc_precio_a y, en empate, el menor ID.
+     */
+    private function obtenerCategoriaPrecioMasBaja(int $clienteCategoriaEscalaId): ?int
+    {
+        if ($clienteCategoriaEscalaId <= 0) {
+            return null;
+        }
+
+        $categoriaId = DB::table('categoria_precios')
+            ->where('cliente_categoria_escala_id', $clienteCategoriaEscalaId)
+            ->where('estado_id', 1)
+            ->orderByRaw('CASE WHEN porc_precio_a IS NULL THEN 1 ELSE 0 END ASC')
+            ->orderBy('porc_precio_a', 'asc')
+            ->orderBy('id', 'asc')
+            ->value('id');
+
+        return $categoriaId ? (int) $categoriaId : null;
+    }
 
     /**
      * Genera comisiones para la factura indicada.
@@ -57,16 +84,29 @@ class GeneradorFacturasComision
                     uf.rol_id       AS facturador_rol,
                     f.vendedor      AS vendedor_id,
                     uv.rol_id       AS vendedor_rol,
-                    f.gestor_entrega AS gestor_id
+                    f.gestor_entrega AS gestor_id,
+                    f.tipo_factura_id,
+                    tf.codigo       AS tipo_factura_codigo,
+                    cl.cliente_categoria_escala_id
              FROM factura f
              INNER JOIN users uf ON uf.id = f.users_id
              INNER JOIN users uv ON uv.id = f.vendedor
+             LEFT JOIN cliente cl ON cl.id = f.cliente_id
+             LEFT JOIN tipo_factura tf ON tf.id = f.tipo_factura_id
              WHERE f.id = ?",
             [$facturaId]
         );
 
         if (!$fila || !$fila->facturador_id || !$fila->vendedor_id) {
             return [];
+        }
+
+        $tipoFacturaCodigo = (string) ($fila->tipo_factura_codigo ?? '');
+        $esFacturaSr = in_array($tipoFacturaCodigo, self::TIPOS_FACTURA_SR, true);
+        $categoriaPrecioForzadaId = null;
+
+        if ($esFacturaSr) {
+            $categoriaPrecioForzadaId = $this->obtenerCategoriaPrecioMasBaja((int) ($fila->cliente_categoria_escala_id ?? 0));
         }
 
         // ── Construcción de targets ──────────────────────────────────────────
@@ -202,7 +242,11 @@ class GeneradorFacturasComision
             $lineasProducto = [];
 
             foreach ($productos as $prod) {
-                $key = $rolId . '_' . $prod->categoria_precios_id;
+                // Regla SR: comisionar siempre contra la categoría más baja de la escala del cliente,
+                // sin importar la categoría de precio usada para vender la línea.
+                $categoriaPrecioParaComision = $categoriaPrecioForzadaId ?: (int) $prod->categoria_precios_id;
+
+                $key = $rolId . '_' . $categoriaPrecioParaComision;
                 if (!isset($escala[$key])) {
                     continue;
                 }

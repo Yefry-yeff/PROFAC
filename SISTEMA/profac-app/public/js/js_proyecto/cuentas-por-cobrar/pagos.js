@@ -878,9 +878,9 @@ $(document).on('submit', '#formabonos', function(event) {
                 }
 
                 if (preview.targets && preview.targets.length > 0) {
-                    renderPreviewComisiones(preview.targets);
+                    renderPreviewComisiones(preview);
                 } else {
-                    renderPreviewSinComisiones();
+                    renderPreviewSinComisiones(preview);
                 }
 
                 if (modalYaCerrado) {
@@ -989,8 +989,78 @@ $(document).on('submit', '#formabonos', function(event) {
 });
 
 /* Renderiza aviso cuando la factura cierra pero ningún rol tiene configuración activa */
-function renderPreviewSinComisiones() {
+function apEsc(v) {
+    return String(v == null ? '' : v)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function renderSrResumen(preview) {
+    if (!preview || !preview.sr_forzado) return '';
+
+    var tipo = preview.sr_tipo_factura || {};
+    var cat  = preview.sr_categoria_baja || null;
+    var productos = Array.isArray(preview.sr_productos) ? preview.sr_productos : [];
+    var porcentajes = Array.isArray(preview.sr_porcentajes) ? preview.sr_porcentajes : [];
+
+    var badgeTipo = tipo.nombre
+        ? '<span style="display:inline-block;background:#fee2e2;color:#991b1b;border:1px solid #fecaca;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;">' + apEsc(tipo.nombre) + '</span>'
+        : '';
+
+    var catHtml = cat
+        ? '<strong>' + apEsc(cat.nombre) + '</strong> <span style="color:#64748b;">(ID: ' + apEsc(cat.id) + (cat.porc_precio_a != null ? ', %Precio A: ' + Number(cat.porc_precio_a).toFixed(2) + '%' : '') + ')</span>'
+        : '<span style="color:#b91c1c;">No se encontró categoría activa para la escala del cliente.</span>';
+
+    var rowsProd = productos.map(function(p) {
+        return '<tr>'
+            + '<td>' + apEsc(p.producto || '—') + '</td>'
+            + '<td>' + apEsc(p.categoria_usada || '—') + '</td>'
+            + '<td class="text-right">' + Number(p.cantidad || 0).toLocaleString('es-HN', {minimumFractionDigits:0, maximumFractionDigits:2}) + '</td>'
+            + '<td class="text-right">L. ' + Number(p.precio_unidad || 0).toLocaleString('es-HN', {minimumFractionDigits:2, maximumFractionDigits:2}) + '</td>'
+            + '</tr>';
+    }).join('');
+
+    var rowsPct = porcentajes.map(function(p) {
+        return '<tr>'
+            + '<td>' + apEsc(p.capacidad || '—') + '</td>'
+            + '<td>' + apEsc(p.rol_nombre || '—') + '</td>'
+            + '<td class="text-right"><strong>' + (p.porcentaje_comision != null ? Number(p.porcentaje_comision).toFixed(2) + '%' : '—') + '</strong></td>'
+            + '</tr>';
+    }).join('');
+
+    return ''
+        + '<div style="background:#fff7ed;border:1.5px solid #fdba74;border-radius:10px;padding:12px 14px;margin-bottom:14px;">'
+        + '  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;">'
+        + '    <i class="fa fa-exclamation-triangle" style="color:#c2410c;"></i>'
+        + '    <strong style="color:#9a3412;">Regla SR aplicada</strong>'
+        +      badgeTipo
+        + '  </div>'
+        + '  <div style="font-size:12.5px;color:#7c2d12;line-height:1.6;">'
+        + '    Esta factura fue emitida como SR. La comisión se calculará por la categoría de precio más baja de la escala del cliente: '
+        +      catHtml
+        + '  </div>'
+        + '</div>'
+        + '<div class="table-responsive" style="margin-bottom:10px;">'
+        + '  <table class="table table-bordered table-sm mb-0" style="font-size:.83rem;">'
+        + '    <thead style="background:#0f172a;color:#fff;"><tr><th>Producto</th><th>Categoría usada en venta</th><th class="text-right">Cantidad</th><th class="text-right">Precio unidad</th></tr></thead>'
+        + '    <tbody>' + (rowsProd || '<tr><td colspan="4" class="text-center text-muted">Sin líneas de producto</td></tr>') + '</tbody>'
+        + '  </table>'
+        + '</div>'
+        + '<div class="table-responsive" style="margin-bottom:8px;">'
+        + '  <table class="table table-bordered table-sm mb-0" style="font-size:.83rem;">'
+        + '    <thead style="background:#1f2937;color:#fff;"><tr><th>Capacidad</th><th>Rol</th><th class="text-right">% Comisión (categoría más baja)</th></tr></thead>'
+        + '    <tbody>' + (rowsPct || '<tr><td colspan="3" class="text-center text-muted">Sin porcentajes configurados para la categoría más baja</td></tr>') + '</tbody>'
+        + '  </table>'
+        + '</div>';
+}
+
+function renderPreviewSinComisiones(preview) {
+    var srHtml = renderSrResumen(preview);
     var html =
+        srHtml +
         '<div style="background:#f8fafc;border:1.5px solid #cbd5e1;border-radius:12px;overflow:hidden;">' +
             '<div style="background:#475569;padding:12px 16px;display:flex;align-items:center;gap:10px;">' +
                 '<i class="fa fa-info-circle" style="color:#94a3b8;font-size:16px;"></i>' +
@@ -1012,7 +1082,8 @@ function renderPreviewSinComisiones() {
 }
 
 /* Renderiza la tabla de roles a comisionar en el modal de preview */
-function renderPreviewComisiones(targets) {
+function renderPreviewComisiones(preview) {
+    var targets = (preview && Array.isArray(preview.targets)) ? preview.targets : [];
     var tipoConfig = {
         1: { label: 'FACTURADOR', color: '#f59e0b' },
         2: { label: 'ROL REAL',   color: '#3b82f6' },
@@ -1020,25 +1091,26 @@ function renderPreviewComisiones(targets) {
         4: { label: 'GESTOR ENTREGA', color: '#0ea5e9' }
     };
 
-    var html = '<div class="table-responsive">'
+    var html = renderSrResumen(preview)
+        + '<div class="table-responsive">'
         + '<table class="table table-bordered table-sm mb-0" style="font-size:.9rem;">'
         + '<thead style="background:#1e40af;color:#fff;">'
-        + '<tr><th style="width:120px;">Capacidad</th><th>Empleado</th><th>Rol de Comisión</th><th class="text-center" style="width:110px;">Escala Activa</th></tr>'
+        + '<tr><th style="width:120px;">Capacidad</th><th>Empleado</th><th>Rol de Comisión</th><th class="text-center" style="width:140px;">% Comisión</th></tr>'
         + '</thead><tbody>';
 
     targets.forEach(function(t) {
         var cfg   = tipoConfig[t.tipo] || { label: 'N/D', color: '#6b7280' };
         var badge = '<span style="background:' + cfg.color + ';color:#fff;padding:2px 8px;border-radius:8px;font-size:10px;font-weight:700;">'
             + cfg.label + '</span>';
-        var escala = t.tiene_escala
-            ? '<span class="badge badge-success" style="font-size:10px;">&#10003; Configurada</span>'
+        var porcentaje = (t.porcentaje_comision != null)
+            ? ('<span class="badge badge-success" style="font-size:10px;">' + Number(t.porcentaje_comision).toFixed(2) + '%</span>')
             : '<span class="badge badge-secondary" style="font-size:10px;">&#8212; Sin escala</span>';
 
         html += '<tr>'
             + '<td class="text-center">' + badge + '</td>'
             + '<td><i class="fa fa-user mr-1 text-muted"></i><strong>' + t.empleado + '</strong></td>'
             + '<td>' + t.rol_nombre + '</td>'
-            + '<td class="text-center">' + escala + '</td>'
+            + '<td class="text-center">' + porcentaje + '</td>'
             + '</tr>';
     });
 

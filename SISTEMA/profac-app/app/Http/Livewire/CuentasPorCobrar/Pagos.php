@@ -635,6 +635,23 @@ class Pagos extends Component
 
     ///////////////////////////////GESTIONES DE creditos y abonos
 
+    private function obtenerCategoriaPrecioMasBaja(int $clienteCategoriaEscalaId): ?int
+    {
+        if ($clienteCategoriaEscalaId <= 0) {
+            return null;
+        }
+
+        $categoriaId = DB::table('categoria_precios')
+            ->where('cliente_categoria_escala_id', $clienteCategoriaEscalaId)
+            ->where('estado_id', 1)
+            ->orderByRaw('CASE WHEN porc_precio_a IS NULL THEN 1 ELSE 0 END ASC')
+            ->orderBy('porc_precio_a', 'asc')
+            ->orderBy('id', 'asc')
+            ->value('id');
+
+        return $categoriaId ? (int) $categoriaId : null;
+    }
+
     /**
      * Previsualiza qué roles recibirían comisión si este pago cierra la factura.
      * No modifica ningún dato — solo lectura.
@@ -645,16 +662,28 @@ class Pagos extends Component
         $montoAbono       = (float) $request->input('monto_abono', 0);
         $aplicacionPagoId = (int) $request->input('aplicacion_pagos_id');
 
+        $respBase = [
+            'cerrara'             => false,
+            'ya_comisionada'      => false,
+            'targets'             => [],
+            'sr_forzado'          => false,
+            'sr_tipo_factura'     => null,
+            'sr_categoria_baja'   => null,
+            'sr_productos'        => [],
+            'sr_porcentajes'      => [],
+        ];
+
         // Si la factura ya tiene comisiones activas, no habrá nuevas comisiones.
         // Si solo tiene comisiones inactivas (revertidas), sí puede recalcular.
         if (DB::table('facturas_comision')->where('factura_id', $facturaId)->where('estado_id', 1)->exists()) {
-            return response()->json(['cerrara' => false, 'ya_comisionada' => true, 'targets' => []]);
+            $respBase['ya_comisionada'] = true;
+            return response()->json($respBase);
         }
 
         // Verificar si el monto abonado cierra la factura (saldo queda en 0)
         $saldo = (float) DB::table('aplicacion_pagos')->where('id', $aplicacionPagoId)->value('saldo');
         if ($saldo <= 0 || $montoAbono < $saldo) {
-            return response()->json(['cerrara' => false, 'ya_comisionada' => false, 'targets' => []]);
+            return response()->json($respBase);
         }
 
         // Obtener facturador, vendedor y gestor de entrega (si existe) con sus roles
@@ -667,27 +696,50 @@ class Pagos extends Component
                     uv.name     AS vendedor_nombre,
                     f.gestor_entrega AS gestor_id,
                     ug.rol_id   AS gestor_rol,
-                    ug.name     AS gestor_nombre
+                    ug.name     AS gestor_nombre,
+                    tf.codigo   AS tipo_factura_codigo,
+                    tf.nombre   AS tipo_factura_nombre,
+                    cl.cliente_categoria_escala_id
              FROM factura f
              INNER JOIN users uf ON uf.id = f.users_id
              INNER JOIN users uv ON uv.id = f.vendedor
              LEFT JOIN users ug ON ug.id = f.gestor_entrega
+             LEFT JOIN tipo_factura tf ON tf.id = f.tipo_factura_id
+             LEFT JOIN cliente cl ON cl.id = f.cliente_id
              WHERE f.id = ?",
             [$facturaId]
         );
 
         if (!$fila) {
-            return response()->json(['cerrara' => false, 'ya_comisionada' => false, 'targets' => []]);
+            return response()->json($respBase);
+        }
+
+        $tipoFacturaCodigo = (string) ($fila->tipo_factura_codigo ?? '');
+        $esFacturaSr = in_array($tipoFacturaCodigo, [
+            'sin_restriccion_gobierno',
+            'sin_restriccion_precio',
+        ], true);
+
+        $categoriaBajaId = null;
+        $categoriaBaja = null;
+        if ($esFacturaSr) {
+            $categoriaBajaId = $this->obtenerCategoriaPrecioMasBaja((int) ($fila->cliente_categoria_escala_id ?? 0));
+            if ($categoriaBajaId) {
+                $cat = DB::table('categoria_precios')
+                    ->where('id', $categoriaBajaId)
+                    ->select('id', 'nombre', 'porc_precio_a')
+                    ->first();
+                if ($cat) {
+                    $categoriaBaja = [
+                        'id' => (int) $cat->id,
+                        'nombre' => (string) $cat->nombre,
+                        'porc_precio_a' => $cat->porc_precio_a !== null ? (float) $cat->porc_precio_a : null,
+                    ];
+                }
+            }
         }
 
         $roles          = DB::table('rol')->pluck('nombre', 'id');
-        $rolesConEscala = DB::table('comision_escala')
-            ->where('estado_id', 1)
-            ->pluck('rol_id')
-            ->unique()
-            ->flip()
-            ->all();
-
         // Roles desactivados en el panel de control — mismo filtro que el generador.
         // Los roles que NO aparecen en comision_rol_config se asumen habilitados.
         $rolesDesactivados = DB::table('comision_rol_config')
@@ -707,7 +759,8 @@ class Pagos extends Component
                 'empleado'     => $fila->facturador_nombre,
                 'rol_id'       => $rolFijo,
                 'rol_nombre'   => $roles[$rolFijo] ?? 'Desconocido',
-                'tiene_escala' => isset($rolesConEscala[$rolFijo]),
+                'tiene_escala' => false,
+                'porcentaje_comision' => null,
             ];
         }
 
@@ -727,7 +780,8 @@ class Pagos extends Component
                     'empleado'     => $fila->facturador_nombre,
                     'rol_id'       => $facturadorRol,
                     'rol_nombre'   => $roles[$facturadorRol] ?? 'Desconocido',
-                    'tiene_escala' => isset($rolesConEscala[$facturadorRol]),
+                    'tiene_escala' => false,
+                    'porcentaje_comision' => null,
                 ];
             }
         }
@@ -741,7 +795,8 @@ class Pagos extends Component
                 'empleado'     => $fila->vendedor_nombre,
                 'rol_id'       => $rolVendedor,
                 'rol_nombre'   => $roles[$rolVendedor] ?? 'Desconocido',
-                'tiene_escala' => isset($rolesConEscala[$rolVendedor]),
+                'tiene_escala' => false,
+                'porcentaje_comision' => null,
             ];
         }
 
@@ -755,20 +810,79 @@ class Pagos extends Component
                 'empleado'     => $fila->gestor_nombre ?? 'Sin nombre',
                 'rol_id'       => $rolGestor,
                 'rol_nombre'   => $roles[$rolGestor] ?? 'Desconocido',
-                'tiene_escala' => isset($rolesConEscala[$rolGestor]),
+                'tiene_escala' => false,
+                'porcentaje_comision' => null,
             ];
         }
+
+        foreach ($targets as &$t) {
+            $qEscala = DB::table('comision_escala')
+                ->where('estado_id', 1)
+                ->where('rol_id', (int) $t['rol_id']);
+
+            if ($esFacturaSr && $categoriaBajaId) {
+                $qEscala->where('categoria_precios_id', $categoriaBajaId);
+            }
+
+            $escala = $qEscala
+                ->orderBy('id', 'desc')
+                ->first(['porcentaje_comision']);
+
+            $t['tiene_escala'] = (bool) $escala;
+            $t['porcentaje_comision'] = $escala ? (float) $escala->porcentaje_comision : null;
+        }
+        unset($t);
 
         // Filtrar: solo roles con escala activa configurada (los desactivados ya fueron excluidos arriba)
         $targets = array_values(array_filter($targets, function ($t) {
             return $t['tiene_escala'] === true;
         }));
 
+        $productosSr = [];
+        if ($esFacturaSr) {
+            $productos = DB::table('venta_has_producto as vp')
+                ->leftJoin('producto as p', 'p.id', '=', 'vp.producto_id')
+                ->leftJoin('precios_producto_carga as ppc', 'ppc.id', '=', 'vp.precios_producto_carga_id')
+                ->leftJoin('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')
+                ->where('vp.factura_id', $facturaId)
+                ->selectRaw('p.nombre as producto, cp.id as categoria_usada_id, cp.nombre as categoria_usada, vp.cantidad, vp.precio_unidad')
+                ->get();
+
+            foreach ($productos as $prod) {
+                $productosSr[] = [
+                    'producto' => (string) ($prod->producto ?? 'Producto sin nombre'),
+                    'categoria_usada_id' => $prod->categoria_usada_id ? (int) $prod->categoria_usada_id : null,
+                    'categoria_usada' => (string) ($prod->categoria_usada ?? 'Sin categoría'),
+                    'cantidad' => (float) ($prod->cantidad ?? 0),
+                    'precio_unidad' => (float) ($prod->precio_unidad ?? 0),
+                ];
+            }
+        }
+
+        $porcentajesSr = array_map(function ($t) {
+            return [
+                'capacidad' => (string) $t['capacidad'],
+                'rol_id' => (int) $t['rol_id'],
+                'rol_nombre' => (string) $t['rol_nombre'],
+                'porcentaje_comision' => $t['porcentaje_comision'] !== null ? (float) $t['porcentaje_comision'] : null,
+            ];
+        }, $targets);
+
         return response()->json([
             'cerrara'        => true,
             'ya_comisionada' => false,
             'sin_config'     => count($targets) === 0,
             'targets'        => $targets,
+            'sr_forzado'     => $esFacturaSr,
+            'sr_tipo_factura' => $esFacturaSr
+                ? [
+                    'codigo' => $tipoFacturaCodigo,
+                    'nombre' => (string) ($fila->tipo_factura_nombre ?? ''),
+                ]
+                : null,
+            'sr_categoria_baja' => $categoriaBaja,
+            'sr_productos'      => $productosSr,
+            'sr_porcentajes'    => $porcentajesSr,
         ]);
     }
 
