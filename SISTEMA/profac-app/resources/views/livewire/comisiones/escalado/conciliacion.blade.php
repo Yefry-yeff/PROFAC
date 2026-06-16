@@ -184,15 +184,111 @@
 .conc-modal .modal-footer{ background:#f9fafb; border-top:1px solid #e5e7eb; padding:11px 20px; border-radius:0 0 8px 8px; }
 
 /* ── DETALLE TABS ── */
-.det-tabs{ display:flex; gap:0; border-bottom:1px solid #e5e7eb; margin-bottom:16px; }
+.det-tabs{ display:flex; gap:6px; border-bottom:1px solid #dbe2ea; margin-bottom:0; padding:10px 14px 0; background:#f8fafc; }
 .det-tab{
-    background:transparent; border:none; padding:8px 14px;
-    font-size:12px; font-weight:600; color:#6b7280; cursor:pointer;
+    background:transparent; border:none; padding:10px 14px;
+    font-size:12px; font-weight:700; color:#64748b; cursor:pointer;
     border-bottom:2px solid transparent; margin-bottom:-1px;
-    transition:color .12s;
+    border-top-left-radius:8px; border-top-right-radius:8px;
+    display:flex; align-items:center; gap:6px;
+    transition:color .12s, background .12s, border-color .12s;
 }
-.det-tab:hover { color:#334155; }
-.det-tab.active{ color:#1e293b; border-bottom-color:#1e293b; }
+.det-tab:hover { color:#1e293b; background:#eef2f7; }
+.det-tab.active{ color:#1e293b; border-bottom-color:#1e293b; background:#fff; }
+
+.det-badge{
+    display:inline-flex; align-items:center; justify-content:center;
+    min-width:22px; height:20px; padding:0 7px;
+    border-radius:20px; background:#e2e8f0; color:#334155;
+    font-size:10px; font-weight:800; line-height:1;
+}
+
+.det-tab.active .det-badge{ background:#1e293b; color:#fff; }
+
+.det-toolbar{
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    padding:10px 14px; background:#fff; border-bottom:1px solid #e5e7eb;
+}
+
+.det-toolbar-info{
+    display:inline-flex; align-items:center; gap:6px;
+    font-size:13px; font-weight:600; color:#64748b;
+    background:#f8fafc; border:1px solid #e2e8f0; border-radius:7px;
+    padding:5px 9px;
+}
+
+.det-search-wrap{
+    position:relative; width:320px; max-width:100%;
+}
+
+.det-search-ico{
+    position:absolute; left:10px; top:50%; transform:translateY(-50%);
+    color:#94a3b8; font-size:11px;
+}
+
+.det-search-input{
+    width:100%; height:34px; border:1px solid #cbd5e1; border-radius:8px;
+    padding:0 11px 0 30px; font-size:12.5px; color:#334155; background:#fff; outline:none;
+    transition:border-color .12s, box-shadow .12s;
+}
+
+.det-search-input:focus{
+    border-color:#475569;
+    box-shadow:0 0 0 3px rgba(71,85,105,.10);
+}
+
+.det-export-btn{
+    margin-left:auto;
+    height:34px; border:1px solid #1e293b; background:#1e293b; color:#fff;
+    border-radius:8px; padding:0 12px; font-size:12px; font-weight:700;
+    display:inline-flex; align-items:center; gap:7px; cursor:pointer;
+    transition:background .12s, border-color .12s, transform .06s;
+}
+
+.det-export-btn:hover{ background:#334155; border-color:#334155; }
+.det-export-btn:active{ transform:translateY(1px); }
+
+#modalDetalle .modal-body .conc-tbl thead th{
+    background:#f8fafc; color:#7b8794; border-bottom:1px solid #e5e7eb;
+    font-size:10.5px; letter-spacing:.5px;
+}
+
+#modalDetalle .modal-body .conc-tbl tbody td{
+    border-bottom:1px solid #eef2f7;
+}
+
+#modalDetalle .modal-body .conc-tbl tbody tr:nth-child(even) td{
+    background:#fcfdff;
+}
+
+#modalDetalle .modal-body .conc-tbl tbody tr:hover td{
+    background:#f1f5f9;
+}
+
+.det-tfoot-row td{
+    background:#f8fafc;
+}
+
+.det-pag{
+    display:flex; align-items:center; justify-content:flex-end; gap:6px;
+    padding:10px 14px; border-top:1px solid #e5e7eb; background:#fff;
+}
+
+.det-pag-btn{
+    min-width:30px; height:30px; border:1px solid #d1d5db; background:#fff;
+    border-radius:7px; color:#475569; font-size:11px; font-weight:700;
+    display:inline-flex; align-items:center; justify-content:center;
+    cursor:pointer; transition:all .12s;
+}
+
+.det-pag-btn:hover:not(:disabled){ background:#f3f4f6; border-color:#94a3b8; color:#1e293b; }
+.det-pag-btn:disabled{ opacity:.4; cursor:not-allowed; }
+.det-pag-btn.active{ background:#1e293b; border-color:#1e293b; color:#fff; }
+
+.det-pag-info{
+    font-size:11.5px; font-weight:600; color:#64748b;
+    padding:0 2px;
+}
 
 /* ── LOG TABLE ── */
 .log-row-conciliacion{ background:#f9fafb; }
@@ -457,6 +553,11 @@
     .conc-topbar{ padding:12px 14px; }
     .conc-kpi-chip{ padding:4px 10px; }
     .conc-panel-body{ padding:14px 14px; }
+    .det-toolbar{ padding:9px 10px; }
+    .det-toolbar-info{ width:100%; justify-content:flex-start; }
+    .det-search-wrap{ width:100%; }
+    .det-export-btn{ margin-left:0; width:100%; justify-content:center; }
+    .det-tabs{ overflow:auto; white-space:nowrap; padding:8px 8px 0; }
 }
 }
 
@@ -1121,6 +1222,12 @@
                                 <i class="fa fa-users"></i>
                                 <span id="det-toolbar-emp-info">—</span>
                             </span>
+                            <div class="det-search-wrap">
+                                <i class="fa fa-search det-search-ico"></i>
+                                <input id="det-search-emp" type="text" oninput="detBuscar('emp', this.value)"
+                                    placeholder="Buscar empleado o rol..."
+                                    class="det-search-input">
+                            </div>
                             <button class="det-export-btn" onclick="exportarExcel('emp')">
                                 <i class="fa fa-file-excel-o"></i> Exportar Excel
                             </button>
@@ -1159,6 +1266,12 @@
                             <i class="fa fa-file-text-o"></i>
                             <span id="det-toolbar-fac-info">—</span>
                         </span>
+                        <div class="det-search-wrap">
+                            <i class="fa fa-search det-search-ico"></i>
+                            <input id="det-search-fac" type="text" oninput="detBuscar('fac', this.value)"
+                                placeholder="Buscar factura, cliente, empleado..."
+                                class="det-search-input">
+                        </div>
                         <button class="det-export-btn" onclick="exportarExcel('fac')">
                             <i class="fa fa-file-excel-o"></i> Exportar Excel
                         </button>
@@ -1188,6 +1301,12 @@
                             <i class="fa fa-history"></i>
                             <span id="det-toolbar-log-info">—</span>
                         </span>
+                        <div class="det-search-wrap">
+                            <i class="fa fa-search det-search-ico"></i>
+                            <input id="det-search-log" type="text" oninput="detBuscar('log', this.value)"
+                                placeholder="Buscar acción, usuario, observación..."
+                                class="det-search-input">
+                        </div>
                         <button class="det-export-btn" onclick="exportarExcel('log')">
                             <i class="fa fa-file-excel-o"></i> Exportar Excel
                         </button>
@@ -1238,6 +1357,8 @@
 const DET_PAGE_SIZE = 8;
 let detData = { empleados:[], facturas:[], logs:[], label:'', periodo:'' };
 let detPage = { emp:1, fac:1, log:1 };
+let detSearch = { emp:'', fac:'', log:'' };
+let detSearchCache = {};
 let todosLosPeriodos = [];   // cache de todos los períodos cargados
 
 /* ── Cargar períodos ─────────────────────────────────────────── */
@@ -1436,6 +1557,9 @@ $('#modalReabrir').on('shown.bs.modal', function() {
 function abrirDetalle(periodo) {
     detData = { empleados:[], facturas:[], logs:[], label:'—', periodo };
     detPage = { emp:1, fac:1, log:1 };
+    detSearch = detSearchCache[periodo]
+        ? { ...detSearchCache[periodo] }
+        : { emp:'', fac:'', log:'' };
     document.getElementById('det-label').textContent = '—';
     detTab('det-empleados', document.querySelector('.det-tab'));
     document.getElementById('det-loader-emp').classList.remove('d-none');
@@ -1443,6 +1567,12 @@ function abrirDetalle(periodo) {
     ['det-emp-body','det-fac-body','det-log-body'].forEach(id => document.getElementById(id).innerHTML = '');
     ['pag-emp','pag-fac','pag-log'].forEach(id => document.getElementById(id).innerHTML = '');
     ['det-cnt-emp','det-cnt-fac','det-cnt-log'].forEach(id => document.getElementById(id).textContent = '—');
+    const empInput = document.getElementById('det-search-emp');
+    const facInput = document.getElementById('det-search-fac');
+    const logInput = document.getElementById('det-search-log');
+    if (empInput) empInput.value = detSearch.emp || '';
+    if (facInput) facInput.value = detSearch.fac || '';
+    if (logInput) logInput.value = detSearch.log || '';
     $('#modalDetalle').modal('show');
     axios.get('/comisiones/conciliacion/detalle', { params:{ periodo } })
         .then(r => renderDetalle(r.data))
@@ -1463,10 +1593,37 @@ function renderDetalle(d) {
     document.getElementById('det-tbl-emp-wrap').classList.remove('d-none');
 }
 
+function normText(v) {
+    return String(v || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim();
+}
+
+function detBuscar(tab, value) {
+    detSearch[tab] = value || '';
+    if (detData.periodo) {
+        detSearchCache[detData.periodo] = { ...detSearch };
+    }
+    if (tab === 'emp') renderEmpPage(1);
+    if (tab === 'fac') renderFacPage(1);
+    if (tab === 'log') renderLogPage(1);
+}
+
 /* ── Página: Empleados ──────────────────────────────────────── */
 function renderEmpPage(page) {
     detPage.emp = page;
-    const arr = detData.empleados || [], total = arr.length;
+    const arrAll = detData.empleados || [];
+    const query = normText(detSearch.emp);
+    const arr = query
+        ? arrAll.filter(e => {
+            const bag = normText(`${e.nombre} ${e.rol} ${e.facturas}`);
+            return bag.includes(query);
+        })
+        : arrAll;
+    const total = arr.length;
+    const totalGlobal = arrAll.length;
     const start = (page-1)*DET_PAGE_SIZE, end = Math.min(start+DET_PAGE_SIZE, total);
     let totalComision = arr.reduce((s,e) => s + parseFloat(e.comision_acumulada||0), 0);
     let html = '';
@@ -1480,18 +1637,31 @@ function renderEmpPage(page) {
             <td style="font-size:11.5px;color:#64748b;">${e.fecha_ult_modificacion ? fmtFecha(e.fecha_ult_modificacion) : '—'}</td>
         </tr>`;
     });
-    document.getElementById('det-emp-body').innerHTML = html || '<tr><td colspan="6" class="text-center text-muted" style="padding:24px;">Sin empleados con comisión en este período</td></tr>';
+    document.getElementById('det-emp-body').innerHTML = html || `<tr><td colspan="6" class="text-center text-muted" style="padding:24px;">${query ? 'Sin coincidencias para el filtro aplicado' : 'Sin empleados con comisión en este período'}</td></tr>`;
     document.getElementById('det-emp-total').textContent = 'L ' + numFmt(totalComision);
-    document.getElementById('det-toolbar-emp-info').textContent = total > 0 ? `Mostrando ${start+1}–${end} de ${total} empleados` : 'Sin registros';
+    document.getElementById('det-toolbar-emp-info').textContent = total > 0
+        ? (query
+            ? `Mostrando ${start+1}–${end} de ${total} empleados filtrados (total ${totalGlobal})`
+            : `Mostrando ${start+1}–${end} de ${total} empleados`)
+        : 'Sin registros';
     renderPaginacion('pag-emp', page, total, 'renderEmpPage');
 }
 
 /* ── Página: Facturas ───────────────────────────────────────── */
 function renderFacPage(page) {
     detPage.fac = page;
-    const arr = detData.facturas || [], total = arr.length;
-    const start = (page-1)*DET_PAGE_SIZE, end = Math.min(start+DET_PAGE_SIZE, total);
+    const arrAll = detData.facturas || [];
+    const query = normText(detSearch.fac);
     const tipoLabel = {1:'Facturador', 2:'Rol Real', 3:'Vendedor'};
+    const arr = query
+        ? arrAll.filter(f => {
+            const bag = normText(`${f.factura_id} ${f.correlativo} ${f.cliente} ${f.empleado} ${f.rol} ${tipoLabel[f.tipo_comision] || ''}`);
+            return bag.includes(query);
+        })
+        : arrAll;
+    const total = arr.length;
+    const totalGlobal = arrAll.length;
+    const start = (page-1)*DET_PAGE_SIZE, end = Math.min(start+DET_PAGE_SIZE, total);
     let html = '';
     arr.slice(start, end).forEach((f,i) => {
         html += `<tr>
@@ -1505,17 +1675,31 @@ function renderFacPage(page) {
             <td class="text-right" style="font-weight:700;color:#1e3a8a;">L ${numFmt(f.monto_rol)}</td>
         </tr>`;
     });
-    document.getElementById('det-fac-body').innerHTML = html || '<tr><td colspan="8" class="text-center text-muted" style="padding:24px;">Sin facturas comisionadas en este período</td></tr>';
-    document.getElementById('det-toolbar-fac-info').textContent = total > 0 ? `Mostrando ${start+1}–${end} de ${total} facturas` : 'Sin registros';
+    document.getElementById('det-fac-body').innerHTML = html || `<tr><td colspan="8" class="text-center text-muted" style="padding:24px;">${query ? 'Sin coincidencias para el filtro aplicado' : 'Sin facturas comisionadas en este período'}</td></tr>`;
+    document.getElementById('det-toolbar-fac-info').textContent = total > 0
+        ? (query
+            ? `Mostrando ${start+1}–${end} de ${total} facturas filtradas (total ${totalGlobal})`
+            : `Mostrando ${start+1}–${end} de ${total} facturas`)
+        : 'Sin registros';
     renderPaginacion('pag-fac', page, total, 'renderFacPage');
 }
 
 /* ── Página: Logs ───────────────────────────────────────────── */
 function renderLogPage(page) {
     detPage.log = page;
-    const arr = detData.logs || [], total = arr.length;
-    const start = (page-1)*DET_PAGE_SIZE, end = Math.min(start+DET_PAGE_SIZE, total);
+    const arrAll = detData.logs || [];
+    const query = normText(detSearch.log);
     const estadoLbl = {0:'Abierto', 1:'Conciliado'};
+    const arr = query
+        ? arrAll.filter(l => {
+            const accion = l.accion === 'conciliacion' ? 'conciliacion' : 'reapertura';
+            const bag = normText(`${accion} ${estadoLbl[l.estado_anterior]} ${estadoLbl[l.estado_nuevo]} ${l.observacion} ${l.usuario_nombre}`);
+            return bag.includes(query);
+        })
+        : arrAll;
+    const total = arr.length;
+    const totalGlobal = arrAll.length;
+    const start = (page-1)*DET_PAGE_SIZE, end = Math.min(start+DET_PAGE_SIZE, total);
     let html = '';
     arr.slice(start, end).forEach(l => {
         const isConc = l.accion === 'conciliacion';
@@ -1531,8 +1715,12 @@ function renderLogPage(page) {
             <td style="font-size:11.5px;color:#64748b;">${fmtFecha(l.created_at)}</td>
         </tr>`;
     });
-    document.getElementById('det-log-body').innerHTML = html || '<tr><td colspan="9" class="text-center text-muted" style="padding:24px;">Sin historial de acciones</td></tr>';
-    document.getElementById('det-toolbar-log-info').textContent = total > 0 ? `Mostrando ${start+1}–${end} de ${total} registros` : 'Sin registros';
+    document.getElementById('det-log-body').innerHTML = html || `<tr><td colspan="9" class="text-center text-muted" style="padding:24px;">${query ? 'Sin coincidencias para el filtro aplicado' : 'Sin historial de acciones'}</td></tr>`;
+    document.getElementById('det-toolbar-log-info').textContent = total > 0
+        ? (query
+            ? `Mostrando ${start+1}–${end} de ${total} registros filtrados (total ${totalGlobal})`
+            : `Mostrando ${start+1}–${end} de ${total} registros`)
+        : 'Sin registros';
     renderPaginacion('pag-log', page, total, 'renderLogPage');
 }
 
