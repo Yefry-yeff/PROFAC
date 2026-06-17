@@ -152,7 +152,7 @@
     <div class="pruebaFondo">
         @php $cant = count($productos); @endphp
 
-        <table style="font-size:10px; width:100%; border-collapse:collapse; border: 1px solid #000;">
+        <table style="font-size:9px; width:100%; border-collapse:collapse; border: 1px solid #000; margin-top:8px;">
             <thead>
                 {{-- FILA DE CABECERAS DE COLUMNAS (se repite via table-header-group) --}}
                 <tr>
