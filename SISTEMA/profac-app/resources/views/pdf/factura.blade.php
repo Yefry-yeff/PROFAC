@@ -261,9 +261,8 @@
                     </div>
 
                     @if ($cai->estado_venta_id == 2)
-                    <div  style="position:absolute;   text-align: center; margin-top:350px;width:45rem">
-                        <p style="font-size:50px">
-                            --FACTURA ANULADA--</p>
+                    <div style="position:fixed; top:30%; left:0; width:100%; text-align:center; transform:rotate(-45deg); opacity:0.18; z-index:9999;">
+                        <p style="font-size:90px; font-weight:900; color:#cc0000; letter-spacing:8px; margin:0;">FACTURA ANULADA</p>
                     </div>
                     @endif
 
