@@ -335,12 +335,6 @@ class Conciliacion extends Component
 
         $periodo = Carbon::parse($periodoStr)->startOfMonth()->toDateString();
 
-        // No conciliar meses futuros
-        if ($periodo > Carbon::now()->startOfMonth()->toDateString()) {
-            return response()->json(['icon' => 'warning', 'title' => 'No permitido',
-                'text' => 'No se puede conciliar un período futuro.'], 422);
-        }
-
         // Verificar que no esté ya conciliado
         $existente = DB::table('comision_periodo')->where('periodo', $periodo)->first();
         if ($existente && (int) $existente->estado === ModelComisionPeriodo::ESTADO_CONCILIADO) {
@@ -352,6 +346,14 @@ class Conciliacion extends Component
         try {
             // Calcular snapshot en tiempo real
             $snapshot = $this->_calcularSnapshot($periodo);
+
+            if ((int) ($snapshot['cantidad_facturas'] ?? 0) <= 0 || (float) ($snapshot['total_comision'] ?? 0) <= 0) {
+                return response()->json([
+                    'icon'  => 'warning',
+                    'title' => 'Sin comisiones',
+                    'text'  => 'Solo se puede conciliar un período que tenga al menos una factura comisionada.',
+                ], 422);
+            }
 
             // Upsert en comision_periodo
             if ($existente) {

@@ -1467,7 +1467,7 @@ function renderAcciones(p) {
             <button class="conc-btn btn-reabrir" onclick="abrirReabrir('${p.periodo}','${p.periodo_label}')"><i class="fa fa-unlock"></i> Reabrir</button>
         </div>`;
     }
-    const btnConciliar = (p.total_comision > 0 || p.es_mes_actual)
+    const btnConciliar = (parseFloat(p.total_comision || 0) > 0)
         ? `<button class="conc-btn btn-conciliar" onclick="abrirConciliar('${p.periodo}','${p.periodo_label}')"><i class="fa fa-lock"></i> Conciliar</button>`
         : `<button class="conc-btn btn-conciliar btn-disabled" disabled><i class="fa fa-lock"></i> Conciliar</button>`;
     return `<div style="display:flex;gap:6px;justify-content:flex-end;">

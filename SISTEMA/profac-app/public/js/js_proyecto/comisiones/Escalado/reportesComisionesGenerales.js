@@ -391,14 +391,36 @@ function abrirDetalleNomina(empleadoId, empleadoNombre, mesClave, mesLabel){
             {data:'rol_comisionado',render:function(d){return badgeRol(d||'—');}},
             {data:'comision_original',className:'text-right',render:function(d){return fmtMoney(d);}},
             {data:'retencion_aplicada',className:'text-right',render:function(d){return '<span style="color:#b45309;font-weight:700;">'+fmtMoney(d)+'</span>'; }},
-            {data:'comision_final',className:'text-right',render:function(d){return '<strong class="monto-com">'+fmtMoney(d)+'</strong>'; }},
+            {data:'comision_final',className:'text-right',render:function(d,t,r){
+                var finalNum = parseFloat(r.comision_final || 0);
+                var retenido = parseFloat(r.retencion_aplicada || 0);
+                var original = parseFloat(r.comision_original || 0);
+                var retencionTotal = (original > 0.0001 && retenido > 0.0001 && Math.abs(finalNum) <= 0.0001);
+
+                if(retencionTotal){
+                    return '<strong class="monto-com" style="color:#b91c1c;">'+fmtMoney(finalNum)+'</strong>'
+                        + '<br><span class="badge badge-warning" style="margin-top:4px;">RETENCION TOTAL</span>';
+                }
+
+                return '<strong class="monto-com">'+fmtMoney(finalNum)+'</strong>';
+            }},
             {data:'base_comisionable',className:'text-right',render:function(d){return '<span style="font-weight:700;color:#0f766e;">'+fmtMoney(d)+'</span>'; }},
             {data:'fuente_base_comisionable',render:function(d){return '<span style="color:#475569;">'+esc(d||'—')+'</span>'; }},
             {data:null,className:'resumen-productos-col',orderable:false,render:function(d,t,r){ return formatResumenProductosHtml(r); }},
-            {data:'estado',className:'text-center',render:function(d){
+            {data:'estado',className:'text-center',render:function(d,t,r){
+                var finalNum = parseFloat(r.comision_final || 0);
+                var retenido = parseFloat(r.retencion_aplicada || 0);
+                var original = parseFloat(r.comision_original || 0);
+                var retencionTotal = (original > 0.0001 && retenido > 0.0001 && Math.abs(finalNum) <= 0.0001);
+
                 if(String(d).toUpperCase()==='REVERTIDA'){
                     return '<span class="badge badge-danger">REVERTIDA</span>';
                 }
+
+                if(retencionTotal){
+                    return '<span class="badge badge-warning">ACTIVA (RETENIDA 100%)</span>';
+                }
+
                 return '<span class="badge badge-success">ACTIVA</span>';
             }},
             {data:'observacion_reversa',render:function(d){return d?'<span style="color:#475569;">'+esc(d)+'</span>':'<span style="color:#94a3b8;">-</span>';}}

@@ -313,9 +313,10 @@ monto_retenido = comision_original
 
 - referencia: fecha_vencimiento
 - periodos_vencidos = floor(dias_transcurridos / dias_gracia)
-- monto_por_periodo = subtotal_factura x (porcentaje_retencion / 100)
+- monto_por_periodo = comision_original_rol x (porcentaje_retencion / 100)
 - total_retencion = periodos_vencidos x monto_por_periodo
 - comision_final = max(0, comision_original - total_retencion)
+- solo aplica a roles con configuracion activa en dias_gracia_comision para tipo_factura=credito
 
 Tambien registra bitacora detallada en retencion_mora_log.
 
@@ -432,7 +433,7 @@ Comision_final = 0
 ### Credito
 
 Periodos_vencidos = floor(Dias_atraso / Dias_gracia)
-Retencion_total = Periodos_vencidos x (Subtotal_factura x Porcentaje_retencion/100)
+Retencion_total = Periodos_vencidos x (Comision_original_rol x Porcentaje_retencion/100)
 Comision_final = max(0, Comision_original - Retencion_total)
 
 ## 10.4 Acumulado mensual por empleado y rol

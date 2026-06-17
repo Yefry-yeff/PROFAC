@@ -698,17 +698,9 @@ class ReportesComisionesGenerales extends Component
         $mesFin    = $finConsultaDt->format('Y-m-d H:i:s');
         $mesBase   = $mesClave . '-01';
 
-        $rolesEmpleadoMes = DB::table('comision_empleado')
-            ->where('users_comision', $empleadoId)
-            ->where('mes_comision', $mesBase)
-            ->where('estado_id', 1)
-            ->distinct()
-            ->pluck('rol_id')
-            ->all();
-
-        if (empty($rolesEmpleadoMes)) {
-            return response()->json(['data' => []]);
-        }
+        // Nota: el consolidado de nómina se arma desde facturas_comision.
+        // No filtrar por comision_empleado aquí, porque las filas con comisión final 0
+        // (por retención total) pueden no tener acumulado y aun así deben verse en detalle.
 
         $detalles = DB::table('facturas_comision as fc')
             ->join('factura as f', 'f.id', '=', 'fc.factura_id')
@@ -725,7 +717,6 @@ class ReportesComisionesGenerales extends Component
                  END = ?",
                 [$empleadoId]
             )
-            ->whereIn('fc.rol_id', $rolesEmpleadoMes)
             ->selectRaw(
                 "fc.id,
                  f.cai as factura,
