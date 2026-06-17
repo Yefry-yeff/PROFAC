@@ -52,7 +52,7 @@
         }
 
         tbody td {
-            border: 1px solid #000;
+            border: none;
         }
 
         tbody tr {
@@ -75,7 +75,7 @@
 
         <div style="margin-top:4px; width:100%;">
             <div>
-                <table style="font-size:10px; width:100%; border-collapse:collapse;">
+                <table style="font-size:10px; width:100%; border-collapse:collapse; border: 1px solid #000;">
                     <thead>
                         {{-- FILA DEL ENCABEZADO REPETIBLE --}}
                         <tr>
@@ -148,15 +148,15 @@
                         </tr>
                         {{-- FILA DE CABECERAS DE COLUMNAS --}}
                         <tr style="border:1px solid #000;">
-                            <th style="border:1px solid #000;">Código</th>
-                            <th style="border:1px solid #000;">Producto</th>
-                            <th style="border:1px solid #000;">Bodega</th>
-                            <th style="border:1px solid #000;">Seccion</th>
-                            <th style="border:1px solid #000;">Medida</th>
-                            <th style="border:1px solid #000;">Exento</th>
-                            <th style="border:1px solid #000;">Precio</th>
-                            <th style="border:1px solid #000;">Cantidad</th>
-                            <th style="border:1px solid #000;">Importe</th>
+                            <th>Código</th>
+                            <th>Producto</th>
+                            <th>Bodega</th>
+                            <th>Seccion</th>
+                            <th>Medida</th>
+                            <th>Exento</th>
+                            <th>Precio</th>
+                            <th>Cantidad</th>
+                            <th>Importe</th>
                         </tr>
                     </thead>
                     <tbody>
