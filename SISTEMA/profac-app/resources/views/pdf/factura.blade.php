@@ -5,7 +5,7 @@
         <link rel="stylesheet" href="{{ public_path('css/bootstrap.min.css') }}">
     <style>
         @page {
-            margin: 300px 28px 38px 28px;
+            margin: 320px 28px 38px 28px;
         }
 
         .color-red {
@@ -45,7 +45,7 @@
 
         #encabezado-fijo {
             position: fixed;
-            top: -292px;
+            top: -312px;
             left: 0;
             right: 0;
             width: 100%;
