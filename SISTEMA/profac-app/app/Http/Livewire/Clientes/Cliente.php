@@ -1042,13 +1042,17 @@ class Cliente extends Component
 
             $contactos = DB::select("SELECT id, nombre, telefono FROM contacto WHERE estado_id = 1 AND cliente_id = ? ORDER BY id ASC LIMIT 2", [$id]);
 
-            $ubicacion = $datosCliente->municipio_id
-                ? DB::selectOne("SELECT C.id as idPais, A.id as idDepto, B.id as idMunicipio
+            $ubicacion = null;
+            if (!empty($datosCliente->municipio_id)) {
+                $ubicacion = DB::selectOne("SELECT C.id as idPais, A.id as idDepto, B.id as idMunicipio
                     FROM departamento A
                     INNER JOIN municipio B ON A.id = B.departamento_id
                     INNER JOIN pais C ON C.id = A.pais_id
-                    WHERE B.id = ?", [$datosCliente->municipio_id])
-                : (object)['idPais' => null, 'idDepto' => null, 'idMunicipio' => null];
+                    WHERE B.id = ?", [$datosCliente->municipio_id]);
+            }
+            if (!$ubicacion) {
+                $ubicacion = (object)['idPais' => null, 'idDepto' => null, 'idMunicipio' => null];
+            }
 
             $paises     = DB::select("SELECT id, nombre FROM pais ORDER BY nombre ASC");
             $deptos     = $ubicacion->idPais   ? DB::select("SELECT id, nombre FROM departamento WHERE pais_id = ? ORDER BY nombre ASC", [$ubicacion->idPais])   : [];

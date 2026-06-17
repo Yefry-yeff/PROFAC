@@ -13,15 +13,16 @@ $(document).ready(function () {
     clienteIdActual = (rawId && rawId !== '' && rawId !== 'null') ? parseInt(rawId, 10) : null;
     modoEdicion     = (clienteIdActual !== null);
 
-    // Cargar catálogos siempre
-    cargarCatalogos();
-    cargarPaises();
-
     if (modoEdicion) {
+        // En edición, los catálogos y ubicación vienen del endpoint de datos.
+        // Evita condiciones de carrera que podían sobrescribir valores cargados.
         cargarDatosCliente(clienteIdActual);
         cargarRepositorioDocumentos(clienteIdActual);
         cargarHistorialCambios(clienteIdActual);
     } else {
+        // Modo crear: cargar catálogos base para poblar selects vacíos.
+        cargarCatalogos();
+        cargarPaises();
         // Modo crear: repositorio deshabilitado hasta tener ID
         mostrarAvisoRepo(true);
         toggleCreditoCampos();
