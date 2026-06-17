@@ -256,6 +256,7 @@
                                     </td>
                                 </tr>
                             </table>
+                            <p style="margin:3px 0 0; font-size:8px; text-align:center;">Original: Cliente, Copia obligado tributario emisor.</p>
                         </div>
                     </div>
 
@@ -267,8 +268,6 @@
                     @endif
 
                 </div>
-
-                <p style="margin:4px 0 0; font-size:8px; text-align:right;">Original: Cliente, Copia obligado tributario emisor.</p>
 
                 <div style="margin-top:70px; width:100%;">
                     <table style="width:100%; border:none; border-collapse:collapse; font-size:9px;">
