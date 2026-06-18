@@ -52,8 +52,8 @@ class SinRestriccionPrecio extends Component
                       ->orWhere('nombre', 'LIKE', $like);
                 });
 
-            // Solo Admin (1) ve todos los clientes; los demás solo sus asignados
-            if ($rolId !== 1) {
+            // Admin (1) y Tele asesor (3) ven todos; los demás solo sus asignados
+            if (!in_array($rolId, [1, 3], true)) {
                 $query->where('vendedor', Auth::id());
             }
 
