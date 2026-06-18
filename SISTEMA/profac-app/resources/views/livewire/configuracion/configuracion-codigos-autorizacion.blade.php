@@ -245,7 +245,15 @@ input:checked + .toggle-slider::before { transform:translateX(20px); }
                     <tbody>
                         @forelse($codigosRecientes as $row)
                             @php
-                                $badgeCss = match($row->estado_nombre ?? '') {
+                                $estadoNombre = data_get($row, 'estado_nombre');
+                                $createdAt = data_get($row, 'created_at');
+                                $codigo = data_get($row, 'codigo');
+                                $usuario = data_get($row, 'usuario');
+                                $tipoTramite = data_get($row, 'tipo_tramite');
+                                $flujoId = data_get($row, 'flujo_id');
+                                $fechaExpiracion = data_get($row, 'fecha_expiracion');
+
+                                $badgeCss = match($estadoNombre ?? '') {
                                     'Pendiente' => 'badge-pendiente',
                                     'Utilizado' => 'badge-utilizado',
                                     'Expirado'  => 'badge-expirado',
@@ -255,18 +263,18 @@ input:checked + .toggle-slider::before { transform:translateX(20px); }
                             @endphp
                             <tr>
                                 <td style="color:#64748b;white-space:nowrap;font-size:12px;">
-                                    {{ \Carbon\Carbon::parse($row->created_at)->format('d/m/Y H:i') }}
+                                    {{ $createdAt ? \Carbon\Carbon::parse($createdAt)->format('d/m/Y H:i') : '—' }}
                                 </td>
-                                <td><span class="cca-mono">{{ $row->codigo }}</span></td>
-                                <td style="color:#475569;">{{ $row->usuario ?? '—' }}</td>
-                                <td style="color:#64748b;font-size:12px;">{{ $row->tipo_tramite ?? '—' }}</td>
-                                <td style="color:#94a3b8;font-size:12px;">{{ $row->flujo_id ? '#'.$row->flujo_id : '—' }}</td>
+                                <td><span class="cca-mono">{{ $codigo ?? '—' }}</span></td>
+                                <td style="color:#475569;">{{ $usuario ?? '—' }}</td>
+                                <td style="color:#64748b;font-size:12px;">{{ $tipoTramite ?? '—' }}</td>
+                                <td style="color:#94a3b8;font-size:12px;">{{ $flujoId ? '#'.$flujoId : '—' }}</td>
                                 <td style="color:#94a3b8;font-size:12px;white-space:nowrap;">
-                                    {{ $row->fecha_expiracion ? \Carbon\Carbon::parse($row->fecha_expiracion)->format('d/m/Y H:i') : '—' }}
+                                    {{ $fechaExpiracion ? \Carbon\Carbon::parse($fechaExpiracion)->format('d/m/Y H:i') : '—' }}
                                 </td>
                                 <td>
                                     <span class="cca-badge {{ $badgeCss }}">
-                                        {{ $row->estado_nombre ?? 'Desconocido' }}
+                                        {{ $estadoNombre ?? 'Desconocido' }}
                                     </span>
                                 </td>
                             </tr>
