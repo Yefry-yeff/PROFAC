@@ -9,6 +9,69 @@
 @keyframes conc-spin     { to{transform:rotate(360deg)} }
 @keyframes conc-pulse    { 0%,100%{opacity:1} 50%{opacity:.35} }
 
+/* SweetAlert por encima de modales Bootstrap del módulo */
+.swal2-container{ z-index:300000 !important; }
+
+/* Modal aplicar retención */
+.rf-app-modal .modal-content{
+    border:none;
+    border-radius:14px;
+    overflow:hidden;
+    box-shadow:0 24px 64px rgba(0,0,0,.22);
+}
+.rf-app-modal .rf-app-head{
+    background:linear-gradient(135deg,#1e293b,#0f172a);
+    color:#f8fafc;
+    padding:14px 18px;
+}
+.rf-app-modal .rf-app-head .close{ color:#fff; opacity:.9; }
+.rf-app-modal .rf-app-head .close:hover{ opacity:1; }
+.rf-app-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:14px;
+}
+.rf-app-field label{
+    display:block;
+    font-size:11px;
+    font-weight:800;
+    text-transform:uppercase;
+    color:#64748b;
+    letter-spacing:.4px;
+    margin-bottom:6px;
+}
+.rf-app-input{
+    width:100%;
+    border:1.5px solid #dbe1ea;
+    border-radius:8px;
+    padding:10px 12px;
+    font-size:14px;
+    color:#1e293b;
+    outline:none;
+    transition:border-color .12s, box-shadow .12s;
+}
+.rf-app-input:focus{
+    border-color:#1e40af;
+    box-shadow:0 0 0 3px rgba(30,64,175,.12);
+}
+.rf-app-help{
+    font-size:12px;
+    color:#64748b;
+    margin-top:8px;
+}
+.rf-app-error{
+    margin-top:10px;
+    font-size:12px;
+    color:#991b1b;
+    background:#fff1f2;
+    border:1px solid #fecdd3;
+    border-radius:8px;
+    padding:8px 10px;
+}
+@media (max-width: 767px){
+    .rf-app-grid{ grid-template-columns:1fr; }
+}
+
 /* ── TOP BAR ── */
 .conc-topbar{
     background:#1e293b;
@@ -624,6 +687,11 @@
             Auditoría de Cambios
             <span class="conc-tab-badge" id="aud-badge-total">—</span>
         </button>
+        <button class="conc-tab-btn" id="tab-btn-retfuente" onclick="concTab('retfuente')">
+            <i class="fa fa-minus-circle"></i>
+            Retención en la Fuente
+            <span class="conc-tab-badge" id="rf-badge-total">—</span>
+        </button>
     </div>
 
     {{-- Tab 1: Períodos --}}
@@ -856,6 +924,25 @@
         <div class="conc-loader"><div class="conc-spinner"></div> Cargando historial...</div>
     </div>
 
+</div>
+
+{{-- ══════════════════════════════════════════════════════════════════
+     TAB 4: RETENCIÓN EN LA FUENTE — HISTÓRICO / REPORTE
+══════════════════════════════════════════════════════════════════ --}}
+<div id="conc-tab-retfuente" class="conc-tab-pane" style="display:none;padding:0;">
+    <div class="conc-filter-bar" style="padding:12px 20px;gap:10px;flex-wrap:wrap;">
+        <i class="fa fa-filter" style="color:#94a3b8;font-size:12px;"></i>
+        <select id="rf-filtro-anio" class="conc-year-select" onchange="rfHistorialCargar()" style="width:140px;">
+            <option value="0">Todos los años</option>
+        </select>
+        <button class="conc-btn-refresh" onclick="rfHistorialCargar()">
+            <i class="fa fa-refresh"></i> Actualizar
+        </button>
+    </div>
+
+    <div id="rf-hist-body" style="padding:16px 20px;">
+        <div class="conc-loader"><div class="conc-spinner"></div> Cargando historial...</div>
+    </div>
 </div>
 
 {{-- ══════════════════════════════════════════════════════════════════
@@ -1099,6 +1186,15 @@
                         </div>
                     </div>
 
+                    <div style="margin:-2px 0 14px; display:flex; justify-content:flex-end;">
+                        <button type="button" id="btn-abrir-retfuente" class="conc-btn"
+                            onclick="abrirRetencionFuenteDesdeConciliacion()"
+                            style="background:#fff7ed;border-color:#fdba74;color:#9a3412;font-weight:700;"
+                            disabled>
+                            <i class="fa fa-minus-circle"></i> Gestionar retención en la fuente
+                        </button>
+                    </div>
+
                     {{-- Observación --}}
                     <div>
                         <label style="font-size:11px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:6px;">
@@ -1119,6 +1215,178 @@
                 <button class="btn btn-sm btn-primary px-4" id="btn-confirmar-conciliar"
                     style="background:#1e3a8a;border-color:#1e3a8a;font-weight:700;" disabled>
                     <i class="fa fa-lock mr-1"></i> Confirmar Conciliación
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- ══════════════════════════════════════════════════════════════════
+     MODAL — GESTIONAR RETENCIÓN EN LA FUENTE
+══════════════════════════════════════════════════════════════════ --}}
+<div class="modal fade conc-modal" id="modalRetFuente" tabindex="-1" data-backdrop="static" data-keyboard="false">
+    <div class="modal-dialog modal-dialog-scrollable" style="max-width:1020px; width:calc(100% - 40px); margin:90px auto 20px;">
+        <div class="modal-content" style="border:none;border-radius:14px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.22);">
+            <div class="modal-header blue" style="padding:14px 22px;">
+                <h5 class="modal-title"><i class="fa fa-minus-circle"></i> Retención en la Fuente — <span id="rf-label-periodo">—</span></h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+
+            <div class="modal-body" style="padding:16px 20px;background:#fafbfc;">
+                <div style="background:#fff7ed;border:1.5px solid #fdba74;border-radius:8px;padding:10px 14px;margin-bottom:14px;color:#9a3412;font-size:12.5px;">
+                    <i class="fa fa-exclamation-triangle mr-1"></i>
+                    Toda retención aplicada se <strong>deducirá del total a comisionar</strong> del empleado en este período.
+                </div>
+
+                <div class="conc-resumen-grid" style="margin-bottom:12px;">
+                    <div class="conc-resumen-card">
+                        <div class="cr-val" id="rf-total-bruto">—</div>
+                        <div class="cr-lbl">Total Bruto</div>
+                    </div>
+                    <div class="conc-resumen-card" style="background:#fff7ed;border-color:#fdba74;">
+                        <div class="cr-val" id="rf-total-ret" style="color:#c2410c;">—</div>
+                        <div class="cr-lbl">Retención Total</div>
+                    </div>
+                    <div class="conc-resumen-card cr-total">
+                        <div class="cr-val" id="rf-total-neto">—</div>
+                        <div class="cr-lbl">Total Neto a Conciliar</div>
+                    </div>
+                </div>
+
+                <div id="rf-loader" class="conc-loader" style="padding:28px;"><div class="conc-spinner"></div> Cargando retenciones...</div>
+
+                <div id="rf-wrap" class="d-none">
+                    <div class="table-responsive" style="margin-bottom:16px;">
+                        <table class="conc-tbl" style="margin:0;">
+                            <thead>
+                                <tr>
+                                    <th>Empleado</th>
+                                    <th class="text-right">Comisión Bruta</th>
+                                    <th class="text-right">Retención Activa</th>
+                                    <th class="text-right">Comisión Neta</th>
+                                    <th>Comentario</th>
+                                    <th class="text-right">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rf-emp-body"></tbody>
+                        </table>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin:-6px 0 14px;padding:0 2px;">
+                        <div id="rf-emp-info" style="font-size:11.5px;color:#94a3b8;">Sin registros</div>
+                        <div class="det-pag" id="rf-emp-pag" style="margin:0;"></div>
+                    </div>
+
+                    <div style="font-size:12px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin:8px 0 8px;">
+                        <i class="fa fa-history mr-1"></i> Historial del período
+                    </div>
+                    <div class="table-responsive">
+                        <table class="conc-tbl" style="margin:0;">
+                            <thead>
+                                <tr>
+                                    <th>Empleado</th>
+                                    <th class="text-right">Monto</th>
+                                    <th>Estado</th>
+                                    <th>Comentario</th>
+                                    <th>Aplicó</th>
+                                    <th>Reversión</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rf-hist-periodo-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer" style="background:#f8fafc;border-top:1px solid #e2e8f0;">
+                <button class="btn btn-sm btn-outline-secondary" data-dismiss="modal">
+                    <i class="fa fa-arrow-left mr-1"></i> Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- ══════════════════════════════════════════════════════════════════
+     MODAL — APLICAR RETENCIÓN EN LA FUENTE
+══════════════════════════════════════════════════════════════════ --}}
+<div class="modal fade conc-modal rf-app-modal" id="modalRFAplicar" tabindex="-1" data-backdrop="static" data-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered" style="max-width:720px;">
+        <div class="modal-content">
+            <div class="modal-header rf-app-head">
+                <h5 class="modal-title" style="font-weight:800;">
+                    <i class="fa fa-minus-circle mr-1"></i> Aplicar retención a <span id="rf-app-nombre">—</span>
+                </h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body" style="background:#f8fafc;padding:16px 18px;">
+                <div style="margin-bottom:14px;color:#9a3412;background:#fff7ed;border:1px solid #fdba74;border-radius:8px;padding:10px 12px;font-size:13px;">
+                    <i class="fa fa-exclamation-triangle mr-1"></i>
+                    Este monto se deducirá del total a comisionar del empleado.
+                </div>
+
+                <div class="rf-app-grid">
+                    <div class="rf-app-field">
+                        <label for="rf-app-monto">Monto (L) <span style="color:#dc2626;">*</span></label>
+                        <input type="number" min="0.01" step="0.01" id="rf-app-monto" class="rf-app-input" placeholder="Ej: 1500.00" oninput="rfLimitarMonto()">
+                        <div class="rf-app-help">Comisión bruta disponible: <strong id="rf-app-bruta">L 0.00</strong></div>
+                    </div>
+                    <div class="rf-app-field">
+                        <label for="rf-app-comentario">Comentario <span style="color:#dc2626;">*</span></label>
+                        <textarea id="rf-app-comentario" class="rf-app-input" rows="5" style="resize:vertical;" placeholder="Detalle la razón de la retención"></textarea>
+                    </div>
+                </div>
+
+                <div id="rf-app-error" class="rf-app-error d-none"></div>
+
+                <input type="hidden" id="rf-app-periodo">
+                <input type="hidden" id="rf-app-user-id">
+                <input type="hidden" id="rf-app-bruta-raw">
+            </div>
+            <div class="modal-footer" style="background:#fff;border-top:1px solid #e2e8f0;">
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-dismiss="modal">
+                    <i class="fa fa-arrow-left mr-1"></i> Cancelar
+                </button>
+                <button type="button" class="btn btn-sm px-4" id="rf-app-btn-guardar" onclick="rfGuardarAplicacion()" style="background:#1e3a8a;border-color:#1e3a8a;color:#fff;font-weight:700;">
+                    <i class="fa fa-check mr-1"></i> Aplicar retención
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- ══════════════════════════════════════════════════════════════════
+     MODAL — REVERTIR RETENCIÓN EN LA FUENTE
+══════════════════════════════════════════════════════════════════ --}}
+<div class="modal fade conc-modal rf-app-modal" id="modalRFRevertir" tabindex="-1" data-backdrop="static" data-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered" style="max-width:680px;">
+        <div class="modal-content">
+            <div class="modal-header rf-app-head" style="background:linear-gradient(135deg,#7f1d1d,#450a0a);">
+                <h5 class="modal-title" style="font-weight:800;">
+                    <i class="fa fa-undo mr-1"></i> Revertir retención de <span id="rf-rev-nombre">—</span>
+                </h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body" style="background:#f8fafc;padding:16px 18px;">
+                <div style="margin-bottom:14px;color:#92400e;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 12px;font-size:13px;">
+                    <i class="fa fa-exclamation-triangle mr-1"></i>
+                    La comisión neta del empleado se recalculará al revertir esta retención.
+                </div>
+
+                <div class="rf-app-field" style="margin:0;">
+                    <label for="rf-rev-comentario">Comentario de reversión <span style="color:#94a3b8;">(opcional)</span></label>
+                    <textarea id="rf-rev-comentario" class="rf-app-input" rows="5" style="resize:vertical;" placeholder="Opcional"></textarea>
+                </div>
+
+                <div id="rf-rev-error" class="rf-app-error d-none"></div>
+
+                <input type="hidden" id="rf-rev-id">
+            </div>
+            <div class="modal-footer" style="background:#fff;border-top:1px solid #e2e8f0;">
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-dismiss="modal">
+                    <i class="fa fa-arrow-left mr-1"></i> Cancelar
+                </button>
+                <button type="button" class="btn btn-sm px-4" id="rf-rev-btn-guardar" onclick="rfGuardarReversion()" style="background:#b91c1c;border-color:#b91c1c;color:#fff;font-weight:700;">
+                    <i class="fa fa-undo mr-1"></i> Sí, revertir
                 </button>
             </div>
         </div>
@@ -1355,11 +1623,17 @@
 ═══════════════════════════════════════════════════════════════ */
 
 const DET_PAGE_SIZE = 8;
+const RF_EMP_PAGE_SIZE = 6;
 let detData = { empleados:[], facturas:[], logs:[], label:'', periodo:'' };
 let detPage = { emp:1, fac:1, log:1 };
 let detSearch = { emp:'', fac:'', log:'' };
 let detSearchCache = {};
 let todosLosPeriodos = [];   // cache de todos los períodos cargados
+let rfPeriodoActual = null;
+let rfLabelActual = null;
+let rfVolverAModalConciliar = false;
+let rfEmpRows = [];
+let rfEmpPeriodo = null;
 
 /* ── Cargar períodos ─────────────────────────────────────────── */
 function cargarPeriodos() {
@@ -1487,6 +1761,7 @@ function abrirConciliar(periodo, label) {
     // Reset modal
     document.getElementById('conc-periodo-conciliar').value = periodo;
     document.getElementById('conc-obs-conciliar').value = '';
+    document.getElementById('btn-abrir-retfuente').disabled = true;
     document.getElementById('conc-resumen-loader').style.display = 'flex';
     document.getElementById('conc-resumen-wrap').style.display   = 'none';
     document.getElementById('btn-confirmar-conciliar').disabled  = true;
@@ -1496,15 +1771,24 @@ function abrirConciliar(periodo, label) {
     axios.get('/comisiones/conciliacion/detalle', { params: { periodo } })
         .then(r => {
             const d = r.data;
-            const totalComision = (d.empleados || []).reduce((s, e) => s + parseFloat(e.comision_acumulada || 0), 0);
+            const totalComision = d.resumen
+                ? parseFloat(d.resumen.total_neto || 0)
+                : (d.empleados || []).reduce((s, e) => s + parseFloat(e.comision_acumulada || 0), 0);
             document.getElementById('conc-resumen-label').textContent = d.label || label;
             document.getElementById('conc-adv-label').textContent     = d.label || label;
-            document.getElementById('cr-empleados').textContent = d.empleados.length;
-            document.getElementById('cr-facturas').textContent  = d.facturas.length;
+            document.getElementById('cr-empleados').textContent = d.resumen
+                ? (d.resumen.cantidad_empleados ?? d.empleados.length)
+                : d.empleados.length;
+            document.getElementById('cr-facturas').textContent  = d.resumen
+                ? (d.resumen.cantidad_facturas ?? d.facturas.length)
+                : d.facturas.length;
             document.getElementById('cr-total').textContent     = 'L ' + numFmt(totalComision);
             document.getElementById('conc-resumen-loader').style.display = 'none';
             document.getElementById('conc-resumen-wrap').style.display   = '';
             document.getElementById('btn-confirmar-conciliar').disabled  = false;
+            document.getElementById('btn-abrir-retfuente').disabled = false;
+            rfPeriodoActual = periodo;
+            rfLabelActual = d.label || label;
         })
         .catch(() => {
             // Si falla el detalle, igual mostrar con datos básicos de la tabla
@@ -1516,6 +1800,9 @@ function abrirConciliar(periodo, label) {
             document.getElementById('conc-resumen-loader').style.display = 'none';
             document.getElementById('conc-resumen-wrap').style.display   = '';
             document.getElementById('btn-confirmar-conciliar').disabled  = false;
+            document.getElementById('btn-abrir-retfuente').disabled = false;
+            rfPeriodoActual = periodo;
+            rfLabelActual = label;
         });
 }
 document.getElementById('btn-confirmar-conciliar').addEventListener('click', function() {
@@ -1836,6 +2123,365 @@ function detTab(id, btn) {
     if (btn) btn.classList.add('active');
 }
 
+/* ── Retención en la fuente ─────────────────────────────────── */
+function abrirRetencionFuenteDesdeConciliacion() {
+    const periodo = document.getElementById('conc-periodo-conciliar').value;
+    const label = rfLabelActual || document.getElementById('conc-resumen-label').textContent || '—';
+    if (!periodo) return;
+    rfPeriodoActual = periodo;
+    rfLabelActual = label;
+    document.getElementById('rf-label-periodo').textContent = label;
+
+    const conciliarVisible = $('#modalConciliar').hasClass('show');
+    if (conciliarVisible) {
+        rfVolverAModalConciliar = true;
+        $('#modalConciliar').one('hidden.bs.modal', function () {
+            $('#modalRetFuente').modal('show');
+            rfCargarPeriodo(periodo);
+        });
+        $('#modalConciliar').modal('hide');
+        return;
+    }
+
+    $('#modalRetFuente').modal('show');
+    rfCargarPeriodo(periodo);
+}
+
+function rfCargarPeriodo(periodo) {
+    document.getElementById('rf-loader').classList.remove('d-none');
+    document.getElementById('rf-wrap').classList.add('d-none');
+
+    axios.get('/comisiones/conciliacion/retencion-fuente/resumen', { params: { periodo } })
+        .then(r => {
+            const d = r.data || {};
+            const resumen = d.resumen || {};
+
+            document.getElementById('rf-label-periodo').textContent = d.label || rfLabelActual || '—';
+            document.getElementById('rf-total-bruto').textContent = 'L ' + numFmt(resumen.total_bruto || 0);
+            document.getElementById('rf-total-ret').textContent = 'L ' + numFmt(resumen.total_retencion || 0);
+            document.getElementById('rf-total-neto').textContent = 'L ' + numFmt(resumen.total_neto || 0);
+
+            rfRenderEmpleados((resumen.empleados || []), periodo);
+            rfRenderHistorialPeriodo(d.historial || []);
+            rfActualizarResumenConciliar(resumen);
+
+            document.getElementById('rf-loader').classList.add('d-none');
+            document.getElementById('rf-wrap').classList.remove('d-none');
+        })
+        .catch(err => {
+            document.getElementById('rf-loader').classList.add('d-none');
+            document.getElementById('rf-wrap').classList.remove('d-none');
+            const msg = err.response?.data?.error || err.response?.data?.message || 'No se pudo cargar la retención en la fuente del período.';
+            document.getElementById('rf-emp-body').innerHTML = `<tr><td colspan="6" class="text-center text-danger" style="padding:22px;">${msg}</td></tr>`;
+            document.getElementById('rf-hist-periodo-body').innerHTML = '<tr><td colspan="6" class="text-center text-muted" style="padding:16px;">Sin historial</td></tr>';
+            document.getElementById('rf-emp-info').textContent = 'Sin registros';
+            document.getElementById('rf-emp-pag').innerHTML = '';
+        });
+}
+
+function rfActualizarResumenConciliar(resumen) {
+    if (!resumen) return;
+    const crTotal = document.getElementById('cr-total');
+    const crEmp = document.getElementById('cr-empleados');
+    if (crTotal) crTotal.textContent = 'L ' + numFmt(resumen.total_neto || 0);
+    if (crEmp) crEmp.textContent = resumen.cantidad_empleados ?? crEmp.textContent;
+}
+
+function rfRenderEmpleados(rows, periodo) {
+    rfEmpRows = Array.isArray(rows) ? rows : [];
+    rfEmpPeriodo = periodo;
+    rfRenderEmpPage(1);
+}
+
+function rfRenderEmpPage(page) {
+    const tbody = document.getElementById('rf-emp-body');
+    const info = document.getElementById('rf-emp-info');
+    const total = rfEmpRows.length;
+
+    if (!total) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted" style="padding:18px;">No hay empleados con comisión en el período.</td></tr>';
+        info.textContent = 'Sin registros';
+        document.getElementById('rf-emp-pag').innerHTML = '';
+        return;
+    }
+
+    const totalPages = Math.max(1, Math.ceil(total / RF_EMP_PAGE_SIZE));
+    const safePage = Math.min(Math.max(1, parseInt(page || 1)), totalPages);
+    const start = (safePage - 1) * RF_EMP_PAGE_SIZE;
+    const end = Math.min(start + RF_EMP_PAGE_SIZE, total);
+    const rows = rfEmpRows.slice(start, end);
+
+    tbody.innerHTML = rows.map(e => {
+        const tieneRet = !!e.retencion_activa_id;
+        const comentario = e.comentario_retencion ? String(e.comentario_retencion) : '<span style="color:#94a3b8;">—</span>';
+        const accion = tieneRet
+            ? `<button class="conc-btn conc-btn-reabrir" onclick="rfRevertir(${e.retencion_activa_id}, '${(e.nombre || '').replace(/'/g, "\\'")}')"><i class="fa fa-undo"></i> Revertir</button>`
+            : `<button class="conc-btn conc-btn-conciliar" onclick="rfAplicar('${rfEmpPeriodo}', ${e.user_id}, '${(e.nombre || '').replace(/'/g, "\\'")}', ${parseFloat(e.comision_bruta || 0)})"><i class="fa fa-minus-circle"></i> Aplicar</button>`;
+
+        return `<tr>
+            <td style="font-weight:700;">${e.nombre}</td>
+            <td class="text-right" style="font-weight:700;color:#1e3a8a;">L ${numFmt(e.comision_bruta || 0)}</td>
+            <td class="text-right" style="font-weight:700;color:${tieneRet ? '#c2410c' : '#64748b'};">L ${numFmt(e.retencion_fuente || 0)}</td>
+            <td class="text-right" style="font-weight:700;color:#0f766e;">L ${numFmt(e.comision_neta || 0)}</td>
+            <td style="font-size:11.5px;max-width:300px;">${comentario}</td>
+            <td class="text-right">${accion}</td>
+        </tr>`;
+    }).join('');
+
+    info.textContent = `Mostrando ${start + 1}-${end} de ${total} empleados`;
+    renderPaginacion('rf-emp-pag', safePage, total, 'rfRenderEmpPage');
+}
+
+function rfRenderHistorialPeriodo(rows) {
+    const tbody = document.getElementById('rf-hist-periodo-body');
+    if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted" style="padding:16px;">Sin historial para este período.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = rows.map(r => {
+        const estado = parseInt(r.estado || 0) === 1
+            ? '<span class="conc-estado estado-conciliado">ACTIVA</span>'
+            : '<span class="conc-estado estado-abierto">REVERTIDA</span>';
+        const estadoActivo = parseInt(r.estado || 0) === 1;
+        const rev = r.fecha_reversion
+            ? `${fmtFecha(r.fecha_reversion)}<br><span style="font-size:11px;color:#64748b;">${r.usuario_revirtio_nombre || '—'}</span>`
+            : (estadoActivo
+                ? '<span style="color:#94a3b8;font-size:11.5px;">No aplica (activa)</span>'
+                : '<span style="color:#94a3b8;">—</span>');
+        return `<tr>
+            <td>${r.empleado_nombre || ('Usuario #' + (r.user_id || '—'))}</td>
+            <td class="text-right" style="font-weight:700;color:#1e3a8a;">L ${numFmt(r.monto_retencion || 0)}</td>
+            <td>${estado}</td>
+            <td style="max-width:280px;font-size:11.5px;">${r.comentario || '—'}</td>
+            <td style="font-size:11.5px;">${fmtFecha(r.fecha_aplicacion)}<br><span style="color:#64748b;">${r.usuario_aplico_nombre || '—'}</span></td>
+            <td style="font-size:11.5px;">${rev}</td>
+        </tr>`;
+    }).join('');
+}
+
+function rfSwal(options) {
+    return Swal.fire(Object.assign({ zIndex: 300000 }, options || {}));
+}
+
+function rfAplicar(periodo, userId, nombre, comisionBruta) {
+    document.getElementById('rf-app-periodo').value = periodo;
+    document.getElementById('rf-app-user-id').value = userId;
+    document.getElementById('rf-app-bruta-raw').value = parseFloat(comisionBruta || 0).toFixed(2);
+    document.getElementById('rf-app-nombre').textContent = nombre || 'Empleado';
+    document.getElementById('rf-app-bruta').textContent = 'L ' + numFmt(comisionBruta || 0);
+
+    const inpMonto = document.getElementById('rf-app-monto');
+    const inpCom = document.getElementById('rf-app-comentario');
+    inpMonto.value = '';
+    inpCom.value = '';
+    inpMonto.setAttribute('max', parseFloat(comisionBruta || 0).toFixed(2));
+    rfAppSetError('');
+
+    $('#modalRFAplicar').modal('show');
+    setTimeout(() => inpMonto.focus(), 180);
+}
+
+function rfAppSetError(msg) {
+    const box = document.getElementById('rf-app-error');
+    if (!msg) {
+        box.classList.add('d-none');
+        box.textContent = '';
+        return;
+    }
+    box.textContent = msg;
+    box.classList.remove('d-none');
+}
+
+function rfLimitarMonto() {
+    const inpMonto = document.getElementById('rf-app-monto');
+    const bruta = parseFloat(document.getElementById('rf-app-bruta-raw').value || '0');
+    let monto = parseFloat(inpMonto.value || '0');
+
+    if (!isNaN(monto) && bruta > 0 && monto > bruta) {
+        inpMonto.value = bruta.toFixed(2);
+        rfAppSetError('La retención no puede ser mayor a la comisión bruta disponible.');
+        return;
+    }
+
+    rfAppSetError('');
+}
+
+function rfGuardarAplicacion() {
+    const periodo = document.getElementById('rf-app-periodo').value;
+    const userId = parseInt(document.getElementById('rf-app-user-id').value || '0');
+    const bruta = parseFloat(document.getElementById('rf-app-bruta-raw').value || '0');
+    const monto = parseFloat(document.getElementById('rf-app-monto').value || '0');
+    const comentario = (document.getElementById('rf-app-comentario').value || '').trim();
+
+    if (!monto || monto <= 0) {
+        rfAppSetError('Debe ingresar un monto válido mayor a 0.');
+        return;
+    }
+    if (monto > bruta) {
+        rfAppSetError('La retención no puede ser mayor a la comisión bruta disponible.');
+        return;
+    }
+    if (!comentario) {
+        rfAppSetError('El comentario es obligatorio para aplicar la retención.');
+        return;
+    }
+
+    rfAppSetError('');
+    const btn = document.getElementById('rf-app-btn-guardar');
+    const txt = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="conc-spinner conc-spinner-sm"></span> Aplicando...';
+
+    axios.post('/comisiones/conciliacion/retencion-fuente/aplicar', {
+        periodo: periodo,
+        user_id: userId,
+        monto: monto,
+        comentario: comentario
+    })
+    .then(res => {
+        const d = res.data || {};
+        $('#modalRFAplicar').modal('hide');
+        rfSwal({ icon: d.icon || 'success', title: d.title || 'Aplicado', text: d.text || 'Retención aplicada.' });
+        rfCargarPeriodo(periodo);
+        rfHistorialCargar();
+    })
+    .catch(err => {
+        const d = err.response?.data || {};
+        rfAppSetError(d.text || d.message || 'No se pudo aplicar la retención.');
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = txt;
+    });
+}
+
+function rfRevertir(retencionId, nombre) {
+    document.getElementById('rf-rev-id').value = retencionId;
+    document.getElementById('rf-rev-nombre').textContent = nombre || 'Empleado';
+    document.getElementById('rf-rev-comentario').value = '';
+    rfRevSetError('');
+    $('#modalRFRevertir').modal('show');
+    setTimeout(() => document.getElementById('rf-rev-comentario').focus(), 180);
+}
+
+function rfRevSetError(msg) {
+    const box = document.getElementById('rf-rev-error');
+    if (!msg) {
+        box.classList.add('d-none');
+        box.textContent = '';
+        return;
+    }
+    box.textContent = msg;
+    box.classList.remove('d-none');
+}
+
+function rfGuardarReversion() {
+    const retencionId = parseInt(document.getElementById('rf-rev-id').value || '0');
+    const comentario = (document.getElementById('rf-rev-comentario').value || '').trim();
+    const btn = document.getElementById('rf-rev-btn-guardar');
+    const txt = btn.innerHTML;
+
+    if (!retencionId) {
+        rfRevSetError('No se encontró la retención a revertir.');
+        return;
+    }
+
+    rfRevSetError('');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="conc-spinner conc-spinner-sm"></span> Revirtiendo...';
+
+    axios.post('/comisiones/conciliacion/retencion-fuente/revertir', {
+        retencion_id: retencionId,
+        comentario: comentario
+    })
+    .then(res => {
+        const d = res.data || {};
+        $('#modalRFRevertir').modal('hide');
+        rfSwal({ icon: d.icon || 'success', title: d.title || 'Revertida', text: d.text || 'Retención revertida.' });
+        if (rfPeriodoActual) rfCargarPeriodo(rfPeriodoActual);
+        rfHistorialCargar();
+    })
+    .catch(err => {
+        const d = err.response?.data || {};
+        rfRevSetError(d.text || d.message || 'No se pudo revertir.');
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = txt;
+    });
+}
+
+function rfHistorialCargar() {
+    const anio = parseInt(document.getElementById('rf-filtro-anio')?.value || '0');
+    const box = document.getElementById('rf-hist-body');
+    if (!box) return;
+    box.innerHTML = '<div class="conc-loader"><div class="conc-spinner"></div> Cargando historial...</div>';
+
+    axios.get('/comisiones/conciliacion/retencion-fuente/historial', { params: { anio } })
+        .then(r => {
+            const d = r.data || {};
+            const rows = d.rows || [];
+            const total = d.total || rows.length;
+            document.getElementById('rf-badge-total').textContent = `${total} registros`;
+            rfPoblarFiltroAnios(d.anios || [], anio);
+
+            if (!rows.length) {
+                box.innerHTML = '<div style="padding:30px 20px;color:#94a3b8;text-align:center;"><i class="fa fa-inbox" style="font-size:28px;opacity:.45"></i><div style="margin-top:8px;font-size:13px;">Sin historial de retenciones</div></div>';
+                return;
+            }
+
+            const table = `<div class="table-responsive" style="padding:0 20px 16px;"><table class="conc-tbl" style="margin:0;">
+                <thead><tr>
+                    <th>Período</th><th>Empleado</th><th class="text-right">Monto</th><th>Estado</th><th>Aplicó</th><th>Reversión</th><th>Comentario</th>
+                </tr></thead>
+                <tbody>
+                    ${rows.map(rw => {
+                        const estado = parseInt(rw.estado || 0) === 1
+                            ? '<span class="conc-estado estado-conciliado">ACTIVA</span>'
+                            : '<span class="conc-estado estado-abierto">REVERTIDA</span>';
+                        const revLabel = rw.fecha_reversion
+                            ? `${fmtFecha(rw.fecha_reversion)}<br><span style="color:#64748b;">${rw.usuario_nombre_revirtio || '—'}</span>`
+                            : (parseInt(rw.estado || 0) === 1
+                                ? '<span style="color:#94a3b8;font-size:11.5px;">No aplica (activa)</span>'
+                                : '<span style="color:#94a3b8;">—</span>');
+                        return `<tr>
+                            <td>${fmtMesShort(rw.periodo)}</td>
+                            <td>${rw.empleado_nombre || ('Usuario #' + (rw.user_id || '—'))}</td>
+                            <td class="text-right" style="font-weight:700;color:#1e3a8a;">L ${numFmt(rw.monto_retencion || 0)}</td>
+                            <td>${estado}</td>
+                            <td style="font-size:11.5px;">${fmtFecha(rw.fecha_aplicacion)}<br><span style="color:#64748b;">${rw.usuario_nombre_aplico || '—'}</span></td>
+                            <td style="font-size:11.5px;">${revLabel}</td>
+                            <td style="max-width:280px;font-size:11.5px;">${rw.comentario || '—'}</td>
+                        </tr>`;
+                    }).join('')}
+                </tbody></table></div>`;
+            box.innerHTML = table;
+        })
+        .catch(() => {
+            box.innerHTML = '<div class="alert alert-danger m-3"><i class="fa fa-times-circle mr-1"></i> Error al cargar historial de retenciones.</div>';
+        });
+}
+
+function rfPoblarFiltroAnios(anios, anioSel) {
+    const sel = document.getElementById('rf-filtro-anio');
+    if (!sel) return;
+    const actual = parseInt(anioSel || 0);
+    let html = '<option value="0">Todos los años</option>';
+    (anios || []).forEach(a => {
+        const n = parseInt(a);
+        if (!n) return;
+        html += `<option value="${n}" ${n === actual ? 'selected' : ''}>${n}</option>`;
+    });
+    sel.innerHTML = html;
+}
+
+function fmtMesShort(periodo) {
+    if (!periodo) return '—';
+    const d = new Date(periodo + 'T00:00:00');
+    return d.toLocaleDateString('es-HN', { month:'short', year:'numeric' });
+}
+
 /* ── Helpers ─────────────────────────────────────────────────── */
 function numFmt(n) {
     return parseFloat(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -1849,23 +2495,53 @@ function fmtFechaPlain(s) {
     return new Date(s).toLocaleString('es-HN',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
 }
 
+function setupModalStacking() {
+    // Permite abrir modales encima de otros sin que queden detrás del backdrop.
+    $(document).on('show.bs.modal', '.modal', function () {
+        const zIndex = 1040 + (10 * $('.modal:visible').length);
+        $(this).css('z-index', zIndex);
+        setTimeout(function () {
+            $('.modal-backdrop').not('.modal-stack').first()
+                .css('z-index', zIndex - 1)
+                .addClass('modal-stack');
+        }, 0);
+    });
+
+    $(document).on('hidden.bs.modal', '.modal', function () {
+        if ($('.modal:visible').length) {
+            $('body').addClass('modal-open');
+        }
+    });
+
+    $('#modalRetFuente').on('hidden.bs.modal', function () {
+        if (rfVolverAModalConciliar) {
+            rfVolverAModalConciliar = false;
+            $('#modalConciliar').modal('show');
+        }
+    });
+}
+
 /* ── Bootstrap ───────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', function() {
+    setupModalStacking();
     cargarPeriodos();
 });
 
 /* ── Tabs del panel ──────────────────────────────────────────── */
 let dgLoaded = false;
+let rfLoaded = false;
 function concTab(tab) {
     // Activar botones
     document.getElementById('tab-btn-periodos').classList.toggle('active', tab === 'periodos');
     document.getElementById('tab-btn-diasgracia').classList.toggle('active', tab === 'diasgracia');
     document.getElementById('tab-btn-auditoria').classList.toggle('active', tab === 'auditoria');
+    document.getElementById('tab-btn-retfuente').classList.toggle('active', tab === 'retfuente');
     // Mostrar panes
     document.getElementById('conc-tab-periodos').classList.toggle('active', tab === 'periodos');
     document.getElementById('conc-tab-diasgracia').classList.toggle('active', tab === 'diasgracia');
     // El tab de auditoría usa display:none/block (no tiene clase active en CSS heredada)
     document.getElementById('conc-tab-auditoria').style.display = (tab === 'auditoria') ? 'block' : 'none';
+    document.getElementById('conc-tab-retfuente').style.display = (tab === 'retfuente') ? 'block' : 'none';
     // Cargar días de gracia la primera vez que se abre ese tab
     if (tab === 'diasgracia' && !dgLoaded) {
         dgLoaded = true;
@@ -1875,6 +2551,10 @@ function concTab(tab) {
     if (tab === 'auditoria' && !audLoaded) {
         audLoaded = true;
         audCargar();
+    }
+    if (tab === 'retfuente' && !rfLoaded) {
+        rfLoaded = true;
+        rfHistorialCargar();
     }
 }
 

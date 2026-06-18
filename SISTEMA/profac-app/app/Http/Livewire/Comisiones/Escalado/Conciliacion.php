@@ -264,6 +264,14 @@ class Conciliacion extends Component
             ->get()
             ->keyBy('periodo');
 
+        // Retenciones en la fuente activas por período (afectan total abierto en vivo)
+        $retencionesLive = DB::table('comision_retencion_fuente')
+            ->where('estado', 1)
+            ->selectRaw('periodo, SUM(monto_retencion) as total_retencion')
+            ->groupBy('periodo')
+            ->get()
+            ->keyBy('periodo');
+
         $resultado = [];
         foreach ($periodos as $carbon) {
             $key    = $carbon->format('Y-m-d');
@@ -274,16 +282,26 @@ class Conciliacion extends Component
             $live   = $totalesLive->get($key);
             $liveFac = $facturasLive->get($key);
 
-            if ($esFut) {
-                $estado = 'sin_abrir';
-            } elseif ($reg && (int) $reg->estado === ModelComisionPeriodo::ESTADO_CONCILIADO) {
+            $totalLivePeriodo = (float) ($live->total ?? 0);
+            $facturasLivePeriodo = (int) ($liveFac->facturas ?? 0);
+            $tieneComisionesParaConciliar = ($totalLivePeriodo > 0) && ($facturasLivePeriodo > 0);
+
+            if ($reg && (int) $reg->estado === ModelComisionPeriodo::ESTADO_CONCILIADO) {
                 $estado = 'conciliado';
+            } elseif ($tieneComisionesParaConciliar) {
+                // Regla de negocio: si el mes ya tiene comisiones, debe poder conciliarse
+                // aunque no sea el mes actual.
+                $estado = 'abierto';
+            } elseif ($esFut) {
+                $estado = 'sin_abrir';
             } else {
                 $estado = 'abierto';
             }
 
             // Para conciliados usamos el snapshot; para abiertos usamos live
-            $totalComision   = $estado === 'conciliado' ? (float) $reg->total_comision  : (float) ($live->total ?? 0);
+            $retencionPeriodo = (float) ($retencionesLive->get($key)->total_retencion ?? 0);
+            $totalLiveAbierto = max(0.0, (float) ($live->total ?? 0) - $retencionPeriodo);
+            $totalComision   = $estado === 'conciliado' ? (float) $reg->total_comision  : $totalLiveAbierto;
             $cantEmpleados   = $estado === 'conciliado' ? (int) $reg->cantidad_empleados : (int) ($live->empleados ?? 0);
             $cantFacturas    = $estado === 'conciliado' ? (int) $reg->cantidad_facturas  : (int) ($liveFac->facturas ?? 0);
 
@@ -501,6 +519,7 @@ class Conciliacion extends Component
         }
 
         $periodo = Carbon::parse($periodoStr)->startOfMonth()->toDateString();
+        $snapshot = $this->_calcularSnapshot($periodo);
 
         // Empleados con comisiones en este período
         $empleados = DB::select("
@@ -574,9 +593,230 @@ class Conciliacion extends Component
         return response()->json([
             'periodo'   => $periodo,
             'label'     => $this->_mesLabelFromStr($periodo),
+            'resumen'   => [
+                'total_bruto'           => $snapshot['total_bruto'],
+                'total_retencion'       => $snapshot['total_retencion'],
+                'total_neto'            => $snapshot['total_comision'],
+                'cantidad_empleados'    => $snapshot['cantidad_empleados'],
+                'cantidad_facturas'     => $snapshot['cantidad_facturas'],
+            ],
             'empleados' => $empleados,
             'facturas'  => $facturas,
             'logs'      => $logs,
+        ]);
+    }
+
+    /* ══════════════════════════════════════════════════════════════════
+     *  RETENCIÓN EN LA FUENTE — GESTIÓN POR EMPLEADO
+     * ════════════════════════════════════════════════════════════════ */
+
+    public function resumenRetencionFuente(Request $request)
+    {
+        $periodoStr = trim($request->input('periodo', ''));
+        if (!$periodoStr) {
+            return response()->json(['error' => 'Período requerido.'], 422);
+        }
+
+        $periodo = Carbon::parse($periodoStr)->startOfMonth()->toDateString();
+        $resumen = $this->_construirResumenRetencionFuente($periodo);
+
+        $historial = DB::table('comision_retencion_fuente as rf')
+            ->leftJoin('users as ua', 'ua.id', '=', 'rf.usuario_aplico')
+            ->leftJoin('users as ur', 'ur.id', '=', 'rf.usuario_revirtio')
+            ->leftJoin('users as ue', 'ue.id', '=', 'rf.users_comision')
+            ->where('rf.periodo', $periodo)
+            ->orderByDesc('rf.id')
+            ->get([
+                'rf.id',
+                'rf.periodo',
+                'rf.users_comision as user_id',
+                'ue.name as empleado_nombre',
+                'rf.monto_retencion',
+                'rf.comentario',
+                'rf.estado',
+                'rf.created_at as fecha_aplicacion',
+                'rf.fecha_reversion',
+                'rf.comentario_reversion',
+                'ua.name as usuario_aplico_nombre',
+                'ur.name as usuario_revirtio_nombre',
+            ]);
+
+        return response()->json([
+            'periodo'   => $periodo,
+            'label'     => $this->_mesLabelFromStr($periodo),
+            'resumen'   => $resumen,
+            'historial' => $historial,
+        ]);
+    }
+
+    public function aplicarRetencionFuente(Request $request)
+    {
+        $request->validate([
+            'periodo'   => 'required|date',
+            'user_id'   => 'required|integer',
+            'monto'     => 'required|numeric|min:0.01',
+            'comentario'=> 'required|string|max:500',
+        ], [
+            'comentario.required' => 'Debe ingresar un comentario de la retención en la fuente.',
+        ]);
+
+        $periodo = Carbon::parse($request->periodo)->startOfMonth()->toDateString();
+        $userId  = (int) $request->user_id;
+        $monto   = round((float) $request->monto, 2);
+
+        DB::beginTransaction();
+        try {
+            $comisionBruta = (float) DB::table('comision_empleado')
+                ->where('mes_comision', $periodo)
+                ->where('users_comision', $userId)
+                ->where('estado_id', 1)
+                ->sum('comision_acumulada');
+
+            if ($comisionBruta <= 0) {
+                return response()->json([
+                    'icon'  => 'warning',
+                    'title' => 'Sin comisión',
+                    'text'  => 'El empleado no tiene comisión para este período.',
+                ], 422);
+            }
+
+            $activa = DB::table('comision_retencion_fuente')
+                ->where('periodo', $periodo)
+                ->where('users_comision', $userId)
+                ->where('estado', 1)
+                ->first();
+
+            if ($activa) {
+                return response()->json([
+                    'icon'  => 'warning',
+                    'title' => 'Retención activa',
+                    'text'  => 'Ya existe una retención activa para este empleado en el período. Reviértala antes de aplicar una nueva.',
+                ], 422);
+            }
+
+            if ($monto > $comisionBruta) {
+                return response()->json([
+                    'icon'  => 'warning',
+                    'title' => 'Monto inválido',
+                    'text'  => 'La retención no puede ser mayor a la comisión bruta del empleado en este período.',
+                ], 422);
+            }
+
+            DB::table('comision_retencion_fuente')->insert([
+                'periodo'              => $periodo,
+                'users_comision'       => $userId,
+                'monto_retencion'      => $monto,
+                'comentario'           => trim((string) $request->comentario),
+                'estado'               => 1,
+                'usuario_aplico'       => Auth::id(),
+                'usuario_nombre_aplico'=> Auth::user()->name,
+                'created_at'           => now(),
+                'updated_at'           => now(),
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'icon'  => 'success',
+                'title' => 'Retención aplicada',
+                'text'  => 'La retención fue aplicada y se deducirá del total a comisionar del empleado.',
+            ]);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json([
+                'icon'  => 'error',
+                'title' => 'Error',
+                'text'  => 'No se pudo aplicar la retención: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function revertirRetencionFuente(Request $request)
+    {
+        $request->validate([
+            'retencion_id' => 'required|integer',
+            'comentario'   => 'nullable|string|max:500',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $ret = DB::table('comision_retencion_fuente')
+                ->where('id', (int) $request->retencion_id)
+                ->first();
+
+            if (!$ret || (int) $ret->estado !== 1) {
+                return response()->json([
+                    'icon'  => 'warning',
+                    'title' => 'No disponible',
+                    'text'  => 'La retención no existe o ya fue revertida.',
+                ], 422);
+            }
+
+            DB::table('comision_retencion_fuente')
+                ->where('id', (int) $request->retencion_id)
+                ->update([
+                    'estado'                 => 0,
+                    'usuario_revirtio'       => Auth::id(),
+                    'usuario_nombre_revirtio'=> Auth::user()->name,
+                    'fecha_reversion'        => now(),
+                    'comentario_reversion'   => trim((string) ($request->comentario ?? '')) ?: null,
+                    'updated_at'             => now(),
+                ]);
+
+            DB::commit();
+
+            return response()->json([
+                'icon'  => 'success',
+                'title' => 'Retención revertida',
+                'text'  => 'La retención fue revertida correctamente.',
+            ]);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json([
+                'icon'  => 'error',
+                'title' => 'Error',
+                'text'  => 'No se pudo revertir la retención: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function historialRetencionFuente(Request $request)
+    {
+        $anio = (int) $request->input('anio', 0);
+
+        $query = DB::table('comision_retencion_fuente as rf')
+            ->leftJoin('users as u', 'u.id', '=', 'rf.users_comision')
+            ->orderByDesc('rf.created_at');
+
+        if ($anio > 0) {
+            $query->whereYear('rf.periodo', $anio);
+        }
+
+        $rows = $query->get([
+            'rf.id',
+            'rf.periodo',
+            'rf.users_comision as user_id',
+            'u.name as empleado_nombre',
+            'rf.monto_retencion',
+            'rf.comentario',
+            'rf.estado',
+            'rf.usuario_nombre_aplico',
+            'rf.created_at as fecha_aplicacion',
+            'rf.usuario_nombre_revirtio',
+            'rf.fecha_reversion',
+            'rf.comentario_reversion',
+        ]);
+
+        $aniosDisponibles = DB::table('comision_retencion_fuente')
+            ->selectRaw('YEAR(periodo) as anio')
+            ->distinct()
+            ->orderByDesc('anio')
+            ->pluck('anio');
+
+        return response()->json([
+            'rows'  => $rows,
+            'anios' => $aniosDisponibles,
+            'total' => $rows->count(),
         ]);
     }
 
@@ -589,28 +829,52 @@ class Conciliacion extends Component
      */
     private function _calcularSnapshot(string $periodo): array
     {
-        $empleados = DB::select("
+        $empleadosBase = DB::select(" 
             SELECT
-                u.id   AS user_id,
-                u.name AS nombre,
-                r.nombre AS rol,
-                r.id AS rol_id,
-                ce.mes_comision,
-                ce.comision_acumulada,
-                COUNT(DISTINCT fc.factura_id) AS cantidad_facturas
+                ce.users_comision AS user_id,
+                u.name            AS nombre,
+                SUM(ce.comision_acumulada) AS comision_bruta,
+                MAX(ce.fecha_ult_modificacion) AS fecha_ult_modificacion
             FROM comision_empleado ce
             INNER JOIN users u ON u.id = ce.users_comision
-            INNER JOIN rol   r ON r.id = ce.rol_id
-            LEFT  JOIN facturas_comision fc
-                ON  fc.rol_id    = ce.rol_id
-                AND fc.estado_id = 1
-                AND DATE_FORMAT(fc.fecha_cierre_factura,'%Y-%m-01') = ?
             WHERE ce.mes_comision = ?
               AND ce.estado_id    = 1
               AND ce.comision_acumulada > 0
-            GROUP BY ce.id, u.id, u.name, r.nombre, r.id, ce.mes_comision, ce.comision_acumulada
-            ORDER BY ce.comision_acumulada DESC
-        ", [$periodo, $periodo]);
+            GROUP BY ce.users_comision, u.name
+            ORDER BY SUM(ce.comision_acumulada) DESC
+        ", [$periodo]);
+
+        $retencionesActivas = DB::table('comision_retencion_fuente')
+            ->where('periodo', $periodo)
+            ->where('estado', 1)
+            ->selectRaw('users_comision, SUM(monto_retencion) as total_retencion')
+            ->groupBy('users_comision')
+            ->pluck('total_retencion', 'users_comision');
+
+        $empleados = [];
+        $totalBruto = 0.0;
+        $totalRetencion = 0.0;
+        $totalNeto = 0.0;
+
+        foreach ($empleadosBase as $e) {
+            $bruto = (float) ($e->comision_bruta ?? 0);
+            $ret = (float) ($retencionesActivas[$e->user_id] ?? 0);
+            $retAjustada = min($ret, $bruto);
+            $neto = max(0.0, $bruto - $retAjustada);
+
+            $totalBruto += $bruto;
+            $totalRetencion += $retAjustada;
+            $totalNeto += $neto;
+
+            $empleados[] = [
+                'user_id'              => (int) $e->user_id,
+                'nombre'               => (string) $e->nombre,
+                'comision_bruta'       => round($bruto, 2),
+                'retencion_fuente'     => round($retAjustada, 2),
+                'comision_neta'        => round($neto, 2),
+                'fecha_ult_modificacion' => $e->fecha_ult_modificacion,
+            ];
+        }
 
         $facturas = DB::select("
             SELECT
@@ -624,21 +888,88 @@ class Conciliacion extends Component
               AND DATE_FORMAT(fc.fecha_cierre_factura,'%Y-%m-01') = ?
         ", [$periodo]);
 
-        $totalComision  = array_sum(array_column($empleados, 'comision_acumulada'));
-        $cantEmpleados  = count(array_filter(array_unique(array_column($empleados, 'user_id')), function($uid) use ($empleados) {
-            foreach ($empleados as $e) {
-                if ($e->user_id == $uid && $e->comision_acumulada > 0) return true;
-            }
-            return false;
-        }));
+        $cantEmpleados  = count($empleados);
         $cantFacturas   = count(array_unique(array_column($facturas, 'factura_id')));
 
         return [
-            'total_comision'      => round((float) $totalComision, 2),
+            'total_bruto'         => round((float) $totalBruto, 2),
+            'total_retencion'     => round((float) $totalRetencion, 2),
+            'total_comision'      => round((float) $totalNeto, 2),
             'cantidad_empleados'  => $cantEmpleados,
             'cantidad_facturas'   => $cantFacturas,
-            'detalle_empleados'   => array_map(fn($e) => (array) $e, $empleados),
+            'detalle_empleados'   => $empleados,
             'detalle_facturas'    => array_map(fn($f) => (array) $f, $facturas),
+        ];
+    }
+
+    /**
+     * Construye un resumen por empleado para retención en la fuente.
+     */
+    private function _construirResumenRetencionFuente(string $periodo): array
+    {
+        $empleadosBase = DB::select(" 
+            SELECT
+                ce.users_comision AS user_id,
+                u.name            AS nombre,
+                SUM(ce.comision_acumulada) AS comision_bruta
+            FROM comision_empleado ce
+            INNER JOIN users u ON u.id = ce.users_comision
+            WHERE ce.mes_comision = ?
+              AND ce.estado_id    = 1
+              AND ce.comision_acumulada > 0
+            GROUP BY ce.users_comision, u.name
+            ORDER BY SUM(ce.comision_acumulada) DESC
+        ", [$periodo]);
+
+        $retencionesActivas = DB::table('comision_retencion_fuente as rf')
+            ->leftJoin('users as ua', 'ua.id', '=', 'rf.usuario_aplico')
+            ->where('rf.periodo', $periodo)
+            ->where('rf.estado', 1)
+            ->get([
+                'rf.id',
+                'rf.users_comision',
+                'rf.monto_retencion',
+                'rf.comentario',
+                'rf.created_at',
+                'ua.name as usuario_aplico_nombre',
+            ])
+            ->keyBy('users_comision');
+
+        $empleados = [];
+        $totalBruto = 0.0;
+        $totalRet = 0.0;
+        $totalNeto = 0.0;
+
+        foreach ($empleadosBase as $e) {
+            $bruto = (float) ($e->comision_bruta ?? 0);
+            $retActivo = $retencionesActivas->get($e->user_id);
+            $ret = (float) ($retActivo->monto_retencion ?? 0);
+            $retAjustada = min($ret, $bruto);
+            $neto = max(0.0, $bruto - $retAjustada);
+
+            $totalBruto += $bruto;
+            $totalRet += $retAjustada;
+            $totalNeto += $neto;
+
+            $empleados[] = [
+                'user_id'             => (int) $e->user_id,
+                'nombre'              => (string) $e->nombre,
+                'comision_bruta'      => round($bruto, 2),
+                'retencion_fuente'    => round($retAjustada, 2),
+                'comision_neta'       => round($neto, 2),
+                'retencion_activa_id' => $retActivo ? (int) $retActivo->id : null,
+                'comentario_retencion'=> $retActivo->comentario ?? null,
+                'fecha_retencion'     => $retActivo->created_at ?? null,
+                'usuario_aplico'      => $retActivo->usuario_aplico_nombre ?? null,
+            ];
+        }
+
+        return [
+            'total_bruto'        => round($totalBruto, 2),
+            'total_retencion'    => round($totalRet, 2),
+            'total_neto'         => round($totalNeto, 2),
+            'cantidad_empleados' => count($empleados),
+            'empleados'          => $empleados,
         ];
     }
 

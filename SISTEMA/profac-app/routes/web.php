@@ -297,6 +297,10 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/comisiones/conciliacion/detalle',               [ConciliacionComisiones::class, 'detallePeriodo'])->name('comisiones.conciliacion.detalle');
     Route::get('/comisiones/conciliacion/auditoria-logs',        [ConciliacionComisiones::class, 'listarAuditoriaLogs'])->name('comisiones.conciliacion.auditoria');
     Route::get('/comisiones/conciliacion/verificar-periodo',     [ConciliacionComisiones::class, 'verificarPeriodoPago'])->name('comisiones.conciliacion.verificar_periodo');
+    Route::get('/comisiones/conciliacion/retencion-fuente/resumen', [ConciliacionComisiones::class, 'resumenRetencionFuente'])->name('comisiones.conciliacion.retencion_fuente.resumen');
+    Route::post('/comisiones/conciliacion/retencion-fuente/aplicar', [ConciliacionComisiones::class, 'aplicarRetencionFuente'])->name('comisiones.conciliacion.retencion_fuente.aplicar');
+    Route::post('/comisiones/conciliacion/retencion-fuente/revertir', [ConciliacionComisiones::class, 'revertirRetencionFuente'])->name('comisiones.conciliacion.retencion_fuente.revertir');
+    Route::get('/comisiones/conciliacion/retencion-fuente/historial', [ConciliacionComisiones::class, 'historialRetencionFuente'])->name('comisiones.conciliacion.retencion_fuente.historial');
     // Días de gracia
     Route::get('/comisiones/dias-gracia',                        [ConciliacionComisiones::class, 'listarDiasGracia'])->name('comisiones.dias_gracia.index');
     Route::post('/comisiones/dias-gracia/guardar',               [ConciliacionComisiones::class, 'guardarDiasGracia'])->name('comisiones.dias_gracia.guardar');
