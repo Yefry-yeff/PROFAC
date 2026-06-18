@@ -46,43 +46,28 @@ class FacturacionCorporativa extends Component
     public function listarClientes(Request $request)
     {
         try {
+            $rolId = Auth::user()->rol_id ?? 0;
+            $like  = '%' . $request->search . '%';
 
+            $query = DB::table('cliente')
+                ->join('users', 'users.id', '=', 'cliente.vendedor')
+                ->select('cliente.id', 'cliente.nombre as text',
+                         'users.id as idVendedor', 'users.name as vendedor')
+                ->where('cliente.estado_cliente_id', 1)
+                ->where('cliente.tipo_cliente_id', 1)
+                ->where(function ($q) use ($like) {
+                    $q->where('cliente.id', 'LIKE', $like)
+                      ->orWhere('cliente.nombre', 'LIKE', $like);
+                });
 
-            if (Auth::user()->rol_id == 1 or Auth::user()->rol_id == 3) {
-                $listaClientes = DB::SELECT("
-                select
-                    cliente.id,
-                    cliente.nombre as text,
-                    users.id as 'idVendedor',
-                    users.name as 'vendedor'
-                from cliente
-                inner join users on users.id = cliente.vendedor
-                    where cliente.estado_cliente_id = 1
-
-                    and cliente.tipo_cliente_id=1
-                    and  (cliente.id LIKE '%" . $request->search . "%' or cliente.nombre Like '%" . $request->search . "%') limit 15
-                        ");
-            } else {
-                $listaClientes = DB::SELECT("
-                select
-                    cliente.id,
-                    cliente.nombre as text,
-                    users.id as 'idVendedor',
-                    users.name as 'vendedor'
-                from cliente
-                inner join users on users.id = cliente.vendedor
-                    where cliente.estado_cliente_id = 1
-
-                    and cliente.tipo_cliente_id=1
-                    and  (cliente.id LIKE '%" . $request->search . "%' or cliente.nombre Like '%" . $request->search . "%') limit 15
-                        ");
+            // Solo Admin (1) ve todos los clientes; los demás solo sus asignados
+            if ($rolId !== 1) {
+                $query->where('cliente.vendedor', Auth::id());
             }
 
+            $listaClientes = $query->orderBy('cliente.nombre')->limit(15)->get();
 
-
-            return response()->json([
-                "results" => $listaClientes,
-            ], 200);
+            return response()->json(['results' => $listaClientes], 200);
         } catch (QueryException $e) {
             return response()->json([
                 'message' => 'Ha ocurrido un error',

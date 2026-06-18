@@ -948,8 +948,8 @@ class ModalFlujoPedido extends Component
                   ->orWhere('nombre', 'LIKE', $like);
             });
 
-        // Solo el Administrador (1), Televendedor (3) y Mercadeo (9) ven todos los clientes
-        if (!in_array($rolId, [1, 3, 9])) {
+        // Solo Admin (1) ve todos los clientes; los dem\u00e1s solo sus asignados
+        if ($rolId !== 1) {
             $query->where('vendedor', Auth::id());
         }
 

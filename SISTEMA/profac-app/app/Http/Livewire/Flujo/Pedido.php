@@ -136,17 +136,23 @@ class Pedido extends Component
 
     private function ejecutarBusqueda(string $term): array
     {
-        $resultados = DB::table('cliente')
+        $rolId = Auth::user()->rol_id ?? 0;
+
+        $query = DB::table('cliente')
             ->select('id', 'nombre', 'rtn', 'correo', 'telefono_empresa', 'direccion',
                      'credito', 'dias_credito')
+            ->where('estado_cliente_id', 1)
             ->where(function($q) use ($term) {
                 $q->where('nombre', 'LIKE', '%' . $term . '%')
                   ->orWhere('rtn', 'LIKE', '%' . $term . '%');
-            })
-            ->limit(5)
-            ->get();
+            });
 
-        return $resultados->map(fn($r) => (array) $r)->toArray();
+        // Solo Admin (1) ve todos los clientes; los demás solo sus asignados
+        if ($rolId !== 1) {
+            $query->where('vendedor', Auth::id());
+        }
+
+        return $query->limit(5)->get()->map(fn($r) => (array) $r)->toArray();
     }
 
     public function buscarCliente()

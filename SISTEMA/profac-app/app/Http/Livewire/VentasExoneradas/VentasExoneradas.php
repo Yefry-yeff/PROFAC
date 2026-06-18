@@ -38,38 +38,25 @@ class VentasExoneradas extends Component
     public function listarClientes(Request $request)
     {
         try {
-            if (Auth::user()->rol_id == 1 or Auth::user()->rol_id == 3) {
-                $listaClientes = DB::SELECT("
-                select
-                    id,
-                    nombre as text
-                from cliente
-                    where estado_cliente_id = 1
-                    and id<>1
-                    and  (id LIKE '%" . $request->search . "%' or nombre Like '%" . $request->search . "%') limit 15
-                        ");
+            $like = '%' . $request->search . '%';
 
-            }else{
-                $listaClientes = DB::SELECT("
-                select
-                    id,
-                    nombre as text
-                from cliente
-                    where estado_cliente_id = 1
-                    and id<>1
-                    and vendedor =" . Auth::user()->id . "
-                    and  (id LIKE '%" . $request->search . "%' or nombre Like '%" . $request->search . "%') limit 15
-                        ");
+            $query = DB::table('cliente')
+                ->select('id', 'nombre as text')
+                ->where('estado_cliente_id', 1)
+                ->where('id', '<>', 1)
+                ->where(function ($q) use ($like) {
+                    $q->where('id', 'LIKE', $like)
+                      ->orWhere('nombre', 'LIKE', $like);
+                });
 
+            // Solo Admin (1) ve todos los clientes; los demás solo sus asignados
+            if (Auth::user()->rol_id !== 1) {
+                $query->where('vendedor', Auth::id());
             }
 
+            $listaClientes = $query->limit(15)->get();
 
-
-
-
-            return response()->json([
-                "results" => $listaClientes,
-            ], 200);
+            return response()->json(['results' => $listaClientes], 200);
         } catch (QueryException $e) {
             return response()->json([
                 'message' => 'Ha ocurrido un error',

@@ -46,13 +46,23 @@ class OfertaPedido extends Component
     public function listarClientes(Request $request)
     {
         try {
-            $listaClientes = DB::select("
-                SELECT id, nombre AS text
-                FROM cliente
-                WHERE estado_cliente_id = 1
-                  AND (id LIKE ? OR nombre LIKE ?)
-                LIMIT 15
-            ", ['%'.$request->search.'%', '%'.$request->search.'%']);
+            $rolId  = Auth::user()->rol_id ?? 0;
+            $like   = '%' . $request->search . '%';
+
+            $query = DB::table('cliente')
+                ->select('id', 'nombre as text')
+                ->where('estado_cliente_id', 1)
+                ->where(function ($q) use ($like) {
+                    $q->where('id', 'LIKE', $like)
+                      ->orWhere('nombre', 'LIKE', $like);
+                });
+
+            // Solo Admin (1) ve todos los clientes; los demás solo sus asignados
+            if ($rolId !== 1) {
+                $query->where('vendedor', Auth::id());
+            }
+
+            $listaClientes = $query->orderBy('nombre')->limit(15)->get();
 
             return response()->json(['results' => $listaClientes], 200);
         } catch (QueryException $e) {
