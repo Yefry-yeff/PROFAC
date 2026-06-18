@@ -74,6 +74,9 @@
                                 <x-jet-dropdown-link href="{{ route('configuracion.notificaciones.flujo') }}">
                                     <i class="fa fa-bell mr-2 text-orange-500"></i> Configuración de notificaciones
                                 </x-jet-dropdown-link>
+                                <x-jet-dropdown-link href="{{ route('configuracion.codigos.autorizacion') }}">
+                                    <i class="fa fa-key mr-2 text-blue-500"></i> Configuración de Códigos de Autorización
+                                </x-jet-dropdown-link>
                             @endif
 
                             @if (Laravel\Jetstream\Jetstream::hasApiFeatures())

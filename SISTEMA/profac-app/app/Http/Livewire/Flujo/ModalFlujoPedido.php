@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Mail;
 use App\Models\PrefacturaAuditoria;
 use App\Models\CreditoRevision;
 use App\Models\ModelCodigoAutorizacion;
+use App\Models\ConfiguracionCodigoAutorizacion;
 use App\Models\ModelRecibirBodega;
 use App\Models\ModelCliente;
 use App\Models\ModelLogTranslados;
@@ -1872,12 +1873,19 @@ class ModalFlujoPedido extends Component
             default                => ucfirst(str_replace('_', ' ', $accion)),
         };
 
-        $codigo = rand(1000, 9999);
+        $config   = ConfiguracionCodigoAutorizacion::obtener();
+        $codigo   = rand(1000, 9999);
 
         $autorizacion = new ModelCodigoAutorizacion;
-        $autorizacion->codigo    = $codigo;
-        $autorizacion->users_id  = Auth::user()->id;
-        $autorizacion->estado_id = 1;
+        $autorizacion->codigo           = $codigo;
+        $autorizacion->users_id         = Auth::user()->id;
+        $autorizacion->estado_id        = 1;
+        $autorizacion->flujo_id         = $flujoId;
+        $autorizacion->tipo_tramite     = $accion;  // editar_factura | anular_prefactura | revertir_prefactura
+        $autorizacion->estado_codigo_id = 1; // Pendiente
+        $autorizacion->fecha_expiracion = $config->expiracion_activa
+            ? now()->addMinutes($config->tiempo_expiracion_minutos)
+            : null;
         $autorizacion->save();
 
         $viewData = [
@@ -1924,13 +1932,13 @@ class ModalFlujoPedido extends Component
             return;
         }
 
-        $autorizacion = DB::table('codigo_autorizacion')
-            ->where('estado_id', 1)
+        $autorizacion = ModelCodigoAutorizacion::where('estado_id', 1)
+            ->where('estado_codigo_id', 1) // Pendiente
             ->where('codigo', $codigo)
-            ->first(['id', 'users_id']);
+            ->first(['id', 'users_id', 'flujo_id', 'tipo_tramite', 'fecha_expiracion', 'estado_codigo_id']);
 
-        if (!$autorizacion) {
-            $this->mensajeError = 'El código de autorización es inválido o ya fue desactivado.';
+        if (!$autorizacion || !$autorizacion->esValido((int) $this->flujoId, $this->accionAutorizacionPrefactura)) {
+            $this->mensajeError = 'El código de autorización no es válido o ha expirado.';
             return;
         }
 
@@ -1943,10 +1951,8 @@ class ModalFlujoPedido extends Component
             return;
         }
 
-        // Desactivar el código para que no pueda reutilizarse
-        DB::table('codigo_autorizacion')
-            ->where('id', $this->autorizacionId)
-            ->update(['estado_id' => 2, 'updated_at' => now()]);
+        // Marcar el código como utilizado
+        $autorizacion->marcarUtilizado();
 
         if ($this->accionAutorizacionPrefactura === 'editar_factura') {
             $this->redireccionarEdicionFacturaAutorizada();

@@ -222,6 +222,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/editar/configuracion/{estado}', [Configuracion::class, 'editarEstado']);
     Route::get('/configuracion/excel', [Configuracion::class, 'exportarExcel']);
     Route::get('/configuracion/notificaciones/flujo', \App\Http\Livewire\Configuracion\ConfiguracionNotificaciones::class)->name('configuracion.notificaciones.flujo');
+    Route::get('/configuracion/codigos-autorizacion', \App\Http\Livewire\Configuracion\ConfiguracionCodigosAutorizacion::class)->name('configuracion.codigos.autorizacion');
     Route::get('/notificaciones/historial', \App\Http\Livewire\NotificacionesHistorial::class)->name('notificaciones.historial');
     Route::get('/alertas/rotacion/{id}/reporte', \App\Http\Livewire\Alertas\AlertasRotacionReporte::class)->name('alertas.rotacion.reporte');
     Route::get('/configuracion/jerarquia', \App\Http\Livewire\Configuracion\JerarquiaOrganizacional::class)->name('configuracion.jerarquia');

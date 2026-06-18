@@ -53,6 +53,11 @@
                 <i class="fa fa-bell"></i> Notificaciones
             </a>
         </li>
+        <li class="{{ request()->routeIs('configuracion.codigos.autorizacion') ? 'active' : '' }}">
+            <a href="{{ route('configuracion.codigos.autorizacion') }}" style="color:#ffffff;">
+                <i class="fa fa-key"></i> Códigos de Autorización
+            </a>
+        </li>
     </ul>
 </li>
 @endif
