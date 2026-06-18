@@ -699,6 +699,18 @@ function guardarRetencions(){
     axios.post("/pagos/retencion/guardar", data)
         .then(response => {
 
+            var resp = response && response.data ? response.data : {};
+            var traz = resp.trazabilidad || {};
+
+            var mensajeExito = "Ha realizado gestiona la retención.";
+            if (traz.cierra_por_retencion) {
+                if (traz.fecha_comision_usada) {
+                    mensajeExito = "Retención gestionada y factura cerrada. La comisión se evaluó usando la fecha del último abono: " + traz.fecha_comision_usada + ".";
+                } else {
+                    mensajeExito = "Retención gestionada y factura cerrada. No se encontró fecha de abono previa para trazabilidad de comisión.";
+                }
+            }
+
             //$('#formEstadoRetencion').parsley().reset();
             $('#tbl_cuentas_facturas_cliente').DataTable().ajax.reload();
 
@@ -713,7 +725,7 @@ function guardarRetencions(){
             Swal.fire({
                 icon: 'success',
                 title: 'Exito!',
-                text: "Ha realizado gestiona la retención."
+                text: mensajeExito
             });
 
     })

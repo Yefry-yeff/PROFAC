@@ -444,10 +444,113 @@ class Pagos extends Component
                                 'updated_at'        => now(),
                             ]);
 
+                        // Si la retencion aplicada deja saldo en 0, cerrar y comisionar
+                        // usando la fecha del ultimo abono registrado en la factura.
+                        $apPostRetencion = DB::table('aplicacion_pagos')
+                            ->where('id', (int) $request->codAplicPago)
+                            ->select('factura_id', 'saldo', 'estado_cerrado')
+                            ->first();
+
+                        $retencionAplica = ((int) $request->selectTiporetencion === 2);
+                        $saldoPost = (float) ($apPostRetencion->saldo ?? 0);
+                        $cierraPorRetencion = false;
+                        $fechaPagoComision = null;
+                        $fuenteFechaComision = null;
+
+                        if ($retencionAplica && $apPostRetencion && $saldoPost <= 0.0001) {
+                            $cierraPorRetencion = true;
+                            DB::table('aplicacion_pagos')
+                                ->where('id', (int) $request->codAplicPago)
+                                ->update(['saldo' => 0, 'updated_at' => now()]);
+
+                            if ((int) ($apPostRetencion->estado_cerrado ?? 0) !== 2) {
+                                $cierreRetencion = DB::select(" 
+                                    CALL sp_aplicacion_pagos(
+                                        '9',
+                                        '0',
+                                        '".Auth::user()->id."',
+                                        '0',
+                                        'CIERRE AUTOMATICO POR RETENCION',
+                                        '".$request->codAplicPago."',
+                                        '0',
+                                        '0',
+                                        @estado,
+                                        @msjResultado);");
+
+                                if (($cierreRetencion[0]->estado ?? -1) == -1) {
+                                    return response()->json([
+                                        "text" => "Ha ocurrido un error al cerrar automaticamente la factura por retencion.",
+                                        "icon" => "error",
+                                        "title"=>"Error!"
+                                    ],402);
+                                }
+
+                                $apTrasCierre = DB::table('aplicacion_pagos')
+                                    ->where('id', (int) $request->codAplicPago)
+                                    ->select('estado_cerrado')
+                                    ->first();
+
+                                if (!$apTrasCierre || (int) $apTrasCierre->estado_cerrado !== 2) {
+                                    DB::table('aplicacion_pagos')
+                                        ->where('id', (int) $request->codAplicPago)
+                                        ->update([
+                                            'estado_cerrado'       => 2,
+                                            'usr_cerro'            => Auth::id(),
+                                            'fecha_cierre_factura' => now(),
+                                            'ultimo_usr_actualizo' => Auth::id(),
+                                            'updated_at'           => now(),
+                                        ]);
+                                }
+                            }
+
+                            $ultimoAbono = DB::table('abonos_creditos')
+                                ->where('aplicacion_pagos_id', (int) $request->codAplicPago)
+                                ->where('factura_id', (int) $request->idFacturaRetencion)
+                                ->where('estado_abono', 1)
+                                ->orderByRaw('CASE WHEN fecha_pago IS NULL THEN 1 ELSE 0 END ASC')
+                                ->orderBy('fecha_pago', 'desc')
+                                ->orderBy('id', 'desc')
+                                ->select('fecha_pago', 'created_at')
+                                ->first();
+
+                            if ($ultimoAbono) {
+                                $fechaBase = $ultimoAbono->fecha_pago ?: $ultimoAbono->created_at;
+                                if (!empty($fechaBase)) {
+                                    $fechaPagoComision = Carbon::parse($fechaBase)->toDateString();
+                                    $fuenteFechaComision = !empty($ultimoAbono->fecha_pago)
+                                        ? 'ultimo_abono_fecha_pago'
+                                        : 'ultimo_abono_created_at';
+                                }
+                            } else {
+                                $fuenteFechaComision = 'sin_abonos_previos';
+                            }
+
+                            $generador = app(GeneradorFacturasComision::class);
+                            $arrayfacturas_comision = $generador->generar(
+                                (int) $request->idFacturaRetencion,
+                                (int) $request->codAplicPago,
+                                $fechaPagoComision
+                            );
+
+                            if (!empty($arrayfacturas_comision)) {
+                                $arrayfacturas_comision = app(AplicadorRetencionesMora::class)
+                                    ->aplicar($arrayfacturas_comision, (int) $request->idFacturaRetencion, $fechaPagoComision);
+                                $procesador = app(ProcesadorComisiones::class);
+                                foreach ($arrayfacturas_comision as $factura) {
+                                    $procesador->procesar($factura);
+                                }
+                            }
+                        }
+
                         return response()->json([
                             "icon" => "success",
                             "text" => "Retención gestionada correctamente.",
-                            "title"=>"Exito!"
+                            "title"=>"Exito!",
+                            "trazabilidad" => [
+                                "cierra_por_retencion" => $cierraPorRetencion,
+                                "fecha_comision_usada" => $fechaPagoComision,
+                                "fuente_fecha_comision" => $fuenteFechaComision,
+                            ]
                         ],200);
 
             }catch (QueryException $e) {
