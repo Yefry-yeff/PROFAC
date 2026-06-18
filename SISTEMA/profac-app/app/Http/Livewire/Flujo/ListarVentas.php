@@ -190,7 +190,18 @@ class ListarVentas extends Component
             $q->where(function ($sub) {
                 $sub->where('p.users_id', Auth::id())
                     ->orWhere('co.users_id', Auth::id())
-                    ->orWhere('f.created_by', Auth::id());
+                    ->orWhere('f.created_by', Auth::id())
+                    ->orWhereExists(function ($sq) {
+                        $sq->select(DB::raw(1))
+                           ->from('historico_flujo as hff')
+                           ->join('factura as fa', 'fa.id', '=', 'hff.tramite_id')
+                           ->whereColumn('hff.flujo_id', 'f.id')
+                           ->where('hff.tipo_tramite_id', 3)
+                           ->where(function ($sfa) {
+                               $sfa->where('fa.vendedor', Auth::id())
+                                   ->orWhere('fa.users_id', Auth::id());
+                           });
+                    });
             });
         }
 

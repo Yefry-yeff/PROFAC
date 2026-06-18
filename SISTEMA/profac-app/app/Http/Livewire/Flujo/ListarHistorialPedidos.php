@@ -92,9 +92,12 @@ class ListarHistorialPedidos extends Component
 
         // ── Filtro por usuario ─────────────────────────────────────────────
         // El administrador ve todo; los vendedores sólo ven los flujos
-        // de los clientes que tienen asignados (cliente.vendedor = user_id).
+        // donde el cliente esté asignado al vendedor o el pedido lo creó el usuario.
         if (!$this->esAdmin) {
-            $q->where('c.vendedor', Auth::id());
+            $q->where(function ($sub) {
+                $sub->where('c.vendedor', Auth::id())
+                    ->orWhere('p.users_id', Auth::id());
+            });
         }
 
         // ── Filtro por estado ──────────────────────────────────────────────
