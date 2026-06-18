@@ -106,6 +106,9 @@ function modalRetencion(codigoPago, retencion, estadoRetencion, caiFactura, idFa
     $('#montoRetencion').val(retencion);
     $('#facturaCai').val(caiFactura);
     $('#idFacturaRetencion').val(idFactura);
+    $('#numero_retencion').val('');
+    $('#doc_retencion').val('');
+    $('#comentario_retencion').val('');
 
     $('#modalretencion').modal('show');
 }
@@ -654,13 +657,39 @@ function listarAbonos() {
 
 $(document).on('submit', '#formEstadoRetencion', function(event) {
 
+    event.preventDefault();
+
+    var fileInput = document.getElementById('doc_retencion');
+    var file = fileInput && fileInput.files ? fileInput.files[0] : null;
+
+    if (file) {
+        var validTypes = ['image/png', 'image/jpeg', 'application/pdf'];
+        var maxSizeBytes = 5 * 1024 * 1024;
+
+        if (validTypes.indexOf(file.type) === -1) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Archivo no permitido',
+                text: 'Solo se permiten archivos PDF, JPG, JPEG o PNG.'
+            });
+            return;
+        }
+
+        if (file.size > maxSizeBytes) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Archivo demasiado grande',
+                text: 'El archivo de retención no debe superar 5 MB.'
+            });
+            return;
+        }
+    }
+
     $('#btn_cambioRetencion').css('display','none');
     $('#btn_cambioRetencion').hide();
 
 
     $('#modalretencion').modal('hide');
-
-    event.preventDefault();
     guardarRetencions();
 });
 
@@ -689,7 +718,15 @@ function guardarRetencions(){
 
     })
     .catch(err => {
-        let data = err.response.data;
+        let data = (err.response && err.response.data) ? err.response.data : {
+            icon: 'error',
+            title: 'Error',
+            text: 'No se pudo guardar la retención.'
+        };
+
+        $('#btn_cambioRetencion').css('display','block');
+        $('#btn_cambioRetencion').show();
+
         Swal.fire({
             icon: data.icon,
             title: data.title,

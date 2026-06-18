@@ -712,7 +712,19 @@
                         </div>
                         <div class="col-12">
                             <div class="ap-form-group">
-                                <label><i class="fa fa-pencil mr-1"></i> Nota <span class="text-danger">*</span></label>
+                                <label><i class="fa fa-hashtag mr-1"></i> No. Retención</label>
+                                <input type="text" class="form-control" id="numero_retencion" name="numero_retencion" maxlength="100" placeholder="Ingrese el número de retención">
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="ap-form-group">
+                                <label><i class="fa fa-paperclip mr-1"></i> Adjuntar Retención (PDF/Imagen, máx. 5 MB)</label>
+                                <input class="form-control" id="doc_retencion" name="doc_retencion" type="file" accept="image/png, image/jpeg, image/jpg, application/pdf">
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="ap-form-group">
+                                <label><i class="fa fa-pencil mr-1"></i> Nota de Retención <span class="text-danger">*</span></label>
                                 <textarea required class="form-control" id="comentario_retencion" name="comentario_retencion" rows="3" placeholder="Ingrese una nota obligatoria..."></textarea>
                             </div>
                         </div>

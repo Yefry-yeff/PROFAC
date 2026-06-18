@@ -386,6 +386,18 @@ class Pagos extends Component
 
         try {
 
+                        $request->validate([
+                            'codAplicPago'        => 'required|integer',
+                            'idFacturaRetencion'  => 'required|integer',
+                            'comentario_retencion'=> 'required|string|max:500',
+                            'selectTiporetencion' => 'required|in:1,2',
+                            'montoRetencion'      => 'required',
+                            'numero_retencion'    => 'nullable|string|max:100',
+                            'doc_retencion'       => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+                        ]);
+
+                        $comentarioRetencion = str_replace("'", "''", (string) $request->comentario_retencion);
+
 
                          $cuentas2 = DB::select("
 
@@ -394,7 +406,7 @@ class Pagos extends Component
                             '0',
                             '".Auth::user()->id."',
                             '".$request->idFacturaRetencion."',
-                            '".$request->comentario_retencion."',
+                            '".$comentarioRetencion."',
                             '".$request->codAplicPago."',
                             '".$request->selectTiporetencion."',
                             '".$request->montoRetencion."',
@@ -411,6 +423,33 @@ class Pagos extends Component
                             ],402);
                         }
 
+                        $archivoRetencion = null;
+                        $file = $request->file('doc_retencion');
+                        if ($file !== null) {
+                            $folderPath = public_path('documentos_retenciones_cxc');
+                            if (!File::exists($folderPath)) {
+                                File::makeDirectory($folderPath, 0755, true);
+                            }
+
+                            $fileName = 'retencion_'.time().'_'.$request->codAplicPago.'.'.$file->getClientOriginalExtension();
+                            $file->move($folderPath, $fileName);
+                            $archivoRetencion = '/documentos_retenciones_cxc/'.$fileName;
+                        }
+
+                        DB::table('aplicacion_pagos')
+                            ->where('id', $request->codAplicPago)
+                            ->update([
+                                'numero_retencion'  => $request->numero_retencion,
+                                'archivo_retencion' => $archivoRetencion,
+                                'updated_at'        => now(),
+                            ]);
+
+                        return response()->json([
+                            "icon" => "success",
+                            "text" => "Retención gestionada correctamente.",
+                            "title"=>"Exito!"
+                        ],200);
+
             }catch (QueryException $e) {
             return response()->json([
                 "icon" => "error",
@@ -418,6 +457,12 @@ class Pagos extends Component
                 "title"=>"Error!",
                 "error" => $e
             ],402);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                "icon"  => "warning",
+                "title" => "Datos incompletos",
+                "text"  => collect($e->errors())->flatten()->first() ?? 'Revise los datos de retención.'
+            ], 422);
         }
 
     }
