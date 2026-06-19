@@ -295,6 +295,8 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::post('/comisiones/conciliacion/conciliar',            [ConciliacionComisiones::class, 'conciliarPeriodo'])->name('comisiones.conciliacion.conciliar');
     Route::post('/comisiones/conciliacion/reabrir',              [ConciliacionComisiones::class, 'reabrirPeriodo'])->name('comisiones.conciliacion.reabrir');
     Route::get('/comisiones/conciliacion/detalle',               [ConciliacionComisiones::class, 'detallePeriodo'])->name('comisiones.conciliacion.detalle');
+    Route::get('/comisiones/conciliacion/exportar/empleado',     [ConciliacionComisiones::class, 'exportarResumenEmpleado'])->name('comisiones.conciliacion.exportar.empleado');
+    Route::get('/comisiones/conciliacion/exportar/masivo',       [ConciliacionComisiones::class, 'exportarResumenMasivo'])->name('comisiones.conciliacion.exportar.masivo');
     Route::get('/comisiones/conciliacion/auditoria-logs',        [ConciliacionComisiones::class, 'listarAuditoriaLogs'])->name('comisiones.conciliacion.auditoria');
     Route::get('/comisiones/conciliacion/verificar-periodo',     [ConciliacionComisiones::class, 'verificarPeriodoPago'])->name('comisiones.conciliacion.verificar_periodo');
     Route::get('/comisiones/conciliacion/retencion-fuente/resumen', [ConciliacionComisiones::class, 'resumenRetencionFuente'])->name('comisiones.conciliacion.retencion_fuente.resumen');

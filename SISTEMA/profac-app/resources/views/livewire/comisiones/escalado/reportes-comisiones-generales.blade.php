@@ -551,6 +551,11 @@ table.dataTable tbody td { font-size: 13px; vertical-align: middle; }
                     <i class="fa fa-check-circle" style="color:#059669;"></i>
                     Resumen de Comisiones Conciliadas
                 </div>
+                <div>
+                    <button class="btn-generar" id="btnCcExcelMasivo" style="padding:8px 14px;">
+                        <i class="fa fa-file-excel-o"></i> Descargar Excel Masivo
+                    </button>
+                </div>
             </div>
 
             <div id="ccEmptyState" class="empty-state">
@@ -591,10 +596,12 @@ table.dataTable tbody td { font-size: 13px; vertical-align: middle; }
                         <thead>
                             <tr>
                                 <th>Empleado</th>
-                                <th>Rol</th>
-                                <th class="text-center">Facturas</th>
-                                <th class="text-right">Comisión Conciliada</th>
-                                <th>Última Modificación</th>
+                                <th>Rol Asignado</th>
+                                <th class="text-center">Facturas Reales</th>
+                                <th class="text-right">Total Comisión Conciliada</th>
+                                <th>Fecha Conciliación</th>
+                                <th>Conciliado Por</th>
+                                <th class="text-center">Acciones</th>
                             </tr>
                         </thead>
                         <tbody id="ccTableBody"></tbody>

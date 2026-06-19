@@ -34,6 +34,7 @@ $(document).ready(function(){
     $('#btnLimpiar').on('click', limpiarFiltros);
     $('#btnCcGenerar').on('click', cargarConciliadasDesdeFiltro);
     $('#btnCcLimpiar').on('click', limpiarFiltrosConciliadas);
+    $('#btnCcExcelMasivo').on('click', descargarConciliadasMasivo);
 
     cargarPeriodosConciliados();
 
@@ -780,6 +781,7 @@ function cargarConciliadas(periodo){
 function renderConciliadas(resp){
     var resumen = resp.resumen || {};
     var empleados = Array.isArray(resp.empleados) ? resp.empleados : [];
+    var periodo = resp.periodo || $('#ccPeriodo').val() || '';
 
     $('#ccEmptyState').hide();
     $('#ccResumenWrap').show();
@@ -792,17 +794,28 @@ function renderConciliadas(resp){
     $('#ccTotalFacturas').text(resumen.cantidad_facturas || 0);
 
     var rows = empleados.map(function(item){
+        var rolAsignado = item.roles_asignados || item.rol || '—';
+        var facturasReales = parseInt(item.facturas_reales || item.facturas || 0, 10);
+        var comisionConciliada = item.comision_conciliada || item.comision_acumulada || 0;
+
         return '<tr>'
             + '<td><strong>'+esc(item.nombre || '—')+'</strong></td>'
-            + '<td>'+badgeRol(item.rol || '—')+'</td>'
-            + '<td class="text-center">'+parseInt(item.facturas || 0, 10)+'</td>'
-            + '<td class="text-right"><strong class="monto-com">'+fmtMoney(item.comision_acumulada || 0)+'</strong></td>'
-            + '<td>'+esc(item.fecha_ult_modificacion || '—')+'</td>'
+            + '<td>'+badgeRol(rolAsignado)+'</td>'
+            + '<td class="text-center">'+facturasReales+'</td>'
+            + '<td class="text-right"><strong class="monto-com">'+fmtMoney(comisionConciliada)+'</strong></td>'
+            + '<td>'+esc(item.fecha_conciliacion || '—')+'</td>'
+            + '<td>'+esc(item.conciliado_por || '—')+'</td>'
+            + '<td class="text-center">'
+                + '<button class="btn btn-sm" style="border:1px solid #16a34a;color:#166534;background:#f0fdf4;font-weight:700;" '
+                + 'onclick="descargarResumenConciliadoEmpleado('+parseInt(item.user_id || 0, 10)+',\''+esc(periodo)+'\')">'
+                + '<i class="fa fa-file-excel-o"></i> Excel'
+                + '</button>'
+            + '</td>'
             + '</tr>';
     }).join('');
 
     if(!rows){
-        rows = '<tr><td colspan="5" style="padding:30px;text-align:center;color:#94a3b8;">Sin empleados conciliados para este período.</td></tr>';
+        rows = '<tr><td colspan="7" style="padding:30px;text-align:center;color:#94a3b8;">Sin empleados conciliados para este período.</td></tr>';
     }
 
     $('#ccTableBody').html(rows);
@@ -822,6 +835,30 @@ function limpiarFiltrosConciliadas(){
     $('#ccTotalEmpleados').text('0');
     $('#ccTotalFacturas').text('0');
     $('#ccTableBody').empty();
+}
+
+function descargarResumenConciliadoEmpleado(userId, periodo){
+    userId = parseInt(userId || 0, 10);
+    periodo = String(periodo || '').trim();
+
+    if(userId <= 0 || !periodo){
+        Swal.fire({icon:'warning',title:'Datos incompletos',text:'No se pudo determinar el empleado o período para exportar.'});
+        return;
+    }
+
+    var url = '/comisiones/conciliacion/exportar/empleado?periodo=' + encodeURIComponent(periodo) + '&user_id=' + encodeURIComponent(userId);
+    window.location.href = url;
+}
+
+function descargarConciliadasMasivo(){
+    var periodo = String($('#ccPeriodo').val() || '').trim();
+    if(!periodo){
+        Swal.fire({icon:'warning',title:'Período requerido',text:'Seleccione un período conciliado para exportar.'});
+        return;
+    }
+
+    var url = '/comisiones/conciliacion/exportar/masivo?periodo=' + encodeURIComponent(periodo);
+    window.location.href = url;
 }
 
 function imprimirTabla(tabId){

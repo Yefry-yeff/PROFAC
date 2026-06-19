@@ -7,9 +7,11 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Auth;
+use Maatwebsite\Excel\Facades\Excel;
 use App\Models\Comisiones\ModelComisionPeriodo;
 use App\Models\Comisiones\ModelComisionPeriodoLog;
 use App\Models\Comisiones\ModelDiasGraciaComision;
+use App\Exports\Comisiones\ConciliacionResumenMasivoExport;
 
 class Conciliacion extends Component
 {
@@ -521,28 +523,78 @@ class Conciliacion extends Component
         $periodo = Carbon::parse($periodoStr)->startOfMonth()->toDateString();
         $snapshot = $this->_calcularSnapshot($periodo);
 
-        // Empleados con comisiones en este período
-        $empleados = DB::select("
+        $metaConciliacion = DB::table('comision_periodo as cp')
+            ->leftJoin('users as uc', 'uc.id', '=', 'cp.usuario_concilio')
+            ->where('cp.periodo', $periodo)
+            ->select('cp.fecha_conciliacion', 'uc.name as conciliado_por')
+            ->first();
+
+        $retencionesActivas = DB::table('comision_retencion_fuente')
+            ->where('periodo', $periodo)
+            ->where('estado', 1)
+            ->selectRaw('users_comision, SUM(monto_retencion) as total_retencion')
+            ->groupBy('users_comision')
+            ->pluck('total_retencion', 'users_comision');
+
+        // Consolidado por empleado con facturas reales comisionadas del período.
+        $empleadosBase = DB::select("
             SELECT
-                u.id   AS user_id,
+                map.user_id,
                 u.name AS nombre,
-                r.nombre AS rol,
-                ce.comision_acumulada,
-                ce.fecha_ult_modificacion,
-                COUNT(DISTINCT fc.factura_id) AS facturas
-            FROM comision_empleado ce
-            INNER JOIN users u ON u.id  = ce.users_comision
-            INNER JOIN rol   r ON r.id  = ce.rol_id
-            LEFT  JOIN facturas_comision fc
-                ON  fc.rol_id    = ce.rol_id
-                AND fc.estado_id = 1
-                AND DATE_FORMAT(fc.fecha_cierre_factura,'%Y-%m-01') = ?
-            WHERE ce.mes_comision = ?
-              AND ce.estado_id    = 1
-              AND ce.comision_acumulada > 0
-            GROUP BY ce.id, u.id, u.name, r.nombre, ce.comision_acumulada, ce.fecha_ult_modificacion
-            ORDER BY ce.comision_acumulada DESC
-        ", [$periodo, $periodo]);
+                GROUP_CONCAT(DISTINCT r.nombre ORDER BY r.nombre SEPARATOR ', ') AS roles_asignados,
+                COUNT(DISTINCT map.factura_id) AS facturas_reales,
+                ROUND(SUM(map.monto_rol), 2) AS comision_bruta,
+                MAX(map.fecha_cierre_factura) AS fecha_ult_modificacion
+            FROM (
+                SELECT
+                    CASE fc.tipo_comision
+                        WHEN 1 THEN f.users_id
+                        WHEN 2 THEN f.users_id
+                        WHEN 3 THEN f.vendedor
+                        WHEN 4 THEN f.gestor_entrega
+                        ELSE NULL
+                    END AS user_id,
+                    fc.factura_id,
+                    fc.monto_rol,
+                    fc.rol_id,
+                    fc.fecha_cierre_factura
+                FROM facturas_comision fc
+                INNER JOIN factura f ON f.id = fc.factura_id
+                WHERE fc.estado_id = 1
+                  AND DATE_FORMAT(fc.fecha_cierre_factura, '%Y-%m-01') = ?
+            ) map
+            INNER JOIN users u ON u.id = map.user_id
+            LEFT JOIN rol r ON r.id = map.rol_id
+            WHERE map.user_id IS NOT NULL
+            GROUP BY map.user_id, u.name
+            ORDER BY comision_bruta DESC
+        ", [$periodo]);
+
+        $fechaConciliacion = null;
+        if (!empty($metaConciliacion->fecha_conciliacion)) {
+            $fechaConciliacion = Carbon::parse($metaConciliacion->fecha_conciliacion)->format('Y-m-d H:i:s');
+        }
+
+        $empleados = array_map(function ($row) use ($retencionesActivas, $fechaConciliacion, $metaConciliacion) {
+            $bruto = (float) ($row->comision_bruta ?? 0);
+            $ret = (float) ($retencionesActivas[$row->user_id] ?? 0);
+            $retAjustada = min($ret, $bruto);
+            $neto = max(0.0, $bruto - $retAjustada);
+
+            return [
+                'user_id'               => (int) $row->user_id,
+                'nombre'                => (string) $row->nombre,
+                'rol'                   => (string) ($row->roles_asignados ?? '—'),
+                'roles_asignados'       => (string) ($row->roles_asignados ?? '—'),
+                'facturas'              => (int) ($row->facturas_reales ?? 0),
+                'facturas_reales'       => (int) ($row->facturas_reales ?? 0),
+                'comision_acumulada'    => round($neto, 2),
+                'comision_conciliada'   => round($neto, 2),
+                'fecha_ult_modificacion'=> $row->fecha_ult_modificacion,
+                'fecha_conciliacion'    => $fechaConciliacion,
+                'conciliado_por'        => $metaConciliacion->conciliado_por ?? null,
+            ];
+        }, $empleadosBase);
 
         // Facturas comisionadas en este período
         $facturas = DB::select("
@@ -604,6 +656,91 @@ class Conciliacion extends Component
             'facturas'  => $facturas,
             'logs'      => $logs,
         ]);
+    }
+
+    public function exportarResumenEmpleado(Request $request)
+    {
+        $periodoStr = trim((string) $request->input('periodo', ''));
+        $userId = (int) $request->input('user_id', 0);
+
+        if ($periodoStr === '' || $userId <= 0) {
+            return response()->json(['error' => 'Período y empleado son requeridos.'], 422);
+        }
+
+        $periodo = Carbon::parse($periodoStr)->startOfMonth()->toDateString();
+        $data = $this->_construirDataResumenConciliadoEmpleado($periodo, $userId);
+
+        if (empty($data)) {
+            return response()->json(['error' => 'No se encontraron datos para el empleado en el período.'], 404);
+        }
+
+        $slugEmpleado = preg_replace('/[^A-Za-z0-9]+/', '_', (string) ($data['empleado'] ?? ('empleado_' . $userId)));
+        $slugEmpleado = trim((string) $slugEmpleado, '_');
+        $slugEmpleado = $slugEmpleado !== '' ? strtolower($slugEmpleado) : ('empleado_' . $userId);
+
+        $fileName = 'resumen_conciliacion_' . $periodo . '_' . $slugEmpleado . '.xlsx';
+
+        return Excel::download(
+            new ConciliacionResumenMasivoExport([$data], $periodo, $this->_mesLabelFromStr($periodo)),
+            $fileName
+        );
+    }
+
+    public function exportarResumenMasivo(Request $request)
+    {
+        $periodoStr = trim((string) $request->input('periodo', ''));
+
+        if ($periodoStr === '') {
+            return response()->json(['error' => 'Período requerido.'], 422);
+        }
+
+        $periodo = Carbon::parse($periodoStr)->startOfMonth()->toDateString();
+
+        $usuariosPeriodo = DB::table('facturas_comision as fc')
+            ->join('factura as f', 'f.id', '=', 'fc.factura_id')
+            ->where('fc.estado_id', 1)
+            ->whereRaw("DATE_FORMAT(fc.fecha_cierre_factura, '%Y-%m-01') = ?", [$periodo])
+            ->selectRaw(
+                "DISTINCT CASE fc.tipo_comision
+                    WHEN 1 THEN f.users_id
+                    WHEN 2 THEN f.users_id
+                    WHEN 3 THEN f.vendedor
+                    WHEN 4 THEN f.gestor_entrega
+                    ELSE NULL
+                 END as user_id"
+            )
+            ->pluck('user_id')
+            ->filter(fn($id) => !is_null($id) && (int) $id > 0)
+            ->map(fn($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        if ($usuariosPeriodo->isEmpty()) {
+            return response()->json(['error' => 'No hay empleados conciliados con facturas para ese período.'], 404);
+        }
+
+        $data = [];
+        foreach ($usuariosPeriodo as $userId) {
+            $row = $this->_construirDataResumenConciliadoEmpleado($periodo, $userId);
+            if (!empty($row)) {
+                $data[] = $row;
+            }
+        }
+
+        if (empty($data)) {
+            return response()->json(['error' => 'No se encontraron datos para exportar.'], 404);
+        }
+
+        usort($data, function ($a, $b) {
+            return strcasecmp((string) ($a['empleado'] ?? ''), (string) ($b['empleado'] ?? ''));
+        });
+
+        $fileName = 'resumen_conciliacion_masivo_' . $periodo . '.xlsx';
+
+        return Excel::download(
+            new ConciliacionResumenMasivoExport($data, $periodo, $this->_mesLabelFromStr($periodo)),
+            $fileName
+        );
     }
 
     /* ══════════════════════════════════════════════════════════════════
@@ -970,6 +1107,140 @@ class Conciliacion extends Component
             'total_neto'         => round($totalNeto, 2),
             'cantidad_empleados' => count($empleados),
             'empleados'          => $empleados,
+        ];
+    }
+
+    private function _construirDataResumenConciliadoEmpleado(string $periodo, int $userId): array
+    {
+        $empleadoNombre = (string) (DB::table('users')->where('id', $userId)->value('name') ?? 'Empleado #' . $userId);
+
+        $metaConciliacion = DB::table('comision_periodo as cp')
+            ->leftJoin('users as uc', 'uc.id', '=', 'cp.usuario_concilio')
+            ->where('cp.periodo', $periodo)
+            ->select('cp.fecha_conciliacion', 'uc.name as conciliado_por')
+            ->first();
+
+        $facturasEmpleado = DB::table('facturas_comision as fc')
+            ->join('factura as f', 'f.id', '=', 'fc.factura_id')
+            ->leftJoin('rol as r', 'r.id', '=', 'fc.rol_id')
+            ->where('fc.estado_id', 1)
+            ->whereRaw("DATE_FORMAT(fc.fecha_cierre_factura, '%Y-%m-01') = ?", [$periodo])
+            ->whereRaw(
+                "CASE fc.tipo_comision
+                    WHEN 1 THEN f.users_id
+                    WHEN 2 THEN f.users_id
+                    WHEN 3 THEN f.vendedor
+                    WHEN 4 THEN f.gestor_entrega
+                    ELSE NULL
+                 END = ?",
+                [$userId]
+            )
+            ->groupBy('fc.factura_id')
+            ->selectRaw(
+                "fc.factura_id,
+                 MAX(f.fecha_emision) as fecha_emision,
+                 MAX(fc.fecha_cierre_factura) as fecha_cierre,
+                 MAX(f.total) as total_factura,
+                 SUM(fc.monto_rol) as comision_bruta_factura,
+                 GROUP_CONCAT(DISTINCT r.nombre ORDER BY r.nombre SEPARATOR ', ') as roles_factura"
+            )
+            ->get();
+
+        if ($facturasEmpleado->isEmpty()) {
+            return [];
+        }
+
+        $facturaIds = $facturasEmpleado->pluck('factura_id')->map(fn($id) => (int) $id)->values()->all();
+
+        $abonosPorFactura = DB::table('abonos_creditos as ac')
+            ->whereIn('ac.factura_id', $facturaIds)
+            ->where('ac.estado_abono', 1)
+            ->groupBy('ac.factura_id')
+            ->selectRaw('ac.factura_id, SUM(ac.monto_abonado) as total_abonos')
+            ->pluck('total_abonos', 'factura_id');
+
+        $roles = DB::table('facturas_comision as fc')
+            ->join('factura as f', 'f.id', '=', 'fc.factura_id')
+            ->leftJoin('rol as r', 'r.id', '=', 'fc.rol_id')
+            ->where('fc.estado_id', 1)
+            ->whereRaw("DATE_FORMAT(fc.fecha_cierre_factura, '%Y-%m-01') = ?", [$periodo])
+            ->whereRaw(
+                "CASE fc.tipo_comision
+                    WHEN 1 THEN f.users_id
+                    WHEN 2 THEN f.users_id
+                    WHEN 3 THEN f.vendedor
+                    WHEN 4 THEN f.gestor_entrega
+                    ELSE NULL
+                 END = ?",
+                [$userId]
+            )
+            ->whereNotNull('r.nombre')
+            ->distinct()
+            ->orderBy('r.nombre')
+            ->pluck('r.nombre')
+            ->values()
+            ->all();
+
+        $totalCobrado = 0.0;
+        $totalComisionBruta = 0.0;
+        $meses = [];
+
+        foreach ($facturasEmpleado as $factura) {
+            $facturaId = (int) $factura->factura_id;
+            $abonosFactura = (float) ($abonosPorFactura[$facturaId] ?? 0);
+
+            $totalCobrado += $abonosFactura;
+            $totalComisionBruta += (float) ($factura->comision_bruta_factura ?? 0);
+
+            $fechaEmision = $factura->fecha_emision ? Carbon::parse($factura->fecha_emision) : null;
+            if (!$fechaEmision) {
+                continue;
+            }
+
+            $mesClave = $fechaEmision->format('Y-m');
+            if (!isset($meses[$mesClave])) {
+                $meses[$mesClave] = [
+                    'mes_clave' => $mesClave,
+                    'mes_label' => $this->_mesLabel(Carbon::create($fechaEmision->year, $fechaEmision->month, 1)),
+                    'cantidad_facturas' => 0,
+                    'total_cobrado' => 0.0,
+                ];
+            }
+
+            $meses[$mesClave]['cantidad_facturas']++;
+            $meses[$mesClave]['total_cobrado'] += $abonosFactura;
+        }
+
+        ksort($meses);
+        $meses = array_values(array_map(function ($row) {
+            $row['cantidad_facturas'] = (int) $row['cantidad_facturas'];
+            $row['total_cobrado'] = round((float) $row['total_cobrado'], 2);
+            return $row;
+        }, $meses));
+
+        $retencionFuente = (float) DB::table('comision_retencion_fuente')
+            ->where('periodo', $periodo)
+            ->where('users_comision', $userId)
+            ->where('estado', 1)
+            ->sum('monto_retencion');
+
+        $retencionAjustada = min($retencionFuente, $totalComisionBruta);
+        $comisionNeta = max(0.0, $totalComisionBruta - $retencionAjustada);
+
+        return [
+            'periodo' => $periodo,
+            'periodo_label' => $this->_mesLabelFromStr($periodo),
+            'empleado_id' => $userId,
+            'empleado' => $empleadoNombre,
+            'roles' => !empty($roles) ? implode(', ', $roles) : 'Sin rol definido',
+            'fecha_conciliacion' => $metaConciliacion->fecha_conciliacion ?? null,
+            'conciliado_por' => $metaConciliacion->conciliado_por ?? 'No registrado',
+            'total_facturas' => count($facturaIds),
+            'total_cobrado' => round($totalCobrado, 2),
+            'comision_bruta' => round($totalComisionBruta, 2),
+            'retencion_fuente' => round($retencionAjustada, 2),
+            'comision_neta' => round($comisionNeta, 2),
+            'meses_cobrados' => $meses,
         ];
     }
 
