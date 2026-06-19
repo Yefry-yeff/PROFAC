@@ -157,7 +157,7 @@ class ConciliacionEmpleadoResumenSheet implements FromArray, WithTitle, WithEven
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT, 'vertical' => Alignment::VERTICAL_CENTER],
                     'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_MEDIUM, 'color' => ['rgb' => '9A3412']]],
                 ]);
-                $sheet->setCellValue('D8', 'Ceunta Bancaria: ____________________');
+                $sheet->setCellValue('D8', 'Cuenta Bancaria: ____________________');
                 $sheet->getStyle('D8')->getFont()->setItalic(true);
 
                 $sheet->getStyle('A9:C9')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
