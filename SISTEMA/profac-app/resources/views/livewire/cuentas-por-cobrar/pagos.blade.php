@@ -569,6 +569,41 @@
 .ap-ctx-icon.ci-orange { background:#fff7ed; color:#ea580c; }
 .ap-ctx-icon.ci-gray   { background:#f8fafc; color:#64748b; }
 .ap-ctx-icon.ci-teal   { background:#f0fdfa; color:#0d9488; }
+.ap-ret-flag {
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    margin-top:4px;
+    padding:3px 8px;
+    border-radius:999px;
+    font-size:10px;
+    font-weight:800;
+    letter-spacing:.2px;
+}
+.ap-ret-flag.pending { background:#fff7ed; color:#c2410c; border:1px solid #fdba74; }
+.ap-ret-flag.applied { background:#ecfdf5; color:#047857; border:1px solid #86efac; }
+.ap-ret-flag.dismissed { background:#f8fafc; color:#475569; border:1px solid #cbd5e1; }
+.ap-ret-track-box {
+    background:#fff7ed;
+    border:1px solid #fed7aa;
+    border-radius:12px;
+    padding:12px 14px;
+}
+.ap-ret-track-box .custom-control-label {
+    font-weight:700;
+    color:#9a3412;
+}
+.ap-ret-track-note {
+    font-size:12px;
+    color:#7c2d12;
+    line-height:1.55;
+    margin-top:6px;
+}
+.ap-ret-track-status {
+    margin-top:8px;
+    font-size:12px;
+    font-weight:700;
+}
 .ap-ctx-divider { height: 1px; background: #f1f5f9; margin: 4px 6px; }
 /* Botón Acciones */
 .ap-actions-toggle {
@@ -1020,6 +1055,18 @@
                             </div>
                         </div>
                         <div class="col-12">
+                            <div class="ap-ret-track-box">
+                                <div class="custom-control custom-switch">
+                                    <input type="checkbox" class="custom-control-input" id="requiereRetencionFutura" name="requiereRetencionFutura" value="1">
+                                    <label class="custom-control-label" for="requiereRetencionFutura">Marcar esta factura para retención futura</label>
+                                </div>
+                                <div class="ap-ret-track-note">
+                                    Use esta bandera cuando registrará hoy un abono, pero la retención se gestionará después. La factura quedará identificada como pendiente hasta que la retención se aplique o se descarte.
+                                </div>
+                                <div class="ap-ret-track-status" id="retencionFuturaEstadoActual" style="display:none;"></div>
+                            </div>
+                        </div>
+                        <div class="col-12">
                             <div class="ap-form-group">
                                 <label><i class="fa fa-comment mr-1"></i> Nota del Pago <span class="text-danger">*</span></label>
                                 <textarea required class="form-control" id="comentarioAbono" name="comentarioAbono" rows="3" placeholder="Ingrese la nota del pago realizado..."></textarea>
@@ -1143,6 +1190,11 @@
                 Créditos y Abonos
                 <span class="ap-tab-badge" id="badge-abonos">—</span>
             </button>
+            <button class="ap-tab-btn" onclick="switchTab('tab-historico-retenciones', this)">
+                <i class="fa fa-history"></i>
+                Histórico Retenciones
+                <span class="ap-tab-badge" id="badge-historico-retenciones">—</span>
+            </button>
         </div>
 
         {{-- Tab: Saldos por Factura --}}
@@ -1168,6 +1220,7 @@
                             <th>Deducciones</th>
                             <th>ISV</th>
                             <th>Retención</th>
+                            <th>Seguimiento</th>
                             <th>Saldo</th>
                             <th>Registro</th>
                             <th>Actualización</th>
@@ -1188,6 +1241,7 @@
                             <th>Deducciones</th>
                             <th>ISV</th>
                             <th>Retención</th>
+                            <th>Seguimiento</th>
                             <th>Saldo</th>
                             <th>Registro</th>
                             <th>Actualización</th>
@@ -1290,6 +1344,53 @@
             </div>
         </div>
 
+        {{-- Tab: Histórico Retenciones --}}
+        <div id="tab-historico-retenciones" class="ap-panel d-none">
+            <div class="ap-panel-title">
+                <div class="ap-panel-icon blue"><i class="fa fa-history"></i></div>
+                Histórico de Retenciones por Cliente
+            </div>
+            <div id="tbl_historico_retenciones_div">
+                <div class="table-responsive">
+                    <table id="tbl_historico_retenciones_cliente"
+                           class="table table-sm table-hover w-100"
+                           style="border-collapse:collapse;">
+                        <thead>
+                            <tr>
+                                <th>#Seg</th>
+                                <th>#Pago</th>
+                                <th>Factura</th>
+                                <th>Cliente</th>
+                                <th>Estado</th>
+                                <th>Marcado</th>
+                                <th>Resuelto</th>
+                                <th>Obs. marcado</th>
+                                <th>Obs. resolución</th>
+                                <th>N. retención</th>
+                                <th>Archivo</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                        <tfoot>
+                            <tr>
+                                <th>#Seg</th>
+                                <th>#Pago</th>
+                                <th>Factura</th>
+                                <th>Cliente</th>
+                                <th>Estado</th>
+                                <th>Marcado</th>
+                                <th>Resuelto</th>
+                                <th>Obs. marcado</th>
+                                <th>Obs. resolución</th>
+                                <th>N. retención</th>
+                                <th>Archivo</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+
     </div>{{-- /#tbl_principal_div --}}
 
 </div>{{-- /.wrapper --}}
@@ -1297,7 +1398,7 @@
 <script src="{{ asset('js/js_proyecto/cuentas-por-cobrar/pagos.js') }}?v={{ filemtime(public_path('js/js_proyecto/cuentas-por-cobrar/pagos.js')) }}"></script>
 <script>
 function switchTab(tabId, btn) {
-    ['tab-facturas','tab-movimientos','tab-abonos'].forEach(function(id) {
+    ['tab-facturas','tab-movimientos','tab-abonos','tab-historico-retenciones'].forEach(function(id) {
         document.getElementById(id).classList.add('d-none');
     });
     document.querySelectorAll('.ap-tab-btn').forEach(function(b){ b.classList.remove('active'); });
@@ -1355,6 +1456,8 @@ $('#modalAbonos').on('shown.bs.modal', function() {
 $('#modalAbonos').on('hidden.bs.modal', function() {
     destroyAbonosSelects();
     document.getElementById('selectBanco').innerHTML = '';
+    $('#requiereRetencionFutura').prop('checked', false).prop('disabled', false);
+    $('#retencionFuturaEstadoActual').hide().text('');
 });
 
 // ── Select2 en modal Otros Movimientos ──

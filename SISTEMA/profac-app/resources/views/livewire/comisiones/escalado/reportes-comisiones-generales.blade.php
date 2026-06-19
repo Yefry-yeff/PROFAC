@@ -423,40 +423,6 @@ table.dataTable tbody td { font-size: 13px; vertical-align: middle; }
     </div>
 </div>
 
-{{-- PANEL DE FILTROS --}}
-<div class="filter-panel mb-4">
-    <div class="fp-title"><i class="fa fa-sliders-h"></i> Filtros de Búsqueda</div>
-    <div class="row align-items-end">
-        <div class="col-md-2 col-sm-6 mb-2">
-            <label class="filter-label"><i class="fa fa-calendar-alt mr-1"></i>Fecha Inicio</label>
-            <input type="date" id="fpFechaInicio" class="fp-input">
-        </div>
-        <div class="col-md-2 col-sm-6 mb-2">
-            <label class="filter-label"><i class="fa fa-calendar-check mr-1"></i>Fecha Fin</label>
-            <input type="date" id="fpFechaFin" class="fp-input">
-        </div>
-        <div class="col-md-3 col-sm-6 mb-2">
-            <label class="filter-label"><i class="fa fa-user mr-1"></i>Empleado <small style="font-weight:400;text-transform:none;">(opcional)</small></label>
-            <select id="fpEmpleado" class="form-control" style="width:100%;"></select>
-        </div>
-        <div class="col-md-2 col-sm-6 mb-2">
-            <label class="filter-label"><i class="fa fa-tag mr-1"></i>Rol <small style="font-weight:400;text-transform:none;">(opcional)</small></label>
-            <select id="fpRol" class="form-control" style="width:100%;"></select>
-        </div>
-        <div class="col-md-3 col-sm-12 mb-2">
-            <label class="filter-label">&nbsp;</label>
-            <div style="display:flex;gap:8px;">
-                <button class="btn-generar" id="btnGenerar">
-                    <i class="fa fa-search"></i> Generar Reporte
-                </button>
-                <button class="btn-limpiar" id="btnLimpiar">
-                    <i class="fa fa-times"></i> Limpiar
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
 {{-- TABS --}}
 <div class="rrhh-tabs-wrapper">
     <ul class="rrhh-nav-tabs nav" id="rrhhTabs" role="tablist">
@@ -465,12 +431,50 @@ table.dataTable tbody td { font-size: 13px; vertical-align: middle; }
                 <i class="fa fa-clipboard-list"></i> Nómina
             </a>
         </li>
+        <li class="nav-item">
+            <a class="nav-link" data-toggle="tab" href="#tab-conciliadas" role="tab">
+                <i class="fa fa-check-circle"></i> Comisiones Conciliadas
+            </a>
+        </li>
     </ul>
 
     <div class="tab-content rrhh-tab-content" id="rrhhTabContent">
 
         {{-- TAB 1: NÓMINA --}}
         <div class="tab-pane fade show active" id="tab-nomina" role="tabpanel">
+            <div class="filter-panel mb-4">
+                <div class="fp-title"><i class="fa fa-sliders-h"></i> Filtros de Búsqueda</div>
+                <div class="row align-items-end">
+                    <div class="col-md-2 col-sm-6 mb-2">
+                        <label class="filter-label"><i class="fa fa-calendar-alt mr-1"></i>Fecha Inicio</label>
+                        <input type="date" id="fpFechaInicio" class="fp-input">
+                    </div>
+                    <div class="col-md-2 col-sm-6 mb-2">
+                        <label class="filter-label"><i class="fa fa-calendar-check mr-1"></i>Fecha Fin</label>
+                        <input type="date" id="fpFechaFin" class="fp-input">
+                    </div>
+                    <div class="col-md-3 col-sm-6 mb-2">
+                        <label class="filter-label"><i class="fa fa-user mr-1"></i>Empleado <small style="font-weight:400;text-transform:none;">(opcional)</small></label>
+                        <select id="fpEmpleado" class="form-control" style="width:100%;"></select>
+                    </div>
+                    <div class="col-md-2 col-sm-6 mb-2">
+                        <label class="filter-label"><i class="fa fa-tag mr-1"></i>Rol <small style="font-weight:400;text-transform:none;">(opcional)</small></label>
+                        <select id="fpRol" class="form-control" style="width:100%;"></select>
+                    </div>
+                    <div class="col-md-3 col-sm-12 mb-2">
+                        <label class="filter-label">&nbsp;</label>
+                        <div style="display:flex;gap:8px;">
+                            <button class="btn-generar" id="btnGenerar">
+                                <i class="fa fa-search"></i> Generar Reporte
+                            </button>
+                            <button class="btn-limpiar" id="btnLimpiar">
+                                <i class="fa fa-times"></i> Limpiar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="tab-toolbar">
                 <div class="tab-title">
                     <i class="fa fa-clipboard-list" style="color:#7c3aed;"></i>
@@ -515,6 +519,87 @@ table.dataTable tbody td { font-size: 13px; vertical-align: middle; }
                         </tr>
                     </tfoot>
                 </table>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="tab-conciliadas" role="tabpanel">
+            <div class="filter-panel mb-4">
+                <div class="fp-title"><i class="fa fa-check-circle"></i> Filtro de Comisiones Conciliadas</div>
+                <div class="row align-items-end">
+                    <div class="col-md-4 col-sm-12 mb-2">
+                        <label class="filter-label"><i class="fa fa-calendar mr-1"></i>Período Conciliado</label>
+                        <select id="ccPeriodo" class="form-control fp-input" style="width:100%;">
+                            <option value="">Seleccione un período conciliado</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4 col-sm-12 mb-2">
+                        <label class="filter-label">&nbsp;</label>
+                        <div style="display:flex;gap:8px;">
+                            <button class="btn-generar" id="btnCcGenerar">
+                                <i class="fa fa-search"></i> Cargar Período
+                            </button>
+                            <button class="btn-limpiar" id="btnCcLimpiar">
+                                <i class="fa fa-times"></i> Limpiar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-toolbar">
+                <div class="tab-title">
+                    <i class="fa fa-check-circle" style="color:#059669;"></i>
+                    Resumen de Comisiones Conciliadas
+                </div>
+            </div>
+
+            <div id="ccEmptyState" class="empty-state">
+                <i class="fa fa-check-circle"></i>
+                <p>Seleccione un <strong>período conciliado</strong> para ver el resumen.</p>
+            </div>
+
+            <div id="ccResumenWrap" style="display:none;">
+                <div id="ccKpis" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:14px;margin-bottom:20px;">
+                    <div class="kpi-card kpi-purple">
+                        <div class="kpi-icon"><i class="fa fa-wallet"></i></div>
+                        <div class="kpi-label">Total Bruto</div>
+                        <div class="kpi-value" id="ccTotalBruto">L. 0.00</div>
+                        <div class="kpi-sub">Comisión conciliada del período</div>
+                    </div>
+                    <div class="kpi-card kpi-amber">
+                        <div class="kpi-icon"><i class="fa fa-file-invoice-dollar"></i></div>
+                        <div class="kpi-label">Retención Fuente</div>
+                        <div class="kpi-value" id="ccTotalRetencion">L. 0.00</div>
+                        <div class="kpi-sub">Descuentos aplicados al cierre</div>
+                    </div>
+                    <div class="kpi-card kpi-green">
+                        <div class="kpi-icon"><i class="fa fa-money-bill-wave"></i></div>
+                        <div class="kpi-label">Total Neto</div>
+                        <div class="kpi-value" id="ccTotalNeto">L. 0.00</div>
+                        <div class="kpi-sub">Monto final conciliado</div>
+                    </div>
+                    <div class="kpi-card kpi-blue">
+                        <div class="kpi-icon"><i class="fa fa-users"></i></div>
+                        <div class="kpi-label">Empleados</div>
+                        <div class="kpi-value" id="ccTotalEmpleados">0</div>
+                        <div class="kpi-sub"><span id="ccTotalFacturas">0</span> facturas conciliadas</div>
+                    </div>
+                </div>
+
+                <div style="overflow-x:auto;border:1px solid #e2e8f0;border-radius:10px;background:#fff;">
+                    <table id="dtConciliadas" class="table table-hover table-sm w-100 mb-0">
+                        <thead>
+                            <tr>
+                                <th>Empleado</th>
+                                <th>Rol</th>
+                                <th class="text-center">Facturas</th>
+                                <th class="text-right">Comisión Conciliada</th>
+                                <th>Última Modificación</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ccTableBody"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
 

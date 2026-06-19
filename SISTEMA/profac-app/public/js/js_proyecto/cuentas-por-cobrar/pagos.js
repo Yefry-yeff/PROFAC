@@ -294,7 +294,7 @@ function modalOtrosMovimientos(codigoPagoA, caiFactura, idFactura, saldo){
     $('#modalOtrosMovimientos').modal('show');
 }
 
-function modalAbonos(codigoPagoA, caiFactura, idFactura, saldo){
+function modalAbonos(codigoPagoA, caiFactura, idFactura, saldo, seguimientoEstado){
     $('#codAplicPagoAbono').val(codigoPagoA);
     $('#facturaCaiAbono').val(caiFactura);
     $('#idFacturaAbono').val(idFactura);
@@ -302,6 +302,18 @@ function modalAbonos(codigoPagoA, caiFactura, idFactura, saldo){
     var s = parseFloat(saldo) || 0;
     $('#montoAbono').val(s > 0 ? s.toFixed(2) : '');
     $('#abono-saldo-label').text(s > 0 ? '(Total: L. ' + s.toLocaleString('es-HN', {minimumFractionDigits:2, maximumFractionDigits:2}) + ')' : '');
+    $('#requiereRetencionFutura').prop('checked', false).prop('disabled', false);
+    $('#retencionFuturaEstadoActual').hide().text('');
+
+    if (seguimientoEstado === 'pendiente') {
+        $('#requiereRetencionFutura').prop('checked', true);
+        $('#retencionFuturaEstadoActual').show().css('color', '#c2410c').text('Estado actual: pendiente de retención.');
+    } else if (seguimientoEstado === 'aplicada') {
+        $('#requiereRetencionFutura').prop('disabled', true);
+        $('#retencionFuturaEstadoActual').show().css('color', '#047857').text('Estado actual: retención ya aplicada.');
+    } else if (seguimientoEstado === 'descartada') {
+        $('#retencionFuturaEstadoActual').show().css('color', '#475569').text('Estado actual: seguimiento resuelto como no aplica.');
+    }
 
     datosBanco();
     $('#modalAbonos').modal('show');
@@ -321,10 +333,14 @@ function llamarTablas(){
     if ($.fn.DataTable.isDataTable('#tbl_abonos_cliente')) {
         $('#tbl_abonos_cliente').DataTable().destroy();
     }
+    if ($.fn.DataTable.isDataTable('#tbl_historico_retenciones_cliente')) {
+        $('#tbl_historico_retenciones_cliente').DataTable().destroy();
+    }
 
     listarCuentasPorCobrar();
     listarMovimientos();
     listarAbonos();
+    listarHistoricoRetenciones();
 
     $('#btnEC').removeClass('d-none');
     $('#apStats').removeClass('d-none');
@@ -366,7 +382,20 @@ function listarCuentasPorCobrar() {
                         data: 'idFactura'
                     },
                     {
-                        data: 'codigoFactura'
+                        data: 'codigoFactura',
+                        render: function (data, type, row) {
+                            var html = '<strong>' + (data || '—') + '</strong>';
+
+                            if (row.seguimientoRetencionEstado === 'pendiente') {
+                                html += '<div class="ap-ret-flag pending"><i class="fa fa-flag"></i> Pendiente retención</div>';
+                            } else if (row.seguimientoRetencionEstado === 'aplicada') {
+                                html += '<div class="ap-ret-flag applied"><i class="fa fa-check-circle"></i> Retención aplicada</div>';
+                            } else if (row.seguimientoRetencionEstado === 'descartada') {
+                                html += '<div class="ap-ret-flag dismissed"><i class="fa fa-times-circle"></i> No aplica</div>';
+                            }
+
+                            return html;
+                        }
                     },
                     {
                         data: 'cargo'
@@ -401,6 +430,21 @@ function listarCuentasPorCobrar() {
                             }
 
 
+                        }
+                    },
+                    {
+                        data: 'seguimientoRetencionEstado',
+                        render: function (data) {
+                            if (data === 'pendiente') {
+                                return "<span class='badge badge-warning'>PENDIENTE</span>";
+                            }
+                            if (data === 'aplicada') {
+                                return "<span class='badge badge-success'>APLICADA</span>";
+                            }
+                            if (data === 'descartada') {
+                                return "<span class='badge badge-secondary'>NO APLICA</span>";
+                            }
+                            return "<span class='badge badge-light'>SIN MARCA</span>";
                         }
                     },
                     {
@@ -653,6 +697,84 @@ function listarAbonos() {
 
             });
 }
+
+function listarHistoricoRetenciones() {
+
+    var idCliente = document.getElementById('cliente').value;
+    $('#tbl_historico_retenciones_cliente').DataTable({
+        "paging": true,
+        "language": {
+            "url": "//cdn.datatables.net/1.13.5/css/jquery.dataTables.min.css"
+        },
+        pageLength: 10,
+        responsive: true,
+        dom: '<"html5buttons"B>lTfgitp',
+                buttons: [
+                ],
+                "ajax": "/aplicacion/pagos/listar/historico-retenciones/"+idCliente,
+                "columns": [
+                    {
+                        data: 'codigoSeguimiento'
+                    },
+                    {
+                        data: 'codigoPago'
+                    },
+                    {
+                        data: 'correlativo'
+                    },
+                    {
+                        data: 'cliente'
+                    },
+                    {
+                        data: 'estadoEtiqueta'
+                    },
+                    {
+                        data: 'fechaMarcado'
+                    },
+                    {
+                        data: 'fechaResolucion'
+                    },
+                    {
+                        data: 'observacion_marcado'
+                    },
+                    {
+                        data: 'observacion_resolucion'
+                    },
+                    {
+                        data: 'numeroRetencion'
+                    },
+                    {
+                        data: 'archivoEtiqueta'
+                    }
+
+                ],initComplete: function () {
+                    this.api()
+                        .columns()
+                        .every(function () {
+                            let column = this;
+                            let footer = column.footer();
+                            if (!footer) return;
+                            let title = footer.textContent;
+
+                            let input = document.createElement('input');
+                            input.placeholder = title;
+                            input.style.width = '100%';
+                            footer.replaceChildren(input);
+
+                            input.addEventListener('keyup', () => {
+                                if (column.search() !== input.value) {
+                                    column.search(input.value).draw();
+                                }
+                            });
+                        });
+                    $('#badge-historico-retenciones').text(this.api().data().count());
+                },
+                drawCallback: function() {
+                    $('#badge-historico-retenciones').text(this.api().data().count());
+                }
+
+            });
+}
 /////////////////////////////FUNCIONALIDADES DE LAS GESTIONES
 
 $(document).on('submit', '#formEstadoRetencion', function(event) {
@@ -713,6 +835,9 @@ function guardarRetencions(){
 
             //$('#formEstadoRetencion').parsley().reset();
             $('#tbl_cuentas_facturas_cliente').DataTable().ajax.reload();
+            if ($.fn.DataTable.isDataTable('#tbl_historico_retenciones_cliente')) {
+                $('#tbl_historico_retenciones_cliente').DataTable().ajax.reload();
+            }
 
             var formulario = document.getElementById("formEstadoRetencion");
 
@@ -1199,6 +1324,9 @@ function guardarCreditos(){
 
             $('#tbl_cuentas_facturas_cliente').DataTable().ajax.reload();
             $('#tbl_abonos_cliente').DataTable().ajax.reload();
+            if ($.fn.DataTable.isDataTable('#tbl_historico_retenciones_cliente')) {
+                $('#tbl_historico_retenciones_cliente').DataTable().ajax.reload();
+            }
 
             // Limpiar campos de desvío inyectados
             $('#formabonos').find('[name="periodo_comision_original"]').remove();
@@ -1206,6 +1334,8 @@ function guardarCreditos(){
 
             var formulario = document.getElementById("formabonos");
             formulario.reset();
+            $('#requiereRetencionFutura').prop('checked', false).prop('disabled', false);
+            $('#retencionFuturaEstadoActual').hide().text('');
 
             $('#btn_notaabono').css('display','block');
             $('#btn_notaabono').show();
@@ -1240,6 +1370,9 @@ function AnularOtroMov(idOtroMov){
         .then(response => {
 
             $('#tbl_cuentas_facturas_cliente').DataTable().ajax.reload();
+            if ($.fn.DataTable.isDataTable('#tbl_historico_retenciones_cliente')) {
+                $('#tbl_historico_retenciones_cliente').DataTable().ajax.reload();
+            }
             $('#tbl_tipo_movimientos_cliente').DataTable().ajax.reload();
             $('#tbl_abonos_cliente').DataTable().ajax.reload();
 

@@ -6,6 +6,7 @@ use Livewire\Component;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Auth;
 use Validator;
 use DataTables;
@@ -21,6 +22,7 @@ use App\Exports\CuentasPorCobrarExport;
 use App\Exports\CuentasPorCobrarInteresExport;
 use App\Models\AplicacionPagos\Modelotros_movimientos;
 use App\Models\AplicacionPagos\Modelabonos_creditos;
+use App\Models\AplicacionPagos\Modelfactura_retencion_seguimiento;
 use App\Models\AplicacionPagos\ModelComisionReversionLog;
 use App\Models\Comisiones\Escalado\modelproducto_comision;
 use App\Models\Comisiones\Escalado\modelfacturas_comision;
@@ -35,9 +37,78 @@ use App\Services\Comisiones\AplicadorRetencionesMora;
 
 class Pagos extends Component
 {
+    private const RETENCION_FUTURA_PENDIENTE = 'pendiente';
+    private const RETENCION_FUTURA_APLICADA = 'aplicada';
+    private const RETENCION_FUTURA_DESCARTADA = 'descartada';
+
     public function render()
     {
         return view('livewire.cuentas-por-cobrar.pagos');
+    }
+
+    private function marcarSeguimientoRetencionFutura(int $facturaId, int $aplicacionPagoId, ?string $observacion = null): void
+    {
+        $clienteId = (int) DB::table('factura')->where('id', $facturaId)->value('cliente_id');
+
+        $seguimiento = Modelfactura_retencion_seguimiento::query()
+            ->where('factura_id', $facturaId)
+            ->first();
+
+        if ($seguimiento && $seguimiento->estado === self::RETENCION_FUTURA_APLICADA) {
+            return;
+        }
+
+        $payload = [
+            'aplicacion_pagos_id'    => $aplicacionPagoId,
+            'cliente_id'             => $clienteId ?: null,
+            'estado'                 => self::RETENCION_FUTURA_PENDIENTE,
+            'observacion_marcado'    => $observacion,
+            'observacion_resolucion' => null,
+            'usr_marcado'            => Auth::id(),
+            'usr_resolvio'           => null,
+            'fecha_marcado'          => now(),
+            'fecha_resolucion'       => null,
+            'numero_retencion'       => null,
+            'archivo_retencion'      => null,
+        ];
+
+        if ($seguimiento) {
+            $seguimiento->fill($payload)->save();
+            return;
+        }
+
+        Modelfactura_retencion_seguimiento::create(array_merge($payload, [
+            'factura_id' => $facturaId,
+        ]));
+    }
+
+    private function resolverSeguimientoRetencionFutura(
+        int $facturaId,
+        int $aplicacionPagoId,
+        string $estado,
+        ?string $observacion = null,
+        ?string $numeroRetencion = null,
+        ?string $archivoRetencion = null
+    ): void {
+        $clienteId = (int) DB::table('factura')->where('id', $facturaId)->value('cliente_id');
+
+        $seguimiento = Modelfactura_retencion_seguimiento::query()
+            ->firstOrNew(['factura_id' => $facturaId]);
+
+        if (!$seguimiento->exists) {
+            $seguimiento->usr_marcado = Auth::id();
+            $seguimiento->fecha_marcado = now();
+        }
+
+        $seguimiento->aplicacion_pagos_id = $aplicacionPagoId;
+        $seguimiento->cliente_id = $clienteId ?: null;
+        $seguimiento->estado = $estado;
+        $seguimiento->observacion_resolucion = $observacion;
+        $seguimiento->usr_resolvio = Auth::id();
+        $seguimiento->fecha_resolucion = now();
+        $seguimiento->numero_retencion = $numeroRetencion;
+        $seguimiento->archivo_retencion = $archivoRetencion;
+        $seguimiento->save();
     }
 
 
@@ -96,6 +167,7 @@ class Pagos extends Component
                 saldo as                   'saldo',
                 estado_retencion_isv as    'estadoRetencion',
                 retencion_aplicada as      'retencion_aplicada',
+                COALESCE((select frs.estado from factura_retencion_seguimiento frs where frs.factura_id = aplicacion_pagos.factura_id limit 1), 'sin_marcar') as 'seguimientoRetencionEstado',
                 estado as                  'estado',
                 estado_cerrado as          'estadoCierre',
                 usr_cerro as               'usrCierre',
@@ -144,6 +216,15 @@ class Pagos extends Component
                                 : '<a class="ap-ctx-item ap-ctx-dimmed">
                                         <span class="ap-ctx-icon ci-green"><i class="fa fa-check"></i></span>Retención gestionada</a>';
 
+                            $seguimientoEstado = (string) ($cuenta->seguimientoRetencionEstado ?? 'sin_marcar');
+                            $seguimientoLabel = $seguimientoEstado === self::RETENCION_FUTURA_PENDIENTE
+                                ? '<a class="ap-ctx-item ap-ctx-dimmed"><span class="ap-ctx-icon ci-orange"><i class="fa fa-flag"></i></span>Marcada para retención futura</a>'
+                                : ($seguimientoEstado === self::RETENCION_FUTURA_APLICADA
+                                    ? '<a class="ap-ctx-item ap-ctx-dimmed"><span class="ap-ctx-icon ci-green"><i class="fa fa-check-circle"></i></span>Seguimiento resuelto: aplicada</a>'
+                                    : ($seguimientoEstado === self::RETENCION_FUTURA_DESCARTADA
+                                        ? '<a class="ap-ctx-item ap-ctx-dimmed"><span class="ap-ctx-icon ci-gray"><i class="fa fa-times-circle"></i></span>Seguimiento resuelto: no aplica</a>'
+                                        : ''));
+
                             $btnBase = '
                                 <div class="ap-ctx-wrap">
                                     <button class="ap-actions-toggle" onclick="apCtxToggle(this)">
@@ -156,6 +237,7 @@ class Pagos extends Component
                                         <a class="ap-ctx-item" href="/factura/cooporativo/'.$cuenta->idFactura.'" target="_blank">
                                             <span class="ap-ctx-icon ci-red"><i class="fa fa-file-pdf-o"></i></span>Imprimir factura</a>
                                         <div class="ap-ctx-divider"></div>
+                                        '.$seguimientoLabel.'
                                         '.$retencionItem.'
                                         <a class="ap-ctx-item" onclick="modalNotaCredito('.$cuenta->codigoPago.',\''.$cuenta->codigoFactura.'\','.$cuenta->idFactura.','.$cuenta->tieneNC.')">
                                             <span class="ap-ctx-icon ci-green"><i class="fa fa-arrow-down"></i></span>Nota de crédito</a>
@@ -164,7 +246,7 @@ class Pagos extends Component
                                         <a class="ap-ctx-item" onclick="modalOtrosMovimientos('.$cuenta->codigoPago.',\''.$cuenta->codigoFactura.'\','.$cuenta->idFactura.','.$cuenta->saldo.')">
                                             <span class="ap-ctx-icon ci-gray"><i class="fa fa-refresh"></i></span>Otros movimientos</a>
                                         <div class="ap-ctx-divider"></div>
-                                        <a class="ap-ctx-item ap-ctx-highlight" onclick="modalAbonos('.$cuenta->codigoPago.',\''.$cuenta->codigoFactura.'\','.$cuenta->idFactura.','.$cuenta->saldo.')">
+                                        <a class="ap-ctx-item ap-ctx-highlight" onclick="modalAbonos('.$cuenta->codigoPago.',\''.$cuenta->codigoFactura.'\','.$cuenta->idFactura.','.$cuenta->saldo.',\''.$seguimientoEstado.'\')">
                                             <span class="ap-ctx-icon ci-teal"><i class="fa fa-money"></i></span>Registrar pago</a>
                                     </div>
                                 </div>';
@@ -436,13 +518,21 @@ class Pagos extends Component
                             $archivoRetencion = '/documentos_retenciones_cxc/'.$fileName;
                         }
 
+                        $updateAplicacionPago = [
+                            'updated_at' => now(),
+                        ];
+
+                        if (Schema::hasColumn('aplicacion_pagos', 'numero_retencion')) {
+                            $updateAplicacionPago['numero_retencion'] = $request->numero_retencion;
+                        }
+
+                        if (Schema::hasColumn('aplicacion_pagos', 'archivo_retencion')) {
+                            $updateAplicacionPago['archivo_retencion'] = $archivoRetencion;
+                        }
+
                         DB::table('aplicacion_pagos')
                             ->where('id', $request->codAplicPago)
-                            ->update([
-                                'numero_retencion'  => $request->numero_retencion,
-                                'archivo_retencion' => $archivoRetencion,
-                                'updated_at'        => now(),
-                            ]);
+                            ->update($updateAplicacionPago);
 
                         // Si la retencion aplicada deja saldo en 0, cerrar y comisionar
                         // usando la fecha del ultimo abono registrado en la factura.
@@ -541,6 +631,17 @@ class Pagos extends Component
                                 }
                             }
                         }
+
+                        $this->resolverSeguimientoRetencionFutura(
+                            (int) $request->idFacturaRetencion,
+                            (int) $request->codAplicPago,
+                            ((int) $request->selectTiporetencion === 2)
+                                ? self::RETENCION_FUTURA_APLICADA
+                                : self::RETENCION_FUTURA_DESCARTADA,
+                            (string) $request->comentario_retencion,
+                            $request->numero_retencion,
+                            $archivoRetencion
+                        );
 
                         return response()->json([
                             "icon" => "success",
@@ -1209,6 +1310,14 @@ class Pagos extends Component
 
                        }
 
+                       if ($request->boolean('requiereRetencionFutura')) {
+                           $this->marcarSeguimientoRetencionFutura(
+                               (int) $request->idFacturaAbono,
+                               (int) $request->codAplicPagoAbono,
+                               $request->comentarioAbono
+                           );
+                       }
+
                        return response()->json([
                            'icon'  => 'success',
                            'title' => '¡Éxito!',
@@ -1733,6 +1842,52 @@ class Pagos extends Component
                 'title' => 'Error',
                 'text'  => 'Ocurrió un error al anular el pago: ' . $e->getMessage(),
             ], 500);
+        }
+    }
+
+    public function listarHistoricoRetenciones($id)
+    {
+        try {
+            $consulta = DB::table('factura_retencion_seguimiento as frs')
+                ->join('factura as f', 'f.id', '=', 'frs.factura_id')
+                ->join('cliente as c', 'c.id', '=', 'frs.cliente_id')
+                ->leftJoin('users as um', 'um.id', '=', 'frs.usr_marcado')
+                ->leftJoin('users as ur', 'ur.id', '=', 'frs.usr_resolvio')
+                ->where('frs.cliente_id', $id)
+                ->orderByDesc('frs.fecha_marcado')
+                ->selectRaw("frs.id as codigoSeguimiento, frs.aplicacion_pagos_id as codigoPago, frs.factura_id as idFactura, f.cai as correlativo, c.nombre as cliente, frs.estado, DATE_FORMAT(frs.fecha_marcado, '%Y-%m-%d %H:%i:%s') as fechaMarcado, DATE_FORMAT(frs.fecha_resolucion, '%Y-%m-%d %H:%i:%s') as fechaResolucion, frs.observacion_marcado, frs.observacion_resolucion, frs.numero_retencion as numeroRetencion, frs.archivo_retencion as archivoRetencion, um.name as usuarioMarcado, ur.name as usuarioResolvio")
+                ->get();
+
+            return Datatables::of($consulta)
+                ->addColumn('estadoEtiqueta', function ($consulta) {
+                    if ($consulta->estado === self::RETENCION_FUTURA_PENDIENTE) {
+                        return '<span class="badge badge-warning">PENDIENTE</span>';
+                    }
+
+                    if ($consulta->estado === self::RETENCION_FUTURA_APLICADA) {
+                        return '<span class="badge badge-success">APLICADA</span>';
+                    }
+
+                    if ($consulta->estado === self::RETENCION_FUTURA_DESCARTADA) {
+                        return '<span class="badge badge-secondary">NO APLICA</span>';
+                    }
+
+                    return '<span class="badge badge-light">SIN ESTADO</span>';
+                })
+                ->addColumn('archivoEtiqueta', function ($consulta) {
+                    if (empty($consulta->archivoRetencion)) {
+                        return '<span class="badge badge-light">Sin archivo</span>';
+                    }
+
+                    return '<a class="badge badge-info" href="' . e($consulta->archivoRetencion) . '" target="_blank" rel="noopener">Ver archivo</a>';
+                })
+                ->rawColumns(['estadoEtiqueta', 'archivoEtiqueta'])
+                ->make(true);
+        } catch (QueryException $e) {
+            return response()->json([
+                'message' => 'Ha ocurrido un error al listar el histórico de retenciones.',
+                'errorTh' => $e,
+            ], 402);
         }
     }
 

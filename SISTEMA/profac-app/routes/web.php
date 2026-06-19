@@ -1097,6 +1097,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/aplicacion/pagos/listar/{id}', [Pagos::class, 'listarCuentasPorCobrar']);
     Route::get('/aplicacion/pagos/listar/movimientos/{id}', [Pagos::class, 'listarMovimientos']);
     Route::get('/aplicacion/pagos/listar/abonos/{id}', [Pagos::class, 'listarAbonos']);
+    Route::get('/aplicacion/pagos/listar/historico-retenciones/{id}', [Pagos::class, 'listarHistoricoRetenciones']);
 
     Route::post('/pagos/retencion/guardar', [Pagos::class, 'gestionRetencion']);
     Route::post('/pagos/notacredito/guardar', [Pagos::class, 'gestionNC']);
