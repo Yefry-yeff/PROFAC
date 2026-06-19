@@ -42,6 +42,8 @@ class RevisionCreditos extends Component
     public ?string $fechaVencimientoOferta = null;
     public int    $diasSolicitadosCredito = 0;
     public float  $montoTotalOferta = 0.0;
+    public ?string $comentarioOferta = null;
+    public ?string $comentarioCreditoOferta = null;
     // Documentos de la oferta
     public ?string $numeroOrdenCompra    = null;
     public ?string $archivoOrdenCompra   = null;
@@ -234,6 +236,8 @@ class RevisionCreditos extends Component
         $this->observaciones    = '';
         $this->mensajeExito     = '';
         $this->mensajeError     = '';
+        $this->comentarioOferta = null;
+        $this->comentarioCreditoOferta = null;
         $this->numeroOrdenCompra  = null;
         $this->archivoOrdenCompra = null;
         $this->numeroFormaF01     = null;
@@ -260,6 +264,7 @@ class RevisionCreditos extends Component
                 'p.observaciones as pedido_obs',
                 'hfof.tramite_id as cotizacion_id',
                 'c.total as monto_total_oferta',
+                'c.nota as comentario_oferta',
                 'c.fecha_emision as fecha_emision_oferta',
                 'c.fecha_vencimiento as fecha_vencimiento_oferta',
                 'f.numero_orden_compra',
@@ -278,6 +283,7 @@ class RevisionCreditos extends Component
             ? Carbon::parse($flujoResult->fecha_vencimiento_oferta)->toDateString()
             : null;
         $this->montoTotalOferta = (float) ($flujoResult->monto_total_oferta ?? 0);
+        $this->comentarioOferta = trim((string) ($flujoResult->comentario_oferta ?? '')) ?: null;
         $this->numeroOrdenCompra  = $flujoResult->numero_orden_compra  ?? null;
         $this->archivoOrdenCompra = $flujoResult->archivo_orden_compra ?? null;
         $this->numeroFormaF01     = $flujoResult->numero_forma_f01     ?? null;
@@ -324,7 +330,7 @@ class RevisionCreditos extends Component
             foreach ($candidatasCotizacion as $cotizacionCandId) {
                 $oferta = DB::table('cotizacion')
                     ->where('id', $cotizacionCandId)
-                    ->first(['id', 'cliente_id', 'fecha_emision', 'fecha_vencimiento', 'total']);
+                    ->first(['id', 'cliente_id', 'fecha_emision', 'fecha_vencimiento', 'total', 'nota']);
 
                 if (!$oferta) {
                     continue;
@@ -339,11 +345,29 @@ class RevisionCreditos extends Component
                 if ($this->montoTotalOferta <= 0) {
                     $this->montoTotalOferta = (float) ($oferta->total ?? 0);
                 }
+                if (!$this->comentarioOferta) {
+                    $this->comentarioOferta = trim((string) ($oferta->nota ?? '')) ?: null;
+                }
             }
 
             $this->diasSolicitadosCredito = $this->calcularDiasSolicitados($this->fechaEmisionOferta, $this->fechaVencimientoOferta);
             $this->tipoPagoSolicitud = $this->diasSolicitadosCredito > 0 ? 'credito' : 'contado';
         }
+
+        $comentarioCreditoOferta = DB::table('flujo_oferta_credito_comentarios')
+            ->where('flujo_id', $flujoId)
+            ->when($this->cotizacionId, fn($q) => $q->where('tramite_id', $this->cotizacionId))
+            ->orderByDesc('id')
+            ->value('observacion');
+
+        if (!$comentarioCreditoOferta) {
+            $comentarioCreditoOferta = DB::table('flujo_oferta_credito_comentarios')
+                ->where('flujo_id', $flujoId)
+                ->orderByDesc('id')
+                ->value('observacion');
+        }
+
+        $this->comentarioCreditoOferta = trim((string) ($comentarioCreditoOferta ?? '')) ?: null;
 
         $this->cargarDatosCreditoCliente();
 
@@ -393,6 +417,8 @@ class RevisionCreditos extends Component
         $this->fechaVencimientoOferta = null;
         $this->diasSolicitadosCredito = 0;
         $this->montoTotalOferta       = 0.0;
+        $this->comentarioOferta       = null;
+        $this->comentarioCreditoOferta = null;
         $this->estadoCredito          = null;
         $this->fechaAprobacionActual  = null;
         $this->fechaVencimientoActual = null;

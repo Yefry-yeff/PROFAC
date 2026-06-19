@@ -294,6 +294,7 @@ class PrefacturaController
     {
         $cotizacionId = (int) $request->cotizacion_id;
         $flujoId      = $request->flujo_id ? (int) $request->flujo_id : null;
+        $comentarioCredito = trim((string) $request->input('comentario_credito', ''));
 
         if (!$cotizacionId) {
             return response()->json(['icon' => 'error', 'title' => 'Error', 'text' => 'cotizacion_id requerido.'], 422);
@@ -334,6 +335,18 @@ class PrefacturaController
                     ->where('tipo_tramite_id', 2)
                     ->when($flujoId, fn($q) => $q->where('flujo_id', $flujoId))
                     ->update(['observaciones' => 'ganadora', 'updated_at' => now()]);
+
+                if ($flujoId) {
+                    DB::table('flujo_oferta_credito_comentarios')->insert([
+                        'flujo_id'    => $flujoId,
+                        'tramite_id'  => $cotizacionId,
+                        'observacion' => $comentarioCredito !== '' ? $comentarioCredito : null,
+                        'created_by'  => Auth::id(),
+                        'updated_by'  => Auth::id(),
+                        'created_at'  => now(),
+                        'updated_at'  => now(),
+                    ]);
+                }
 
                 // 3. Auditoría cotizacion_estado
                 DB::table('cotizacion_estado')->insert([
@@ -634,6 +647,18 @@ class PrefacturaController
                 ->where('tipo_tramite_id', 2)
                 ->where('tramite_id', $cotizacionId)
                 ->update(['observaciones' => 'ganadora', 'updated_at' => now()]);
+
+            if ($flujoId) {
+                DB::table('flujo_oferta_credito_comentarios')->insert([
+                    'flujo_id'    => $flujoId,
+                    'tramite_id'  => $cotizacionId,
+                    'observacion' => $comentarioCredito !== '' ? $comentarioCredito : null,
+                    'created_by'  => Auth::id(),
+                    'updated_by'  => Auth::id(),
+                    'created_at'  => now(),
+                    'updated_at'  => now(),
+                ]);
+            }
 
             // ── 9. Insertar historico_flujo para la prefactura ─────────────
             if ($flujoId) {

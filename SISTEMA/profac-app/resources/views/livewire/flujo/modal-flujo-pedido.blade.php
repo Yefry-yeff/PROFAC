@@ -1104,6 +1104,15 @@
                             Se creará la <strong>Pre-Factura automáticamente</strong> y se reservará el inventario.
                         </p>
                         @endif
+                        <div style="margin:0 0 10px;">
+                            <label style="display:block; font-size:11px; font-weight:700; color:#616161; margin-bottom:4px;">
+                                Comentario para Créditos (opcional)
+                            </label>
+                            <textarea wire:model.defer="comentarioCreditoGanadora"
+                                      rows="2"
+                                      placeholder="Escribe una observación para el área de créditos..."
+                                      style="width:100%; border:1px solid #ddd; border-radius:8px; padding:8px 10px; font-size:12px; resize:vertical;"></textarea>
+                        </div>
                         <div style="display:flex; gap:8px; justify-content:center;">
                             <button type="button" wire:click="ganadoraOferta"
                                     style="background:{{ $revisionInventarioActiva ? 'linear-gradient(135deg,#7b1fa2,#9c27b0)' : 'linear-gradient(135deg,#e65100,#f9a826)' }}; color:#fff;

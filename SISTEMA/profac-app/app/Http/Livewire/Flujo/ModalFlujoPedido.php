@@ -37,6 +37,7 @@ class ModalFlujoPedido extends Component
     public $ofertaSeleccionada  = null;
     public $confirmAccionOferta = null;  // null|'ganadora'|'anular_oferta'|'duplicar_oferta'
     public $motivoAnulOferta    = '';
+    public $comentarioCreditoGanadora = '';
     public bool $revisionInventarioActiva = false;
 
     // ── Revisión de Crédito ───────────────────────────────────────────────
@@ -230,6 +231,7 @@ class ModalFlujoPedido extends Component
         $this->confirmAccionPrefactura = null;
         $this->motivoAnulacion         = '';
         $this->motivoAnulOferta        = '';
+        $this->comentarioCreditoGanadora = '';
         $this->mensajeExito            = '';
         $this->mensajeError            = '';
         $this->stockErrors             = [];
@@ -388,6 +390,7 @@ class ModalFlujoPedido extends Component
         $this->confirmAccionPrefactura = null;
         $this->motivoAnulacion         = '';
         $this->motivoAnulOferta        = '';
+        $this->comentarioCreditoGanadora = '';
         $this->mensajeExito            = '';
         $this->mensajeError            = '';
         $this->stockErrors             = [];
@@ -460,6 +463,7 @@ class ModalFlujoPedido extends Component
         $this->confirmAccionOferta  = null;
         $this->motivoAnulacion         = '';
         $this->motivoAnulOferta        = '';
+        $this->comentarioCreditoGanadora = '';
         $this->mensajeExito            = '';
         $this->mensajeError            = '';
         $this->prefacturaData          = null;
@@ -507,6 +511,7 @@ class ModalFlujoPedido extends Component
         $this->confirmAccionOferta  = null;
         $this->motivoAnulacion      = '';
         $this->motivoAnulOferta     = '';
+        $this->comentarioCreditoGanadora = '';
         $this->mensajeExito         = '';
         $this->mensajeError         = '';
 
@@ -885,6 +890,7 @@ class ModalFlujoPedido extends Component
     {
         $this->confirmAccionOferta             = $accion;
         $this->motivoAnulOferta                = '';
+        $this->comentarioCreditoGanadora       = '';
         $this->mensajeError                    = '';
         $this->clienteDuplicarError            = '';
         $this->productosPrecioEscalaCambiado   = [];
@@ -899,6 +905,7 @@ class ModalFlujoPedido extends Component
     {
         $this->confirmAccionOferta             = null;
         $this->motivoAnulOferta                = '';
+        $this->comentarioCreditoGanadora       = '';
         $this->mensajeError                    = '';
         $this->mostrarSelectorClienteDuplicar  = false;
         $this->busquedaClienteDuplicar         = '';
@@ -1071,6 +1078,7 @@ class ModalFlujoPedido extends Component
 
             DB::beginTransaction();
             try {
+                $comentarioCredito = trim((string) $this->comentarioCreditoGanadora);
                 // 1. Quitar ganadora anterior si existe
                 DB::table('historico_flujo')
                     ->where('flujo_id', $this->flujoId)
@@ -1084,6 +1092,16 @@ class ModalFlujoPedido extends Component
                     ->where('tipo_tramite_id', 2)
                     ->where('flujo_id', $this->flujoId)
                     ->update(['observaciones' => 'ganadora', 'updated_at' => now()]);
+
+                DB::table('flujo_oferta_credito_comentarios')->insert([
+                    'flujo_id'    => $this->flujoId,
+                    'tramite_id'  => $cotizacionId,
+                    'observacion' => $comentarioCredito !== '' ? $comentarioCredito : null,
+                    'created_by'  => Auth::id(),
+                    'updated_by'  => Auth::id(),
+                    'created_at'  => now(),
+                    'updated_at'  => now(),
+                ]);
 
                 // 3. Auditoría cotizacion_estado
                 if ($creditoVigente) {
@@ -1147,6 +1165,7 @@ class ModalFlujoPedido extends Component
                     $this->stockErrors         = [];
                     $this->confirmAccionOferta = null;
                     $this->ofertaSeleccionada  = null;
+                    $this->comentarioCreditoGanadora = '';
                     $this->mensajeExito = 'Oferta #' . $cotizacionId . ' marcada como ganadora. Crédito vigente — enviada a Revisión de Inventario.';
 
                 } else {
@@ -1224,6 +1243,7 @@ class ModalFlujoPedido extends Component
                     $this->stockErrors         = [];
                     $this->confirmAccionOferta = null;
                     $this->ofertaSeleccionada  = null;
+                    $this->comentarioCreditoGanadora = '';
                     $this->mensajeExito = 'Oferta #' . $cotizacionId . ' marcada como ganadora y enviada a Revisión de Crédito.';
                 }
 
@@ -1282,6 +1302,7 @@ class ModalFlujoPedido extends Component
 
         DB::beginTransaction();
         try {
+            $comentarioCredito = trim((string) $this->comentarioCreditoGanadora);
             // ── 2. Quitar ganadora anterior si existe ──────────────────────
             DB::table('historico_flujo')
                 ->where('flujo_id', $this->flujoId)
@@ -1295,6 +1316,16 @@ class ModalFlujoPedido extends Component
                 ->where('tipo_tramite_id', 2)
                 ->where('flujo_id', $this->flujoId)
                 ->update(['observaciones' => 'ganadora', 'updated_at' => now()]);
+
+            DB::table('flujo_oferta_credito_comentarios')->insert([
+                'flujo_id'    => $this->flujoId,
+                'tramite_id'  => $cotizacionId,
+                'observacion' => $comentarioCredito !== '' ? $comentarioCredito : null,
+                'created_by'  => Auth::id(),
+                'updated_by'  => Auth::id(),
+                'created_at'  => now(),
+                'updated_at'  => now(),
+            ]);
 
             // ── 4. Auditoría cotizacion_estado ─────────────────────────────
             DB::table('cotizacion_estado')->insert([
@@ -1392,6 +1423,7 @@ class ModalFlujoPedido extends Component
             $this->stockErrors         = [];
             $this->confirmAccionOferta = null;
             $this->ofertaSeleccionada  = null;
+            $this->comentarioCreditoGanadora = '';
             $this->mensajeExito = 'Prefactura #' . $prefacturaId . ' generada. Válida por ' . $diasValidez . ' día(s).';
             $this->emit('pedidoActualizado');
             $this->recargar();
