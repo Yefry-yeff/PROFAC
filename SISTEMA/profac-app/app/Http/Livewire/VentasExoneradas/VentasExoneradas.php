@@ -38,38 +38,25 @@ class VentasExoneradas extends Component
     public function listarClientes(Request $request)
     {
         try {
-            if (Auth::user()->rol_id == 1 or Auth::user()->rol_id == 3) {
-                $listaClientes = DB::SELECT("
-                select
-                    id,
-                    nombre as text
-                from cliente
-                    where estado_cliente_id = 1
-                    and id<>1
-                    and  (id LIKE '%" . $request->search . "%' or nombre Like '%" . $request->search . "%') limit 15
-                        ");
+            $like = '%' . $request->search . '%';
 
-            }else{
-                $listaClientes = DB::SELECT("
-                select
-                    id,
-                    nombre as text
-                from cliente
-                    where estado_cliente_id = 1
-                    and id<>1
-                    and vendedor =" . Auth::user()->id . "
-                    and  (id LIKE '%" . $request->search . "%' or nombre Like '%" . $request->search . "%') limit 15
-                        ");
+            $query = DB::table('cliente')
+                ->select('id', 'nombre as text')
+                ->where('estado_cliente_id', 1)
+                ->where('id', '<>', 1)
+                ->where(function ($q) use ($like) {
+                    $q->where('id', 'LIKE', $like)
+                      ->orWhere('nombre', 'LIKE', $like);
+                });
 
+            // Admin (1) y Tele asesor (3) ven todos; los demás solo sus asignados
+            if (!in_array((int) Auth::user()->rol_id, [1, 3], true)) {
+                $query->where('vendedor', Auth::id());
             }
 
+            $listaClientes = $query->limit(15)->get();
 
-
-
-
-            return response()->json([
-                "results" => $listaClientes,
-            ], 200);
+            return response()->json(['results' => $listaClientes], 200);
         } catch (QueryException $e) {
             return response()->json([
                 'message' => 'Ha ocurrido un error',
@@ -369,6 +356,18 @@ class VentasExoneradas extends Component
             $factura->codigo_exoneracion_id = $request->codigo;
             $factura->estado_editar = 1;
             $factura->sub_total_grabado = 0;
+
+            // Calcular sub_total_excento: suma de productos verdaderamente exentos (isv = 0)
+            $subTotalExcento = 0;
+            foreach ($arrayInputs as $idx) {
+                $keyISVpre = "isv" . $idx;
+                $keySTpre  = "subTotal" . $idx;
+                if ((float)($request->$keyISVpre ?? 0) == 0) {
+                    $subTotalExcento += (float)($request->$keySTpre ?? 0);
+                }
+            }
+            $factura->sub_total_excento = $subTotalExcento;
+
             $factura->numero_orden_compra_id=$request->ordenCompra;
             $factura->comentario=$request->nota_comen;
             $factura->porc_descuento =$request->porDescuento;

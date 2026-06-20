@@ -185,6 +185,16 @@
                                         <div style="font-size:11px; color:#78909c; text-transform:uppercase; font-weight:700;">Días solicitados del crédito</div>
                                         <div style="font-size:15px; font-weight:800; color:#1565c0;">{{ $diasSolicitadosCredito }}</div>
                                     </div>
+                                    @if($comentarioOferta || $comentarioCreditoOferta)
+                                    <div class="col-md-4 mb-2">
+                                        <div style="font-size:11px; color:#78909c; text-transform:uppercase; font-weight:700;">Comentario de la oferta</div>
+                                        <div style="font-size:13px; color:#2c3e50; white-space:pre-wrap;">{{ $comentarioOferta ?: '—' }}</div>
+                                    </div>
+                                    <div class="col-md-4 mb-2">
+                                        <div style="font-size:11px; color:#78909c; text-transform:uppercase; font-weight:700;">Comentario para Créditos</div>
+                                        <div style="font-size:13px; color:#2c3e50; white-space:pre-wrap;">{{ $comentarioCreditoOferta ?: '—' }}</div>
+                                    </div>
+                                    @endif
                                 </div>
                                 <div style="margin-top:10px; padding-top:10px; border-top:1px solid #eef1f5;">
                                     <div style="font-size:11px; color:#78909c; text-transform:uppercase; font-weight:700;">Monto total de la oferta</div>

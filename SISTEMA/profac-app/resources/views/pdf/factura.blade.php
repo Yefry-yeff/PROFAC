@@ -2,10 +2,12 @@
 <html>
 
 <head>
-
-
         <link rel="stylesheet" href="{{ public_path('css/bootstrap.min.css') }}">
     <style>
+        @page {
+            margin: 320px 28px 38px 28px;
+        }
+
         .color-red {
             color: red;
         }
@@ -15,47 +17,58 @@
         }
 
         body {
-
-           /*  background-size: 100% 100%; */
-            margin-left: -95px;
-            padding: 50px;
-            /* ##background-image: url('img/membrete/Logo1.png'); */
-
-
-            width: 45rem;
-            height: 3rem;
-
-
+            margin: 0;
+            padding: 0;
+            width: 100%;
         }
-
 
         table {
             border-collapse: collapse;
             border-spacing: 0;
             width: 100%;
-            border: 1px solid #ddd;
+        }
+
+        .card-body {
+            position: static !important;
         }
 
         th,
         td {
             text-align: left;
             padding: 2px;
-
         }
 
         thead {
-            background-color: #f2f2f2
+            background-color: #f2f2f2;
+            display: table-header-group;
         }
 
-        /* tr:nth-child(even) {
-            background-color: #f2f2f2
-
-        } */
+        #encabezado-fijo {
+            position: fixed;
+            top: -312px;
+            left: 0;
+            right: 0;
+            width: 100%;
+            font-size: 10px;
+        }
 
         .letra {
             font-weight: 800;
+        }
 
+        .encabezado-celda {
+            background-color: #fff;
+            font-weight: normal;
+            border: none;
+            padding: 0;
+        }
 
+        tbody td {
+            border: none;
+        }
+
+        tbody tr {
+            page-break-inside: avoid;
         }
     </style>
     <title>FACTURA</title>
@@ -64,46 +77,47 @@
 <body>
 
     @php
-        $altura = 200;
-        $altura2 = 320;
-        $contadorFilas = 0;
-        $contPe = 0;
-        $p1 = 24;
-        $p2 = 30;
-        $vueltasTabla = 0;
+        $usuarioImpresion = auth()->check() ? auth()->user()->name : 'Usuario';
+        $fechaImpresion   = now()->format('d/m/Y H:i');
     @endphp
 
+    {{-- ENCABEZADO FIJO: se repite en todas las páginas (position:fixed en DomPDF) --}}
+    <div id="encabezado-fijo">
 
-    <div class="pruebaFondo">
-        <img src="{{ public_path('img/membrete/Logo3.png') }}" width="800rem" style="margin-left:3%; margin-top:-25px; position:absolute;"alt="">
+        {{-- LOGO --}}
+        <img src="{{ public_path('img/membrete/Logo3.png') }}"
+             style="display:block; width:100%; margin-bottom:2px;" alt="">
 
-        <div class="card border border-dark" style="margin-left:44px;  margin-top:105px; width:45rem; height:5.5rem;">
-            <div class="card-header">
-                <b>Factura No. {{ $cai->numero_factura }} </b>
-                <b style="position:absolute;right: 270px"> *Original* </b>
-                <b style="position:absolute;right: 10px">Factura de: {{ $cai->descripcion }}</b>
+        {{-- TARJETA: DATOS DE FACTURA --}}
+        <div class="card border border-dark" style="margin-left:0; margin-top:2px; width:100%;">
+            <div class="card-header" style="padding:3px 8px; display:table; width:100%; box-sizing:border-box;">
+                <b style="display:table-cell; text-align:left;">Factura No. {{ $cai->numero_factura }} </b>
+                <b style="display:table-cell; text-align:center;"> *Original* </b>
+                <b style="display:table-cell; text-align:right;">Factura de: {{ $cai->descripcion }}</b>
             </div>
-
-            <div class="card-body">
-                <p class="card-text" style="position:absolute;left:20px;  top:50px;"><b>Registro tributario:
-                        08011986138652</b></p>
-                <p class="card-text" style="position:absolute;left:420px;  top:50px;"><b>CAI:
-                        {{ $cai->cai }}</b></p>
-                <p class="card-text" style="position:absolute;left:20px;  top:65px;"><b>Fecha límite de emisión:
-                        {{ $cai->fecha_limite_emision }}</b></p>
-                <p class="card-text" style="position:absolute;left:340px;  top:65px;"><b>Rango autorizado:
-                        {{ $cai->numero_inicial }} - {{ $cai->numero_final }}</b></p>
+            <div class="card-body" style="padding:4px 10px;">
+                <table style="width:100%; border:none; border-collapse:collapse; font-size:10px;">
+                    <tr>
+                        <td style="border:none; padding:1px 0;"><b>Registro tributario: 08011986138652</b></td>
+                        <td style="border:none; padding:1px 0; text-align:right;"><b>CAI: {{ $cai->cai }}</b></td>
+                    </tr>
+                    <tr>
+                        <td style="border:none; padding:1px 0;"><b>Fecha l&iacute;mite de emisi&oacute;n: {{ $cai->fecha_limite_emision }}</b></td>
+                        <td style="border:none; padding:1px 0; text-align:right;"><b>Rango autorizado: {{ $cai->numero_inicial }} - {{ $cai->numero_final }}</b></td>
+                    </tr>
+                </table>
             </div>
         </div>
 
-        <div class="card border border-dark" style="margin-left:44px; margin-top:4px; width:45rem;">
+        {{-- TARJETA: DATOS DEL CLIENTE --}}
+        <div class="card border border-dark" style="margin-left:0; margin-top:4px; width:100%;">
             <div class="card-body" style="padding:4px 10px;">
                 <table style="width:100%; border:none; border-collapse:collapse; font-size:10px;">
                     <tr>
                         <td style="width:58%; vertical-align:top; padding:0; border:none;">
                             <p style="margin:0 0 2px;"><b>Cliente:</b> {{ $cliente->nombre }} - ({{ $cliente->clienteId }})</p>
-                            <p style="margin:0 0 2px;"><b>Dirección:</b> {{ $cliente->direccion }}</p>
-                            <p style="margin:0 0 2px;"><b>Correo:</b> {{ $cliente->correo }} &nbsp;&nbsp; <b>Teléfono:</b> {{ $cliente->telefono_empresa }}</p>
+                            <p style="margin:0 0 2px;"><b>Direcci&oacute;n:</b> {{ $cliente->direccion }}</p>
+                            <p style="margin:0 0 2px;"><b>Correo:</b> {{ $cliente->correo }} &nbsp;&nbsp; <b>Tel&eacute;fono:</b> {{ $cliente->telefono_empresa }}</p>
                             <p style="margin:0;"><b>Notas:</b> {{ $cai->comentario }}</p>
                         </td>
                         <td style="width:42%; vertical-align:top; padding:0 0 0 10px; border:none; border-left:1px solid #ccc;">
@@ -111,9 +125,9 @@
                             <p style="margin:0 0 2px;"><b>Hora:</b> {{ $cai->hora }}</p>
                             <p style="margin:0 0 2px;"><b>Vence:</b> {{ $cai->fecha_vencimiento }}</p>
                             <p style="margin:0 0 2px;"><b>RTN:</b> {{ $cliente->rtn }}</p>
-                            <p style="margin:0 0 2px;"><b>Orden N°:</b> {{ $ordenCompra['numero_orden'] }}</p>
+                            <p style="margin:0 0 2px;"><b>Orden N&deg;:</b> {{ $ordenCompra['numero_orden'] }}</p>
                             @if(!empty($formaF01))
-                            <p style="margin:0;"><b>F-01 N°:</b> {{ $formaF01 }}</p>
+                            <p style="margin:0;"><b>F-01 N&deg;:</b> {{ $formaF01 }}</p>
                             @endif
                         </td>
                     </tr>
@@ -133,65 +147,50 @@
             </div>
         </div>
 
-                 @php
-                    $cant = count($productos);
-                @endphp
-                <div class="" style="position: relative; margin-left:44px; margin-top:4px; width:45rem">
+    </div>{{-- fin #encabezado-fijo --}}
 
-                    <div>
+    <div class="pruebaFondo">
+        @php $cant = count($productos); @endphp
 
-                        <table class="" style="font-size: 10px; ">
-                            <thead>
-                                <tr>
-                                    <th>Código</th>
-                                    <th>Producto</th>
-                                    <th>Bodega</th>
-                                    <th>Seccion</th>
-                                    <th>Medida</th>
-                                    <th>Exento</th>
-                                    <th>Precio </th>
-                                    <th>Cantidad</th>
-                                    <th>Importe</th>
-                                </tr>
-                            </thead>
-                            <tbody>
+        <table style="font-size:9px; width:100%; border-collapse:collapse; border: 1px solid #000; margin-top:8px;">
+            <thead>
+                {{-- FILA DE CABECERAS DE COLUMNAS (se repite via table-header-group) --}}
+                <tr>
+                    <th>Código</th>
+                    <th>Producto</th>
+                    <th>Bodega</th>
+                    <th>Seccion</th>
+                    <th>Medida</th>
+                    <th>Exento</th>
+                    <th>Precio</th>
+                    <th>Cantidad</th>
+                    <th>Importe</th>
+                </tr>
+            </thead>
+                    <tbody>
+                        @foreach ($productos as $producto)
+                            <tr>
+                                <td>{{ $producto->codigo }}</td>
+                                <td>{{ $producto->descripcion }}</td>
+                                <td>{{ $producto->bodega }}</td>
+                                <td>{{ $producto->seccion }}</td>
+                                <td>{{ $producto->medida }}</td>
+                                <td>{{ $producto->excento }}</td>
+                                <td>{{ $producto->precio }}</td>
+                                <td>{{ $producto->cantidad }}</td>
+                                <td>{{ $producto->importe }}</td>
+                            </tr>
+                        @endforeach
 
-                                @foreach ($productos as $producto)
-                                    <tr>
-                                        <td>{{ $producto->codigo }}</td>
-                                        <td>{{ $producto->descripcion }}</td>
-                                        <td>{{ $producto->bodega }}</td>
-                                        <td>{{ $producto->seccion }}</td>
-                                         <td>{{ $producto->medida }}</td>
-                                        <td>{{ $producto->excento }}</td>
-                                        <td>{{ $producto->precio }}</td>
-                                        <td>{{ $producto->cantidad }}</td>
-                                        <td>{{ $producto->importe }}</td>
-                                    </tr>
-                                @endforeach
-
-
-                                @php
-
-                                    $altura = 50;
-                                    $altura2 = 450;
-                                @endphp
-
-                            </tbody>
-
-
-                        </table>
-
-                    </div>
-
-                </div>
+                        @php $altura = 50; $altura2 = 450; @endphp
+                    </tbody>
+            </table>
 
 
 
-                <div style="position: relative; margin-left:44px; margin-top:6px; width:26rem; height:14rem;">
+                <div style="position: relative; margin-top:6px; width:100%; min-height:14rem;">
 
-
-                    <div class="card border border-dark" style="position:absolute;left:0px; width:26rem;">
+                    <div class="card border border-dark" style="position:absolute;left:0; width:57%;">
                         <div class="card-body" style="padding:4px 8px;">
                             <p style="margin:0 0 1px; font-size:10px;"><b>Asesor comercial:</b> {{ $cai->vendedor }} &nbsp; <b>Tele asesor:</b> {{ $cai->facturador }} &nbsp; <b>Asesor de entrega:</b> {{ $cai->asesor_entrega ?? '' }}</p>
                             <p style="margin:0 0 2px; font-size:10px;"><b>Trámite #{{ $cai->flujo_id ?? '—' }}</b></p>
@@ -212,7 +211,7 @@
                         </div>
                     </div>
 
-                    <div class="card border border-dark" style="position:absolute;left:430px; width:18rem;">
+                    <div class="card border border-dark" style="position:absolute;right:0; width:41%;">
                         <div class="card-body" style="padding:4px 8px;">
                             <table style="width:100%; border:none; border-collapse:collapse; font-size:10px;">
                                 <tr>
@@ -257,21 +256,19 @@
                                     </td>
                                 </tr>
                             </table>
+                            <p style="margin:3px 0 0; font-size:8px; text-align:center;">Original: Cliente, Copia obligado tributario emisor.</p>
                         </div>
                     </div>
 
                     @if ($cai->estado_venta_id == 2)
-                    <div  style="position:absolute;   text-align: center; margin-top:350px;width:45rem">
-                        <p style="font-size:50px">
-                            --FACTURA ANULADA--</p>
+                    <div style="position:fixed; top:30%; left:0; width:100%; text-align:center; transform:rotate(-45deg); opacity:0.18; z-index:9999;">
+                        <p style="font-size:90px; font-weight:900; color:#cc0000; letter-spacing:8px; margin:0;">FACTURA ANULADA</p>
                     </div>
                     @endif
 
                 </div>
 
-                <p style="margin:4px 44px 0; font-size:8px; text-align:right;">Original: Cliente, Copia obligado tributario emisor.</p>
-
-                <div style="margin-left:44px; margin-top:70px; width:45rem;">
+                <div style="margin-top:70px; width:100%;">
                     <table style="width:100%; border:none; border-collapse:collapse; font-size:9px;">
                         <tr>
                             <td style="width:50%; border:none; vertical-align:top; padding:0 20px 0 0;">
@@ -303,6 +300,16 @@
 
 
 
+
+    <script type="text/php">
+        if (isset($pdf)) {
+            $font = $fontMetrics->get_font('Helvetica', 'normal');
+            $size = 7;
+            $y    = $pdf->get_height() - 20;
+            $pdf->page_text(28, $y, '{{ addslashes($usuarioImpresion) }} {{ $fechaImpresion }}', $font, $size, [0,0,0]);
+            $pdf->page_text($pdf->get_width() - 80, $y, 'Página {PAGE_NUM} | {PAGE_COUNT}', $font, $size, [0,0,0]);
+        }
+    </script>
 
     <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"
         integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous">

@@ -149,13 +149,25 @@ class ReporteVentasCobros extends Component
             COALESCE(flujo_doc.numero_forma_f01, '')                    AS flujo_forma_f01,
 
             /* ── Montos factura ── */
-            GREATEST(
-                COALESCE(f.sub_total, 0)
-                - COALESCE(f.sub_total_grabado, 0)
-                - COALESCE(f.sub_total_excento, 0),
-            0)                                                          AS exonerado,
+            CASE WHEN f.tipo_venta_id = 3 THEN
+                COALESCE(f.sub_total, 0) - COALESCE((
+                    SELECT SUM(vhp.sub_total_s) FROM venta_has_producto vhp
+                    WHERE vhp.factura_id = f.id
+                    AND ((DATE(f.fecha_emision) < '2026-06-07' AND COALESCE(vhp.isv,0) = 0)
+                         OR (DATE(f.fecha_emision) >= '2026-06-07' AND vhp.tipo_precio = '1'))
+                ), 0)
+            ELSE GREATEST(COALESCE(f.sub_total,0) - COALESCE(f.sub_total_grabado,0) - COALESCE(f.sub_total_excento,0), 0)
+            END                                                         AS exonerado,
             COALESCE(f.sub_total_grabado, 0)                           AS gravado,
-            COALESCE(f.sub_total_excento, 0)                           AS exento,
+            CASE WHEN f.tipo_venta_id = 3 THEN
+                COALESCE((
+                    SELECT SUM(vhp.sub_total_s) FROM venta_has_producto vhp
+                    WHERE vhp.factura_id = f.id
+                    AND ((DATE(f.fecha_emision) < '2026-06-07' AND COALESCE(vhp.isv,0) = 0)
+                         OR (DATE(f.fecha_emision) >= '2026-06-07' AND vhp.tipo_precio = '1'))
+                ), 0)
+            ELSE COALESCE(f.sub_total_excento, 0)
+            END                                                         AS exento,
             COALESCE(f.sub_total, 0)                                   AS sub_total,
             CASE WHEN f.tipo_venta_id = 3 THEN 0 ELSE COALESCE(f.isv, 0) END AS isv,
             COALESCE(f.total, 0)                                       AS total,
@@ -761,9 +773,9 @@ class ReporteVentasCobros extends Component
                     COALESCE((SELECT def2.fecha_entrega_real
                         FROM distribuciones_entrega_facturas def2
                         WHERE def2.factura_id = f.id ORDER BY def2.id DESC LIMIT 1), NULL) AS fecha_entrega,
-                    GREATEST(COALESCE(f.sub_total,0)-COALESCE(f.sub_total_grabado,0)-COALESCE(f.sub_total_excento,0),0) AS exonerado,
+                    CASE WHEN f.tipo_venta_id = 3 THEN COALESCE(f.sub_total,0) - COALESCE((SELECT SUM(vhp.sub_total_s) FROM venta_has_producto vhp WHERE vhp.factura_id = f.id AND ((DATE(f.fecha_emision) < '2026-06-07' AND COALESCE(vhp.isv,0) = 0) OR (DATE(f.fecha_emision) >= '2026-06-07' AND vhp.tipo_precio = '1'))), 0) ELSE GREATEST(COALESCE(f.sub_total,0)-COALESCE(f.sub_total_grabado,0)-COALESCE(f.sub_total_excento,0),0) END AS exonerado,
                     COALESCE(f.sub_total_grabado, 0)                        AS gravado,
-                    COALESCE(f.sub_total_excento, 0)                        AS exento,
+                    CASE WHEN f.tipo_venta_id = 3 THEN COALESCE((SELECT SUM(vhp.sub_total_s) FROM venta_has_producto vhp WHERE vhp.factura_id = f.id AND ((DATE(f.fecha_emision) < '2026-06-07' AND COALESCE(vhp.isv,0) = 0) OR (DATE(f.fecha_emision) >= '2026-06-07' AND vhp.tipo_precio = '1'))), 0) ELSE COALESCE(f.sub_total_excento, 0) END AS exento,
                     COALESCE(f.sub_total, 0)                                AS sub_total,
                     CASE WHEN f.tipo_venta_id = 3 THEN 0 ELSE COALESCE(f.isv, 0) END AS isv,
                     COALESCE(f.total, 0)                                    AS total_factura,
@@ -1344,9 +1356,9 @@ class ReporteVentasCobros extends Component
             COALESCE(tpv.descripcion, '') AS modo_pago,
             UPPER(ev.descripcion) AS estado_f01,
             COALESCE(flujo_doc.numero_forma_f01, '') AS flujo_forma_f01,
-            GREATEST(COALESCE(f.sub_total,0) - COALESCE(f.sub_total_grabado,0) - COALESCE(f.sub_total_excento,0), 0) AS exonerado,
+            CASE WHEN f.tipo_venta_id = 3 THEN COALESCE(f.sub_total,0) - COALESCE((SELECT SUM(vhp.sub_total_s) FROM venta_has_producto vhp WHERE vhp.factura_id = f.id AND ((DATE(f.fecha_emision) < '2026-06-07' AND COALESCE(vhp.isv,0) = 0) OR (DATE(f.fecha_emision) >= '2026-06-07' AND vhp.tipo_precio = '1'))), 0) ELSE GREATEST(COALESCE(f.sub_total,0) - COALESCE(f.sub_total_grabado,0) - COALESCE(f.sub_total_excento,0), 0) END AS exonerado,
             COALESCE(f.sub_total_grabado, 0) AS gravado,
-            COALESCE(f.sub_total_excento, 0) AS exento,
+            CASE WHEN f.tipo_venta_id = 3 THEN COALESCE((SELECT SUM(vhp.sub_total_s) FROM venta_has_producto vhp WHERE vhp.factura_id = f.id AND ((DATE(f.fecha_emision) < '2026-06-07' AND COALESCE(vhp.isv,0) = 0) OR (DATE(f.fecha_emision) >= '2026-06-07' AND vhp.tipo_precio = '1'))), 0) ELSE COALESCE(f.sub_total_excento, 0) END AS exento,
             COALESCE(f.sub_total, 0) AS sub_total,
             CASE WHEN f.tipo_venta_id = 3 THEN 0 ELSE COALESCE(f.isv, 0) END AS isv,
             COALESCE(f.total, 0) AS total,

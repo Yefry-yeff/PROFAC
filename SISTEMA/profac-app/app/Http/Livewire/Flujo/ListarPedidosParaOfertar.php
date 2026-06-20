@@ -109,6 +109,10 @@ class ListarPedidosParaOfertar extends Component
             ->leftJoin('users as u', 'u.id', '=', 'p.users_id')
             ->where('f.tipo_flujo_id', 1)
             ->where('f.tipo_tramite_id', 1)
+            ->where(function ($sub) {
+                $sub->where('p.users_id', Auth::id())
+                    ->orWhere('c.vendedor', Auth::id());
+            })
             ->whereNotIn('p.estado', ['cancelado'])
             ->whereRaw('NOT EXISTS (SELECT 1 FROM historico_flujo hf WHERE hf.flujo_id = f.id AND hf.tipo_tramite_id = 2)')
             ->select(
@@ -165,6 +169,10 @@ class ListarPedidosParaOfertar extends Component
             ->join('pedido as p', DB::raw('CAST(f.identificacion AS UNSIGNED)'), '=', 'p.id')
             ->join('cliente as c', 'c.id', '=', 'p.cliente_id')
             ->where('f.tipo_flujo_id', 1)
+            ->where(function ($sub) {
+                $sub->where('p.users_id', Auth::id())
+                    ->orWhere('c.vendedor', Auth::id());
+            })
             ->whereExists(function ($q) {
                 $q->select(DB::raw(1))
                   ->from('historico_flujo as hf')
@@ -188,6 +196,7 @@ class ListarPedidosParaOfertar extends Component
             ->join('tipos_tramites as tt', 'tt.id', '=', 'f.tipo_tramite_id')
             ->join('cotizacion as o', DB::raw('CAST(f.identificacion AS UNSIGNED)'), '=', 'o.id')
             ->where('f.tipo_flujo_id', 1)
+            ->where('o.users_id', Auth::id())
             ->whereNotExists(function ($q) {
                 $q->select(DB::raw(1))
                   ->from('historico_flujo as hf')

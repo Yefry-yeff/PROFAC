@@ -18,6 +18,7 @@ class ListarVentas extends Component
 
     // ── Control de acceso ─────────────────────────────────────────────────
     public $esAdmin = false;
+    public $puedeVerTodoHistorial = false;
 
     // ── Paginación y datos ────────────────────────────────────────────────
     public int $paginaOfr = 1;
@@ -57,7 +58,9 @@ class ListarVentas extends Component
     // ── Ciclo de vida ──────────────────────────────────────────────────────
     public function mount()
     {
-        $this->esAdmin = Auth::user()->rol_id === 1;
+        $rolId = (int) (Auth::user()->rol_id ?? 0);
+        $this->esAdmin = $rolId === 1;
+        $this->puedeVerTodoHistorial = in_array($rolId, [1, 16], true);
         $this->cargarRegistros();
 
         // Si viene desde una notificación (?flujo_id=X), resolver pedido_id en PHP.
@@ -185,12 +188,23 @@ class ListarVentas extends Component
                 DB::raw("CASE WHEN p.id IS NULL THEN 'cotizacion' ELSE 'pedido' END as origen")
             );
 
-        // Solo ver propios registros si no es administrador
-        if (!$this->esAdmin) {
+        // En historial, Admin (1) y Gestor de Entregas (16) ven todos.
+        if (!$this->puedeVerTodoHistorial) {
             $q->where(function ($sub) {
                 $sub->where('p.users_id', Auth::id())
                     ->orWhere('co.users_id', Auth::id())
-                    ->orWhere('f.created_by', Auth::id());
+                    ->orWhere('f.created_by', Auth::id())
+                    ->orWhereExists(function ($sq) {
+                        $sq->select(DB::raw(1))
+                           ->from('historico_flujo as hff')
+                           ->join('factura as fa', 'fa.id', '=', 'hff.tramite_id')
+                           ->whereColumn('hff.flujo_id', 'f.id')
+                           ->where('hff.tipo_tramite_id', 3)
+                           ->where(function ($sfa) {
+                               $sfa->where('fa.vendedor', Auth::id())
+                                   ->orWhere('fa.users_id', Auth::id());
+                           });
+                    });
             });
         }
 

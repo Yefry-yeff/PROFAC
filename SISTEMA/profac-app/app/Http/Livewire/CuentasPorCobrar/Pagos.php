@@ -1547,6 +1547,14 @@ class Pagos extends Component
             return $row;
         }, $estadoCuenta);
 
+        // Filtrar para mostrar únicamente movimientos con saldo > 0
+        $estadoCuenta = array_filter($estadoCuenta, function ($row) {
+            $saldo = $row->saldo ?? $row->Saldo ?? 0;
+            return ((float) $saldo) > 0;
+        });
+        // Reindexar el array tras el filtro
+        $estadoCuenta = array_values($estadoCuenta);
+
         if (empty($estadoCuenta)) {
             // Sin facturas pendientes para este cliente — generar PDF informativo
             $nombreCliente = DB::table('cliente')->where('id', (int) $idClientepdf)->value('nombre') ?? 'Cliente #'.$idClientepdf;

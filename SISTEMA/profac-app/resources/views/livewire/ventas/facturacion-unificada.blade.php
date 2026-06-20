@@ -2501,7 +2501,7 @@
                         let activeClass = element.contador == 1 ? ' active' : '';
                         htmlImagenes += '<div class="carousel-item' + activeClass + '">' +
                             '<a href="' + detalleUrl + '" target="_blank" title="Ver detalles del producto" style="display:block;">' +
-                            '<img class="d-block" src="' + public_path + '/' + element.url_img + '" alt="imagen ' + element.contador + '" style="width:100%;height:220px;object-fit:contain;cursor:pointer;"></a></div>';
+                            '<img class="d-block" src="' + public_path + '/' + element.url_img + '" alt="imagen ' + element.contador + '" onerror="this.onerror=null;this.src=\'/img/no-image.png\';" style="width:100%;height:220px;object-fit:contain;cursor:pointer;"></a></div>';
                     });
                     document.getElementById('bloqueImagenes').innerHTML = htmlImagenes;
                 }
@@ -3301,72 +3301,90 @@
             $('#modalExitoOferta').modal('hide');
 
         } else if (tipo === 'prefacturar') {
-            var btn = document.getElementById('btnPrefacturarOferta');
-            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa fa-spinner fa-spin d-block" style="font-size:20px;margin-bottom:4px;"></i>Procesando...'; }
+            var runPrefacturar = function(comentarioCredito) {
+                var btn = document.getElementById('btnPrefacturarOferta');
+                if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa fa-spinner fa-spin d-block" style="font-size:20px;margin-bottom:4px;"></i>Procesando...'; }
 
-            axios.post('/cotizacion/prefacturar-desde-oferta',
-                { cotizacion_id: idOferta, flujo_id: idFlujo || null },
-                { headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') } }
-            ).then(function(res) {
-                var d = res.data;
-                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-file-text-o d-block" style="font-size:20px;margin-bottom:4px;"></i>Oferta ganadora'; }
+                axios.post('/cotizacion/prefacturar-desde-oferta',
+                    {
+                        cotizacion_id: idOferta,
+                        flujo_id: idFlujo || null,
+                        comentario_credito: comentarioCredito !== '' ? comentarioCredito : null
+                    },
+                    { headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') } }
+                ).then(function(res) {
+                    var d = res.data;
+                    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-file-text-o d-block" style="font-size:20px;margin-bottom:4px;"></i>Oferta ganadora'; }
 
-                // ── Revisión de crédito activa: mostrar modal informativo ──
-                if (d.en_revision_credito) {
-                    _revisionFlujoId = d.flujoId || idFlujo;
-                    var metaWrap = document.getElementById('revisionCredMeta');
-                    if (metaWrap) {
-                        var fmt = new Intl.NumberFormat('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                        document.getElementById('revMetaEmision').textContent = d.fecha_emision || '—';
-                        document.getElementById('revMetaVencimiento').textContent = d.fecha_vencimiento || '—';
-                        document.getElementById('revMetaDias').textContent = (d.dias_solicitados !== undefined && d.dias_solicitados !== null) ? d.dias_solicitados : 0;
-                        document.getElementById('revMetaMonto').textContent = 'L ' + fmt.format(parseFloat(d.monto_total_oferta || 0));
-                        metaWrap.style.display = '';
-                    }
-                    $('#modalExitoOferta').one('hidden.bs.modal', function() {
+                    if (d.en_revision_credito) {
+                        _revisionFlujoId = d.flujoId || idFlujo;
+                        var metaWrap = document.getElementById('revisionCredMeta');
+                        if (metaWrap) {
+                            var fmt = new Intl.NumberFormat('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                            document.getElementById('revMetaEmision').textContent = d.fecha_emision || '—';
+                            document.getElementById('revMetaVencimiento').textContent = d.fecha_vencimiento || '—';
+                            document.getElementById('revMetaDias').textContent = (d.dias_solicitados !== undefined && d.dias_solicitados !== null) ? d.dias_solicitados : 0;
+                            document.getElementById('revMetaMonto').textContent = 'L ' + fmt.format(parseFloat(d.monto_total_oferta || 0));
+                            metaWrap.style.display = '';
+                        }
                         $('#modalRevisionCredito').modal('show');
                         setTimeout(function() { $('.modal-backdrop').last().css('z-index', '2070'); }, 50);
-                    });
-                    $('#modalExitoOferta').modal('hide');
-                    return;
-                }
+                        return;
+                    }
 
-                _prefacturaId    = d.idPrefactura;
-                _prefacturaFlujoId = d.flujoId || idFlujo;
-                document.getElementById('msgPrefactura').textContent = 'Prefactura #' + d.idPrefactura + ' generada. Válida por ' + (d.diasValidez || 7) + ' día(s).';
-                $('#modalExitoOferta').one('hidden.bs.modal', function() {
+                    _prefacturaId    = d.idPrefactura;
+                    _prefacturaFlujoId = d.flujoId || idFlujo;
+                    document.getElementById('msgPrefactura').textContent = 'Prefactura #' + d.idPrefactura + ' generada. Válida por ' + (d.diasValidez || 7) + ' día(s).';
                     $('#modalPrefacturaExito').modal('show');
-                    // Asegurar que el backdrop del modal de prefactura quede encima
-                    setTimeout(function() {
-                        $('.modal-backdrop').last().css('z-index', '2070');
-                    }, 50);
+                    setTimeout(function() { $('.modal-backdrop').last().css('z-index', '2070'); }, 50);
+                }).catch(function(err) {
+                    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-file-text-o d-block" style="font-size:20px;margin-bottom:4px;"></i>Oferta ganadora'; }
+                    var d = err.response ? err.response.data : {};
+                    if (d.stock_errors && d.stock_errors.length) {
+                        var rows = d.stock_errors.map(function(e) {
+                            return '<tr><td style="padding:4px 8px;font-weight:600;">' + e.producto + '</td>'
+                                + '<td style="padding:4px 8px;text-align:center;color:#e65100;font-weight:700;">' + e.solicitado + '</td>'
+                                + '<td style="padding:4px 8px;text-align:center;color:#b71c1c;font-weight:700;">' + e.disponible + '</td></tr>';
+                        }).join('');
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Inventario insuficiente',
+                            html: '<p style="font-size:13px;margin-bottom:10px;">Los siguientes productos no tienen stock suficiente:</p>'
+                                + '<table style="width:100%;font-size:12px;border-collapse:collapse;">'
+                                + '<thead><tr style="background:#fce4ec;">'
+                                + '<th style="padding:4px 8px;text-align:left;">Producto</th>'
+                                + '<th style="padding:4px 8px;">Solicitado</th>'
+                                + '<th style="padding:4px 8px;">Disponible</th>'
+                                + '</tr></thead><tbody>' + rows + '</tbody></table>',
+                            confirmButtonColor: '#e65100',
+                        });
+                    } else {
+                        Swal.fire({ icon: 'error', title: d.title || 'Error', text: d.text || 'No se pudo prefacturar la oferta.' });
+                    }
                 });
-                $('#modalExitoOferta').modal('hide');
-            }).catch(function(err) {
-                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-file-text-o d-block" style="font-size:20px;margin-bottom:4px;"></i>Oferta ganadora'; }
-                var d = err.response ? err.response.data : {};
-                if (d.stock_errors && d.stock_errors.length) {
-                    var rows = d.stock_errors.map(function(e) {
-                        return '<tr><td style="padding:4px 8px;font-weight:600;">' + e.producto + '</td>'
-                             + '<td style="padding:4px 8px;text-align:center;color:#e65100;font-weight:700;">' + e.solicitado + '</td>'
-                             + '<td style="padding:4px 8px;text-align:center;color:#b71c1c;font-weight:700;">' + e.disponible + '</td></tr>';
-                    }).join('');
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Inventario insuficiente',
-                        html: '<p style="font-size:13px;margin-bottom:10px;">Los siguientes productos no tienen stock suficiente:</p>'
-                            + '<table style="width:100%;font-size:12px;border-collapse:collapse;">'
-                            + '<thead><tr style="background:#fce4ec;">'
-                            + '<th style="padding:4px 8px;text-align:left;">Producto</th>'
-                            + '<th style="padding:4px 8px;">Solicitado</th>'
-                            + '<th style="padding:4px 8px;">Disponible</th>'
-                            + '</tr></thead><tbody>' + rows + '</tbody></table>',
-                        confirmButtonColor: '#e65100',
-                    });
-                } else {
-                    Swal.fire({ icon: 'error', title: d.title || 'Error', text: d.text || 'No se pudo prefacturar la oferta.' });
-                }
+            };
+
+            $('#modalExitoOferta').one('hidden.bs.modal', function() {
+                Swal.fire({
+                    title: 'Comentario para Créditos',
+                    text: 'Opcional: agrega una observación antes de marcar la oferta ganadora.',
+                    input: 'textarea',
+                    inputPlaceholder: 'Escribe aquí el comentario para créditos...',
+                    inputAttributes: { maxlength: 1000 },
+                    showCancelButton: true,
+                    confirmButtonText: 'Continuar',
+                    cancelButtonText: 'Cancelar',
+                    confirmButtonColor: '#e65100'
+                }).then(function(result) {
+                    if (!result.isConfirmed) {
+                        $('#modalExitoOferta').modal('show');
+                        return;
+                    }
+                    var comentarioCredito = ((result.value || '') + '').trim();
+                    runPrefacturar(comentarioCredito);
+                });
             });
+            $('#modalExitoOferta').modal('hide');
 
         } else if (tipo === 'imprimir') {
             var urlImprimir = urls.imprimir;
