@@ -896,6 +896,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
 
     Route::get('/listado/ajustes', ListadoAjustes::class);
     Route::post('/obtener/listado/ajustes', [ListadoAjustes::class, 'listarAjustes']);
+    Route::post('/ajuste/anular', [ListadoAjustes::class, 'anularAjuste']);
 
     Route::get('/inventario/ajuste/ingreso', AjusteIngresoProducto::class);
     Route::get('/ajuste/ingreso/productos', [AjusteIngresoProducto::class, 'obtenerProducto']);
