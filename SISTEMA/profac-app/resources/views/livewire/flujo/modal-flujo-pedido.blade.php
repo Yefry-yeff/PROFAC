@@ -946,6 +946,11 @@
 
                     {{-- Productos de la oferta --}}
                     @if (!empty($ofertaSeleccionada['productos']))
+                    @php
+                        $sinExistenciaCount = collect($ofertaSeleccionada['productos'])
+                            ->filter(fn ($pr) => !((float) ($pr['resta_inventario'] ?? 0) > 0))
+                            ->count();
+                    @endphp
                     <div style="border-radius:10px; overflow:hidden; border:1px solid #e8eaf0;
                                 max-height:170px; overflow-y:auto;">
                         <table style="width:100%; font-size:11px; border-collapse:collapse;">
@@ -990,6 +995,18 @@
                                 @endforeach
                             </tbody>
                         </table>
+                    </div>
+                    @endif
+
+                    @if ($sinExistenciaCount > 0 && !$esAnuDet && !$esVencDet)
+                    <div style="display:flex; justify-content:flex-end; margin-top:12px;">
+                        <button type="button" wire:click="abrirEdicionProductosSinExistencia"
+                                style="background:linear-gradient(135deg,#7b1fa2,#9c27b0); color:#fff;
+                                       border:none; border-radius:8px; padding:6px 12px;
+                                       font-size:11px; font-weight:700; cursor:pointer;">
+                            <i class="mr-1 fa fa-pencil-square-o"></i>
+                            Editar productos sin existencia
+                        </button>
                     </div>
                     @endif
 
@@ -1471,12 +1488,12 @@
                             $listBadgeColor = $isGan2 ? '#155724' : ($isAnu2 ? '#721c24' : ($isVenc2 ? '#e65100' : '#1a7efb'));
                             $listBadgeText  = $isGan2 ? 'Ganadora' : ($isAnu2 ? 'Anulada' : ($isVenc2 ? 'Precios cambiaron' : 'Activa'));
                         @endphp
-                        <div wire:click="verOferta({{ $of['cotizacion_id'] }})"
-                             style="padding:9px 12px; border:1px solid #f0f0f0; border-radius:10px;
-                                    margin-bottom:6px; cursor:pointer; transition:box-shadow .15s ease;
-                                    opacity:{{ ($isAnu2 || $isVenc2) ? '.65' : '1' }};"
-                             onmouseover="this.style.boxShadow='0 2px 12px rgba(0,0,0,.1)'"
-                             onmouseout="this.style.boxShadow='none'">
+                        <button type="button"
+                                wire:key="oferta-card-{{ $of['cotizacion_id'] }}"
+                                wire:click.prevent.stop="verOferta({{ $of['cotizacion_id'] }})"
+                                style="width:100%; text-align:left; padding:9px 12px; border:1px solid #f0f0f0; border-radius:10px;
+                                       margin-bottom:6px; cursor:pointer; transition:box-shadow .15s ease;
+                                       background:#fff; opacity:{{ ($isAnu2 || $isVenc2) ? '.65' : '1' }};">
                             <div style="display:flex; justify-content:space-between; align-items:center;">
                                 <div>
                                     <span style="font-weight:800; color:#2c3e50; font-size:13px;">
@@ -1505,7 +1522,7 @@
                                 &nbsp;·&nbsp;
                                 {{ \Carbon\Carbon::parse($of['hf_fecha'])->format('d/m/Y') }}
                             </div>
-                        </div>
+                        </button>
                         @endforeach
                         @endif
                     </div>
@@ -2372,6 +2389,95 @@
     </div>
 </div>{{-- /overlay --}}
 
+@endif
+
+@if ($modalSinExistenciaVisible)
+<div style="position:fixed !important; top:0 !important; right:0 !important; bottom:0 !important; left:0 !important; width:100vw !important; height:100vh !important; z-index:2147483647 !important; background:rgba(15,15,35,.62); backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px); display:flex; align-items:center; justify-content:center; padding:16px;">
+    <div style="width:min(1100px, 100%); max-height:calc(100vh - 32px); overflow:hidden; background:#fff; border-radius:16px; box-shadow:0 24px 70px rgba(0,0,0,.35); display:flex; flex-direction:column;">
+        <div style="background:linear-gradient(135deg,#7b1fa2,#9c27b0); padding:14px 20px; display:flex; align-items:flex-start; justify-content:space-between; gap:16px;">
+            <div>
+                <h5 style="color:#fff; font-weight:700; font-size:14px; margin:0;">
+                    <i class="fa fa-pencil-square-o mr-2"></i>Editar productos sin existencia
+                </h5>
+                <small style="color:rgba(255,255,255,.85); font-size:11px; display:block; margin-top:2px;">
+                    Reasigne únicamente los productos de esta oferta que no cuentan con existencia.
+                </small>
+            </div>
+            <button type="button" wire:click="$set('modalSinExistenciaVisible', false)"
+                    style="background:transparent; color:#fff; border:none; font-size:24px; line-height:1; cursor:pointer; padding:0;">
+                &times;
+            </button>
+        </div>
+        <div style="padding:18px 20px; overflow:auto;">
+            <div class="alert alert-info" style="font-size:12px; margin-bottom:12px;">
+                Seleccione la bodega y sección destino solo para los productos que ya tengan stock disponible en otra ubicación.
+            </div>
+            <div class="table-responsive" style="max-height:420px; overflow-y:auto; border:1px solid #e8eaf0; border-radius:10px;">
+                <table class="table table-sm mb-0" style="font-size:12px;">
+                    <thead style="background:#f8f9fc; position:sticky; top:0; z-index:1;">
+                        <tr>
+                            <th style="padding:8px 12px; color:#555; font-weight:700;">Producto</th>
+                            <th style="padding:8px 12px; color:#555; font-weight:700;">Cantidad</th>
+                            <th style="padding:8px 12px; color:#555; font-weight:700;">Bodega actual</th>
+                            <th style="padding:8px 12px; color:#555; font-weight:700;">Destino con stock</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($productosSinExistenciaModal as $idx => $linea)
+                        <tr style="border-bottom:1px solid #f0f0f0;">
+                            <td style="padding:10px 12px; color:#2c3e50; font-weight:600;">{{ $linea['nombre_producto'] }}</td>
+                            <td style="padding:10px 12px; text-align:center; color:#e65100; font-weight:700;">{{ (int) $linea['cantidad'] }}</td>
+                            <td style="padding:10px 12px; color:#607d8b;">
+                                {{ $linea['bodega_actual_nombre'] ?? 'SIN EXISTENCIA' }}
+                                @if(!empty($linea['seccion_actual_descripcion']))
+                                <div style="font-size:11px; color:#90a4ae;">{{ $linea['seccion_actual_descripcion'] }}</div>
+                                @endif
+                            </td>
+                            <td style="padding:10px 12px; min-width:340px;">
+                                @if(!empty($linea['destinos']))
+                                <select wire:model.defer="productosSinExistenciaModal.{{ $idx }}.destino_seleccionado"
+                                        class="form-control form-control-sm"
+                                        style="border-radius:8px; font-size:12px;">
+                                    <option value="">Mantener sin cambio</option>
+                                    @foreach ($linea['destinos'] as $destino)
+                                    <option value="{{ $destino['value'] }}">{{ $destino['text'] }}</option>
+                                    @endforeach
+                                </select>
+                                @else
+                                <div style="background:#fff5f5; border:1px solid #ffcdd2; color:#b71c1c; border-radius:8px; padding:6px 10px; font-size:11px;">
+                                    No hay bodegas con stock disponible para este producto.
+                                </div>
+                                @endif
+                            </td>
+                        </tr>
+                        @empty
+                        <tr>
+                            <td colspan="4" style="padding:18px; text-align:center; color:#888;">
+                                No hay productos sin existencia para editar.
+                            </td>
+                        </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="margin-top:12px;">
+                <label style="font-size:12px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">
+                    Motivo de la actualización
+                </label>
+                <textarea wire:model.defer="motivoEdicionSinExistencia"
+                          rows="2"
+                          class="form-control"
+                          placeholder="Opcional: describa por qué se reasignaron estos productos..."
+                          style="border-radius:8px; font-size:12px; resize:vertical;"></textarea>
+            </div>
+        </div>
+        <div style="border-top:1px solid #eef0f5; padding:10px 20px; display:flex; justify-content:flex-end; gap:8px;">
+            <button type="button" class="btn btn-primary" wire:click="guardarEdicionProductosSinExistencia" style="border-radius:8px; font-weight:700;">Guardar cambios</button>
+            <button type="button" class="btn btn-default" wire:click="$set('modalSinExistenciaVisible', false)" style="border-radius:8px;">Cancelar</button>
+        </div>
+    </div>
+</div>
 @endif
 
 <script>

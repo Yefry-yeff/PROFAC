@@ -39,6 +39,9 @@ class ModalFlujoPedido extends Component
     public $motivoAnulOferta    = '';
     public $comentarioCreditoGanadora = '';
     public bool $revisionInventarioActiva = false;
+    public bool $modalSinExistenciaVisible = false;
+    public array $productosSinExistenciaModal = [];
+    public string $motivoEdicionSinExistencia = '';
 
     // ── Revisión de Crédito ───────────────────────────────────────────────
     public array  $creditoRevisionData   = [];    // datos del registro credito_revision activo
@@ -842,11 +845,16 @@ class ModalFlujoPedido extends Component
             }
 
             $productos = DB::table('cotizacion_has_producto as chp')
+                ->leftJoin('seccion as s', 's.id', '=', 'chp.seccion_id')
+                ->leftJoin('segmento as sg', 'sg.id', '=', 's.segmento_id')
+                ->leftJoin('bodega as b', 'b.id', '=', 'sg.bodega_id')
                 ->leftJoin('precios_producto_carga as ppc', 'ppc.id', '=', 'chp.precios_producto_carga_id')
                 ->leftJoin('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')
                 ->where('chp.cotizacion_id', $cotizacionId)
                 ->select(
-                    'chp.nombre_producto', 'chp.cantidad', 'chp.precio_unidad', 'chp.total',
+                    'chp.indice', 'chp.producto_id', 'chp.nombre_producto', 'chp.cantidad', 'chp.precio_unidad', 'chp.total',
+                    'chp.bodega_id', 'chp.seccion_id', 'chp.nombre_bodega', 'chp.resta_inventario',
+                    'b.nombre as bodega_actual_nombre', 's.descripcion as seccion_actual_descripcion',
                     'chp.idPrecioSeleccionado', 'chp.precios_producto_carga_id',
                     'cp.nombre as nombre_categoria_precio',
                     // Escala Selec.: precio_a del ppc vinculado al momento de la oferta
@@ -864,8 +872,12 @@ class ModalFlujoPedido extends Component
                 ->toArray();
 
             $this->ofertaSeleccionada  = array_merge((array) $row, ['productos' => $productos]);
+            $this->pasoActivo          = 'ofertas';
             $this->confirmAccionOferta = null;
             $this->motivoAnulOferta    = '';
+            $this->modalSinExistenciaVisible = false;
+            $this->productosSinExistenciaModal = [];
+            $this->motivoEdicionSinExistencia = '';
             $this->mensajeExito        = '';
             $this->mensajeError        = '';
         } catch (\Throwable $e) {
@@ -882,8 +894,189 @@ class ModalFlujoPedido extends Component
         $this->ofertaSeleccionada  = null;
         $this->confirmAccionOferta = null;
         $this->motivoAnulOferta    = '';
+        $this->modalSinExistenciaVisible = false;
+        $this->productosSinExistenciaModal = [];
+        $this->motivoEdicionSinExistencia = '';
         $this->mensajeExito        = '';
         $this->mensajeError        = '';
+    }
+
+    public function abrirEdicionProductosSinExistencia(): void
+    {
+        if (!$this->ofertaSeleccionada || empty($this->ofertaSeleccionada['id'])) {
+            $this->mensajeError = 'No hay una oferta seleccionada.';
+            return;
+        }
+
+        $cotizacionId = (int) $this->ofertaSeleccionada['id'];
+        $sinExistencia = collect($this->ofertaSeleccionada['productos'] ?? [])
+            ->filter(fn (array $prod) => !((float) ($prod['resta_inventario'] ?? 0) > 0))
+            ->values();
+
+        if ($sinExistencia->isEmpty()) {
+            $this->mensajeError = 'La oferta no tiene productos marcados como sin existencia.';
+            return;
+        }
+
+        $productoIds = $sinExistencia->pluck('producto_id')->filter()->unique()->values()->all();
+        $destinosPorProducto = $this->obtenerDestinosDisponiblesPorProducto($productoIds);
+
+        $this->productosSinExistenciaModal = $sinExistencia->map(function (array $prod) use ($destinosPorProducto) {
+            $destinos = $destinosPorProducto[$prod['producto_id']] ?? [];
+            return [
+                'indice' => $prod['indice'] ?? null,
+                'producto_id' => $prod['producto_id'] ?? null,
+                'nombre_producto' => $prod['nombre_producto'] ?? 'Producto',
+                'cantidad' => $prod['cantidad'] ?? 0,
+                'bodega_actual_id' => $prod['bodega_id'] ?? null,
+                'bodega_actual_nombre' => $prod['bodega_actual_nombre'] ?? ($prod['nombre_bodega'] ?? 'SIN EXISTENCIA'),
+                'seccion_actual_id' => $prod['seccion_id'] ?? null,
+                'seccion_actual_descripcion' => $prod['seccion_actual_descripcion'] ?? null,
+                'destino_seleccionado' => '',
+                'destinos' => $destinos,
+            ];
+        })->toArray();
+
+        $this->motivoEdicionSinExistencia = '';
+        $this->modalSinExistenciaVisible = true;
+        $this->dispatchBrowserEvent('modal-sin-existencia-show');
+    }
+
+    public function guardarEdicionProductosSinExistencia(): void
+    {
+        if (!$this->ofertaSeleccionada || empty($this->ofertaSeleccionada['id'])) {
+            $this->mensajeError = 'No hay una oferta seleccionada.';
+            return;
+        }
+
+        if (empty($this->productosSinExistenciaModal)) {
+            $this->mensajeError = 'No hay productos para actualizar.';
+            return;
+        }
+
+        $cotizacionId = (int) $this->ofertaSeleccionada['id'];
+        $motivo = trim($this->motivoEdicionSinExistencia);
+        $actualizados = 0;
+
+        DB::beginTransaction();
+        try {
+            foreach ($this->productosSinExistenciaModal as $linea) {
+                $seleccion = trim((string) ($linea['destino_seleccionado'] ?? ''));
+                if ($seleccion === '') {
+                    continue;
+                }
+
+                [$bodegaDestinoId, $seccionDestinoId] = array_pad(explode('|', $seleccion, 2), 2, null);
+                $bodegaDestinoId = (int) $bodegaDestinoId;
+                $seccionDestinoId = (int) $seccionDestinoId;
+                if ($bodegaDestinoId <= 0 || $seccionDestinoId <= 0) {
+                    continue;
+                }
+
+                $opcionDestino = collect($linea['destinos'] ?? [])->firstWhere('value', $seleccion);
+                if (!$opcionDestino) {
+                    continue;
+                }
+
+                $nombreBodegaDestino = (string) ($opcionDestino['bodega_nombre'] ?? '');
+
+                $afectados = DB::table('cotizacion_has_producto')
+                    ->where('cotizacion_id', $cotizacionId)
+                    ->where('indice', (int) ($linea['indice'] ?? 0))
+                    ->update([
+                        'Bodega_id' => $bodegaDestinoId,
+                        'seccion_id' => $seccionDestinoId,
+                        'nombre_bodega' => $nombreBodegaDestino,
+                        'resta_inventario' => 1,
+                        'updated_at' => now(),
+                    ]);
+
+                if ($afectados > 0) {
+                    DB::table('historico_cotizacion_producto_sin_existencia')->insert([
+                        'id_cotizacion' => $cotizacionId,
+                        'id_producto' => (int) ($linea['producto_id'] ?? 0),
+                        'indice_linea' => (int) ($linea['indice'] ?? 0),
+                        'nombre_producto' => $linea['nombre_producto'] ?? null,
+                        'id_bodega_origen' => (int) ($linea['bodega_actual_id'] ?? 0) ?: null,
+                        'id_seccion_origen' => (int) ($linea['seccion_actual_id'] ?? 0) ?: null,
+                        'id_bodega_actualizacion' => $bodegaDestinoId,
+                        'id_seccion_actualizacion' => $seccionDestinoId,
+                        'nombre_bodega_origen' => $linea['bodega_actual_nombre'] ?? 'SIN EXISTENCIA',
+                        'nombre_bodega_destino' => $nombreBodegaDestino,
+                        'motivo' => $motivo !== '' ? $motivo : 'Reasignación de producto sin existencia',
+                        'created_by' => Auth::id(),
+                        'updated_by' => Auth::id(),
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                    $actualizados++;
+                }
+            }
+
+            if ($actualizados === 0) {
+                DB::rollBack();
+                $this->mensajeError = 'Seleccione al menos un destino válido para actualizar.';
+                return;
+            }
+
+            DB::commit();
+
+            $this->modalSinExistenciaVisible = false;
+            $this->productosSinExistenciaModal = [];
+            $this->motivoEdicionSinExistencia = '';
+            $this->dispatchBrowserEvent('modal-sin-existencia-hide');
+
+            $this->verOferta($cotizacionId);
+            $this->mensajeExito = 'Se actualizaron ' . $actualizados . ' producto(s) sin existencia.';
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            $this->mensajeError = 'No se pudo actualizar la relación de productos sin existencia: ' . $e->getMessage();
+        }
+    }
+
+    /**
+     * @param array<int> $productoIds
+     * @return array<int, array<int, array<string, mixed>>>
+     */
+    private function obtenerDestinosDisponiblesPorProducto(array $productoIds): array
+    {
+        if (empty($productoIds)) {
+            return [];
+        }
+
+        $rows = DB::table('recibido_bodega as rb')
+            ->join('seccion as s', 's.id', '=', 'rb.seccion_id')
+            ->join('segmento as sg', 'sg.id', '=', 's.segmento_id')
+            ->join('bodega as b', 'b.id', '=', 'sg.bodega_id')
+            ->whereIn('rb.producto_id', $productoIds)
+            ->where('rb.cantidad_disponible', '>', 0)
+            ->select(
+                'rb.producto_id',
+                'sg.bodega_id',
+                's.id as seccion_id',
+                'b.nombre as bodega_nombre',
+                's.descripcion as seccion_descripcion',
+                DB::raw('SUM(rb.cantidad_disponible) as stock')
+            )
+            ->groupBy('rb.producto_id', 'sg.bodega_id', 's.id', 'b.nombre', 's.descripcion')
+            ->orderBy('b.nombre')
+            ->orderBy('s.descripcion')
+            ->get();
+
+        $destinos = [];
+        foreach ($rows as $row) {
+            $destinos[(int) $row->producto_id][] = [
+                'value' => (int) $row->bodega_id . '|' . (int) $row->seccion_id,
+                'bodega_id' => (int) $row->bodega_id,
+                'seccion_id' => (int) $row->seccion_id,
+                'bodega_nombre' => (string) $row->bodega_nombre,
+                'seccion_descripcion' => (string) $row->seccion_descripcion,
+                'stock' => (float) $row->stock,
+                'text' => trim((string) $row->bodega_nombre . ' - ' . (string) $row->seccion_descripcion . ' (Stock: ' . (int) $row->stock . ')'),
+            ];
+        }
+
+        return $destinos;
     }
 
     public function confirmarAccionOferta(string $accion): void
