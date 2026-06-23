@@ -393,7 +393,8 @@
                             $puedePasarPrefactura = count($stockErrors) === 0
                                 && count($productos) > 0
                                 && collect($obsProducto)->filter()->isEmpty()
-                                && $this->todosProductosRevisados();
+                                && $this->todosProductosRevisados()
+                                && ! $this->tieneProductosSinExistencia();
 
                             $puedeDevolverOferta = $this->todosProductosRevisados();
 
@@ -401,7 +402,9 @@
                                 ? 'Debe marcar todos los productos como revisados'
                                 : (collect($obsProducto)->filter()->isNotEmpty()
                                     ? 'Elimine las notas/reemplazos antes de pasar a Prefactura'
-                                    : 'Hay productos sin stock suficiente');
+                                    : ($this->tieneProductosSinExistencia()
+                                        ? 'Hay productos marcados como sin existencia'
+                                        : 'Hay productos sin stock suficiente'));
                         @endphp
                         <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center;">
                             {{-- Pasar a Prefactura --}}

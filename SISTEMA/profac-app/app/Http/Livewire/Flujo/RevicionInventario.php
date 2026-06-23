@@ -604,6 +604,15 @@ class RevicionInventario extends Component
     }
 
     /**
+     * Indica si existe al menos una línea marcada como sin existencia.
+     */
+    public function tieneProductosSinExistencia(): bool
+    {
+        return collect($this->productos)
+            ->contains(fn (array $prod) => !empty($prod['sin_existencia']));
+    }
+
+    /**
      * Productos visibles según filtros de la tabla.
      */
     public function getProductosFiltradosProperty(): array

@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
 use App\Models\PrefacturaAuditoria;
 use App\Models\CreditoRevision;
 use App\Models\ModelCodigoAutorizacion;
@@ -957,6 +958,13 @@ class ModalFlujoPedido extends Component
         $cotizacionId = (int) $this->ofertaSeleccionada['id'];
         $motivo = trim($this->motivoEdicionSinExistencia);
         $actualizados = 0;
+        $historialDisponible = Schema::hasTable('historico_cotizacion_producto_sin_existencia');
+        if (!$historialDisponible) {
+            Log::warning('No existe la tabla historico_cotizacion_producto_sin_existencia. Se omite auditoria de edicion sin existencia.', [
+                'cotizacion_id' => $cotizacionId,
+                'user_id' => Auth::id(),
+            ]);
+        }
 
         DB::beginTransaction();
         try {
@@ -992,23 +1000,25 @@ class ModalFlujoPedido extends Component
                     ]);
 
                 if ($afectados > 0) {
-                    DB::table('historico_cotizacion_producto_sin_existencia')->insert([
-                        'id_cotizacion' => $cotizacionId,
-                        'id_producto' => (int) ($linea['producto_id'] ?? 0),
-                        'indice_linea' => (int) ($linea['indice'] ?? 0),
-                        'nombre_producto' => $linea['nombre_producto'] ?? null,
-                        'id_bodega_origen' => (int) ($linea['bodega_actual_id'] ?? 0) ?: null,
-                        'id_seccion_origen' => (int) ($linea['seccion_actual_id'] ?? 0) ?: null,
-                        'id_bodega_actualizacion' => $bodegaDestinoId,
-                        'id_seccion_actualizacion' => $seccionDestinoId,
-                        'nombre_bodega_origen' => $linea['bodega_actual_nombre'] ?? 'SIN EXISTENCIA',
-                        'nombre_bodega_destino' => $nombreBodegaDestino,
-                        'motivo' => $motivo !== '' ? $motivo : 'Reasignación de producto sin existencia',
-                        'created_by' => Auth::id(),
-                        'updated_by' => Auth::id(),
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]);
+                    if ($historialDisponible) {
+                        DB::table('historico_cotizacion_producto_sin_existencia')->insert([
+                            'id_cotizacion' => $cotizacionId,
+                            'id_producto' => (int) ($linea['producto_id'] ?? 0),
+                            'indice_linea' => (int) ($linea['indice'] ?? 0),
+                            'nombre_producto' => $linea['nombre_producto'] ?? null,
+                            'id_bodega_origen' => (int) ($linea['bodega_actual_id'] ?? 0) ?: null,
+                            'id_seccion_origen' => (int) ($linea['seccion_actual_id'] ?? 0) ?: null,
+                            'id_bodega_actualizacion' => $bodegaDestinoId,
+                            'id_seccion_actualizacion' => $seccionDestinoId,
+                            'nombre_bodega_origen' => $linea['bodega_actual_nombre'] ?? 'SIN EXISTENCIA',
+                            'nombre_bodega_destino' => $nombreBodegaDestino,
+                            'motivo' => $motivo !== '' ? $motivo : 'Reasignación de producto sin existencia',
+                            'created_by' => Auth::id(),
+                            'updated_by' => Auth::id(),
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+                    }
                     $actualizados++;
                 }
             }

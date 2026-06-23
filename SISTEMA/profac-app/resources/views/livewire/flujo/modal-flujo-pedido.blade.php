@@ -60,6 +60,31 @@
     }
     .fmp-offers-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
     .fmp-offers-wrap table { min-width:480px; }
+    .fmp-offer-card {
+        width:100%;
+        text-align:left;
+        padding:9px 12px;
+        border:1px solid #f0f0f0;
+        border-radius:10px;
+        margin-bottom:6px;
+        cursor:pointer;
+        background:#fff;
+        opacity:1;
+        transition:transform .16s ease, box-shadow .16s ease, border-color .16s ease, background-color .16s ease, opacity .16s ease;
+        will-change:transform;
+    }
+    .fmp-offer-card:hover,
+    .fmp-offer-card:focus-visible {
+        transform:translateY(-2px);
+        border-color:#cfe0ff;
+        box-shadow:0 10px 24px rgba(26,126,251,.14);
+        background:linear-gradient(180deg,#ffffff 0%,#f8fbff 100%);
+        outline:none;
+    }
+    .fmp-offer-card:active {
+        transform:translateY(0);
+        box-shadow:0 4px 12px rgba(26,126,251,.10);
+    }
     .fmp-info-grid { display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:#666; }
     /* Modal gestor de entrega: encima del flujo modal y su backdrop */
     #modal-gestor-flujo { z-index: 1060 !important; }
@@ -1501,9 +1526,8 @@
                         <button type="button"
                                 wire:key="oferta-card-{{ $of['cotizacion_id'] }}"
                                 wire:click.prevent.stop="verOferta({{ $of['cotizacion_id'] }})"
-                                style="width:100%; text-align:left; padding:9px 12px; border:1px solid #f0f0f0; border-radius:10px;
-                                       margin-bottom:6px; cursor:pointer; transition:box-shadow .15s ease;
-                                       background:#fff; opacity:{{ ($isAnu2 || $isVenc2) ? '.65' : '1' }};">
+                            class="fmp-offer-card"
+                            style="opacity:{{ ($isAnu2 || $isVenc2) ? '.65' : '1' }};">
                             <div style="display:flex; justify-content:space-between; align-items:center;">
                                 <div>
                                     <span style="font-weight:800; color:#2c3e50; font-size:13px;">

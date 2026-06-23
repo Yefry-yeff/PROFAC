@@ -11,20 +11,28 @@ class CreateHistoricoCotizacionProductoSinExistenciaTable extends Migration
         if (!Schema::hasTable('historico_cotizacion_producto_sin_existencia')) {
             Schema::create('historico_cotizacion_producto_sin_existencia', function (Blueprint $table) {
                 $table->id();
-                $table->unsignedBigInteger('id_cotizacion')->index();
-                $table->unsignedBigInteger('id_producto')->index();
-                $table->unsignedInteger('indice_linea')->nullable()->index();
+                $table->unsignedBigInteger('id_cotizacion');
+                $table->unsignedBigInteger('id_producto');
+                $table->unsignedInteger('indice_linea')->nullable();
                 $table->string('nombre_producto', 255)->nullable();
-                $table->unsignedBigInteger('id_bodega_origen')->nullable()->index();
-                $table->unsignedBigInteger('id_seccion_origen')->nullable()->index();
-                $table->unsignedBigInteger('id_bodega_actualizacion')->nullable()->index();
-                $table->unsignedBigInteger('id_seccion_actualizacion')->nullable()->index();
+                $table->unsignedBigInteger('id_bodega_origen')->nullable();
+                $table->unsignedBigInteger('id_seccion_origen')->nullable();
+                $table->unsignedBigInteger('id_bodega_actualizacion')->nullable();
+                $table->unsignedBigInteger('id_seccion_actualizacion')->nullable();
                 $table->string('nombre_bodega_origen', 255)->nullable();
                 $table->string('nombre_bodega_destino', 255)->nullable();
                 $table->text('motivo')->nullable();
                 $table->unsignedBigInteger('created_by')->nullable();
                 $table->unsignedBigInteger('updated_by')->nullable();
                 $table->timestamps();
+
+                $table->index('id_cotizacion', 'hcpsx_cot_idx');
+                $table->index('id_producto', 'hcpsx_prod_idx');
+                $table->index('indice_linea', 'hcpsx_linea_idx');
+                $table->index('id_bodega_origen', 'hcpsx_bod_org_idx');
+                $table->index('id_seccion_origen', 'hcpsx_sec_org_idx');
+                $table->index('id_bodega_actualizacion', 'hcpsx_bod_act_idx');
+                $table->index('id_seccion_actualizacion', 'hcpsx_sec_act_idx');
             });
         }
     }
