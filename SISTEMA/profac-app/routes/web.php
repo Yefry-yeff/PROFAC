@@ -1524,5 +1524,10 @@ Route::post('/reporte/ventas-cobros/actualizar-f01/{facturaId}',                
     // Análisis individual de producto (sección 2 de Analítica de Productos)
     Route::get('/reportes/analitica_de_productos/{productoId}', \App\Http\Livewire\Reportes\AnalisisProductoIndividual::class);
 
+
+    // Ruta auto-generada para: FlujoDeVenta\ModificarActoresEnFactura
+    Route::get('/flujo_de_venta/modificar_actores_en_factura', \App\Http\Livewire\FlujoDeVenta\ModificarActoresEnFactura::class)
+        ->name('flujo_de_venta.modificar_actores_en_factura');
+
     // [auto-routes-anchor]
 });
