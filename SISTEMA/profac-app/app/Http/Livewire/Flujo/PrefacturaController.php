@@ -478,6 +478,26 @@ class PrefacturaController
             ->where('cotizacion_id', $cotizacionId)
             ->get();
 
+        // Regla de negocio: si la oferta contiene lineas "sin existencia",
+        // no puede avanzar a prefactura hasta que se ajusten en la cotizacion.
+        $sinExistenciaErrors = [];
+        foreach ($productos as $prod) {
+            if (!((float) ($prod->resta_inventario ?? 0) > 0)) {
+                $sinExistenciaErrors[] = [
+                    'producto' => (string) ($prod->nombre_producto ?? ('Producto #' . ($prod->producto_id ?? 'N/A'))),
+                ];
+            }
+        }
+
+        if (!empty($sinExistenciaErrors)) {
+            return response()->json([
+                'icon' => 'warning',
+                'title' => 'No se puede prefacturar',
+                'text' => 'La oferta contiene productos marcados como sin existencia. Corrija la cotización antes de continuar.',
+                'sin_existencia_errors' => $sinExistenciaErrors,
+            ], 422);
+        }
+
         // ── 1. Validar inventario (stock neto = stock_real - reservado en prefacturas activas) ──
         $stockErrors = [];
         foreach ($productos as $prod) {

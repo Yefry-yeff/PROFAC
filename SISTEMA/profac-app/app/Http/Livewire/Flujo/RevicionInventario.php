@@ -431,9 +431,10 @@ class RevicionInventario extends Component
             $disponible       = null;
             $faltaStock       = false;
             $disponibleGlobal = null;
+            $sinExistencia    = !((float) ($prod->resta_inventario ?? 0) > 0);
 
             // Para registros ya devueltos no recalcular stock (solo mostrar datos)
-            if (!$this->devuelto && $prod->resta_inventario && $prod->producto_id && $prod->seccion_id) {
+            if (!$this->devuelto && !$sinExistencia && $prod->producto_id && $prod->seccion_id) {
                 $rawStock  = (float) DB::table('recibido_bodega')
                     ->where('producto_id', $prod->producto_id)
                     ->where('seccion_id',  $prod->seccion_id)
@@ -478,12 +479,13 @@ class RevicionInventario extends Component
                 'producto_id'     => $prod->producto_id,
                 'seccion_id'      => $prod->seccion_id,
                 'resta_inventario'=> $prod->resta_inventario,
+                'sin_existencia'  => $sinExistencia,
                 'rawStock'        => $rawStock,
                 'reservado'       => $reservado,
                 'disponible'      => $disponible,
                 'disponible_global' => $disponibleGlobal,
                 'falta_stock'     => $faltaStock,
-                'reservas_detalle' => (!$this->devuelto && $prod->resta_inventario && $prod->producto_id && $prod->seccion_id)
+                'reservas_detalle' => (!$this->devuelto && !$sinExistencia && $prod->producto_id && $prod->seccion_id)
                     ? ($reservasDetalle->get($prod->producto_id . '_' . $prod->seccion_id, collect())
                         ->map(fn($r) => (array) $r)->values()->toArray())
                     : [],
@@ -600,6 +602,10 @@ class RevicionInventario extends Component
                 }
 
                 if ($estado !== '') {
+                    if ($estado === 'sin_existencia' && !($prod['sin_existencia'] ?? false)) {
+                        return false;
+                    }
+
                     if ($estado === 'sin_stock' && !($prod['falta_stock'] ?? false)) {
                         return false;
                     }
@@ -608,7 +614,7 @@ class RevicionInventario extends Component
                         return false;
                     }
 
-                    if ($estado === 'sin_control' && ($prod['disponible'] !== null)) {
+                    if ($estado === 'sin_control' && (($prod['disponible'] !== null) || ($prod['sin_existencia'] ?? false))) {
                         return false;
                     }
                 }
@@ -690,6 +696,15 @@ class RevicionInventario extends Component
 
         if ($productos->isEmpty()) {
             $this->mensajeError = 'La oferta no tiene productos para generar prefactura.';
+            return;
+        }
+
+        $lineasSinExistencia = $productos->filter(function ($prod) {
+            return !((float) ($prod->resta_inventario ?? 0) > 0);
+        });
+
+        if ($lineasSinExistencia->isNotEmpty()) {
+            $this->mensajeError = 'No se puede pasar a Prefactura: la oferta contiene productos marcados como sin existencia.';
             return;
         }
 

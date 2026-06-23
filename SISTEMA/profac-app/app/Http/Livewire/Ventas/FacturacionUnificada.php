@@ -157,6 +157,7 @@ class FacturacionUnificada extends Component
                     'unidad_medida_venta_id',
                     'Bodega_id',
                     'seccion_id',
+                    'resta_inventario',
                     'precios_producto_carga_id',
                 ])
                 ->toArray();
@@ -550,6 +551,7 @@ class FacturacionUnificada extends Component
                 'unidad_medida_venta_id',
                 'Bodega_id',
                 'seccion_id',
+                'resta_inventario',
                 'precios_producto_carga_id',
             ])
             ->map(fn($r) => (array) $r)

@@ -229,6 +229,22 @@ class FacturacionCorporativa extends Component
         ) > 0
             ");
 
+            $results = array_map(function ($row) {
+                $row->esSinExistencia = 0;
+                return $row;
+            }, $results);
+
+            $permitirSinExistencia = (int) ($request->permitir_sin_existencia ?? 0) === 1;
+            if ($permitirSinExistencia) {
+                $results[] = (object) [
+                    'id' => 'sin_existencia',
+                    'idBodega' => null,
+                    'bodegaSeccion' => 'SIN EXISTENCIA',
+                    'text' => 'SIN EXISTENCIA - Cotizar sin reserva de inventario',
+                    'esSinExistencia' => 1,
+                ];
+            }
+
             return response()->json([
                 "results" => $results
             ], 200);

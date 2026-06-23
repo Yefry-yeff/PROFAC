@@ -1263,6 +1263,23 @@ class ModalFlujoPedido extends Component
             ->where('cotizacion_id', $cotizacionId)
             ->get();
 
+        $sinExistencia = [];
+        foreach ($productos as $prod) {
+            if (!((float) ($prod->resta_inventario ?? 0) > 0)) {
+                $sinExistencia[] = [
+                    'producto'   => (string) ($prod->nombre_producto ?? ('Producto #' . ($prod->producto_id ?? 'N/A'))),
+                    'solicitado' => (int) ($prod->cantidad ?? 0),
+                    'disponible' => 0,
+                ];
+            }
+        }
+
+        if (!empty($sinExistencia)) {
+            $this->stockErrors = $sinExistencia;
+            $this->mensajeError = 'No se puede generar Prefactura porque hay productos marcados como sin existencia en la oferta.';
+            return;
+        }
+
         // ── 1. Validar inventario (stock_real - reservado en prefacturas activas) ─
         $stockErrors = [];
         foreach ($productos as $prod) {

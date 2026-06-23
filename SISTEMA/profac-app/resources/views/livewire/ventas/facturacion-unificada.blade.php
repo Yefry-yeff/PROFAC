@@ -2472,7 +2472,8 @@
                     var _flujoId      = _urlParams.get('flujoId') || document.getElementById('flujo_vinculado_id')?.value || '';
                     // prefactura_id: necesario para excluir su reserva del cálculo de stock
                     var _prefacturaId = _urlParams.get('prefactura_id') || document.getElementById('prefactura_vinculada_id')?.value || '';
-                    return { search: params.term, type: 'public', page: params.page || 1, idProducto: id, flujo_id: _flujoId, modo: _modo, prefactura_id: _prefacturaId };
+                    var _permitirSinExistencia = (codigoActual === 'cotizacion_clientes_a') ? 1 : 0;
+                    return { search: params.term, type: 'public', page: params.page || 1, idProducto: id, flujo_id: _flujoId, modo: _modo, prefactura_id: _prefacturaId, permitir_sin_existencia: _permitirSinExistencia };
                 }
             }
         });
@@ -2519,9 +2520,10 @@
         let idProducto = document.getElementById('seleccionarProducto').value;
         let categoria_cliente_venta_id = document.getElementById('categoria_cliente_venta_id').value;
         let data = $("#bodega").select2('data')[0];
-        let bodega = data.bodegaSeccion;
-        let idBodega = data.idBodega;
-        let idSeccion = data.id;
+        let esSinExistencia = !!(data && (data.esSinExistencia || data.id === 'sin_existencia'));
+        let bodega = esSinExistencia ? 'SIN EXISTENCIA' : data.bodegaSeccion;
+        let idBodega = esSinExistencia ? '' : data.idBodega;
+        let idSeccion = esSinExistencia ? '' : data.id;
 
         var urlDatosProducto = urls.datos_producto;
 
@@ -2532,7 +2534,12 @@
                 arregloIdInputs.forEach(idInpunt => {
                     let idProductoFila = document.getElementById("idProducto" + idInpunt).value;
                     let idSeccionFila = document.getElementById("idSeccion" + idInpunt).value;
-                    if (idProducto == idProductoFila && idSeccion == idSeccionFila && !flag) flag = true;
+                    let sinExistenciaFila = (document.getElementById("sinExistencia" + idInpunt)?.value || '0') === '1';
+                    if (esSinExistencia) {
+                        if (idProducto == idProductoFila && sinExistenciaFila && !flag) flag = true;
+                    } else if (idProducto == idProductoFila && idSeccion == idSeccionFila && !flag) {
+                        flag = true;
+                    }
                 });
 
                 if (flag) {
@@ -2545,6 +2552,9 @@
 
                 let producto = response.data.producto;
                 let arrayUnidades = response.data.unidades;
+                let bodegaBadgeBg = esSinExistencia ? '#ffebee' : '#e3f2fd';
+                let bodegaBadgeColor = esSinExistencia ? '#c62828' : '#1565c0';
+                let bodegaBadgeIcon = esSinExistencia ? 'fa-exclamation-circle' : 'fa-archive';
                 numeroInputs += 1;
 
                 let htmlSelectUnidades = "";
@@ -2577,7 +2587,8 @@
                         <input id="isv${numeroInputs}" name="isv${numeroInputs}" type="hidden" value="${producto.isv}">
                         <input id="idBodega${numeroInputs}" name="idBodega${numeroInputs}" type="hidden" value="${idBodega}">
                         <input id="idSeccion${numeroInputs}" name="idSeccion${numeroInputs}" type="hidden" value="${idSeccion}">
-                        <input id="restaInventario${numeroInputs}" name="restaInventario${numeroInputs}" type="hidden" value="">
+                        <input id="sinExistencia${numeroInputs}" name="sinExistencia${numeroInputs}" type="hidden" value="${esSinExistencia ? 1 : 0}">
+                        <input id="restaInventario${numeroInputs}" name="restaInventario${numeroInputs}" type="hidden" value="${esSinExistencia ? 0 : ''}">
                         <input id="subTotal${numeroInputs}" name="subTotal${numeroInputs}" type="hidden" value="" required>
                         <input id="isvProducto${numeroInputs}" name="isvProducto${numeroInputs}" type="hidden" value="" required>
                         <input id="acumuladoDescuento${numeroInputs}" name="acumuladoDescuento${numeroInputs}" type="hidden">
@@ -2592,8 +2603,8 @@
                             style="border:none; background:transparent; font-size:12px; font-weight:700; color:#1b5e20; width:100%; min-width:130px;">
                     </td>
                     <td style="vertical-align:middle; padding:4px 6px; white-space:nowrap;">
-                        <span style="background:#e3f2fd; color:#1565c0; border-radius:6px; padding:2px 8px; font-size:11px; font-weight:700;">
-                            <i class="fa fa-archive" style="font-size:10px;"></i> ${bodega}
+                        <span style="background:${bodegaBadgeBg}; color:${bodegaBadgeColor}; border-radius:6px; padding:2px 8px; font-size:11px; font-weight:700;">
+                            <i class="fa ${bodegaBadgeIcon}" style="font-size:10px;"></i> ${bodega}
                         </span>
                     </td>
                     <td style="vertical-align:middle; padding:4px 6px;">
@@ -2697,6 +2708,7 @@
         let valorInputPrecio = Number(idPrecio.value).toFixed(2);
         let valorInputCantidad = idCantidad.value;
         let valorSelectUnidad = idUnidad.value;
+        let esSinExistencia = (document.getElementById('sinExistencia' + id)?.value || '0') === '1';
 
         // Si no aplica ISV, forzar a 0
         if (tipoFacturaConfig && !tipoFacturaConfig.aplica_isv) {
@@ -2728,7 +2740,11 @@
             document.getElementById('isvProducto' + id).value = isv.toFixed(2);
             document.getElementById('isvProductoMostrar' + id).value = formatoMoneda(isv);
 
-            idRestaInventario.value = valorInputCantidad * valorSelectUnidad;
+            if (esSinExistencia) {
+                idRestaInventario.value = 0;
+            } else {
+                idRestaInventario.value = valorInputCantidad * valorSelectUnidad;
+            }
             this.totalesGenerales();
         }
 
@@ -3340,7 +3356,18 @@
                 }).catch(function(err) {
                     if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-file-text-o d-block" style="font-size:20px;margin-bottom:4px;"></i>Oferta ganadora'; }
                     var d = err.response ? err.response.data : {};
-                    if (d.stock_errors && d.stock_errors.length) {
+                    if (d.sin_existencia_errors && d.sin_existencia_errors.length) {
+                        var listadoSinExistencia = d.sin_existencia_errors.map(function(e) {
+                            return '<li style="margin-bottom:4px;">' + (e.producto || 'Producto') + '</li>';
+                        }).join('');
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'No se puede pasar a Prefactura',
+                            html: '<p style="font-size:13px;margin-bottom:10px;">La cotización contiene productos marcados como <strong>SIN EXISTENCIA</strong>. Debe ajustarlos en la oferta antes de continuar.</p>'
+                                + '<ul style="text-align:left;padding-left:18px;margin:0;">' + listadoSinExistencia + '</ul>',
+                            confirmButtonColor: '#e65100',
+                        });
+                    } else if (d.stock_errors && d.stock_errors.length) {
                         var rows = d.stock_errors.map(function(e) {
                             return '<tr><td style="padding:4px 8px;font-weight:600;">' + e.producto + '</td>'
                                 + '<td style="padding:4px 8px;text-align:center;color:#e65100;font-weight:700;">' + e.solicitado + '</td>'
@@ -3967,9 +3994,16 @@
                     totalUsar = subTotalUsar;
                 }
                 var bodegaTexto  = prod.nombre_bodega || '';
-                var idBodega     = prod.Bodega_id || '';
-                var idSeccion    = prod.seccion_id || '';
+                var esSinExistencia = !(parseFloat(prod.resta_inventario || 0) > 0);
+                if (esSinExistencia) {
+                    bodegaTexto = 'SIN EXISTENCIA';
+                }
+                var idBodega     = esSinExistencia ? '' : (prod.Bodega_id || '');
+                var idSeccion    = esSinExistencia ? '' : (prod.seccion_id || '');
                 var idUnidadVenta = prod.unidad_medida_venta_id || '';
+                var bodegaBadgeBg = esSinExistencia ? '#ffebee' : '#e3f2fd';
+                var bodegaBadgeColor = esSinExistencia ? '#c62828' : '#1565c0';
+                var bodegaBadgeIcon = esSinExistencia ? 'fa-exclamation-circle' : 'fa-archive';
 
                 var html = `
                 <tr id='${idx}'>
@@ -3979,7 +4013,8 @@
                         <input id="isv${idx}" name="isv${idx}" type="hidden" value="${isvPct}">
                         <input id="idBodega${idx}" name="idBodega${idx}" type="hidden" value="${idBodega}">
                         <input id="idSeccion${idx}" name="idSeccion${idx}" type="hidden" value="${idSeccion}">
-                        <input id="restaInventario${idx}" name="restaInventario${idx}" type="hidden" value="${cantidadUsar}">
+                        <input id="sinExistencia${idx}" name="sinExistencia${idx}" type="hidden" value="${esSinExistencia ? 1 : 0}">
+                        <input id="restaInventario${idx}" name="restaInventario${idx}" type="hidden" value="${esSinExistencia ? 0 : cantidadUsar}">
                         <input id="subTotal${idx}" name="subTotal${idx}" type="hidden" value="${subTotalUsar.toFixed(2)}" required>
                         <input id="isvProducto${idx}" name="isvProducto${idx}" type="hidden" value="${isvUsar.toFixed(2)}" required>
                         <input id="acumuladoDescuento${idx}" name="acumuladoDescuento${idx}" type="hidden" value="0.00">
@@ -3994,8 +4029,8 @@
                             style="border:none; background:transparent; font-size:12px; font-weight:700; color:#1b5e20; width:100%; min-width:130px;">
                     </td>
                     <td style="vertical-align:middle; padding:4px 6px; white-space:nowrap;">
-                        <span style="background:#e3f2fd; color:#1565c0; border-radius:6px; padding:2px 8px; font-size:11px; font-weight:700;">
-                            <i class="fa fa-archive" style="font-size:10px;"></i> ${bodegaTexto}
+                        <span style="background:${bodegaBadgeBg}; color:${bodegaBadgeColor}; border-radius:6px; padding:2px 8px; font-size:11px; font-weight:700;">
+                            <i class="fa ${bodegaBadgeIcon}" style="font-size:10px;"></i> ${bodegaTexto}
                         </span>
                     </td>
                     <td style="vertical-align:middle; padding:4px 6px;">
@@ -4107,9 +4142,13 @@
                     // min = precio de escala actual (precio mínimo de referencia)
                     var minPrecio = (tipoFacturaConfig && tipoFacturaConfig.multiples_precios) ? '' : 'min="' + precioOpcFmt + '"';
                     var cantidadUsar = prod.cantidad || 1;
-                    var bodegaTexto = prod.nombre_bodega || '';
-                    var idBodega = prod['Bodega_id'] || '';
-                    var idSeccion = prod.seccion_id || '';
+                    var esSinExistencia = !(parseFloat(prod.resta_inventario || 0) > 0);
+                    var bodegaTexto = esSinExistencia ? 'SIN EXISTENCIA' : (prod.nombre_bodega || '');
+                    var idBodega = esSinExistencia ? '' : (prod['Bodega_id'] || '');
+                    var idSeccion = esSinExistencia ? '' : (prod.seccion_id || '');
+                    var bodegaBadgeBg = esSinExistencia ? '#ffebee' : '#e3f2fd';
+                    var bodegaBadgeColor = esSinExistencia ? '#c62828' : '#1565c0';
+                    var bodegaBadgeIcon = esSinExistencia ? 'fa-exclamation-circle' : 'fa-archive';
 
                     var html = `
                     <tr id='${idx}'>
@@ -4119,7 +4158,8 @@
                             <input id="isv${idx}" name="isv${idx}" type="hidden" value="${producto.isv}">
                             <input id="idBodega${idx}" name="idBodega${idx}" type="hidden" value="${idBodega}">
                             <input id="idSeccion${idx}" name="idSeccion${idx}" type="hidden" value="${idSeccion}">
-                            <input id="restaInventario${idx}" name="restaInventario${idx}" type="hidden" value="">
+                            <input id="sinExistencia${idx}" name="sinExistencia${idx}" type="hidden" value="${esSinExistencia ? 1 : 0}">
+                            <input id="restaInventario${idx}" name="restaInventario${idx}" type="hidden" value="${esSinExistencia ? 0 : ''}">
                             <input id="subTotal${idx}" name="subTotal${idx}" type="hidden" value="" required>
                             <input id="isvProducto${idx}" name="isvProducto${idx}" type="hidden" value="" required>
                             <input id="acumuladoDescuento${idx}" name="acumuladoDescuento${idx}" type="hidden">
@@ -4134,8 +4174,8 @@
                                 style="border:none; background:transparent; font-size:12px; font-weight:700; color:#1b5e20; width:100%; min-width:130px;">
                         </td>
                         <td style="vertical-align:middle; padding:4px 6px; white-space:nowrap;">
-                            <span style="background:#e3f2fd; color:#1565c0; border-radius:6px; padding:2px 8px; font-size:11px; font-weight:700;">
-                                <i class="fa fa-archive" style="font-size:10px;"></i> ${bodegaTexto}
+                            <span style="background:${bodegaBadgeBg}; color:${bodegaBadgeColor}; border-radius:6px; padding:2px 8px; font-size:11px; font-weight:700;">
+                                <i class="fa ${bodegaBadgeIcon}" style="font-size:10px;"></i> ${bodegaTexto}
                             </span>
                         </td>
                         <td style="vertical-align:middle; padding:4px 6px;">

@@ -184,6 +184,7 @@
                                         <select wire:model="filtroEstado" class="form-control form-control-sm" style="border-radius:8px;">
                                             <option value="">Todos</option>
                                             <option value="ok">OK</option>
+                                            <option value="sin_existencia">Sin existencia</option>
                                             <option value="sin_stock">Sin stock</option>
                                             <option value="sin_control">Sin control</option>
                                         </select>
@@ -307,7 +308,12 @@
                                                     </div>
                                                 </td>
                                                 <td style="padding:8px 14px; text-align:center;">
-                                                    @if ($prod['falta_stock'])
+                                                    @if ($prod['sin_existencia'] ?? false)
+                                                        <span style="background:#ffebee; color:#c62828; border-radius:8px;
+                                                                     padding:3px 10px; font-size:11px; font-weight:700;">
+                                                            <i class="fa fa-ban mr-1"></i>Sin existencia
+                                                        </span>
+                                                    @elseif ($prod['falta_stock'])
                                                         <span style="background:#fce4ec; color:#b71c1c; border-radius:8px;
                                                                      padding:3px 10px; font-size:11px; font-weight:700;">
                                                             <i class="fa fa-exclamation-triangle mr-1"></i>Sin stock

@@ -29,6 +29,74 @@ class Cotizacion extends Component
     public $pedidoVinculado    = null;   // array con datos del pedido elegido
     public $pedidoId           = null;   // id que se inyecta en el form hidden
 
+    private function obtenerUbicacionSinExistencia(): array
+    {
+        $nombreTecnico = 'SIN EXISTENCIA COTIZACION';
+
+        $bodegaId = (int) (DB::table('bodega')
+            ->whereRaw('UPPER(TRIM(nombre)) = ?', [strtoupper($nombreTecnico)])
+            ->value('id') ?? 0);
+
+        if ($bodegaId <= 0) {
+            $estado = (int) (DB::table('bodega')->whereNotNull('estado_id')->orderBy('id')->value('estado_id') ?? 1);
+            $municipio = (int) (DB::table('bodega')->whereNotNull('municipio_id')->orderBy('id')->value('municipio_id') ?? 1);
+            $encargado = (int) (DB::table('bodega')->whereNotNull('encargado_bodega')->orderBy('id')->value('encargado_bodega') ?? 1);
+
+            $bodegaId = (int) DB::table('bodega')->insertGetId([
+                'nombre' => $nombreTecnico,
+                'direccion' => 'Bodega tecnica para productos sin existencia en cotizacion',
+                'estado_id' => $estado,
+                'municipio_id' => $municipio,
+                'encargado_bodega' => $encargado,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        if ($bodegaId <= 0) {
+            throw new \RuntimeException('No existe ninguna bodega para asignar productos sin existencia.');
+        }
+
+        $segmentoId = DB::table('segmento')
+            ->where('bodega_id', (int) $bodegaId)
+            ->whereRaw('UPPER(TRIM(descripcion)) = ?', [strtoupper($nombreTecnico)])
+            ->value('id');
+
+        if (!$segmentoId) {
+            $segmentoId = DB::table('segmento')->insertGetId([
+                'descripcion' => $nombreTecnico,
+                'bodega_id' => (int) $bodegaId,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        $seccionId = DB::table('seccion')
+            ->where('segmento_id', (int) $segmentoId)
+            ->whereRaw('UPPER(TRIM(descripcion)) = ?', [strtoupper($nombreTecnico)])
+            ->value('id');
+
+        if (!$seccionId) {
+            $estadoSeccion = (int) (DB::table('seccion')->whereNotNull('estado_id')->orderBy('id')->value('estado_id') ?? 1);
+            $numeracion = (int) (DB::table('seccion')->where('segmento_id', (int) $segmentoId)->max('numeracion') ?? 0) + 1;
+
+            $seccionId = DB::table('seccion')->insertGetId([
+                'descripcion' => $nombreTecnico,
+                'numeracion' => $numeracion,
+                'estado_id' => $estadoSeccion,
+                'segmento_id' => (int) $segmentoId,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        return [
+            'bodega_id' => (int) $bodegaId,
+            'seccion_id' => (int) $seccionId,
+            'nombre_bodega' => 'SIN EXISTENCIA',
+        ];
+    }
+
     public function mount($id)
     {
         $this->tipoCotizacion = $id;
@@ -556,6 +624,17 @@ class Cotizacion extends Component
                 $nombreProducto = $request->$keyNombreProducto;
                 $nombreBodega = $request->$keyBodegaNombre;
                 $monto_descProducto = $request->$keymonto_descProducto;
+
+                $idSeccion = is_numeric($idSeccion) ? (int) $idSeccion : null;
+                $idBodega = is_numeric($idBodega) ? (int) $idBodega : null;
+                $restaInventario = ((float) $restaInventario > 0) ? 1 : 0;
+
+                if ($restaInventario === 0) {
+                    $ubicacionSinExistencia = $this->obtenerUbicacionSinExistencia();
+                    $idBodega = (int) $ubicacionSinExistencia['bodega_id'];
+                    $idSeccion = (int) $ubicacionSinExistencia['seccion_id'];
+                    $nombreBodega = (string) $ubicacionSinExistencia['nombre_bodega'];
+                }
 
 
                 array_push($arrayProductos,[
