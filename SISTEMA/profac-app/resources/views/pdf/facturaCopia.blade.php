@@ -91,12 +91,12 @@
         {{-- TARJETA: DATOS DE FACTURA --}}
         <div class="card border border-dark" style="margin-left:0; margin-top:2px; width:100%;">
             <div class="card-header" style="padding:3px 8px; display:table; width:100%; box-sizing:border-box;">
-                <b style="display:table-cell; text-align:left;">Factura No. {{ $cai->numero_factura }} </b>
+                <b style="display:table-cell; text-align:left; font-size:13px;">Factura No. {{ $cai->numero_factura }} </b>
                 <b style="display:table-cell; text-align:center;"> *Copia* </b>
-                <b style="display:table-cell; text-align:right;">Factura de: {{ $cai->descripcion }}</b>
+                <b style="display:table-cell; text-align:right; font-size:13px;">Factura de: {{ $cai->descripcion }}</b>
             </div>
             <div class="card-body" style="padding:4px 10px;">
-                <table style="width:100%; border:none; border-collapse:collapse; font-size:10px;">
+                <table style="width:100%; border:none; border-collapse:collapse; font-size:11px;">
                     <tr>
                         <td style="border:none; padding:1px 0;"><b>Registro tributario: 08011986138652</b></td>
                         <td style="border:none; padding:1px 0; text-align:right;"><b>CAI: {{ $cai->cai }}</b></td>

@@ -4,7 +4,7 @@
 <head>
     <link rel="stylesheet" href="{{ public_path('css/bootstrap.min.css') }}">
     <style>
-        p { font-size: 10px; }
+        p { font-size: 11px; }
 
         body {
             margin-left: -95px;
@@ -43,9 +43,9 @@
 
     <div class="card border border-dark" style="margin-left:44px; margin-top:105px; width:45rem; height:5.5rem;">
         <div class="card-header">
-            <b>PRE-FACTURA No. {{ $datos->codigo }}</b>
+            <b style="font-size:13px;">PRE-FACTURA No. {{ $datos->codigo }}</b>
             <b style="position:absolute;right: 270px"> *Original* </b>
-            <b style="position:absolute;right: 10px">Factura de: contado</b>
+            <b style="position:absolute;right: 10px; font-size:13px;">Factura de: {{ ucfirst($tipoPagoDescripcion ?? 'contado') }}</b>
         </div>
 
         <div class="card-body">
@@ -58,7 +58,7 @@
 
     <div class="card border border-dark" style="margin-left:44px; margin-top:4px; width:45rem;">
         <div class="card-body" style="padding:4px 10px;">
-            <table style="width:100%; border:none; border-collapse:collapse; font-size:10px;">
+            <table style="width:100%; border:none; border-collapse:collapse; font-size:11px;">
                 <tr>
                     <td style="width:58%; vertical-align:top; padding:0; border:none;">
                         <p style="margin:0 0 2px;"><b>Cliente:</b> {{ $datos->nombre }} - ({{ $datos->clienteId }})</p>
@@ -71,20 +71,20 @@
                         <p style="margin:0 0 2px;"><b>Hora:</b> {{ $datos->hora }}</p>
                         <p style="margin:0 0 2px;"><b>Vence:</b> {{ $datos->fecha_vencimiento }}</p>
                         <p style="margin:0 0 2px;"><b>RTN:</b> {{ $datos->rtn }}</p>
-                        <p style="margin:0 0 2px;"><b>Orden N°:</b> N/A</p>
+                        <p style="margin:0 0 2px;"><b>Orden N°:</b> {{ $ordenCompraPref !== '' ? $ordenCompraPref : 'N/A' }}</p>
                     </td>
                 </tr>
             </table>
-            <table style="width:100%; border:none; border-collapse:collapse; font-size:10px; margin-top:3px; border-top:1px solid #ccc;">
+            <table style="width:100%; border:none; border-collapse:collapse; font-size:11px; margin-top:3px; border-top:1px solid #ccc;">
                 <tr>
                     <td style="width:33%; border:none; padding:2px 0 1px;"><b>Correlativo de Ord. exenta</b></td>
                     <td style="width:34%; border:none; padding:2px 0 1px; text-align:center;"><b>Constancia de registro exonerado</b></td>
                     <td style="width:33%; border:none; padding:2px 0 1px; text-align:right;"><b>Identificativo del registro de la SAG</b></td>
                 </tr>
                 <tr>
-                    <td style="border:none; height:14px; border-bottom:1px solid #aaa;"></td>
-                    <td style="border:none; height:14px; border-bottom:1px solid #aaa; text-align:center;"></td>
-                    <td style="border:none; height:14px; border-bottom:1px solid #aaa;"></td>
+                    <td style="border:none; height:14px; border-bottom:1px solid #aaa;">{{ $ordenCompraPref !== '' ? strtoupper($ordenCompraPref) : '' }}</td>
+                    <td style="border:none; height:14px; border-bottom:1px solid #aaa; text-align:center;">{{ $constanciaExonerado !== '' ? strtoupper($constanciaExonerado) : '' }}</td>
+                    <td style="border:none; height:14px; border-bottom:1px solid #aaa;">{{ $registroSag !== '' ? strtoupper($registroSag) : '' }}</td>
                 </tr>
             </table>
         </div>

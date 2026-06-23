@@ -219,11 +219,15 @@ class PrefacturaController
                 p.nota,
                 p.id as prefactura_id,
                 p.flujo_id,
+                c.tipo_pago_id,
+                tp.descripcion as tipo_pago_descripcion,
                 cfg.dias_validez,
                 cfg.descripcion_validez
             FROM prefactura p
             INNER JOIN cliente cl ON cl.id = p.cliente_id
             INNER JOIN users u ON u.id = p.users_id
+            LEFT JOIN cotizacion c ON c.id = p.cotizacion_id
+            LEFT JOIN tipo_pago_venta tp ON tp.id = c.tipo_pago_id
             CROSS JOIN configuracion_prefactura cfg
             WHERE p.id = ?
         ", [$id]);
@@ -276,9 +280,30 @@ class PrefacturaController
         $formatter->apocope = true;
         $numeroLetras = $formatter->toMoney($importes->total, 2, 'LEMPIRAS', 'CENTAVOS');
 
+        $flujoDocData = $datos->flujo_id
+            ? DB::table('flujo')
+                ->where('id', $datos->flujo_id)
+                ->first(['numero_orden_compra', 'numero_forma_f01', 'numero_exoneracion'])
+            : null;
+
+        $tipoPagoDescripcion = trim((string) ($datos->tipo_pago_descripcion ?? ''));
+        if ($tipoPagoDescripcion === '') {
+            try {
+                $diasCredito = Carbon::parse($datos->fecha_emision)->diffInDays(Carbon::parse($datos->fecha_vencimiento), false);
+                $tipoPagoDescripcion = $diasCredito > 0 ? 'credito' : 'contado';
+            } catch (\Throwable $e) {
+                $tipoPagoDescripcion = 'contado';
+            }
+        }
+
+        $ordenCompraPref = trim((string) ($flujoDocData->numero_orden_compra ?? ''));
+        $constanciaExonerado = trim((string) ($flujoDocData->numero_exoneracion ?? ''));
+        $registroSag = trim((string) ($flujoDocData->numero_forma_f01 ?? ''));
+
         $pdf = PDF::loadView('pdf.prefactura', compact(
             'datos', 'productos', 'importes', 'importesConCentavos',
-            'flagCentavos', 'numeroLetras'
+            'flagCentavos', 'numeroLetras', 'tipoPagoDescripcion',
+            'ordenCompraPref', 'constanciaExonerado', 'registroSag'
         ))->setPaper('letter');
 
         return $pdf->stream("Prefactura_NO_{$datos->codigo}.pdf");
