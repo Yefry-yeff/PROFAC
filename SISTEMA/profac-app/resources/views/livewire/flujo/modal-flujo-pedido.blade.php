@@ -37,9 +37,19 @@
     .fmp-step-clickable { cursor:pointer; transition:transform .15s ease; }
     .fmp-step-clickable:hover { transform:translateY(-3px); }
     .fmp-overlay {
+        position:fixed !important;
+        top:0 !important;
+        right:0 !important;
+        bottom:0 !important;
+        left:0 !important;
+        width:100vw !important;
+        height:100vh !important;
+        z-index:2147483646 !important;
+        display:flex !important;
         align-items:flex-start !important;
-        justify-content:center;
+        justify-content:center !important;
         padding:72px 16px 16px !important;
+        overflow:auto !important;
     }
     @@media (max-width: 575px) {
         .fmp-overlay { padding:12px !important; }
