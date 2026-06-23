@@ -169,6 +169,23 @@
                 $('#bodega').select2({
                     ajax: {
                         url: '/cotizacion/listar/bodegas/' + idProducto,
+                        processResults: function(data) {
+                            let results = Array.isArray(data?.results) ? data.results.slice() : [];
+                            const sinExistenciaText = 'SIN EXISTENCIA - Cotizar sin reserva de inventario';
+
+                            const hayBodegasConStock = results.some(function(item) {
+                                const text = String(item?.text || '').toUpperCase();
+                                return text.includes('CANTIDAD') && !text.includes('SIN EXISTENCIA');
+                            });
+
+                            if (hayBodegasConStock) {
+                                results = results.filter(function(item) {
+                                    return String(item?.text || '').trim() !== sinExistenciaText;
+                                });
+                            }
+
+                            return { results: results };
+                        },
                         data: function(params) {
                             var query = {
                                 search: params.term,

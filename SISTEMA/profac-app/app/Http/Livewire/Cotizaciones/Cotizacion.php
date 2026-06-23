@@ -683,10 +683,23 @@ class Cotizacion extends Component
 
         } catch (QueryException $e) {
         DB::rollback();
+
+        $codigoDb = (int) ($e->errorInfo[1] ?? 0);
+        $detalleDb = (string) ($e->errorInfo[2] ?? '');
+        $mensajeError = 'Ha ocurrido un error al guardar la cotización.';
+        $icono = 'error';
+        $titulo = 'Error!';
+
+        if ($codigoDb === 1062 && stripos($detalleDb, 'cotizacion_has_producto.PRIMARY') !== false) {
+            $mensajeError = 'No se ha logrado procesar la oferta debido a que se agrego dos veces el mismo producto.';
+            $icono = 'info';
+            $titulo = 'Información';
+        }
+
         return response()->json([
-            'icon'=>'error',
-            'text'=>'Ha ocurrido un error al guardar la cotización.',
-            'title'=>'Error!',
+            'icon'=>$icono,
+            'text'=>$mensajeError,
+            'title'=>$titulo,
             'message' => $e,
             'error' => $e
         ],402);
@@ -1134,9 +1147,28 @@ class Cotizacion extends Component
         }
     }
 
-    public function listarBodegas(Request $request)
+    public function listarBodegas(Request $request, int $idProducto)
     {
         try {
+            $idProducto = $idProducto > 0 ? $idProducto : (int) ($request->idProducto ?? 0);
+            $search = addslashes((string) ($request->search ?? ''));
+
+            $netStockExpr = "GREATEST(0,
+                    sum(A.cantidad_disponible) - COALESCE((
+                        SELECT SUM(php2.cantidad)
+                        FROM prefactura_has_producto php2
+                        INNER JOIN prefactura pf2 ON pf2.id = php2.prefactura_id
+                        WHERE pf2.estado = 'activo'
+                            AND TIMESTAMPADD(
+                                DAY,
+                                COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7),
+                                COALESCE(pf2.created_at, CONCAT(COALESCE(pf2.fecha_emision, CURDATE()), ' 00:00:00'))
+                            ) > NOW()
+                            AND php2.producto_id = A.producto_id
+                            AND php2.seccion_id  = A.seccion_id
+                            AND php2.resta_inventario = 1
+                    ), 0)
+                )";
 
             // Stock neto = cantidad_disponible - reservado en prefacturas activas
             $results = DB::SELECT("
@@ -1145,22 +1177,7 @@ class Cotizacion extends Component
             D.id as 'idBodega',
             CONCAT(D.nombre,'',REPLACE(B.descripcion,'Seccion','')) as 'bodegaSeccion',
             concat(D.nombre,' - ', REPLACE(B.descripcion,'Seccion',''),' - cantidad ',
-                GREATEST(0,
-                    sum(A.cantidad_disponible) - COALESCE((
-                        SELECT SUM(php2.cantidad)
-                        FROM prefactura_has_producto php2
-                        INNER JOIN prefactura pf2 ON pf2.id = php2.prefactura_id
-                                                                                                WHERE pf2.estado = 'activo'
-                                                                                                        AND TIMESTAMPADD(
-                                                                                                                    DAY,
-                                                                                                                    COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7),
-                                                                                                                    COALESCE(pf2.created_at, CONCAT(COALESCE(pf2.fecha_emision, CURDATE()), ' 00:00:00'))
-                                                                                                                ) > NOW()
-                          AND php2.producto_id = A.producto_id
-                          AND php2.seccion_id  = A.seccion_id
-                          AND php2.resta_inventario = 1
-                    ), 0)
-                )
+                {$netStockExpr}
             ) as 'text'
         FROM recibido_bodega A
             INNER JOIN seccion B
@@ -1169,10 +1186,35 @@ class Cotizacion extends Component
             ON B.segmento_id = C.id
             INNER JOIN bodega D
             ON C.bodega_id = D.id
-        WHERE  producto_id = " . (int)$request->idProducto . "
-        AND (D.nombre LIKE '%" . addslashes($request->search) . "%' OR B.descripcion LIKE '%" . addslashes($request->search) . "%')
+        WHERE  producto_id = " . $idProducto . "
+        AND (D.nombre LIKE '%" . $search . "%' OR B.descripcion LIKE '%" . $search . "%')
         GROUP BY A.seccion_id
+        HAVING {$netStockExpr} > 0
             ");
+
+            $hayStockGlobal = count($results) > 0 || !empty(DB::SELECT(" 
+                SELECT A.seccion_id
+                FROM recibido_bodega A
+                WHERE A.producto_id = " . $idProducto . "
+                GROUP BY A.seccion_id
+                HAVING {$netStockExpr} > 0
+                LIMIT 1
+            "));
+
+            $results = array_values(array_filter($results, function ($item) {
+                $texto = (string) (($item->text ?? '') ?: '');
+                return stripos($texto, 'SIN EXISTENCIA - Cotizar sin reserva de inventario') === false;
+            }));
+
+            if (!$hayStockGlobal) {
+                $ubicacionSinExistencia = $this->obtenerUbicacionSinExistencia();
+                $results[] = (object) [
+                    'id' => (int) $ubicacionSinExistencia['seccion_id'],
+                    'idBodega' => (int) $ubicacionSinExistencia['bodega_id'],
+                    'bodegaSeccion' => 'SIN EXISTENCIA',
+                    'text' => 'SIN EXISTENCIA - Cotizar sin reserva de inventario',
+                ];
+            }
 
             return response()->json([
                 "results" => $results

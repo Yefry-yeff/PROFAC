@@ -983,7 +983,7 @@
                     @if (!empty($ofertaSeleccionada['productos']))
                     @php
                         $sinExistenciaCount = collect($ofertaSeleccionada['productos'])
-                            ->filter(fn ($pr) => !((float) ($pr['resta_inventario'] ?? 0) > 0))
+                            ->filter(fn ($pr) => (bool) ($pr['sin_existencia_linea'] ?? false))
                             ->count();
                     @endphp
                     <div style="border-radius:10px; overflow:hidden; border:1px solid #e8eaf0;
@@ -2443,6 +2443,12 @@
             </button>
         </div>
         <div style="padding:18px 20px; overflow:auto;">
+            @if ($mensajeErrorSinExistencia)
+            <div class="alert alert-danger" style="font-size:12px; margin-bottom:12px;">
+                <i class="fa fa-exclamation-triangle mr-1"></i>{{ $mensajeErrorSinExistencia }}
+            </div>
+            @endif
+
             <div class="alert alert-info" style="font-size:12px; margin-bottom:12px;">
                 Seleccione la bodega y sección destino solo para los productos que ya tengan stock disponible en otra ubicación.
             </div>

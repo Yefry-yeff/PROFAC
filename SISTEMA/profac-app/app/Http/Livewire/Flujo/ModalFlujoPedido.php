@@ -43,6 +43,7 @@ class ModalFlujoPedido extends Component
     public bool $modalSinExistenciaVisible = false;
     public array $productosSinExistenciaModal = [];
     public string $motivoEdicionSinExistencia = '';
+    public string $mensajeErrorSinExistencia = '';
 
     // ── Revisión de Crédito ───────────────────────────────────────────────
     public array  $creditoRevisionData   = [];    // datos del registro credito_revision activo
@@ -872,6 +873,39 @@ class ModalFlujoPedido extends Component
                 ->map(fn($r) => (array) $r)
                 ->toArray();
 
+            $productoIds = collect($productos)
+                ->pluck('producto_id')
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+
+            $stockGlobalPorProducto = [];
+            if (!empty($productoIds)) {
+                $stockGlobalPorProducto = DB::table('recibido_bodega')
+                    ->whereIn('producto_id', $productoIds)
+                    ->where('cantidad_disponible', '>', 0)
+                    ->select('producto_id', DB::raw('SUM(cantidad_disponible) as stock_total'))
+                    ->groupBy('producto_id')
+                    ->pluck('stock_total', 'producto_id')
+                    ->map(fn ($stock) => (float) $stock)
+                    ->toArray();
+            }
+
+            $productos = collect($productos)
+                ->map(function (array $prod) use ($stockGlobalPorProducto) {
+                    $productoId = (int) ($prod['producto_id'] ?? 0);
+                    $stockGlobal = (float) ($stockGlobalPorProducto[$productoId] ?? 0);
+                    $nombreBodegaLinea = strtoupper(trim((string) ($prod['nombre_bodega'] ?? '')));
+                    $sinExistenciaLinea = !((float) ($prod['resta_inventario'] ?? 0) > 0)
+                        || str_contains($nombreBodegaLinea, 'SIN EXISTENCIA');
+                    $prod['stock_total_global'] = $stockGlobal;
+                    $prod['sin_existencia_global'] = $stockGlobal <= 0;
+                    $prod['sin_existencia_linea'] = $sinExistenciaLinea;
+                    return $prod;
+                })
+                ->toArray();
+
             $this->ofertaSeleccionada  = array_merge((array) $row, ['productos' => $productos]);
             $this->pasoActivo          = 'ofertas';
             $this->confirmAccionOferta = null;
@@ -904,18 +938,20 @@ class ModalFlujoPedido extends Component
 
     public function abrirEdicionProductosSinExistencia(): void
     {
+        $this->mensajeErrorSinExistencia = '';
+
         if (!$this->ofertaSeleccionada || empty($this->ofertaSeleccionada['id'])) {
-            $this->mensajeError = 'No hay una oferta seleccionada.';
+            $this->mensajeErrorSinExistencia = 'No hay una oferta seleccionada.';
             return;
         }
 
         $cotizacionId = (int) $this->ofertaSeleccionada['id'];
         $sinExistencia = collect($this->ofertaSeleccionada['productos'] ?? [])
-            ->filter(fn (array $prod) => !((float) ($prod['resta_inventario'] ?? 0) > 0))
+            ->filter(fn (array $prod) => (bool) ($prod['sin_existencia_linea'] ?? false))
             ->values();
 
         if ($sinExistencia->isEmpty()) {
-            $this->mensajeError = 'La oferta no tiene productos marcados como sin existencia.';
+            $this->mensajeErrorSinExistencia = 'La oferta no tiene productos marcados como sin existencia.';
             return;
         }
 
@@ -945,13 +981,15 @@ class ModalFlujoPedido extends Component
 
     public function guardarEdicionProductosSinExistencia(): void
     {
+        $this->mensajeErrorSinExistencia = '';
+
         if (!$this->ofertaSeleccionada || empty($this->ofertaSeleccionada['id'])) {
-            $this->mensajeError = 'No hay una oferta seleccionada.';
+            $this->mensajeErrorSinExistencia = 'No hay una oferta seleccionada.';
             return;
         }
 
         if (empty($this->productosSinExistenciaModal)) {
-            $this->mensajeError = 'No hay productos para actualizar.';
+            $this->mensajeErrorSinExistencia = 'No hay productos para actualizar.';
             return;
         }
 
@@ -964,6 +1002,53 @@ class ModalFlujoPedido extends Component
                 'cotizacion_id' => $cotizacionId,
                 'user_id' => Auth::id(),
             ]);
+        }
+
+        // Validar que la cantidad total solicitada por destino no exceda el stock disponible.
+        $demandaPorDestino = [];
+        foreach ($this->productosSinExistenciaModal as $linea) {
+            $seleccion = trim((string) ($linea['destino_seleccionado'] ?? ''));
+            if ($seleccion === '') {
+                continue;
+            }
+
+            [$bodegaDestinoId, $seccionDestinoId] = array_pad(explode('|', $seleccion, 2), 2, null);
+            $bodegaDestinoId = (int) $bodegaDestinoId;
+            $seccionDestinoId = (int) $seccionDestinoId;
+            if ($bodegaDestinoId <= 0 || $seccionDestinoId <= 0) {
+                continue;
+            }
+
+            $opcionDestino = collect($linea['destinos'] ?? [])->firstWhere('value', $seleccion);
+            if (!$opcionDestino) {
+                continue;
+            }
+
+            $productoId = (int) ($linea['producto_id'] ?? 0);
+            $cantidadSolicitada = (float) ($linea['cantidad'] ?? 0);
+            $stockDisponible = (float) ($opcionDestino['stock'] ?? 0);
+            $destinoTexto = (string) ($opcionDestino['text'] ?? 'Destino');
+            $key = $productoId . '|' . $bodegaDestinoId . '|' . $seccionDestinoId;
+
+            if (!isset($demandaPorDestino[$key])) {
+                $demandaPorDestino[$key] = [
+                    'solicitado' => 0.0,
+                    'stock' => $stockDisponible,
+                    'producto' => (string) ($linea['nombre_producto'] ?? 'Producto'),
+                    'destino' => $destinoTexto,
+                ];
+            }
+
+            $demandaPorDestino[$key]['solicitado'] += $cantidadSolicitada;
+            if ($demandaPorDestino[$key]['solicitado'] > $demandaPorDestino[$key]['stock']) {
+                $this->mensajeErrorSinExistencia = 'No se puede realizar la edición. La cantidad solicitada para '
+                    . $demandaPorDestino[$key]['producto']
+                    . ' supera el stock acumulado en '
+                    . $demandaPorDestino[$key]['destino']
+                    . ' (Solicitado: ' . (int) $demandaPorDestino[$key]['solicitado']
+                    . ', Disponible: ' . (int) $demandaPorDestino[$key]['stock'] . ').';
+                return;
+            }
         }
 
         DB::beginTransaction();
@@ -1025,7 +1110,7 @@ class ModalFlujoPedido extends Component
 
             if ($actualizados === 0) {
                 DB::rollBack();
-                $this->mensajeError = 'Seleccione al menos un destino válido para actualizar.';
+                $this->mensajeErrorSinExistencia = 'Seleccione al menos un destino válido para actualizar.';
                 return;
             }
 
@@ -1034,13 +1119,14 @@ class ModalFlujoPedido extends Component
             $this->modalSinExistenciaVisible = false;
             $this->productosSinExistenciaModal = [];
             $this->motivoEdicionSinExistencia = '';
+            $this->mensajeErrorSinExistencia = '';
             $this->dispatchBrowserEvent('modal-sin-existencia-hide');
 
             $this->verOferta($cotizacionId);
             $this->mensajeExito = 'Se actualizaron ' . $actualizados . ' producto(s) sin existencia.';
         } catch (\Throwable $e) {
             DB::rollBack();
-            $this->mensajeError = 'No se pudo actualizar la relación de productos sin existencia: ' . $e->getMessage();
+            $this->mensajeErrorSinExistencia = 'No se pudo actualizar la relación de productos sin existencia: ' . $e->getMessage();
         }
     }
 
