@@ -1,4 +1,10 @@
 <x-app-layout>
+@php
+    $rolIdClienteForm = (int) (auth()->user()->rol_id ?? 0);
+    $puedeVerCreditoYReferencias = in_array($rolIdClienteForm, [1, 4], true);
+    $puedeEditarObservacionesGerencia = in_array($rolIdClienteForm, [1, 4], true);
+    $puedeEditarCamposRestringidos = in_array($rolIdClienteForm, [1, 4], true);
+@endphp
 @push('styles')
 <style>
     .nav-tabs .nav-link { font-weight: 600; color: #555; }
@@ -81,6 +87,9 @@
         </ol>
     </div>
     <div class="col-lg-4 text-right">
+        <button type="button" class="btn btn-primary mt-3" id="btn_guardar_unificado" onclick="guardarClienteUnificado()">
+            <i class="fa fa-save"></i> Guardar
+        </button>
         <a href="/clientes" class="btn btn-secondary mt-3"><i class="fa fa-arrow-left"></i> Volver</a>
     </div>
 </div>
@@ -110,21 +119,25 @@
                                 <i class="fa fa-map-marker"></i> Dirección
                             </a>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link" id="tab-credito-tab" data-toggle="tab" href="#tab-credito" role="tab">
-                                <i class="fa fa-credit-card"></i> Crédito
-                            </a>
-                        </li>
+                        @if($puedeVerCreditoYReferencias)
+                            <li class="nav-item">
+                                <a class="nav-link" id="tab-credito-tab" data-toggle="tab" href="#tab-credito" role="tab">
+                                    <i class="fa fa-credit-card"></i> Crédito
+                                </a>
+                            </li>
+                        @endif
                         <li class="nav-item">
                             <a class="nav-link" id="tab-obs-tab" data-toggle="tab" href="#tab-obs" role="tab">
                                 <i class="fa fa-comment"></i> Observaciones
                             </a>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link" id="tab-refs-tab" data-toggle="tab" href="#tab-refs" role="tab">
-                                <i class="fa fa-users"></i> Comentarios Referencias
-                            </a>
-                        </li>
+                        @if($puedeVerCreditoYReferencias)
+                            <li class="nav-item">
+                                <a class="nav-link" id="tab-refs-tab" data-toggle="tab" href="#tab-refs" role="tab">
+                                    <i class="fa fa-users"></i> Comentarios Referencias
+                                </a>
+                            </li>
+                        @endif
                         <li class="nav-item">
                             <a class="nav-link" id="tab-og-tab" data-toggle="tab" href="#tab-og" role="tab">
                                 <i class="fa fa-shield"></i> Observación Gerencia
@@ -153,7 +166,7 @@
                                 <div class="col-md-6 col-lg-4">
                                     <div class="form-group">
                                         <label>Categoría de Cliente / Escala <span class="text-danger">*</span></label>
-                                        <select id="dp_escala" class="form-control">
+                                        <select id="dp_escala" class="form-control" @if(!$puedeEditarCamposRestringidos) disabled @endif>
                                             <option value="" disabled selected>-- Seleccione --</option>
                                         </select>
                                     </div>
@@ -161,7 +174,7 @@
                                 <div class="col-md-6 col-lg-4">
                                     <div class="form-group">
                                         <label>Tipo de Cliente <span class="text-danger">*</span></label>
-                                        <select id="dp_tipo_cliente" class="form-control">
+                                        <select id="dp_tipo_cliente" class="form-control" @if(!$puedeEditarCamposRestringidos) disabled @endif>
                                             <option value="" disabled selected>-- Seleccione --</option>
                                         </select>
                                     </div>
@@ -189,7 +202,7 @@
                                 <div class="col-md-6 col-lg-4">
                                     <div class="form-group">
                                         <label>Vendedor <span class="text-danger">*</span></label>
-                                        <select id="dp_vendedor" class="form-control">
+                                        <select id="dp_vendedor" class="form-control" @if(!$puedeEditarCamposRestringidos) disabled @endif>
                                             <option value="" disabled selected>-- Seleccione --</option>
                                             @foreach($clientes as $v)
                                             <option value="{{ $v->id }}">{{ $v->name }}</option>
@@ -215,11 +228,7 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="mt-3" id="btn-guardar-datos-wrap">
-                                <button class="btn btn-primary" id="btn_guardar_datos" onclick="guardarDatosPrincipales()">
-                                    <i class="fa fa-save"></i> {{ $id ? 'Guardar Cambios' : 'Registrar Cliente' }}
-                                </button>
-                            </div>
+                            <div class="mt-3" id="btn-guardar-datos-wrap" style="display:none;"></div>
                         </div>
 
                         {{-- ===== TAB 2: CONTACTO ===== --}}
@@ -263,7 +272,7 @@
                                     </div>
                                 </div>
                             </div>
-                            <button class="btn btn-primary mt-2" onclick="guardarContacto()" id="btn_guardar_contacto">
+                            <button class="btn btn-primary mt-2" onclick="guardarContacto()" id="btn_guardar_contacto" style="display:none;">
                                 <i class="fa fa-save"></i> Guardar Contacto
                             </button>
                         </div>
@@ -315,12 +324,13 @@
                                     </div>
                                 </div>
                             </div>
-                            <button class="btn btn-primary mt-2" onclick="guardarDireccion()" id="btn_guardar_direccion">
+                            <button class="btn btn-primary mt-2" onclick="guardarDireccion()" id="btn_guardar_direccion" style="display:none;">
                                 <i class="fa fa-save"></i> Guardar Dirección
                             </button>
                         </div>
 
                         {{-- ===== TAB 4: CRÉDITO ===== --}}
+                        @if($puedeVerCreditoYReferencias)
                         <div class="tab-pane fade tab-section" id="tab-credito" role="tabpanel">
                             <div class="row">
                                 <div class="col-md-12 mb-3">
@@ -407,7 +417,7 @@
                                 </div>
                                 </div>{{-- /credito_campos_condicionales --}}
                             </div>
-                            <button class="btn btn-primary mt-2" onclick="guardarCredito()" id="btn_guardar_credito">
+                            <button class="btn btn-primary mt-2" onclick="guardarCredito()" id="btn_guardar_credito" style="display:none;">
                                 <i class="fa fa-save"></i> Guardar Crédito
                             </button>
 
@@ -421,15 +431,16 @@
                                 </div>
                             </div>
                         </div>
+                        @endif
 
                         {{-- ===== TAB 5: OBSERVACIONES ===== --}}
                         <div class="tab-pane fade tab-section" id="tab-obs" role="tabpanel">
                             <p class="form-section-title">Observaciones</p>
                             <div class="form-group">
                                 <label>Nueva Observación</label>
-                                <textarea id="obs_texto" class="form-control" rows="3" maxlength="1000" placeholder="Escriba una observación..."></textarea>
+                                <textarea id="obs_texto" class="form-control" rows="3" maxlength="1000" placeholder="Escriba una observación..." @if(!$puedeEditarObservacionesGerencia) readonly @endif></textarea>
                             </div>
-                            <button class="btn btn-primary mb-4" onclick="guardarObservacion()" id="btn_guardar_obs">
+                            <button class="btn btn-primary mb-4" onclick="guardarObservacion()" id="btn_guardar_obs" style="display:none;">
                                 <i class="fa fa-plus"></i> Agregar Observación
                             </button>
                             <div id="observaciones_container">
@@ -438,6 +449,7 @@
                         </div>
 
                         {{-- ===== TAB 6: COMENTARIOS REFERENCIAS ===== --}}
+                        @if($puedeVerCreditoYReferencias)
                         <div class="tab-pane fade tab-section" id="tab-refs" role="tabpanel">
                             <p class="form-section-title">Comentarios y Referencias</p>
 
@@ -492,19 +504,20 @@
                             {{-- Lista de referencias agregadas --}}
                             <div id="ref_entradas_list"></div>
 
-                            <button class="btn btn-primary mt-2" onclick="guardarReferencias()" id="btn_guardar_refs">
+                            <button class="btn btn-primary mt-2" onclick="guardarReferencias()" id="btn_guardar_refs" style="display:none;">
                                 <i class="fa fa-save"></i> Guardar Referencias
                             </button>
                         </div>
+                        @endif
 
                         {{-- ===== TAB 7: OBSERVACIÓN GERENCIA ===== --}}
                         <div class="tab-pane fade tab-section" id="tab-og" role="tabpanel">
                             <p class="form-section-title">Autorización / Observación de Gerencia</p>
                             <div class="form-group">
                                 <label>Autorización de Gerencia <small class="text-muted">(se guarda en el registro de crédito activo)</small></label>
-                                <textarea id="og_autorizacion" class="form-control" rows="4" maxlength="1000" placeholder="Escriba la autorización o comentario de gerencia..."></textarea>
+                                <textarea id="og_autorizacion" class="form-control" rows="4" maxlength="1000" placeholder="Escriba la autorización o comentario de gerencia..." @if(!$puedeEditarObservacionesGerencia) readonly @endif></textarea>
                             </div>
-                            <button class="btn btn-primary mb-4" onclick="guardarAutorizacionGerencia()" id="btn_guardar_og">
+                            <button class="btn btn-primary mb-4" onclick="guardarAutorizacionGerencia()" id="btn_guardar_og" style="display:none;">
                                 <i class="fa fa-save"></i> Guardar Autorización Gerencia
                             </button>
 
@@ -632,6 +645,11 @@
 <script>
     window._vendedoresData = {!! json_encode($clientes) !!};
     window._metodosPagoData = {!! json_encode($metodosPago) !!};
+    window._clienteFormPerms = {
+        puedeVerCreditoYReferencias: @json($puedeVerCreditoYReferencias),
+        puedeEditarObservacionesGerencia: @json($puedeEditarObservacionesGerencia),
+        puedeEditarCamposRestringidos: @json($puedeEditarCamposRestringidos)
+    };
 </script>
 <script src="{{ asset('js/js_proyecto/cliente/cliente-form.js') }}"></script>
 @endpush

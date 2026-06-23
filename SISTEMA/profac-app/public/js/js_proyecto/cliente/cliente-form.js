@@ -7,8 +7,14 @@
 var clienteIdActual = null;   // se establece al crear o al cargar edición
 var modoEdicion     = false;
 var refEntradas     = [];     // lista de entradas de referencia (objetos completos)
+var clienteFormPerms = {
+    puedeVerCreditoYReferencias: true,
+    puedeEditarObservacionesGerencia: true,
+};
 
 $(document).ready(function () {
+    clienteFormPerms = Object.assign(clienteFormPerms, window._clienteFormPerms || {});
+
     var rawId = document.getElementById('cliente_id_form').value;
     clienteIdActual = (rawId && rawId !== '' && rawId !== 'null') ? parseInt(rawId, 10) : null;
     modoEdicion     = (clienteIdActual !== null);
@@ -35,7 +41,87 @@ $(document).ready(function () {
     $('#cred_monto, #ref_limite_credito').on('keyup blur', function () {
         formatCurrencyInput($(this));
     });
+
+    $('#clienteTabs a[data-toggle="tab"]').on('shown.bs.tab', function () {
+        actualizarBotonGuardarUnificado();
+    });
+    actualizarBotonGuardarUnificado();
 });
+
+function actualizarBotonGuardarUnificado() {
+    var btn = $('#btn_guardar_unificado');
+    if (!btn.length) return;
+
+    var tab = ($('#clienteTabs .nav-link.active').attr('href') || '').trim();
+    var label = 'Guardar';
+    var disabled = false;
+
+    if (tab === '#tab-datos' || tab === '#tab-contacto' || tab === '#tab-direccion') {
+        label = modoEdicion ? 'Guardar Cambios del Cliente' : 'Registrar Cliente';
+    } else if (tab === '#tab-credito') {
+        label = 'Guardar Crédito';
+        if (!clienteFormPerms.puedeVerCreditoYReferencias) disabled = true;
+    } else if (tab === '#tab-refs') {
+        label = 'Guardar Referencias';
+        if (!clienteFormPerms.puedeVerCreditoYReferencias) disabled = true;
+    } else if (tab === '#tab-obs') {
+        label = clienteFormPerms.puedeEditarObservacionesGerencia ? 'Guardar Observación' : 'Solo lectura';
+        if (!clienteFormPerms.puedeEditarObservacionesGerencia) disabled = true;
+    } else if (tab === '#tab-og') {
+        label = clienteFormPerms.puedeEditarObservacionesGerencia ? 'Guardar Observación Gerencia' : 'Solo lectura';
+        if (!clienteFormPerms.puedeEditarObservacionesGerencia) disabled = true;
+    }
+
+    btn.html('<i class="fa fa-save"></i> ' + label);
+    btn.prop('disabled', disabled);
+}
+
+function guardarClienteUnificado() {
+    var tab = ($('#clienteTabs .nav-link.active').attr('href') || '').trim();
+
+    if (tab === '#tab-datos' || tab === '#tab-contacto' || tab === '#tab-direccion') {
+        guardarDatosPrincipales();
+        return;
+    }
+
+    if (tab === '#tab-credito') {
+        if (!clienteFormPerms.puedeVerCreditoYReferencias) {
+            mostrarAlerta('info', 'Solo visualización', 'No tiene permisos para modificar Crédito.');
+            return;
+        }
+        guardarCredito();
+        return;
+    }
+
+    if (tab === '#tab-refs') {
+        if (!clienteFormPerms.puedeVerCreditoYReferencias) {
+            mostrarAlerta('info', 'Solo visualización', 'No tiene permisos para modificar Comentarios/Referencias.');
+            return;
+        }
+        guardarReferencias();
+        return;
+    }
+
+    if (tab === '#tab-obs') {
+        if (!clienteFormPerms.puedeEditarObservacionesGerencia) {
+            mostrarAlerta('info', 'Solo visualización', 'No tiene permisos para modificar Observaciones.');
+            return;
+        }
+        guardarObservacion();
+        return;
+    }
+
+    if (tab === '#tab-og') {
+        if (!clienteFormPerms.puedeEditarObservacionesGerencia) {
+            mostrarAlerta('info', 'Solo visualización', 'No tiene permisos para modificar Observación Gerencia.');
+            return;
+        }
+        guardarAutorizacionGerencia();
+        return;
+    }
+
+    guardarDatosPrincipales();
+}
 
 /* ============================================================
    CATÁLOGOS
@@ -129,31 +215,32 @@ function cargarDatosCliente(id) {
             llenarSelectConSelected('dir_depto', d.deptos, 'id', 'nombre', d.ubicacion.idDepto, '-- Seleccione Departamento --');
             llenarSelectConSelected('dir_municipio', d.municipios, 'id', 'nombre', d.ubicacion.idMunicipio, '-- Seleccione Municipio --');
 
-            // Tab Crédito
-            if (d.credito) {
+            // Tab Crédito (solo si la sección está disponible para este rol)
+            if (d.credito && clienteFormPerms.puedeVerCreditoYReferencias) {
                 var cr = d.credito;
                 var creditoActivo = cr.credito_activo == 1;
-                $('#cred_activo').prop('checked', creditoActivo);
-                toggleCreditoCampos();
-                $('#cred_monto').val(parseFloat(cr.credito || 0).toFixed(2));
-                formatCurrencyInput($('#cred_monto'));
-                var montoDisponible = Number.isFinite(parseFloat(d.monto_disponible)) ? parseFloat(d.monto_disponible) : parseFloat(cr.credito || 0);
-                $('#cred_monto_disponible').val(montoDisponible.toFixed(2));
-                formatCurrencyInput($('#cred_monto_disponible'));
-                $('#cred_dias').val(cr.dias_credito);
-                $('#cred_fecha_vigencia').val(cr.fecha_vigencia || '');
-                $('#cred_ref_bancarias').val(cr.referencias_bancarias);
-                $('#cred_ref_comerciales').val(cr.referencias_comerciales);
+                if ($('#cred_activo').length) $('#cred_activo').prop('checked', creditoActivo);
+                if (typeof toggleCreditoCampos === 'function') toggleCreditoCampos();
+                if ($('#cred_monto').length) { $('#cred_monto').val(parseFloat(cr.credito || 0).toFixed(2)); formatCurrencyInput($('#cred_monto')); }
+                if ($('#cred_monto_disponible').length) {
+                    var montoDisponible = Number.isFinite(parseFloat(d.monto_disponible)) ? parseFloat(d.monto_disponible) : parseFloat(cr.credito || 0);
+                    $('#cred_monto_disponible').val(montoDisponible.toFixed(2));
+                    formatCurrencyInput($('#cred_monto_disponible'));
+                }
+                if ($('#cred_dias').length) $('#cred_dias').val(cr.dias_credito);
+                if ($('#cred_fecha_vigencia').length) $('#cred_fecha_vigencia').val(cr.fecha_vigencia || '');
+                if ($('#cred_ref_bancarias').length) $('#cred_ref_bancarias').val(cr.referencias_bancarias);
+                if ($('#cred_ref_comerciales').length) $('#cred_ref_comerciales').val(cr.referencias_comerciales);
                 var letraMarcada = cr.letra_cambio == 1;
                 var avalMarcado  = cr.aval_solidario == 1;
-                $('#cred_letra_cambio').prop('checked', letraMarcada);
-                $('#obs_letra_cambio').val(cr.obs_letra_cambio || '');
-                toggleObs('obs_letra_cambio_wrap', letraMarcada);
-                $('#cred_aval_solidario').prop('checked', avalMarcado);
-                $('#obs_aval_solidario').val(cr.obs_aval_solidario || '');
-                toggleObs('obs_aval_solidario_wrap', avalMarcado);
-                // Autorización en tab OG
-                $('#og_autorizacion').val(cr.autorizacion_gerencia || '');
+                if ($('#cred_letra_cambio').length) { $('#cred_letra_cambio').prop('checked', letraMarcada); toggleObs('obs_letra_cambio_wrap', letraMarcada); }
+                if ($('#obs_letra_cambio').length) $('#obs_letra_cambio').val(cr.obs_letra_cambio || '');
+                if ($('#cred_aval_solidario').length) { $('#cred_aval_solidario').prop('checked', avalMarcado); toggleObs('obs_aval_solidario_wrap', avalMarcado); }
+                if ($('#obs_aval_solidario').length) $('#obs_aval_solidario').val(cr.obs_aval_solidario || '');
+            }
+            // Autorización en tab OG (siempre cargar si el campo existe)
+            if (d.credito && $('#og_autorizacion').length) {
+                $('#og_autorizacion').val(d.credito.autorizacion_gerencia || '');
             }
 
             // Tab Comentarios Referencias
@@ -243,6 +330,11 @@ function guardarDatosPrincipales() {
         return;
     }
 
+    var creditoRaw = '';
+    if ($('#cred_monto').length) {
+        creditoRaw = ($('#cred_monto').val() || '').toString();
+    }
+
     var payload = {
         _token:                    document.getElementById('csrf_token').value,
         nombre_cliente:            nombre,
@@ -269,7 +361,7 @@ function guardarDatosPrincipales() {
         longitud:                  $('#dir_longitud').val().trim(),
         // crédito (sólo usado en modo crear)
         vendedor_id:               $('#dp_vendedor').val(),
-        credito:                   $('#cred_monto').val().replace(/,/g, ''),
+        credito:                   creditoRaw.replace(/,/g, ''),
         dias_credito:              $('#cred_dias').val(),
         credito_activo:            $('#cred_activo').is(':checked') ? 1 : 0,
         referencias_bancarias:     ($('#cred_ref_bancarias').val() || '').trim(),
@@ -453,6 +545,7 @@ function recargarHistoricoCredito() {
 function renderHistoricoCredito(rows) {
     var cont  = document.getElementById('historico_credito_container');
     var empty = document.getElementById('historico_credito_empty');
+    if (!cont) return;
     if (!rows || rows.length === 0) {
         if (empty) empty.style.display = '';
         cont.innerHTML = '<p class="text-muted text-center" id="historico_credito_empty">Sin historial.</p>';
@@ -497,6 +590,10 @@ function renderHistoricoCredito(rows) {
    ============================================================ */
 function guardarObservacion() {
     if (!checkClienteCreado()) return;
+    if (!clienteFormPerms.puedeEditarObservacionesGerencia) {
+        mostrarAlerta('info', 'Solo visualización', 'No tiene permisos para modificar Observaciones.');
+        return;
+    }
     var texto = $('#obs_texto').val().trim();
     if (!texto) { mostrarAlerta('warning', 'Falta', 'Escriba una observación.'); return; }
 
@@ -547,6 +644,10 @@ function renderObservaciones(rows) {
    ============================================================ */
 function guardarReferencias() {
     if (!checkClienteCreado()) return;
+    if (!clienteFormPerms.puedeVerCreditoYReferencias) {
+        mostrarAlerta('info', 'Solo visualización', 'No tiene permisos para modificar Comentarios/Referencias.');
+        return;
+    }
     var payload = {
         _token:              document.getElementById('csrf_token').value,
         cliente_id:          clienteIdActual,
@@ -648,6 +749,10 @@ function eliminarRefEntrada(idx) {
    ============================================================ */
 function guardarAutorizacionGerencia() {
     if (!checkClienteCreado()) return;
+    if (!clienteFormPerms.puedeEditarObservacionesGerencia) {
+        mostrarAlerta('info', 'Solo visualización', 'No tiene permisos para modificar Observación Gerencia.');
+        return;
+    }
     var texto = $('#og_autorizacion').val().trim();
     if (!texto) { mostrarAlerta('warning', 'Falta', 'Escriba la autorización o comentario de gerencia.'); return; }
 
@@ -1057,7 +1162,10 @@ function mostrarAlerta(icon, title, text) {
 }
 
 function formatCurrencyInput($input) {
-    var val = $input.val().replace(/[^0-9.]/g, '');
+    if (!$input || !$input.length) return;
+    var raw = $input.val();
+    if (raw === undefined || raw === null) return;
+    var val = raw.toString().replace(/[^0-9.]/g, '');
     var parts = val.split('.');
     parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
     $input.val(parts.join('.'));

@@ -283,8 +283,11 @@ class Cliente extends Component
 
     public function listarClientes(){
        try {
+            $rolId  = (int) (Auth::user()->rol_id ?? 0);
+            $userId = (int) Auth::id();
+            $soloAsignados = !in_array($rolId, [1, 4], true);
 
-            $clientes = DB::SELECT("
+            $sql = "
             select
                 cliente.id as idCliente,
                 (select nombre_categoria from cliente_categoria_escala where id = cliente_categoria_escala_id ) as categoria_escala_cliente,
@@ -300,7 +303,9 @@ class Cliente extends Component
             from cliente
             inner join estado_cliente on estado_cliente.id = cliente.estado_cliente_id
             inner join users on users.id = cliente.users_id
-            ");
+            " . ($soloAsignados ? " WHERE cliente.users_id = {$userId}" : "");
+
+            $clientes = DB::SELECT($sql);
 
 
             return Datatables::of($clientes)
@@ -1257,20 +1262,20 @@ class Cliente extends Component
             $nombre = trim(str_replace(["'", '"', '´'], ' ', $request->nombre_cliente));
             $cliente->nombre                     = $nombre;
             $cliente->rtn                        = trim($request->rtn_cliente ?? '');
-            $cliente->tipo_personalidad_id       = $request->tipo_personalidad_id;
-            $cliente->tipo_cliente_id            = $request->tipo_cliente_id;
-            $cliente->categoria_id               = $request->tipo_cliente_id;
+            $cliente->tipo_personalidad_id       = $request->tipo_personalidad_id ?: $cliente->tipo_personalidad_id;
+            $cliente->tipo_cliente_id            = $request->tipo_cliente_id ?: $cliente->tipo_cliente_id;
+            $cliente->categoria_id               = $request->tipo_cliente_id ?: $cliente->tipo_cliente_id ?: $cliente->categoria_id;
             $cliente->ano_operacion              = $request->ano_operacion ?? null;
             $cliente->dni_representante_legal    = trim($request->dni_representante ?? '');
             $cliente->estado_cliente_id          = $request->estado_activo ? 1 : 2;
             $cliente->correo                     = trim($request->correo ?? '');
             $cliente->telefono_empresa           = trim($request->telefono ?? '');
             $cliente->direccion                  = trim($request->direccion ?? '');
-            $cliente->municipio_id               = $request->municipio_id ?? $cliente->municipio_id;
-            $cliente->vendedor                   = $request->dp_vendedor_id ?? $request->vendedor_id ?? $cliente->vendedor;
-            $cliente->metodo_pago                = trim($request->dp_metodo_pago ?? $cliente->metodo_pago ?? '');
+            $cliente->municipio_id               = $request->municipio_id ?: $cliente->municipio_id;
+            $cliente->vendedor                   = ($request->dp_vendedor_id ?: $request->vendedor_id) ?: $cliente->vendedor;
+            $cliente->metodo_pago                = trim($request->dp_metodo_pago ?? '') ?: ($cliente->metodo_pago ?? '');
             $cliente->users_id                   = Auth::user()->id;
-            $cliente->cliente_categoria_escala_id = $request->cliente_categoria_escala_id ?? $cliente->cliente_categoria_escala_id;
+            $cliente->cliente_categoria_escala_id = $request->cliente_categoria_escala_id ?: $cliente->cliente_categoria_escala_id;
 
             // Track exact fields changed using Laravel dirty detection
             $fieldLabels = [
@@ -1315,6 +1320,14 @@ class Cliente extends Component
      */
     public function guardarCredito(Request $request)
     {
+        if (!$this->puedeGestionarCreditoYReferencias()) {
+            return response()->json([
+                'icon' => 'info',
+                'title' => 'Solo visualización',
+                'text' => 'No tiene permisos para modificar datos de crédito.'
+            ], 403);
+        }
+
         try {
             DB::beginTransaction();
             $id = $request->cliente_id;
@@ -1376,6 +1389,14 @@ class Cliente extends Component
      */
     public function guardarObservacion(Request $request)
     {
+        if (!$this->puedeEditarObservacionesGerencia()) {
+            return response()->json([
+                'icon' => 'info',
+                'title' => 'Solo visualización',
+                'text' => 'No tiene permisos para modificar observaciones.'
+            ], 403);
+        }
+
         try {
             $obs = ClienteObservacion::create([
                 'cliente_id' => $request->cliente_id,
@@ -1601,9 +1622,10 @@ class Cliente extends Component
      */
     public function vistaFormCliente(Request $request)
     {
-        $id = $request->route('id');
-        $clientes     = DB::select("SELECT id, name FROM users WHERE rol_id = 2 ORDER BY name ASC");
-        $metodosPago  = DB::select("SELECT id, descripcion FROM tipo_pago_cobro ORDER BY id ASC");
+        $id          = $request->route('id');
+        $rolId       = (int) (Auth::user()->rol_id ?? 0);
+        $clientes    = DB::select("SELECT id, name FROM users WHERE rol_id = 2 ORDER BY name ASC");
+        $metodosPago = DB::select("SELECT id, descripcion FROM tipo_pago_cobro ORDER BY id ASC");
         return view('livewire.clientes.cliente-form', compact('id', 'clientes', 'metodosPago'));
     }
 
@@ -1624,6 +1646,14 @@ class Cliente extends Component
      */
     public function guardarReferencias(Request $request)
     {
+        if (!$this->puedeGestionarCreditoYReferencias()) {
+            return response()->json([
+                'icon' => 'info',
+                'title' => 'Solo visualización',
+                'text' => 'No tiene permisos para modificar referencias.'
+            ], 403);
+        }
+
         try {
             $id      = $request->cliente_id;
             $cliente = ModelCliente::findOrFail($id);
@@ -1646,6 +1676,14 @@ class Cliente extends Component
      */
     public function guardarAutorizacionGerencia(Request $request)
     {
+        if (!$this->puedeEditarObservacionesGerencia()) {
+            return response()->json([
+                'icon' => 'info',
+                'title' => 'Solo visualización',
+                'text' => 'No tiene permisos para modificar observación de gerencia.'
+            ], 403);
+        }
+
         try {
             $id      = $request->cliente_id;
             $credito = ClienteCredito::where('cliente_id', $id)->where('activo', 1)->first();
@@ -1718,6 +1756,18 @@ class Cliente extends Component
         }
 
         return null; // todo OK
+    }
+
+    private function puedeGestionarCreditoYReferencias(): bool
+    {
+        $rolId = (int) (Auth::user()->rol_id ?? 0);
+        return in_array($rolId, [1, 4], true);
+    }
+
+    private function puedeEditarObservacionesGerencia(): bool
+    {
+        $rolId = (int) (Auth::user()->rol_id ?? 0);
+        return in_array($rolId, [1, 4], true);
     }
 
 }
