@@ -640,6 +640,7 @@ class FacturacionUnificada extends Component
             return DB::table('producto')
                 ->where('nombre', 'LIKE', '%' . $nombre . '%')
                 ->whereRaw('id IN (SELECT producto_id FROM inventario WHERE cantidad > 0)')
+                ->where('estado_producto_id', 1)
                 ->select('id', 'nombre', 'precio_base as precio', 'isv')
                 ->limit($limit)->get()->toArray();
         }
@@ -655,7 +656,8 @@ class FacturacionUnificada extends Component
         $score = 'IF(nombre LIKE ?, 10, 0) + ' . implode(' + ', $cases);
         $params = array_merge(['%' . $nombre . '%'], $params);
 
-        $results = $q->selectRaw('id, nombre, precio_base as precio, isv, (' . $score . ') as score', $params)
+        $results = $q->where('estado_producto_id', 1)
+            ->selectRaw('id, nombre, precio_base as precio, isv, (' . $score . ') as score', $params)
             ->having('score', '>', 0)
             ->orderByDesc('score')
             ->limit($limit)
@@ -665,6 +667,7 @@ class FacturacionUnificada extends Component
         if (empty($results)) {
             $results = DB::table('producto')
                 ->where('nombre', 'LIKE', '%' . array_values($palabras)[0] . '%')
+                ->where('estado_producto_id', 1)
                 ->select('id', 'nombre', 'precio_base as precio', 'isv')
                 ->limit($limit)->get()->toArray();
         }
