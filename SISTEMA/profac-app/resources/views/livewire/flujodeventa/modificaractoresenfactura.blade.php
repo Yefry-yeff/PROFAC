@@ -92,6 +92,24 @@
                 border-color: #cf6d12 !important;
                 color: #fff !important;
             }
+
+            .roles-card-body .select2-container { width: 100% !important; }
+            .roles-card-body .select2-container .select2-selection--single {
+                min-height: 34px;
+                border: 1px solid #e5e6e7;
+                border-radius: 4px;
+            }
+            .roles-card-body .select2-container--default .select2-selection--single .select2-selection__rendered {
+                line-height: 32px;
+                color: #676a6c;
+                padding-left: 12px;
+                padding-right: 28px;
+            }
+            .roles-card-body .select2-container--default .select2-selection--single .select2-selection__arrow {
+                height: 32px;
+                right: 8px;
+            }
+            .select2-container--open { z-index: 99999 !important; }
         </style>
     @endpush
 
@@ -211,7 +229,7 @@
                                         <div class="panel-heading px-3 py-2">Factura seleccionada</div>
                                         <div class="panel-body p-3">
                                             <p class="mb-1"><strong>Secuencia CAI:</strong> {{ $facturaSeleccionada['numero_secuencia_cai'] ?? '-' }}</p>
-                                            <p class="mb-1"><strong>Factura:</strong> {{ $facturaSeleccionada['numero_factura'] ?? '-' }}</p>
+                                            <p class="mb-1"><strong>Factura:</strong> {{ $facturaSeleccionada['cai'] ?? '-' }}</p>
                                             <p class="mb-1"><strong>Cliente:</strong> {{ $facturaSeleccionada['nombre_cliente'] }}</p>
                                             <p class="mb-1"><strong>RTN:</strong> {{ $facturaSeleccionada['rtn'] }}</p>
                                             <p class="mb-1"><strong>Fecha:</strong> {{ $facturaSeleccionada['fecha_emision'] }}</p>
@@ -240,7 +258,7 @@
                                 <select id="vendedorId" class="form-control" wire:model.defer="vendedorId">
                                     <option value="">Seleccione un asesor comercial</option>
                                     @foreach ($usuarios as $usuario)
-                                        <option value="{{ $usuario['id'] }}">{{ $usuario['name'] }} - {{ $usuario['rol_nombre'] }}</option>
+                                        <option value="{{ $usuario['id'] }}">{{ $usuario['name'] }}</option>
                                     @endforeach
                                 </select>
                                 @error('vendedorId') <small class="text-danger">{{ $message }}</small> @enderror
@@ -251,7 +269,7 @@
                                 <select id="teleAsesorId" class="form-control" wire:model.defer="teleAsesorId">
                                     <option value="">Seleccione un tele asesor</option>
                                     @foreach ($usuarios as $usuario)
-                                        <option value="{{ $usuario['id'] }}">{{ $usuario['name'] }} - {{ $usuario['rol_nombre'] }}</option>
+                                        <option value="{{ $usuario['id'] }}">{{ $usuario['name'] }}</option>
                                     @endforeach
                                 </select>
                                 @error('teleAsesorId') <small class="text-danger">{{ $message }}</small> @enderror
@@ -262,7 +280,7 @@
                                 <select id="gestorEntregaId" class="form-control" wire:model.defer="gestorEntregaId">
                                     <option value="">Sin asignar</option>
                                     @foreach ($usuarios as $usuario)
-                                        <option value="{{ $usuario['id'] }}">{{ $usuario['name'] }} - {{ $usuario['rol_nombre'] }}</option>
+                                        <option value="{{ $usuario['id'] }}">{{ $usuario['name'] }}</option>
                                     @endforeach
                                 </select>
                                 @error('gestorEntregaId') <small class="text-danger">{{ $message }}</small> @enderror
@@ -285,3 +303,64 @@
         </div>
     </div>
 </div>
+
+@push('scripts')
+    <script>
+        (function () {
+            function getLivewireComponent(selectEl) {
+                var wireRoot = selectEl.closest('[wire\\:id]');
+                if (!wireRoot) return null;
+                var componentId = wireRoot.getAttribute('wire:id');
+                if (window.Livewire && typeof window.Livewire.find === 'function') {
+                    return window.Livewire.find(componentId);
+                }
+                if (window.livewire && typeof window.livewire.find === 'function') {
+                    return window.livewire.find(componentId);
+                }
+                return null;
+            }
+
+            function initActorSelect2() {
+                if (typeof $ === 'undefined' || !$.fn || !$.fn.select2) return;
+
+                var fieldMap = {
+                    vendedorId: 'vendedorId',
+                    teleAsesorId: 'teleAsesorId',
+                    gestorEntregaId: 'gestorEntregaId'
+                };
+
+                Object.keys(fieldMap).forEach(function (fieldId) {
+                    var $el = $('#' + fieldId);
+                    if (!$el.length) return;
+
+                    if ($el.data('select2')) {
+                        $el.off('change.actorSelect2');
+                        $el.select2('destroy');
+                    }
+
+                    $el.select2({
+                        width: '100%',
+                        placeholder: $el.find('option:first').text(),
+                        allowClear: fieldId === 'gestorEntregaId'
+                    });
+
+                    $el.on('change.actorSelect2', function () {
+                        var component = getLivewireComponent(this);
+                        if (!component || typeof component.set !== 'function') return;
+                        component.set(fieldMap[fieldId], $(this).val() || '');
+                    });
+                });
+            }
+
+            document.addEventListener('livewire:load', function () {
+                initActorSelect2();
+
+                if (window.Livewire && typeof window.Livewire.hook === 'function') {
+                    window.Livewire.hook('message.processed', function () {
+                        initActorSelect2();
+                    });
+                }
+            });
+        })();
+    </script>
+@endpush
