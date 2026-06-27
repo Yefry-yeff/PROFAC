@@ -242,7 +242,7 @@ class Librocobrosrep extends Component
                     $bindings[] = '%' . $factura . '%';
                 }
 
-                $sql .= ' ORDER BY sub.fecha_pago ASC, sub.cliente ASC';
+                $sql .= ' ORDER BY sub.banco ASC, sub.cuenta_banco ASC, sub.fecha_pago ASC, sub.cliente ASC';
 
                 $consulta = DB::select($sql, $bindings);
 
@@ -295,14 +295,43 @@ class Librocobrosrep extends Component
     }
 
     // Obtener datos del procedimiento almacenado
-    $consulta = DB::select("CALL sp_reportesxfecha(?, ?, ?)", [$tipo, $fechaInicio,$fechaFinal]);
+    if ($tipo == 3) {
+        $clienteFiltro  = $request->input('cliente_id',  $request->input('cliente'));
+        $vendedorFiltro = $request->input('vendedor_id', $request->input('vendedor'));
+        $bancoFiltro    = $request->input('banco_id',    $request->input('banco'));
+        $facturaFiltro  = $request->filled('factura') ? $request->input('factura') : null;
 
-    // Convertir los datos a arreglo para la vista
-    $data = json_decode(json_encode($consulta), true);
+        $rows = $this->queryTipo3Data($fechaInicio, $fechaFinal, $clienteFiltro, $vendedorFiltro, $bancoFiltro, $facturaFiltro);
+        $data = array_map(fn($r) => (array) $r, $rows);
 
-    // Generar el PDF usando DomPDF
-    $pdf = PDF::loadView('pdf.librocobrosrep', compact('data','fechaInicio','fechaFinal'))
-              ->setPaper('oficio', 'landscape');
+        $grouped = [];
+        foreach ($data as $row) {
+            $gKey = ($row['banco'] ?? '') . "\x00" . ($row['cuenta_banco'] ?? '');
+            if (!isset($grouped[$gKey])) {
+                $grouped[$gKey] = [
+                    'banco'  => $row['banco']       ?? '',
+                    'cuenta' => $row['cuenta_banco'] ?? '',
+                    'rows'   => [],
+                ];
+            }
+            $grouped[$gKey]['rows'][] = $row;
+        }
+
+        $pdf = PDF::loadView('pdf.librocobrosrep', [
+            'data'        => $data,
+            'grouped'     => $grouped,
+            'fechaInicio' => $fechaInicio,
+            'fechaFinal'  => $fechaFinal,
+            'tipo'        => 3,
+        ])->setPaper('legal', 'landscape');
+    } else {
+        $consulta = DB::select("CALL sp_reportesxfecha(?, ?, ?)", [$tipo, $fechaInicio, $fechaFinal]);
+        // Convertir los datos a arreglo para la vista
+        $data = json_decode(json_encode($consulta), true);
+        // Generar el PDF usando DomPDF
+        $pdf = PDF::loadView('pdf.librocobrosrep', compact('data', 'fechaInicio', 'fechaFinal'))
+                  ->setPaper('oficio', 'landscape');
+    }
 
     $response = $pdf->download(filename: "LibroCobros_{$fechaInicio}_a_{$fechaFinal}.pdf");
 
@@ -508,7 +537,7 @@ class Librocobrosrep extends Component
                     $bindings[] = '%' . $request->factura . '%';
                 }
 
-                $sql .= ' ORDER BY sub.fecha_pago ASC, sub.cliente ASC';
+                $sql .= ' ORDER BY sub.banco ASC, sub.cuenta_banco ASC, sub.fecha_pago ASC, sub.cliente ASC';
 
                 $data = DB::select($sql, $bindings);
             } else {
@@ -524,5 +553,191 @@ class Librocobrosrep extends Component
                 'errorTh' => $e->getMessage(),
             ], 402);
         }
+    }
+
+    private function queryTipo3Data(
+        string $fechaInicio,
+        string $fechaFinal,
+        ?string $cliente  = null,
+        ?string $vendedor = null,
+        ?string $banco    = null,
+        ?string $factura  = null
+    ): array {
+        $sql = "
+            SELECT *
+            FROM (
+                SELECT
+                    inner_sub.*,
+                    MAX(CASE WHEN inner_sub.estado_factura = 'PAGADA' THEN 1 ELSE 0 END)
+                        OVER (PARTITION BY inner_sub.factura) AS factura_tiene_pagada
+                FROM (
+                    SELECT
+                        DATE_FORMAT(ac.fecha_pago, '%Y-%m-%d')          AS fecha_pago,
+                        f.nombre_cliente                                 AS cliente,
+                        u.name                                           AS vendedor,
+                        f.numero_secuencia_cai                          AS factura,
+                        ROUND(ac.monto_abonado, 2)                      AS monto_cobrado,
+                        GREATEST(
+                            ROUND(
+                                f.total - SUM(ac.monto_abonado) OVER (
+                                    PARTITION BY ac.factura_id
+                                    ORDER BY ac.fecha_pago ASC, ac.id ASC
+                                    ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+                                ), 2
+                            ), 0
+                        )                                                AS saldo_pendiente,
+                        CASE
+                            WHEN GREATEST(
+                                ROUND(
+                                    f.total - SUM(ac.monto_abonado) OVER (
+                                        PARTITION BY ac.factura_id
+                                        ORDER BY ac.fecha_pago ASC, ac.id ASC
+                                        ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+                                    ), 2
+                                ), 0
+                            ) <= 0.01 THEN 'PAGADA'
+                            ELSE 'PARCIAL'
+                        END                                              AS estado_factura,
+                        b.nombre                                         AS banco,
+                        ac.comentario                                    AS observaciones,
+                        ROUND(
+                            CASE
+                                WHEN COALESCE(f.sub_total, 0) > 0 THEN (
+                                    (CASE
+                                        WHEN COALESCE(f.total, 0) > 0
+                                            THEN ROUND(ac.monto_abonado * COALESCE(f.sub_total, 0) / COALESCE(f.total, 1), 2)
+                                        ELSE ROUND(ac.monto_abonado, 2)
+                                    END)
+                                    * (CASE
+                                        WHEN f.tipo_venta_id = 3 THEN COALESCE(f.sub_total, 0)
+                                        ELSE GREATEST(
+                                            COALESCE(f.sub_total, 0)
+                                            - COALESCE(f.sub_total_grabado, 0)
+                                            - COALESCE(f.sub_total_excento, 0),
+                                            0
+                                        )
+                                    END)
+                                    / COALESCE(f.sub_total, 1)
+                                )
+                                ELSE 0
+                            END,
+                        2)                                               AS exonerado,
+                        ROUND(
+                            CASE
+                                WHEN COALESCE(f.sub_total, 0) > 0 THEN (
+                                    (CASE
+                                        WHEN COALESCE(f.total, 0) > 0
+                                            THEN ROUND(ac.monto_abonado * COALESCE(f.sub_total, 0) / COALESCE(f.total, 1), 2)
+                                        ELSE ROUND(ac.monto_abonado, 2)
+                                    END)
+                                    * COALESCE(f.sub_total_grabado, 0)
+                                    / COALESCE(f.sub_total, 1)
+                                )
+                                ELSE 0
+                            END,
+                        2)                                               AS gravado,
+                        ROUND(
+                            (CASE
+                                WHEN COALESCE(f.total, 0) > 0
+                                    THEN ROUND(ac.monto_abonado * COALESCE(f.sub_total, 0) / COALESCE(f.total, 1), 2)
+                                ELSE ROUND(ac.monto_abonado, 2)
+                            END)
+                            -
+                            ROUND(
+                                CASE
+                                    WHEN COALESCE(f.sub_total, 0) > 0 THEN (
+                                        (CASE
+                                            WHEN COALESCE(f.total, 0) > 0
+                                                THEN ROUND(ac.monto_abonado * COALESCE(f.sub_total, 0) / COALESCE(f.total, 1), 2)
+                                            ELSE ROUND(ac.monto_abonado, 2)
+                                        END)
+                                        * (CASE
+                                            WHEN f.tipo_venta_id = 3 THEN COALESCE(f.sub_total, 0)
+                                            ELSE GREATEST(
+                                                COALESCE(f.sub_total, 0)
+                                                - COALESCE(f.sub_total_grabado, 0)
+                                                - COALESCE(f.sub_total_excento, 0),
+                                                0
+                                            )
+                                        END)
+                                        / COALESCE(f.sub_total, 1)
+                                    )
+                                    ELSE 0
+                                END,
+                            2)
+                            -
+                            ROUND(
+                                CASE
+                                    WHEN COALESCE(f.sub_total, 0) > 0 THEN (
+                                        (CASE
+                                            WHEN COALESCE(f.total, 0) > 0
+                                                THEN ROUND(ac.monto_abonado * COALESCE(f.sub_total, 0) / COALESCE(f.total, 1), 2)
+                                            ELSE ROUND(ac.monto_abonado, 2)
+                                        END)
+                                        * COALESCE(f.sub_total_grabado, 0)
+                                        / COALESCE(f.sub_total, 1)
+                                    )
+                                    ELSE 0
+                                END,
+                            2),
+                        2)                                               AS excento,
+                        ROUND(
+                            CASE
+                                WHEN COALESCE(f.total, 0) > 0
+                                    THEN ac.monto_abonado * COALESCE(f.sub_total, 0) / COALESCE(f.total, 1)
+                                ELSE ac.monto_abonado
+                            END,
+                        2)                                               AS subtotal,
+                        ROUND(
+                            CASE
+                                WHEN f.tipo_venta_id = 3 THEN 0
+                                WHEN COALESCE(f.total, 0) > 0 THEN
+                                    ac.monto_abonado - ROUND(ac.monto_abonado * COALESCE(f.sub_total, 0) / COALESCE(f.total, 1), 2)
+                                ELSE 0
+                            END,
+                        2)                                               AS isv,
+                        ROUND(ac.monto_abonado, 2)                      AS total_factura,
+                        b.cuenta                                         AS cuenta_banco,
+                        f.cliente_id                                     AS _cliente_id,
+                        f.vendedor                                       AS _vendedor_id,
+                        ac.banco_id                                      AS _banco_id
+                    FROM abonos_creditos ac
+                    INNER JOIN factura f  ON f.id  = ac.factura_id
+                    INNER JOIN users u    ON u.id  = f.vendedor
+                    INNER JOIN banco b    ON b.id  = ac.banco_id
+                    WHERE ac.estado_abono = 1
+                      AND ac.factura_id IN (
+                        SELECT DISTINCT factura_id
+                        FROM abonos_creditos
+                        WHERE DATE(fecha_pago) BETWEEN ? AND ?
+                          AND estado_abono = 1
+                    )
+                ) inner_sub
+            ) sub
+            WHERE DATE(sub.fecha_pago) BETWEEN ? AND ?
+        ";
+
+        $bindings = [$fechaInicio, $fechaFinal, $fechaInicio, $fechaFinal];
+
+        if (!empty($cliente)) {
+            $sql .= ' AND sub._cliente_id = ?';
+            $bindings[] = $cliente;
+        }
+        if (!empty($vendedor)) {
+            $sql .= ' AND sub._vendedor_id = ?';
+            $bindings[] = $vendedor;
+        }
+        if (!empty($banco)) {
+            $sql .= ' AND sub._banco_id = ?';
+            $bindings[] = $banco;
+        }
+        if (!empty($factura)) {
+            $sql .= ' AND sub.factura LIKE ?';
+            $bindings[] = '%' . $factura . '%';
+        }
+
+        $sql .= ' ORDER BY sub.banco ASC, sub.cuenta_banco ASC, sub.fecha_pago ASC, sub.cliente ASC';
+
+        return DB::select($sql, $bindings);
     }
 }
