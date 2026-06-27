@@ -965,6 +965,7 @@ class Pagos extends Component
         }
 
         $tipoFacturaCodigo = (string) ($fila->tipo_factura_codigo ?? '');
+        $clienteCategoriaEscalaId = (int) ($fila->cliente_categoria_escala_id ?? 0);
         $esFacturaSr = in_array($tipoFacturaCodigo, [
             'sin_restriccion_gobierno',
             'sin_restriccion_precio',
@@ -1065,21 +1066,39 @@ class Pagos extends Component
             ];
         }
 
+        $categoriasProductoFactura = DB::table('venta_has_producto as vp')
+            ->join('precios_producto_carga as ppc', 'ppc.id', '=', 'vp.precios_producto_carga_id')
+            ->where('vp.factura_id', $facturaId)
+            ->pluck('ppc.categoria_precios_id')
+            ->map(fn($id) => (int) $id)
+            ->filter(fn($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($esFacturaSr && $categoriaBajaId) {
+            $categoriasProductoFactura = [$categoriaBajaId];
+        }
+
         foreach ($targets as &$t) {
             $qEscala = DB::table('comision_escala')
                 ->where('estado_id', 1)
-                ->where('rol_id', (int) $t['rol_id']);
+                ->where('rol_id', (int) $t['rol_id'])
+                ->where('cliente_categoria_escala_id', $clienteCategoriaEscalaId);
 
-            if ($esFacturaSr && $categoriaBajaId) {
-                $qEscala->where('categoria_precios_id', $categoriaBajaId);
+            if (!empty($categoriasProductoFactura)) {
+                $qEscala->whereIn('categoria_precios_id', $categoriasProductoFactura);
             }
 
-            $escala = $qEscala
+            $escalas = $qEscala
+                ->orderBy('categoria_precios_id')
                 ->orderBy('id', 'desc')
-                ->first(['porcentaje_comision']);
+                ->get(['categoria_precios_id', 'porcentaje_comision']);
 
-            $t['tiene_escala'] = (bool) $escala;
-            $t['porcentaje_comision'] = $escala ? (float) $escala->porcentaje_comision : null;
+            $t['tiene_escala'] = $escalas->isNotEmpty();
+            $t['porcentaje_comision'] = $escalas->isNotEmpty()
+                ? (float) $escalas->first()->porcentaje_comision
+                : null;
         }
         unset($t);
 
@@ -1095,7 +1114,7 @@ class Pagos extends Component
                 ->leftJoin('precios_producto_carga as ppc', 'ppc.id', '=', 'vp.precios_producto_carga_id')
                 ->leftJoin('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')
                 ->where('vp.factura_id', $facturaId)
-                ->selectRaw('p.nombre as producto, cp.id as categoria_usada_id, cp.nombre as categoria_usada, vp.cantidad, vp.precio_unidad')
+                ->selectRaw('p.nombre as producto, cp.id as categoria_usada_id, cp.nombre as categoria_usada, vp.cantidad, vp.precio_unidad, vp.precioSeleccionado, COALESCE(NULLIF(vp.precioSeleccionado, 0), vp.precio_unidad) as precio_para_comision')
                 ->get();
 
             foreach ($productos as $prod) {
@@ -1105,6 +1124,8 @@ class Pagos extends Component
                     'categoria_usada' => (string) ($prod->categoria_usada ?? 'Sin categoría'),
                     'cantidad' => (float) ($prod->cantidad ?? 0),
                     'precio_unidad' => (float) ($prod->precio_unidad ?? 0),
+                    'precio_seleccionado' => (float) ($prod->precioSeleccionado ?? 0),
+                    'precio_para_comision' => (float) ($prod->precio_para_comision ?? $prod->precio_unidad ?? 0),
                 ];
             }
         }
@@ -1353,7 +1374,9 @@ class Pagos extends Component
                 $porcentaje_comision    = $param->porcentaje_comision;
 
                 foreach ($productos_factura as $producto) {
-                    $precio_venta = $producto->precio_unidad;
+                    $precio_venta = (float) ($producto->precioSeleccionado ?? 0) > 0
+                        ? (float) $producto->precioSeleccionado
+                        : (float) $producto->precio_unidad;
                     $cantidad = $producto->cantidad;
                     $idproducto =  $producto->producto_id;
                     $precios_producto_carga_id  = $producto->precios_producto_carga_id;

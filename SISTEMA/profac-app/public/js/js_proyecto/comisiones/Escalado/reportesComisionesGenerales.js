@@ -106,7 +106,7 @@ function abrirDetalleProductosFactura(facturaComisionId){
     };
 
     $('#mpfTitulo').text('Detalle de Productos - Factura ' + (row && row.factura ? row.factura : '#'+facturaComisionId));
-    $('#mpfSubtitulo').text((row && row.cliente ? row.cliente + ' | ' : '') + 'Escala, porcentaje, cantidad, precio, base comisionable y comisión por línea');
+    $('#mpfSubtitulo').text((row && row.cliente ? row.cliente + ' | ' : '') + 'Escala, porcentaje, cantidad, precio unitario, precio escala, base comisionable y comisión por línea');
 
     var html = productos.map(function(item){
         return '<tr>'
@@ -115,6 +115,7 @@ function abrirDetalleProductosFactura(facturaComisionId){
             + '<td>'+esc(item.categoria_precio_vendida || '—')+'</td>'
             + '<td class="text-right">'+parseFloat(item.porcentaje_comision || 0).toFixed(2)+'%</td>'
             + '<td class="text-right">'+parseFloat(item.cantidad || 0).toLocaleString('es-HN',{minimumFractionDigits:0,maximumFractionDigits:2})+'</td>'
+            + '<td class="text-right">'+fmtMoney(item.precio_unitario || 0)+'</td>'
             + '<td class="text-right">'+fmtMoney(item.precio_venta || 0)+'</td>'
                 + '<td class="text-right"><strong>'+fmtMoney(item.base_comisionable || 0)+'</strong></td>'
                 + '<td>'+esc(item.fuente_base_comisionable || '—')+'</td>'
@@ -146,7 +147,7 @@ function exportarProductosFacturaExcel(){
         ['Cliente', ctx.cliente || 'No disponible'],
         ['Fecha de descarga', fechaDescarga],
         [],
-        ['Producto','Categoría Cliente Escala','Categoría Precio Vendida','%','Cantidad','Precio Venta','Base Comisionable','Fuente Base','Comisión']
+        ['Producto','Categoría Cliente Escala','Categoría Precio Vendida','%','Cantidad','Precio Unitario','Precio Escala','Base Comisionable','Fuente Base','Comisión']
     ];
 
     productos.forEach(function(item){
@@ -156,6 +157,7 @@ function exportarProductosFacturaExcel(){
             item.categoria_precio_vendida || '',
             parseFloat(item.porcentaje_comision || 0),
             parseFloat(item.cantidad || 0),
+            parseFloat(item.precio_unitario || 0),
             parseFloat(item.precio_venta || 0),
             parseFloat(item.base_comisionable || 0),
             item.fuente_base_comisionable || '',

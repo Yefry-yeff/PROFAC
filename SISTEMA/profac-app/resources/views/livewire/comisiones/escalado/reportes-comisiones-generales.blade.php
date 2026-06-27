@@ -683,7 +683,8 @@ table.dataTable tbody td { font-size: 13px; vertical-align: middle; }
                                 <th>Categoría Precio Vendida</th>
                                 <th class="text-right">%</th>
                                 <th class="text-right">Cantidad</th>
-                                <th class="text-right">Precio Venta</th>
+                                <th class="text-right">Precio Unitario</th>
+                                <th class="text-right">Precio Escala</th>
                                 <th class="text-right">Base Comisionable</th>
                                 <th>Fuente Base</th>
                                 <th class="text-right">Comisión</th>

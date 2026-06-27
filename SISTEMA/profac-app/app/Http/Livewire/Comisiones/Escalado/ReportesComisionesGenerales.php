@@ -13,6 +13,30 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class ReportesComisionesGenerales extends Component
 {
+    private function resolveDetalleProductoMode(float $esperado, float $sumaRaw, float $sumaWeighted): string
+    {
+        $tolerance = 0.05;
+
+        if ($esperado > 0) {
+            $diffRaw = abs($sumaRaw - $esperado);
+            $diffWeighted = abs($sumaWeighted - $esperado);
+
+            if ($diffWeighted + $tolerance < $diffRaw) {
+                return 'unitario';
+            }
+
+            if ($diffRaw + $tolerance < $diffWeighted) {
+                return 'linea';
+            }
+        }
+
+        if ($sumaWeighted > $sumaRaw + $tolerance) {
+            return 'unitario';
+        }
+
+        return 'linea';
+    }
+
     private function normalizeDate(?string $value): ?string
     {
         $value = trim((string) $value);
@@ -763,12 +787,20 @@ class ReportesComisionesGenerales extends Component
         $resumenProductosPorFc = [];
         $detalleProductosPorFc = [];
         if (!empty($facturaIds)) {
+            $comisionOriginalEsperadaPorFc = $detalles
+                ->mapWithKeys(fn($row) => [(int) $row->id => (float) $row->comision_original])
+                ->all();
+
             $lineas = DB::table('producto_comision as pc')
                 ->join('facturas_comision as fc', 'fc.id', '=', 'pc.facturas_comision_id')
                 ->join('factura as f', 'f.id', '=', 'fc.factura_id')
                 ->join('cliente as cl', 'cl.id', '=', 'f.cliente_id')
                 ->leftJoin('producto as p', 'p.id', '=', 'pc.producto_id')
                 ->leftJoin('precios_producto_carga as ppc', 'ppc.id', '=', 'pc.precios_producto_carga_id')
+                ->leftJoin('venta_has_producto as vhp_ref', function ($join) {
+                    $join->on('vhp_ref.factura_id', '=', 'pc.factura_id')
+                        ->on('vhp_ref.producto_id', '=', 'pc.producto_id');
+                })
                 ->leftJoin('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')
                 ->leftJoin('cliente_categoria_escala as cce', 'cce.id', '=', 'cl.cliente_categoria_escala_id')
                 ->whereIn('pc.facturas_comision_id', $facturaIds)
@@ -780,73 +812,116 @@ class ReportesComisionesGenerales extends Component
                      cce.nombre_categoria as categoria_cliente_escala_nombre,
                      ppc.categoria_precios_id,
                      COALESCE(pc.cantidad, 0) as cantidad,
+                     COALESCE(vhp_ref.precio_unidad, 0) as precio_unitario,
                      COALESCE(pc.precio_venta, 0) as precio_venta,
-                     COALESCE(pc.monto_comision, 0) as monto_comision,
-                     COALESCE((
-                        SELECT ce.porcentaje_comision
-                        FROM comision_escala ce
-                        WHERE ce.rol_id = fc.rol_id
-                          AND ce.categoria_precios_id = ppc.categoria_precios_id
-                          AND ce.estado_id = 1
-                        ORDER BY ce.id DESC
-                        LIMIT 1
-                     ), 0) as porcentaje_comision"
+                     COALESCE(pc.monto_comision, 0) as monto_comision"
                 )
                 ->orderBy('pc.facturas_comision_id')
                 ->orderBy('p.nombre')
                 ->get();
 
-            foreach ($lineas as $ln) {
-                $fcId = (int) $ln->fc_id;
+            foreach ($lineas->groupBy('fc_id') as $fcId => $lineasFactura) {
+                $fcId = (int) $fcId;
                 if (!isset($resumenProductosPorFc[$fcId])) {
                     $resumenProductosPorFc[$fcId] = [];
                 }
 
-                $cantidadFmt = rtrim(rtrim(number_format((float) $ln->cantidad, 2, '.', ''), '0'), '.');
-                if ($cantidadFmt === '') {
-                    $cantidadFmt = '0';
+                // Consolidar duplicados históricos por producto+precio+escala dentro de la misma factura_comision.
+                // Esto evita mostrar renglones repetidos cuando existen múltiples inserts idénticos en producto_comision.
+                $lineasConsolidadas = collect($lineasFactura)
+                    ->groupBy(function ($ln) {
+                        return implode('|', [
+                            (int) ($ln->producto_id ?? 0),
+                            (int) ($ln->categoria_precios_id ?? 0),
+                            (string) ($ln->precio_venta ?? '0'),
+                            (string) ($ln->monto_comision ?? '0'),
+                        ]);
+                    })
+                    ->map(function ($grupo) {
+                        $base = clone $grupo->first();
+                        $base->cantidad = $grupo->sum(function ($item) {
+                            return (float) ($item->cantidad ?? 0);
+                        });
+                        return $base;
+                    })
+                    ->values();
+
+                $sumaRaw = 0.0;
+                $sumaWeighted = 0.0;
+
+                foreach ($lineasConsolidadas as $lineaFactura) {
+                    $cantidad = (float) $lineaFactura->cantidad;
+                    $montoRaw = (float) $lineaFactura->monto_comision;
+                    $sumaRaw += $montoRaw;
+                    $sumaWeighted += $montoRaw * $cantidad;
                 }
 
-                $productoNombre = $ln->producto_nombre;
-                if (empty($productoNombre)) {
-                    $productoNombre = 'Producto #' . (int) $ln->producto_id;
+                $modoMonto = $this->resolveDetalleProductoMode(
+                    (float) ($comisionOriginalEsperadaPorFc[$fcId] ?? 0),
+                    $sumaRaw,
+                    $sumaWeighted
+                );
+
+                foreach ($lineasConsolidadas as $ln) {
+                    $cantidad = (float) $ln->cantidad;
+                    $precioUnitario = (float) $ln->precio_unitario;
+                    $precioVenta = (float) $ln->precio_venta;
+                    $montoRaw = (float) $ln->monto_comision;
+                    $baseComisionable = round($cantidad * $precioVenta, 2);
+                    $montoNormalizado = $modoMonto === 'unitario'
+                        ? round($montoRaw * $cantidad, 2)
+                        : round($montoRaw, 2);
+                    $porcentajeHistorico = $baseComisionable > 0
+                        ? round(($montoNormalizado / $baseComisionable) * 100, 2)
+                        : 0.0;
+
+                    $cantidadFmt = rtrim(rtrim(number_format($cantidad, 2, '.', ''), '0'), '.');
+                    if ($cantidadFmt === '') {
+                        $cantidadFmt = '0';
+                    }
+
+                    $productoNombre = $ln->producto_nombre;
+                    if (empty($productoNombre)) {
+                        $productoNombre = 'Producto #' . (int) $ln->producto_id;
+                    }
+
+                    $escalaNombre = $ln->escala_precio_nombre;
+                    if (empty($escalaNombre)) {
+                        $catId = (int) ($ln->categoria_precios_id ?? 0);
+                        $escalaNombre = $catId > 0 ? ('Categoria #' . $catId) : 'Sin categoria';
+                    }
+
+                    $categoriaClienteEscala = $ln->categoria_cliente_escala_nombre;
+                    if (empty($categoriaClienteEscala)) {
+                        $categoriaClienteEscala = 'Sin categoria cliente';
+                    }
+
+                    if (!isset($detalleProductosPorFc[$fcId])) {
+                        $detalleProductosPorFc[$fcId] = [];
+                    }
+
+                    $detalleProductosPorFc[$fcId][] = [
+                        'producto' => $productoNombre,
+                        'categoria_cliente_escala' => $categoriaClienteEscala,
+                        'categoria_precio_vendida' => $escalaNombre,
+                        'porcentaje_comision' => $porcentajeHistorico,
+                        'cantidad' => $cantidad,
+                        'precio_unitario' => round($precioUnitario, 2),
+                        'precio_venta' => round($precioVenta, 2),
+                        'base_comisionable' => $baseComisionable,
+                        'fuente_base_comisionable' => 'Cantidad x Precio venta (producto_comision)',
+                        'comision' => $montoNormalizado,
+                    ];
+
+                    $resumenProductosPorFc[$fcId][] =
+                        $productoNombre
+                        . ' | Escala: ' . $escalaNombre
+                        . ' | %: ' . number_format($porcentajeHistorico, 2)
+                        . ' | Cant: ' . $cantidadFmt
+                        . ' | Precio Escala: L. ' . number_format($precioVenta, 2)
+                        . ' | Base: L. ' . number_format($baseComisionable, 2)
+                        . ' | Comisión: L. ' . number_format($montoNormalizado, 2);
                 }
-
-                $escalaNombre = $ln->escala_precio_nombre;
-                if (empty($escalaNombre)) {
-                    $catId = (int) ($ln->categoria_precios_id ?? 0);
-                    $escalaNombre = $catId > 0 ? ('Categoria #' . $catId) : 'Sin categoria';
-                }
-
-                $categoriaClienteEscala = $ln->categoria_cliente_escala_nombre;
-                if (empty($categoriaClienteEscala)) {
-                    $categoriaClienteEscala = 'Sin categoria cliente';
-                }
-
-                if (!isset($detalleProductosPorFc[$fcId])) {
-                    $detalleProductosPorFc[$fcId] = [];
-                }
-
-                $detalleProductosPorFc[$fcId][] = [
-                    'producto' => $productoNombre,
-                    'categoria_cliente_escala' => $categoriaClienteEscala,
-                    'categoria_precio_vendida' => $escalaNombre,
-                    'porcentaje_comision' => round((float) $ln->porcentaje_comision, 2),
-                    'cantidad' => (float) $ln->cantidad,
-                    'precio_venta' => round((float) $ln->precio_venta, 2),
-                    'base_comisionable' => round(((float) $ln->cantidad) * ((float) $ln->precio_venta), 2),
-                    'fuente_base_comisionable' => 'Cantidad x Precio venta (producto_comision)',
-                    'comision' => round((float) $ln->monto_comision, 2),
-                ];
-
-                $resumenProductosPorFc[$fcId][] =
-                    $productoNombre
-                    . ' | Escala: ' . $escalaNombre
-                    . ' | %: ' . number_format((float) $ln->porcentaje_comision, 2)
-                    . ' | Cant: ' . $cantidadFmt
-                    . ' | Precio: L. ' . number_format((float) $ln->precio_venta, 2)
-                    . ' | Base: L. ' . number_format(((float) $ln->cantidad) * ((float) $ln->precio_venta), 2)
-                    . ' | Comisión: L. ' . number_format((float) $ln->monto_comision, 2);
             }
         }
 

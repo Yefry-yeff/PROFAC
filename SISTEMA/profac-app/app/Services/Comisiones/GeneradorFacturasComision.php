@@ -62,7 +62,8 @@ class GeneradorFacturasComision
      *   3. Vendedor   (factura.vendedor)  → siempre con ROL_VENDEDOR_ID (2).
      *   4. Gestor de entrega (factura.gestor_entrega) → siempre con ROL_GESTOR_ENTREGA_ID (16),
      *      solo si el campo no es nulo y tiene comisión activa en comision_rol_config.
-     * monto_comision = precio_unidad * cantidad * (porcentaje / 100)
+    * monto_comision = precio_seleccionado * cantidad * (porcentaje / 100)
+    * (si precioSeleccionado no existe/vale 0, usa precio_unidad como fallback histórico)
      */
     /**
      * @param string|null $fechaPago  Fecha del pago del usuario (YYYY-MM-DD).
@@ -102,11 +103,12 @@ class GeneradorFacturasComision
         }
 
         $tipoFacturaCodigo = (string) ($fila->tipo_factura_codigo ?? '');
+        $clienteCategoriaEscalaId = (int) ($fila->cliente_categoria_escala_id ?? 0);
         $esFacturaSr = in_array($tipoFacturaCodigo, self::TIPOS_FACTURA_SR, true);
         $categoriaPrecioForzadaId = null;
 
         if ($esFacturaSr) {
-            $categoriaPrecioForzadaId = $this->obtenerCategoriaPrecioMasBaja((int) ($fila->cliente_categoria_escala_id ?? 0));
+            $categoriaPrecioForzadaId = $this->obtenerCategoriaPrecioMasBaja($clienteCategoriaEscalaId);
         }
 
         // ── Construcción de targets ──────────────────────────────────────────
@@ -198,10 +200,11 @@ class GeneradorFacturasComision
             return [];
         }
 
-        // Escala activa indexada por "rolId_catPrecioId"
+        // Escala activa indexada por "rolId_catClienteId_catPrecioId"
         $escalaRows = DB::table('comision_escala')
             ->whereIn('rol_id', $rolIds)
             ->where('estado_id', 1)
+            ->where('cliente_categoria_escala_id', $clienteCategoriaEscalaId)
             ->whereNotNull('categoria_precios_id')
             ->get();
 
@@ -211,19 +214,21 @@ class GeneradorFacturasComision
 
         $escala = [];
         foreach ($escalaRows as $row) {
-            $escala[$row->rol_id . '_' . $row->categoria_precios_id] = $row;
+            $escala[$row->rol_id . '_' . $row->cliente_categoria_escala_id . '_' . $row->categoria_precios_id] = $row;
         }
 
         // Líneas de producto con su categoria_precios_id
         $productos = DB::table('venta_has_producto as vp')
             ->join('precios_producto_carga as ppc', 'ppc.id', '=', 'vp.precios_producto_carga_id')
             ->where('vp.factura_id', $facturaId)
-            ->select(
-                'vp.cantidad',
-                'vp.precio_unidad',
-                'vp.precios_producto_carga_id',
-                'vp.producto_id',
-                'ppc.categoria_precios_id'
+            ->selectRaw(
+                'vp.cantidad,
+                 vp.precio_unidad,
+                 vp.precioSeleccionado,
+                 COALESCE(NULLIF(vp.precioSeleccionado, 0), vp.precio_unidad) as precio_para_comision,
+                 vp.precios_producto_carga_id,
+                 vp.producto_id,
+                 ppc.categoria_precios_id'
             )
             ->get();
 
@@ -246,18 +251,19 @@ class GeneradorFacturasComision
                 // sin importar la categoría de precio usada para vender la línea.
                 $categoriaPrecioParaComision = $categoriaPrecioForzadaId ?: (int) $prod->categoria_precios_id;
 
-                $key = $rolId . '_' . $categoriaPrecioParaComision;
+                $key = $rolId . '_' . $clienteCategoriaEscalaId . '_' . $categoriaPrecioParaComision;
                 if (!isset($escala[$key])) {
                     continue;
                 }
 
+                $precioParaComision = (float) ($prod->precio_para_comision ?? $prod->precio_unidad ?? 0);
                 $pct        = (float) $escala[$key]->porcentaje_comision;
-                $montoLinea = round(($pct / 100) * $prod->precio_unidad * $prod->cantidad, 4);
+                $montoLinea = round(($pct / 100) * $precioParaComision * $prod->cantidad, 4);
                 $totalTarget += $montoLinea;
 
                 $lineasProducto[] = [
                     'cantidad'                  => $prod->cantidad,
-                    'precio_venta'              => $prod->precio_unidad,
+                    'precio_venta'              => $precioParaComision,
                     'monto_comision'            => $montoLinea,
                     'precios_producto_carga_id' => $prod->precios_producto_carga_id,
                     'factura_id'                => $facturaId,
