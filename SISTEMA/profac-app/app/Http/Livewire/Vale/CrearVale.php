@@ -154,8 +154,16 @@ class CrearVale extends Component
             where A.factura_id = " . $request->idFactura . " and A.producto_id = " . $request->idProducto . " and A.seccion_id=" . $request->idSeccion
             );
 
-            $bodega = DB::SELECTONE(
-                "
+            // Cuando seccion_id = 0 (vales tipo lista de espera) no existe sección real
+            if ((int) $request->idSeccion === 0) {
+                $bodega = (object) [
+                    'idSeccion' => 0,
+                    'bodega'    => 'Sin Sección',
+                    'idBodega'  => 0,
+                ];
+            } else {
+                $bodega = DB::SELECTONE(
+                    "
         select
             B.id as idSeccion,
             concat(D.nombre,'-',B.descripcion ) as bodega,
@@ -168,7 +176,8 @@ class CrearVale extends Component
             inner join bodega D
             on D.id = C.bodega_id
             where A.factura_id = " . $request->idFactura . " and A.producto_id = " . $request->idProducto . " and A.seccion_id=" . $request->idSeccion
-            );
+                );
+            }
 
 
             return response()->json([

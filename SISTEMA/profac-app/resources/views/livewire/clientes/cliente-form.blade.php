@@ -168,6 +168,9 @@
                                         <label>Categoría de Cliente / Escala <span class="text-danger">*</span></label>
                                         <select id="dp_escala" class="form-control" @if(!$puedeEditarCamposRestringidos) disabled @endif>
                                             <option value="" disabled selected>-- Seleccione --</option>
+                                            @foreach($categoriasEscala as $cat)
+                                                <option value="{{ $cat->id }}">{{ $cat->nombre_categoria }}</option>
+                                            @endforeach
                                         </select>
                                     </div>
                                 </div>

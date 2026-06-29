@@ -133,13 +133,7 @@ function cargarCatalogos() {
     axios.get('/cliente/tipo/cliente').then(r => {
         llenarSelect('dp_tipo_cliente', r.data.tipoCliente, 'id', 'descripcion');
     });
-    // Escala/categoría (con paginación ligera)
-    $.getJSON('/clientes/categorias-escala', function (res) {
-        var sel = document.getElementById('dp_escala');
-        (res.categorias || []).forEach(c => {
-            sel.appendChild(new Option(c.nombre_categoria, c.id));
-        });
-    });
+    // Escala/categoría: opciones cargadas server-side en el blade
     // Vendedores en datos principales (usa datos blade)
     if (window._vendedoresData) {
         // Options already rendered server-side in select#dp_vendedor

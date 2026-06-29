@@ -171,23 +171,17 @@ class ModificarActoresEnFactura extends Component
             'vendedorId' => [
                 'required',
                 'integer',
-                Rule::exists('users', 'id')->where(function ($query) {
-                    $query->where('estado_id', 1);
-                }),
+                Rule::exists('users', 'id'),
             ],
             'gestorEntregaId' => [
                 'nullable',
                 'integer',
-                Rule::exists('users', 'id')->where(function ($query) {
-                    $query->where('estado_id', 1);
-                }),
+                Rule::exists('users', 'id'),
             ],
             'teleAsesorId' => [
                 'required',
                 'integer',
-                Rule::exists('users', 'id')->where(function ($query) {
-                    $query->where('estado_id', 1);
-                }),
+                Rule::exists('users', 'id'),
             ],
         ], [
             'vendedorId.required' => 'Debes seleccionar el asesor comercial.',
@@ -233,7 +227,6 @@ class ModificarActoresEnFactura extends Component
     {
         return DB::table('users as u')
             ->leftJoin('rol as r', 'r.id', '=', 'u.rol_id')
-            ->where('u.estado_id', 1)
             ->orderBy('u.name')
             ->get([
                 'u.id',

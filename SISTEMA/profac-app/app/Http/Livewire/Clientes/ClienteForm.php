@@ -3,6 +3,7 @@
 namespace App\Http\Livewire\Clientes;
 
 use Livewire\Component;
+use Illuminate\Support\Facades\DB;
 
 class ClienteForm extends Component
 {
@@ -17,6 +18,12 @@ class ClienteForm extends Component
 
     public function render()
     {
-        return view('livewire.clientes.cliente-form');
+        $categoriasEscala = DB::table('cliente_categoria_escala')
+            ->select('id', 'nombre_categoria')
+            ->where('estado_id', 1)
+            ->orderBy('nombre_categoria')
+            ->get();
+
+        return view('livewire.clientes.cliente-form', compact('categoriasEscala'));
     }
 }
