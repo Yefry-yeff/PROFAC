@@ -22,7 +22,7 @@ use Illuminate\Support\Facades\DB;
  *  CRÉDITO  (tipo_pago_id = 2)
  * ─────────────────────────────────────────────────────────────────
  *  Referencia : fecha_vencimiento
- *  Cálculo    : periodosVencidos = floor(diasTranscurridos / diasGracia)
+ *  Cálculo    : periodosVencidos = ceil((diasTranscurridos - diasGracia) / diasGracia)
  *  Fórmula    : montoPorPeriodo  = comisionOriginal × (porcentaje / 100)
  *               totalRetencion   = periodosVencidos × montoPorPeriodo
  *               comisionFinal    = max(0, comisionOriginal − totalRetencion)
@@ -130,7 +130,9 @@ class AplicadorRetencionesMora
                     continue;
                 }
 
-                $periodosVencidos = (int) floor($diasTranscurridos / $diasGracia);
+                // La primera retención inicia al día siguiente de la gracia.
+                // Ej.: gracia 30 días => días 31..60 = 1 período, desde 61 = 2.
+                $periodosVencidos = (int) ceil(($diasTranscurridos - $diasGracia) / $diasGracia);
                 if ($periodosVencidos <= 0) {
                     continue;
                 }

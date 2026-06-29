@@ -1,6 +1,16 @@
 /* === RRHH COMISIONES — REPORTERÍA === */
 var dtNomina=null, dtNominaDetalle=null, dtDetalle=null, dtRanking=null, dtRol=null,
     dtFacturas=null, dtProductos=null, dtComparativo=null, dtReversiones=null;
+var dtProyecciones=null;
+var dtProyeccionesExcluidas=null;
+var dtProyBrecha=null;
+var dtRevFacturas=null;
+var dtRevProductos=null;
+var proyeccionesDataActual=[];
+var proyeccionesExcluidasActual=[];
+var proyBrechaDataActual=[];
+var revisionFacturasDataActual=[];
+var revisionProductosDataActual=[];
 var detalleProductosFacturaMap = {};
 var detalleProductosFacturaActual = { facturaComisionId: null, factura: '', cliente: '', productos: [] };
 
@@ -9,6 +19,10 @@ $(document).ready(function(){
     var hoy=new Date(), ini=new Date(hoy.getFullYear(),hoy.getMonth(),1);
     $('#fpFechaInicio').val(fmtDate(ini));
     $('#fpFechaFin').val(fmtDate(hoy));
+    $('#proyFechaInicio').val(fmtDate(ini));
+    $('#proyFechaFin').val(fmtDate(hoy));
+    $('#revFechaInicio').val(fmtDate(ini));
+    $('#revFechaFin').val(fmtDate(hoy));
 
     // Select2 empleado
     $('#fpEmpleado').select2({
@@ -30,11 +44,66 @@ $(document).ready(function(){
         }
     });
 
+    // Select2 usuario activo para proyecciones
+    $('#proyUsuario').select2({
+        placeholder:'— Seleccione usuario activo —', allowClear:true,
+        ajax:{
+            url:'/comision/empleados/lista', dataType:'json', delay:250,
+            data:function(p){return{q:p.term};},
+            processResults:function(d){return{results:d.map(function(u){return{id:u.id,text:u.name};})};}
+        }
+    });
+
+    // Select2 rol comisionable para proyecciones
+    $('#proyRol').select2({
+        placeholder:'— Todos los roles comisionables —', allowClear:true,
+        ajax:{
+            url:'/comision/roles/comisionables', dataType:'json', delay:250,
+            data:function(p){return{q:p.term};},
+            processResults:function(d){return{results:d.map(function(r){return{id:r.id,text:r.name};})};}
+        }
+    });
+
+    // Select2 usuario activo para revisión de facturas
+    $('#revUsuario').select2({
+        placeholder:'— Todos los usuarios activos —', allowClear:true,
+        ajax:{
+            url:'/comision/empleados/lista', dataType:'json', delay:250,
+            data:function(p){return{q:p.term};},
+            processResults:function(d){return{results:d.map(function(u){return{id:u.id,text:u.name};})};}
+        }
+    });
+
+    // Select2 rol comisionable para revisión de facturas
+    $('#revRol').select2({
+        placeholder:'— Todos los roles comisionables —', allowClear:true,
+        ajax:{
+            url:'/comision/roles/comisionables', dataType:'json', delay:250,
+            data:function(p){return{q:p.term};},
+            processResults:function(d){return{results:d.map(function(r){return{id:r.id,text:r.name};})};}
+        }
+    });
+
     $('#btnGenerar').on('click', generarReporte);
     $('#btnLimpiar').on('click', limpiarFiltros);
     $('#btnCcGenerar').on('click', cargarConciliadasDesdeFiltro);
     $('#btnCcLimpiar').on('click', limpiarFiltrosConciliadas);
     $('#btnCcExcelMasivo').on('click', descargarConciliadasMasivo);
+    $('#btnProyGenerar').on('click', generarProyecciones);
+    $('#btnProyLimpiar').on('click', limpiarFiltrosProyecciones);
+    $('#btnRevGenerar').on('click', generarRevisionFacturas);
+    $('#btnRevLimpiar').on('click', limpiarRevisionFacturas);
+
+    $(document).on('click', '.btn-proy-reprocesar-factura', function(){
+        var facturaId = parseInt($(this).data('facturaId') || 0, 10);
+        if(facturaId <= 0) return;
+
+        var row = proyBrechaDataActual.find(function(item){
+            return parseInt(item.factura_id || 0, 10) === facturaId;
+        }) || null;
+
+        reprocesarFacturaBrecha(row);
+    });
 
     cargarPeriodosConciliados();
 
@@ -46,6 +115,14 @@ $(document).ready(function(){
         if(tabId === '#tab-conciliadas' && $('#ccPeriodo').val()){
             cargarConciliadas($('#ccPeriodo').val());
         } else if(tabId === '#tab-conciliadas'){
+            $('#badgePeriodo').hide();
+        }
+
+        if(tabId === '#tab-proyecciones'){
+            $('#badgePeriodo').hide();
+        }
+
+        if(tabId === '#tab-revision-facturas'){
             $('#badgePeriodo').hide();
         }
     });
@@ -252,6 +329,770 @@ function getFiltrosNomina(){
         empleado_id:$('#fpEmpleado').val()||'',
         rol_id:$('#fpRol').val()||''
     };
+}
+
+function getFiltrosProyecciones(){
+    var fechaInicio = normalizeDateInput($('#proyFechaInicio').val());
+    var fechaFin = normalizeDateInput($('#proyFechaFin').val());
+
+    return {
+        fechaInicio: fechaInicio,
+        fechaFin: fechaFin,
+        usuario_id: $('#proyUsuario').val() || '',
+        rol_id: $('#proyRol').val() || ''
+    };
+}
+
+
+
+function generarProyecciones(){
+    var f = getFiltrosProyecciones();
+
+    if (f.fechaInicio) $('#proyFechaInicio').val(f.fechaInicio);
+    if (f.fechaFin) $('#proyFechaFin').val(f.fechaFin);
+
+    if(!f.fechaInicio || !f.fechaFin){
+        Swal.fire({icon:'warning',title:'Filtros requeridos',text:'Seleccione fecha inicio y fecha fin.'});
+        return;
+    }
+    if(!f.usuario_id){
+        Swal.fire({icon:'warning',title:'Usuario requerido',text:'Seleccione un usuario activo para proyectar.'});
+        return;
+    }
+    if(f.fechaInicio > f.fechaFin){
+        Swal.fire({icon:'warning',title:'Rango inválido',text:'La fecha inicio no puede ser mayor a la fecha fin.'});
+        return;
+    }
+
+    $.getJSON('/comision/reporte/proyecciones', f, function(resp){
+        renderProyecciones(resp || {});
+    }).fail(function(xhr){
+        var mensaje = (xhr.responseJSON && (xhr.responseJSON.error || xhr.responseJSON.text)) || 'No fue posible generar la proyección.';
+        Swal.fire({icon:'warning',title:'Proyecciones',text:mensaje});
+    });
+}
+
+function getFiltrosBrechaApFc(filtrosBase){
+    var f = filtrosBase || getFiltrosProyecciones();
+
+    if(!f.fechaInicio || !f.fechaFin){
+        return { error: 'Seleccione fecha inicio y fecha fin para consultar la brecha AP vs FC.' };
+    }
+
+    if(f.fechaInicio > f.fechaFin){
+        return { error: 'La fecha inicio no puede ser mayor a la fecha fin para consultar la brecha.' };
+    }
+
+    return {
+        fechaInicio: f.fechaInicio,
+        fechaFin: f.fechaFin,
+        tipo_brecha: $('#proyBrechaTipo').val() || 'all'
+    };
+}
+
+function cargarBrechaApFc(filtrosBase){
+    var filtros = getFiltrosBrechaApFc(filtrosBase);
+    if(filtros.error){
+        Swal.fire({icon:'warning',title:'Brecha AP vs FC',text:filtros.error});
+        return;
+    }
+
+    $.getJSON('/comision/reporte/brecha-ap-fc', filtros, function(resp){
+        renderBrechaApFc(resp || {});
+    }).fail(function(xhr){
+        var mensaje = (xhr.responseJSON && (xhr.responseJSON.error || xhr.responseJSON.text)) || 'No fue posible cargar la brecha AP vs FC.';
+        Swal.fire({icon:'warning',title:'Brecha AP vs FC',text:mensaje});
+    });
+}
+
+
+function renderProyecciones(resp){
+    var data = Array.isArray(resp.data) ? resp.data : [];
+    var excluidas = Array.isArray(resp.excluidas) ? resp.excluidas : [];
+    var totales = resp.totales || {};
+    proyeccionesDataActual = data;
+    proyeccionesExcluidasActual = excluidas;
+
+    $('#proyEmptyState').hide();
+    $('#proyInfo').show();
+    $('#proyFacturas').text(totales.facturas_proyectadas || 0);
+    $('#proyRegistros').text(totales.registros_proyectados || 0);
+    $('#proyBaseUnitaria').text(fmtMoney(totales.base_unitaria_total || 0));
+    $('#proyBaseComisionable').text(fmtMoney(totales.base_comisionable_total || 0));
+    $('#proyComisionTotal').text(fmtMoney(totales.comision_proyectada_total || 0));
+    $('#proyExcluidas').text(totales.registros_excluidos || 0);
+
+    $('#proyTableWrap').show();
+
+    if(dtProyecciones){
+        dtProyecciones.destroy();
+        $('#dtProyecciones tbody').empty();
+    }
+
+    dtProyecciones = $('#dtProyecciones').DataTable({
+        data:data,
+        processing:false,
+        serverSide:false,
+        searching:true,
+        paging:true,
+        pageLength:10,
+        lengthMenu:[[10,25,50,100],[10,25,50,100]],
+        scrollX:true,
+        responsive:false,
+        autoWidth:false,
+        language:lang(),
+        order:[[0,'asc'],[1,'asc']],
+        columns:[
+            {data:'fecha_pago',className:'text-nowrap',render:function(d){return esc(d || '—');}},
+            {data:'fecha_creacion_factura',className:'text-nowrap',render:function(d){return esc(d || '—');}},
+            {data:'factura',render:function(d){return '<code style="background:#f1f5f9;padding:2px 6px;border-radius:4px;font-size:11px;">'+esc(d || '—')+'</code>'; }},
+            {data:'cliente',render:function(d){return '<strong>'+esc(d || '—')+'</strong>'; }},
+            {data:'escala_cliente',render:function(d){return esc(d || '—');}},
+            {data:'escala_precio_vendida',render:function(d){return esc(d || '—');}},
+            {data:'cantidad',className:'text-right',render:function(d){
+                return '<strong>'+parseFloat(d || 0).toLocaleString('es-HN',{minimumFractionDigits:0,maximumFractionDigits:2})+'</strong>';
+            }},
+            {data:'capacidad',className:'text-center',render:function(d){
+                var txt = String(d || '—');
+                var cls = 'badge badge-secondary';
+                if(txt === 'ASESOR') cls = 'badge badge-success';
+                if(txt === 'TELEASESOR') cls = 'badge badge-primary';
+                if(txt === 'GESTOR_ENTREGA') cls = 'badge badge-warning';
+                return '<span class="'+cls+'">'+esc(txt)+'</span>';
+            }},
+            {data:'usuario',render:function(d){return esc(d || '—');}},
+            {data:'base_comisionable_unitaria',className:'text-right',render:function(d){return '<strong>'+fmtMoney(d || 0)+'</strong>'; }},
+            {data:'base_comisionable',className:'text-right',render:function(d){return '<strong style="color:#0f766e;">'+fmtMoney(d || 0)+'</strong>'; }},
+            {data:'porcentaje_promedio',className:'text-right',render:function(d){return parseFloat(d || 0).toFixed(2)+'%';}},
+            {data:'comision_proyectada',className:'text-right',render:function(d){return '<strong class="monto-com">'+fmtMoney(d || 0)+'</strong>'; }}
+        ]
+    });
+
+    if(excluidas.length){
+        $('#proyExcluidasWrap').show();
+        if(dtProyeccionesExcluidas){
+            dtProyeccionesExcluidas.destroy();
+            $('#dtProyeccionesExcluidas tbody').empty();
+        }
+
+        dtProyeccionesExcluidas = $('#dtProyeccionesExcluidas').DataTable({
+            data:excluidas,
+            processing:false,
+            serverSide:false,
+            searching:true,
+            paging:true,
+            pageLength:10,
+            lengthMenu:[[10,25,50,100],[10,25,50,100]],
+            scrollX:true,
+            responsive:false,
+            autoWidth:false,
+            language:lang(),
+            order:[[0,'asc'],[1,'asc']],
+            columns:[
+                {data:'fecha_pago',className:'text-nowrap',render:function(d){return esc(d || '—');}},
+                {data:'fecha_creacion_factura',className:'text-nowrap',render:function(d){return esc(d || '—');}},
+                {data:'factura',render:function(d){return '<code style="background:#fef2f2;padding:2px 6px;border-radius:4px;font-size:11px;color:#991b1b;">'+esc(d || '—')+'</code>'; }},
+                {data:'cliente',render:function(d){return esc(d || '—');}},
+                {data:'capacidad',render:function(d){return esc(d || '—');}},
+                {data:'usuario',render:function(d){return esc(d || '—');}},
+                {data:'razon_no_comisionable',render:function(d){return '<strong style="color:#991b1b;">'+esc(d || 'No definido')+'</strong>'; }},
+                {data:'motivos',render:function(d){
+                    var motivos = Array.isArray(d) ? d.join(' | ') : 'Sin detalle';
+                    return '<span style="color:#7f1d1d;">'+esc(motivos)+'</span>';
+                }}
+            ]
+        });
+    } else {
+        $('#proyExcluidasWrap').hide();
+        if(dtProyeccionesExcluidas){
+            dtProyeccionesExcluidas.destroy();
+            dtProyeccionesExcluidas = null;
+            $('#dtProyeccionesExcluidas tbody').empty();
+        }
+    }
+}
+
+function renderBrechaApFc(resp){
+    var data = Array.isArray(resp.data) ? resp.data : [];
+    var totales = resp.totales || {};
+    proyBrechaDataActual = data;
+
+    $('#proyBrechaWrap').show();
+    $('#proyBrechaInfo').show();
+    $('#proyBrechaPagadas').text(totales.facturas_pagadas_ap || 0);
+    $('#proyBrechaTotal').text(totales.facturas_con_brecha || 0);
+    $('#proyBrechaSinComision').text(totales.sin_comision || 0);
+    $('#proyBrechaDesfaseMes').text(totales.desfase_mes || 0);
+
+    if(dtProyBrecha){
+        dtProyBrecha.destroy();
+        $('#dtProyBrecha tbody').empty();
+    }
+
+    dtProyBrecha = $('#dtProyBrecha').DataTable({
+        data:data,
+        processing:false,
+        serverSide:false,
+        searching:true,
+        paging:true,
+        pageLength:10,
+        lengthMenu:[[10,25,50,100],[10,25,50,100]],
+        scrollX:true,
+        responsive:false,
+        autoWidth:false,
+        language:lang(),
+        order:[[0,'asc'],[1,'asc']],
+        columns:[
+            {data:'fecha_pago_cierre_ap',className:'text-nowrap',render:function(d){return esc(d || '—');}},
+            {data:'factura',render:function(d){return '<code style="background:#f8fafc;padding:2px 6px;border-radius:4px;font-size:11px;">'+esc(d || '—')+'</code>'; }},
+            {data:'tipo_brecha',className:'text-center',render:function(d){
+                var v = String(d || '').toLowerCase();
+                if(v === 'sin_comision'){
+                    return '<span class="badge badge-danger">SIN COMISION</span>';
+                }
+                if(v === 'desfase_mes'){
+                    return '<span class="badge badge-warning">DESFASE MES</span>';
+                }
+                return '<span class="badge badge-secondary">'+esc(d || '—')+'</span>';
+            }},
+            {data:'cliente',render:function(d){return esc(d || '—');}},
+            {data:'facturador',render:function(d){return esc(d || '—');}},
+            {data:'vendedor',render:function(d){return esc(d || '—');}},
+            {data:'gestor_entrega',render:function(d){return esc(d || '—');}},
+            {data:'sub_total_factura',className:'text-right',render:function(d){return '<strong>'+fmtMoney(d || 0)+'</strong>'; }},
+            {data:'fc_registros',className:'text-center',render:function(d){return parseInt(d || 0, 10);}},
+            {data:'fc_meses',render:function(d){
+                if(Array.isArray(d) && d.length){
+                    return esc(d.join(' | '));
+                }
+                return '<span style="color:#94a3b8;">Sin registros FC</span>';
+            }},
+            {data:'fc_total_comision',className:'text-right',render:function(d){return '<strong>'+fmtMoney(d || 0)+'</strong>'; }}
+            ,
+            {data:null,orderable:false,searchable:false,className:'text-center',render:function(_, __, row){
+                var tipo = String(row.tipo_brecha || '').toLowerCase();
+                if(tipo !== 'sin_comision'){
+                    return '<span style="color:#94a3b8;font-size:11px;">No aplica</span>';
+                }
+
+                return '<button type="button" class="btn btn-sm btn-proy-reprocesar-factura" '
+                    + 'style="border:1px solid #06b6d4;background:#ecfeff;color:#0e7490;font-weight:700;" '
+                    + 'data-factura-id="'+parseInt(row.factura_id || 0, 10)+'">'
+                    + '<i class="fa fa-cogs mr-1"></i>Reprocesar</button>';
+            }}
+        ]
+    });
+}
+
+function reprocesarFacturaBrecha(row){
+    if(!row || parseInt(row.factura_id || 0, 10) <= 0){
+        Swal.fire({icon:'warning',title:'Brecha AP vs FC',text:'No se pudo identificar la factura a reprocesar.'});
+        return;
+    }
+
+    var facturaId = parseInt(row.factura_id || 0, 10);
+    var factura = row.factura || ('#' + facturaId);
+    var cliente = row.cliente || 'N/A';
+    var fechaAp = row.fecha_pago_cierre_ap || 'N/A';
+
+    var mensaje = ''
+        + 'Se reprocesará la factura <strong>' + esc(factura) + '</strong>.<br><br>'
+        + '<strong>Qué hará el sistema:</strong><br>'
+        + '1) Intentará generar registros en facturas_comision con reglas y escalas activas.<br>'
+        + '2) Aplicará retenciones de mora configuradas (si corresponde).<br>'
+        + '3) Acreditará comisiones en comision_empleado si el período no está conciliado.<br><br>'
+        + '<strong>Afectaciones esperadas:</strong><br>'
+        + '- Puede aumentar la comisión de uno o más usuarios.<br>'
+        + '- La factura dejará de aparecer como sin_comision en esta brecha.<br>'
+        + '- Si el período está conciliado, puede generarse facturas_comision pero no acreditar acumulado.<br><br>'
+        + '<strong>Factura:</strong> ' + esc(factura) + '<br>'
+        + '<strong>Cliente:</strong> ' + esc(cliente) + '<br>'
+        + '<strong>Fecha AP:</strong> ' + esc(fechaAp);
+
+    Swal.fire({
+        icon:'question',
+        title:'Confirmar reproceso de factura',
+        html:mensaje,
+        showCancelButton:true,
+        confirmButtonText:'Sí, reprocesar factura',
+        cancelButtonText:'Cancelar'
+    }).then(function(result){
+        if(!result.isConfirmed) return;
+
+        $.ajax({
+            url:'/comision/reporte/brecha-ap-fc/reprocesar',
+            type:'POST',
+            headers:{
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') || ''
+            },
+            data:{ factura_ids: [facturaId] },
+            success:function(resp){
+                var t = (resp && resp.totales) ? resp.totales : {};
+                var r = (resp && Array.isArray(resp.resultados) && resp.resultados.length) ? resp.resultados[0] : null;
+                var detalle = r && r.motivo ? r.motivo : 'Proceso finalizado.';
+                Swal.fire({
+                    icon:'success',
+                    title:'Reproceso finalizado',
+                    html:'Factura: <strong>'+esc(factura)+'</strong><br>'
+                        + 'Estado creadas: <strong>'+(t.creadas||0)+'</strong><br>'
+                        + 'Estado omitidas: <strong>'+(t.omitidas||0)+'</strong><br>'
+                        + 'Estado errores: <strong>'+(t.errores||0)+'</strong><br><br>'
+                        + '<span style="font-size:12px;color:#334155;">'+esc(detalle)+'</span>'
+                });
+
+                cargarBrechaApFc(getFiltrosProyecciones());
+            },
+            error:function(xhr){
+                var mensaje = (xhr.responseJSON && (xhr.responseJSON.error || xhr.responseJSON.text)) || 'No fue posible reprocesar las facturas seleccionadas.';
+                Swal.fire({icon:'error',title:'Brecha AP vs FC',text:mensaje});
+            }
+        });
+    });
+}
+
+function limpiarFiltrosProyecciones(){
+    var hoy=new Date(),ini=new Date(hoy.getFullYear(),hoy.getMonth(),1);
+    $('#proyFechaInicio').val(fmtDate(ini));
+    $('#proyFechaFin').val(fmtDate(hoy));
+    $('#proyUsuario').val(null).trigger('change');
+    $('#proyRol').val(null).trigger('change');
+
+    $('#proyInfo').hide();
+    $('#proyFacturas').text('0');
+    $('#proyRegistros').text('0');
+    $('#proyBaseUnitaria').text(fmtMoney(0));
+    $('#proyBaseComisionable').text(fmtMoney(0));
+    $('#proyComisionTotal').text(fmtMoney(0));
+    $('#proyExcluidas').text('0');
+
+    $('#proyEmptyState').show();
+    $('#proyTableWrap').hide();
+    $('#proyExcluidasWrap').hide();
+    $('#proyBrechaWrap').hide();
+    $('#proyBrechaInfo').hide();
+    $('#proyBrechaPagadas').text('0');
+    $('#proyBrechaTotal').text('0');
+    $('#proyBrechaSinComision').text('0');
+    $('#proyBrechaDesfaseMes').text('0');
+    $('#proyBrechaTipo').val('all');
+    proyeccionesDataActual = [];
+    proyeccionesExcluidasActual = [];
+    proyBrechaDataActual = [];
+
+    if(dtProyecciones){
+        dtProyecciones.destroy();
+        dtProyecciones = null;
+        $('#dtProyecciones tbody').empty();
+    }
+
+    if(dtProyeccionesExcluidas){
+        dtProyeccionesExcluidas.destroy();
+        dtProyeccionesExcluidas = null;
+        $('#dtProyeccionesExcluidas tbody').empty();
+    }
+
+    if(dtProyBrecha){
+        dtProyBrecha.destroy();
+        dtProyBrecha = null;
+        $('#dtProyBrecha tbody').empty();
+    }
+}
+
+function exportarBrechaApFcExcel(){
+    if(typeof XLSX === 'undefined'){
+        Swal.fire({icon:'warning',title:'Librería no disponible',text:'No fue posible cargar la librería de Excel.'});
+        return;
+    }
+
+    if(!proyBrechaDataActual.length){
+        Swal.fire({icon:'info',title:'Sin datos',text:'No hay datos de brecha para exportar.'});
+        return;
+    }
+
+    var ahora = new Date();
+    var stamp = ahora.getFullYear().toString()
+        + String(ahora.getMonth()+1).padStart(2,'0')
+        + String(ahora.getDate()).padStart(2,'0')
+        + '_' + String(ahora.getHours()).padStart(2,'0')
+        + String(ahora.getMinutes()).padStart(2,'0')
+        + String(ahora.getSeconds()).padStart(2,'0');
+
+    var dataEx = [['Fecha Pago/Cierre AP','Factura','Tipo Brecha','Cliente','Facturador','Vendedor','Gestor Entrega','SubTotal Factura','Registros FC','Meses FC','Total Comisión FC']];
+    proyBrechaDataActual.forEach(function(r){
+        dataEx.push([
+            r.fecha_pago_cierre_ap || '',
+            r.factura || '',
+            r.tipo_brecha || '',
+            r.cliente || '',
+            r.facturador || '',
+            r.vendedor || '',
+            r.gestor_entrega || '',
+            parseFloat(r.sub_total_factura || 0),
+            parseInt(r.fc_registros || 0, 10),
+            Array.isArray(r.fc_meses) ? r.fc_meses.join(' | ') : '',
+            parseFloat(r.fc_total_comision || 0)
+        ]);
+    });
+
+    var wsEx = XLSX.utils.aoa_to_sheet(dataEx);
+    for (var i = 2; i <= proyBrechaDataActual.length + 1; i++) {
+        ['H','K'].forEach(function(col){
+            var ref = col + i;
+            if (wsEx[ref] && typeof wsEx[ref].v === 'number') wsEx[ref].z = '"L." #,##0.00';
+        });
+    }
+    wsEx['!autofilter'] = { ref: 'A1:K1' };
+    wsEx['!cols'] = [{wch:18},{wch:20},{wch:16},{wch:34},{wch:24},{wch:24},{wch:24},{wch:18},{wch:12},{wch:24},{wch:18}];
+    var wbEx = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wbEx, wsEx, 'Brecha AP FC');
+    XLSX.writeFile(wbEx, 'brecha_ap_fc_' + stamp + '.xlsx');
+}
+
+function exportarProyeccionesExcel(tipo){
+    if(typeof XLSX === 'undefined'){
+        Swal.fire({icon:'warning',title:'Librería no disponible',text:'No fue posible cargar la librería de Excel.'});
+        return;
+    }
+
+    var ahora = new Date();
+    var stamp = ahora.getFullYear().toString()
+        + String(ahora.getMonth()+1).padStart(2,'0')
+        + String(ahora.getDate()).padStart(2,'0')
+        + '_' + String(ahora.getHours()).padStart(2,'0')
+        + String(ahora.getMinutes()).padStart(2,'0')
+        + String(ahora.getSeconds()).padStart(2,'0');
+
+    if(tipo === 'excluidas'){
+        if(!proyeccionesExcluidasActual.length){
+            Swal.fire({icon:'info',title:'Sin datos',text:'No hay facturas excluidas para exportar.'});
+            return;
+        }
+
+        var dataEx = [['Fecha Pago','Fecha Creacion Factura','Factura','Cliente','Capacidad','Usuario','Razon No Comisionable','Detalle Tecnico']];
+        proyeccionesExcluidasActual.forEach(function(r){
+            dataEx.push([
+                r.fecha_pago || '',
+                r.fecha_creacion_factura || '',
+                r.factura || '',
+                r.cliente || '',
+                r.capacidad || '',
+                r.usuario || '',
+                r.razon_no_comisionable || '',
+                Array.isArray(r.motivos) ? r.motivos.join(' | ') : ''
+            ]);
+        });
+
+        var wsEx = XLSX.utils.aoa_to_sheet(dataEx);
+        wsEx['!autofilter'] = { ref: 'A1:H1' };
+        wsEx['!cols'] = [{wch:12},{wch:20},{wch:20},{wch:36},{wch:16},{wch:24},{wch:34},{wch:80}];
+        var wbEx = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wbEx, wsEx, 'Excluidas');
+        XLSX.writeFile(wbEx, 'proyecciones_excluidas_' + stamp + '.xlsx');
+        return;
+    }
+
+    if(!proyeccionesDataActual.length){
+        Swal.fire({icon:'info',title:'Sin datos',text:'No hay proyecciones para exportar.'});
+        return;
+    }
+
+    var dataPr = [['Fecha Pago','Fecha Creacion Factura','Factura','Cliente','Escala Cliente','Escala Precio Vendida','Cantidad','Capacidad','Usuario','Base Comisionable Unitaria','Base Comisionable','% Promedio','Comision Proyectada']];
+    proyeccionesDataActual.forEach(function(r){
+        dataPr.push([
+            r.fecha_pago || '',
+            r.fecha_creacion_factura || '',
+            r.factura || '',
+            r.cliente || '',
+            r.escala_cliente || '',
+            r.escala_precio_vendida || '',
+            parseFloat(r.cantidad || 0),
+            r.capacidad || '',
+            r.usuario || '',
+            parseFloat(r.base_comisionable_unitaria || 0),
+            parseFloat(r.base_comisionable || 0),
+            parseFloat(r.porcentaje_promedio || 0),
+            parseFloat(r.comision_proyectada || 0)
+        ]);
+    });
+
+    var wsPr = XLSX.utils.aoa_to_sheet(dataPr);
+    for (var i = 2; i <= proyeccionesDataActual.length + 1; i++) {
+        ['J','K','M'].forEach(function(col){
+            var ref = col + i;
+            if (wsPr[ref] && typeof wsPr[ref].v === 'number') wsPr[ref].z = '"L." #,##0.00';
+        });
+        var pctRef = 'L' + i;
+        if (wsPr[pctRef] && typeof wsPr[pctRef].v === 'number') wsPr[pctRef].z = '0.00%';
+    }
+    wsPr['!autofilter'] = { ref: 'A1:M1' };
+    wsPr['!cols'] = [{wch:12},{wch:20},{wch:20},{wch:34},{wch:24},{wch:45},{wch:12},{wch:16},{wch:24},{wch:20},{wch:18},{wch:12},{wch:18}];
+    var wbPr = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wbPr, wsPr, 'Proyectadas');
+    XLSX.writeFile(wbPr, 'proyecciones_proyectadas_' + stamp + '.xlsx');
+}
+
+function getFiltrosRevisionFacturas(){
+    var fechaInicio = normalizeDateInput($('#revFechaInicio').val());
+    var fechaFin = normalizeDateInput($('#revFechaFin').val());
+
+    return {
+        fechaInicio: fechaInicio,
+        fechaFin: fechaFin,
+        usuario_id: $('#revUsuario').val() || '',
+        rol_id: $('#revRol').val() || ''
+    };
+}
+
+function generarRevisionFacturas(){
+    var f = getFiltrosRevisionFacturas();
+
+    if(!f.fechaInicio || !f.fechaFin){
+        Swal.fire({icon:'warning',title:'Filtros requeridos',text:'Seleccione fecha de pago inicio y fin.'});
+        return;
+    }
+
+    if(f.fechaInicio > f.fechaFin){
+        Swal.fire({icon:'warning',title:'Rango inválido',text:'La fecha inicio no puede ser mayor a la fecha fin.'});
+        return;
+    }
+
+    $.when(
+        $.getJSON('/comision/reporte/revision/facturas', f),
+        $.getJSON('/comision/reporte/revision/productos', f)
+    ).done(function(respFacturas, respProductos){
+        renderRevisionFacturas(respFacturas[0] || {});
+        renderRevisionProductos(respProductos[0] || {});
+    }).fail(function(xhr){
+        var msg = (xhr && xhr.responseJSON && (xhr.responseJSON.error || xhr.responseJSON.text)) || 'No fue posible generar revisión de facturas.';
+        Swal.fire({icon:'error',title:'Revisión de Facturas',text:msg});
+    });
+}
+
+function renderRevisionFacturas(resp){
+    var data = Array.isArray(resp.data) ? resp.data : [];
+    var totales = resp.totales || {};
+    revisionFacturasDataActual = data;
+
+    $('#revEmptyState').hide();
+    $('#revFacturaWrap').show();
+    $('#revInfo').show();
+    $('#revFacturas').text(totales.facturas || 0);
+    $('#revRegistrosFactura').text(totales.registros || 0);
+    $('#revMontoAbonado').text(fmtMoney(totales.monto_abonado_total || 0));
+
+    if(dtRevFacturas){
+        dtRevFacturas.destroy();
+        $('#dtRevFacturas tbody').empty();
+    }
+
+    dtRevFacturas = $('#dtRevFacturas').DataTable({
+        data:data,
+        processing:false,
+        serverSide:false,
+        searching:true,
+        paging:true,
+        pageLength:10,
+        lengthMenu:[[10,25,50,100],[10,25,50,100]],
+        scrollX:true,
+        responsive:false,
+        autoWidth:false,
+        language:lang(),
+        order:[[0,'asc'],[1,'asc']],
+        columns:[
+            {data:'fecha_pago_revision',className:'text-nowrap',render:function(d){return esc(d || '—');}},
+            {data:'fecha_creacion_factura',className:'text-nowrap',render:function(d){return esc(d || '—');}},
+            {data:'factura',render:function(d){return '<code style="background:#f1f5f9;padding:2px 6px;border-radius:4px;font-size:11px;">'+esc(d || '—')+'</code>'; }},
+            {data:'aplicacion_pagos_id',className:'text-center'},
+            {data:'cliente',render:function(d){return esc(d || '—');}},
+            {data:'escala_cliente',render:function(d){return esc(d || '—');}},
+            {data:'capacidad',className:'text-center',render:function(d){return esc(d || '—');}},
+            {data:'rol_nombre',render:function(d){return esc(d || '—');}},
+            {data:'usuario',render:function(d){return '<strong>'+esc(d || '—')+'</strong>'; }},
+            {data:'saldo',className:'text-right',render:function(d){return fmtMoney(d || 0);}},
+            {data:'monto_abonado_total',className:'text-right',render:function(d){return '<strong>'+fmtMoney(d || 0)+'</strong>'; }},
+            {data:'cantidad_abonos',className:'text-center'},
+            {data:'fecha_ultimo_abono',render:function(d){return esc(d || '—');}},
+            {data:'sub_total_factura',className:'text-right',render:function(d){return fmtMoney(d || 0);}},
+            {data:'total_factura',className:'text-right',render:function(d){return '<strong>'+fmtMoney(d || 0)+'</strong>'; }}
+        ]
+    });
+}
+
+function renderRevisionProductos(resp){
+    var data = Array.isArray(resp.data) ? resp.data : [];
+    var totales = resp.totales || {};
+    revisionProductosDataActual = data;
+
+    $('#revProductoWrap').show();
+    $('#revRegistrosProducto').text(totales.registros || 0);
+
+    if(dtRevProductos){
+        dtRevProductos.destroy();
+        $('#dtRevProductos tbody').empty();
+    }
+
+    dtRevProductos = $('#dtRevProductos').DataTable({
+        data:data,
+        processing:false,
+        serverSide:false,
+        searching:true,
+        paging:true,
+        pageLength:10,
+        lengthMenu:[[10,25,50,100],[10,25,50,100]],
+        scrollX:true,
+        responsive:false,
+        autoWidth:false,
+        language:lang(),
+        order:[[0,'asc'],[1,'asc'],[6,'asc']],
+        columns:[
+            {data:'fecha_pago_revision',className:'text-nowrap',render:function(d){return esc(d || '—');}},
+            {data:'factura',render:function(d){return '<code style="background:#f1f5f9;padding:2px 6px;border-radius:4px;font-size:11px;">'+esc(d || '—')+'</code>'; }},
+            {data:'cliente',render:function(d){return esc(d || '—');}},
+            {data:'capacidad',className:'text-center',render:function(d){return esc(d || '—');}},
+            {data:'rol_nombre',render:function(d){return esc(d || '—');}},
+            {data:'usuario',render:function(d){return esc(d || '—');}},
+            {data:'producto',render:function(d){return '<strong>'+esc(d || '—')+'</strong>'; }},
+            {data:'categoria_precio',render:function(d){return esc(d || '—');}},
+            {data:'cantidad',className:'text-right',render:function(d){return parseFloat(d || 0).toLocaleString('es-HN',{minimumFractionDigits:0,maximumFractionDigits:2});}},
+            {data:'precio_unidad',className:'text-right',render:function(d){return fmtMoney(d || 0);}},
+            {data:'precio_seleccionado',className:'text-right',render:function(d){return fmtMoney(d || 0);}},
+            {data:'base_unitaria',className:'text-right',render:function(d){return fmtMoney(d || 0);}},
+            {data:'base_precio_seleccionado',className:'text-right',render:function(d){return fmtMoney(d || 0);}},
+            {data:'porcentaje_comision',className:'text-right',render:function(d){return d===null || d===undefined ? '—' : (parseFloat(d).toFixed(2)+'%');}},
+            {data:'comision_proyectada',className:'text-right',render:function(d){return d===null || d===undefined ? '—' : ('<strong>'+fmtMoney(d || 0)+'</strong>');}}
+        ]
+    });
+}
+
+function limpiarRevisionFacturas(){
+    var hoy=new Date(),ini=new Date(hoy.getFullYear(),hoy.getMonth(),1);
+    $('#revFechaInicio').val(fmtDate(ini));
+    $('#revFechaFin').val(fmtDate(hoy));
+    $('#revUsuario').val(null).trigger('change');
+    $('#revRol').val(null).trigger('change');
+
+    $('#revInfo').hide();
+    $('#revFacturas').text('0');
+    $('#revRegistrosFactura').text('0');
+    $('#revRegistrosProducto').text('0');
+    $('#revMontoAbonado').text(fmtMoney(0));
+
+    $('#revEmptyState').show();
+    $('#revFacturaWrap').hide();
+    $('#revProductoWrap').hide();
+
+    revisionFacturasDataActual = [];
+    revisionProductosDataActual = [];
+
+    if(dtRevFacturas){
+        dtRevFacturas.destroy();
+        dtRevFacturas = null;
+        $('#dtRevFacturas tbody').empty();
+    }
+
+    if(dtRevProductos){
+        dtRevProductos.destroy();
+        dtRevProductos = null;
+        $('#dtRevProductos tbody').empty();
+    }
+}
+
+function exportarRevisionFacturasExcel(tipo){
+    if(typeof XLSX === 'undefined'){
+        Swal.fire({icon:'warning',title:'Librería no disponible',text:'No fue posible cargar la librería de Excel.'});
+        return;
+    }
+
+    var ahora = new Date();
+    var stamp = ahora.getFullYear().toString()
+        + String(ahora.getMonth()+1).padStart(2,'0')
+        + String(ahora.getDate()).padStart(2,'0')
+        + '_' + String(ahora.getHours()).padStart(2,'0')
+        + String(ahora.getMinutes()).padStart(2,'0')
+        + String(ahora.getSeconds()).padStart(2,'0');
+
+    if(tipo === 'productos'){
+        if(!revisionProductosDataActual.length){
+            Swal.fire({icon:'info',title:'Sin datos',text:'No hay datos de productos para exportar.'});
+            return;
+        }
+
+        var dataPr = [['Fecha Pago','Factura','Cliente','Capacidad','Rol','Usuario','Producto','Categoria Precio','Cantidad','Precio Unidad','Precio Seleccionado','Base Unitaria','Base Precio Seleccionado','% Comision','Comision Proyectada']];
+        revisionProductosDataActual.forEach(function(r){
+            dataPr.push([
+                r.fecha_pago_revision || '',
+                r.factura || '',
+                r.cliente || '',
+                r.capacidad || '',
+                r.rol_nombre || '',
+                r.usuario || '',
+                r.producto || '',
+                r.categoria_precio || '',
+                parseFloat(r.cantidad || 0),
+                parseFloat(r.precio_unidad || 0),
+                parseFloat(r.precio_seleccionado || 0),
+                parseFloat(r.base_unitaria || 0),
+                parseFloat(r.base_precio_seleccionado || 0),
+                r.porcentaje_comision===null || r.porcentaje_comision===undefined ? '' : parseFloat(r.porcentaje_comision || 0),
+                r.comision_proyectada===null || r.comision_proyectada===undefined ? '' : parseFloat(r.comision_proyectada || 0)
+            ]);
+        });
+
+        var wsPr = XLSX.utils.aoa_to_sheet(dataPr);
+        for (var i = 2; i <= revisionProductosDataActual.length + 1; i++) {
+            ['J','K','L','M','O'].forEach(function(col){
+                var ref = col + i;
+                if (wsPr[ref] && typeof wsPr[ref].v === 'number') wsPr[ref].z = '"L." #,##0.00';
+            });
+            var pctRef = 'N' + i;
+            if (wsPr[pctRef] && typeof wsPr[pctRef].v === 'number') wsPr[pctRef].z = '0.00%';
+        }
+        wsPr['!autofilter'] = { ref: 'A1:O1' };
+        wsPr['!cols'] = [{wch:12},{wch:20},{wch:28},{wch:14},{wch:22},{wch:22},{wch:32},{wch:22},{wch:12},{wch:14},{wch:18},{wch:16},{wch:20},{wch:12},{wch:18}];
+        var wbPr = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wbPr, wsPr, 'Revision Productos');
+        XLSX.writeFile(wbPr, 'revision_facturas_productos_' + stamp + '.xlsx');
+        return;
+    }
+
+    if(!revisionFacturasDataActual.length){
+        Swal.fire({icon:'info',title:'Sin datos',text:'No hay datos de facturas para exportar.'});
+        return;
+    }
+
+    var dataFa = [['Fecha Pago','Fecha Creacion Factura','Factura','Aplicacion Pago ID','Cliente','Escala Cliente','Capacidad','Rol','Usuario','Saldo','Abonado','Cantidad Abonos','Ultimo Abono','SubTotal Factura','Total Factura']];
+    revisionFacturasDataActual.forEach(function(r){
+        dataFa.push([
+            r.fecha_pago_revision || '',
+            r.fecha_creacion_factura || '',
+            r.factura || '',
+            r.aplicacion_pagos_id || '',
+            r.cliente || '',
+            r.escala_cliente || '',
+            r.capacidad || '',
+            r.rol_nombre || '',
+            r.usuario || '',
+            parseFloat(r.saldo || 0),
+            parseFloat(r.monto_abonado_total || 0),
+            parseInt(r.cantidad_abonos || 0, 10),
+            r.fecha_ultimo_abono || '',
+            parseFloat(r.sub_total_factura || 0),
+            parseFloat(r.total_factura || 0)
+        ]);
+    });
+
+    var wsFa = XLSX.utils.aoa_to_sheet(dataFa);
+    for (var j = 2; j <= revisionFacturasDataActual.length + 1; j++) {
+        ['J','K','N','O'].forEach(function(col){
+            var ref2 = col + j;
+            if (wsFa[ref2] && typeof wsFa[ref2].v === 'number') wsFa[ref2].z = '"L." #,##0.00';
+        });
+    }
+    wsFa['!autofilter'] = { ref: 'A1:O1' };
+    wsFa['!cols'] = [{wch:12},{wch:20},{wch:20},{wch:16},{wch:30},{wch:20},{wch:14},{wch:22},{wch:22},{wch:12},{wch:14},{wch:14},{wch:14},{wch:16},{wch:16}];
+    var wbFa = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wbFa, wsFa, 'Revision Facturas');
+    XLSX.writeFile(wbFa, 'revision_facturas_' + stamp + '.xlsx');
 }
 
 function generarReporte(){
@@ -745,19 +1586,27 @@ function exportarExcel(tipo){
 }
 
 function cargarPeriodosConciliados(){
-    if(!$('#ccPeriodo').length) return;
+    if(!$('#ccPeriodo').length && !$('#proyPeriodoConciliado').length) return;
 
     $.getJSON('/comisiones/conciliacion/periodos', function(resp){
         var periodos = Array.isArray(resp && resp.periodos) ? resp.periodos : [];
         var options = ['<option value="">Seleccione un período conciliado</option>'];
+        var optionsProy = ['<option value="">Seleccione un mes conciliado</option>'];
 
         periodos
             .filter(function(item){ return item && item.estado === 'conciliado'; })
             .forEach(function(item){
                 options.push('<option value="'+esc(item.periodo)+'">'+esc(item.periodo_label)+'</option>');
+                optionsProy.push('<option value="'+esc(item.periodo)+'">'+esc(item.periodo_label)+'</option>');
             });
 
-        $('#ccPeriodo').html(options.join(''));
+        if($('#ccPeriodo').length){
+            $('#ccPeriodo').html(options.join(''));
+        }
+
+        if($('#proyPeriodoConciliado').length){
+            $('#proyPeriodoConciliado').html(optionsProy.join(''));
+        }
     });
 }
 

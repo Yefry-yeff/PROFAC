@@ -270,6 +270,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     // Rutas para listas de empleados y roles
     Route::get('/comision/empleados/lista', [ReportesComisionesGenerales::class, 'listarEmpleados']);
     Route::get('/comision/roles/lista', [ReportesComisionesGenerales::class, 'listarRoles']);
+    Route::get('/comision/roles/comisionables', [ReportesComisionesGenerales::class, 'listarRolesComisionables']);
 
     // Rutas para los 5 tipos de reportes
     Route::get('/comision/reporte/empleado', [ReportesComisionesGenerales::class, 'reporteEmpleado']);
@@ -286,6 +287,11 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/comision/reporte/stats',       [ReportesComisionesGenerales::class, 'stats']);
     Route::get('/comision/reporte/nomina',      [ReportesComisionesGenerales::class, 'reporteNomina']);
     Route::get('/comision/reporte/nomina/detalle', [ReportesComisionesGenerales::class, 'detalleNomina']);
+    Route::get('/comision/reporte/proyecciones', [ReportesComisionesGenerales::class, 'reporteProyecciones']);
+    Route::get('/comision/reporte/revision/facturas', [ReportesComisionesGenerales::class, 'reporteRevisionFacturasFactura']);
+    Route::get('/comision/reporte/revision/productos', [ReportesComisionesGenerales::class, 'reporteRevisionFacturasProductos']);
+    Route::get('/comision/reporte/brecha-ap-fc', [ReportesComisionesGenerales::class, 'reporteBrechaApFc']);
+    Route::post('/comision/reporte/brecha-ap-fc/reprocesar', [ReportesComisionesGenerales::class, 'reprocesarBrechaApFc']);
     Route::get('/comision/reporte/ranking',     [ReportesComisionesGenerales::class, 'reporteRanking']);
     Route::get('/comision/reporte/comparativo', [ReportesComisionesGenerales::class, 'reporteComparativo']);
 

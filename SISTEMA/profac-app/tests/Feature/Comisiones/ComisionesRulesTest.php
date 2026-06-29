@@ -402,6 +402,61 @@ class ComisionesRulesTest extends TestCase
         $this->assertSame(2, DB::table('retencion_mora_log')->where('facturas_comision_id', 101)->count());
     }
 
+    public function test_aplicador_retenciones_credito_counts_single_period_on_grace_multiple_boundary(): void
+    {
+        Auth::partialMock()->shouldReceive('id')->andReturn(889);
+
+        DB::table('factura')->insert([
+            'id' => 12,
+            'users_id' => 1,
+            'vendedor' => 2,
+            'cliente_id' => 1,
+            'tipo_factura_id' => 1,
+            'tipo_pago_id' => 2,
+            'fecha_emision' => '2026-06-01',
+            'fecha_vencimiento' => '2026-06-01',
+            'sub_total' => 500,
+            'cai' => 'FAC-012',
+            'total' => 500,
+        ]);
+
+        DB::table('facturas_comision')->insert([
+            'id' => 102,
+            'fecha_cierre_factura' => '2026-06-11',
+            'monto_rol' => 100,
+            'factura_id' => 12,
+            'aplicacion_pagos_id' => 5002,
+            'rol_id' => 2,
+            'tipo_comision' => 3,
+            'estado_id' => 1,
+            'cantidad_usuariosxrol' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('dias_gracia_comision')->insert([
+            'rol_id' => 2,
+            'tipo_factura' => 'credito',
+            'dias_gracia' => 5,
+            'porcentaje_retencion' => 10,
+        ]);
+
+        $payload = [[
+            'facturas_comision_id' => 102,
+            'monto_rol' => 100,
+            'rol_id' => 2,
+            'target_user_id' => 2,
+        ]];
+
+        // 10 días transcurridos con gracia de 5:
+        // corresponde 1 período vencido (no 2).
+        $resultado = app(AplicadorRetencionesMora::class)->aplicar($payload, 12, '2026-06-11');
+
+        $this->assertEquals(90.0, $resultado[0]['monto_rol']);
+        $this->assertEquals(10.0, (float) DB::table('facturas_comision')->where('id', 102)->value('retencion_mora_monto'));
+        $this->assertSame(1, DB::table('retencion_mora_log')->where('facturas_comision_id', 102)->count());
+    }
+
     public function test_detalle_nomina_normalizes_legacy_unit_commissions_to_line_totals(): void
     {
         DB::table('users')->insert([

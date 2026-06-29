@@ -436,6 +436,16 @@ table.dataTable tbody td { font-size: 13px; vertical-align: middle; }
                 <i class="fa fa-check-circle"></i> Comisiones Conciliadas
             </a>
         </li>
+        <li class="nav-item">
+            <a class="nav-link" data-toggle="tab" href="#tab-proyecciones" role="tab">
+                <i class="fa fa-chart-line"></i> Proyecciones
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-toggle="tab" href="#tab-revision-facturas" role="tab">
+                <i class="fa fa-search"></i> Revisión de Facturas
+            </a>
+        </li>
     </ul>
 
     <div class="tab-content rrhh-tab-content" id="rrhhTabContent">
@@ -605,6 +615,243 @@ table.dataTable tbody td { font-size: 13px; vertical-align: middle; }
                             </tr>
                         </thead>
                         <tbody id="ccTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="tab-proyecciones" role="tabpanel">
+            <div class="filter-panel mb-4">
+                <div class="fp-title"><i class="fa fa-chart-line"></i> Filtros de Proyección</div>
+                <div class="row align-items-end">
+                    <div class="col-md-2 col-sm-6 mb-2" id="proyFiltrosRangoInicioWrap">
+                        <label class="filter-label"><i class="fa fa-calendar-alt mr-1"></i>Fecha Inicio</label>
+                        <input type="date" id="proyFechaInicio" class="fp-input">
+                    </div>
+
+                    <div class="col-md-2 col-sm-6 mb-2" id="proyFiltrosRangoFinWrap">
+                        <label class="filter-label"><i class="fa fa-calendar-check mr-1"></i>Fecha Fin</label>
+                        <input type="date" id="proyFechaFin" class="fp-input">
+                    </div>
+
+                    <div class="col-md-3 col-sm-6 mb-2">
+                        <label class="filter-label"><i class="fa fa-user mr-1"></i>Usuario Activo</label>
+                        <select id="proyUsuario" class="form-control" style="width:100%;"></select>
+                    </div>
+
+                    <div class="col-md-3 col-sm-6 mb-2">
+                        <label class="filter-label"><i class="fa fa-tag mr-1"></i>Rol Para Calcular</label>
+                        <select id="proyRol" class="form-control" style="width:100%;"></select>
+                    </div>
+
+                    <div class="col-md-2 col-sm-12 mb-2">
+                        <label class="filter-label">&nbsp;</label>
+                        <div style="display:flex;gap:8px;">
+                            <button class="btn-generar" id="btnProyGenerar">
+                                <i class="fa fa-search"></i> Generar Proyección
+                            </button>
+                            <button class="btn-limpiar" id="btnProyLimpiar">
+                                <i class="fa fa-times"></i> Limpiar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="proyInfo" style="display:none;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:12px 16px;font-size:13px;color:#1e3a8a;margin-bottom:14px;">
+                <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center;">
+                    <span><i class="fa fa-file-invoice mr-1"></i>Facturas proyectadas: <strong id="proyFacturas">0</strong></span>
+                    <span><i class="fa fa-list mr-1"></i>Registros: <strong id="proyRegistros">0</strong></span>
+                    <span><i class="fa fa-calculator mr-1"></i>Base unitaria total: <strong id="proyBaseUnitaria">L. 0.00</strong></span>
+                    <span><i class="fa fa-coins mr-1"></i>Base comisionable total: <strong id="proyBaseComisionable">L. 0.00</strong></span>
+                    <span><i class="fa fa-money-bill-wave mr-1"></i>Comisión total: <strong id="proyComisionTotal">L. 0.00</strong></span>
+                    <span><i class="fa fa-exclamation-triangle mr-1"></i>Excluidas: <strong id="proyExcluidas">0</strong></span>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+                    <button class="btn-export" type="button" onclick="exportarProyeccionesExcel('proyectadas')">
+                        <i class="fa fa-file-excel-o"></i> Descargar Excel Proyectadas
+                    </button>
+                    <button class="btn-export" type="button" style="background:#fff1f2;color:#9f1239;border-color:#fecdd3;" onclick="exportarProyeccionesExcel('excluidas')">
+                        <i class="fa fa-file-excel-o"></i> Descargar Excel Excluidas
+                    </button>
+                    <small style="display:flex;align-items:center;color:#334155;">Desplace horizontalmente para ver todas las columnas.</small>
+                </div>
+            </div>
+
+            <div id="proyEmptyState" class="empty-state">
+                <i class="fa fa-chart-line"></i>
+                <p>Seleccione rango y usuario para generar la <strong>Proyección Unificada</strong></p>
+            </div>
+
+            <div id="proyTableWrap" style="display:none;">
+                <div style="overflow-x:auto;">
+                    <table id="dtProyecciones" class="table table-hover table-sm w-100">
+                        <thead>
+                            <tr>
+                                <th>Fecha Pago</th>
+                                <th>Fecha Creación Factura</th>
+                                <th>Factura</th>
+                                <th>Cliente</th>
+                                <th>Escala Cliente</th>
+                                <th>Escala Precio Vendida</th>
+                                <th class="text-right">Cantidad</th>
+                                <th>Capacidad</th>
+                                <th>Usuario</th>
+                                <th class="text-right">Base Comisionable Unitaria</th>
+                                <th class="text-right">Base Comisionable</th>
+                                <th class="text-right">% Promedio</th>
+                                <th class="text-right">Comisión Proyectada</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="proyExcluidasWrap" style="display:none;margin-top:18px;">
+                <div class="tab-toolbar" style="margin-bottom:10px;">
+                    <div class="tab-title" style="color:#991b1b;">
+                        <i class="fa fa-exclamation-triangle" style="color:#dc2626;"></i>
+                        Facturas Excluidas del Nuevo Modelo de Comisión
+                    </div>
+                </div>
+                <div style="overflow-x:auto;border:1px solid #fecaca;border-radius:10px;background:#fff;">
+                    <table id="dtProyeccionesExcluidas" class="table table-hover table-sm w-100 mb-0">
+                        <thead>
+                            <tr>
+                                <th>Fecha Pago</th>
+                                <th>Fecha Creación Factura</th>
+                                <th>Factura</th>
+                                <th>Cliente</th>
+                                <th>Capacidad</th>
+                                <th>Usuario</th>
+                                <th>Razón No Comisionable</th>
+                                <th>Detalle Técnico</th>
+                            </tr>
+                        </thead>
+                        <tbody id="proyExcluidasBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="tab-pane fade" id="tab-revision-facturas" role="tabpanel">
+            <div class="filter-panel mb-4">
+                <div class="fp-title"><i class="fa fa-search"></i> Filtros de Revisión de Facturas</div>
+                <div class="row align-items-end">
+                    <div class="col-md-2 col-sm-6 mb-2">
+                        <label class="filter-label"><i class="fa fa-calendar-alt mr-1"></i>Fecha Pago Inicio</label>
+                        <input type="date" id="revFechaInicio" class="fp-input">
+                    </div>
+                    <div class="col-md-2 col-sm-6 mb-2">
+                        <label class="filter-label"><i class="fa fa-calendar-check mr-1"></i>Fecha Pago Fin</label>
+                        <input type="date" id="revFechaFin" class="fp-input">
+                    </div>
+                    <div class="col-md-3 col-sm-6 mb-2">
+                        <label class="filter-label"><i class="fa fa-user mr-1"></i>Usuario Activo</label>
+                        <select id="revUsuario" class="form-control" style="width:100%;"></select>
+                    </div>
+                    <div class="col-md-3 col-sm-6 mb-2">
+                        <label class="filter-label"><i class="fa fa-tag mr-1"></i>Rol Comisionable Activo</label>
+                        <select id="revRol" class="form-control" style="width:100%;"></select>
+                    </div>
+                    <div class="col-md-2 col-sm-12 mb-2">
+                        <label class="filter-label">&nbsp;</label>
+                        <div style="display:flex;gap:8px;">
+                            <button class="btn-generar" id="btnRevGenerar">
+                                <i class="fa fa-search"></i> Generar
+                            </button>
+                            <button class="btn-limpiar" id="btnRevLimpiar">
+                                <i class="fa fa-times"></i> Limpiar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="revInfo" style="display:none;background:#f8fafc;border:1.5px solid #cbd5e1;border-radius:10px;padding:12px 16px;font-size:13px;color:#0f172a;margin-bottom:14px;">
+                <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center;">
+                    <span><i class="fa fa-file-invoice mr-1"></i>Facturas: <strong id="revFacturas">0</strong></span>
+                    <span><i class="fa fa-list mr-1"></i>Registros Factura: <strong id="revRegistrosFactura">0</strong></span>
+                    <span><i class="fa fa-cubes mr-1"></i>Registros Producto: <strong id="revRegistrosProducto">0</strong></span>
+                    <span><i class="fa fa-money mr-1"></i>Monto Abonado Total: <strong id="revMontoAbonado">L. 0.00</strong></span>
+                </div>
+            </div>
+
+            <div id="revEmptyState" class="empty-state">
+                <i class="fa fa-search"></i>
+                <p>Seleccione filtros y presione <strong>Generar</strong> para revisar facturas con <strong>estado_cerrado = 0</strong> y <strong>saldo = 0</strong>.</p>
+            </div>
+
+            <div id="revFacturaWrap" style="display:none;">
+                <div class="tab-toolbar" style="margin-bottom:10px;">
+                    <div class="tab-title">
+                        <i class="fa fa-file-invoice" style="color:#0284c7;"></i>
+                        Reporte Factura por Factura
+                    </div>
+                    <button class="btn-export" type="button" onclick="exportarRevisionFacturasExcel('facturas')">
+                        <i class="fa fa-file-excel-o"></i> Descargar Excel Facturas
+                    </button>
+                </div>
+                <div style="overflow-x:auto;border:1px solid #e2e8f0;border-radius:10px;background:#fff;">
+                    <table id="dtRevFacturas" class="table table-hover table-sm w-100 mb-0">
+                        <thead>
+                            <tr>
+                                <th>Fecha Pago</th>
+                                <th>Fecha Creación Factura</th>
+                                <th>Factura</th>
+                                <th>Aplicación Pago ID</th>
+                                <th>Cliente</th>
+                                <th>Escala Cliente</th>
+                                <th>Capacidad</th>
+                                <th>Rol</th>
+                                <th>Usuario</th>
+                                <th class="text-right">Saldo</th>
+                                <th class="text-right">Abonado</th>
+                                <th class="text-center"># Abonos</th>
+                                <th>Último Abono</th>
+                                <th class="text-right">SubTotal Factura</th>
+                                <th class="text-right">Total Factura</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="revProductoWrap" style="display:none;margin-top:18px;">
+                <div class="tab-toolbar" style="margin-bottom:10px;">
+                    <div class="tab-title">
+                        <i class="fa fa-cubes" style="color:#059669;"></i>
+                        Reporte Producto por Producto
+                    </div>
+                    <button class="btn-export" type="button" onclick="exportarRevisionFacturasExcel('productos')">
+                        <i class="fa fa-file-excel-o"></i> Descargar Excel Productos
+                    </button>
+                </div>
+                <div style="overflow-x:auto;border:1px solid #d1fae5;border-radius:10px;background:#fff;">
+                    <table id="dtRevProductos" class="table table-hover table-sm w-100 mb-0">
+                        <thead>
+                            <tr>
+                                <th>Fecha Pago</th>
+                                <th>Factura</th>
+                                <th>Cliente</th>
+                                <th>Capacidad</th>
+                                <th>Rol</th>
+                                <th>Usuario</th>
+                                <th>Producto</th>
+                                <th>Categoría Precio</th>
+                                <th class="text-right">Cantidad</th>
+                                <th class="text-right">Precio Unidad</th>
+                                <th class="text-right">Precio Seleccionado</th>
+                                <th class="text-right">Base Unitaria</th>
+                                <th class="text-right">Base Precio Seleccionado</th>
+                                <th class="text-right">% Comisión</th>
+                                <th class="text-right">Comisión Proyectada</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
                     </table>
                 </div>
             </div>

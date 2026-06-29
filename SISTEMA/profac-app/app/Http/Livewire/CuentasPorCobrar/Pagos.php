@@ -1321,8 +1321,13 @@ class Pagos extends Component
                                 );
 
                                 if (!empty($arrayfacturas_comision)) {
+                                    // Para mora usar siempre la fecha real de pago del abono.
+                                    // La fecha asignada de período se conserva solo para mes contable.
+                                    $fechaMoraCalculo = $request->fecha_pago
+                                        ? \Carbon\Carbon::parse($request->fecha_pago)->toDateString()
+                                        : $fechaPagoComision;
                                     $arrayfacturas_comision = app(AplicadorRetencionesMora::class)
-                                        ->aplicar($arrayfacturas_comision, (int) $request->idFacturaAbono, $fechaPagoComision);
+                                        ->aplicar($arrayfacturas_comision, (int) $request->idFacturaAbono, $fechaMoraCalculo);
                                     $procesador = app(ProcesadorComisiones::class);
                                     foreach ($arrayfacturas_comision as $factura) {
                                         $procesador->procesar($factura);
@@ -1657,9 +1662,10 @@ class Pagos extends Component
                  AND ce.rol_id        = fc.rol_id
                  AND ce.estado_id     = 1
                  AND ce.mes_comision  = DATE_FORMAT(fc.fecha_cierre_factura, '%Y-%m-01')
-             WHERE fc.factura_id = ?
-               AND fc.estado_id  = 1",
-            [$abono->factura_id]
+                         WHERE fc.factura_id = ?
+                             AND fc.aplicacion_pagos_id = ?
+                             AND fc.estado_id  = 1",
+                        [$abono->factura_id, $abono->aplicacion_pagos_id]
         );
 
         foreach ($rows as $row) {
@@ -1794,8 +1800,10 @@ class Pagos extends Component
                      AND ce.rol_id        = fc.rol_id
                      AND ce.estado_id     = 1
                      AND ce.mes_comision  = DATE_FORMAT(fc.fecha_cierre_factura, '%Y-%m-01')
-                 WHERE fc.factura_id = ? AND fc.estado_id = 1",
-                [$factura_id]
+                                 WHERE fc.factura_id = ?
+                                     AND fc.aplicacion_pagos_id = ?
+                                     AND fc.estado_id = 1",
+                                [$factura_id, $apId]
             );
 
             foreach ($filas as $fila) {
@@ -1829,7 +1837,13 @@ class Pagos extends Component
                 $fcIds = array_column($comisionesRevertidas, 'facturas_comision_id');
                 DB::table('facturas_comision')
                     ->whereIn('id', $fcIds)
-                    ->update(['estado_id' => 2, 'updated_at' => now()]);
+                    ->update([
+                        'estado_id' => 2,
+                        'monto_rol' => 0,
+                        'retencion_mora_monto' => 0,
+                        'retencion_mora_dias' => 0,
+                        'updated_at' => now(),
+                    ]);
 
                 // Marcar líneas de producto_comision asociadas
                 DB::table('producto_comision')
