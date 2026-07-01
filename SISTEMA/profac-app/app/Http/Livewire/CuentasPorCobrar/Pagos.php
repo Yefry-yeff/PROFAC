@@ -1583,6 +1583,15 @@ class Pagos extends Component
         // Reindexar el array tras el filtro
         $estadoCuenta = array_values($estadoCuenta);
 
+        // Recalcular acumulado = saldo + interés tras el filtrado
+        // &$row necesario: stdClass se pasa por copia en foreach sin referencia
+        $runningTotal = 0;
+        foreach ($estadoCuenta as &$row) {
+            $runningTotal   += (float) ($row->saldo ?? 0) + (float) ($row->interes ?? 0);
+            $row->acumulado  = $runningTotal;
+        }
+        unset($row);
+
         if (empty($estadoCuenta)) {
             // Sin facturas pendientes para este cliente — generar PDF informativo
             $nombreCliente = DB::table('cliente')->where('id', (int) $idClientepdf)->value('nombre') ?? 'Cliente #'.$idClientepdf;

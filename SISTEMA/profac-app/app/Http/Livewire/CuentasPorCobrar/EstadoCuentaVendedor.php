@@ -268,11 +268,13 @@ class EstadoCuentaVendedor extends Component
         }));
 
         // Recalcular acumulado como suma acumulada después del filtrado
+        // &$row necesario: stdClass se pasa por copia en foreach sin referencia
         $runningTotal = 0;
-        foreach ($estadoCuenta as $row) {
-            $runningTotal += (float) ($row->saldo ?? 0);
-            $row->acumulado = $runningTotal;
+        foreach ($estadoCuenta as &$row) {
+            $runningTotal   += (float) ($row->saldo ?? 0) + (float) ($row->interes ?? 0);
+            $row->acumulado  = $runningTotal;
         }
+        unset($row);
 
         if (empty($estadoCuenta)) {
             $nombreCliente = DB::table('cliente')->where('id', (int) $idClientepdf)->value('nombre') ?? 'Cliente #'.$idClientepdf;
