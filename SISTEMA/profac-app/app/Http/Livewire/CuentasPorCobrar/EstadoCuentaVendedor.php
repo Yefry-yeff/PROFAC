@@ -267,6 +267,13 @@ class EstadoCuentaVendedor extends Component
             return (float) ($row->saldo ?? 0) > 0;
         }));
 
+        // Recalcular acumulado como suma acumulada después del filtrado
+        $runningTotal = 0;
+        foreach ($estadoCuenta as $row) {
+            $runningTotal += (float) ($row->saldo ?? 0);
+            $row->acumulado = $runningTotal;
+        }
+
         if (empty($estadoCuenta)) {
             $nombreCliente = DB::table('cliente')->where('id', (int) $idClientepdf)->value('nombre') ?? 'Cliente #'.$idClientepdf;
             $sinMovimientos = true;
