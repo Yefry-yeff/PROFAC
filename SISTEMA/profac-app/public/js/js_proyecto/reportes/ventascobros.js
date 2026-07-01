@@ -270,6 +270,7 @@ function renderExpediente(resp) {
     var totalNotasDebito = 0;
     var totalNotasCredito= 0;
     var totalRetencion   = 0;
+    var totalIntereses   = parseFloat(resp.total_intereses) || 0;
     $.each(ms, function(i, mov) {
         var monto = parseFloat(mov.monto) || 0;
         if (mov.tipo === 'ABONO' || mov.tipo === 'PAGO') totalAbonos      += monto;
@@ -280,6 +281,9 @@ function renderExpediente(resp) {
 
     html += '<div class="rfd-fin-box"><h5><i class="fa fa-line-chart" style="margin-right:5px;"></i>Estado Financiero Actual</h5>';
     html += '<div class="rfd-fin-row"><span class="lbl">Total Facturado</span><span class="val" style="color:#111827;font-weight:600;">' + fmtLps(c.total_factura) + '</span></div>';
+    if (totalIntereses > 0) {
+        html += '<div class="rfd-fin-row"><span class="lbl" style="padding-left:12px;color:#6b7280;">↳ Intereses por mora cobrados</span><span class="val" style="color:#c53030;font-weight:600;">+ ' + fmtLps(totalIntereses) + '</span></div>';
+    }
     if (totalNotasDebito > 0) {
         html += '<div class="rfd-fin-row"><span class="lbl" style="padding-left:12px;color:#6b7280;">↳ Notas de Débito</span><span class="val" style="color:#b45309;font-weight:600;">+ ' + fmtLps(totalNotasDebito) + '</span></div>';
     }
@@ -343,7 +347,7 @@ function renderMovimiento(mov) {
     var tipo  = (mov.tipo || '').toUpperCase();
     var monto = parseFloat(mov.monto) || 0;
     var esCargo  = tipo === 'VENTA' || tipo === 'NOTA_DEBITO';
-    var esAbono  = !esCargo && tipo !== 'ENTREGA' && tipo !== 'VALE';
+    var esAbono  = !esCargo && tipo !== 'ENTREGA' && tipo !== 'VALE' && tipo !== 'INTERES_MORA';
 
     var dotClass   = 'rfd-dot-' + tipo.toLowerCase();
     var tipoColor  = tipoColorMap(tipo);
@@ -352,8 +356,14 @@ function renderMovimiento(mov) {
     var montoHtml  = '';
 
     if (tipo !== 'ENTREGA' && tipo !== 'VALE') {
-        var sign = esCargo ? '+' : '-';
-        var montoColor = (tipo === 'NOTA_DEBITO') ? '#b45309' : (esCargo ? '#111827' : '#0e9f6e');
+        var sign, montoColor;
+        if (tipo === 'INTERES_MORA') {
+            sign       = '+';
+            montoColor = '#c53030';
+        } else {
+            sign       = esCargo ? '+' : '-';
+            montoColor = (tipo === 'NOTA_DEBITO') ? '#b45309' : (esCargo ? '#111827' : '#0e9f6e');
+        }
         montoHtml = '<span class="rfd-tl-monto" style="color:' + montoColor + ';">' + sign + ' ' + fmtLpsAbs(monto) + '</span>';
     }
 
@@ -406,15 +416,15 @@ function carteraItem(lbl, val) {
     return '<div class="rfd-cartera-item"><div class="ci-lbl">' + lbl + '</div><div class="ci-val">' + (val || '—') + '</div></div>';
 }
 function tipoIcon(t) {
-    var m = { VENTA:'fa-file-text-o', ENTREGA:'fa-truck', ABONO:'fa-money', PAGO:'fa-credit-card', NOTA_CREDITO:'fa-minus-circle', NOTA_DEBITO:'fa-plus-circle', VALE:'fa-ticket', RETENCION:'fa-percent' };
+    var m = { VENTA:'fa-file-text-o', ENTREGA:'fa-truck', ABONO:'fa-money', PAGO:'fa-credit-card', NOTA_CREDITO:'fa-minus-circle', NOTA_DEBITO:'fa-plus-circle', VALE:'fa-ticket', RETENCION:'fa-percent', INTERES_MORA:'fa-exclamation-circle' };
     return m[t] || 'fa-circle-o';
 }
 function tipoLabel(t) {
-    var m = { VENTA:'Venta', ENTREGA:'Entrega', ABONO:'Abono Crédito', PAGO:'Pago Contado', NOTA_CREDITO:'Nota de Crédito', NOTA_DEBITO:'Nota de Débito', VALE:'Vale de Entrega', RETENCION:'Retención ISV' };
+    var m = { VENTA:'Venta', ENTREGA:'Entrega', ABONO:'Abono Crédito', PAGO:'Pago Contado', NOTA_CREDITO:'Nota de Crédito', NOTA_DEBITO:'Nota de Débito', VALE:'Vale de Entrega', RETENCION:'Retención ISV', INTERES_MORA:'Interés por Mora' };
     return m[t] || t;
 }
 function tipoColorMap(t) {
-    var m = { VENTA:'#1a56db', ENTREGA:'#0e9f6e', ABONO:'#d97706', PAGO:'#7c3aed', NOTA_CREDITO:'#e02424', NOTA_DEBITO:'#b45309', VALE:'#e67e22', RETENCION:'#0369a1' };
+    var m = { VENTA:'#1a56db', ENTREGA:'#0e9f6e', ABONO:'#d97706', PAGO:'#7c3aed', NOTA_CREDITO:'#e02424', NOTA_DEBITO:'#b45309', VALE:'#e67e22', RETENCION:'#0369a1', INTERES_MORA:'#c53030' };
     return m[t] || '#6b7280';
 }
 

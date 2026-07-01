@@ -59,6 +59,7 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
     const T_NOTA_D    = 'NOTA_DEBITO';
     const T_VALE      = 'VALE';
     const T_RETENCION = 'RETENCION';
+    const T_INTERES   = 'INTERES_MORA';
 
     // DEBITO  = ajuste que disminuye el saldo (Nota Credito, Vale, Retencion) → col T
     // PAGO    = cobro que disminuye el saldo (Abono, Pago Contado) → col V (MONTO PAGADO)
@@ -77,6 +78,7 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
         'NOTA_DEBITO'  => 'Nota de Debito',
         'VALE'         => 'Vale',
         'RETENCION'    => 'Retencion ISV',
+        'INTERES_MORA' => 'Interes por Mora',
     ];
 
     private static $MESES = [
@@ -268,16 +270,16 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
                 $esDebito  = in_array($tipo, self::$TIPOS_DEBITO);
                 $esCredito = in_array($tipo, self::$TIPOS_CREDITO);
                 $esPago    = in_array($tipo, self::$TIPOS_PAGO);
+                $esInteres = ($tipo === self::T_INTERES);
 
-                // Actualizar saldo progresivo
+                // Actualizar saldo progresivo (el interés NO altera el saldo del capital)
                 if ($esDebito)       $saldoFactura -= $monto;
                 elseif ($esCredito)  $saldoFactura += $monto;
                 elseif ($esPago)     $pagosAcum   += $monto;
-                // ENTREGA no cambia saldo
+                // INTERES_MORA y ENTREGA no cambian saldo
                 $saldoPendiente = $saldoFactura - $pagosAcum;
 
-                // Ocultar subfilas de Pago Contado en el Excel,
-                // pero conservar su impacto en los calculos.
+                // Ocultar subfilas de Pago Contado en el Excel
                 if ($tipo === self::T_PAGO) {
                     continue;
                 }
@@ -286,7 +288,7 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
                 $excelRow = count($out) + 1;
                 $this->rowMeta[$excelRow] = [
                     'type'      => $tipo,
-                    'dir'       => $esDebito ? 'debito' : ($esCredito ? 'credito' : ($esPago ? 'pago' : 'neutral')),
+                    'dir'       => $esDebito ? 'debito' : ($esCredito ? 'credito' : ($esPago ? 'pago' : ($esInteres ? 'interes' : 'neutral'))),
                     'saldo_dir' => $esDebito ? 'down' : ($esCredito ? 'up' : 'neutral'),
                     'has_monto' => ($tipo !== 'ENTREGA' && $monto > 0),
                 ];
@@ -301,19 +303,18 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
                 $movRow[6]  = $this->tipoLabel($tipo);
                 $movRow[7]  = trim((string)($mov->documento ?? ''));
                 $movRow[8]  = $mov->descripcion ?? '';
-                // cols 9-17: datos de factura en blanco (TOTAL solo en factura, no en sub-filas)
-                $movRow[18] = $esDebito  ? -$monto : ''; // DISMINUCION EN FACT. (negativo)
-                $movRow[19] = $esCredito ? $monto  : ''; // AUMENTO EN FACT.
-                $movRow[20] = $esPago    ? -$monto : ''; // MONTO PAGADO (negativo)
-                $movRow[21] = $saldoPendiente; // SALDO PENDIENTE siempre
-                $movRow[22] = '';              // ESTADO COBRO: en blanco en sub-filas
-                // cols 23-25: fechas venta/vcto/dias en blanco
-                $movRow[26] = $this->fmt($mov->fecha); // FECHA PAGO
+                // cols 9-17: datos de factura en blanco
+                $movRow[18] = $esDebito  ? -$monto : '';
+                $movRow[19] = $esCredito ? $monto  : '';
+                // El interés cobrado aparece en MONTO PAGADO (dinero recibido adicional al capital)
+                $movRow[20] = ($esPago || $esInteres) ? -$monto : '';
+                $movRow[21] = $esInteres ? '' : $saldoPendiente; // Interés no cambia saldo capital
+                $movRow[22] = '';
+                $movRow[26] = $this->fmt($mov->fecha);
                 $movRow[27] = $mov->forma_pago ?? '';
-                $movRow[28] = $mov->banco_nombre ?? ''; // BANCO
-                $movRow[29] = $mov->banco_cuenta ?? ''; // CUENTA
+                $movRow[28] = $mov->banco_nombre ?? '';
+                $movRow[29] = $mov->banco_cuenta ?? '';
                 $out[] = $movRow;
-            }
 
             /* ── RETENCIÓN ISV ─────────────────────────────── */
             $montoRet = (float)($r->monto_retencion ?? 0);

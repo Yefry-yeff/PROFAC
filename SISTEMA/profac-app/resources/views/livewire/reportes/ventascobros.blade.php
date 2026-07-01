@@ -111,6 +111,7 @@
     .rfd-dot-nota_credito { background:#e02424; }
     .rfd-dot-nota_debito  { background:#b45309; }
     .rfd-dot-vale         { background:#e67e22; }
+    .rfd-dot-interes_mora { background:#c53030; }
     /* layout overrides */
     #page-wrapper { padding-left:0!important; padding-right:0!important; }
     .wrapper-content { padding-left:0!important; padding-right:0!important; }

@@ -862,6 +862,25 @@ class ReporteVentasCobros extends Component
 
                     UNION ALL
 
+                    /* Interés por mora cobrado (aparece justo antes del abono) */
+                    SELECT
+                           CONVERT('INTERES_MORA' USING utf8mb4) COLLATE utf8mb4_unicode_ci,
+                           fi.fecha_cobro,
+                           CONVERT(CONCAT('Interes x mora, ', fi.dias_vencidos, ' dias') USING utf8mb4) COLLATE utf8mb4_unicode_ci,
+                           fi.monto_interes,
+                           NULL,
+                           NULL,
+                           NULL,
+                           CONVERT(CONCAT('Tasa: ', fi.porcentaje_aplicado, '% mensual, ', fi.dias_vencidos, ' dias vencidos, Capital: L. ', FORMAT(fi.capital_base,2)) USING utf8mb4) COLLATE utf8mb4_unicode_ci,
+                           CONVERT(COALESCE(u_fi.name,'') USING utf8mb4) COLLATE utf8mb4_unicode_ci,
+                           NULL,
+                           2
+                    FROM factura_interes fi
+                    LEFT JOIN users u_fi ON u_fi.id = fi.usuario_cobro
+                    WHERE fi.factura_id = ? AND fi.cobrado = 1 AND fi.anulado = 0
+
+                    UNION ALL
+
                     /* Nota de crédito */
                     SELECT 'NOTA_CREDITO', nc.fecha, nc.numero_secuencia_cai,
                            nc.total, NULL, NULL, NULL,
@@ -894,19 +913,24 @@ class ReporteVentasCobros extends Component
                     WHERE apc_ret.factura_id = ? AND apc_ret.estado_retencion_isv = 2
                 ) AS _movs
                 ORDER BY fecha ASC, orden_tipo ASC
-            ", [$facturaId, $facturaId, $facturaId, $facturaId, $facturaId]);
+            ", [$facturaId, $facturaId, $facturaId, $facturaId, $facturaId, $facturaId]);
 
             /* ── Calcular saldo progresivo ── */
             $saldo = (float) $cab->total_factura;
+            $totalInteresesCobrados = 0;
             foreach ($movimientos as $mov) {
                 $monto = (float) ($mov->monto ?? 0);
                 if ($mov->tipo === 'VENTA') {
                     $mov->saldo_resultante = $saldo;
+                } elseif ($mov->tipo === 'INTERES_MORA') {
+                    // El interés no altera el saldo del capital
+                    $totalInteresesCobrados += $monto;
+                    $mov->saldo_resultante = $saldo; // saldo sin cambio
                 } elseif (in_array($mov->tipo, ['ABONO', 'NOTA_CREDITO', 'RETENCION'])) {
                     $saldo -= $monto;
                     $mov->saldo_resultante = max($saldo, 0);
                 } else {
-                    $mov->saldo_resultante = null; // ENTREGA no cambia saldo
+                    $mov->saldo_resultante = null;
                 }
             }
 
@@ -915,11 +939,12 @@ class ReporteVentasCobros extends Component
             $cabArray['tiene_flujo'] = !empty($cab->flujo_id);
 
             return response()->json([
-                'success'     => true,
-                'cabecera'    => $cabArray,
-                'movimientos' => $movimientos,
-                'saldo_final' => max($saldo, 0),
-                'tiene_flujo' => !empty($cab->flujo_id),
+                'success'          => true,
+                'cabecera'         => $cabArray,
+                'movimientos'      => $movimientos,
+                'saldo_final'      => max($saldo, 0),
+                'tiene_flujo'      => !empty($cab->flujo_id),
+                'total_intereses'  => round($totalInteresesCobrados, 2),
             ]);
         } catch (\Throwable $e) {
             return response()->json(['success' => false, 'mensaje' => $e->getMessage()], 500);
@@ -1188,6 +1213,22 @@ class ReporteVentasCobros extends Component
                 LEFT JOIN tipo_pago_cobro tpc_ab ON tpc_ab.id = ac.id_tipo_pago_cobro
                 LEFT JOIN users u_reg ON u_reg.id = ac.usr_registro
                 WHERE ap.factura_id IN ({$ph}) AND ac.estado_abono = 1
+
+                UNION ALL
+
+                  SELECT 'INTERES_MORA' AS tipo, fi.factura_id AS factura_id, fi.fecha_cobro AS fecha,
+                      CONVERT(CONCAT('Interes x mora, ', fi.dias_vencidos, ' dias') USING utf8mb4) COLLATE utf8mb4_unicode_ci AS documento,
+                      fi.monto_interes AS monto,
+                      NULL AS banco_nombre,
+                      NULL AS banco_cuenta,
+                      NULL AS recibo,
+                      CONVERT(CONCAT('Tasa: ', fi.porcentaje_aplicado, '% mensual, Capital: L. ', FORMAT(fi.capital_base,2)) USING utf8mb4) COLLATE utf8mb4_unicode_ci AS descripcion,
+                      CONVERT(COALESCE(u_fi.name,'') USING utf8mb4) COLLATE utf8mb4_unicode_ci AS responsable,
+                      NULL AS forma_pago,
+                      2 AS orden_tipo
+                FROM factura_interes fi
+                LEFT JOIN users u_fi ON u_fi.id = fi.usuario_cobro
+                WHERE fi.factura_id IN ({$ph}) AND fi.cobrado = 1 AND fi.anulado = 0
 
                 UNION ALL
 

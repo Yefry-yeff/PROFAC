@@ -10,6 +10,7 @@ class FacturaInteres extends Model
 
     protected $fillable = [
         'factura_id',
+        'abonos_creditos_id',
         'configuracion_interes_id',
         'fecha_inicio',
         'fecha_fin',

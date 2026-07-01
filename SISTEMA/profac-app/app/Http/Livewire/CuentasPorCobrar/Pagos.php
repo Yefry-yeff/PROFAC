@@ -1221,14 +1221,16 @@ class Pagos extends Component
 
             // Monto que realmente se aplica al capital
             $montoAplicadoCapital = $montoTotal;
+            $abonoInteres         = 0.0; // porción que va a interés en este pago
 
             if ($cobrarInteres && $montoInteres > 0) {
-                // El interés se persiste por separado — aquí calculamos cuánto va al capital
                 if ($montoTotal <= $montoInteres) {
                     // El pago no alcanza a cubrir siquiera el interés: todo va a interés
+                    $abonoInteres         = $montoTotal;
                     $montoAplicadoCapital = 0;
                 } else {
                     // Sobrante después de pagar el interés → va al capital
+                    $abonoInteres         = $montoInteres;
                     $montoAplicadoCapital = round($montoTotal - $montoInteres, 2);
                 }
             }
@@ -1385,7 +1387,13 @@ class Pagos extends Component
            // ── Persistir decisión de interés ──────────────────────────────────
            $montoInteresRequest = (float) ($request->interesMontoHidden ?? 0);
            if ($montoInteresRequest > 0 && !empty($request->interesConfiguracionId)) {
-               $this->_persistirInteresInterno($request, $cobrarInteres, $montoAplicadoCapital);
+               $this->_persistirInteresInterno(
+                   $request,
+                   $cobrarInteres,
+                   $montoAplicadoCapital,
+                   $abonoInteres,
+                   $abonos->id
+               );
            }
 
            return response()->json([
@@ -1410,37 +1418,48 @@ class Pagos extends Component
     }
 
     // ─── Persistir interés internamente durante guardarCreditos ──────────────
-    private function _persistirInteresInterno($request, bool $cobrarInteres, float $montoAplicadoCapital): void
-    {
-        $facturaId    = (int) $request->idFacturaAbono;
-        $configId     = (int) $request->interesConfiguracionId;
-        $montoInteres = (float) $request->interesMontoHidden;
+    private function _persistirInteresInterno(
+        $request,
+        bool  $cobrarInteres,
+        float $montoAplicadoCapital,
+        float $abonoInteres         = 0.0,
+        ?int  $abonosCreditosId     = null
+    ): void {
+        $facturaId = (int) $request->idFacturaAbono;
+        $configId  = (int) $request->interesConfiguracionId;
 
-        if (!$configId || $montoInteres <= 0) return;
+        if (!$configId) return;
 
-        // Evitar duplicados: si ya hay un interés cobrado activo, no persistir
-        $yaCobrado = DB::table('factura_interes')
-            ->where('factura_id', $facturaId)
-            ->where('cobrado', 1)
-            ->where('anulado', 0)
-            ->exists();
+        // Si no se cobra interés y el monto de interés era 0, no hay nada que registrar
+        if (!$cobrarInteres && $abonoInteres <= 0) return;
 
-        if ($cobrarInteres && $yaCobrado) return;
+        // Protección anti-duplicado por abono: si este abono ya tiene un registro, no crear otro
+        if ($abonosCreditosId) {
+            $yaExiste = DB::table('factura_interes')
+                ->where('abonos_creditos_id', $abonosCreditosId)
+                ->exists();
+            if ($yaExiste) return;
+        }
 
         try {
             \App\Models\FacturaInteres::create([
                 'factura_id'               => $facturaId,
+                'abonos_creditos_id'       => $abonosCreditosId,
                 'configuracion_interes_id' => $configId,
                 'fecha_inicio'             => $request->interesVencimiento,
                 'fecha_fin'                => $request->fecha_pago ?? now()->toDateString(),
-                'capital_base'             => $request->interesCapitalHidden,
+                // capital_base = monto que se aplicó al capital en este pago específico
+                'capital_base'             => $montoAplicadoCapital,
                 'porcentaje_aplicado'      => $request->interesPorcentaje,
                 'dias_vencidos'            => (int) $request->interesDiasHidden,
-                'monto_interes'            => $montoInteres,
+                // monto_interes = porción que efectivamente se cobró como interés en este pago
+                'monto_interes'            => $cobrarInteres ? $abonoInteres : 0,
                 'estado'                   => 1,
-                'cobrado'                  => $cobrarInteres,
-                'fecha_cobro'              => $cobrarInteres ? ($request->fecha_pago ?? now()->toDateString()) : null,
-                'usuario_cobro'            => $cobrarInteres ? Auth::id() : null,
+                'cobrado'                  => $cobrarInteres && $abonoInteres > 0,
+                'fecha_cobro'              => ($cobrarInteres && $abonoInteres > 0)
+                                                ? ($request->fecha_pago ?? now()->toDateString())
+                                                : null,
+                'usuario_cobro'            => ($cobrarInteres && $abonoInteres > 0) ? Auth::id() : null,
                 'usr_no_cobro'             => !$cobrarInteres ? Auth::id() : null,
                 'fecha_no_cobro'           => !$cobrarInteres ? now() : null,
                 'motivo_no_cobro'          => !$cobrarInteres ? ($request->motivoNoCobrar ?? null) : null,
