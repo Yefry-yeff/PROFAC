@@ -1075,22 +1075,31 @@
                                     </div>
                                 </div>
                             </div>
-                            {{-- Fila 2: Capital | Interés --}}
+                            {{-- Fila 2: Capital | Interés | Total --}}
                             <div class="row">
-                                <div class="col-md-6">
+                                <div class="col-md-4">
                                     <div class="abono-info-card">
                                         <div class="abono-info-label">Capital Pendiente</div>
                                         <div class="abono-info-value" id="ds1_capital">—</div>
                                     </div>
                                 </div>
-                                <div class="col-md-6">
+                                <div class="col-md-4">
                                     <div class="abono-info-card" id="ds1_interesCard">
                                         <div class="abono-info-label">Interés por Mora</div>
                                         <div class="abono-info-value" id="ds1_interes">—</div>
                                         <div style="font-size:9px;color:#a0aec0;margin-top:1px;" id="ds1_interesBase"></div>
                                     </div>
                                 </div>
+                                <div class="col-md-4">
+                                    <div class="abono-info-card" style="border:1.5px solid #fed7aa;background:#fffbeb;">
+                                        <div class="abono-info-label" style="color:#92400e;">Total a Cancelar</div>
+                                        <div class="abono-info-value" id="ds1_total" style="color:#92400e;font-size:15px;">—</div>
+                                        <div style="font-size:9px;color:#a0aec0;margin-top:1px;">Máximo permitido</div>
+                                    </div>
+                                </div>
                             </div>
+                            {{-- Hidden: total máximo a pagar --}}
+                            <input type="hidden" id="maxMontoPagar" value="0">
                         </div>
                     </div>
 
@@ -1430,6 +1439,8 @@
                             <th>Retención</th>
                             <th>Seguimiento</th>
                             <th>Saldo</th>
+                            <th>Interés</th>
+                            <th>Total</th>
                             <th>Registro</th>
                             <th>Actualización</th>
                             <th class="text-center">Acciones</th>
@@ -1451,6 +1462,8 @@
                             <th>Retención</th>
                             <th>Seguimiento</th>
                             <th>Saldo</th>
+                            <th>Interés</th>
+                            <th>Total</th>
                             <th>Registro</th>
                             <th>Actualización</th>
                             <th></th>
@@ -1676,7 +1689,7 @@ $('#modalAbonos').on('hidden.bs.modal', function() {
     $('#motivoNoCobrar').val('');
     $('#checkInteresMontoBadge').text('');
     // Limpiar sección 1
-    $('#ds1_codigo, #ds1_factura, #ds1_capital, #ds1_interes').text('—');
+    $('#ds1_codigo, #ds1_factura, #ds1_capital, #ds1_interes, #ds1_total').text('—');
     $('#ds1_fechaVenc, #ds1_diasVenc').text('—');
     $('#ds1_diasVencBase').text('');
     $('#ds1_fechaVencHidden').val('');
@@ -1837,11 +1850,29 @@ function actualizarDiasVencidos(fechaBase) {
 function onCobrarInteresChange() {
     var cobrar = $('#cobrarInteresCheck').is(':checked');
     $('#cobrarInteresFlag').val(cobrar ? '1' : '0');
+
     if (cobrar) {
         $('#motivoNoCobrarWrap').hide();
     } else {
         $('#motivoNoCobrarWrap').show();
     }
+
+    // Actualizar Sección 1: Interés y Total a Cancelar
+    var capital      = parseFloat($('#interesCapitalHidden').val() || 0);
+    var montoInteres = parseFloat($('#interesMontoHidden').val()   || 0);
+
+    if (cobrar && montoInteres > 0) {
+        $('#ds1_interes').text(_fmtL(montoInteres));
+        $('#ds1_total').text(_fmtL(capital + montoInteres));
+        $('#maxMontoPagar').val(capital + montoInteres);
+        $('#montoAbono').attr('max', capital + montoInteres);
+    } else {
+        $('#ds1_interes').text('L. 0.00');
+        $('#ds1_total').text(_fmtL(capital));
+        $('#maxMontoPagar').val(capital);
+        $('#montoAbono').attr('max', capital);
+    }
+
     actualizarResumen();
 }
 
@@ -1918,6 +1949,12 @@ function consultarYMostrarInteres(facturaId, fechaPago) {
                 $('#ds1_diasVencBase').text(fechaPago ? 'Al ' + fechaPago : 'A hoy');
                 $('#ds1_interesBase').text(tasa.toFixed(4) + '% mensual · ' + dias + ' días');
 
+                // Total en Sección 1
+                var totalDisplay = capital + interes;
+                $('#ds1_total').text(_fmtL(totalDisplay));
+                $('#maxMontoPagar').val(totalDisplay);
+                $('#montoAbono').attr('max', totalDisplay);
+
                 // Sección 3 — mostrar checkbox con badge de monto
                 $('#checkInteresMontoBadge').text(_fmtL(interes));
                 $('#checkInteresWrap').show();
@@ -1934,6 +1971,12 @@ function consultarYMostrarInteres(facturaId, fechaPago) {
                 // Sin interés
                 $('#checkInteresWrap').hide();
                 $('#ds1_interes').text('—');
+                $('#ds1_interesBase').text('');
+                // Total = solo el capital cuando no hay interés
+                var capitalSinInteres = parseFloat($('#interesCapitalHidden').val() || 0);
+                $('#ds1_total').text(capitalSinInteres > 0 ? _fmtL(capitalSinInteres) : '—');
+                $('#maxMontoPagar').val(capitalSinInteres);
+                $('#montoAbono').attr('max', capitalSinInteres);
                 $('#ds1_diasVenc').text(function(){
                     // Recalcular días vencidos sin interés igual puede haber días
                     var fv = $('#ds1_fechaVencHidden').val();
@@ -1950,6 +1993,9 @@ function consultarYMostrarInteres(facturaId, fechaPago) {
                 $('#interesMontoHidden').val('0');
                 $('#interesConfiguracionId').val('');
             }
+            // Siempre respetar la decisión del usuario sobre el cobro de interés.
+            // onCobrarInteresChange recalcula Sección 1 y el máximo según el checkbox.
+            onCobrarInteresChange();
             actualizarResumen();
         })
         .catch(function() { /* silencioso */ });

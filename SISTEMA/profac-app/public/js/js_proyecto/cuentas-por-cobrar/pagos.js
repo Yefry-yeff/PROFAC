@@ -294,16 +294,20 @@ function modalOtrosMovimientos(codigoPagoA, caiFactura, idFactura, saldo){
     $('#modalOtrosMovimientos').modal('show');
 }
 
-function modalAbonos(codigoPagoA, caiFactura, idFactura, saldo, seguimientoEstado, fechaVencimiento){
+function modalAbonos(codigoPagoA, caiFactura, idFactura, saldo, seguimientoEstado, fechaVencimiento, totalPagar){
     $('#codAplicPagoAbono').val(codigoPagoA);
     $('#facturaCaiAbono').val(caiFactura);
     $('#idFacturaAbono').val(idFactura);
 
-    var s = parseFloat(saldo) || 0;
-    var saldoFmt = s > 0 ? 'L. ' + s.toLocaleString('es-HN', {minimumFractionDigits:2, maximumFractionDigits:2}) : 'L. 0.00';
+    var s    = parseFloat(saldo)      || 0;
+    var tMax = parseFloat(totalPagar) || s;  // máximo = saldo + interés
+    var saldoFmt = 'L. ' + s.toLocaleString('es-HN', {minimumFractionDigits:2, maximumFractionDigits:2});
 
-    // Monto inicia en 0.00 (el usuario lo debe ingresar manualmente)
-    $('#montoAbono').val('0.00');
+    // Guardar total máximo en hidden para validación
+    $('#maxMontoPagar').val(tMax);
+
+    // Monto inicia en 0.00; atributo max = totalPagar
+    $('#montoAbono').val('0.00').attr('max', tMax);
     $('#abono-saldo-label').text('');
 
     // Sección 1 — datos de factura (display)
@@ -312,6 +316,10 @@ function modalAbonos(codigoPagoA, caiFactura, idFactura, saldo, seguimientoEstad
     $('#ds1_capital').text(saldoFmt);
     $('#ds1_interes').text('—');
     $('#ds1_interesCard').show();
+    $('#ds1_interesBase').text('');
+    // Total inicial = saldo (se actualizará cuando el SP devuelva el interés)
+    var totalFmt = 'L. ' + tMax.toLocaleString('es-HN', {minimumFractionDigits:2, maximumFractionDigits:2});
+    $('#ds1_total').text(totalFmt);
 
     // Fecha de vencimiento en Sección 1
     var fv = fechaVencimiento || '';
@@ -495,7 +503,31 @@ function listarCuentasPorCobrar() {
                         }
                     },
                     {
-                        data: 'saldo'
+                        data: 'saldo',
+                        render: function(data) {
+                            var n = parseFloat(data) || 0;
+                            return '<span class="ap-money ' + (n > 0 ? 'saldo-alto' : 'saldo-cero') + '">L. ' + n.toLocaleString('es-HN', {minimumFractionDigits:2, maximumFractionDigits:2}) + '</span>';
+                        }
+                    },
+                    {
+                        data: 'interesMora',
+                        render: function(data) {
+                            var n = parseFloat(data) || 0;
+                            if (n <= 0) return '<span style="color:#a0aec0;font-size:11px;">—</span>';
+                            return '<span style="color:#c53030;font-weight:700;">L. ' + n.toLocaleString('es-HN', {minimumFractionDigits:2, maximumFractionDigits:2}) + '</span>';
+                        }
+                    },
+                    {
+                        data: 'totalPagar',
+                        render: function(data, type, row) {
+                            var n = parseFloat(data) || 0;
+                            var interes = parseFloat(row.interesMora) || 0;
+                            var html = '<span style="font-weight:800;color:#1a202c;">L. ' + n.toLocaleString('es-HN', {minimumFractionDigits:2, maximumFractionDigits:2}) + '</span>';
+                            if (interes > 0) {
+                                html += '<div style="font-size:10px;color:#c53030;">incl. interés</div>';
+                            }
+                            return html;
+                        }
                     },
                     {
                         data: 'fechaRegistro'
@@ -1078,6 +1110,18 @@ $(document).on('submit', '#formabonos', function(event) {
             icon: 'warning',
             title: 'Monto inválido',
             text: 'El monto a abonar debe ser mayor a L. 0.00.',
+            confirmButtonText: 'Entendido'
+        });
+        return;
+    }
+
+    // Validación: no exceder el total máximo (capital + interés)
+    var maxPermitido = parseFloat($('#maxMontoPagar').val() || 0);
+    if (maxPermitido > 0 && montoVal > maxPermitido + 0.01) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Monto excede el total',
+            text: 'El monto máximo a pagar es L. ' + maxPermitido.toLocaleString('es-HN', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' (capital + interés).',
             confirmButtonText: 'Entendido'
         });
         return;

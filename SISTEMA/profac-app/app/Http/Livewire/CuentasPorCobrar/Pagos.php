@@ -168,6 +168,37 @@ class Pagos extends Component
                 movimiento_resta as        'movResta',
                 retencion_isv_factura as   'isv',
                 saldo as                   'saldo',
+
+                -- Interés a hoy usando scalar subquery (compatible con todas las versiones MySQL)
+                IF(
+                    (SELECT f2.estado_venta_id FROM factura f2 WHERE f2.id = aplicacion_pagos.factura_id) = 1
+                    AND aplicacion_pagos.saldo > 0
+                    AND DATEDIFF(CURDATE(), (SELECT f3.fecha_vencimiento FROM factura f3 WHERE f3.id = aplicacion_pagos.factura_id)) > 0
+                    AND (SELECT COUNT(*) FROM configuracion_intereses WHERE estado = 1) > 0,
+                    ROUND(
+                        aplicacion_pagos.saldo
+                        * ((SELECT ci.tasa_mensual FROM configuracion_intereses ci WHERE ci.estado = 1 ORDER BY ci.fecha_vigencia DESC LIMIT 1) / 100.0)
+                        * (DATEDIFF(CURDATE(), (SELECT f4.fecha_vencimiento FROM factura f4 WHERE f4.id = aplicacion_pagos.factura_id)) / 30.0),
+                        2
+                    ),
+                    0.00
+                ) AS 'interesMora',
+
+                -- Total máximo a pagar = saldo + interés
+                aplicacion_pagos.saldo + IF(
+                    (SELECT f2.estado_venta_id FROM factura f2 WHERE f2.id = aplicacion_pagos.factura_id) = 1
+                    AND aplicacion_pagos.saldo > 0
+                    AND DATEDIFF(CURDATE(), (SELECT f3.fecha_vencimiento FROM factura f3 WHERE f3.id = aplicacion_pagos.factura_id)) > 0
+                    AND (SELECT COUNT(*) FROM configuracion_intereses WHERE estado = 1) > 0,
+                    ROUND(
+                        aplicacion_pagos.saldo
+                        * ((SELECT ci.tasa_mensual FROM configuracion_intereses ci WHERE ci.estado = 1 ORDER BY ci.fecha_vigencia DESC LIMIT 1) / 100.0)
+                        * (DATEDIFF(CURDATE(), (SELECT f4.fecha_vencimiento FROM factura f4 WHERE f4.id = aplicacion_pagos.factura_id)) / 30.0),
+                        2
+                    ),
+                    0.00
+                ) AS 'totalPagar',
+
                 estado_retencion_isv as    'estadoRetencion',
                 retencion_aplicada as      'retencion_aplicada',
                 COALESCE((select frs.estado from factura_retencion_seguimiento frs where frs.factura_id = aplicacion_pagos.factura_id limit 1), 'sin_marcar') as 'seguimientoRetencionEstado',
@@ -249,7 +280,7 @@ class Pagos extends Component
                                         <a class="ap-ctx-item" onclick="modalOtrosMovimientos('.$cuenta->codigoPago.',\''.$cuenta->codigoFactura.'\','.$cuenta->idFactura.','.$cuenta->saldo.')">
                                             <span class="ap-ctx-icon ci-gray"><i class="fa fa-refresh"></i></span>Otros movimientos</a>
                                         <div class="ap-ctx-divider"></div>
-                                        <a class="ap-ctx-item ap-ctx-highlight" onclick="modalAbonos('.$cuenta->codigoPago.',\''.$cuenta->codigoFactura.'\','.$cuenta->idFactura.','.$cuenta->saldo.',\''.$seguimientoEstado.'\',\''.$cuenta->fechaVencimiento.'\')">\n                                            <span class="ap-ctx-icon ci-teal"><i class="fa fa-money"></i></span>Registrar pago</a>
+                                        <a class="ap-ctx-item ap-ctx-highlight" onclick="modalAbonos('.$cuenta->codigoPago.',\''.$cuenta->codigoFactura.'\','.$cuenta->idFactura.','.$cuenta->saldo.',\''.$seguimientoEstado.'\',\''.$cuenta->fechaVencimiento.'\','.$cuenta->totalPagar.')">
                                             <span class="ap-ctx-icon ci-teal"><i class="fa fa-money"></i></span>Registrar pago</a>
                                     </div>
                                 </div>';
@@ -1170,25 +1201,23 @@ class Pagos extends Component
 
             $saldoActual = DB::selectone('select saldo from aplicacion_pagos where id = '.$request->codAplicPagoAbono);
 
-            if($request->montoAbono > $saldoActual->saldo){
-                return response()->json([
-                    "icon" => "warning",
-                    "text"=>"No se puede registrar un monto mayor al saldo actual.",
-                    "title"=>"Advertencia!"
-                ],400);
-            }
-
             // ── Lógica de pagos parciales: interés primero, luego capital ──────────
-            // Si el usuario marcó "cobrar interés" y hay interés en la solicitud,
-            // el pago se distribuye así:
-            //   1. Primero se cubre el interés.
-            //   2. El remanente se aplica al capital (saldo de la factura).
-            // Si el pago es menor que el interés, solo se cubre interés parcialmente
-            // y no se reduce el capital.
             $montoTotal    = (float) $request->montoAbono;
             $montoInteres  = (float) ($request->interesMontoHidden ?? 0);
-            // cobrarInteresFlag=1 cuando el usuario marcó "Cobrar interés"; 0 cuando lo desmarcó
             $cobrarInteres = (string) ($request->cobrarInteresFlag ?? '1') === '1';
+
+            // El máximo permitido es saldo + interés (cuando se cobra interés) o solo el saldo
+            $maxPermitido = ($cobrarInteres && $montoInteres > 0)
+                ? round((float) $saldoActual->saldo + $montoInteres, 2)
+                : (float) $saldoActual->saldo;
+
+            if ($montoTotal > $maxPermitido + 0.005) {
+                return response()->json([
+                    "icon"  => "warning",
+                    "text"  => "No se puede registrar un monto mayor al total a cancelar (capital + interés).",
+                    "title" => "Advertencia!"
+                ], 400);
+            }
 
             // Monto que realmente se aplica al capital
             $montoAplicadoCapital = $montoTotal;
