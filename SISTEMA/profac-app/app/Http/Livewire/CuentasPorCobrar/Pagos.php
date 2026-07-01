@@ -157,6 +157,9 @@ class Pagos extends Component
                 (select cai
                 from factura
                 where id = factura_id) as  'codigoFactura',
+                (select fecha_vencimiento
+                from factura
+                where id = factura_id) as  'fechaVencimiento',
                 total_factura_cargo as     'cargo',
                 total_notas_credito as     'notasCredito',
                 total_nodas_debito as      'notasDebito',
@@ -246,7 +249,7 @@ class Pagos extends Component
                                         <a class="ap-ctx-item" onclick="modalOtrosMovimientos('.$cuenta->codigoPago.',\''.$cuenta->codigoFactura.'\','.$cuenta->idFactura.','.$cuenta->saldo.')">
                                             <span class="ap-ctx-icon ci-gray"><i class="fa fa-refresh"></i></span>Otros movimientos</a>
                                         <div class="ap-ctx-divider"></div>
-                                        <a class="ap-ctx-item ap-ctx-highlight" onclick="modalAbonos('.$cuenta->codigoPago.',\''.$cuenta->codigoFactura.'\','.$cuenta->idFactura.','.$cuenta->saldo.',\''.$seguimientoEstado.'\')">
+                                        <a class="ap-ctx-item ap-ctx-highlight" onclick="modalAbonos('.$cuenta->codigoPago.',\''.$cuenta->codigoFactura.'\','.$cuenta->idFactura.','.$cuenta->saldo.',\''.$seguimientoEstado.'\',\''.$cuenta->fechaVencimiento.'\')">\n                                            <span class="ap-ctx-icon ci-teal"><i class="fa fa-money"></i></span>Registrar pago</a>
                                             <span class="ap-ctx-icon ci-teal"><i class="fa fa-money"></i></span>Registrar pago</a>
                                     </div>
                                 </div>';
@@ -1159,16 +1162,11 @@ class Pagos extends Component
 
     public function guardarCreditos( Request $request){
 
-        //dd($request);
-
        try {
             $cm = "'";
             $name = '';
             $path = '';
           $comentarioAbono = str_replace("'", "''", (string) $request->comentarioAbono);
-
-
-
 
             $saldoActual = DB::selectone('select saldo from aplicacion_pagos where id = '.$request->codAplicPagoAbono);
 
@@ -1177,177 +1175,197 @@ class Pagos extends Component
                     "icon" => "warning",
                     "text"=>"No se puede registrar un monto mayor al saldo actual.",
                     "title"=>"Advertencia!"
-
                 ],400);
-
             }
 
-                        $file = $request->file('doc_pago');
-                        if($file != NULL){
+            // ── Lógica de pagos parciales: interés primero, luego capital ──────────
+            // Si el usuario marcó "cobrar interés" y hay interés en la solicitud,
+            // el pago se distribuye así:
+            //   1. Primero se cubre el interés.
+            //   2. El remanente se aplica al capital (saldo de la factura).
+            // Si el pago es menor que el interés, solo se cubre interés parcialmente
+            // y no se reduce el capital.
+            $montoTotal    = (float) $request->montoAbono;
+            $montoInteres  = (float) ($request->interesMontoHidden ?? 0);
+            // cobrarInteresFlag=1 cuando el usuario marcó "Cobrar interés"; 0 cuando lo desmarcó
+            $cobrarInteres = (string) ($request->cobrarInteresFlag ?? '1') === '1';
 
-                            $name = 'doc_'. time()."-". '.' . $file->getClientOriginalExtension();
-                            $path = public_path() . '/documentos_aplicacion_pagos';
-                            $file->move($path, $name);
-                        }else{
-                            $name = '';
-                        }
+            // Monto que realmente se aplica al capital
+            $montoAplicadoCapital = $montoTotal;
 
-                       $abonos = new Modelabonos_creditos;
-                        $abonos->aplicacion_pagos_id = $request->codAplicPagoAbono;
-                        $abonos->factura_id = $request->idFacturaAbono;
-                        $abonos->banco_id = $request->selectBanco;
-                        $abonos->estado_abono= 1;
-                        $abonos->id_tipo_pago_cobro= $request->selectMetodoPago;
-                        $abonos->monto_abonado = $request->montoAbono;
-                        $abonos->usr_registro = Auth::user()->id;
-                        $abonos->comentario = $request->comentarioAbono;
-                        $abonos->url_documento = $path;
-                        $abonos->fecha_pago = $request->fecha_pago;
-                        $abonos->numero_recibo = $request->numero_recibo;
+            if ($cobrarInteres && $montoInteres > 0) {
+                // El interés se persiste por separado — aquí calculamos cuánto va al capital
+                if ($montoTotal <= $montoInteres) {
+                    // El pago no alcanza a cubrir siquiera el interés: todo va a interés
+                    $montoAplicadoCapital = 0;
+                } else {
+                    // Sobrante después de pagar el interés → va al capital
+                    $montoAplicadoCapital = round($montoTotal - $montoInteres, 2);
+                }
+            }
 
-                        // Registro de desvío de período por conciliación
-                        if ($request->filled('periodo_comision_original')) {
-                            $abonos->periodo_comision_original = $request->periodo_comision_original;
-                            $abonos->periodo_comision_asignado = $request->periodo_comision_asignado ?: null;
-                            $abonos->desvio_confirmado_por     = Auth::id();
-                        }
+            $file = $request->file('doc_pago');
+            if($file != NULL){
+                $name = 'doc_'. time()."-". '.' . $file->getClientOriginalExtension();
+                $path = public_path() . '/documentos_aplicacion_pagos';
+                $file->move($path, $name);
+            }else{
+                $name = '';
+            }
 
-                       $abonos->save();
+           $abonos = new Modelabonos_creditos;
+            $abonos->aplicacion_pagos_id = $request->codAplicPagoAbono;
+            $abonos->factura_id = $request->idFacturaAbono;
+            $abonos->banco_id = $request->selectBanco;
+            $abonos->estado_abono= 1;
+            $abonos->id_tipo_pago_cobro= $request->selectMetodoPago;
+            $abonos->monto_abonado = $request->montoAbono;
+            $abonos->usr_registro = Auth::user()->id;
+            $abonos->comentario = $request->comentarioAbono;
+            $abonos->url_documento = $path;
+            $abonos->fecha_pago = $request->fecha_pago;
+            $abonos->numero_recibo = $request->numero_recibo;
 
-                       $cuentas2 = DB::select("
+            // Registro de desvío de período por conciliación
+            if ($request->filled('periodo_comision_original')) {
+                $abonos->periodo_comision_original = $request->periodo_comision_original;
+                $abonos->periodo_comision_asignado = $request->periodo_comision_asignado ?: null;
+                $abonos->desvio_confirmado_por     = Auth::id();
+            }
 
-                       CALL sp_aplicacion_pagos(
-                           '8',
-                           '0',
-                           '".Auth::user()->id."',
-                           '".$request->idFacturaAbono."',
-                           '".$comentarioAbono."',
-                           '".$request->codAplicPagoAbono."',
-                           '0',
-                           '".$request->montoAbono."',
-                           @estado, @msjResultado);");
+           $abonos->save();
 
+           // El SP recibe el monto que se aplica al capital (no el total del pago)
+           $cuentas2 = DB::select("
 
-                       //dd($cuentas2[0]->estado);
+           CALL sp_aplicacion_pagos(
+               '8',
+               '0',
+               '".Auth::user()->id."',
+               '".$request->idFacturaAbono."',
+               '".$comentarioAbono."',
+               '".$request->codAplicPagoAbono."',
+               '0',
+               '".$montoAplicadoCapital."',
+               @estado, @msjResultado);");
 
-                       $cliente = DB::SELECTONE("select cliente_id from factura where id=".$request->idFacturaAbono);
+           $cliente = DB::SELECTONE("select cliente_id from factura where id=".$request->idFacturaAbono);
+           $creditoCli = DB::SELECTONE("select credito_inicial, credito, cliente_categoria_escala_id from cliente where id=".$cliente->cliente_id);
 
-                       $creditoCli = DB::SELECTONE("select credito_inicial, credito, cliente_categoria_escala_id from cliente where id=".$cliente->cliente_id);
+           if ($creditoCli->credito_inicial !=0) {
+            // Para el crédito del cliente se usa el monto aplicado al capital
+            $homologoCredito = $creditoCli->credito + $montoAplicadoCapital;
 
-                       if ($creditoCli->credito_inicial !=0) {
-                        $homologoCredito = $creditoCli->credito + $request->montoAbono;
+            $clienteCredito =  ModelCliente::find($cliente->cliente_id);
+            $clienteCredito->credito = trim($homologoCredito);
+            $clienteCredito->save();
+           }
 
-                        $clienteCredito =  ModelCliente::find($cliente->cliente_id);
-                        $clienteCredito->credito = trim($homologoCredito);
-                        $clienteCredito->save();
-                       }
+           if ($cuentas2[0]->estado == -1) {
+               return response()->json([
+                   "text" => "Ha ocurrido un error en el procedimiento almacenado.",
+                   "icon" => "error",
+                   "title"=>"Error!"
+               ],402);
+           }
 
+           $saldoActual2 = DB::selectone('select saldo from aplicacion_pagos where id = '.$request->codAplicPagoAbono);
+           $saldoDespues = (float) ($saldoActual2->saldo ?? 0);
 
-                       if ($cuentas2[0]->estado == -1) {
-                           return response()->json([
-                               "text" => "Ha ocurrido un error en el procedimiento almacenado.",
-                               "icon" => "error",
-                               "title"=>"Error!"
-                           ],402);
-                       }
+           if($saldoDespues <= 0.0001){
+               DB::table('aplicacion_pagos')
+                   ->where('id', (int) $request->codAplicPagoAbono)
+                   ->update(['saldo' => 0, 'updated_at' => now()]);
 
+               $cuentas22 = DB::select("
 
-                       $saldoActual2 = DB::selectone('select saldo from aplicacion_pagos where id = '.$request->codAplicPagoAbono);
-                       $saldoDespues = (float) ($saldoActual2->saldo ?? 0);
+                   CALL sp_aplicacion_pagos(
+                       '9',
+                       '0',
+                       '".Auth::user()->id."',
+                       '0',
+                       'CIERRE AUTOMATICO POR SALDO 0 (ABONO)',
+                       '".$request->codAplicPagoAbono."',
+                       '0',
+                       '0',
+                       @estado,
+                       @msjResultado);");
 
-                       if($saldoDespues <= 0.0001){
-                           // Normalizar a 0 exacto para evitar residuos decimales.
-                           DB::table('aplicacion_pagos')
-                               ->where('id', (int) $request->codAplicPagoAbono)
-                               ->update(['saldo' => 0, 'updated_at' => now()]);
+               if ($cuentas22[0]->estado == -1) {
+                   return response()->json([
+                       "text" => "Ha ocurrido un error al cerrar automaticamente la factura.",
+                       "icon" => "error",
+                       "title"=>"Error!"
+                   ],402);
+               }
 
-                           $cuentas22 = DB::select("
+               $apPostCierre = DB::table('aplicacion_pagos')
+                   ->where('id', (int) $request->codAplicPagoAbono)
+                   ->select('estado_cerrado')
+                   ->first();
 
-                               CALL sp_aplicacion_pagos(
-                                   '9',
-                                   '0',
-                                   '".Auth::user()->id."',
-                                   '0',
-                                   'CIERRE AUTOMATICO POR SALDO 0 (ABONO)',
-                                   '".$request->codAplicPagoAbono."',
-                                   '0',
-                                   '0',
-                                   @estado,
-                                   @msjResultado);");
+               if (!$apPostCierre || (int) $apPostCierre->estado_cerrado !== 2) {
+                   DB::table('aplicacion_pagos')
+                       ->where('id', (int) $request->codAplicPagoAbono)
+                       ->update([
+                           'estado_cerrado'       => 2,
+                           'usr_cerro'            => Auth::id(),
+                           'fecha_cierre_factura' => now(),
+                           'ultimo_usr_actualizo' => Auth::id(),
+                           'updated_at'           => now(),
+                       ]);
+               }
 
-                           if ($cuentas22[0]->estado == -1) {
-                               return response()->json([
-                                   "text" => "Ha ocurrido un error al cerrar automaticamente la factura.",
-                                   "icon" => "error",
-                                   "title"=>"Error!"
-                               ],402);
-                           }
+                $generador = app(GeneradorFacturasComision::class);
+                if ($request->filled('periodo_comision_asignado')) {
+                    $fechaPagoComision = \Carbon\Carbon::parse($request->periodo_comision_asignado)
+                        ->startOfMonth()->toDateString();
+                } else {
+                    $fechaPagoComision = $request->fecha_pago
+                        ? \Carbon\Carbon::parse($request->fecha_pago)->toDateString()
+                        : null;
+                }
+                $arrayfacturas_comision = $generador->generar(
+                    (int) $request->idFacturaAbono,
+                    (int) $request->codAplicPagoAbono,
+                    $fechaPagoComision
+                );
 
-                           // Blindaje: si por cualquier motivo no cerró en SP, cerrar por fallback.
-                           $apPostCierre = DB::table('aplicacion_pagos')
-                               ->where('id', (int) $request->codAplicPagoAbono)
-                               ->select('estado_cerrado')
-                               ->first();
+                if (!empty($arrayfacturas_comision)) {
+                    $fechaMoraCalculo = $request->fecha_pago
+                        ? \Carbon\Carbon::parse($request->fecha_pago)->toDateString()
+                        : $fechaPagoComision;
+                    $arrayfacturas_comision = app(AplicadorRetencionesMora::class)
+                        ->aplicar($arrayfacturas_comision, (int) $request->idFacturaAbono, $fechaMoraCalculo);
+                    $procesador = app(ProcesadorComisiones::class);
+                    foreach ($arrayfacturas_comision as $factura) {
+                        $procesador->procesar($factura);
+                    }
+                }
 
-                           if (!$apPostCierre || (int) $apPostCierre->estado_cerrado !== 2) {
-                               DB::table('aplicacion_pagos')
-                                   ->where('id', (int) $request->codAplicPagoAbono)
-                                   ->update([
-                                       'estado_cerrado'       => 2,
-                                       'usr_cerro'            => Auth::id(),
-                                       'fecha_cierre_factura' => now(),
-                                       'ultimo_usr_actualizo' => Auth::id(),
-                                       'updated_at'           => now(),
-                                   ]);
-                           }
+           }
 
-                                // Registrar comisiones.
-                                // Si el mes del pago estaba conciliado, usar el período asignado
-                                // (próximo abierto); de lo contrario usar fecha_pago normal.
-                                $generador = app(GeneradorFacturasComision::class);
-                                if ($request->filled('periodo_comision_asignado')) {
-                                    // Usar el primer día del mes asignado como fecha de comisión
-                                    $fechaPagoComision = \Carbon\Carbon::parse($request->periodo_comision_asignado)
-                                        ->startOfMonth()->toDateString();
-                                } else {
-                                    $fechaPagoComision = $request->fecha_pago
-                                        ? \Carbon\Carbon::parse($request->fecha_pago)->toDateString()
-                                        : null;
-                                }
-                                $arrayfacturas_comision = $generador->generar(
-                                    (int) $request->idFacturaAbono,
-                                    (int) $request->codAplicPagoAbono,
-                                    $fechaPagoComision
-                                );
+           if ($request->boolean('requiereRetencionFutura')) {
+               $this->marcarSeguimientoRetencionFutura(
+                   (int) $request->idFacturaAbono,
+                   (int) $request->codAplicPagoAbono,
+                   $request->comentarioAbono
+               );
+           }
 
-                                if (!empty($arrayfacturas_comision)) {
-                                    // Para mora usar siempre la fecha real de pago del abono.
-                                    // La fecha asignada de período se conserva solo para mes contable.
-                                    $fechaMoraCalculo = $request->fecha_pago
-                                        ? \Carbon\Carbon::parse($request->fecha_pago)->toDateString()
-                                        : $fechaPagoComision;
-                                    $arrayfacturas_comision = app(AplicadorRetencionesMora::class)
-                                        ->aplicar($arrayfacturas_comision, (int) $request->idFacturaAbono, $fechaMoraCalculo);
-                                    $procesador = app(ProcesadorComisiones::class);
-                                    foreach ($arrayfacturas_comision as $factura) {
-                                        $procesador->procesar($factura);
-                                    }
-                                }
+           // ── Persistir decisión de interés ──────────────────────────────────
+           $montoInteresRequest = (float) ($request->interesMontoHidden ?? 0);
+           if ($montoInteresRequest > 0 && !empty($request->interesConfiguracionId)) {
+               $this->_persistirInteresInterno($request, $cobrarInteres, $montoAplicadoCapital);
+           }
 
-                       }
-
-                       if ($request->boolean('requiereRetencionFutura')) {
-                           $this->marcarSeguimientoRetencionFutura(
-                               (int) $request->idFacturaAbono,
-                               (int) $request->codAplicPagoAbono,
-                               $request->comentarioAbono
-                           );
-                       }
-
-                       return response()->json([
-                           'icon'  => 'success',
-                           'title' => '¡Éxito!',
-                           'text'  => 'El pago fue registrado correctamente.',
+           return response()->json([
+               'icon'  => 'success',
+               'title' => '¡Éxito!',
+               'text'  => 'El pago fue registrado correctamente.'
+                        . ($cobrarInteres && $montoInteresRequest > 0
+                            ? ' Interés de L. ' . number_format($montoInteresRequest, 2) . ' incluido.'
+                            : ''),
                        ]);
 
            }catch (QueryException $e) {
@@ -1360,6 +1378,47 @@ class Pagos extends Component
            ],402);
        }
 
+    }
+
+    // ─── Persistir interés internamente durante guardarCreditos ──────────────
+    private function _persistirInteresInterno($request, bool $cobrarInteres, float $montoAplicadoCapital): void
+    {
+        $facturaId    = (int) $request->idFacturaAbono;
+        $configId     = (int) $request->interesConfiguracionId;
+        $montoInteres = (float) $request->interesMontoHidden;
+
+        if (!$configId || $montoInteres <= 0) return;
+
+        // Evitar duplicados: si ya hay un interés cobrado activo, no persistir
+        $yaCobrado = DB::table('factura_interes')
+            ->where('factura_id', $facturaId)
+            ->where('cobrado', 1)
+            ->where('anulado', 0)
+            ->exists();
+
+        if ($cobrarInteres && $yaCobrado) return;
+
+        try {
+            \App\Models\FacturaInteres::create([
+                'factura_id'               => $facturaId,
+                'configuracion_interes_id' => $configId,
+                'fecha_inicio'             => $request->interesVencimiento,
+                'fecha_fin'                => $request->fecha_pago ?? now()->toDateString(),
+                'capital_base'             => $request->interesCapitalHidden,
+                'porcentaje_aplicado'      => $request->interesPorcentaje,
+                'dias_vencidos'            => (int) $request->interesDiasHidden,
+                'monto_interes'            => $montoInteres,
+                'estado'                   => 1,
+                'cobrado'                  => $cobrarInteres,
+                'fecha_cobro'              => $cobrarInteres ? ($request->fecha_pago ?? now()->toDateString()) : null,
+                'usuario_cobro'            => $cobrarInteres ? Auth::id() : null,
+                'usr_no_cobro'             => !$cobrarInteres ? Auth::id() : null,
+                'fecha_no_cobro'           => !$cobrarInteres ? now() : null,
+                'motivo_no_cobro'          => !$cobrarInteres ? ($request->motivoNoCobrar ?? null) : null,
+            ]);
+        } catch (\Throwable $e) {
+            // Silencioso — no bloquear el flujo principal del pago
+        }
     }
 
     public function gestionComision($cliente_categoria_escala_id,$idFacturaAbono ,$codAplicPagoAbono){
@@ -1572,6 +1631,7 @@ class Pagos extends Component
 
         $estadoCuenta = array_map(function ($row) {
             $row->acumulado = $row->acumulado ?? $row->Acumulado ?? 0;
+            $row->interes   = $row->interes ?? 0;
             return $row;
         }, $estadoCuenta);
 
@@ -1580,22 +1640,170 @@ class Pagos extends Component
             $saldo = $row->saldo ?? $row->Saldo ?? 0;
             return ((float) $saldo) > 0;
         });
-        // Reindexar el array tras el filtro
         $estadoCuenta = array_values($estadoCuenta);
 
+        // Recalcular acumulado = saldo + interés tras el filtrado
+        $runningTotal = 0;
+        foreach ($estadoCuenta as $row) {
+            $runningTotal   += (float) ($row->saldo ?? 0) + (float) ($row->interes ?? 0);
+            $row->acumulado  = $runningTotal;
+        }
+
         if (empty($estadoCuenta)) {
-            // Sin facturas pendientes para este cliente — generar PDF informativo
-            $nombreCliente = DB::table('cliente')->where('id', (int) $idClientepdf)->value('nombre') ?? 'Cliente #'.$idClientepdf;
-            $estadoCuenta  = [];
+            $nombreCliente  = DB::table('cliente')->where('id', (int) $idClientepdf)->value('nombre') ?? 'Cliente #'.$idClientepdf;
             $sinMovimientos = true;
         } else {
             $nombreCliente  = $estadoCuenta[0]->cliente;
             $sinMovimientos = false;
         }
 
-        $pdf = PDF::loadView('/pdf/estadocuentaAplicacion', compact('estadoCuenta', 'nombreCliente', 'sinMovimientos'))->setPaper('letter')->setPaper("A4", "landscape");
+        $pdf = PDF::loadView('/pdf/estadocuentaAplicacion', compact('estadoCuenta', 'nombreCliente', 'sinMovimientos'))
+                  ->setPaper('letter')
+                  ->setPaper("A4", "landscape");
 
         return $pdf->stream("ESTADO_CUENTA.pdf");
+    }
+
+    // ─── Consultar interés de una factura (idempotente — no persiste) ─────────
+    public function consultarInteres($facturaId)
+    {
+        $facturaId = (int) $facturaId;
+
+        // Usar la fecha del pago efectivo; si no se provee, usar la fecha de hoy.
+        // Se evita pasar NULL al SP para no causar fallos silenciosos en PDO/MySQL.
+        $fechaCalculo = request('fecha_pago')
+            ? date('Y-m-d', strtotime(request('fecha_pago')))
+            : date('Y-m-d');
+
+        $resultado = DB::select("CALL sp_calcular_intereses_factura(?, ?)", [
+            $facturaId,
+            $fechaCalculo,
+        ]);
+
+        if (empty($resultado)) {
+            return response()->json(['aplica' => false, 'monto_interes' => 0], 200);
+        }
+
+        return response()->json($resultado[0], 200);
+    }
+
+    // ─── Persistir interés al confirmar el cobro ──────────────────────────────
+    public function persistirInteres(Request $request)
+    {
+        $request->validate([
+            'factura_id'           => 'required|integer|exists:factura,id',
+            'configuracion_id'     => 'required|integer|exists:configuracion_intereses,id',
+            'capital_base'         => 'required|numeric|min:0',
+            'porcentaje_aplicado'  => 'required|numeric|min:0',
+            'dias_vencidos'        => 'required|integer|min:0',
+            'monto_interes'        => 'required|numeric|min:0',
+            'fecha_vencimiento'    => 'required|date',
+        ]);
+
+        $facturaId = (int) $request->factura_id;
+
+        // Protección anti-duplicado: si ya existe un interés cobrado para este período, rechazar
+        $yaCobrado = DB::table('factura_interes')
+            ->where('factura_id', $facturaId)
+            ->where('cobrado', 1)
+            ->where('anulado', 0)
+            ->exists();
+
+        if ($yaCobrado) {
+            return response()->json([
+                'icon'  => 'warning',
+                'title' => 'Interés ya registrado',
+                'text'  => 'Esta factura ya tiene un interés cobrado registrado. No se puede duplicar.',
+            ], 409);
+        }
+
+        DB::beginTransaction();
+        try {
+            $interes = \App\Models\FacturaInteres::create([
+                'factura_id'              => $facturaId,
+                'configuracion_interes_id' => $request->configuracion_id,
+                'fecha_inicio'            => $request->fecha_vencimiento,
+                'fecha_fin'               => now()->toDateString(),
+                'capital_base'            => $request->capital_base,
+                'porcentaje_aplicado'     => $request->porcentaje_aplicado,
+                'dias_vencidos'           => $request->dias_vencidos,
+                'monto_interes'           => $request->monto_interes,
+                'estado'                  => 1,
+                'cobrado'                 => true,
+                'fecha_cobro'             => now()->toDateString(),
+                'usuario_cobro'           => Auth::id(),
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'icon'      => 'success',
+                'title'     => 'Interés registrado',
+                'text'      => 'El interés por mora fue registrado correctamente.',
+                'interes_id' => $interes->id,
+            ], 200);
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json([
+                'icon'  => 'error',
+                'title' => 'Error',
+                'text'  => 'No se pudo registrar el interés: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    // ─── Registrar decisión de no cobrar interés ──────────────────────────────
+    public function registrarNoCobrarInteres(Request $request)
+    {
+        $request->validate([
+            'factura_id'           => 'required|integer|exists:factura,id',
+            'configuracion_id'     => 'required|integer|exists:configuracion_intereses,id',
+            'capital_base'         => 'required|numeric|min:0',
+            'porcentaje_aplicado'  => 'required|numeric|min:0',
+            'dias_vencidos'        => 'required|integer|min:0',
+            'monto_interes'        => 'required|numeric|min:0',
+            'fecha_vencimiento'    => 'required|date',
+            'motivo'               => 'nullable|string|max:500',
+        ]);
+
+        $facturaId = (int) $request->factura_id;
+
+        DB::beginTransaction();
+        try {
+            // Registrar la decisión como interés no cobrado para auditoría
+            \App\Models\FacturaInteres::create([
+                'factura_id'              => $facturaId,
+                'configuracion_interes_id' => $request->configuracion_id,
+                'fecha_inicio'            => $request->fecha_vencimiento,
+                'fecha_fin'               => now()->toDateString(),
+                'capital_base'            => $request->capital_base,
+                'porcentaje_aplicado'     => $request->porcentaje_aplicado,
+                'dias_vencidos'           => $request->dias_vencidos,
+                'monto_interes'           => $request->monto_interes,
+                'estado'                  => 1,
+                'cobrado'                 => false,
+                'usr_no_cobro'            => Auth::id(),
+                'fecha_no_cobro'          => now(),
+                'motivo_no_cobro'         => $request->motivo,
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'icon'  => 'success',
+                'title' => 'Registrado',
+                'text'  => 'Decisión de no cobrar interés registrada para auditoría.',
+            ], 200);
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json([
+                'icon'  => 'error',
+                'title' => 'Error',
+                'text'  => 'Error al registrar la decisión: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ══════════════════════════════════════════════════════════════════

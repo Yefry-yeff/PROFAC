@@ -623,7 +623,39 @@
     gap: 5px !important;
 }
 .ap-actions-toggle:hover { background: #334155 !important; }
-</style>
+
+/* ── Modal Abono — Secciones ── */
+.abono-section { border-bottom: 1px solid #e2e8f0; }
+.abono-section-title {
+    background: linear-gradient(135deg,#f8fafc,#f1f5f9);
+    padding: 9px 20px;
+    font-size: 11px; font-weight: 800; color: #374151;
+    text-transform: uppercase; letter-spacing: .5px;
+    display: flex; align-items: center; gap: 8px;
+    border-bottom: 1px solid #e2e8f0;
+}
+.abono-section-num {
+    width: 20px; height: 20px;
+    background: linear-gradient(135deg,#f39c12,#e67e22);
+    color: #fff; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 900; flex-shrink: 0;
+}
+.abono-section-body { padding: 14px 20px; background: #fff; }
+.abono-info-card {
+    background: #fff; border: 1px solid #e2e8f0;
+    border-radius: 9px; padding: 10px 14px; height: 100%;
+}
+.abono-info-label {
+    font-size: 10px; font-weight: 700; color: #6b7280;
+    text-transform: uppercase; letter-spacing: .5px; margin-bottom: 3px;
+}
+.abono-info-value { font-size: 13px; font-weight: 700; color: #111827; word-break: break-all; }
+.ap-label-req {
+    font-size: 11px; font-weight: 700; color: #374151;
+    text-transform: uppercase; letter-spacing: .4px;
+    display: block; margin-bottom: 5px;
+}</style>
 @endpush
 
 {{-- ===== PAGE HEADER ===== --}}
@@ -985,102 +1017,278 @@
 </div>
 
 
-{{-- ===== MODAL CRÉDITOS / ABONOS ===== --}}
+{{-- ===== MODAL CRÉDITOS / ABONOS — 4 secciones ===== --}}
 <div class="modal ap-modal fade" id="modalAbonos" tabindex="-1" role="dialog" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
-        <div class="modal-content">
-            <div class="modal-header orange">
+    {{-- margin-top: empujar debajo del header principal (~60px) --}}
+    <div class="modal-dialog modal-lg" role="document" style="margin-top:70px;margin-bottom:20px;">
+        <div class="modal-content" style="border-radius:14px;overflow:hidden;">
+
+            {{-- HEADER sticky --}}
+            <div class="modal-header orange" style="position:sticky;top:0;z-index:10;border-radius:0;">
                 <h5 class="modal-title">
-                    <i class="fa fa-credit-card"></i> Aplicar Crédito / Abono
+                    <i class="fa fa-credit-card mr-2"></i> Aplicar Crédito / Abono
                 </h5>
                 <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
             </div>
-            <div class="modal-body">
+
+            <div class="modal-body" style="padding:0;background:#f4f6f9;">
                 <form id="formabonos" name="formabonos">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="ap-form-group">
-                                <label><i class="fa fa-hashtag mr-1"></i> Código de Registro</label>
-                                <input required type="text" readonly class="form-control" id="codAplicPagoAbono" name="codAplicPagoAbono">
-                            </div>
+
+                    {{-- ══════════════════════════════════════════
+                         SECCIÓN 1 — DATOS DE FACTURA
+                    ══════════════════════════════════════════ --}}
+                    <div class="abono-section">
+                        <div class="abono-section-title">
+                            <span class="abono-section-num">1</span>
+                            <i class="fa fa-file-invoice mr-2"></i> Datos de la Factura
                         </div>
-                        <div class="col-md-6">
-                            <div class="ap-form-group">
-                                <label><i class="fa fa-file-text-o mr-1"></i> Factura</label>
-                                <input required type="text" readonly class="form-control" id="facturaCaiAbono" name="facturaCaiAbono">
-                                <input type="hidden" id="idFacturaAbono" name="idFacturaAbono">
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="ap-form-group">
-                                <label><i class="fa fa-dollar mr-1"></i> Monto a Abonar <span id="abono-saldo-label" style="color:#1a7a4a;font-weight:600;font-size:.82rem;"></span></label>
-                                <input required type="number" min="0" step="any" class="form-control" id="montoAbono" name="montoAbono" placeholder="0.00">
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="ap-form-group">
-                                <label><i class="fa fa-credit-card mr-1"></i> Medio de Pago</label>
-                                <select required onchange="metodoPago()" id="selectMetodoPago" name="selectMetodoPago" class="form-control">
-                                    <option value="">— Seleccione —</option>
-                                    <option value="1">EFECTIVO</option>
-                                    <option value="2">TRANSFERENCIA BANCARIA</option>
-                                    <option value="3">CHEQUE</option>
-                                    <option value="4">LINK DE PAGO</option>
-                                    <option value="5">POS</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="ap-form-group">
-                                <label><i class="fa fa-bank mr-1"></i> Banco</label>
-                                <select required id="selectBanco" name="selectBanco" class="form-control"></select>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="ap-form-group">
-                                <label><i class="fa fa-calendar mr-1"></i> Fecha del Pago <span class="text-danger">*</span></label>
-                                <input class="form-control" required type="date" id="fecha_pago" name="fecha_pago">
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="ap-form-group">
-                                <label><i class="fa fa-ticket mr-1"></i> Número de Recibo</label>
-                                <input class="form-control" type="text" maxlength="100" id="numero_recibo" name="numero_recibo" placeholder="Ingrese el número de recibo">
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="ap-form-group">
-                                <label><i class="fa fa-paperclip mr-1"></i> Documento de Pago <span class="text-danger">*</span></label>
-                                <input class="form-control" id="doc_pago" name="doc_pago" type="file" accept="image/png, image/jpeg, image/jpg, application/pdf">
-                            </div>
-                        </div>
-                        <div class="col-12">
-                            <div class="ap-ret-track-box">
-                                <div class="custom-control custom-switch">
-                                    <input type="checkbox" class="custom-control-input" id="requiereRetencionFutura" name="requiereRetencionFutura" value="1">
-                                    <label class="custom-control-label" for="requiereRetencionFutura">Marcar esta factura para retención futura</label>
+                        <div class="abono-section-body" style="padding:12px 16px;">
+                            {{-- Fila 1: Código | Factura | Fec. Venc. | Días Vencidos --}}
+                            <div class="row" style="margin-bottom:8px;">
+                                <div class="col-md-2">
+                                    <div class="abono-info-card">
+                                        <div class="abono-info-label"># Código</div>
+                                        <div class="abono-info-value" id="ds1_codigo">—</div>
+                                        <input type="hidden" id="codAplicPagoAbono" name="codAplicPagoAbono">
+                                    </div>
                                 </div>
-                                <div class="ap-ret-track-note">
-                                    Use esta bandera cuando registrará hoy un abono, pero la retención se gestionará después. La factura quedará identificada como pendiente hasta que la retención se aplique o se descarte.
+                                <div class="col-md-4">
+                                    <div class="abono-info-card">
+                                        <div class="abono-info-label">Factura</div>
+                                        <div class="abono-info-value" id="ds1_factura" style="font-size:11px;word-break:break-all;">—</div>
+                                        <input type="hidden" id="facturaCaiAbono" name="facturaCaiAbono">
+                                        <input type="hidden" id="idFacturaAbono"   name="idFacturaAbono">
+                                        <input type="hidden" id="ds1_fechaVencHidden">
+                                    </div>
                                 </div>
-                                <div class="ap-ret-track-status" id="retencionFuturaEstadoActual" style="display:none;"></div>
+                                <div class="col-md-3">
+                                    <div class="abono-info-card">
+                                        <div class="abono-info-label">Fec. Vencimiento</div>
+                                        <div class="abono-info-value" id="ds1_fechaVenc">—</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="abono-info-card" id="ds1_diasVencCard">
+                                        <div class="abono-info-label" id="ds1_diasVencLabel">Días Vencidos</div>
+                                        <div class="abono-info-value" id="ds1_diasVenc">—</div>
+                                        <div style="font-size:9px;color:#a0aec0;margin-top:1px;" id="ds1_diasVencBase"></div>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                        <div class="col-12">
-                            <div class="ap-form-group">
-                                <label><i class="fa fa-comment mr-1"></i> Nota del Pago <span class="text-danger">*</span></label>
-                                <textarea required class="form-control" id="comentarioAbono" name="comentarioAbono" rows="3" placeholder="Ingrese la nota del pago realizado..."></textarea>
+                            {{-- Fila 2: Capital | Interés --}}
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="abono-info-card">
+                                        <div class="abono-info-label">Capital Pendiente</div>
+                                        <div class="abono-info-value" id="ds1_capital">—</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="abono-info-card" id="ds1_interesCard">
+                                        <div class="abono-info-label">Interés por Mora</div>
+                                        <div class="abono-info-value" id="ds1_interes">—</div>
+                                        <div style="font-size:9px;color:#a0aec0;margin-top:1px;" id="ds1_interesBase"></div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
-                    <div class="modal-footer px-0 pb-0">
+
+                    {{-- ══════════════════════════════════════════
+                         SECCIÓN 2 — DATOS DEL PAGO
+                    ══════════════════════════════════════════ --}}
+                    <div class="abono-section">
+                        <div class="abono-section-title">
+                            <span class="abono-section-num">2</span>
+                            <i class="fa fa-calendar-check-o mr-2"></i> Datos del Pago
+                        </div>
+                        <div class="abono-section-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="ap-form-group">
+                                        <label class="ap-label-req">Fecha del Pago
+                                            <span class="text-danger">*</span>
+                                            <small style="color:#718096;font-size:10px;font-weight:400;"> (fecha efectiva del depósito)</small>
+                                        </label>
+                                        <input class="form-control" required type="date" id="fecha_pago" name="fecha_pago">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="ap-form-group">
+                                        <label class="ap-label-req">Monto a Abonar <span class="text-danger">*</span></label>
+                                        <input required type="number" min="0.01" step="0.01" class="form-control"
+                                               id="montoAbono" name="montoAbono" value="0.00" placeholder="0.00"
+                                               oninput="actualizarResumen()">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="ap-form-group">
+                                        <label class="ap-label-req">Medio de Pago <span class="text-danger">*</span></label>
+                                        <select required onchange="metodoPago()" id="selectMetodoPago" name="selectMetodoPago" class="form-control">
+                                            <option value="">— Seleccione —</option>
+                                            <option value="1">EFECTIVO</option>
+                                            <option value="2">TRANSFERENCIA BANCARIA</option>
+                                            <option value="3">CHEQUE</option>
+                                            <option value="4">LINK DE PAGO</option>
+                                            <option value="5">POS</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="ap-form-group">
+                                        <label class="ap-label-req">Banco <span class="text-danger">*</span></label>
+                                        <select required id="selectBanco" name="selectBanco" class="form-control"></select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="ap-form-group">
+                                        <label><i class="fa fa-ticket mr-1"></i> Número de Recibo</label>
+                                        <input class="form-control" type="text" maxlength="100"
+                                               id="numero_recibo" name="numero_recibo" placeholder="Ingrese el número de recibo">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="ap-form-group">
+                                        <label class="ap-label-req">Documento de Pago <span class="text-danger">*</span></label>
+                                        <input required class="form-control" id="doc_pago" name="doc_pago" type="file"
+                                               accept="image/png, image/jpeg, image/jpg, application/pdf">
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <div class="ap-form-group">
+                                        <label class="ap-label-req">Nota del Pago <span class="text-danger">*</span></label>
+                                        <textarea required class="form-control" id="comentarioAbono" name="comentarioAbono"
+                                                  rows="2" placeholder="Ingrese la nota del pago realizado..."></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- ══════════════════════════════════════════
+                         SECCIÓN 3 — COBROS ADICIONALES
+                    ══════════════════════════════════════════ --}}
+                    <div class="abono-section">
+                        <div class="abono-section-title">
+                            <span class="abono-section-num">3</span>
+                            <i class="fa fa-plus-circle mr-2"></i> Cobros Adicionales
+                        </div>
+                        <div class="abono-section-body">
+
+                            {{-- Hiddens de interés (siempre en DOM) --}}
+                            <input type="hidden" id="interesFacturaId"       name="interesFacturaId">
+                            <input type="hidden" id="interesConfiguracionId" name="interesConfiguracionId">
+                            <input type="hidden" id="interesCapitalHidden"   name="interesCapitalHidden">
+                            <input type="hidden" id="interesPorcentaje"      name="interesPorcentaje">
+                            <input type="hidden" id="interesDiasHidden"      name="interesDiasHidden">
+                            <input type="hidden" id="interesMontoHidden"     name="interesMontoHidden">
+                            <input type="hidden" id="interesVencimiento"     name="interesVencimiento">
+                            <input type="hidden" id="cobrarInteresFlag"      name="cobrarInteresFlag" value="1">
+
+                            {{-- ── Checkbox: Cobrar interés (visible solo si hay interés) ── --}}
+                            <div id="checkInteresWrap" style="display:none;margin-bottom:10px;">
+                                <div class="custom-control custom-switch">
+                                    <input type="checkbox" class="custom-control-input"
+                                           id="cobrarInteresCheck" name="cobrarInteres" value="1" checked
+                                           onchange="onCobrarInteresChange()">
+                                    <label class="custom-control-label" for="cobrarInteresCheck"
+                                           style="font-weight:700;font-size:13px;cursor:pointer;color:#1a202c;">
+                                        <i class="fa fa-percent mr-1" style="color:#c53030;"></i>
+                                        Cobrar interés por mora
+                                        <span id="checkInteresMontoBadge" style="background:#fee2e2;color:#9b1c1c;border-radius:20px;padding:2px 8px;font-size:11px;margin-left:6px;"></span>
+                                    </label>
+                                </div>
+                                <div id="motivoNoCobrarWrap" style="display:none;margin-top:6px;padding-left:28px;">
+                                    <input type="text" class="form-control form-control-sm"
+                                           id="motivoNoCobrar" name="motivoNoCobrar"
+                                           placeholder="Motivo por el cual no se cobra el interés (opcional)..."
+                                           maxlength="500">
+                                </div>
+                            </div>
+
+                            {{-- ── Checkbox: Retención futura ── --}}
+                            <div class="custom-control custom-switch">
+                                <input type="checkbox" class="custom-control-input"
+                                       id="requiereRetencionFutura" name="requiereRetencionFutura" value="1">
+                                <label class="custom-control-label" for="requiereRetencionFutura"
+                                       style="font-weight:700;font-size:13px;cursor:pointer;color:#1a202c;">
+                                    <i class="fa fa-flag mr-1" style="color:#c2410c;"></i>
+                                    Marcar para retención futura
+                                </label>
+                            </div>
+                            <div class="ap-ret-track-status" id="retencionFuturaEstadoActual" style="display:none;margin-top:4px;padding-left:28px;"></div>
+                        </div>
+                    </div>
+
+                    {{-- ══════════════════════════════════════════
+                         SECCIÓN 4 — RESUMEN
+                    ══════════════════════════════════════════ --}}
+                    <div class="abono-section" id="seccionResumen">
+                        <div class="abono-section-title">
+                            <span class="abono-section-num">4</span>
+                            <i class="fa fa-balance-scale mr-2"></i> Resumen de Aplicación
+                        </div>
+                        <div class="abono-section-body">
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+
+                                {{-- Distribución del pago --}}
+                                <div style="background:#fff;border-radius:10px;padding:14px;border:1px solid #e2e8f0;">
+                                    <div style="font-size:11px;font-weight:800;color:#718096;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px;">
+                                        <i class="fa fa-arrow-down mr-1" style="color:#059669;"></i> Lo que se aplica
+                                    </div>
+                                    <div style="font-size:12px;" id="resumenDistribucion">
+                                        <div style="display:flex;justify-content:space-between;padding:3px 0;color:#374151;">
+                                            <span>Monto del pago</span>
+                                            <strong id="rs_montoPago">—</strong>
+                                        </div>
+                                        <div id="rs_filaInteres" style="display:flex;justify-content:space-between;padding:3px 0;color:#c53030;">
+                                            <span>(-) Interés por mora</span>
+                                            <strong id="rs_interesAplicado">—</strong>
+                                        </div>
+                                        <div style="display:flex;justify-content:space-between;padding:3px 0;color:#374151;border-top:1px dashed #e2e8f0;margin-top:4px;padding-top:6px;">
+                                            <span>Abono al capital</span>
+                                            <strong id="rs_abonoCapital" style="color:#059669;">—</strong>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {{-- Estado de la factura después --}}
+                                <div style="background:#fff;border-radius:10px;padding:14px;border:1px solid #e2e8f0;">
+                                    <div style="font-size:11px;font-weight:800;color:#718096;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px;">
+                                        <i class="fa fa-file-text-o mr-1" style="color:#3b82f6;"></i> Factura después del pago
+                                    </div>
+                                    <div style="font-size:12px;">
+                                        <div style="display:flex;justify-content:space-between;padding:3px 0;color:#374151;">
+                                            <span>Saldo actual</span>
+                                            <strong id="rs_saldoActual">—</strong>
+                                        </div>
+                                        <div style="display:flex;justify-content:space-between;padding:3px 0;color:#374151;">
+                                            <span>(-) Abono al capital</span>
+                                            <strong id="rs_abonoCapital2" style="color:#059669;">—</strong>
+                                        </div>
+                                        <div style="display:flex;justify-content:space-between;padding:4px 0;border-top:1.5px solid #e2e8f0;margin-top:4px;font-size:13px;font-weight:800;">
+                                            <span>Saldo pendiente</span>
+                                            <span id="rs_saldoPendiente" style="color:#e53e3e;">—</span>
+                                        </div>
+                                        <div id="rs_cierraFactura" style="display:none;margin-top:8px;background:#ecfdf5;border-radius:7px;padding:6px 10px;font-size:11px;font-weight:700;color:#065f46;">
+                                            <i class="fa fa-check-circle mr-1"></i> Este pago cerrará la factura
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Footer del form --}}
+                    <div style="padding:14px 20px;background:#f4f6f9;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:10px;">
                         <button type="button" class="btn btn-outline-secondary btn-sm" data-dismiss="modal">Cancelar</button>
                         <button id="btn_notaabono" type="submit" class="ap-btn-save orange">
-                            <i class="fa fa-check-circle"></i> Registrar Abono
+                            <i class="fa fa-check-circle mr-1"></i> Registrar Abono
                         </button>
                     </div>
+
                 </form>
-            </div>
+            </div>{{-- /modal-body --}}
         </div>
     </div>
 </div>
@@ -1273,7 +1481,6 @@
                                 <th>Comentario</th>
                                 <th>Estado</th>
                                 <th>Registrado por</th>
-                                <th>Fecha pago</th>
                                 <th>Fecha registro</th>
                                 <th></th>
                             </tr>
@@ -1289,7 +1496,6 @@
                                 <th>Comentario</th>
                                 <th>Estado</th>
                                 <th>Registrado por</th>
-                                <th>Fecha pago</th>
                                 <th>Fecha registro</th>
                                 <th></th>
                             </tr>
@@ -1452,12 +1658,34 @@ function destroyAbonosSelects() {
 
 $('#modalAbonos').on('shown.bs.modal', function() {
     initAbonosSelects();
+    // Consultar intereses usando la fecha efectiva del pago (o hoy si aún no se ingresó)
+    var facturaId = $('#idFacturaAbono').val();
+    var fechaPago = $('#fecha_pago').val() || null;
+    consultarYMostrarInteres(facturaId, fechaPago);
 });
 $('#modalAbonos').on('hidden.bs.modal', function() {
     destroyAbonosSelects();
     document.getElementById('selectBanco').innerHTML = '';
     $('#requiereRetencionFutura').prop('checked', false).prop('disabled', false);
     $('#retencionFuturaEstadoActual').hide().text('');
+    // Limpiar sección 3
+    $('#checkInteresWrap').hide();
+    $('#cobrarInteresCheck').prop('checked', true);
+    $('#cobrarInteresFlag').val('1');
+    $('#motivoNoCobrarWrap').hide();
+    $('#motivoNoCobrar').val('');
+    $('#checkInteresMontoBadge').text('');
+    // Limpiar sección 1
+    $('#ds1_codigo, #ds1_factura, #ds1_capital, #ds1_interes').text('—');
+    $('#ds1_fechaVenc, #ds1_diasVenc').text('—');
+    $('#ds1_diasVencBase').text('');
+    $('#ds1_fechaVencHidden').val('');
+    // Reset resumen
+    $('#rs_montoPago, #rs_interesAplicado, #rs_abonoCapital, #rs_abonoCapital2, #rs_saldoActual, #rs_saldoPendiente').text('—');
+    $('#rs_cierraFactura').hide();
+    $('#rs_filaInteres').hide();
+    // Limpiar fecha_pago
+    $('#fecha_pago').val('');
 });
 
 // ── Select2 en modal Otros Movimientos ──
@@ -1573,6 +1801,185 @@ function destroyNDSelects() {
 }
 $('#modalND').on('shown.bs.modal', function() { initNDSelects(); });
 $('#modalND').on('hidden.bs.modal', function() { destroyNDSelects(); });
+
+// ── Intereses por Mora ────────────────────────────────────────────────────
+
+// Event delegation: se activa aunque el modal no esté visible todavía
+$(document).on('change', '#fecha_pago', function() {
+    var facturaId = $('#idFacturaAbono').val();
+    var fechaPago = $(this).val();
+    if (facturaId && fechaPago) {
+        consultarYMostrarInteres(facturaId, fechaPago);
+        actualizarDiasVencidos(fechaPago);
+    }
+});
+
+/**
+ * Actualiza el display de días vencidos en Sección 1 en base a la fecha de pago.
+ * Calcula la diferencia entre fecha_vencimiento y la fecha dada.
+ */
+function actualizarDiasVencidos(fechaBase) {
+    var fechaVenc = $('#ds1_fechaVencHidden').val();
+    if (!fechaVenc) return;
+    var fv  = new Date(fechaVenc);
+    var fb  = fechaBase ? new Date(fechaBase) : new Date();
+    var diffMs  = fb - fv;
+    var diffDias = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    if (diffDias > 0) {
+        $('#ds1_diasVenc').text(diffDias + ' días').css('color','#c53030');
+        $('#ds1_diasVencBase').text(fechaBase ? 'Al ' + fechaBase : 'A hoy');
+    } else {
+        $('#ds1_diasVenc').text('Al día').css('color','#059669');
+        $('#ds1_diasVencBase').text('');
+    }
+}
+
+function onCobrarInteresChange() {
+    var cobrar = $('#cobrarInteresCheck').is(':checked');
+    $('#cobrarInteresFlag').val(cobrar ? '1' : '0');
+    if (cobrar) {
+        $('#motivoNoCobrarWrap').hide();
+    } else {
+        $('#motivoNoCobrarWrap').show();
+    }
+    actualizarResumen();
+}
+
+var _fmtL = function(n) {
+    return 'L. ' + parseFloat(n || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+};
+
+/**
+ * Actualiza el resumen (sección 4) en tiempo real.
+ */
+function actualizarResumen() {
+    var monto        = parseFloat($('#montoAbono').val() || 0);
+    var saldoActual  = parseFloat($('#interesCapitalHidden').val() || 0);
+    var montoInteres = parseFloat($('#interesMontoHidden').val() || 0);
+    var cobrar       = $('#cobrarInteresCheck').is(':checked');
+
+    var abonoInteres = 0;
+    var abonoCapital = monto;
+
+    if (cobrar && montoInteres > 0) {
+        if (monto <= montoInteres) {
+            abonoInteres = monto;
+            abonoCapital = 0;
+        } else {
+            abonoInteres = montoInteres;
+            abonoCapital = parseFloat((monto - montoInteres).toFixed(2));
+        }
+    }
+
+    var saldoPendiente = parseFloat(Math.max(saldoActual - abonoCapital, 0).toFixed(2));
+
+    $('#rs_montoPago').text(_fmtL(monto));
+    $('#rs_interesAplicado').text(_fmtL(abonoInteres));
+    $('#rs_abonoCapital').text(_fmtL(abonoCapital));
+    $('#rs_abonoCapital2').text(_fmtL(abonoCapital));
+    $('#rs_saldoActual').text(_fmtL(saldoActual));
+    $('#rs_saldoPendiente').text(_fmtL(saldoPendiente));
+
+    $('#rs_filaInteres').toggle(cobrar && montoInteres > 0);
+
+    if (saldoPendiente <= 0 && monto > 0) {
+        $('#rs_cierraFactura').show();
+        $('#rs_saldoPendiente').text('L. 0.00').css('color','#059669');
+    } else {
+        $('#rs_cierraFactura').hide();
+        $('#rs_saldoPendiente').css('color','#e53e3e');
+    }
+}
+
+/**
+ * Consulta el SP de intereses para una factura (idempotente — no persiste).
+ * Usa la fecha efectiva del pago; si no hay fecha usa CURDATE en el SP.
+ */
+function consultarYMostrarInteres(facturaId, fechaPago) {
+    if (!facturaId) return;
+
+    var url = '/pagos/interes/consultar/' + facturaId;
+    if (fechaPago) url += '?fecha_pago=' + fechaPago;
+
+    axios.get(url)
+        .then(function(res) {
+            var d = res.data;
+            if (d.aplica == 1 && parseFloat(d.monto_interes) > 0) {
+                var capital  = parseFloat(d.capital_base);
+                var interes  = parseFloat(d.monto_interes);
+                var dias     = parseInt(d.dias_vencidos);
+                var tasa     = parseFloat(d.porcentaje_mensual);
+
+                // Sección 1 — badge interés y días
+                $('#ds1_interes').text(_fmtL(interes));
+                $('#ds1_interesCard').show();
+                $('#ds1_diasVenc').text(dias + ' días').css('color','#c53030');
+                $('#ds1_diasVencLabel').css('color','#c53030');
+                $('#ds1_diasVencBase').text(fechaPago ? 'Al ' + fechaPago : 'A hoy');
+                $('#ds1_interesBase').text(tasa.toFixed(4) + '% mensual · ' + dias + ' días');
+
+                // Sección 3 — mostrar checkbox con badge de monto
+                $('#checkInteresMontoBadge').text(_fmtL(interes));
+                $('#checkInteresWrap').show();
+
+                // Hiddens
+                $('#interesFacturaId').val(facturaId);
+                $('#interesConfiguracionId').val(d.configuracion_id);
+                $('#interesCapitalHidden').val(d.capital_base);
+                $('#interesPorcentaje').val(d.porcentaje_mensual);
+                $('#interesDiasHidden').val(d.dias_vencidos);
+                $('#interesMontoHidden').val(d.monto_interes);
+                $('#interesVencimiento').val(d.fecha_vencimiento);
+            } else {
+                // Sin interés
+                $('#checkInteresWrap').hide();
+                $('#ds1_interes').text('—');
+                $('#ds1_diasVenc').text(function(){
+                    // Recalcular días vencidos sin interés igual puede haber días
+                    var fv = $('#ds1_fechaVencHidden').val();
+                    if (!fv) return '—';
+                    var fb = fechaPago ? new Date(fechaPago) : new Date();
+                    var diff = Math.floor((fb - new Date(fv)) / 86400000);
+                    return diff > 0 ? diff + ' días' : 'Al día';
+                }).css('color', function(){
+                    var fv = $('#ds1_fechaVencHidden').val();
+                    if (!fv) return '#a0aec0';
+                    var fb = fechaPago ? new Date(fechaPago) : new Date();
+                    return (fb - new Date(fv)) > 0 ? '#c53030' : '#059669';
+                });
+                $('#interesMontoHidden').val('0');
+                $('#interesConfiguracionId').val('');
+            }
+            actualizarResumen();
+        })
+        .catch(function() { /* silencioso */ });
+}
+
+/**
+ * Persiste o registra la decisión de interés después de guardar el pago.
+ */
+function procesarDecisionInteres(facturaId) {
+    var cobrar       = $('#cobrarInteresCheck').is(':checked');
+    var montoInteres = parseFloat($('#interesMontoHidden').val() || 0);
+    var configId     = $('#interesConfiguracionId').val();
+
+    if (!configId || montoInteres <= 0) return;
+
+    var url     = cobrar ? '/pagos/interes/persistir' : '/pagos/interes/no-cobrar';
+    var payload = {
+        factura_id:          facturaId,
+        configuracion_id:    configId,
+        capital_base:        $('#interesCapitalHidden').val(),
+        porcentaje_aplicado: $('#interesPorcentaje').val(),
+        dias_vencidos:       $('#interesDiasHidden').val(),
+        monto_interes:       montoInteres,
+        fecha_vencimiento:   $('#interesVencimiento').val(),
+        motivo:              $('#motivoNoCobrar').val(),
+        _token:              '{{ csrf_token() }}'
+    };
+
+    axios.post(url, payload).catch(function() { /* silencioso */ });
+}
 </script>
 @endpush
 </div>{{-- /Livewire root --}}

@@ -357,6 +357,10 @@
             <div class="ec-stat-label"><i class="fa fa-check-circle mr-1"></i> Total Abonado</div>
             <div class="ec-stat-value" id="ecStatAbonado">—</div>
         </div>
+        <div class="ec-stat-card d-none" id="ecStatInteresesCard" style="border-left-color:#e53e3e;">
+            <div class="ec-stat-label"><i class="fa fa-percent mr-1"></i> Intereses Mora</div>
+            <div class="ec-stat-value red" id="ecStatIntereses">—</div>
+        </div>
     </div>
 
     {{-- Tabs panel (oculto hasta seleccionar cliente) --}}
@@ -395,9 +399,17 @@
                             Registros de Saldos por Factura
                             <span class="ec-panel-badge" id="ecClienteNombre"></span>
                         </h6>
-                        <small style="color:rgba(255,255,255,.55); font-size:11px;">
-                            <i class="fa-solid fa-eye mr-1"></i> Solo lectura
-                        </small>
+                        <div style="display:flex;align-items:center;gap:14px;">
+                            <div class="custom-control custom-switch" style="color:#fff;" title="Si está activo, los intereses se incluyen en el acumulado y en el PDF.">
+                                <input type="checkbox" class="custom-control-input" id="ecToggleIntereses" checked onchange="ecToggleInteresChanged()">
+                                <label class="custom-control-label" for="ecToggleIntereses" style="font-size:12px;cursor:pointer;">
+                                    <i class="fa fa-percent mr-1"></i> Mostrar Intereses
+                                </label>
+                            </div>
+                            <small style="color:rgba(255,255,255,.55); font-size:11px;">
+                                <i class="fa-solid fa-eye mr-1"></i> Solo lectura
+                            </small>
+                        </div>
                     </div>
                     <table id="ecTable" class="table table-hover" style="width:100%">
                         <thead>
@@ -405,7 +417,7 @@
                                 <th>#</th><th>Factura</th><th>Fecha Emisión</th>
                                 <th>Cargo</th><th>Abonos</th><th>Notas Cred.</th>
                                 <th>Notas Déb.</th><th>Retención ISV</th>
-                                <th>Saldo</th><th>Estado</th><th>Acciones</th>
+                                <th>Saldo</th><th>Intereses</th><th>Estado</th><th>Acciones</th>
                             </tr>
                         </thead>
                         <tbody></tbody>
@@ -513,17 +525,18 @@ $(function () {
     window.ecDt = $('#ecTable').DataTable({
         serverSide: false, autoWidth: false, language: dtLang,
         columns: [
-            { data: 'codigoPago',    title: '#',            width: '50px' },
+            { data: 'codigoPago',    title: '#',             width: '50px' },
             { data: 'codigoFactura', title: 'Factura' },
             { data: 'fechaFactura',  title: 'Fecha Emisión' },
-            { data: 'cargo',         title: 'Cargo',         render: fmtMoneda },
-            { data: 'abonosCargo',   title: 'Abonos',        render: fmtMoneda },
-            { data: 'notasCredito',  title: 'Notas Cred.',   render: fmtMoneda },
-            { data: 'notasDebito',   title: 'Notas Déb.',    render: fmtMoneda },
-            { data: 'isv',           title: 'Retención ISV', render: fmtMoneda },
-            { data: 'saldoBadge',    title: 'Saldo',         orderable: false },
-            { data: 'estadoBadge',   title: 'Estado',        orderable: false },
-            { data: 'acciones',      title: 'Acciones',      orderable: false, searchable: false }
+            { data: 'cargo',         title: 'Cargo',          render: fmtMoneda },
+            { data: 'abonosCargo',   title: 'Abonos',         render: fmtMoneda },
+            { data: 'notasCredito',  title: 'Notas Cred.',    render: fmtMoneda },
+            { data: 'notasDebito',   title: 'Notas Déb.',     render: fmtMoneda },
+            { data: 'isv',           title: 'Retención ISV',  render: fmtMoneda },
+            { data: 'saldoBadge',    title: 'Saldo',          orderable: false },
+            { data: 'interesBadge',  title: 'Intereses',      orderable: false },
+            { data: 'estadoBadge',   title: 'Estado',         orderable: false },
+            { data: 'acciones',      title: 'Acciones',       orderable: false, searchable: false }
         ],
         order: [[0, 'desc']], pageLength: 15
     });
@@ -591,13 +604,25 @@ function ecCargarDatos() {
             window.ecDt.clear().rows.add(data).draw();
             $('#ecBadgeSaldos').text(data.length);
 
-            var totalSaldo = data.reduce(function (s, r) { return s + parseFloat(r.saldo       || 0); }, 0);
-            var totalCargo = data.reduce(function (s, r) { return s + parseFloat(r.cargo       || 0); }, 0);
-            var totalAbono = data.reduce(function (s, r) { return s + parseFloat(r.abonosCargo || 0); }, 0);
+            var totalSaldo   = data.reduce(function (s, r) { return s + parseFloat(r.saldo       || 0); }, 0);
+            var totalCargo   = data.reduce(function (s, r) { return s + parseFloat(r.cargo       || 0); }, 0);
+            var totalAbono   = data.reduce(function (s, r) { return s + parseFloat(r.abonosCargo || 0); }, 0);
+            var totalInteres = data.reduce(function (s, r) { return s + parseFloat(r.interes     || 0); }, 0);
+
+            window._ecSaldoTotal   = totalSaldo;
+            window._ecInteresTotal = totalInteres;
+
             $('#ecStatFacturas').text(data.length);
             $('#ecStatCargo').text('L. ' + totalCargo.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','));
             $('#ecStatSaldo').text('L. ' + totalSaldo.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','));
             $('#ecStatAbonado').text('L. ' + totalAbono.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','));
+
+            // Mostrar intereses en stat si hay
+            if (totalInteres > 0) {
+                $('#ecStatIntereses').text('L. ' + totalInteres.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')).closest('.ec-stat-card').removeClass('d-none');
+            } else {
+                $('#ecStatIntereses').closest('.ec-stat-card').addClass('d-none');
+            }
         })
         .catch(function () {
             Swal.fire({ icon: 'error', title: 'Error al cargar saldos', timer: 2000, showConfirmButton: false });
@@ -627,6 +652,14 @@ function ecVerPdf() {
     var clienteId = $('#ecCliente').val();
     if (!clienteId) return;
     window.open('/estado_cuenta/vendedor/pdf/' + clienteId, '_blank');
+}
+
+// ── Toggle: Mostrar / Ocultar columna de Intereses ────────────────────────
+function ecToggleInteresChanged() {
+    var mostrar = $('#ecToggleIntereses').is(':checked');
+    // Columna índice 9 = Intereses
+    var col = window.ecDt.column(9);
+    col.visible(mostrar);
 }
 
 // ── Exportar Excel Movimientos ────────────────────────────────────────────

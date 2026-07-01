@@ -1138,7 +1138,19 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/estado_cuenta/vendedor/abonos/{id}', [EstadoCuentaVendedor::class, 'listarAbonos']);
     Route::get('/estado_cuenta/vendedor/exportar/movimientos/{id}', [EstadoCuentaVendedor::class, 'exportarMovimientosExcel']);
     Route::get('/estado_cuenta/vendedor/exportar/abonos/{id}', [EstadoCuentaVendedor::class, 'exportarAbonosExcel']);
+    Route::get('/estado_cuenta/vendedor/interes/{facturaId}', [EstadoCuentaVendedor::class, 'consultarInteres']);
+    Route::post('/estado_cuenta/vendedor/interes/no-cobrar', [EstadoCuentaVendedor::class, 'registrarNoCobrarInteres']);
     ///////////////////////////////////////////////////////////////////////////////////
+
+    /////////////////////////////CONFIGURACIÓN DE INTERESES MORATORIOS/////////////////////
+    Route::get('/configuracion/intereses-moratorios', \App\Http\Livewire\Configuracion\ConfiguracionInteresesMoratorios::class)
+         ->name('configuracion.intereses.moratorios');
+    ///////////////////////////////////////////////////////////////////////////////////
+
+    /////////////////////////////INTERESES — APLICACIÓN DE PAGOS/////////////////////
+    Route::get('/pagos/interes/consultar/{facturaId}', [Pagos::class, 'consultarInteres']);
+    Route::post('/pagos/interes/persistir', [Pagos::class, 'persistirInteres']);
+    Route::post('/pagos/interes/no-cobrar', [Pagos::class, 'registrarNoCobrarInteres']);
 
 
 

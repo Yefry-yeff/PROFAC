@@ -5,6 +5,7 @@ namespace App\Http\Livewire\CuentasPorCobrar;
 use Livewire\Component;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Models\FacturaInteres;
 use Auth;
 use DataTables;
 use PDF;
@@ -81,8 +82,10 @@ class EstadoCuentaVendedor extends Component
                 ap.factura_id               AS idFactura,
                 (SELECT cai FROM factura WHERE id = ap.factura_id)
                                             AS codigoFactura,
-                (SELECT fecha_emision FROM factura WHERE id = ap.factura_id)
+                (SELECT fecha_emision  FROM factura WHERE id = ap.factura_id)
                                             AS fechaFactura,
+                (SELECT fecha_vencimiento FROM factura WHERE id = ap.factura_id)
+                                            AS fechaVencimiento,
                 ap.total_factura_cargo      AS cargo,
                 ap.total_notas_credito      AS notasCredito,
                 ap.total_nodas_debito       AS notasDebito,
@@ -96,12 +99,42 @@ class EstadoCuentaVendedor extends Component
                 ap.estado                   AS estado,
                 ap.estado_cerrado           AS estadoCierre,
                 ap.created_at               AS fechaRegistro,
-                ap.updated_at               AS ultimoRegistro
+                ap.updated_at               AS ultimoRegistro,
+
+                -- ── Interés por mora (misma fórmula que sp_calcular_intereses_factura) ──
+                IFNULL(ci_activa.tasa_mensual, 0)  AS tasaInteres,
+                GREATEST(DATEDIFF(CURDATE(), (SELECT fecha_vencimiento FROM factura WHERE id = ap.factura_id)), 0)
+                                            AS diasVencidos,
+                IF(
+                    (SELECT estado_venta_id FROM factura WHERE id = ap.factura_id) = 1
+                    AND ap.saldo > 0
+                    AND DATEDIFF(CURDATE(), (SELECT fecha_vencimiento FROM factura WHERE id = ap.factura_id)) > 0
+                    AND ci_activa.id IS NOT NULL,
+                    ROUND(
+                        ap.saldo
+                        * (ci_activa.tasa_mensual / 100.0)
+                        * (DATEDIFF(CURDATE(), (SELECT fecha_vencimiento FROM factura WHERE id = ap.factura_id)) / 30.0),
+                        2
+                    ),
+                    0.00
+                )                           AS interes,
+                ci_activa.id                AS configuracionInteresId
+
             FROM aplicacion_pagos ap
+
+            LEFT JOIN (
+                SELECT id, tasa_mensual
+                FROM   configuracion_intereses
+                WHERE  estado = 1
+                  AND  fecha_vigencia <= CURDATE()
+                ORDER  BY fecha_vigencia DESC
+                LIMIT  1
+            ) ci_activa ON 1 = 1
+
             WHERE ap.cliente_id = ?
               AND ap.estado = 1
               AND ap.estado_cerrado <> 2
-                            AND ap.saldo > 0
+              AND ap.saldo > 0
         ", [$id]);
 
         return DataTables::of($cuentas)
@@ -125,14 +158,77 @@ class EstadoCuentaVendedor extends Component
                 $cls   = $cuenta->saldo > 0 ? 'danger' : 'success';
                 return '<span class="badge badge-' . $cls . '">L. ' . $saldo . '</span>';
             })
+            ->addColumn('interesBadge', function ($cuenta) {
+                $interes = (float) ($cuenta->interes ?? 0);
+                if ($interes > 0) {
+                    $dias    = (int)   ($cuenta->diasVencidos ?? 0);
+                    $tasa    = (float) ($cuenta->tasaInteres  ?? 0);
+                    $capital = (float) ($cuenta->saldo        ?? 0);
+                    // Fórmula manual: Interés = Capital × (Tasa% / 100) × (Días / 30)
+                    $formula = 'Fórmula: L ' . number_format($capital, 2) . ' × (' . number_format($tasa, 4) . '% / 100) × (' . $dias . ' días / 30) = L ' . number_format($interes, 2);
+                    return '<span class="badge" style="background:#fee2e2;color:#111;font-size:11.5px;padding:4px 8px;" title="' . htmlspecialchars($formula) . '">'
+                         . '<i class="fa fa-clock-o mr-1" style="color:#c0392b;"></i>'
+                         . $dias . ' días — L. ' . number_format($interes, 2)
+                         . '</span>';
+                }
+                return '<span class="badge" style="background:#f0f4f8;color:#666;font-size:11px;">—</span>';
+            })
             ->addColumn('estadoBadge', function ($cuenta) {
                 if ($cuenta->estadoCierre) {
                     return '<span class="badge badge-secondary">Cerrada</span>';
                 }
                 return '<span class="badge badge-warning text-dark">Pendiente</span>';
             })
-            ->rawColumns(['acciones', 'saldoBadge', 'estadoBadge'])
+            ->rawColumns(['acciones', 'saldoBadge', 'interesBadge', 'estadoBadge'])
             ->make(true);
+    }
+
+    // ─── Consultar interés de una factura (idempotente — no persiste) ─────────
+    public function consultarInteres($facturaId)
+    {
+        $facturaId    = (int) $facturaId;
+        $fechaCalculo = request('fecha_pago')
+            ? date('Y-m-d', strtotime(request('fecha_pago')))
+            : date('Y-m-d');
+
+        $resultado = DB::select("CALL sp_calcular_intereses_factura(?, ?)", [
+            $facturaId,
+            $fechaCalculo,
+        ]);
+
+        if (empty($resultado)) {
+            return response()->json(['aplica' => false, 'monto_interes' => 0], 200);
+        }
+
+        return response()->json($resultado[0], 200);
+    }
+
+    // ─── Registrar decisión de no cobrar interés ──────────────────────────────
+    public function registrarNoCobrarInteres(Request $request)
+    {
+        $request->validate([
+            'factura_id'    => 'required|integer|exists:factura,id',
+            'motivo'        => 'nullable|string|max:500',
+        ]);
+
+        $facturaId = (int) $request->factura_id;
+
+        // Solo se registra si hay un interés pendiente ya persistido
+        $interesExistente = FacturaInteres::pendientePorFactura($facturaId);
+
+        if ($interesExistente) {
+            $interesExistente->update([
+                'usr_no_cobro'  => Auth::id(),
+                'fecha_no_cobro' => now(),
+                'motivo_no_cobro' => $request->motivo,
+            ]);
+        }
+
+        return response()->json([
+            'icon'  => 'success',
+            'title' => 'Registrado',
+            'text'  => 'Decisión de no cobrar interés registrada.',
+        ], 200);
     }
 
     // ─── Movimientos (solo lectura) ──────────────────────────────────────────
@@ -260,6 +356,7 @@ class EstadoCuentaVendedor extends Component
 
         $estadoCuenta = array_map(function ($row) {
             $row->acumulado = $row->acumulado ?? $row->Acumulado ?? 0;
+            $row->interes   = $row->interes ?? 0;
             return $row;
         }, $estadoCuenta);
 
@@ -267,15 +364,15 @@ class EstadoCuentaVendedor extends Component
             return (float) ($row->saldo ?? 0) > 0;
         }));
 
-        // Recalcular acumulado como suma acumulada después del filtrado
+        // Recalcular acumulado = saldo + interés acumulados, después del filtrado
         $runningTotal = 0;
         foreach ($estadoCuenta as $row) {
-            $runningTotal += (float) ($row->saldo ?? 0);
-            $row->acumulado = $runningTotal;
+            $runningTotal   += (float) ($row->saldo ?? 0) + (float) ($row->interes ?? 0);
+            $row->acumulado  = $runningTotal;
         }
 
         if (empty($estadoCuenta)) {
-            $nombreCliente = DB::table('cliente')->where('id', (int) $idClientepdf)->value('nombre') ?? 'Cliente #'.$idClientepdf;
+            $nombreCliente  = DB::table('cliente')->where('id', (int) $idClientepdf)->value('nombre') ?? 'Cliente #'.$idClientepdf;
             $sinMovimientos = true;
         } else {
             $nombreCliente  = $estadoCuenta[0]->cliente;

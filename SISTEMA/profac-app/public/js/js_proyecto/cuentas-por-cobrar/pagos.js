@@ -294,14 +294,61 @@ function modalOtrosMovimientos(codigoPagoA, caiFactura, idFactura, saldo){
     $('#modalOtrosMovimientos').modal('show');
 }
 
-function modalAbonos(codigoPagoA, caiFactura, idFactura, saldo, seguimientoEstado){
+function modalAbonos(codigoPagoA, caiFactura, idFactura, saldo, seguimientoEstado, fechaVencimiento){
     $('#codAplicPagoAbono').val(codigoPagoA);
     $('#facturaCaiAbono').val(caiFactura);
     $('#idFacturaAbono').val(idFactura);
 
     var s = parseFloat(saldo) || 0;
-    $('#montoAbono').val(s > 0 ? s.toFixed(2) : '');
-    $('#abono-saldo-label').text(s > 0 ? '(Total: L. ' + s.toLocaleString('es-HN', {minimumFractionDigits:2, maximumFractionDigits:2}) + ')' : '');
+    var saldoFmt = s > 0 ? 'L. ' + s.toLocaleString('es-HN', {minimumFractionDigits:2, maximumFractionDigits:2}) : 'L. 0.00';
+
+    // Monto inicia en 0.00 (el usuario lo debe ingresar manualmente)
+    $('#montoAbono').val('0.00');
+    $('#abono-saldo-label').text('');
+
+    // Sección 1 — datos de factura (display)
+    $('#ds1_codigo').text(codigoPagoA);
+    $('#ds1_factura').text(caiFactura);
+    $('#ds1_capital').text(saldoFmt);
+    $('#ds1_interes').text('—');
+    $('#ds1_interesCard').show();
+
+    // Fecha de vencimiento en Sección 1
+    var fv = fechaVencimiento || '';
+    $('#ds1_fechaVencHidden').val(fv);
+    $('#ds1_fechaVenc').text(fv || '—');
+    // Calcular días vencidos con fecha actual (se recalculará al ingresar fecha_pago)
+    if (fv) {
+        var hoy   = new Date();
+        var fvDate = new Date(fv);
+        var diffDias = Math.floor((hoy - fvDate) / 86400000);
+        if (diffDias > 0) {
+            $('#ds1_diasVenc').text(diffDias + ' días').css('color','#c53030');
+            $('#ds1_diasVencBase').text('A hoy');
+        } else {
+            $('#ds1_diasVenc').text('Al día').css('color','#059669');
+            $('#ds1_diasVencBase').text('');
+        }
+    } else {
+        $('#ds1_diasVenc').text('—').css('color','#a0aec0');
+        $('#ds1_diasVencBase').text('');
+    }
+
+    // Limpiar intereses del modal anterior
+    $('#interesMontoHidden').val('0');
+    $('#interesConfiguracionId').val('');
+    $('#interesCapitalHidden').val(s);
+    $('#checkInteresWrap').hide();
+    $('#cobrarInteresCheck').prop('checked', true);
+    $('#cobrarInteresFlag').val('1');
+    $('#motivoNoCobrarWrap').hide();
+    $('#motivoNoCobrar').val('');
+    $('#checkInteresMontoBadge').text('');
+
+    // Sección 4 — resumen inicial
+    $('#rs_saldoActual').text(saldoFmt);
+    if (typeof actualizarResumen === 'function') actualizarResumen();
+
     $('#requiereRetencionFutura').prop('checked', false).prop('disabled', false);
     $('#retencionFuturaEstadoActual').hide().text('');
 
@@ -1022,10 +1069,22 @@ function guardarOtroMov(){
 
 $(document).on('submit', '#formabonos', function(event) {
 
+    event.preventDefault();
+
+    // Validación: monto debe ser mayor a 0
+    var montoVal = parseFloat($('#montoAbono').val() || 0);
+    if (montoVal <= 0) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Monto inválido',
+            text: 'El monto a abonar debe ser mayor a L. 0.00.',
+            confirmButtonText: 'Entendido'
+        });
+        return;
+    }
+
     $('#btn_notaabono').css('display','none');
     $('#btn_notaabono').hide();
-
-    event.preventDefault();
 
     var facturaId        = $('#idFacturaAbono').val();
     var montoAbono       = $('#montoAbono').val();
@@ -1321,6 +1380,12 @@ function guardarCreditos(){
     axios.post("/pagos/creditos/guardar", data)
         .then(response => {
             var res = response.data || {};
+
+            // ── Procesar decisión de interés (cobrar o registrar no-cobro) ──
+            var facturaIdAbono = $('#idFacturaAbono').val();
+            if (typeof procesarDecisionInteres === 'function' && facturaIdAbono) {
+                procesarDecisionInteres(facturaIdAbono);
+            }
 
             $('#tbl_cuentas_facturas_cliente').DataTable().ajax.reload();
             $('#tbl_abonos_cliente').DataTable().ajax.reload();

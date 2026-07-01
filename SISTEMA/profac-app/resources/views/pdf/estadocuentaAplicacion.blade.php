@@ -150,6 +150,7 @@
             <th>Notas<br>Crédito</th>
             <th>Notas<br>Débito</th>
             <th>Saldo</th>
+            <th>Intereses</th>
             <th>Acumulado</th>
         </tr>
     </thead>
@@ -167,6 +168,12 @@
             <td class="num">L. {{ number_format($valor->notaCredito,2, '.', ',') }}</td>
             <td class="num">L. {{ number_format($valor->notaDebito, 2, '.', ',') }}</td>
             <td class="num">L. {{ number_format($valor->saldo,      2, '.', ',') }}</td>
+            <td class="num" style="{{ ($valor->interes ?? 0) > 0 ? 'color:#c0392b;font-weight:bold;' : 'color:#999;' }}">
+                L. {{ number_format($valor->interes ?? 0, 2, '.', ',') }}
+                @if(($valor->interes ?? 0) > 0 && isset($valor->dias_vencidos))
+                    <br><span style="font-size:8px;color:#e74c3c;">{{ $valor->dias_vencidos }} días / {{ number_format($valor->tasa_mensual ?? 0, 4) }}% mens.</span>
+                @endif
+            </td>
             <td class="num">L. {{ number_format($valor->acumulado ?? $valor->Acumulado ?? 0,  2, '.', ',') }}</td>
         </tr>
         @endforeach
