@@ -48,7 +48,7 @@ class ListadoFacturaEstatal extends Component
             elseif ($filtroDesde)  { $whereFilters .= " AND DATE(factura.created_at) >= ? "; $bindings[] = $filtroDesde; }
             elseif ($filtroHasta)  { $whereFilters .= " AND DATE(factura.created_at) <= ? "; $bindings[] = $filtroHasta; }
 
-            $esAdmin = in_array(Auth::user()->rol_id, [1, 3, 5]);
+            $esAdmin = in_array(Auth::user()->rol_id, [1, 3, 5, 16]);
 
             if ($esAdmin) {
                 $listaFacturas = DB::SELECT("

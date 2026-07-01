@@ -268,6 +268,7 @@
     @push('scripts')
         <script>
             // ── Configuración ────────────────────────────────────────────────
+            var usuarioDescargaExcel = @json(optional(Auth::user())->name ?? 'Sistema');
             var nombresTipoCotiz = { 1: 'Coorporativo', 2: 'Gobierno', 3: 'Exonerado' };
             var urlHistoryCotiz  = { 1: '/cotizacion/listado/corporativo', 2: '/cotizacion/listado/estatal', 3: '/cotizacion/listado/exonerado' };
             var cotFiltros = {
@@ -275,6 +276,146 @@
                 cliente:  '',
                 vendedor: ''
             };
+
+            function fechaHoraDescargaExcel() {
+                var now = new Date();
+                return now.toLocaleDateString('es-HN', { day: '2-digit', month: '2-digit', year: 'numeric' }) +
+                    ' ' + now.toLocaleTimeString('es-HN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            }
+
+            function normalizarNumeroExcel(valor) {
+                if (valor === null || valor === undefined) return 0;
+                var limpio = String(valor)
+                    .replace(/L\.|HNL|,/gi, '')
+                    .replace(/\s+/g, '')
+                    .trim();
+                var n = parseFloat(limpio);
+                return isNaN(n) ? 0 : n;
+            }
+
+            function buildExcelButton(config) {
+                return {
+                    extend: 'excelHtml5',
+                    title: '',
+                    filename: function() {
+                        return config.fileName;
+                    },
+                    messageTop: function() {
+                        return '';
+                    },
+                    className: 'btn btn-success btn-sm',
+                    exportOptions: {
+                        format: {
+                            body: function(data, row, column) {
+                                if (config.numberColumns.indexOf(column) >= 0) {
+                                    return normalizarNumeroExcel(data);
+                                }
+                                return $('<div>').html(data).text();
+                            }
+                        }
+                    },
+                    customize: function(xlsx) {
+                        var sheet = xlsx.xl.worksheets['sheet1.xml'];
+                        var $sheet = $(sheet);
+                        var styles = xlsx.xl['styles.xml'];
+                        var $styles = $(styles);
+
+                        function escapeXml(text) {
+                            return String(text || '')
+                                .replace(/&/g, '&amp;')
+                                .replace(/</g, '&lt;')
+                                .replace(/>/g, '&gt;')
+                                .replace(/"/g, '&quot;')
+                                .replace(/'/g, '&apos;');
+                        }
+
+                        function colFromRef(ref) {
+                            return String(ref || '').replace(/[0-9]/g, '');
+                        }
+
+                        var sheetData = $sheet.find('sheetData');
+                        var horaDescarga = fechaHoraDescargaExcel();
+                        var encabezado1 = 'Distribuciones Valencia';
+                        var encabezado2 = config.reportTitle;
+                        var encabezado3 = 'Hora de descarga: ' + horaDescarga + '  |  Descargado por: ' + (usuarioDescargaExcel || 'Sistema');
+
+                        sheetData.find('row').each(function() {
+                            var $row = $(this);
+                            var oldRow = parseInt($row.attr('r') || '0', 10);
+                            var newRow = oldRow + 4;
+                            $row.attr('r', String(newRow));
+                            $row.find('c').each(function() {
+                                var $cell = $(this);
+                                var oldRef = $cell.attr('r') || '';
+                                var col = colFromRef(oldRef);
+                                if (col) $cell.attr('r', col + newRow);
+                            });
+                        });
+
+                        var filasHeader = '' +
+                            '<row r="1"><c r="A1" t="inlineStr"><is><t>' + escapeXml(encabezado1) + '</t></is></c></row>' +
+                            '<row r="2"><c r="A2" t="inlineStr"><is><t>' + escapeXml(encabezado2) + '</t></is></c></row>' +
+                            '<row r="3"><c r="A3" t="inlineStr"><is><t>' + escapeXml(encabezado3) + '</t></is></c></row>' +
+                            '<row r="4"><c r="A4" t="inlineStr"><is><t></t></is></c></row>';
+                        sheetData.prepend(filasHeader);
+
+                        var $dimension = $sheet.find('dimension');
+                        if ($dimension.length) {
+                            var ref = $dimension.attr('ref') || 'A1:J1';
+                            var parts = ref.split(':');
+                            if (parts.length === 2) {
+                                var endCol = colFromRef(parts[1]) || 'J';
+                                var endRow = parseInt(String(parts[1]).replace(/[^0-9]/g, '') || '1', 10) + 4;
+                                $dimension.attr('ref', 'A1:' + endCol + endRow);
+                            }
+                        }
+
+                        var $numFmts = $styles.find('numFmts');
+                        if (!$numFmts.length) {
+                            $styles.find('styleSheet').prepend('<numFmts count="0"></numFmts>');
+                            $numFmts = $styles.find('numFmts');
+                        }
+                        if (!$numFmts.find('numFmt[numFmtId="300"]').length) {
+                            $numFmts.append('<numFmt numFmtId="300" formatCode="&quot;L &quot;#,##0.00"/>');
+                            $numFmts.attr('count', parseInt($numFmts.attr('count') || '0', 10) + 1);
+                        }
+
+                        var $cellXfs = $styles.find('cellXfs');
+                        var xfCount = parseInt($cellXfs.attr('count') || '0', 10);
+
+                        var estiloTextoEditable = xfCount;
+                        $cellXfs.append('<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyProtection="1"><protection locked="0"/></xf>');
+                        xfCount += 1;
+
+                        var estiloMonedaEditable = xfCount;
+                        $cellXfs.append('<xf numFmtId="300" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyProtection="1"><protection locked="0"/></xf>');
+                        xfCount += 1;
+
+                        $cellXfs.attr('count', xfCount);
+
+                        if ($sheet.find('sheetProtection').length === 0) {
+                            $sheet.find('worksheet').append('<sheetProtection sheet="1" objects="1" scenarios="1" selectLockedCells="1" selectUnlockedCells="1"/>');
+                        }
+
+                        sheetData.find('row').each(function() {
+                            var $row = $(this);
+                            var rowNum = parseInt($row.attr('r') || '0', 10);
+                            if (rowNum >= 5) {
+                                $row.find('c').each(function() {
+                                    var $cell = $(this);
+                                    var ref = $cell.attr('r') || '';
+                                    var col = colFromRef(ref);
+                                    if (config.moneyColumns.indexOf(col) >= 0 && rowNum >= 6) {
+                                        $cell.attr('s', String(estiloMonedaEditable));
+                                    } else {
+                                        $cell.attr('s', String(estiloTextoEditable));
+                                    }
+                                });
+                            }
+                        });
+                    }
+                };
+            }
 
             // ── Tipo buttons en modal ────────────────────────────────────────
             $(document).on('click', '#modalFiltrosCot .tipo-filter-btn', function() {
@@ -353,7 +494,12 @@
                     pageLength: 10,
                     responsive: true,
                     dom: '<"html5buttons"B>lTfgitp',
-                    buttons: [{ extend: 'excel', title: 'Cotizaciones', className: 'btn btn-success btn-sm' }],
+                    buttons: [buildExcelButton({
+                        fileName: 'Listado_Cotizaciones',
+                        reportTitle: 'Reporte de cotizaciones',
+                        numberColumns: [3, 4, 5],
+                        moneyColumns: ['D', 'E', 'F']
+                    })],
                     "ajax": {
                         'url':  '/cotizacion/obtener/listado',
                         'type': 'post',

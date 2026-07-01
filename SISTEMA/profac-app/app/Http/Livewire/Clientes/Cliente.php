@@ -835,7 +835,6 @@ class Cliente extends Component
                 $qq->where('nombre_categoria', 'like', '%'.$q.'%');
             })
             ->orderBy('nombre_categoria')
-            ->limit(50)
             ->get();
 
         return response()->json(['categorias' => $cats], 200);
@@ -1626,7 +1625,12 @@ class Cliente extends Component
         $rolId       = (int) (Auth::user()->rol_id ?? 0);
         $clientes    = DB::select("SELECT id, name FROM users WHERE rol_id = 2 ORDER BY name ASC");
         $metodosPago = DB::select("SELECT id, descripcion FROM tipo_pago_cobro ORDER BY id ASC");
-        return view('livewire.clientes.cliente-form', compact('id', 'clientes', 'metodosPago'));
+        $categoriasEscala = DB::table('cliente_categoria_escala')
+            ->select('id', 'nombre_categoria')
+            ->where('estado_id', 1)
+            ->orderBy('nombre_categoria')
+            ->get();
+        return view('livewire.clientes.cliente-form', compact('id', 'clientes', 'metodosPago', 'categoriasEscala'));
     }
 
     private function logHistorial(int $clienteId, string $accion, ?string $descripcion = null): void

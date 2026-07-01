@@ -86,6 +86,105 @@
         </div>
     </div>
 
+    @if(!empty($tipo) && intval($tipo) === 3)
+    {{-- ── Formato tipo 3: agrupado por banco/cuenta ── --}}
+    @php
+        $fmtL = fn($v) => 'L ' . number_format((float)$v, 2);
+        $fmtF = function($d) {
+            if (!$d) return '—';
+            $p = explode('-', $d);
+            return count($p) === 3 ? $p[2].'/'.$p[1].'/'.$p[0] : $d;
+        };
+        $grandCobrado = $grandExon = $grandGrav = $grandExen = $grandIsv = 0.0;
+    @endphp
+
+    @foreach($grouped as $gKey => $group)
+        @php $gCobrado = $gExon = $gGrav = $gExen = $gIsv = 0.0; @endphp
+        <table style="margin-bottom:0;">
+            <thead>
+                <tr>
+                    <th colspan="11" style="background:#1F3864;color:#fff;text-align:left;padding:4px 8px;font-size:8px;font-weight:bold;">
+                        BANCO: {{ strtoupper($group['banco']) }}   |   CUENTA: {{ strtoupper($group['cuenta']) }}
+                    </th>
+                </tr>
+                <tr>
+                    <th>FECHA PAGO</th>
+                    <th>CLIENTE</th>
+                    <th>VENDEDOR</th>
+                    <th>N° FACTURA</th>
+                    <th>MONTO COBRADO</th>
+                    <th>ESTADO</th>
+                    <th>EXONERADO</th>
+                    <th>GRAVADO</th>
+                    <th>EXENTO</th>
+                    <th>ISV</th>
+                    <th>TOTAL FACTURA</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($group['rows'] as $row)
+                    @php
+                        $gCobrado += (float)($row['monto_cobrado'] ?? 0);
+                        $gExon    += (float)($row['exonerado']     ?? 0);
+                        $gGrav    += (float)($row['gravado']       ?? 0);
+                        $gExen    += (float)($row['excento']       ?? 0);
+                        $gIsv     += (float)($row['isv']           ?? 0);
+                    @endphp
+                    <tr>
+                        <td>{{ $fmtF($row['fecha_pago'] ?? '') }}</td>
+                        <td style="text-align:left;">{{ $row['cliente'] ?? '' }}</td>
+                        <td style="text-align:left;">{{ $row['vendedor'] ?? '' }}</td>
+                        <td>{{ $row['factura'] ?? '' }}</td>
+                        <td style="text-align:right;">{{ $fmtL($row['monto_cobrado'] ?? 0) }}</td>
+                        <td>{{ $row['estado_factura'] ?? '' }}</td>
+                        <td style="text-align:right;">{{ $fmtL($row['exonerado'] ?? 0) }}</td>
+                        <td style="text-align:right;">{{ $fmtL($row['gravado'] ?? 0) }}</td>
+                        <td style="text-align:right;">{{ $fmtL($row['excento'] ?? 0) }}</td>
+                        <td style="text-align:right;">{{ $fmtL($row['isv'] ?? 0) }}</td>
+                        <td style="text-align:right;font-weight:bold;">{{ $fmtL($row['total_factura'] ?? 0) }}</td>
+                    </tr>
+                @endforeach
+            </tbody>
+            <tfoot>
+                @php
+                    $grandCobrado += $gCobrado;
+                    $grandExon    += $gExon;
+                    $grandGrav    += $gGrav;
+                    $grandExen    += $gExen;
+                    $grandIsv     += $gIsv;
+                @endphp
+                <tr style="background:#FFF3E0;font-weight:bold;">
+                    <td colspan="4" style="text-align:right;font-weight:bold;">Subtotal {{ strtoupper($group['banco']) }}:</td>
+                    <td style="text-align:right;">{{ $fmtL($gCobrado) }}</td>
+                    <td></td>
+                    <td style="text-align:right;">{{ $fmtL($gExon) }}</td>
+                    <td style="text-align:right;">{{ $fmtL($gGrav) }}</td>
+                    <td style="text-align:right;">{{ $fmtL($gExen) }}</td>
+                    <td style="text-align:right;">{{ $fmtL($gIsv) }}</td>
+                    <td style="text-align:right;">{{ $fmtL($gCobrado) }}</td>
+                </tr>
+            </tfoot>
+        </table>
+        <div style="height:8px;"></div>
+    @endforeach
+
+    <table>
+        <tfoot>
+            <tr style="background:#c05000;color:#fff;font-weight:bold;">
+                <td colspan="4" style="text-align:right;font-weight:bold;">TOTAL GENERAL:</td>
+                <td style="text-align:right;">{{ $fmtL($grandCobrado) }}</td>
+                <td></td>
+                <td style="text-align:right;">{{ $fmtL($grandExon) }}</td>
+                <td style="text-align:right;">{{ $fmtL($grandGrav) }}</td>
+                <td style="text-align:right;">{{ $fmtL($grandExen) }}</td>
+                <td style="text-align:right;">{{ $fmtL($grandIsv) }}</td>
+                <td style="text-align:right;">{{ $fmtL($grandCobrado) }}</td>
+            </tr>
+        </tfoot>
+    </table>
+
+    @else
+    {{-- ── Formato legado (SP data) ── --}}
     <table>
         <thead>
             <tr>
@@ -148,6 +247,7 @@
             </tr>
         </tfoot>
     </table>
+    @endif
 
     <div class="footer">
         <div class="signature">

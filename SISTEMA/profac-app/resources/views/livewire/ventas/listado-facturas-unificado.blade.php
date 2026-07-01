@@ -77,6 +77,13 @@
         font-size: .80rem; vertical-align: middle; padding: 6px 8px;
     }
     #tbl_listar_compras tbody tr:hover { background: #fffcf5; }
+    .factura-link {
+        color: #e67e22;
+        font-weight: 600;
+        text-decoration: underline;
+        cursor: pointer;
+    }
+    .factura-link:hover { color: #c76305; }
     .td-cai-trunc {
         display: inline-block;
         max-width: 90px; overflow: hidden;
@@ -109,6 +116,40 @@
     #modalFiltros .form-control:focus {
         border-color: #e67e22;
         box-shadow: 0 0 0 .15rem rgba(230,126,34,.18);
+    }
+    #modalDetalleFactura .modal-body {
+        background: #fffdf9;
+        padding: 16px 18px;
+    }
+    #modalDetalleFactura .modal-dialog.modal-dialog-centered {
+        min-height: calc(100% - 7rem);
+        align-items: flex-start;
+        margin-top: 68px;
+    }
+    #modalDetalleFactura .table thead th {
+        background: #fdf4e7;
+        color: #7d3f00;
+        font-size: .72rem;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        border-bottom: 2px solid #f2d49a;
+    }
+    #modalDetalleFactura .table tbody td {
+        font-size: .82rem;
+        vertical-align: middle;
+    }
+    .detalle-tools {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        justify-content: flex-end;
+        margin-bottom: 10px;
+        flex-wrap: wrap;
+    }
+    .detalle-tools .form-control {
+        max-width: 260px;
+        height: 32px;
+        font-size: .80rem;
     }
     .modal-filter-grid {
         background: #fff; border: 1px solid #ead9c8;
@@ -145,6 +186,7 @@
     @media (max-width: 575px) {
         .modal-dialog.modal-lg { max-width: calc(100vw - 1rem); }
         .fact-card-body { padding: 8px; }
+        #modalDetalleFactura .modal-dialog.modal-dialog-centered { margin-top: 56px; }
     }
     </style>
     @endpush
@@ -201,6 +243,59 @@
             </div>
         </div>
 
+    </div>
+
+    <!-- ==================== Modal Detalle Productos/Escala ==================== -->
+    <div class="modal fade" id="modalDetalleFactura" tabindex="-1" role="dialog" aria-labelledby="tituloModalDetalleFactura" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header modal-header-fact">
+                    <h5 class="modal-title" id="tituloModalDetalleFactura">
+                        <i class="fa fa-list-alt mr-2"></i>Detalle de productos por escala
+                    </h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="d-flex flex-wrap align-items-center justify-content-between mb-2" style="gap:8px">
+                        <small class="text-muted">Factura: <strong id="detalleFacturaNumero">-</strong></small>
+                    </div>
+
+                    <div id="detalleFacturaLoading" class="text-center py-3" style="display:none">
+                        <i class="fa fa-spinner fa-spin"></i> Cargando detalle...
+                    </div>
+
+                    <div class="detalle-tools">
+                        <input type="text" id="detalleFacturaBuscar" class="form-control form-control-sm" placeholder="Buscar producto o escala...">
+                        <button type="button" id="btnDetalleFacturaExcel" class="btn btn-success btn-sm">
+                            <i class="fa fa-file-excel-o mr-1"></i>Excel
+                        </button>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-sm mb-0" id="tblDetalleFacturaProductos">
+                            <thead>
+                                <tr>
+                                    <th>Producto</th>
+                                    <th class="text-right">Cantidad</th>
+                                    <th>Escala</th>
+                                    <th class="text-right">Monto</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted">Seleccione una factura para ver el detalle.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- ==================== Modal de Filtros ==================== -->
@@ -342,6 +437,7 @@
             var tipoVenta  = @json($tipoVenta);
             var esVendedor = @json($esVendedor);
             var config     = configPorTipo[tipoVenta] || configPorTipo['corporativo'];
+            var usuarioDescargaExcel = @json(optional(Auth::user())->name ?? 'Sistema');
 
             var urlHistoryAdmin    = { corporativo: '/facturas/corporativo', estatal: '/facturas/estatal', exonerado: '/exonerado/ventas/lista' };
             var urlHistoryVendedor = { corporativo: '/facturas/corporativo/vendedor', estatal: '/ventas/estatal/vendedor', exonerado: '/exonerado/ventas/lista' };
@@ -362,7 +458,15 @@
                 });
                 if (esVend) cols.push({ data: 'id' });
                 if (!esVend) {
-                    cols.push({ data: 'cai' });
+                    cols.push({
+                        data: 'cai',
+                        render: function(d, type, row) {
+                            if (type !== 'display') return d;
+                            var label = d || '';
+                            if (!row || !row.id) return label;
+                            return '<a href="javascript:void(0)" class="factura-link" data-factura-id="' + row.id + '" data-factura-cai="' + label + '">' + label + '</a>';
+                        }
+                    });
                 }
                 cols.push({ data: 'fecha_emision' });
                 cols.push({ data: 'nombre' });
@@ -549,6 +653,260 @@
 
             // ── Inicialización ───────────────────────────────────────────────
             $(document).ready(function() {
+                var detalleFacturaTable = null;
+                var detalleFacturaActual = '';
+
+                function fechaHoraDescarga() {
+                    var now = new Date();
+                    return now.toLocaleDateString('es-HN', { day: '2-digit', month: '2-digit', year: 'numeric' }) +
+                        ' ' + now.toLocaleTimeString('es-HN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                }
+
+                function normalizarNumeroExcel(valor) {
+                    if (valor === null || valor === undefined) return 0;
+                    var limpio = String(valor)
+                        .replace(/L\.|HNL|,/gi, '')
+                        .replace(/\s+/g, '')
+                        .trim();
+                    var n = parseFloat(limpio);
+                    return isNaN(n) ? 0 : n;
+                }
+
+                function formatoNumero(n) {
+                    var num = Number(n || 0);
+                    return num.toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                }
+
+                function renderDetalleFactura(productos) {
+                    var rows = [];
+                    (productos || []).forEach(function(item) {
+                        rows.push({
+                            producto: item.producto || '-',
+                            cantidad: Number(item.cantidad || 0),
+                            escala: item.escala || 'Sin escala',
+                            monto: Number(item.monto || 0)
+                        });
+                    });
+
+                    if (!detalleFacturaTable) {
+                        detalleFacturaTable = $('#tblDetalleFacturaProductos').DataTable({
+                            data: rows,
+                            paging: true,
+                            pageLength: 10,
+                            ordering: true,
+                            info: true,
+                            searching: true,
+                            dom: 'Brtip',
+                            language: { "url": "/js/plugins/dataTables/i18n/Spanish.json" },
+                            buttons: [{
+                                extend: 'excelHtml5',
+                                title: function() {
+                                    return '';
+                                },
+                                filename: function() {
+                                    var num = (detalleFacturaActual || 'factura').replace(/[^0-9A-Za-z_-]/g, '_');
+                                    return 'Distribuciones_Valencia_Detalle_' + num;
+                                },
+                                messageTop: function() {
+                                    return '';
+                                },
+                                exportOptions: {
+                                    format: {
+                                        body: function(data, row, column) {
+                                            if (column === 1 || column === 3) {
+                                                return normalizarNumeroExcel(data);
+                                            }
+                                            return $('<div>').html(data).text();
+                                        }
+                                    }
+                                },
+                                customize: function(xlsx) {
+                                    var sheet = xlsx.xl.worksheets['sheet1.xml'];
+                                    var $sheet = $(sheet);
+                                    var styles = xlsx.xl['styles.xml'];
+                                    var $styles = $(styles);
+
+                                    function escapeXml(text) {
+                                        return String(text || '')
+                                            .replace(/&/g, '&amp;')
+                                            .replace(/</g, '&lt;')
+                                            .replace(/>/g, '&gt;')
+                                            .replace(/"/g, '&quot;')
+                                            .replace(/'/g, '&apos;');
+                                    }
+
+                                    function colFromRef(ref) {
+                                        return String(ref || '').replace(/[0-9]/g, '');
+                                    }
+
+                                    var sheetData = $sheet.find('sheetData');
+                                    var horaDescarga = fechaHoraDescarga();
+                                    var encabezado1 = 'Distribuciones Valencia';
+                                    var encabezado2 = 'Reporte de productos factura numero: ' + (detalleFacturaActual || '-');
+                                    var encabezado3 = 'Hora de descarga: ' + horaDescarga + '  |  Descargado por: ' + (usuarioDescargaExcel || 'Sistema');
+
+                                    // Desplazar filas existentes 4 posiciones para insertar encabezados visibles.
+                                    sheetData.find('row').each(function() {
+                                        var $row = $(this);
+                                        var oldRow = parseInt($row.attr('r') || '0', 10);
+                                        var newRow = oldRow + 4;
+                                        $row.attr('r', String(newRow));
+
+                                        $row.find('c').each(function() {
+                                            var $cell = $(this);
+                                            var oldRef = $cell.attr('r') || '';
+                                            var col = colFromRef(oldRef);
+                                            if (col) {
+                                                $cell.attr('r', col + newRow);
+                                            }
+                                        });
+                                    });
+
+                                    // Insertar los 3 headers solicitados y una fila separadora.
+                                    var filasHeader = '' +
+                                        '<row r="1"><c r="A1" t="inlineStr"><is><t>' + escapeXml(encabezado1) + '</t></is></c></row>' +
+                                        '<row r="2"><c r="A2" t="inlineStr"><is><t>' + escapeXml(encabezado2) + '</t></is></c></row>' +
+                                        '<row r="3"><c r="A3" t="inlineStr"><is><t>' + escapeXml(encabezado3) + '</t></is></c></row>' +
+                                        '<row r="4"><c r="A4" t="inlineStr"><is><t></t></is></c></row>';
+                                    sheetData.prepend(filasHeader);
+
+                                    // Extender el rango del worksheet (dimension) para incluir las nuevas filas.
+                                    var $dimension = $sheet.find('dimension');
+                                    if ($dimension.length) {
+                                        var ref = $dimension.attr('ref') || 'A1:D1';
+                                        var parts = ref.split(':');
+                                        if (parts.length === 2) {
+                                            var endCol = colFromRef(parts[1]) || 'D';
+                                            var endRow = parseInt(String(parts[1]).replace(/[^0-9]/g, '') || '1', 10) + 4;
+                                            $dimension.attr('ref', 'A1:' + endCol + endRow);
+                                        }
+                                    }
+
+                                    // Crear formato moneda en Lempiras para la columna MONTO.
+                                    var $numFmts = $styles.find('numFmts');
+                                    if (!$numFmts.length) {
+                                        $styles.find('styleSheet').prepend('<numFmts count="0"></numFmts>');
+                                        $numFmts = $styles.find('numFmts');
+                                    }
+                                    var existeNumFmt = $numFmts.find('numFmt[numFmtId="300"]');
+                                    if (!existeNumFmt.length) {
+                                        $numFmts.append('<numFmt numFmtId="300" formatCode="&quot;L &quot;#,##0.00"/>');
+                                        $numFmts.attr('count', parseInt($numFmts.attr('count') || '0', 10) + 1);
+                                    }
+
+                                    var $cellXfs = $styles.find('cellXfs');
+                                    var xfCount = parseInt($cellXfs.attr('count') || '0', 10);
+
+                                    var estiloTextoEditable = xfCount;
+                                    $cellXfs.append('<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyProtection="1"><protection locked="0"/></xf>');
+                                    xfCount += 1;
+
+                                    var estiloNumeroEditable = xfCount;
+                                    $cellXfs.append('<xf numFmtId="4" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyProtection="1"><protection locked="0"/></xf>');
+                                    xfCount += 1;
+
+                                    var estiloMonedaLEditable = xfCount;
+                                    $cellXfs.append('<xf numFmtId="300" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyProtection="1"><protection locked="0"/></xf>');
+                                    xfCount += 1;
+
+                                    $cellXfs.attr('count', xfCount);
+
+                                    if ($sheet.find('sheetProtection').length === 0) {
+                                        $sheet.find('worksheet').append('<sheetProtection sheet="1" objects="1" scenarios="1" selectLockedCells="1" selectUnlockedCells="1"/>');
+                                    }
+
+                                    // Solo los headers (filas 1..3) quedan bloqueados; tabla editable desde fila 5.
+                                    sheetData.find('row').each(function() {
+                                        var $row = $(this);
+                                        var rowNum = parseInt($row.attr('r') || '0', 10);
+                                        if (rowNum >= 5) {
+                                            $row.find('c').each(function() {
+                                                var $cell = $(this);
+                                                var ref = $cell.attr('r') || '';
+                                                var col = colFromRef(ref);
+
+                                                if (rowNum >= 6 && col === 'B') {
+                                                    $cell.attr('s', String(estiloNumeroEditable));
+                                                } else if (rowNum >= 6 && col === 'D') {
+                                                    $cell.attr('s', String(estiloMonedaLEditable));
+                                                } else {
+                                                    $cell.attr('s', String(estiloTextoEditable));
+                                                }
+                                            });
+                                        }
+                                    });
+                                },
+                                className: 'd-none'
+                            }],
+                            columns: [
+                                { data: 'producto' },
+                                { data: 'cantidad', className: 'text-right', render: function(d, t) { return t === 'display' ? formatoNumero(d) : d; } },
+                                { data: 'escala' },
+                                { data: 'monto', className: 'text-right', render: function(d, t) { return t === 'display' ? ('L. ' + formatoNumero(d)) : d; } }
+                            ]
+                        });
+                    } else {
+                        detalleFacturaTable.clear().rows.add(rows).draw();
+                    }
+
+                    if (rows.length === 0) {
+                        detalleFacturaTable.clear().draw();
+                    }
+
+                    $('#detalleFacturaBuscar').val('');
+                    detalleFacturaTable.search('').draw();
+                }
+
+                function abrirDetalleFactura(idFactura, numeroFactura) {
+                    var loading = document.getElementById('detalleFacturaLoading');
+                    var numero  = document.getElementById('detalleFacturaNumero');
+                    detalleFacturaActual = numeroFactura || ('#' + idFactura);
+
+                    if (numero) numero.textContent = detalleFacturaActual;
+                    if (detalleFacturaTable) {
+                        detalleFacturaTable.clear().draw();
+                    }
+                    if (loading) loading.style.display = '';
+
+                    $('#modalDetalleFactura').modal('show');
+
+                    axios.get('/factura/detalle-productos-escala/' + idFactura)
+                        .then(function(response) {
+                            var data = response.data || {};
+                            renderDetalleFactura(data.productos || []);
+                        })
+                        .catch(function() {
+                            if (detalleFacturaTable) {
+                                detalleFacturaTable.clear().draw();
+                            } else {
+                                var tbody = document.querySelector('#tblDetalleFacturaProductos tbody');
+                                if (tbody) {
+                                    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger">No fue posible cargar el detalle de la factura.</td></tr>';
+                                }
+                            }
+                        })
+                        .finally(function() {
+                            if (loading) loading.style.display = 'none';
+                        });
+                }
+
+                $(document).on('click', '.factura-link', function() {
+                    var idFactura = this.getAttribute('data-factura-id');
+                    var numeroFac = this.getAttribute('data-factura-cai');
+                    if (!idFactura) return;
+                    abrirDetalleFactura(idFactura, numeroFac);
+                });
+
+                $('#detalleFacturaBuscar').on('keyup', function() {
+                    if (!detalleFacturaTable) return;
+                    detalleFacturaTable.search(this.value || '').draw();
+                });
+
+                $('#btnDetalleFacturaExcel').on('click', function() {
+                    if (!detalleFacturaTable) return;
+                    detalleFacturaTable.button(0).trigger();
+                });
+
                 // Handlers de los botones tipo en el modal
                 document.querySelectorAll('.tipo-filter-btn').forEach(function(btn) {
                     btn.addEventListener('click', function() {

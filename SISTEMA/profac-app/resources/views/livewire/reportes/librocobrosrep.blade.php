@@ -38,6 +38,8 @@
     .modal-header-lc .modal-title { color:#fff; font-size:.95rem; font-weight:700; }
     .modal-header-lc .close { color:#fff; opacity:.8; text-shadow:none; font-size:1.4rem; }
     .modal-header-lc .close:hover { opacity:1; }
+    .select2-container--open { z-index: 99999 !important; }
+    .select2-dropdown { z-index: 99999 !important; }
     .lc-section-label { font-size:.68rem; font-weight:700; letter-spacing:.07em; text-transform:uppercase;
         color:#e67e22; border-bottom:2px solid #fdebd0; padding-bottom:5px; margin-bottom:14px; margin-top:6px;
         display:flex; align-items:center; gap:5px; }

@@ -19,8 +19,6 @@ class ModificarActoresEnFactura extends Component
     public $gestorEntregaId = '';
     public $teleAsesorId = '';
 
-    protected array $rolesPermitidos = [2, 3, 14, 15];
-
     protected $rules = [
         'vendedorId' => ['required', 'integer'],
         'gestorEntregaId' => ['nullable', 'integer'],
@@ -173,26 +171,17 @@ class ModificarActoresEnFactura extends Component
             'vendedorId' => [
                 'required',
                 'integer',
-                Rule::exists('users', 'id')->where(function ($query) {
-                    $query->whereIn('rol_id', $this->rolesPermitidos)
-                        ->where('estado_id', 1);
-                }),
+                Rule::exists('users', 'id'),
             ],
             'gestorEntregaId' => [
                 'nullable',
                 'integer',
-                Rule::exists('users', 'id')->where(function ($query) {
-                    $query->whereIn('rol_id', $this->rolesPermitidos)
-                        ->where('estado_id', 1);
-                }),
+                Rule::exists('users', 'id'),
             ],
             'teleAsesorId' => [
                 'required',
                 'integer',
-                Rule::exists('users', 'id')->where(function ($query) {
-                    $query->whereIn('rol_id', $this->rolesPermitidos)
-                        ->where('estado_id', 1);
-                }),
+                Rule::exists('users', 'id'),
             ],
         ], [
             'vendedorId.required' => 'Debes seleccionar el asesor comercial.',
@@ -238,8 +227,6 @@ class ModificarActoresEnFactura extends Component
     {
         return DB::table('users as u')
             ->leftJoin('rol as r', 'r.id', '=', 'u.rol_id')
-            ->whereIn('u.rol_id', $this->rolesPermitidos)
-            ->where('u.estado_id', 1)
             ->orderBy('u.name')
             ->get([
                 'u.id',

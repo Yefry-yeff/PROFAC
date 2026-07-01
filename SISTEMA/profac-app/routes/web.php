@@ -771,6 +771,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/detalle/venta/{id}', DetalleVenta::class);
     Route::get('/detalle/venta/vendedor/{id}', DetalleVentaVendedor::class);
     Route::get('/lista/productos/factura/{id}', [DetalleVenta::class, 'listarProductosFactura']);
+    Route::get('/factura/detalle-productos-escala/{id}', [DetalleVenta::class, 'detalleProductosEscala']);
     Route::get('/lista/ubicacion/producto/{id}', [DetalleVenta::class, 'ubicacionProductos']);
     Route::get('/lista/pagos/venta/{id}', [DetalleVenta::class, 'pagosVenta']);
     Route::get('/venta/cobro/{id}', Cobros::class);
