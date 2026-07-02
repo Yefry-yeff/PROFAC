@@ -6,6 +6,7 @@ use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithStrictNullComparison;
+use Maatwebsite\Excel\Concerns\WithColumnWidths;
 use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
@@ -22,7 +23,7 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
  *  J  Exonerado       K  Gravado         L  Exento
  *  M  Sub Total       N  ISV             O  Total Factura
  */
-class LibroCobrosExport implements FromArray, WithStyles, WithEvents, WithStrictNullComparison
+class LibroCobrosExport implements FromArray, WithStyles, WithEvents, WithStrictNullComparison, WithColumnWidths
 {
     protected array $data;
     protected string $fechaInicio;
@@ -164,6 +165,15 @@ class LibroCobrosExport implements FromArray, WithStyles, WithEvents, WithStrict
         return $out;
     }
 
+    public function columnWidths(): array
+    {
+        return [
+            'A' => 12, 'B' => 32, 'C' => 20, 'D' => 20, 'E' => 14,
+            'F' => 10, 'G' => 20, 'H' => 18, 'I' => 28, 'J' => 13,
+            'K' => 13, 'L' => 13, 'M' => 13, 'N' => 12, 'O' => 14,
+        ];
+    }
+
     public function styles(Worksheet $sheet)
     {
         $lc = self::LAST_COL;
@@ -191,9 +201,7 @@ class LibroCobrosExport implements FromArray, WithStyles, WithEvents, WithStrict
             ->setWrapText(true);
         $sheet->getRowDimension(4)->setRowHeight(28);
 
-        foreach (range('A', self::LAST_COL) as $c) {
-            $sheet->getColumnDimension($c)->setAutoSize(true);
-        }
+        // Anchos fijos definidos en columnWidths() — no se usa setAutoSize()
 
         return [];
     }

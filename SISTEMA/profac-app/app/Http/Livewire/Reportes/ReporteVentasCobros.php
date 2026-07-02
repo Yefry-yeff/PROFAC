@@ -931,6 +931,9 @@ class ReporteVentasCobros extends Component
      * ───────────────────────────────────────────────────────────────── */
     public function exportarPdf(Request $request, $vendedorId = null, $clienteId = null, $mes = null, $anio = null)
     {
+        @set_time_limit(0);
+        @ini_set('memory_limit', '512M');
+
         try {
             $rows = $this->sqlReporte(
                 $this->norm($request->input('vendedor',    $vendedorId)),
@@ -954,7 +957,14 @@ class ReporteVentasCobros extends Component
             $pdf = Pdf::loadView('pdf.reporteventascobros', compact('rows'))
                       ->setPaper('legal', 'landscape');
 
-            return $pdf->download("ReporteVentasCobros_" . now()->format('Y-m-d') . ".pdf");
+            $response = $pdf->download("ReporteVentasCobros_" . now()->format('Y-m-d') . ".pdf");
+
+            $downloadToken = (string) $request->input('download_token', '');
+            if ($downloadToken !== '') {
+                $response->withCookie(cookie('vc_pdf_download_token', $downloadToken, 5, '/', null, false, false, false, 'Lax'));
+            }
+
+            return $response;
         } catch (\Throwable $e) {
             return response()->json(['message' => $e->getMessage()], 500);
         }
@@ -1119,6 +1129,99 @@ class ReporteVentasCobros extends Component
     public function buildExcelMovimientosFromFacturaIds(array $facturaIds): array
     {
         return $this->getMovimientosBulk($facturaIds);
+    }
+
+    /**
+     * Alternativa rápida para datasets grandes: obtiene los movimientos usando
+     * JOIN directo con los filtros del payload, sin cláusula IN sobre miles de IDs.
+     */
+    public function buildExcelMovimientosFromPayload(array $payload): array
+    {
+        $fechaDesde = $payload['fecha_desde'] ?? null;
+        $fechaHasta = $payload['fecha_hasta'] ?? null;
+        $vendedorId = $payload['vendedor']    ?? null;
+        $clienteId  = $payload['cliente']     ?? null;
+
+        // Condiciones base para filtrar las facturas en el JOIN
+        $whereF  = '1=1';
+        $params  = [];
+
+        if ($fechaDesde) { $whereF .= ' AND f.fecha_emision >= ?'; $params[] = $fechaDesde; }
+        if ($fechaHasta) { $whereF .= ' AND f.fecha_emision <= ?'; $params[] = $fechaHasta; }
+        if ($vendedorId) { $whereF .= ' AND f.vendedor = ?';       $params[] = $vendedorId; }
+        if ($clienteId)  { $whereF .= ' AND f.cliente_id = ?';     $params[] = $clienteId;  }
+
+        $sql = "
+            SELECT tipo, factura_id, fecha, documento, monto,
+                   banco_nombre, banco_cuenta, recibo, descripcion,
+                   responsable, forma_pago
+            FROM (
+                SELECT 'ABONO' AS tipo,
+                       ap.factura_id AS factura_id,
+                       ac.fecha_pago AS fecha,
+                       COALESCE(ac.numero_recibo,'') AS documento,
+                       ac.monto_abonado AS monto,
+                       COALESCE(b.nombre,'') AS banco_nombre,
+                       COALESCE(b.cuenta,'') AS banco_cuenta,
+                       COALESCE(ac.numero_recibo,'') AS recibo,
+                       COALESCE(ac.comentario,'') AS descripcion,
+                       COALESCE(u_reg.name,'') AS responsable,
+                       COALESCE(tpc_ab.descripcion,'') AS forma_pago,
+                       3 AS orden_tipo
+                FROM abonos_creditos ac
+                INNER JOIN aplicacion_pagos ap ON ap.id = ac.aplicacion_pagos_id
+                INNER JOIN factura f ON f.id = ap.factura_id
+                LEFT JOIN banco b ON b.id = ac.banco_id
+                LEFT JOIN tipo_pago_cobro tpc_ab ON tpc_ab.id = ac.id_tipo_pago_cobro
+                LEFT JOIN users u_reg ON u_reg.id = ac.usr_registro
+                WHERE ac.estado_abono = 1 AND {$whereF}
+
+                UNION ALL
+
+                SELECT 'NOTA_CREDITO' AS tipo,
+                       nc.factura_id AS factura_id,
+                       nc.fecha AS fecha,
+                       nc.numero_secuencia_cai AS documento,
+                       nc.total AS monto,
+                       NULL AS banco_nombre, NULL AS banco_cuenta, NULL AS recibo,
+                       COALESCE(nc.comentario,'') AS descripcion,
+                       COALESCE(u_nc.name,'') AS responsable,
+                       NULL AS forma_pago,
+                       5 AS orden_tipo
+                FROM nota_credito nc
+                INNER JOIN factura f ON f.id = nc.factura_id
+                LEFT JOIN users u_nc ON u_nc.id = nc.users_id
+                WHERE nc.estado_nota_id = 1 AND {$whereF}
+
+                UNION ALL
+
+                SELECT 'NOTA_DEBITO' AS tipo,
+                       nd.factura_id AS factura_id,
+                       nd.fechaEmision AS fecha,
+                       nd.correlativoND AS documento,
+                       nd.monto_asignado AS monto,
+                       NULL AS banco_nombre, NULL AS banco_cuenta, NULL AS recibo,
+                       COALESCE(nd.motivoDescripcion,'') AS descripcion,
+                       COALESCE(u_nd.name,'') AS responsable,
+                       NULL AS forma_pago,
+                       6 AS orden_tipo
+                FROM notadebito nd
+                INNER JOIN factura f ON f.id = nd.factura_id
+                LEFT JOIN users u_nd ON u_nd.id = nd.users_registra_id
+                WHERE {$whereF}
+            ) AS _movs
+            ORDER BY factura_id ASC, fecha ASC, orden_tipo ASC
+        ";
+
+        // Cada UNION branch usa los mismos parámetros de filtro
+        $allParams = array_merge($params, $params, $params);
+        $movs      = DB::select($sql, $allParams);
+
+        $grouped = [];
+        foreach ($movs as $m) {
+            $grouped[$m->factura_id][] = $m;
+        }
+        return $grouped;
     }
 
     /* ─────────────────────────────────────────────────────────────────

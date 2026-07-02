@@ -333,11 +333,60 @@ function exportarExcelLV() {
     var f = getFiltrosLV();
     var fechaDesde = f.fecha_desde || '1900-01-01';
     var fechaHasta = f.fecha_hasta || new Date().toISOString().split('T')[0];
-    _exportarConCargaLV(
-        '/reporte/Libroventarep/exportar-excel/4/' + encodeURIComponent(fechaDesde) + '/' + encodeURIComponent(fechaHasta),
-        'Generando Excel',
-        'Preparando reporte...'
-    );
+    var tok = $('meta[name="csrf-token"]').attr('content');
+    var downloadToken = 'lvxls_' + Date.now() + '_' + Math.floor(Math.random() * 1000000);
+    var cookieName = 'lv_excel_download_token';
+
+    _setCookieLV(cookieName, '', -1);
+
+    var url = '/reporte/Libroventarep/exportar-excel/4/' + encodeURIComponent(fechaDesde) + '/' + encodeURIComponent(fechaHasta);
+    var form = $('<form method="POST"></form>').attr('action', url);
+    var fields = {
+        _token: tok,
+        download_token: downloadToken,
+        cliente: f.cliente || '',
+        cliente_id: f.cliente || '',
+        vendedor: f.vendedor || '',
+        vendedor_id: f.vendedor || '',
+        modo_pago: f.modo_pago || '',
+        factura: f.factura || '',
+        fecha_desde: fechaDesde,
+        fecha_hasta: fechaHasta
+    };
+
+    $.each(fields, function(k, v) {
+        form.append($('<input type="hidden">').attr('name', k).val(v));
+    });
+
+    $('body').append(form);
+
+    Swal.fire({
+        title: 'Generando Excel',
+        html: 'Preparando reporte...<br><small>Este proceso puede tardar varios minutos.</small>',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        showConfirmButton: false,
+        didOpen: function() { Swal.showLoading(); }
+    });
+
+    var startedAt = Date.now();
+    var timer = setInterval(function() {
+        if (_getCookieLV(cookieName) === downloadToken) {
+            clearInterval(timer);
+            _setCookieLV(cookieName, '', -1);
+            Swal.close();
+        } else if (Date.now() - startedAt > (15 * 60 * 1000)) {
+            clearInterval(timer);
+            Swal.fire({
+                icon: 'warning',
+                title: 'Demora en descarga',
+                text: 'La generación del Excel sigue en proceso. Intenta nuevamente en unos minutos.'
+            });
+        }
+    }, 400);
+
+    form.trigger('submit');
+    setTimeout(function() { form.remove(); }, 1500);
 }
 
 function exportarPdfLV() {

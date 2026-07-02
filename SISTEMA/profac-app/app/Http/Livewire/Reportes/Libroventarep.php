@@ -65,6 +65,9 @@ class Libroventarep extends Component
 
     public function exportarPdf(Request $request, $tipo, $fechaInicio,$fechaFinal)
     {
+        @set_time_limit(0);
+        @ini_set('memory_limit', '512M');
+
         try {
             $fechaInicio = $this->normalizarFecha($request->input('fecha_desde', $fechaInicio), '1900-01-01');
             $fechaFinal  = $this->normalizarFecha($request->input('fecha_hasta', $fechaFinal), date('Y-m-d'));
@@ -101,6 +104,9 @@ class Libroventarep extends Component
     }
     public function exportarExcel(Request $request, $tipo, $fechaInicio, $fechaFinal)
     {
+        @set_time_limit(0);
+        @ini_set('memory_limit', '512M');
+
         try {
             $fechaInicio = $this->normalizarFecha($request->input('fecha_desde', $fechaInicio), '1900-01-01');
             $fechaFinal  = $this->normalizarFecha($request->input('fecha_hasta', $fechaFinal), date('Y-m-d'));
@@ -114,7 +120,17 @@ class Libroventarep extends Component
                 ->values()
                 ->all();
 
-            return Excel::download(new LibroVentaExport($data, $fechaInicio, $fechaFinal), "LibroVenta_{$fechaInicio}_a_{$fechaFinal}.xlsx");
+            $response = Excel::download(
+                new LibroVentaExport($data, $fechaInicio, $fechaFinal),
+                "LibroVenta_{$fechaInicio}_a_{$fechaFinal}.xlsx"
+            );
+
+            $downloadToken = (string) $request->input('download_token', '');
+            if ($downloadToken !== '') {
+                setcookie('lv_excel_download_token', $downloadToken, time() + 300, '/', '', false, false);
+            }
+
+            return $response;
 
         } catch (QueryException $e) {
             return response()->json([

@@ -277,6 +277,9 @@ class Librocobrosrep extends Component
 
     public function exportarPdf(Request $request, $tipo, $fechaInicio, $fechaFinal)
     {
+        @set_time_limit(0);
+        @ini_set('memory_limit', '512M');
+
         try {
             if (!$tipo || !$fechaInicio || !$fechaFinal) {
                 return response()->json([
@@ -339,6 +342,9 @@ class Librocobrosrep extends Component
 
     public function exportarExcel(Request $request, $tipo, $fechaInicio, $fechaFinal)
     {
+        @set_time_limit(0);
+        @ini_set('memory_limit', '512M');
+
         try {
             if (!$tipo || !$fechaInicio || !$fechaFinal) {
                 return response()->json([
@@ -359,7 +365,17 @@ class Librocobrosrep extends Component
                 $data = DB::select("CALL sp_reportesxfecha(?, ?, ?)", [$tipo, $fechaInicio, $fechaFinal]);
             }
 
-            return Excel::download(new LibroCobrosExport($data, $fechaInicio, $fechaFinal), "LibroCobros_{$fechaInicio}_a_{$fechaFinal}.xlsx");
+            $response = Excel::download(
+                new LibroCobrosExport($data, $fechaInicio, $fechaFinal),
+                "LibroCobros_{$fechaInicio}_a_{$fechaFinal}.xlsx"
+            );
+
+            $downloadToken = (string) $request->input('download_token', '');
+            if ($downloadToken !== '') {
+                setcookie('lc_excel_download_token', $downloadToken, time() + 300, '/', '', false, false);
+            }
+
+            return $response;
 
         } catch (\Exception $e) {
             return response()->json([

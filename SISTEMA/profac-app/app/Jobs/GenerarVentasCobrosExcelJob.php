@@ -29,6 +29,20 @@ class GenerarVentasCobrosExcelJob
         $this->usuario = $usuario;
     }
 
+    /** Umbral para omitir movimientos y loop por fila (superFastMode) */
+    const SUPER_FAST_THRESHOLD = 8000;
+
+    private function progress(string $statusKey, int $pct, string $msg = ''): void
+    {
+        Cache::put($statusKey, [
+            'status'     => 'processing',
+            'user_id'    => $this->userId,
+            'created_at' => now()->toDateTimeString(),
+            'progress'   => $pct,
+            'message'    => $msg,
+        ], now()->addHours(6));
+    }
+
     public function handle(): void
     {
         @set_time_limit(0);
@@ -37,56 +51,64 @@ class GenerarVentasCobrosExcelJob
         $statusKey = 'rvc_export_status_' . $this->token;
 
         try {
-            Cache::put($statusKey, [
-                'status' => 'processing',
-                'user_id' => $this->userId,
-                'created_at' => now()->toDateTimeString(),
-                'progress' => 25,
-            ], now()->addHours(6));
+            $this->progress($statusKey, 10, 'Iniciando consulta...');
 
             $ctrl = app(ReporteVentasCobros::class);
-            $rows = $ctrl->buildExcelRowsFromPayload($this->payload);
 
-            Cache::put($statusKey, [
-                'status' => 'processing',
-                'user_id' => $this->userId,
-                'created_at' => now()->toDateTimeString(),
-                'progress' => 60,
-            ], now()->addHours(6));
+            $this->progress($statusKey, 20, 'Consultando facturas...');
+            $rows     = $ctrl->buildExcelRowsFromPayload($this->payload);
+            $rowCount = count($rows);
 
-            $facturaIds  = array_map(fn($r) => (int) $r->factura_id, $rows);
-            $movimientos = $ctrl->buildExcelMovimientosFromFacturaIds($facturaIds);
+            // Para datasets grandes (>8K facturas) se omiten los movimientos de detalle
+            // para evitar 14+ queries UNION ALL que pueden tardar varios minutos.
+            $superFastMode = $rowCount >= self::SUPER_FAST_THRESHOLD;
 
-            $totalMovs = 0;
-            foreach ($movimientos as $ms) {
-                $totalMovs += count($ms);
+            if ($superFastMode) {
+                // Para datasets grandes: usa JOIN directo con filtros en vez de IN(N IDs)
+                $this->progress($statusKey, 50, "Consultando movimientos ({$rowCount} facturas)...");
+                $movimientos = $ctrl->buildExcelMovimientosFromPayload($this->payload);
+                $fastMode    = true;
+            } else {
+                $this->progress($statusKey, 45, 'Consultando movimientos...');
+                $facturaIds  = array_map(fn($r) => (int) $r->factura_id, $rows);
+                $movimientos = $ctrl->buildExcelMovimientosFromFacturaIds($facturaIds);
+
+                $totalMovs = 0;
+                foreach ($movimientos as $ms) { $totalMovs += count($ms); }
+                $fastMode  = ($rowCount + $totalMovs) > 4000;
+
+                $this->progress($statusKey, 60, 'Generando archivo Excel...');
             }
-            $fastMode = (count($rows) + $totalMovs) > 4000;
 
-            $fileName = 'ReporteVentasCobros_' . now()->format('Y-m-d_H-i-s') . '_' . substr($this->token, 0, 8) . '.xlsx';
+            $this->progress($statusKey, 65, 'Construyendo filas del reporte...');
+
+            $fileName     = 'ReporteVentasCobros_' . now()->format('Y-m-d_H-i-s') . '_' . substr($this->token, 0, 8) . '.xlsx';
             $relativePath = 'exports/ventas-cobros/' . $fileName;
 
+            $this->progress($statusKey, 72, 'Escribiendo Excel...');
+
             Excel::store(
-                new ReporteVentasCobrosExport($rows, $this->usuario, $movimientos, $fastMode),
+                new ReporteVentasCobrosExport($rows, $this->usuario, $movimientos, $fastMode, $superFastMode),
                 $relativePath,
                 'local'
             );
 
             Cache::put($statusKey, [
-                'status' => 'ready',
-                'user_id' => $this->userId,
+                'status'     => 'ready',
+                'user_id'    => $this->userId,
                 'created_at' => now()->toDateTimeString(),
-                'progress' => 100,
-                'file' => $relativePath,
-                'file_name' => $fileName,
+                'progress'   => 100,
+                'file'       => $relativePath,
+                'file_name'  => $fileName,
             ], now()->addHours(6));
+
         } catch (\Throwable $e) {
             Cache::put($statusKey, [
-                'status' => 'failed',
-                'user_id' => $this->userId,
+                'status'     => 'failed',
+                'user_id'    => $this->userId,
                 'created_at' => now()->toDateTimeString(),
-                'progress' => 100,
-                'message' => $e->getMessage(),
+                'progress'   => 100,
+                'message'    => $e->getMessage(),
             ], now()->addHours(6));
         }
     }

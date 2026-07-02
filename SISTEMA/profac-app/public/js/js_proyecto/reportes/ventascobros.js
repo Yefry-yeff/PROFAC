@@ -496,18 +496,85 @@ function _exportarForm(url) {
     form.submit();
     form.remove();
 }
-function exportarPdf()   { _exportarForm('/reporte/ventas-cobros/exportar-pdf/null/null/null/null'); }
+function exportarPdf() {
+    var f   = getFiltros();
+    var tok = $('meta[name="csrf-token"]').attr('content');
+    var downloadToken = 'vcpdf_' + Date.now() + '_' + Math.floor(Math.random() * 1000000);
+    var cookieName = 'vc_pdf_download_token';
+    document.cookie = cookieName + '=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/';
+
+    var form = $('<form method="POST"></form>').attr('action', '/reporte/ventas-cobros/exportar-pdf/null/null/null/null');
+    var fields = {
+        _token: tok, download_token: downloadToken,
+        vendedor: f.vendedor || '', cliente: f.cliente || '',
+        factura: f.factura || '', fecha_desde: f.fecha_desde || '',
+        fecha_hasta: f.fecha_hasta || '', fecha_pago_desde: f.fecha_pago_desde || '',
+        fecha_pago_hasta: f.fecha_pago_hasta || '', estado_cobro: f.estado_cobro || '',
+        estado_f01: f.estado_f01 || '', modo_pago: f.modo_pago || '',
+        banco: f.banco || '', cuenta: f.cuenta || ''
+    };
+    $.each(fields, function(k, v) { form.append($('<input type="hidden">').attr('name', k).val(v)); });
+    $('body').append(form);
+
+    Swal.fire({
+        title: 'Generando PDF',
+        html: 'Preparando documento...<br><small>Este proceso puede tardar varios minutos.</small>',
+        allowOutsideClick: false, allowEscapeKey: false, showConfirmButton: false,
+        didOpen: function() { Swal.showLoading(); }
+    });
+
+    var startedAt = Date.now();
+    var timer = setInterval(function() {
+        var prefix = cookieName + '=', val = '';
+        document.cookie.split(';').forEach(function(c) {
+            var t = c.trim();
+            if (t.indexOf(prefix) === 0) val = decodeURIComponent(t.substring(prefix.length));
+        });
+        if (val === downloadToken) {
+            clearInterval(timer);
+            document.cookie = cookieName + '=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/';
+            Swal.close();
+        } else if (Date.now() - startedAt > 15 * 60 * 1000) {
+            clearInterval(timer);
+            Swal.fire({ icon: 'warning', title: 'Demora en descarga', text: 'La generación sigue en proceso. Intenta nuevamente.' });
+        }
+    }, 400);
+
+    form.trigger('submit');
+    setTimeout(function() { form.remove(); }, 1500);
+}
+function _vcProgressHtml(pct, msg) {
+    var safe = Math.max(3, Math.min(100, parseInt(pct, 10) || 3));
+    var label = msg || ('Procesando... ' + safe + '%');
+    return '<div style="margin:10px 0 4px;">' +
+        '<div style="background:#f0e6d3;border-radius:8px;height:18px;overflow:hidden;">' +
+        '<div id="vc-pbar" style="height:100%;width:' + safe + '%;background:linear-gradient(90deg,#f39c12,#e05a00);' +
+        'border-radius:8px;transition:width .4s ease;"></div>' +
+        '</div>' +
+        '<div id="vc-pbar-label" style="font-size:.78rem;color:#7d3f00;margin-top:5px;text-align:center;">' + label + '</div>' +
+        '</div>' +
+        '<small style="color:#999;">El reporte se procesa en segundo plano.</small>';
+}
+
+function _vcProgressUpdate(pct, msg) {
+    var safe = Math.max(3, Math.min(100, parseInt(pct, 10) || 3));
+    var label = msg || ('Procesando... ' + safe + '%');
+    var bar = document.getElementById('vc-pbar');
+    var lbl = document.getElementById('vc-pbar-label');
+    if (bar) bar.style.width = safe + '%';
+    if (lbl) lbl.textContent = label;
+}
+
 function exportarExcel() {
     var f   = getFiltros();
     var tok = $('meta[name="csrf-token"]').attr('content');
 
     Swal.fire({
         title: 'Generando Excel',
-        html: 'Preparando reporte...<br><small>Este proceso puede tardar varios minutos.</small>',
+        html: _vcProgressHtml(3, 'Iniciando...'),
         allowOutsideClick: false,
         allowEscapeKey: false,
-        showConfirmButton: false,
-        didOpen: function() { Swal.showLoading(); }
+        showConfirmButton: false
     });
 
     $.ajax({
@@ -547,6 +614,7 @@ function exportarExcel() {
 
 function _pollExportExcel(token) {
     var startedAt = Date.now();
+    var lastPct   = 3;
     var pollId = setInterval(function() {
         $.ajax({
             url: '/reporte/ventas-cobros/exportar-excel-estado/' + encodeURIComponent(token),
@@ -557,21 +625,31 @@ function _pollExportExcel(token) {
                     return;
                 }
 
-                var st = resp.status || 'queued';
+                var st  = resp.status || 'queued';
                 var pct = parseInt(resp.progress || 0, 10);
                 if (isNaN(pct)) pct = 0;
+                var msg = resp.message || '';
 
-                if (st === 'queued' || st === 'processing') {
-                    Swal.update({
-                        html: 'Generando archivo... ' + pct + '%<br><small>El reporte se procesa en segundo plano.</small>'
-                    });
+                if (st === 'queued') {
+                    _vcProgressUpdate(Math.max(lastPct, 5), msg || 'En cola...');
+                    return;
+                }
+
+                if (st === 'processing') {
+                    // Avanza la barra al valor reportado o simula pequeño avance
+                    lastPct = Math.max(lastPct + 1, pct);
+                    lastPct = Math.min(lastPct, 95);
+                    _vcProgressUpdate(lastPct, msg || ('Procesando... ' + lastPct + '%'));
                     return;
                 }
 
                 if (st === 'ready') {
                     clearInterval(pollId);
-                    Swal.close();
-                    window.location.href = '/reporte/ventas-cobros/exportar-excel-descargar/' + encodeURIComponent(token);
+                    _vcProgressUpdate(100, '¡Listo! Descargando...');
+                    setTimeout(function() {
+                        Swal.close();
+                        window.location.href = '/reporte/ventas-cobros/exportar-excel-descargar/' + encodeURIComponent(token);
+                    }, 500);
                     return;
                 }
 

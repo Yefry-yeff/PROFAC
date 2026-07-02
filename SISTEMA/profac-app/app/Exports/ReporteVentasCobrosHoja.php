@@ -46,6 +46,7 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
     protected $usuario;
     protected $movimientos;
     protected $fastMode;
+    protected $superFastMode;
     protected $rowMeta = [];
 
     const LAST_COL  = 'AD';
@@ -85,12 +86,13 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
         9 => 'Septiembre', 10 => 'Octubre', 11 => 'Noviembre', 12 => 'Diciembre',
     ];
 
-    public function __construct($rows, $usuario = 'Sistema', $movimientos = [], $fastMode = false)
+    public function __construct($rows, $usuario = 'Sistema', $movimientos = [], $fastMode = false, $superFastMode = false)
     {
-        $this->rows        = $rows;
-        $this->usuario     = $usuario;
-        $this->movimientos = $movimientos;
-        $this->fastMode    = (bool) $fastMode;
+        $this->rows          = $rows;
+        $this->usuario       = $usuario;
+        $this->movimientos   = $movimientos;
+        $this->fastMode      = (bool) $fastMode;
+        $this->superFastMode = (bool) $superFastMode;
     }
 
     public function title(): string { return 'Ventas y Cobros'; }
@@ -420,22 +422,17 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
             ->setWrapText(true);
         $sheet->getRowDimension(4)->setRowHeight(30);
 
-        if ($this->fastMode) {
-            // En exportes grandes, AutoSize es el cuello de botella principal.
-            $fixedWidths = [
-                'A' => 6,  'B' => 10, 'C' => 12, 'D' => 20, 'E' => 34,
-                'F' => 18, 'G' => 18, 'H' => 16, 'I' => 28, 'J' => 16,
-                'K' => 16, 'L' => 12, 'M' => 12, 'N' => 12, 'O' => 12,
-                'P' => 12, 'Q' => 12, 'R' => 12, 'S' => 14, 'T' => 14,
-                'U' => 14, 'V' => 14, 'W' => 18, 'X' => 12, 'Y' => 12,
-                'Z' => 10, 'AA' => 12, 'AB' => 18, 'AC' => 18, 'AD' => 20,
-            ];
-            foreach ($fixedWidths as $col => $w) {
-                $sheet->getColumnDimension($col)->setWidth($w);
-            }
-        } else {
-            foreach (range('A', 'Z') as $c) { $sheet->getColumnDimension($c)->setAutoSize(true); }
-            foreach (['AA','AB','AC','AD'] as $c) { $sheet->getColumnDimension($c)->setAutoSize(true); }
+        // Anchos fijos siempre — setAutoSize en 30 columnas es el mayor cuello de botella
+        $fixedWidths = [
+            'A' => 6,  'B' => 10, 'C' => 12, 'D' => 20, 'E' => 34,
+            'F' => 18, 'G' => 18, 'H' => 16, 'I' => 28, 'J' => 16,
+            'K' => 16, 'L' => 12, 'M' => 12, 'N' => 12, 'O' => 12,
+            'P' => 12, 'Q' => 12, 'R' => 12, 'S' => 14, 'T' => 14,
+            'U' => 14, 'V' => 14, 'W' => 18, 'X' => 12, 'Y' => 12,
+            'Z' => 10, 'AA' => 12, 'AB' => 18, 'AC' => 18, 'AD' => 20,
+        ];
+        foreach ($fixedWidths as $col => $w) {
+            $sheet->getColumnDimension($col)->setWidth($w);
         }
 
         // TOTAL se mantiene visible en el archivo.
@@ -485,8 +482,26 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
                 $sheet->getStyle("Z5:Z{$lastRow}")
                     ->getNumberFormat()->setFormatCode('0');
 
+                if ($this->superFastMode) {
+                    // superFastMode: solo estilos en bloque, cero loops por fila.
+                    // Para 27K+ filas el loop individual tarda minutos extra.
+                    $sheet->getStyle("A5:{$lc}{$lastRow}")->getFont()->setSize(8);
+                    $sheet->getStyle("A4:{$lc}{$lastRow}")->getBorders()->getAllBorders()
+                        ->setBorderStyle(Border::BORDER_THIN)->getColor()->setRGB('E8D5BF');
+                    $sheet->getStyle("A4:{$lc}{$lastRow}")->getBorders()->getOutline()
+                        ->setBorderStyle(Border::BORDER_MEDIUM)->getColor()->setRGB('e07000');
+                    $sheet->getStyle("A4:{$lc}4")->getBorders()->getBottom()
+                        ->setBorderStyle(Border::BORDER_MEDIUM)->getColor()->setRGB('b05000');
+                    // Fila de totales
+                    $sheet->getStyle("A{$lastRow}:{$lc}{$lastRow}")->getFill()
+                        ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFF3E0');
+                    $sheet->getStyle("A{$lastRow}:{$lc}{$lastRow}")->getFont()
+                        ->setBold(true)->setSize(9)->getColor()->setRGB('7d3f00');
+                    return;
+                }
+
                 if ($this->fastMode) {
-                    // Mantener el color de las facturas como antes, sin reactivar todo el costo visual.
+                    // fastMode (<8K filas): colorea solo filas FACTURA, sin sub-filas.
                     for ($row = 5; $row <= $lastRow; $row++) {
                         $meta = $this->rowMeta[$row] ?? ['type' => ''];
                         if (($meta['type'] ?? '') !== self::T_FACTURA) {
@@ -507,7 +522,6 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
                         }
                     }
 
-                    // Evita miles de llamadas de estilo por sub-fila para reducir tiempo total.
                     $sheet->getStyle("A5:{$lc}{$lastRow}")->getFont()->setSize(8);
                     $sheet->getStyle("A4:{$lc}{$lastRow}")->getBorders()->getAllBorders()
                         ->setBorderStyle(Border::BORDER_THIN)->getColor()->setRGB('E8D5BF');
