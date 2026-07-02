@@ -4,11 +4,13 @@
 ============================================= */
 
 var tblApoyo = null;
+var productoApoyoSeleccionado = null;
 
 $(document).ready(function () {
     initTblApoyo();
     cargarFiltrosApoyo();
     bindFotoPreviewApoyo();
+    bindFiltroExactoProductoApoyo();
     // colapsar filtros por defecto
     $('#filtros-body-apoyo').hide();
     $('#ico-filtros-apoyo').removeClass('fa-chevron-down').addClass('fa-chevron-right');
@@ -28,6 +30,7 @@ function initTblApoyo() {
                 d.filtro_categoria_id = $('#fap_categoria').val();
                 d.filtro_marca_id    = $('#fap_marca').val();
                 d.filtro_estado      = $('#fap_estado').val();
+                d.filtro_producto_id = $('#fap_producto_id').val();
             }
         },
         columns: [
@@ -63,10 +66,16 @@ function toggleFiltrosApoyo() {
 }
 
 function aplicarFiltrosApoyo() {
+    if (!$.trim($('#fap_q').val()) && productoApoyoSeleccionado && productoApoyoSeleccionado.id) {
+        $('#fap_q').val(productoApoyoSeleccionado.id);
+    }
     if (tblApoyo) tblApoyo.ajax.reload();
 }
 
 function limpiarFiltrosApoyo() {
+    productoApoyoSeleccionado = null;
+    $('#ap_producto_picker').val('');
+    $('#fap_producto_id').val('');
     $('#fap_q').val('');
     $('#fap_descripcion').val('');
     $('#fap_categoria').val('');
@@ -246,6 +255,39 @@ function cambiarEstado(id, estado) {
             .catch(function () {
                 Swal.fire('Error', 'No se pudo cambiar el estado.', 'error');
             });
+    });
+}
+
+/* ── Buscador tipo oferta (reutilizable) ── */
+function abrirModalBusquedaProductoApoyo() {
+    if (typeof window.abrirBuscador_buscadorProductoApoyo === 'function') {
+        window.abrirBuscador_buscadorProductoApoyo($('#ap_producto_picker').val() || '');
+    }
+}
+
+function alSeleccionarProductoApoyo(producto) {
+    productoApoyoSeleccionado = producto || null;
+    if (!productoApoyoSeleccionado) return;
+
+    var label = productoApoyoSeleccionado.nombre || '';
+    if (productoApoyoSeleccionado.id) {
+        label += ' (#' + productoApoyoSeleccionado.id + ')';
+    }
+    $('#ap_producto_picker').val(label);
+    $('#fap_producto_id').val(String(productoApoyoSeleccionado.id || '').trim());
+    $('#fap_q').val('');
+
+    if (tblApoyo) {
+        tblApoyo.ajax.reload();
+    }
+}
+
+function bindFiltroExactoProductoApoyo() {
+    $('#fap_q').on('input', function () {
+        if ($.trim($(this).val()) !== '') {
+            $('#fap_producto_id').val('');
+            productoApoyoSeleccionado = null;
+        }
     });
 }
 

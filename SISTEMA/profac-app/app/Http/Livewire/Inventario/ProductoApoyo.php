@@ -86,6 +86,11 @@ class ProductoApoyo extends Component
                     $categoriaId = (int) $request->get('filtro_categoria_id', 0);
                     $marcaId     = (int) $request->get('filtro_marca_id', 0);
                     $estadoId    = (int) $request->get('filtro_estado', 0);
+                    $productoId  = (int) $request->get('filtro_producto_id', 0);
+
+                    if ($productoId > 0) {
+                        $query->where('A.id', $productoId);
+                    }
 
                     if ($q !== '') {
                         $words = array_values(array_filter(array_map('trim', explode(' ', $q))));

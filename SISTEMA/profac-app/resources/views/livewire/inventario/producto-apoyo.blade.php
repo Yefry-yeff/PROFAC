@@ -41,6 +41,22 @@
         .prod-filter-body label { font-size: .78rem; font-weight: 600; color: #555; text-transform: uppercase; letter-spacing: .4px; margin-bottom: 4px; }
         .prod-filter-body .form-control { border-radius: 8px; border: 1.5px solid #e0e6ed; font-size: .875rem; height: 36px; }
         .prod-filter-body .form-control:focus { border-color: #e05a00; box-shadow: 0 0 0 3px rgba(224,90,0,.12); }
+        .prod-search-inline .input-group-text,
+        .prod-search-inline .btn {
+            border-radius: 0 8px 8px 0;
+            border: 1.5px solid #e0e6ed;
+            border-left: 0;
+            background: #12b39d;
+            color: #fff;
+            font-weight: 700;
+        }
+        .prod-search-inline .form-control {
+            border-right: 0;
+        }
+        .prod-search-inline .btn:hover {
+            background: #0f9f8c;
+            color: #fff;
+        }
         .prod-filter-actions { display: flex; gap: 8px; margin-top: 14px; }
         .btn-filter-apply { background: linear-gradient(135deg, #f39c12, #e05a00); color: #fff; border: none; border-radius: 8px; padding: 7px 20px; font-size: .84rem; font-weight: 600; }
         .btn-filter-apply:hover { background: linear-gradient(135deg, #e08e0b, #c04e00); color: #fff; }
@@ -135,6 +151,21 @@
         </div>
         <div class="prod-filter-body" id="filtros-body-apoyo">
             <div class="row">
+                <div class="col-12 col-md-6 col-lg-4 mb-3">
+                    <label>Seleccionar Producto</label>
+                    <div class="input-group prod-search-inline">
+                        <input type="text" id="ap_producto_picker" class="form-control"
+                               placeholder="ID o nombre del producto..." autocomplete="off"
+                               onfocus="abrirModalBusquedaProductoApoyo()">
+                        <input type="hidden" id="fap_producto_id" value="">
+                        <div class="input-group-append">
+                            <button type="button" class="btn" title="Buscar producto"
+                                    onclick="abrirModalBusquedaProductoApoyo()">
+                                <i class="fa fa-search"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
                 <div class="col-12 col-sm-6 col-md-4 col-lg-3">
                     <label>Nombre / ID / Cód. Barra</label>
                     <input type="text" id="fap_q" class="form-control" placeholder="Ej: bolsa…"
@@ -362,6 +393,8 @@
             </div>
         </div>
     </div>
+
+    <x-buscador-producto id-modal="buscadorProductoApoyo" callback="alSeleccionarProductoApoyo" debounce-ms="180" />
 
     @push('scripts')
     <script src="/js/js_proyecto/inventario/producto-apoyo.js"></script>
