@@ -690,8 +690,12 @@ table.dataTable tbody td { font-size: 13px; vertical-align: middle; }
                             <tr>
                                 <th>Fecha Pago</th>
                                 <th>Fecha Creación Factura</th>
+                                <th>ID Factura</th>
                                 <th>Factura</th>
+                                <th>ID Producto</th>
+                                <th>Producto</th>
                                 <th>Cliente</th>
+                                <th class="text-right">Subtotal Factura</th>
                                 <th>Escala Cliente</th>
                                 <th>Escala Precio Vendida</th>
                                 <th class="text-right">Cantidad</th>
