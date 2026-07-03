@@ -514,7 +514,43 @@
                     autoWidth: false,
                     scrollX: false,
                     dom: '<"html5buttons"B>lTfgitp',
-                    buttons: [{ extend: 'excel', title: currentConfig.excelTitle, className: 'btn btn-success btn-sm' }],
+                    buttons: [{
+                        extend: 'excelHtml5',
+                        title: currentConfig.excelTitle,
+                        className: 'btn btn-success btn-sm',
+                        exportOptions: {
+                            // Evita exportar la columna de acciones "Opciones".
+                            columns: ':visible:not(:last-child)'
+                        },
+                        action: function(e, dt, button, config) {
+                            // En server-side DataTables exporta solo la página actual por defecto.
+                            // Este flujo solicita temporalmente todos los registros filtrados y luego restaura la paginación.
+                            var self = this;
+                            var oldStart = dt.settings()[0]._iDisplayStart;
+
+                            dt.one('preXhr', function(_e, _s, data) {
+                                data.start = 0;
+                                data.length = 2147483647;
+
+                                dt.one('preDraw', function(_e2, settings) {
+                                    $.fn.dataTable.ext.buttons.excelHtml5.action.call(self, e, dt, button, config);
+
+                                    settings._iDisplayStart = oldStart;
+                                    dt.one('preXhr', function(_e3, _s2, data2) {
+                                        data2.start = oldStart;
+                                    });
+
+                                    setTimeout(function() {
+                                        dt.ajax.reload(null, false);
+                                    }, 0);
+
+                                    return false;
+                                });
+                            });
+
+                            dt.ajax.reload();
+                        }
+                    }],
                     "ajax": {
                         url: ajaxUrl,
                         data: function(d) {
