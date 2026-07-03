@@ -579,6 +579,9 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
 
     //----------------------------------------------FACTURACIONES---------------------------------------------------------------------------------------//
 
+    Route::get('/facturas/todos', ListadoFacturasUnificado::class)->defaults('tipo', 'todos');
+    Route::get('/lista/facturas/todos', [ListadoFacturas::class, 'listarTodasFacturas']);
+
     Route::get('/facturas/corporativo', ListadoFacturasUnificado::class)->defaults('tipo', 'corporativo');
 
     Route::get('/lista/facturas/corporativo', [ListadoFacturas::class, 'listarFacturas']);

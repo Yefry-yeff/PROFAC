@@ -202,6 +202,107 @@ class ListadoFacturas extends Component
 
     }
 
+    public function listarTodasFacturas()
+    {
+        @set_time_limit(0);
+        @ini_set('memory_limit', '512M');
+
+        try {
+            $filtroCai        = trim(request()->input('filtroCai', ''));
+            $filtroCliente    = trim(request()->input('filtroCliente', ''));
+            $filtroVendedor   = trim(request()->input('filtroVendedor', ''));
+            $filtroDesde      = trim(request()->input('filtroDesde', ''));
+            $filtroHasta      = trim(request()->input('filtroHasta', ''));
+
+            $adminRoles = [1, 3, 5, 16];
+            $esAdmin    = in_array((int) Auth::user()->rol_id, $adminRoles);
+
+            $query = DB::table('factura as f')
+                ->join('cliente as c',          'c.id',   '=', 'f.cliente_id')
+                ->join('tipo_pago_venta as tpv', 'tpv.id', '=', 'f.tipo_pago_id')
+                ->join('users as u',             'u.id',   '=', 'f.vendedor')
+                ->join('cai as A',               'A.id',   '=', 'f.cai_id')
+                ->leftJoin('tipo_venta as tv',   'tv.id',  '=', 'f.tipo_venta_id')
+                ->select([
+                    'f.id',
+                    'f.tipo_venta_id',
+                    DB::raw('tv.descripcion                                                          AS tipo_label'),
+                    DB::raw('f.cai                                                                   AS cai'),
+                    'f.fecha_emision',
+                    DB::raw('f.nombre_cliente                                                        AS nombre'),
+                    DB::raw('tpv.descripcion                                                         AS descripcion'),
+                    DB::raw('FORMAT(COALESCE(f.sub_total_grabado,0),2)                               AS gravado'),
+                    DB::raw('FORMAT(COALESCE(f.sub_total_excento,0),2)                               AS exento'),
+                    DB::raw('FORMAT(CASE WHEN f.tipo_venta_id=3 THEN COALESCE(f.sub_total,0) ELSE 0 END,2) AS exonerado'),
+                    DB::raw('FORMAT(f.sub_total,2)                                                   AS sub_total'),
+                    DB::raw('FORMAT(f.isv,2)                                                         AS isv'),
+                    DB::raw('FORMAT(f.total,2)                                                       AS total'),
+                    'f.credito',
+                    DB::raw('u.name                                                                  AS vendedor'),
+                    DB::raw('(SELECT name FROM users u2 WHERE u2.id = f.users_id LIMIT 1)            AS facturador'),
+                    // Pre-calculado: evita 1 query por fila en addColumn
+                    DB::raw('COALESCE((SELECT ap.saldo FROM aplicacion_pagos ap WHERE ap.estado=1 AND ap.factura_id=f.id LIMIT 1), -1) AS saldo_cobro'),
+                    'f.estado_venta_id',
+                    DB::raw('f.created_at                                                            AS fecha_registro'),
+                ])
+                ->where('f.created_at', '>=', DB::raw("DATE_SUB(NOW(), INTERVAL 2 YEAR)"))
+                ->where('f.estado_factura_id', 1)
+                ->where('f.estado_venta_id',  '<>', 2)
+                ->whereIn('f.tipo_venta_id', [1, 2, 3]);
+
+            if (!$esAdmin) {
+                $query->where('f.vendedor', Auth::id());
+            }
+
+            if ($filtroCai)     { $query->where('f.cai',           'LIKE', "%{$filtroCai}%"); }
+            if ($filtroCliente) { $query->where('f.nombre_cliente', 'LIKE', "%{$filtroCliente}%"); }
+            if ($filtroVendedor){ $query->where('u.name',           'LIKE', "%{$filtroVendedor}%"); }
+            if ($filtroDesde && $filtroHasta) {
+                $query->whereBetween(DB::raw('DATE(f.created_at)'), [$filtroDesde, $filtroHasta]);
+            } elseif ($filtroDesde) {
+                $query->whereDate('f.created_at', '>=', $filtroDesde);
+            } elseif ($filtroHasta) {
+                $query->whereDate('f.created_at', '<=', $filtroHasta);
+            }
+
+            return Datatables::of($query)
+                ->filterColumn('cai', function ($q, $keyword) {
+                    $q->where('f.cai', 'LIKE', "%{$keyword}%");
+                })
+                ->filterColumn('nombre', function ($q, $keyword) {
+                    $q->where('f.nombre_cliente', 'LIKE', "%{$keyword}%");
+                })
+                ->filterColumn('descripcion', function ($q, $keyword) {
+                    $q->where('tpv.descripcion', 'LIKE', "%{$keyword}%");
+                })
+                ->filterColumn('vendedor', function ($q, $keyword) {
+                    $q->where('u.name', 'LIKE', "%{$keyword}%");
+                })
+                ->addColumn('opciones', function ($row) {
+                    return '<div class="btn-group">
+                        <button data-toggle="dropdown" class="btn btn-warning dropdown-toggle">Ver más</button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="/detalle/venta/'.$row->id.'"><i class="fa-solid fa-arrows-to-eye text-info"></i> Detalle de venta</a></li>
+                            <li><a class="dropdown-item" target="_blank" href="/factura/cooporativo/'.$row->id.'"><i class="fa-solid fa-print text-info"></i> Imprimir Factura Original</a></li>
+                            <li><a class="dropdown-item" target="_blank" href="/factura/cooporativoCopia/'.$row->id.'"><i class="fa-solid fa-print text-info"></i> Imprimir Factura Copia</a></li>
+                            <li><a class="dropdown-item" target="_blank" href="/facturaCoor/actaRec/'.$row->id.'"><i class="fa-solid fa-print text-info"></i> Imprimir Acta de Recepción</a></li>
+                            <li><a class="dropdown-item" href="/crear/vale/'.$row->id.'"><i class="fa-solid fa-calendar-days text-success"></i> Agendar Entrega</a></li>
+                        </ul>
+                    </div>';
+                })
+                ->addColumn('estado_cobro', function ($row) {
+                    return $row->saldo_cobro == 0
+                        ? '<p class="text-center"><span class="badge badge-primary p-2" style="font-size:.75rem">Cerrada</span></p>'
+                        : '<p class="text-center"><span class="badge badge-danger p-2" style="font-size:.75rem">Pendiente</span></p>';
+                })
+                ->rawColumns(['opciones', 'estado_cobro'])
+                ->make(true);
+
+        } catch (QueryException $e) {
+            return response()->json(['message' => 'Error al listar las facturas.', 'errorTh' => $e->getMessage()], 402);
+        }
+    }
+
     public function anularVentaRegistro(Request $request){
         $arrayLog = [];
         try {

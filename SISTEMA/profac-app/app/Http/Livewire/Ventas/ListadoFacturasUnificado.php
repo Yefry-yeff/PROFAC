@@ -31,6 +31,9 @@ class ListadoFacturasUnificado extends Component
             case 'exonerado':
                 $this->nombreTipo = 'Clientes Exonerado';
                 break;
+            case 'todos':
+                $this->nombreTipo = 'Todas las Facturas';
+                break;
             default:
                 $this->nombreTipo = 'Clientes';
                 break;

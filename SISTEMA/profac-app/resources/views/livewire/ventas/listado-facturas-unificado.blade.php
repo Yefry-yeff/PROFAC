@@ -316,6 +316,9 @@
                     <p class="modal-section-label"><i class="fa fa-tag"></i>Tipo de factura</p>
                     <div class="modal-filter-grid mb-3">
                         <div class="d-flex flex-wrap" style="gap:8px">
+                            <button type="button" class="tipo-filter-btn {{ $tipoVenta == 'todos' ? 'active' : '' }}" data-tipo="todos">
+                                <i class="fa fa-circle mr-1" style="font-size:.6rem"></i>Todos
+                            </button>
                             <button type="button" class="tipo-filter-btn {{ $tipoVenta == 'estatal'     ? 'active' : '' }}" data-tipo="estatal">
                                 <i class="fa fa-circle mr-1" style="font-size:.6rem"></i>Clientes A
                             </button>
@@ -431,6 +434,13 @@
                     anular: '/factura/corporativo/anular',
                     excelTitle: 'Facturas_exonerado',
                     label: 'Exoneradas', badgeClass: 'badge-success'
+                },
+                todos: {
+                    listar: '/lista/facturas/todos',
+                    listarVendedor: '/lista/facturas/todos',
+                    anular: '/factura/corporativo/anular',
+                    excelTitle: 'Todas_Facturas',
+                    label: 'Todos', badgeClass: 'badge-secondary'
                 }
             };
 
@@ -439,27 +449,40 @@
             var config     = configPorTipo[tipoVenta] || configPorTipo['corporativo'];
             var usuarioDescargaExcel = @json(optional(Auth::user())->name ?? 'Sistema');
 
-            var urlHistoryAdmin    = { corporativo: '/facturas/corporativo', estatal: '/facturas/estatal', exonerado: '/exonerado/ventas/lista' };
-            var urlHistoryVendedor = { corporativo: '/facturas/corporativo/vendedor', estatal: '/ventas/estatal/vendedor', exonerado: '/exonerado/ventas/lista' };
+            var urlHistoryAdmin    = { corporativo: '/facturas/corporativo', estatal: '/facturas/estatal', exonerado: '/exonerado/ventas/lista', todos: '/facturas/todos' };
+            var urlHistoryVendedor = { corporativo: '/facturas/corporativo/vendedor', estatal: '/ventas/estatal/vendedor', exonerado: '/exonerado/ventas/lista', todos: '/facturas/todos' };
 
             // ── Filtros activos ──────────────────────────────────────────────
             var filtros = { tipo: tipoVenta, cai: '', cliente: '', vendedor: '', facturador: '', desde: '', hasta: '' };
 
             // ── Construcción dinámica de columnas ────────────────────────────
+            var tipoVentaBadge = { 1: { label: 'Cliente B', badgeClass: 'badge-primary' }, 2: { label: 'Cliente A', badgeClass: 'badge-warning' }, 3: { label: 'Exonerada', badgeClass: 'badge-success' } };
+
             function buildColumnas(tipo, esVend) {
                 var cols = [];
-                // Tipo de factura (badge estático basado en el tipo activo)
-                cols.push({
-                    data: null, orderable: false, searchable: false,
-                    render: function(d, type, row) {
-                        var cfg = configPorTipo[tipo] || {};
-                        return '<span class="badge ' + (cfg.badgeClass || 'badge-secondary') + '">' + (cfg.label || tipo) + '</span>';
-                    }
-                });
-                if (esVend) cols.push({ data: 'id' });
+                // Badge: dinámico por fila cuando tipo=todos, estático en otro caso
+                if (tipo === 'todos') {
+                    cols.push({
+                        data: 'tipo_venta_id', orderable: true, searchable: false,
+                        render: function(d, type, row) {
+                            if (type !== 'display') return d;
+                            var t = tipoVentaBadge[d] || { label: row.tipo_label || d || '-', badgeClass: 'badge-secondary' };
+                            return '<span class="badge ' + t.badgeClass + '">' + t.label + '</span>';
+                        }
+                    });
+                } else {
+                    cols.push({
+                        data: null, orderable: false, searchable: false,
+                        render: function(d, type, row) {
+                            var cfg = configPorTipo[tipo] || {};
+                            return '<span class="badge ' + (cfg.badgeClass || 'badge-secondary') + '">' + (cfg.label || tipo) + '</span>';
+                        }
+                    });
+                }
+                if (esVend) cols.push({ data: 'id', searchable: true });
                 if (!esVend) {
                     cols.push({
-                        data: 'cai',
+                        data: 'cai', searchable: true,
                         render: function(d, type, row) {
                             if (type !== 'display') return d;
                             var label = d || '';
@@ -468,20 +491,20 @@
                         }
                     });
                 }
-                cols.push({ data: 'fecha_emision' });
-                cols.push({ data: 'nombre' });
-                cols.push({ data: 'descripcion' }); // tipo de pago
-                cols.push({ data: 'gravado' });
-                cols.push({ data: 'exento' });
-                cols.push({ data: 'exonerado' });
-                cols.push({ data: 'sub_total' });
-                cols.push({ data: 'isv' });
-                cols.push({ data: 'total' });
-                cols.push({ data: 'estado_cobro' });
+                cols.push({ data: 'fecha_emision', searchable: false });
+                cols.push({ data: 'nombre', searchable: true });
+                cols.push({ data: 'descripcion', searchable: true });
+                cols.push({ data: 'gravado',   searchable: false });
+                cols.push({ data: 'exento',    searchable: false });
+                cols.push({ data: 'exonerado', searchable: false });
+                cols.push({ data: 'sub_total', searchable: false });
+                cols.push({ data: 'isv',       searchable: false });
+                cols.push({ data: 'total',     searchable: false });
+                cols.push({ data: 'estado_cobro', searchable: false, orderable: false });
                 if (!esVend) {
-                    cols.push({ data: 'vendedor' });
+                    cols.push({ data: 'vendedor', searchable: true });
                 } else {
-                    cols.push({ data: 'creado_por' });
+                    cols.push({ data: 'creado_por', searchable: true });
                 }
                 cols.push({ data: 'opciones', orderable: false, searchable: false });
                 return cols;
@@ -506,7 +529,7 @@
                 $('#tbl_listar_compras thead').html(buildTheadHtml(tipo, esVend));
                 return $('#tbl_listar_compras').DataTable({
                     "language": { "url": "/js/plugins/dataTables/i18n/Spanish.json" },
-                    "order": [[columnas.length - 2, 'desc']],
+                    "order": [[2, 'desc']],
                     pageLength: 10,
                     "processing": true,
                     "serverSide": true,
