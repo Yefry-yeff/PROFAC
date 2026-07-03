@@ -31,7 +31,7 @@ class Libroventarep extends Component
             $fechaFinal  = $this->normalizarFecha($fechaFinal, date('Y-m-d'));
 
             $consulta = $this->buildLibroVentaQuery($request, $fechaInicio, $fechaFinal)
-                ->orderBy('factura.fecha_emision', 'DESC')
+                ->orderBy('factura.fecha_emision', 'ASC')
                 ->get();
 
             $kpiTotalVendido = 0.0;
@@ -112,7 +112,7 @@ class Libroventarep extends Component
             $fechaFinal  = $this->normalizarFecha($request->input('fecha_hasta', $fechaFinal), date('Y-m-d'));
 
             $data = $this->buildLibroVentaQuery($request, $fechaInicio, $fechaFinal)
-                ->orderBy('factura.fecha_emision', 'DESC')
+                ->orderBy('factura.fecha_emision', 'ASC')
                 ->get()
                 ->map(function ($row) {
                     return (array) $row;
@@ -184,7 +184,7 @@ class Libroventarep extends Component
                 DB::raw("ROUND(COALESCE(factura.sub_total, 0), 2) as SUBTOTAL"),
                 DB::raw("ROUND(CASE WHEN factura.tipo_venta_id = 3 THEN 0 ELSE COALESCE(factura.isv, 0) END, 2) as ISV"),
                 DB::raw("ROUND(COALESCE(factura.total, 0), 2) as TOTAL"),
-                'factura.fecha_emision as FECHA COMPRA'
+                'factura.fecha_emision as FECHA VENTA'
             )
             ->whereBetween('factura.fecha_emision', [$fechaInicio, $fechaFinal]);
 

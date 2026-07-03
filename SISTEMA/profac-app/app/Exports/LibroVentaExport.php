@@ -51,7 +51,7 @@ class LibroVentaExport implements FromArray, WithStyles, WithEvents, WithStrictN
             'G' => 14, // Subtotal
             'H' => 12, // ISV
             'I' => 14, // Total
-            'J' => 20, // Fecha Compra
+            'J' => 20, // Fecha Venta
         ];
     }
 
@@ -79,7 +79,7 @@ class LibroVentaExport implements FromArray, WithStyles, WithEvents, WithStrictN
         $out[] = [
             'VENDEDOR', 'CLIENTE', 'FACTURA',
             'EXONERADO', 'GRAVADO', 'EXCENTO',
-            'SUBTOTAL', 'ISV', 'TOTAL', 'FECHA COMPRA',
+            'SUBTOTAL', 'ISV', 'TOTAL', 'FECHA VENTA',
         ];
 
         // Acumuladores de totales
@@ -96,7 +96,7 @@ class LibroVentaExport implements FromArray, WithStyles, WithEvents, WithStrictN
             $total = (float) ($r['TOTAL']         ?? 0);
 
             // Convertir fecha a número Excel para formato nativo
-            $fechaRaw = $r['FECHA COMPRA'] ?? '';
+            $fechaRaw = $r['FECHA VENTA'] ?? '';
             $fechaVal = '';
             if ($fechaRaw) {
                 $ts = strtotime((string) $fechaRaw);

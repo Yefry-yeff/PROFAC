@@ -21,7 +21,7 @@
                 <th>SUBTOTAL</th>
                 <th>ISV</th>
                 <th>TOTAL</th>
-                <th>FECHA COMPRA</th>
+                <th>FECHA VENTA</th>
             </tr>
         </thead>
         <tbody>
@@ -36,7 +36,7 @@
                 <td>{{ number_format((float) $row['SUBTOTAL'], 2, '.', '') }}</td>
                 <td>{{ number_format((float) $row['ISV'], 2, '.', '') }}</td>
                 <td>{{ number_format((float) $row['TOTAL'], 2, '.', '') }}</td>
-                <td>{{ $row['FECHA COMPRA'] }}</td>
+                <td>{{ $row['FECHA VENTA'] }}</td>
             </tr>
             @endforeach
         </tbody>

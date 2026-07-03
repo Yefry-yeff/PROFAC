@@ -161,6 +161,9 @@
                     {{-- Header --}}
                     <div class="facdia-card-header">
                         <h5><i class="fa fa-file-invoice-dollar"></i> Facturación por Rango de Fechas</h5>
+                        <button type="button" class="btn-facdia-consult" onclick="exportarFacturaDia()">
+                            <i class="fa fa-file-excel-o"></i> Excel
+                        </button>
                     </div>
 
                     <div class="facdia-card-body">
@@ -209,6 +212,7 @@
                                         <th>Cliente</th>
                                         <th>Asesor Comercial</th>
                                         <th>Tele Asesor</th>
+                                        <th>Gestor de Entrega</th>
                                         <th>Subtotal</th>
                                         <th>Impuesto de Venta</th>
                                         <th>Total</th>

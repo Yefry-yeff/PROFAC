@@ -132,7 +132,7 @@
                                         <th>Subtotal</th>
                                         <th>ISV</th>
                                         <th>Total</th>
-                                        <th>Fecha Compra</th>
+                                        <th>Fecha Venta</th>
                                     </tr>
                                 </thead>
                                 <tbody></tbody>

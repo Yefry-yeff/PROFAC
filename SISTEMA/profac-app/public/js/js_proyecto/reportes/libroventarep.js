@@ -88,9 +88,9 @@ function cargarTablaLV() {
             { data: 'SUBTOTAL', className: 'text-right', render: function(d) { return fmtLpsLV(d); } },
             { data: 'ISV', className: 'text-right', render: function(d) { return fmtLpsLV(d); } },
             { data: 'TOTAL', className: 'text-right', render: function(d) { return '<strong>' + fmtLpsLV(d) + '</strong>'; } },
-            { data: 'FECHA COMPRA', render: function(d) { return fmtFechaLV(d); } }
+            { data: 'FECHA VENTA', render: function(d) { return fmtFechaLV(d); } }
         ],
-        order: [[2, 'desc']],
+        order: [[2, 'asc']],
         pageLength: 25,
         dom: '<"row"<"col-sm-6"l><"col-sm-6"f>>rt<"row"<"col-sm-5"i><"col-sm-7"p>>',
         initComplete: function() {

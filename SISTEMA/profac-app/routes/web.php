@@ -1302,6 +1302,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/debito/anular/{idNota}', [ListadoNotasDebitoND::class,'anularNota']);
 
     Route::get('/facturaDia', FacturaDia::class);
+    Route::post('/reporte/factura-dia/exportar-excel/{fecha_inicio}/{fecha_final}', [FacturaDia::class, 'exportarExcel'])->name('reporte.factura_dia.excel');
     Route::get('/reporte/comision', Prodmes::class);
     Route::get('/reporte/reporteria', Reporteria::class);
 

@@ -193,8 +193,10 @@ class ListarVentas extends Component
             $q->where(function ($sub) {
                 $sub->where('p.users_id', Auth::id())
                     ->orWhere('co.users_id', Auth::id())
+                    ->orWhere('co.vendedor', Auth::id())
                     ->orWhere('f.created_by', Auth::id())
                     ->orWhereExists(function ($sq) {
+                        // Actor en factura del flujo
                         $sq->select(DB::raw(1))
                            ->from('historico_flujo as hff')
                            ->join('factura as fa', 'fa.id', '=', 'hff.tramite_id')
@@ -203,6 +205,18 @@ class ListarVentas extends Component
                            ->where(function ($sfa) {
                                $sfa->where('fa.vendedor', Auth::id())
                                    ->orWhere('fa.users_id', Auth::id());
+                           });
+                    })
+                    ->orWhereExists(function ($sq) {
+                        // Actor en oferta del pedido vinculado al flujo
+                        // Se busca directo por oferta.pedido_id = f.identificacion
+                        // para evitar problemas de tipo en el JOIN con historico_flujo
+                        $sq->select(DB::raw(1))
+                           ->from('oferta as oa')
+                           ->whereRaw('oa.pedido_id = CAST(f.identificacion AS UNSIGNED)')
+                           ->where(function ($soa) {
+                               $soa->where('oa.users_id', Auth::id())
+                                   ->orWhere('oa.vendedor', Auth::id());
                            });
                     });
             });

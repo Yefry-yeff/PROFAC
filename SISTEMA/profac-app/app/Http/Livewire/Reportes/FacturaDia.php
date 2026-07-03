@@ -14,7 +14,8 @@ use Validator;
 use PDF;
 use Luecano\NumeroALetras\NumeroALetras;
 
-use App\Models\ModelFactura;
+use App\Exports\FacturaDiaExport;
+use Maatwebsite\Excel\Facades\Excel;
 use App\Models\ModelCAI;
 use App\Models\ModelRecibirBodega;
 use App\Models\ModelVentaProducto;
@@ -45,10 +46,11 @@ class FacturaDia extends Component
             A.nombre_cliente as 'cliente',
             (select name from users where id = A.vendedor) as 'vendedor',
             (select name from users where id = A.users_id) as 'facturador',
+            (select name from users where id = A.gestor_entrega) as 'gestor_entrega',
             format(A.sub_total,2) as 'subtotal',
             IF(A.sub_total = A.total, 0.00, format(A.isv,2)) as 'imp_venta',
             format(A.total,2) as 'total',
-            CASE A.estado_factura_id WHEN 1 THEN 'CLIENTE A' WHEN 2 THEN 'CLIENTE B' END AS 'tipo'
+            COALESCE(TV.descripcion, 'N/A') AS 'tipo'
 
 
             from factura A
@@ -56,8 +58,10 @@ class FacturaDia extends Component
             on A.estado_venta_id = B.id
             inner join tipo_pago_venta C
             on A.tipo_pago_id = C.id
+            LEFT JOIN tipo_venta TV ON TV.id = A.tipo_venta_id
             where B.id = 1 and
-            DATE(A.created_at) >= DATE_FORMAT('".$fecha_inicio."', '%Y-%m-%d') and  DATE(A.created_at) <= DATE_FORMAT('".$fecha_final."', '%Y-%m-%d');
+            DATE(A.created_at) >= DATE_FORMAT('".$fecha_inicio."', '%Y-%m-%d') and  DATE(A.created_at) <= DATE_FORMAT('".$fecha_final."', '%Y-%m-%d')
+            ORDER BY A.created_at ASC;
                 ");
 
 
@@ -76,6 +80,59 @@ class FacturaDia extends Component
 
         }
 
+    }
+
+    public function exportarExcel(Request $request, $fecha_inicio, $fecha_final)
+    {
+        @set_time_limit(0);
+        @ini_set('memory_limit', '512M');
+
+        try {
+            $consulta = DB::select("
+                SELECT
+                    A.created_at                              AS fecha,
+                    (CASE DATE_FORMAT(A.created_at,'%m')
+                        WHEN '01' THEN 'ENERO'   WHEN '02' THEN 'FEBRERO'
+                        WHEN '03' THEN 'MARZO'   WHEN '04' THEN 'ABRIL'
+                        WHEN '05' THEN 'MAYO'    WHEN '06' THEN 'JUNIO'
+                        WHEN '07' THEN 'JULIO'   WHEN '08' THEN 'AGOSTO'
+                        WHEN '09' THEN 'SEPTIEMBRE' WHEN '10' THEN 'OCTUBRE'
+                        WHEN '11' THEN 'NOVIEMBRE'  WHEN '12' THEN 'DICIEMBRE'
+                    END)                                      AS mes,
+                    A.cai                                     AS factura,
+                    A.nombre_cliente                          AS cliente,
+                    (SELECT name FROM users WHERE id = A.vendedor)       AS vendedor,
+                    (SELECT name FROM users WHERE id = A.users_id)       AS facturador,
+                    (SELECT name FROM users WHERE id = A.gestor_entrega) AS gestor_entrega,
+                    FORMAT(A.sub_total, 2)                    AS subtotal,
+                    IF(A.sub_total = A.total, 0.00, FORMAT(A.isv, 2))  AS imp_venta,
+                    FORMAT(A.total, 2)                        AS total,
+                    COALESCE(TV.descripcion, 'N/A')           AS tipo
+                FROM factura A
+                INNER JOIN estado_venta B  ON A.estado_venta_id = B.id
+                INNER JOIN tipo_pago_venta C ON A.tipo_pago_id  = C.id
+                LEFT JOIN tipo_venta TV ON TV.id = A.tipo_venta_id
+                WHERE B.id = 1
+                  AND DATE(A.created_at) >= ?
+                  AND DATE(A.created_at) <= ?
+                ORDER BY A.created_at ASC
+            ", [$fecha_inicio, $fecha_final]);
+
+            $response = Excel::download(
+                new FacturaDiaExport($consulta, $fecha_inicio, $fecha_final),
+                "FacturacionDiaria_{$fecha_inicio}_a_{$fecha_final}.xlsx"
+            );
+
+            $downloadToken = (string) $request->input('download_token', '');
+            if ($downloadToken !== '') {
+                setcookie('fd_excel_download_token', $downloadToken, time() + 300, '/', '', false, false);
+            }
+
+            return $response;
+
+        } catch (QueryException $e) {
+            return response()->json(['message' => 'Error al generar el Excel.', 'errorTh' => $e->getMessage()], 500);
+        }
     }
 
 

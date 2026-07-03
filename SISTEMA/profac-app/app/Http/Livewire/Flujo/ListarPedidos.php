@@ -120,9 +120,33 @@ class ListarPedidos extends Component
             )
             ->orderByDesc('p.created_at');
 
-        // Solo ver propios registros si no es administrador
+        // Ver registros donde el usuario es actor involucrado
         if (!$this->esAdmin) {
-            $q->where('p.users_id', Auth::id());
+            $q->where(function ($sub) {
+                $sub->where('p.users_id', Auth::id())
+                    ->orWhereExists(function ($sq) {
+                        // Creador o vendedor de cualquier oferta del pedido
+                        $sq->select(DB::raw(1))
+                           ->from('oferta as oa')
+                           ->whereColumn('oa.pedido_id', 'p.id')
+                           ->where(function ($soa) {
+                               $soa->where('oa.users_id', Auth::id())
+                                   ->orWhere('oa.vendedor', Auth::id());
+                           });
+                    })
+                    ->orWhereExists(function ($sq) {
+                        // Vendedor o creador de la factura ligada al flujo del pedido
+                        $sq->select(DB::raw(1))
+                           ->from('historico_flujo as hff')
+                           ->join('factura as fa', 'fa.id', '=', 'hff.tramite_id')
+                           ->whereColumn('hff.flujo_id', 'hf.flujo_id')
+                           ->where('hff.tipo_tramite_id', 3)
+                           ->where(function ($sfa) {
+                               $sfa->where('fa.vendedor', Auth::id())
+                                   ->orWhere('fa.users_id', Auth::id());
+                           });
+                    });
+            });
         }
 
         // Filtro por número de documento
