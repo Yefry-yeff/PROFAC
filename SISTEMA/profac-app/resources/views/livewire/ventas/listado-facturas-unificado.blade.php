@@ -215,9 +215,14 @@
 
                     <div class="fact-card-header">
                         <h5><i class="fa fa-file-text"></i> Listado de Facturas</h5>
-                        <button type="button" class="btn-fact-filter" data-toggle="modal" data-target="#modalFiltros">
-                            <i class="fa fa-filter mr-1"></i>Filtros
-                        </button>
+                        <div class="d-flex" style="gap:8px;">
+                            <button type="button" class="btn-fact-filter" onclick="exportarFacturasExcel()">
+                                <i class="fa fa-file-excel-o mr-1"></i>Excel
+                            </button>
+                            <button type="button" class="btn-fact-filter" data-toggle="modal" data-target="#modalFiltros">
+                                <i class="fa fa-filter mr-1"></i>Filtros
+                            </button>
+                        </div>
                     </div>
 
                     {{-- Barra de filtros activos --}}
@@ -536,8 +541,8 @@
                     responsive: true,
                     autoWidth: false,
                     scrollX: false,
-                    dom: '<"html5buttons"B>lTfgitp',
-                    buttons: [{ extend: 'excel', title: currentConfig.excelTitle, className: 'btn btn-success btn-sm' }],
+                    dom: 'lTfgitp',
+                    buttons: [],
                     "ajax": {
                         url: ajaxUrl,
                         data: function(d) {
@@ -554,6 +559,57 @@
                         document.getElementById('tbl_loading_overlay').style.display = 'none';
                     }
                 });
+            }
+
+            // ── Exportar Excel con formato ────────────────────────────────────
+            function _fuSetCookie(n, v, s) {
+                var e = ''; if (typeof s === 'number') { var d = new Date(); d.setTime(d.getTime() + s * 1000); e = '; expires=' + d.toUTCString(); }
+                document.cookie = n + '=' + encodeURIComponent(v) + e + '; path=/';
+            }
+            function _fuGetCookie(name) {
+                var p = name + '=', parts = document.cookie ? document.cookie.split(';') : [];
+                for (var i = 0; i < parts.length; i++) { var c = parts[i].trim(); if (c.indexOf(p) === 0) return decodeURIComponent(c.substring(p.length)); }
+                return '';
+            }
+
+            function exportarFacturasExcel() {
+                var tok           = $('meta[name="csrf-token"]').attr('content');
+                var downloadToken = 'fuexl_' + Date.now() + '_' + Math.floor(Math.random() * 1000000);
+                var cookieName    = 'fu_excel_download_token';
+                _fuSetCookie(cookieName, '', -1);
+
+                var form = $('<form method="POST"></form>').attr('action', '/lista/facturas/exportar-excel');
+                var fields = {
+                    _token: tok, download_token: downloadToken,
+                    tipo:          filtros.tipo       || tipoVenta,
+                    filtroCai:     filtros.cai        || '',
+                    filtroCliente: filtros.cliente    || '',
+                    filtroVendedor:filtros.vendedor   || '',
+                    filtroDesde:   filtros.desde      || '',
+                    filtroHasta:   filtros.hasta      || ''
+                };
+                $.each(fields, function(k, v) { form.append($('<input type="hidden">').attr('name', k).val(v)); });
+                $('body').append(form);
+
+                Swal.fire({
+                    title: 'Generando Excel',
+                    html: 'Preparando reporte...<br><small>Este proceso puede tardar varios momentos.</small>',
+                    allowOutsideClick: false, allowEscapeKey: false, showConfirmButton: false,
+                    didOpen: function() { Swal.showLoading(); }
+                });
+
+                var startedAt = Date.now();
+                var timer = setInterval(function() {
+                    if (_fuGetCookie(cookieName) === downloadToken) {
+                        clearInterval(timer); _fuSetCookie(cookieName, '', -1); Swal.close();
+                    } else if (Date.now() - startedAt > 10 * 60 * 1000) {
+                        clearInterval(timer);
+                        Swal.fire({ icon: 'warning', title: 'Demora en descarga', text: 'La generación sigue en proceso. Intenta nuevamente.' });
+                    }
+                }, 400);
+
+                form.trigger('submit');
+                setTimeout(function() { form.remove(); }, 1500);
             }
 
             // ── Aplicar / limpiar filtros ────────────────────────────────────

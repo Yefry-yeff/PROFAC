@@ -4,6 +4,8 @@ namespace App\Http\Livewire\Ventas;
 
 use Livewire\Component;
 use Illuminate\Http\Request;
+use App\Exports\FacturasUnificadasExport;
+use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\DB;
 use Auth;
 use Validator;
@@ -200,6 +202,92 @@ class ListadoFacturas extends Component
 
         }
 
+    }
+
+    public function exportarExcelUnificado()
+    {
+        @set_time_limit(0);
+        @ini_set('memory_limit', '512M');
+
+        try {
+            $tipo          = trim(request()->input('tipo', 'todos'));
+            $filtroCai     = trim(request()->input('filtroCai', ''));
+            $filtroCliente = trim(request()->input('filtroCliente', ''));
+            $filtroVendedor= trim(request()->input('filtroVendedor', ''));
+            $filtroDesde   = trim(request()->input('filtroDesde', ''));
+            $filtroHasta   = trim(request()->input('filtroHasta', ''));
+            $downloadToken = (string) request()->input('download_token', '');
+
+            $tipoVentaMap  = ['corporativo' => [1], 'estatal' => [2], 'exonerado' => [3], 'todos' => [1, 2, 3]];
+            $tipoVentaIds  = $tipoVentaMap[$tipo] ?? [1, 2, 3];
+
+            $tipoLabels    = ['corporativo' => 'Clientes B', 'estatal' => 'Clientes A', 'exonerado' => 'Exoneradas', 'todos' => 'Todas'];
+            $tipoLabel     = $tipoLabels[$tipo] ?? 'Todas';
+
+            $adminRoles = [1, 3, 5, 16];
+            $esAdmin    = in_array((int) Auth::user()->rol_id, $adminRoles);
+
+            $query = DB::table('factura as f')
+                ->join('cliente as c',          'c.id',   '=', 'f.cliente_id')
+                ->join('tipo_pago_venta as tpv', 'tpv.id', '=', 'f.tipo_pago_id')
+                ->join('users as u',             'u.id',   '=', 'f.vendedor')
+                ->join('cai as A',               'A.id',   '=', 'f.cai_id')
+                ->leftJoin('tipo_venta as tv',   'tv.id',  '=', 'f.tipo_venta_id')
+                ->select([
+                    'f.id',
+                    'f.tipo_venta_id',
+                    DB::raw('tv.descripcion                                                     AS tipo_label'),
+                    DB::raw('f.cai                                                              AS cai'),
+                    'f.fecha_emision',
+                    DB::raw('f.nombre_cliente                                                   AS nombre'),
+                    DB::raw('tpv.descripcion                                                    AS descripcion'),
+                    DB::raw('FORMAT(COALESCE(f.sub_total_grabado,0),2)                          AS gravado'),
+                    DB::raw('FORMAT(COALESCE(f.sub_total_excento,0),2)                          AS exento'),
+                    DB::raw('FORMAT(CASE WHEN f.tipo_venta_id=3 THEN COALESCE(f.sub_total,0) ELSE 0 END,2) AS exonerado'),
+                    DB::raw('FORMAT(f.sub_total,2)                                              AS sub_total'),
+                    DB::raw('FORMAT(f.isv,2)                                                    AS isv'),
+                    DB::raw('FORMAT(f.total,2)                                                  AS total'),
+                    'f.credito',
+                    DB::raw('u.name                                                             AS vendedor'),
+                    DB::raw('COALESCE((SELECT ap.saldo FROM aplicacion_pagos ap WHERE ap.estado=1 AND ap.factura_id=f.id LIMIT 1), -1) AS saldo_cobro'),
+                ])
+                ->where('f.created_at', '>=', DB::raw("DATE_SUB(NOW(), INTERVAL 2 YEAR)"))
+                ->where('f.estado_factura_id', 1)
+                ->where('f.estado_venta_id',  '<>', 2)
+                ->whereIn('f.tipo_venta_id', $tipoVentaIds);
+
+            if (!$esAdmin) { $query->where('f.vendedor', Auth::id()); }
+            if ($filtroCai)     { $query->where('f.cai',           'LIKE', "%{$filtroCai}%"); }
+            if ($filtroCliente) { $query->where('f.nombre_cliente','LIKE', "%{$filtroCliente}%"); }
+            if ($filtroVendedor){ $query->where('u.name',          'LIKE', "%{$filtroVendedor}%"); }
+            if ($filtroDesde && $filtroHasta) {
+                $query->whereBetween(DB::raw('DATE(f.created_at)'), [$filtroDesde, $filtroHasta]);
+            } elseif ($filtroDesde) {
+                $query->whereDate('f.created_at', '>=', $filtroDesde);
+            } elseif ($filtroHasta) {
+                $query->whereDate('f.created_at', '<=', $filtroHasta);
+            }
+
+            $data = $query->orderBy('f.created_at', 'desc')->get()->map(function ($row) {
+                $row->estado_cobro_raw = $row->saldo_cobro == 0 ? 'Cerrada' : 'Pendiente';
+                return (array) $row;
+            })->all();
+
+            $fileName = 'Facturas_' . $tipo . '_' . now()->format('Y-m-d') . '.xlsx';
+            $response = Excel::download(
+                new FacturasUnificadasExport($data, $tipoLabel, $filtroDesde, $filtroHasta),
+                $fileName
+            );
+
+            if ($downloadToken !== '') {
+                setcookie('fu_excel_download_token', $downloadToken, time() + 300, '/', '', false, false);
+            }
+
+            return $response;
+
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Error al generar el Excel.', 'errorTh' => $e->getMessage()], 500);
+        }
     }
 
     public function listarTodasFacturas()

@@ -581,6 +581,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
 
     Route::get('/facturas/todos', ListadoFacturasUnificado::class)->defaults('tipo', 'todos');
     Route::get('/lista/facturas/todos', [ListadoFacturas::class, 'listarTodasFacturas']);
+    Route::post('/lista/facturas/exportar-excel', [ListadoFacturas::class, 'exportarExcelUnificado'])->name('lista.facturas.excel');
 
     Route::get('/facturas/corporativo', ListadoFacturasUnificado::class)->defaults('tipo', 'corporativo');
 
