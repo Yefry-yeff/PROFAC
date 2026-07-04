@@ -6,6 +6,7 @@
     'urlTop'      => '/productos/buscar/top-vendidos',
     'urlFiltros'  => '/productos/buscar',
     'topLabel'    => '',
+    'debounceMs'  => 300,
 ])
 @php
     $suf = preg_replace('/[^a-zA-Z0-9]/', '_', $idModal);
@@ -193,6 +194,7 @@
     var URL_TOP       = '{{ $urlTop }}';
     var URL_FILTROS   = '{{ $urlFiltros }}';
     var TOP_LABEL     = '{{ $topLabel }}';
+    var DEBOUNCE_MS   = {{ (int) $debounceMs }};
 
     var page          = 1;
     var query         = '';
@@ -500,49 +502,70 @@
 
     /* ── eventos ────────────────────────────── */
 
-    // Escritura en tiempo real — debounce 450 ms
-    el(S + '_input').addEventListener('input', function () {
-        clearTimeout(timer);
-        query = this.value.trim();
-        page  = 1;
-        el(S + '_clearBtn').classList.toggle('d-none', query === '');
-        el(S + '_spinner').classList.remove('d-none');
-        el(S + '_info').textContent = '…';
-        if (query === '' && catId === '' && marcaId === '' && !conStock) {
-            // Volver a mostrar los más vendidos si se borraron todos los filtros
-            timer = setTimeout(loadTopVendidos, 300);
-        } else {
-            timer = setTimeout(doSearch, 300);
-        }
-    });
+    // Escritura en tiempo real — debounce configurable
+    var inputEl = el(S + '_input');
+    if (inputEl) {
+        inputEl.addEventListener('input', function () {
+            clearTimeout(timer);
+            query = this.value.trim();
+            page  = 1;
+            var clearBtn = el(S + '_clearBtn');
+            if (clearBtn) clearBtn.classList.toggle('d-none', query === '');
+            var spinnerEl = el(S + '_spinner');
+            if (spinnerEl) spinnerEl.classList.remove('d-none');
+            var infoEl = el(S + '_info');
+            if (infoEl) infoEl.textContent = '…';
+            if (query === '' && catId === '' && marcaId === '' && !conStock) {
+                // Volver a mostrar los más vendidos si se borraron todos los filtros
+                timer = setTimeout(loadTopVendidos, DEBOUNCE_MS);
+            } else {
+                timer = setTimeout(doSearch, DEBOUNCE_MS);
+            }
+        });
+    }
 
-    el(S + '_clearBtn').addEventListener('click', function () {
-        clearTimeout(timer);
-        el(S + '_input').value = '';
-        query = '';
-        page  = 1;
-        this.classList.add('d-none');
-        el(S + '_input').focus();
-        doSearch();
-    });
+    var clearBtnEl = el(S + '_clearBtn');
+    if (clearBtnEl) {
+        clearBtnEl.addEventListener('click', function () {
+            clearTimeout(timer);
+            var input = el(S + '_input');
+            if (input) {
+                input.value = '';
+                input.focus();
+            }
+            query = '';
+            page  = 1;
+            this.classList.add('d-none');
+            doSearch();
+        });
+    }
 
-    el(S + '_filtroCategoria').addEventListener('change', function () {
-        catId = this.value;
-        clearTimeout(timer);
-        triggerSearch();
-    });
+    var filtroCategoriaEl = el(S + '_filtroCategoria');
+    if (filtroCategoriaEl) {
+        filtroCategoriaEl.addEventListener('change', function () {
+            catId = this.value;
+            clearTimeout(timer);
+            triggerSearch();
+        });
+    }
 
-    el(S + '_filtroMarca').addEventListener('change', function () {
-        marcaId = this.value;
-        clearTimeout(timer);
-        triggerSearch();
-    });
+    var filtroMarcaEl = el(S + '_filtroMarca');
+    if (filtroMarcaEl) {
+        filtroMarcaEl.addEventListener('change', function () {
+            marcaId = this.value;
+            clearTimeout(timer);
+            triggerSearch();
+        });
+    }
 
-    el(S + '_conStock').addEventListener('change', function () {
-        conStock = this.checked;
-        clearTimeout(timer);
-        triggerSearch();
-    });
+    var conStockEl = el(S + '_conStock');
+    if (conStockEl) {
+        conStockEl.addEventListener('change', function () {
+            conStock = this.checked;
+            clearTimeout(timer);
+            triggerSearch();
+        });
+    }
 
     $('#' + MODAL_ID).on('show.bs.modal', function () {
         // Forzar z-index del backdrop por encima del sidebar

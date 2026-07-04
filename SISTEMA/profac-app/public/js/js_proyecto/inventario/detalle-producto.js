@@ -162,23 +162,27 @@ axios.get("/producto/datos/" + idProducto)
         if (isvEl) isvEl.value = datos.datosProducto.isv;
         document.getElementById("cod_barra_producto_edit").value = datos.datosProducto.codigo_barra;
         document.getElementById("cod_estatal_producto_edit").value = datos.datosProducto.codigo_estatal;
-        document.getElementById("precioBase_edit").value = datos.datosProducto.precio_base;
-        document.getElementById("costo_promedio_editar").value = datos.datosProducto.costo_promedio;
+        var precioBaseEditEl = document.getElementById("precioBase_edit");
+        if (precioBaseEditEl) precioBaseEditEl.value = datos.datosProducto.precio_base;
+        var costoPromedioEditarEl = document.getElementById("costo_promedio_editar");
+        if (costoPromedioEditarEl) costoPromedioEditarEl.value = datos.datosProducto.costo_promedio;
         document.getElementById("unidades_editar").value = datos.datosProducto.unidadad_compra;
-        document.getElementById("ultimo_costo_compra_editar").value = datos.datosProducto.ultimo_costo_compra;
+        var ultimoCostoEditarEl = document.getElementById("ultimo_costo_compra_editar");
+        if (ultimoCostoEditarEl) ultimoCostoEditarEl.value = datos.datosProducto.ultimo_costo_compra;
 
 
-        document.getElementById("precio1").value = datos.datosProducto.precio1;
-        document.getElementById("precio2").value = datos.datosProducto.precio2;
-        document.getElementById("precio3").value = datos.datosProducto.precio3;
-        document.getElementById("precio4").value = datos.datosProducto.precio4;
+        var precio1El = document.getElementById("precio1");
+        if (precio1El) precio1El.value = datos.datosProducto.precio1;
+        var precio2El = document.getElementById("precio2");
+        if (precio2El) precio2El.value = datos.datosProducto.precio2;
+        var precio3El = document.getElementById("precio3");
+        if (precio3El) precio3El.value = datos.datosProducto.precio3;
+        var precio4El = document.getElementById("precio4");
+        if (precio4El) precio4El.value = datos.datosProducto.precio4;
 
 
 
-        if (datos.preciosProducto.length != 0) {
-            document.getElementById("precio2_edit").value = datos.preciosProducto[1].precio;
-            document.getElementById("precio3_edit").value = datos.preciosProducto[2].precio;
-        }
+        // Compatibilidad: estos IDs ya no existen en la vista actual.
 
 
 
@@ -275,12 +279,26 @@ editarProducto();
 function validacionPrecio(){
 
 
-precioBase = document.getElementById('precioBase_edit').value;
+const precioBaseEl = document.getElementById('precioBase_edit');
+if (!precioBaseEl) {
+    return;
+}
 
-document.getElementById('precio1').setAttribute("min",precioBase);
-document.getElementById('precio2').setAttribute("min",precioBase);
-document.getElementById('precio3').setAttribute("min",precioBase);
-document.getElementById('precio4').setAttribute("min",precioBase);
+precioBase = precioBaseEl.value;
+
+const precio1Input = document.getElementById('precio1');
+const precio2Input = document.getElementById('precio2');
+const precio3Input = document.getElementById('precio3');
+const precio4Input = document.getElementById('precio4');
+
+if (!precio1Input || !precio2Input || !precio3Input || !precio4Input) {
+    return;
+}
+
+precio1Input.setAttribute("min",precioBase);
+precio2Input.setAttribute("min",precioBase);
+precio3Input.setAttribute("min",precioBase);
+precio4Input.setAttribute("min",precioBase);
 
 
 precio1 = Number(precioBase) + (precioBase*0.03);
@@ -288,10 +306,10 @@ precio2 = Number(precioBase) + (precioBase*0.06);
 precio3 = Number(precioBase) + (precioBase*0.10);
 precio4 = Number(precioBase) + (precioBase*0.3);
 
-document.getElementById('precio1').value = precio1.toFixed(2);
-document.getElementById('precio2').value = precio2.toFixed(2);
-document.getElementById('precio3').value = precio3.toFixed(2);
-document.getElementById('precio4').value = precio4.toFixed(2);
+precio1Input.value = precio1.toFixed(2);
+precio2Input.value = precio2.toFixed(2);
+precio3Input.value = precio3.toFixed(2);
+precio4Input.value = precio4.toFixed(2);
 
 
 
@@ -313,17 +331,22 @@ document.getElementById('precio4').value = precio4.toFixed(2);
 function editarProducto() {
 $('#modalSpinnerLoading').modal('show');
 
-var data = new FormData($('#editarProductoForm').get(0));
+try {
+    var data = new FormData($('#editarProductoForm').get(0));
 
-let precio1 = document.getElementById('precio1').value;
-let precio2 =  document.getElementById('precio2').value
-let precio3 =  document.getElementById('precio3').value
-let precio4 = document.getElementById('precio4').value
-data.append('precio1', precio1);
-data.append('precio2', precio2);
-data.append('precio3', precio3);
-data.append('precio4', precio4);
-axios.post("/producto/editar", data)
+    const precio1El = document.getElementById('precio1');
+    const precio2El = document.getElementById('precio2');
+    const precio3El = document.getElementById('precio3');
+    const precio4El = document.getElementById('precio4');
+
+    if (precio1El && precio2El && precio3El && precio4El) {
+        data.append('precio1', precio1El.value);
+        data.append('precio2', precio2El.value);
+        data.append('precio3', precio3El.value);
+        data.append('precio4', precio4El.value);
+    }
+
+    axios.post("/producto/editar", data)
     .then(response => {
         $('#modalSpinnerLoading').modal('hide');
 
@@ -360,6 +383,15 @@ axios.post("/producto/editar", data)
         }
 
     })
+} catch (error) {
+    $('#modalSpinnerLoading').modal('hide');
+    console.error(error);
+    Swal.fire({
+        icon: "error",
+        title: "Error!",
+        text: "No se pudo procesar la edición del producto.",
+    });
+}
 
 }
 
