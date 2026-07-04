@@ -251,8 +251,7 @@ class ListadoFacturas extends Component
                     DB::raw('u.name                                                             AS vendedor'),
                     DB::raw('COALESCE((SELECT ap.saldo FROM aplicacion_pagos ap WHERE ap.estado=1 AND ap.factura_id=f.id LIMIT 1), -1) AS saldo_cobro'),
                 ])
-                ->where('f.created_at', '>=', DB::raw("DATE_SUB(NOW(), INTERVAL 2 YEAR)"))
-                ->where('f.estado_factura_id', 1)
+                ->where('f.fecha_emision', '>=', DB::raw("DATE_SUB(CURDATE(), INTERVAL 2 YEAR)"))
                 ->where('f.estado_venta_id',  '<>', 2)
                 ->whereIn('f.tipo_venta_id', $tipoVentaIds);
 
@@ -261,11 +260,11 @@ class ListadoFacturas extends Component
             if ($filtroCliente) { $query->where('f.nombre_cliente','LIKE', "%{$filtroCliente}%"); }
             if ($filtroVendedor){ $query->where('u.name',          'LIKE', "%{$filtroVendedor}%"); }
             if ($filtroDesde && $filtroHasta) {
-                $query->whereBetween(DB::raw('DATE(f.created_at)'), [$filtroDesde, $filtroHasta]);
+                $query->whereBetween('f.fecha_emision', [$filtroDesde, $filtroHasta]);
             } elseif ($filtroDesde) {
-                $query->whereDate('f.created_at', '>=', $filtroDesde);
+                $query->where('f.fecha_emision', '>=', $filtroDesde);
             } elseif ($filtroHasta) {
-                $query->whereDate('f.created_at', '<=', $filtroHasta);
+                $query->where('f.fecha_emision', '<=', $filtroHasta);
             }
 
             $data = $query->orderBy('f.created_at', 'desc')->get()->map(function ($row) {
@@ -333,8 +332,7 @@ class ListadoFacturas extends Component
                     'f.estado_venta_id',
                     DB::raw('f.created_at                                                            AS fecha_registro'),
                 ])
-                ->where('f.created_at', '>=', DB::raw("DATE_SUB(NOW(), INTERVAL 2 YEAR)"))
-                ->where('f.estado_factura_id', 1)
+                ->where('f.fecha_emision', '>=', DB::raw("DATE_SUB(CURDATE(), INTERVAL 2 YEAR)"))
                 ->where('f.estado_venta_id',  '<>', 2)
                 ->whereIn('f.tipo_venta_id', [1, 2, 3]);
 
@@ -346,11 +344,11 @@ class ListadoFacturas extends Component
             if ($filtroCliente) { $query->where('f.nombre_cliente', 'LIKE', "%{$filtroCliente}%"); }
             if ($filtroVendedor){ $query->where('u.name',           'LIKE', "%{$filtroVendedor}%"); }
             if ($filtroDesde && $filtroHasta) {
-                $query->whereBetween(DB::raw('DATE(f.created_at)'), [$filtroDesde, $filtroHasta]);
+                $query->whereBetween('f.fecha_emision', [$filtroDesde, $filtroHasta]);
             } elseif ($filtroDesde) {
-                $query->whereDate('f.created_at', '>=', $filtroDesde);
+                $query->where('f.fecha_emision', '>=', $filtroDesde);
             } elseif ($filtroHasta) {
-                $query->whereDate('f.created_at', '<=', $filtroHasta);
+                $query->where('f.fecha_emision', '<=', $filtroHasta);
             }
 
             return Datatables::of($query)
