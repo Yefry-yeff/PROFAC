@@ -445,12 +445,8 @@ function renderProyecciones(resp){
         columns:[
             {data:'fecha_pago',className:'text-nowrap',render:function(d){return esc(d || '—');}},
             {data:'fecha_creacion_factura',className:'text-nowrap',render:function(d){return esc(d || '—');}},
-            {data:'factura_id',className:'text-right',render:function(d){return '<strong>'+esc(d || '—')+'</strong>'; }},
             {data:'factura',render:function(d){return '<code style="background:#f1f5f9;padding:2px 6px;border-radius:4px;font-size:11px;">'+esc(d || '—')+'</code>'; }},
-            {data:'producto_id',className:'text-right',render:function(d){return '<strong>'+esc(d || '—')+'</strong>'; }},
-            {data:'producto',render:function(d){return esc(d || '—');}},
             {data:'cliente',render:function(d){return '<strong>'+esc(d || '—')+'</strong>'; }},
-            {data:'subtotal_factura',className:'text-right',render:function(d){return '<strong>'+fmtMoney(d || 0)+'</strong>'; }},
             {data:'escala_cliente',render:function(d){return esc(d || '—');}},
             {data:'escala_precio_vendida',render:function(d){return esc(d || '—');}},
             {data:'cantidad',className:'text-right',render:function(d){
@@ -800,17 +796,13 @@ function exportarProyeccionesExcel(tipo){
         return;
     }
 
-    var dataPr = [['Fecha Pago','Fecha Creacion Factura','ID Factura','Factura','ID Producto','Producto','Cliente','Subtotal Factura','Escala Cliente','Escala Precio Vendida','Cantidad','Capacidad','Usuario','Base Comisionable Unitaria','Base Comisionable','% Promedio','Comision Proyectada']];
+    var dataPr = [['Fecha Pago','Fecha Creacion Factura','Factura','Cliente','Escala Cliente','Escala Precio Vendida','Cantidad','Capacidad','Usuario','Base Comisionable Unitaria','Base Comisionable','% Promedio','Comision Proyectada']];
     proyeccionesDataActual.forEach(function(r){
         dataPr.push([
             r.fecha_pago || '',
             r.fecha_creacion_factura || '',
-            parseInt(r.factura_id || 0, 10),
             r.factura || '',
-            parseInt(r.producto_id || 0, 10),
-            r.producto || '',
             r.cliente || '',
-            parseFloat(r.subtotal_factura || 0),
             r.escala_cliente || '',
             r.escala_precio_vendida || '',
             parseFloat(r.cantidad || 0),
@@ -825,15 +817,15 @@ function exportarProyeccionesExcel(tipo){
 
     var wsPr = XLSX.utils.aoa_to_sheet(dataPr);
     for (var i = 2; i <= proyeccionesDataActual.length + 1; i++) {
-        ['H','N','O','Q'].forEach(function(col){
+        ['J','K','M'].forEach(function(col){
             var ref = col + i;
             if (wsPr[ref] && typeof wsPr[ref].v === 'number') wsPr[ref].z = '"L." #,##0.00';
         });
-        var pctRef = 'P' + i;
+        var pctRef = 'L' + i;
         if (wsPr[pctRef] && typeof wsPr[pctRef].v === 'number') wsPr[pctRef].z = '0.00%';
     }
-    wsPr['!autofilter'] = { ref: 'A1:Q1' };
-    wsPr['!cols'] = [{wch:12},{wch:20},{wch:12},{wch:20},{wch:12},{wch:45},{wch:34},{wch:18},{wch:24},{wch:24},{wch:12},{wch:16},{wch:24},{wch:20},{wch:18},{wch:12},{wch:18}];
+    wsPr['!autofilter'] = { ref: 'A1:M1' };
+    wsPr['!cols'] = [{wch:12},{wch:20},{wch:20},{wch:34},{wch:24},{wch:45},{wch:12},{wch:16},{wch:24},{wch:20},{wch:18},{wch:12},{wch:18}];
     var wbPr = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wbPr, wsPr, 'Proyectadas');
     XLSX.writeFile(wbPr, 'proyecciones_proyectadas_' + stamp + '.xlsx');

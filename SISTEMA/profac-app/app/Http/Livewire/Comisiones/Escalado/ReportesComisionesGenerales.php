@@ -1086,7 +1086,6 @@ class ReportesComisionesGenerales extends Component
                          vhp.producto_id,
                          p.nombre as producto,
                          vhp.cantidad,
-                         vhp.cantidad_s,
                          vhp.precio_unidad,
                          vhp.precioSeleccionado,
                          vhp.precios_producto_carga_id,
@@ -1187,11 +1186,7 @@ class ReportesComisionesGenerales extends Component
                 $comisionTotal = 0.0;
 
                 foreach ($lineas as $linea) {
-                    // cantidad_s conserva la porción real por lote; evita duplicar al sumar líneas de una misma factura.
-                    $cantidad = (float) ($linea->cantidad_s ?? 0);
-                    if ($cantidad <= 0) {
-                        $cantidad = (float) ($linea->cantidad ?? 0);
-                    }
+                    $cantidad = (float) ($linea->cantidad ?? 0);
                     $precioUnitario = (float) ($linea->precio_unidad ?? 0);
                     $precioSeleccionado = (float) ($linea->precioSeleccionado ?? 0);
                     $precioParaComision = $precioSeleccionado > 0 ? $precioSeleccionado : $precioUnitario;
@@ -1222,16 +1217,12 @@ class ReportesComisionesGenerales extends Component
                     $comisionTotal += $comisionLinea;
 
                     $categoriaPrecioNombre = (string) ($linea->categoria_precio ?? ('Categoria #' . $categoriaPrecioId));
-                    $productoId = (int) ($linea->producto_id ?? 0);
-                    $productoNombre = (string) ($linea->producto ?? ('Producto #' . $productoId));
-                    $bucketKey = $categoriaPrecioId . '|' . $productoId . '|' . $productoNombre;
+                    $bucketKey = $categoriaPrecioId . '|' . $categoriaPrecioNombre;
 
                     if (!isset($categoriaBuckets[$bucketKey])) {
                         $categoriaBuckets[$bucketKey] = [
                             'categoria_precio_id' => $categoriaPrecioId,
                             'categoria_precio' => $categoriaPrecioNombre,
-                            'producto_id' => $productoId,
-                            'producto' => $productoNombre,
                             'cantidad' => 0.0,
                             'base_unitaria' => 0.0,
                             'base_comisionable' => 0.0,
@@ -1248,7 +1239,6 @@ class ReportesComisionesGenerales extends Component
                     $categoriaBuckets[$bucketKey]['porcentaje'] = $porcentaje;
 
                     $categoriaBuckets[$bucketKey]['detalle_lineas'][] = [
-                        'producto_id' => (int) ($linea->producto_id ?? 0),
                         'producto' => (string) ($linea->producto ?? ('Producto #' . (int) $linea->producto_id)),
                         'categoria_precio' => $categoriaPrecioNombre,
                         'cantidad' => $cantidad,
@@ -1290,9 +1280,6 @@ class ReportesComisionesGenerales extends Component
                     $filas[] = [
                         'factura_id' => $facturaId,
                         'factura' => (string) ($factura->cai ?? ('#' . $facturaId)),
-                        'subtotal_factura' => round((float) ($factura->sub_total_factura ?? 0), 4),
-                        'producto_id' => (int) ($bucket['producto_id'] ?? 0),
-                        'producto' => (string) ($bucket['producto'] ?? 'N/A'),
                         'fecha_pago' => (string) ($cierre->fecha_pago_cierre ?? ''),
                         'fecha_creacion_factura' => (string) ($factura->fecha_creacion_factura ?? ''),
                         'cliente' => (string) ($factura->cliente ?? 'N/A'),
@@ -1319,7 +1306,6 @@ class ReportesComisionesGenerales extends Component
                 ['fecha_pago', 'asc'],
                 ['factura', 'asc'],
                 ['escala_precio_vendida', 'asc'],
-                ['producto', 'asc'],
                 ['capacidad', 'asc'],
             ])
             ->values()
