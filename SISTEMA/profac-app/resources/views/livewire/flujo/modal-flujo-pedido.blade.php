@@ -2560,16 +2560,15 @@
             if (!e.detail || !e.detail.url) return;
             var detail = e.detail;
 
-            // Construir select HTML para SweetAlert2
-            var selectHtml = '<select id="swal-gestor-select" class="swal2-input" style="width:100%;margin:0;height:38px;font-size:13px;">'
-                           + '<option value="">-- Sin gestor --</option>'
-                           + '</select>'
-                           + '<div id="swal-gestor-loading" style="font-size:12px;color:#888;margin-top:6px;display:none;">Cargando gestores...</div>';
-
             Swal.fire({
                 title: '<i class="fa fa-truck mr-2" style="color:#1565c0;"></i> Gestor de Entrega',
-                html: '<p style="font-size:13px;color:#666;margin-bottom:16px;">Seleccione el responsable de entrega (opcional).</p>'
-                    + '<select id="swal-gestor-select" style="width:100%;"></select>',
+                html: '<div style="text-align:left;">'
+                    + '<p style="font-size:13px;color:#666;margin-bottom:16px;">Seleccione el responsable de entrega y el tele asesor para la factura.</p>'
+                    + '<label style="display:block;font-size:12px;font-weight:700;color:#455a64;margin:0 0 6px;">Gestor de entrega</label>'
+                    + '<select id="swal-gestor-select" style="width:100%;"></select>'
+                    + '<label style="display:block;font-size:12px;font-weight:700;color:#455a64;margin:14px 0 6px;">Tele asesor</label>'
+                    + '<select id="swal-tele-asesor-select" style="width:100%;"></select>'
+                    + '</div>',
                 showCancelButton: true,
                 confirmButtonText: '<i class="fa fa-check mr-1"></i> Confirmar y Facturar',
                 cancelButtonText: 'Cancelar',
@@ -2594,6 +2593,24 @@
                             }
                         }
                     });
+                    $('#swal-tele-asesor-select').select2({
+                        dropdownParent: $('.swal-gestor-popup'),
+                        placeholder: '-- Seleccionar tele asesor --',
+                        allowClear: false,
+                        ajax: {
+                            url: '/ventas/corporativo/vendedores',
+                            data: function(params) {
+                                return { search: params.term || '', type: 'public', page: params.page || 1 };
+                            },
+                            processResults: function(data) {
+                                return { results: data.results || [] };
+                            }
+                        }
+                    });
+                    if (detail.tele_asesor_id && detail.tele_asesor_nombre) {
+                        var teleOption = new Option(detail.tele_asesor_nombre, detail.tele_asesor_id, true, true);
+                        $('#swal-tele-asesor-select').append(teleOption).trigger('change');
+                    }
                     // Evitar que el clic en el dropdown de Select2 cierre el SweetAlert
                     $(document).on('mousedown.swal2gestorfix', '.select2-container', function(e) {
                         e.stopPropagation();
@@ -2604,13 +2621,25 @@
                     if ($('#swal-gestor-select').hasClass('select2-hidden-accessible')) {
                         $('#swal-gestor-select').select2('destroy');
                     }
+                    if ($('#swal-tele-asesor-select').hasClass('select2-hidden-accessible')) {
+                        $('#swal-tele-asesor-select').select2('destroy');
+                    }
                 },
                 preConfirm: function() {
-                    return $('#swal-gestor-select').val() || null;
+                    var teleAsesorId = $('#swal-tele-asesor-select').val() || null;
+                    if (!teleAsesorId) {
+                        Swal.showValidationMessage('Debe seleccionar un tele asesor.');
+                        return false;
+                    }
+                    return {
+                        gestorId: $('#swal-gestor-select').val() || null,
+                        teleAsesorId: teleAsesorId
+                    };
                 }
             }).then(function(result) {
                 if (!result.isConfirmed) return;
-                var gestorId = result.value || null;
+                var gestorId = result.value ? result.value.gestorId : null;
+                var teleAsesorId = result.value ? result.value.teleAsesorId : null;
 
                 // Bloquear botón y mostrar spinner durante el POST
                 var btn = document.getElementById('btn-facturar-directo');
@@ -2626,7 +2655,11 @@
                 }
                 setLoading(true);
 
-                axios.post(detail.url, { tipo_pago: detail.tipo_pago || 1, gestor_entrega: gestorId })
+                axios.post(detail.url, {
+                    tipo_pago: detail.tipo_pago || 1,
+                    gestor_entrega: gestorId,
+                    tele_asesor: teleAsesorId
+                })
                     .then(function(response) {
                         var data = response.data || {};
                         if (data.print_url) {

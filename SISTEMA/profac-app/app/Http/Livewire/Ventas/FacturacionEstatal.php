@@ -739,6 +739,8 @@ class FacturacionEstatal extends Component
             ], 406);
         }
 
+        $teleAsesorId = $request->tele_asesor ? (int) $request->tele_asesor : Auth::user()->id;
+
         if ($request->restriccion == 1) {
             $facturaVencida = $this->comprobarFacturaVencida($request->seleccionarCliente);
 
@@ -954,7 +956,7 @@ class FacturacionEstatal extends Component
             $factura->monto_comision = $montoComision;
             $factura->tipo_venta_id = 2; // estatal
             $factura->estado_factura_id = 1; // se presenta
-            $factura->users_id = Auth::user()->id;
+            $factura->users_id = $teleAsesorId;
             $factura->comision_estado_pagado = 0;
             $factura->pendiente_cobro = $request->totalGeneral;
             $factura->estado_editar = 1;

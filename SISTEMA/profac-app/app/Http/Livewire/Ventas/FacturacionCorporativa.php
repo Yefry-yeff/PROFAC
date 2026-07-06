@@ -36,6 +36,11 @@ class FacturacionCorporativa extends Component
     public $arrayProductos = [];
     public $arrayLogs = [];
 
+    private function resolveTeleAsesorId(Request $request): int
+    {
+        return $request->tele_asesor ? (int) $request->tele_asesor : Auth::user()->id;
+    }
+
     // Nota: Este componente solo se usa como controlador API.
     // El render() no se invoca desde ninguna ruta de página.
     public function render()
@@ -65,7 +70,7 @@ class FacturacionCorporativa extends Component
                 $query->where('cliente.vendedor', Auth::id());
             }
 
-            $listaClientes = $query->orderBy('cliente.nombre')->limit(15)->get();
+            $listaClientes = $query->get();
 
             return response()->json(['results' => $listaClientes], 200);
         } catch (QueryException $e) {
@@ -777,7 +782,8 @@ class FacturacionCorporativa extends Component
                 'nombre_cliente_ventas' => 'required',
                 'tipoPagoVenta' => 'required',
                 'restriccion' => 'required',
-                'vendedor' => 'required'
+                'vendedor' => 'required',
+                'tele_asesor' => 'nullable|integer|exists:users,id'
 
 
 
@@ -794,6 +800,8 @@ class FacturacionCorporativa extends Component
                     'errors' => $validator->errors()
                 ], 401);
             }
+
+            $teleAsesorId = $this->resolveTeleAsesorId($request);
             //
 
 
@@ -1060,7 +1068,7 @@ class FacturacionCorporativa extends Component
                 $factura->monto_comision = $montoComision;
                 $factura->tipo_venta_id = 2; // corporativa
                 $factura->estado_factura_id = 1; // se presenta
-                $factura->users_id = Auth::user()->id;
+                $factura->users_id = $teleAsesorId;
                 $factura->comision_estado_pagado = 0;
                 $factura->pendiente_cobro = $request->totalGeneral;
                 $factura->estado_editar = 1;
@@ -1118,6 +1126,10 @@ class FacturacionCorporativa extends Component
 
                     //$factura = $this->alternar($request);
                     $factura = $this->guardarVentaND($request);
+                }
+
+                if ($factura instanceof \Illuminate\Http\JsonResponse) {
+                    return $factura;
                 }
             }
 
@@ -1248,6 +1260,7 @@ class FacturacionCorporativa extends Component
     {
 
 
+            $teleAsesorId = $this->resolveTeleAsesorId($request);
         try {
             $numeroSecuencia = 0;
             $numeroSecuenciaUpdated = 0;
@@ -1346,7 +1359,7 @@ class FacturacionCorporativa extends Component
             $factura->monto_comision = $montoComision;
             $factura->tipo_venta_id = 2; //coorporativo;
             $factura->estado_factura_id = $estado; // se presenta
-            $factura->users_id = Auth::user()->id;
+            $factura->users_id = $teleAsesorId;
             $factura->comision_estado_pagado = 0;
             $factura->pendiente_cobro = $request->totalGeneral;
             $factura->estado_editar = 1;
@@ -1415,6 +1428,7 @@ class FacturacionCorporativa extends Component
         try {
 
         $numeroSecuencia = 0;
+            $teleAsesorId = $this->resolveTeleAsesorId($request);
         $numeroSecuenciaUpdated = 0;
 
         // FOR UPDATE bloquea la fila hasta que se haga commit,
@@ -1499,7 +1513,7 @@ class FacturacionCorporativa extends Component
         $factura->monto_comision = $montoComision;
         $factura->tipo_venta_id = 2; //coorporativo;
         $factura->estado_factura_id = 2; // se presenta
-        $factura->users_id = Auth::user()->id;
+        $factura->users_id = $teleAsesorId;
         $factura->comision_estado_pagado = 0;
         $factura->pendiente_cobro = $request->totalGeneral;
         $factura->estado_editar = 1;
@@ -1538,6 +1552,7 @@ class FacturacionCorporativa extends Component
     public function metodoLista($request)
     {
         try {
+            $teleAsesorId = $this->resolveTeleAsesorId($request);
 
             //dd("lista");
             $numeroSecuencia = null;
@@ -1637,7 +1652,7 @@ class FacturacionCorporativa extends Component
             $factura->monto_comision = $montoComision;
             $factura->tipo_venta_id = 2; //coorporativo;
             $factura->estado_factura_id = 2; // se presenta
-            $factura->users_id = Auth::user()->id;
+            $factura->users_id = $teleAsesorId;
             $factura->comision_estado_pagado = 0;
             $factura->pendiente_cobro = $request->totalGeneral;
             $factura->estado_editar = 1;
@@ -1863,7 +1878,21 @@ class FacturacionCorporativa extends Component
         (select name from users where id = A.users_id ) as facturador,
         (select name from users where id = A.gestor_entrega) as asesor_entrega,
         D.id as factura,
-        (select hf.flujo_id from historico_flujo hf where hf.tramite_id = A.id and hf.tipo_tramite_id in (3, 5) limit 1) as flujo_id
+                COALESCE(
+                        (select hf.flujo_id
+                         from historico_flujo hf
+                         where hf.tramite_id = A.id
+                             and hf.tipo_tramite_id in (3, 5)
+                         order by hf.id desc
+                         limit 1),
+                        (select pf.flujo_id
+                         from prefactura_auditoria pa
+                         inner join prefactura pf on pf.id = pa.prefactura_id
+                         where pa.factura_id = A.id
+                             and pa.prefactura_id is not null
+                         order by pa.id desc
+                         limit 1)
+                ) as flujo_id
 
        from factura A
        inner join cai B  on A.cai_id = B.id
@@ -2027,7 +2056,22 @@ class FacturacionCorporativa extends Component
         users.name as vendedor,
         (select name from users where id = A.users_id ) as facturador,
         (select name from users where id = A.gestor_entrega) as asesor_entrega,
-        D.id as factura
+                D.id as factura,
+                COALESCE(
+                        (select hf.flujo_id
+                         from historico_flujo hf
+                         where hf.tramite_id = A.id
+                             and hf.tipo_tramite_id in (3, 5)
+                         order by hf.id desc
+                         limit 1),
+                        (select pf.flujo_id
+                         from prefactura_auditoria pa
+                         inner join prefactura pf on pf.id = pa.prefactura_id
+                         where pa.factura_id = A.id
+                             and pa.prefactura_id is not null
+                         order by pa.id desc
+                         limit 1)
+                ) as flujo_id
 
        from factura A
        inner join cai B
@@ -2192,6 +2236,7 @@ class FacturacionCorporativa extends Component
         try {
 
 
+            $teleAsesorId = $this->resolveTeleAsesorId($request);
             $listado = DB::SELECTONE("
             select
             id,
@@ -2283,7 +2328,7 @@ class FacturacionCorporativa extends Component
             $factura->monto_comision = $montoComision;
             $factura->tipo_venta_id = 2; //coorporativo;
             $factura->estado_factura_id = $listado->estado; // se presenta
-            $factura->users_id = Auth::user()->id;
+            $factura->users_id = $teleAsesorId;
             $factura->comision_estado_pagado = 0;
             $factura->pendiente_cobro = $request->totalGeneral;
             $factura->estado_editar = 1;
@@ -2456,6 +2501,7 @@ class FacturacionCorporativa extends Component
     {
         DB::beginTransaction();
         try {
+            $teleAsesorId = $this->resolveTeleAsesorId($request);
 
         $numeroSecuencia = 0;
         $numeroSecuenciaUpdated = 0;
@@ -2543,7 +2589,7 @@ class FacturacionCorporativa extends Component
         $factura->monto_comision = $montoComision;
         $factura->tipo_venta_id = 2; //coorporativo;
         $factura->estado_factura_id = $estado;
-        $factura->users_id = Auth::user()->id;
+        $factura->users_id = $teleAsesorId;
         $factura->comision_estado_pagado = 0;
         $factura->pendiente_cobro = $request->totalGeneral;
         $factura->estado_editar = 1;
