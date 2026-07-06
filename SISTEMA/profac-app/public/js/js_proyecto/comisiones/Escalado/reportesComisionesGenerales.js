@@ -698,6 +698,45 @@ function limpiarFiltrosProyecciones(){
     }
 }
 
+function redirigirCalculoPoliticaAnterior(){
+    if(!Array.isArray(proyeccionesExcluidasActual) || !proyeccionesExcluidasActual.length){
+        Swal.fire({icon:'info',title:'Sin facturas',text:'No hay facturas para comisión por política anterior.'});
+        return;
+    }
+
+    var facturaIds = [];
+    proyeccionesExcluidasActual.forEach(function(item){
+        var id = parseInt(item && item.factura_id ? item.factura_id : 0, 10);
+        if(id > 0) facturaIds.push(id);
+    });
+
+    facturaIds = Array.from(new Set(facturaIds));
+
+    if(!facturaIds.length){
+        Swal.fire({icon:'warning',title:'Datos incompletos',text:'No fue posible identificar IDs de factura para el cálculo.'});
+        return;
+    }
+
+    var filtros = getFiltrosProyecciones();
+    var payload = {
+        modo: 'politica_anterior',
+        fecha_inicio: filtros.fechaInicio || '',
+        fecha_final: filtros.fechaFin || '',
+        usuario_id: filtros.usuario_id || '',
+        rol_id: filtros.rol_id || '',
+        factura_ids: facturaIds,
+        filas: proyeccionesExcluidasActual
+    };
+
+    try {
+        sessionStorage.setItem('comisionPoliticaAnteriorPayload', JSON.stringify(payload));
+    } catch (e) {
+        // Ignorar si el navegador no permite almacenamiento.
+    }
+
+    window.location.href = '/reporte/comision/politica-anterior';
+}
+
 function exportarBrechaApFcExcel(){
     if(typeof XLSX === 'undefined'){
         Swal.fire({icon:'warning',title:'Librería no disponible',text:'No fue posible cargar la librería de Excel.'});
@@ -786,8 +825,8 @@ function exportarProyeccionesExcel(tipo){
         wsEx['!autofilter'] = { ref: 'A1:H1' };
         wsEx['!cols'] = [{wch:12},{wch:20},{wch:20},{wch:36},{wch:16},{wch:24},{wch:34},{wch:80}];
         var wbEx = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wbEx, wsEx, 'Excluidas');
-        XLSX.writeFile(wbEx, 'proyecciones_excluidas_' + stamp + '.xlsx');
+        XLSX.utils.book_append_sheet(wbEx, wsEx, 'Politica anterior');
+        XLSX.writeFile(wbEx, 'facturas_politica_anterior_' + stamp + '.xlsx');
         return;
     }
 

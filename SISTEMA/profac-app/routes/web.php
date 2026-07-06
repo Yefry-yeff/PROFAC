@@ -17,6 +17,7 @@ use App\Http\Livewire\Reportes\FacturaDia;
 use App\Http\Livewire\Reportes\DashboardVentas;
 
 use App\Http\Livewire\Reportes\Prodmes;
+use App\Http\Livewire\Reportes\ComisionPoliticaAnterior;
 use App\Http\Livewire\Reportes\Reporteria;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Artisan;
@@ -1308,6 +1309,15 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/facturaDia', FacturaDia::class);
     Route::post('/reporte/factura-dia/exportar-excel/{fecha_inicio}/{fecha_final}', [FacturaDia::class, 'exportarExcel'])->name('reporte.factura_dia.excel');
     Route::get('/reporte/comision', Prodmes::class);
+    Route::get('/reporte/comision/politica-anterior', ComisionPoliticaAnterior::class);
+    Route::get('/comision/politica-anterior/productos-activos', [ComisionPoliticaAnterior::class, 'listarProductosActivos']);
+    Route::get('/comision/politica-anterior/catalogo/marcas', [ComisionPoliticaAnterior::class, 'catalogoMarcas']);
+    Route::get('/comision/politica-anterior/catalogo/categorias', [ComisionPoliticaAnterior::class, 'catalogoCategorias']);
+    Route::get('/comision/politica-anterior/catalogo/sub-categorias', [ComisionPoliticaAnterior::class, 'catalogoSubCategorias']);
+    Route::get('/comision/politica-anterior/parametrizacion', [ComisionPoliticaAnterior::class, 'listarClasificacionProductos']);
+    Route::post('/comision/politica-anterior/parametrizacion', [ComisionPoliticaAnterior::class, 'guardarClasificacionProducto']);
+    Route::get('/comision/politica-anterior/parametrizacion-checklist', [ComisionPoliticaAnterior::class, 'listarProductosChecklist']);
+    Route::post('/comision/politica-anterior/parametrizacion-checklist', [ComisionPoliticaAnterior::class, 'guardarChecklist']);
     Route::get('/reporte/reporteria', Reporteria::class);
 
     // Dashboard de Ventas BI

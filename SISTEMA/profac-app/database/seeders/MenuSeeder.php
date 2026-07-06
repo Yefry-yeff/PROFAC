@@ -60,6 +60,7 @@ class MenuSeeder extends Seeder
                 'estado_id' => 1,
                 'submenus' => [
                     ['nombre' => 'Escalas de Comisión', 'url' => 'comisiones/escala/index', 'icono' => 'fa fa-list', 'orden' => 1, 'roles' => [1]],
+                    ['nombre' => 'Conciliación de Comisiones', 'url' => 'comisiones/conciliacion', 'icono' => 'fa fa-balance-scale', 'orden' => 2, 'roles' => [1]],
                 ]
             ],
 

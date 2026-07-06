@@ -712,8 +712,11 @@ table.dataTable tbody td { font-size: 13px; vertical-align: middle; }
                 <div class="tab-toolbar" style="margin-bottom:10px;">
                     <div class="tab-title" style="color:#991b1b;">
                         <i class="fa fa-exclamation-triangle" style="color:#dc2626;"></i>
-                        Facturas Excluidas del Nuevo Modelo de Comisión
+                        Facturas para comisión por politica anterior
                     </div>
+                    <button class="btn-export" type="button" style="background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;" onclick="redirigirCalculoPoliticaAnterior()">
+                        <i class="fa fa-calculator"></i> Calcular
+                    </button>
                 </div>
                 <div style="overflow-x:auto;border:1px solid #fecaca;border-radius:10px;background:#fff;">
                     <table id="dtProyeccionesExcluidas" class="table table-hover table-sm w-100 mb-0">
