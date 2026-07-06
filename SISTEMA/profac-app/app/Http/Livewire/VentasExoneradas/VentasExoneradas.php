@@ -30,6 +30,38 @@ class VentasExoneradas extends Component
     public $arrayProductos = [];
     public $arrayLogs = [];
 
+    private function calcularFechaVencimientoFactura(string $fechaEmision, int $tipoPago, ?int $diasAprobados = null, ?int $diasCliente = null): string
+    {
+        $fechaBase = \Carbon\Carbon::parse($fechaEmision);
+
+        if ($tipoPago !== 2) {
+            return $fechaBase->toDateString();
+        }
+
+        $dias = $diasAprobados !== null ? max(0, $diasAprobados) : max(0, (int) ($diasCliente ?? 0));
+
+        return $fechaBase->copy()->addDays($dias)->toDateString();
+    }
+
+    private function obtenerDiasCreditoAprobados(?int $flujoId): ?int
+    {
+        if (!$flujoId) {
+            return null;
+        }
+
+        $creditoAprobado = DB::table('credito_revision')
+            ->where('flujo_id', $flujoId)
+            ->where('estado', 'aprobado')
+            ->latest('id')
+            ->first(['dias_credito_aprobados']);
+
+        if (!$creditoAprobado || is_null($creditoAprobado->dias_credito_aprobados)) {
+            return null;
+        }
+
+        return (int) $creditoAprobado->dias_credito_aprobados;
+    }
+
     public function render()
     {
         return view('livewire.ventas-exoneradas.ventas-exoneradas');
@@ -131,6 +163,8 @@ class VentasExoneradas extends Component
                 'errors' => $validator->errors()
             ], 406);
         }
+
+        $teleAsesorId = $request->tele_asesor ? (int) $request->tele_asesor : Auth::user()->id;
 
         /* if ($request->restriccion == 1) {
             $facturaVencida = $this->comprobarFacturaVencida($request->seleccionarCliente);
@@ -339,7 +373,12 @@ class VentasExoneradas extends Component
             $factura->total = $subTotalFactura;
             $factura->credito = $subTotalFactura;
             $factura->fecha_emision = $request->fecha_emision;
-            $factura->fecha_vencimiento = $request->fecha_vencimiento;
+            $factura->fecha_vencimiento = $this->calcularFechaVencimientoFactura(
+                (string) $request->fecha_emision,
+                (int) $request->tipoPagoVenta,
+                $this->obtenerDiasCreditoAprobados((int) ($request->flujo_id ?? 0)),
+                (int) $diasCredito
+            );
             $factura->tipo_pago_id = $request->tipoPagoVenta;
             $factura->dias_credito = $diasCredito;
             $factura->cai_id = $cai->id;
@@ -350,7 +389,7 @@ class VentasExoneradas extends Component
             $factura->monto_comision = $montoComision;
             $factura->tipo_venta_id = 3; // exonerado
             $factura->estado_factura_id = 1; // se presenta
-            $factura->users_id = Auth::user()->id;
+            $factura->users_id = $teleAsesorId;
             $factura->comision_estado_pagado = 0;
             $factura->pendiente_cobro = $subTotalFactura;
             $factura->codigo_exoneracion_id = $request->codigo;
@@ -727,7 +766,22 @@ class VentasExoneradas extends Component
         A.estado_venta_id,
         users.name as vendedor,
         (select name from users where id = A.users_id ) as facturador,
-        (select name from users where id = A.gestor_entrega) as asesor_entrega
+                (select name from users where id = A.gestor_entrega) as asesor_entrega,
+                COALESCE(
+                        (select hf2.flujo_id
+                         from historico_flujo hf2
+                         where hf2.tramite_id = A.id
+                             and hf2.tipo_tramite_id in (3, 5)
+                         order by hf2.id desc
+                         limit 1),
+                        (select pf.flujo_id
+                         from prefactura_auditoria pa
+                         inner join prefactura pf on pf.id = pa.prefactura_id
+                         where pa.factura_id = A.id
+                             and pa.prefactura_id is not null
+                         order by pa.id desc
+                         limit 1)
+                ) as flujo_id
        from factura A
        inner join cai B
        on A.cai_id = B.id
@@ -844,10 +898,12 @@ class VentasExoneradas extends Component
         on A.numero_orden_compra_id = B.id
         where A.id =" . $idFactura);
 
-        $flujoFacturaId = DB::table('historico_flujo')
-            ->where('tipo_tramite_id', 3)
-            ->where('tramite_id', $idFactura)
-            ->value('flujo_id');
+        $flujoFacturaId = $cai->flujo_id
+            ?? DB::table('historico_flujo')
+                ->where('tipo_tramite_id', 3)
+                ->where('tramite_id', $idFactura)
+                ->orderByDesc('id')
+                ->value('flujo_id');
 
         $flujoDocData = $flujoFacturaId
             ? DB::table('flujo')->where('id', $flujoFacturaId)->first([
@@ -927,7 +983,22 @@ class VentasExoneradas extends Component
         A.estado_venta_id,
         users.name as vendedor,
         (select name from users where id = A.users_id ) as facturador,
-        (select name from users where id = A.gestor_entrega) as asesor_entrega
+                (select name from users where id = A.gestor_entrega) as asesor_entrega,
+                COALESCE(
+                        (select hf2.flujo_id
+                         from historico_flujo hf2
+                         where hf2.tramite_id = A.id
+                             and hf2.tipo_tramite_id in (3, 5)
+                         order by hf2.id desc
+                         limit 1),
+                        (select pf.flujo_id
+                         from prefactura_auditoria pa
+                         inner join prefactura pf on pf.id = pa.prefactura_id
+                         where pa.factura_id = A.id
+                             and pa.prefactura_id is not null
+                         order by pa.id desc
+                         limit 1)
+                ) as flujo_id
        from factura A
        inner join cai B
        on A.cai_id = B.id
@@ -1046,10 +1117,12 @@ class VentasExoneradas extends Component
         on A.numero_orden_compra_id = B.id
         where A.id =" . $idFactura);
 
-        $flujoFacturaId = DB::table('historico_flujo')
-            ->where('tipo_tramite_id', 3)
-            ->where('tramite_id', $idFactura)
-            ->value('flujo_id');
+        $flujoFacturaId = $cai->flujo_id
+            ?? DB::table('historico_flujo')
+                ->where('tipo_tramite_id', 3)
+                ->where('tramite_id', $idFactura)
+                ->orderByDesc('id')
+                ->value('flujo_id');
 
         $flujoDocData = $flujoFacturaId
             ? DB::table('flujo')->where('id', $flujoFacturaId)->first([

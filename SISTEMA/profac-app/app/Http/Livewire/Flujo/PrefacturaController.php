@@ -893,53 +893,76 @@ class PrefacturaController
     // ─────────────────────────────────────────────────────────────────────
     public function facturarDirectamente(Request $request, int $id)
     {
-        $pf = DB::table('prefactura')->where('id', $id)->where('estado', 'activo')->first();
+        $validator = Validator::make($request->all(), [
+            'gestor_entrega' => 'nullable|integer|exists:users,id',
+            'tele_asesor'    => 'nullable|integer|exists:users,id',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'error' => 'Los actores seleccionados no son válidos.',
+                'detail' => $validator->errors(),
+            ], 422);
+        }
+
+        $pf = DB::table('prefactura')
+            ->where('id', $id)
+            ->whereIn('estado', ['activo', 'procesando', 'convertida'])
+            ->first();
         if (!$pf) {
-            return response()->json(['error' => 'Prefactura no encontrada o inactiva.'], 404);
+            return response()->json(['error' => 'Prefactura no encontrada.'], 404);
         }
 
-        // Si la prefactura ya venció, su reserva se considera liberada y debe
-        // revalidarse la disponibilidad real antes de permitir facturar.
-        if ($this->prefacturaVencio($pf->fecha_vencimiento ?? null)) {
-            $faltantes = $this->obtenerFaltantesInventarioPrefactura((int) $pf->id, true);
-            if (!empty($faltantes)) {
-                return response()->json([
-                    'icon'         => 'warning',
-                    'warning'      => 'No es posible generar la factura porque uno o más productos ya no cuentan con inventario disponible. Actualice la prefactura antes de continuar.',
-                    'stock_errors' => $faltantes,
-                ], 422);
+        if (($pf->estado ?? null) === 'convertida') {
+            return response()->json([
+                'icon' => 'warning',
+                'error' => 'Esta prefactura ya fue facturada.',
+            ], 409);
+        }
+
+        try {
+            // Si la prefactura ya venció, su reserva se considera liberada y debe
+            // revalidarse la disponibilidad real antes de permitir facturar.
+            if ($this->prefacturaVencio($pf->fecha_vencimiento ?? null)) {
+                $faltantes = $this->obtenerFaltantesInventarioPrefactura((int) $pf->id, true);
+                if (!empty($faltantes)) {
+                    return response()->json([
+                        'icon'         => 'warning',
+                        'warning'      => 'No es posible generar la factura porque uno o más productos ya no cuentan con inventario disponible. Actualice la prefactura antes de continuar.',
+                        'stock_errors' => $faltantes,
+                    ], 422);
+                }
             }
-        }
 
-        // ── Traer número de orden desde la oferta y mapearlo a FK de factura ──
-        $ordenCompraId = null;
-        $numeroOrdenOferta = '';
-        if (!empty($pf->flujo_id)) {
-            $numeroOrdenOferta = trim((string) (DB::table('flujo')
-                ->where('id', (int) $pf->flujo_id)
-                ->value('numero_orden_compra') ?? ''));
-        }
-
-        if ($numeroOrdenOferta !== '') {
-            $ordenExistente = DB::table('numero_orden_compra')
-                ->where('cliente_id', (int) $pf->cliente_id)
-                ->where('numero_orden', $numeroOrdenOferta)
-                ->orderByDesc('id')
-                ->first(['id']);
-
-            if ($ordenExistente) {
-                $ordenCompraId = (int) $ordenExistente->id;
-            } else {
-                $ordenCompraId = (int) DB::table('numero_orden_compra')->insertGetId([
-                    'numero_orden' => $numeroOrdenOferta,
-                    'cliente_id'   => (int) $pf->cliente_id,
-                    'estado_id'    => 1,
-                    'users_id'     => Auth::id(),
-                    'created_at'   => now(),
-                    'updated_at'   => now(),
-                ]);
+            // ── Traer número de orden desde la oferta y mapearlo a FK de factura ──
+            $ordenCompraId = null;
+            $numeroOrdenOferta = '';
+            if (!empty($pf->flujo_id)) {
+                $numeroOrdenOferta = trim((string) (DB::table('flujo')
+                    ->where('id', (int) $pf->flujo_id)
+                    ->value('numero_orden_compra') ?? ''));
             }
-        }
+
+            if ($numeroOrdenOferta !== '') {
+                $ordenExistente = DB::table('numero_orden_compra')
+                    ->where('cliente_id', (int) $pf->cliente_id)
+                    ->where('numero_orden', $numeroOrdenOferta)
+                    ->orderByDesc('id')
+                    ->first(['id']);
+
+                if ($ordenExistente) {
+                    $ordenCompraId = (int) $ordenExistente->id;
+                } else {
+                    $ordenCompraId = (int) DB::table('numero_orden_compra')->insertGetId([
+                        'numero_orden' => $numeroOrdenOferta,
+                        'cliente_id'   => (int) $pf->cliente_id,
+                        'estado_id'    => 1,
+                        'users_id'     => Auth::id(),
+                        'created_at'   => now(),
+                        'updated_at'   => now(),
+                    ]);
+                }
+            }
 
         // ── Determinar tipo_pago desde revisión de crédito aprobada ──────
         // Prioridad:
@@ -1135,6 +1158,7 @@ class PrefacturaController
             'restriccion'              => 0,  // sin restricción de facturas vencidas en flujo directo
             'vendedor'                 => $pf->vendedor,
             'gestor_entrega'           => $request->gestor_entrega ?: null,
+            'tele_asesor'              => $request->tele_asesor ?: null,
             'porDescuento'             => $pf->porc_descuento ?? 0,
             'porDescuentoCalculado'    => $pf->monto_descuento ?? 0,
             'nota_comen'               => $pf->nota,
@@ -1253,14 +1277,14 @@ class PrefacturaController
                 ->value('id');
         }
 
-        // ── Actualizar prefactura a 'convertida' ──────────────────────────
-        DB::table('prefactura')
-            ->where('id', $id)
-            ->update(['estado' => 'convertida', 'updated_at' => now()]);
+            // ── Actualizar prefactura a 'convertida' ──────────────────────────
+            DB::table('prefactura')
+                ->where('id', $id)
+                ->update(['estado' => 'convertida', 'updated_at' => now()]);
 
-        // ── Registrar el flujo (equivalente a confirmarFacturaFlujo) ──────
-        $flujoId = (int) ($pf->flujo_id ?? 0);
-        if ($flujoId && $facturaId) {
+            // ── Registrar el flujo (equivalente a confirmarFacturaFlujo) ──────
+            $flujoId = (int) ($pf->flujo_id ?? 0);
+            if ($flujoId && $facturaId) {
             $TIPO_FACTURA  = 3;
             $TIPO_ENTREGA  = 5;
             $TIPO_COBRO    = 6;
@@ -1345,6 +1369,15 @@ class PrefacturaController
                     'updated_at'      => now(),
                 ]);
             }
+            }
+
+        } catch (\Throwable $e) {
+            DB::table('prefactura')
+                ->where('id', $id)
+                ->where('estado', 'procesando')
+                ->update(['estado' => 'activo', 'updated_at' => now()]);
+
+            throw $e;
         }
 
         // ── Auditoría ─────────────────────────────────────────────────────

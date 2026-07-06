@@ -2370,6 +2370,8 @@ class ModalFlujoPedido extends Component
         $this->dispatchBrowserEvent('fmp-facturar-directo', [
             'url'       => '/prefactura/' . (int) $this->prefacturaData['id'] . '/facturar-directo',
             'tipo_pago' => $tipoPago,
+            'tele_asesor_id' => Auth::id(),
+            'tele_asesor_nombre' => Auth::user()->name ?? '',
         ]);
     }
 

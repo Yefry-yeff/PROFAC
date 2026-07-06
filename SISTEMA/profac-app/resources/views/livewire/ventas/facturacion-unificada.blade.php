@@ -555,6 +555,7 @@
                                 </div>
                                 {{-- Gestor de Entrega (se selecciona en modal al facturar) --}}
                                 <input type="hidden" name="gestor_entrega" id="gestor_entrega_hidden" value="">
+                                <input type="hidden" name="tele_asesor" id="tele_asesor_hidden" value="{{ Auth::id() }}">
                                 {{-- Tipo de pago --}}
                                 <div class="col-12 col-md-4">
                                     <label class="ofr-label">Tipo de Pago <span class="req">*</span></label>
@@ -970,24 +971,30 @@
         </div>
 
         {{-- ============================================================== --}}
-        {{-- MODAL: Seleccionar Gestor de Entrega (al facturar)             --}}
+        {{-- MODAL: Seleccionar Gestor de Entrega y Tele Asesor            --}}
         {{-- ============================================================== --}}
         <div class="modal fade" id="modal_gestor_entrega" data-backdrop="static" tabindex="-1" role="dialog" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered" role="document">
                 <div class="modal-content">
                     <div class="modal-header" style="background:linear-gradient(135deg,#1565c0,#42a5f5); border:none; padding:14px 20px;">
                         <h3 class="modal-title" style="color:#fff; font-size:16px; font-weight:700; margin:0;">
-                            <i class="fa-solid fa-truck mr-2"></i>Gestor de Entrega
+                            <i class="fa-solid fa-users mr-2"></i>Actores de la Factura
                         </h3>
                     </div>
                     <div class="modal-body" style="padding: 20px;">
                         <p class="text-muted mb-3" style="font-size:12px;">
-                            Seleccione el responsable de entrega para esta factura (opcional).
+                            Seleccione el responsable de entrega y el tele asesor para esta factura.
                         </p>
                         <div class="form-group">
                             <label class="ofr-label">Gestor de Entrega</label>
                             <select id="gestor_entrega_modal" class="form-control form-control-sm" style="width:100%;">
                                 <option value="">-- Sin gestor --</option>
+                            </select>
+                        </div>
+                        <div class="form-group mb-0">
+                            <label class="ofr-label">Tele Asesor <span class="req">*</span></label>
+                            <select id="tele_asesor_modal" class="form-control form-control-sm" style="width:100%;">
+                                <option value="">-- Seleccionar tele asesor --</option>
                             </select>
                         </div>
                     </div>
@@ -3697,6 +3704,9 @@
 
     function mostrarModalGestorEntrega() {
         var urlVendedores = urls.vendedores;
+        var teleHidden = document.getElementById('tele_asesor_hidden');
+        var teleIdActual = teleHidden && teleHidden.value ? teleHidden.value : '{{ Auth::id() }}';
+        var teleNombreActual = (teleHidden && teleHidden.getAttribute('data-name')) ? teleHidden.getAttribute('data-name') : {!! json_encode(Auth::user()->name ?? '') !!};
         // Inicializar select2 en el modal si aún no lo está
         if (!$('#gestor_entrega_modal').hasClass('select2-hidden-accessible')) {
             $('#gestor_entrega_modal').select2({
@@ -3713,14 +3723,45 @@
         } else {
             $('#gestor_entrega_modal').val(null).trigger('change');
         }
+        if (!$('#tele_asesor_modal').hasClass('select2-hidden-accessible')) {
+            $('#tele_asesor_modal').select2({
+                dropdownParent: $('#modal_gestor_entrega'),
+                ajax: {
+                    url: urlVendedores,
+                    data: function(params) {
+                        return { search: params.term, type: 'public', page: params.page || 1 };
+                    }
+                },
+                allowClear: false,
+                placeholder: '-- Seleccionar tele asesor --'
+            });
+        }
+        $('#tele_asesor_modal').empty();
+        if (teleIdActual && teleNombreActual) {
+            $('#tele_asesor_modal').append(new Option(teleNombreActual, teleIdActual, true, true)).trigger('change');
+        } else {
+            $('#tele_asesor_modal').val(null).trigger('change');
+        }
         $('#modal_gestor_entrega').modal('show');
     }
 
     $(document).on('click', '#btn_confirmar_gestor', function() {
         var gestorId = $('#gestor_entrega_modal').val() || '';
+        var teleId = $('#tele_asesor_modal').val() || '';
+        var teleData = $('#tele_asesor_modal').select2('data');
+        var teleNombre = (teleData && teleData[0] && teleData[0].text) ? teleData[0].text : '';
+        if (!teleId) {
+            Swal.fire({ icon: 'warning', title: 'Tele asesor requerido', text: 'Debe seleccionar un tele asesor.', customClass: { container: 'swal-sobre-modal' } });
+            return;
+        }
         var gestorHidden = document.getElementById('gestor_entrega_hidden');
+        var teleHidden = document.getElementById('tele_asesor_hidden');
         gestorHidden.value = gestorId;
         gestorHidden.setAttribute('data-confirmed', '1');
+        if (teleHidden) {
+            teleHidden.value = teleId;
+            teleHidden.setAttribute('data-name', teleNombre);
+        }
         // Esperar a que el modal termine de cerrarse antes de re-submit
         // para evitar conflicto de aria-hidden/foco con el modal SR
         $('#modal_gestor_entrega').one('hidden.bs.modal', function() {
