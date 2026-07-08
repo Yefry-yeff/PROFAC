@@ -1322,6 +1322,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::post('/comision/politica-anterior/no-miselaneos/estado', [ComisionPoliticaAnterior::class, 'actualizarEstadoNoMiselaneo']);
     Route::post('/comision/politica-anterior/parametrizacion/importar-no-miselaneos', [ComisionPoliticaAnterior::class, 'importarNoMiselaneosDesdeExcel']);
     Route::post('/comision/politica-anterior/calcular-comisiones', [ComisionPoliticaAnterior::class, 'calcularComisionesFacturas']);
+    Route::post('/comision/politica-anterior/agregar-conciliacion', [ComisionPoliticaAnterior::class, 'agregarComisionPoliticaAnteriorAConciliacion']);
     Route::get('/reporte/reporteria', Reporteria::class);
 
     // Dashboard de Ventas BI

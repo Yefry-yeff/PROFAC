@@ -602,6 +602,224 @@ class ComisionPoliticaAnterior extends Component
             ], 422);
         }
 
+        $periodosInput = $request->input('periodos_por_factura', []);
+        if (!is_array($periodosInput)) {
+            $periodosInput = [];
+        }
+
+        $resultado = $this->construirResultadoComisionFacturas($facturaIds);
+        $filtro = $this->filtrarFacturasGestionables($resultado['detalle'], $periodosInput);
+        $resultado = $this->filtrarResultadoPorFacturaIds($resultado, $filtro['elegibles_ids']);
+
+        $bloqueadas = count($filtro['bloqueadas_ids']);
+        $msg = $bloqueadas > 0
+            ? 'Cálculo generado. Se omitieron ' . $bloqueadas . ' factura(s) bloqueadas por ya registradas o por período conciliado.'
+            : 'Cálculo de comisión generado correctamente.';
+
+        return response()->json([
+            'message' => $msg,
+            'detalle' => $resultado['detalle'],
+            'resumen' => $resultado['resumen'],
+            'totales' => $resultado['totales'],
+            'factura_ids_elegibles' => array_values($filtro['elegibles_ids']),
+            'factura_ids_bloqueadas' => array_values($filtro['bloqueadas_ids']),
+            'bloqueadas_ya_agregadas' => array_values($filtro['bloqueadas_ya_agregadas']),
+            'bloqueadas_periodo_conciliado' => array_values($filtro['bloqueadas_periodo_conciliado']),
+            'puede_agregar' => !empty($filtro['elegibles_ids']),
+        ]);
+    }
+
+    public function agregarComisionPoliticaAnteriorAConciliacion(Request $request)
+    {
+        if (!DB::getSchemaBuilder()->hasTable('comision_politica_anterior_factura')) {
+            return response()->json([
+                'message' => 'No existe la tabla de control de facturas de política anterior. Ejecute las migraciones pendientes.',
+            ], 500);
+        }
+
+        $facturaIds = collect($request->input('factura_ids', []))
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        if (empty($facturaIds)) {
+            return response()->json([
+                'message' => 'No hay facturas válidas para agregar a conciliación.',
+            ], 422);
+        }
+
+        $periodosInput = $request->input('periodos_por_factura', []);
+        if (!is_array($periodosInput)) {
+            $periodosInput = [];
+        }
+
+        $resultado = $this->construirResultadoComisionFacturas($facturaIds);
+        $filtro = $this->filtrarFacturasGestionables($resultado['detalle'], $periodosInput);
+        $resultado = $this->filtrarResultadoPorFacturaIds($resultado, $filtro['elegibles_ids']);
+        $detalle = $resultado['detalle'];
+
+        if (empty($filtro['elegibles_ids'])) {
+            return response()->json([
+                'message' => 'No hay facturas elegibles para agregar. Todas ya fueron registradas o pertenecen a períodos conciliados.',
+            ], 422);
+        }
+
+        if (empty($detalle)) {
+            return response()->json([
+                'message' => 'No hay líneas de comisión para agregar a conciliación.',
+            ], 422);
+        }
+
+        $totalesPorPeriodo = [];
+        $facturasPorPeriodo = [];
+
+        foreach ($detalle as $linea) {
+            $facturaId = (int) ($linea['factura_id'] ?? 0);
+            if ($facturaId <= 0) {
+                continue;
+            }
+
+            $periodoInput = $periodosInput[(string) $facturaId] ?? null;
+            $periodo = $this->normalizarPeriodo($periodoInput);
+            if (!$periodo) {
+                $periodo = $this->normalizarPeriodo($linea['fecha_factura'] ?? null);
+            }
+            if (!$periodo) {
+                continue;
+            }
+
+            if (!isset($totalesPorPeriodo[$periodo])) {
+                $totalesPorPeriodo[$periodo] = 0.0;
+                $facturasPorPeriodo[$periodo] = [];
+            }
+
+            if (!isset($facturasPorPeriodo[$periodo][$facturaId])) {
+                $facturasPorPeriodo[$periodo][$facturaId] = 0.0;
+            }
+
+            $montoLinea = (float) ($linea['comision_total_linea'] ?? 0);
+            $facturasPorPeriodo[$periodo][$facturaId] += $montoLinea;
+            $totalesPorPeriodo[$periodo] += $montoLinea;
+        }
+
+        if (empty($totalesPorPeriodo)) {
+            return response()->json([
+                'message' => 'No se pudo determinar el período para las facturas seleccionadas.',
+            ], 422);
+        }
+
+        DB::beginTransaction();
+        try {
+            $periodosActualizados = [];
+
+            foreach ($totalesPorPeriodo as $periodo => $totalPoliticaNuevas) {
+                $totalPoliticaNuevas = round((float) $totalPoliticaNuevas, 2);
+                $cantFacturasPoliticaNuevas = count($facturasPorPeriodo[$periodo] ?? []);
+                if ($cantFacturasPoliticaNuevas <= 0 || $totalPoliticaNuevas <= 0) {
+                    continue;
+                }
+
+                $registro = DB::table('comision_periodo')->where('periodo', $periodo)->lockForUpdate()->first();
+                if ($registro && (int) $registro->estado === 1) {
+                    throw new \RuntimeException('El período ' . $periodo . ' ya está conciliado y no permite agregar nuevos montos.');
+                }
+
+                $aggPolitica = DB::table('comision_politica_anterior_factura')
+                    ->where('periodo', $periodo)
+                    ->lockForUpdate()
+                    ->selectRaw('COALESCE(SUM(monto_comision),0) as total, COUNT(DISTINCT factura_id) as facturas')
+                    ->first();
+
+                $totalPoliticaExistente = round((float) ($aggPolitica->total ?? 0), 2);
+                $cantFacturasPoliticaExistentes = (int) ($aggPolitica->facturas ?? 0);
+
+                $totalPolitica = round($totalPoliticaExistente + $totalPoliticaNuevas, 2);
+                $cantFacturasPolitica = $cantFacturasPoliticaExistentes + $cantFacturasPoliticaNuevas;
+
+                $totalEscala = $registro
+                    ? (float) ($registro->total_comision_escala ?? $registro->total_comision ?? 0)
+                    : $this->calcularTotalEscalaPeriodoAbierto($periodo);
+
+                $totalGlobal = round($totalEscala + $totalPolitica, 2);
+                $cantidadFacturas = max((int) ($registro->cantidad_facturas ?? 0), $cantFacturasPolitica);
+
+                $periodoId = null;
+                if ($registro) {
+                    DB::table('comision_periodo')
+                        ->where('id', $registro->id)
+                        ->update([
+                            'total_comision_escala' => round($totalEscala, 2),
+                            'total_comision_politica_anterior' => $totalPolitica,
+                            'total_comision_global' => $totalGlobal,
+                            'total_comision' => $totalGlobal,
+                            'cantidad_facturas' => $cantidadFacturas,
+                            'updated_at' => now(),
+                        ]);
+                    $periodoId = (int) $registro->id;
+                } else {
+                    $periodoId = (int) DB::table('comision_periodo')->insertGetId([
+                        'periodo' => $periodo,
+                        'estado' => 0,
+                        'total_comision' => $totalGlobal,
+                        'total_comision_escala' => round($totalEscala, 2),
+                        'total_comision_politica_anterior' => $totalPolitica,
+                        'total_comision_global' => $totalGlobal,
+                        'cantidad_empleados' => 0,
+                        'cantidad_facturas' => $cantidadFacturas,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+
+                $rowsFacturas = [];
+                foreach (($facturasPorPeriodo[$periodo] ?? []) as $facturaId => $montoFactura) {
+                    $rowsFacturas[] = [
+                        'factura_id' => (int) $facturaId,
+                        'periodo' => $periodo,
+                        'monto_comision' => round((float) $montoFactura, 2),
+                        'estado' => 0,
+                        'comision_periodo_id' => $periodoId,
+                        'usuario_agrego_id' => Auth::id(),
+                        'fecha_agregado' => now(),
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ];
+                }
+
+                if (!empty($rowsFacturas)) {
+                    DB::table('comision_politica_anterior_factura')->insert($rowsFacturas);
+                }
+
+                $periodosActualizados[] = [
+                    'periodo' => $periodo,
+                    'total_escala' => round($totalEscala, 2),
+                    'total_politica_anterior' => $totalPolitica,
+                    'total_global' => $totalGlobal,
+                ];
+            }
+
+            if (empty($periodosActualizados)) {
+                throw new \RuntimeException('No se pudo agregar ninguna factura nueva a conciliación.');
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Comisión de política anterior agregada a conciliación correctamente. Facturas bloqueadas u omitidas no se volvieron a registrar.',
+                'periodos' => $periodosActualizados,
+            ]);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+    }
+
+    private function construirResultadoComisionFacturas(array $facturaIds): array
+    {
         $rows = DB::table('factura as f')
             ->join('venta_has_producto as vhp', 'vhp.factura_id', '=', 'f.id')
             ->join('producto as p', 'p.id', '=', 'vhp.producto_id')
@@ -724,12 +942,171 @@ class ComisionPoliticaAnterior extends Component
         $totales['total_comision_miselanea'] = round((float) $totales['total_comision_miselanea'], 2);
         $totales['total_comision'] = round((float) $totales['total_comision'], 2);
 
-        return response()->json([
-            'message' => 'Cálculo de comisión generado correctamente.',
+        return [
             'detalle' => $detalle,
             'resumen' => $resumen,
             'totales' => $totales,
-        ]);
+        ];
+    }
+
+    private function filtrarFacturasGestionables(array $detalle, array $periodosInput): array
+    {
+        $facturaPeriodo = [];
+        foreach ($detalle as $linea) {
+            $facturaId = (int) ($linea['factura_id'] ?? 0);
+            if ($facturaId <= 0 || isset($facturaPeriodo[$facturaId])) {
+                continue;
+            }
+
+            $periodoInput = $periodosInput[(string) $facturaId] ?? null;
+            $periodo = $this->normalizarPeriodo($periodoInput);
+            if (!$periodo) {
+                $periodo = $this->normalizarPeriodo($linea['fecha_factura'] ?? null);
+            }
+
+            $facturaPeriodo[$facturaId] = $periodo;
+        }
+
+        $facturaIds = array_keys($facturaPeriodo);
+        if (empty($facturaIds)) {
+            return [
+                'elegibles_ids' => [],
+                'bloqueadas_ids' => [],
+                'bloqueadas_ya_agregadas' => [],
+                'bloqueadas_periodo_conciliado' => [],
+            ];
+        }
+
+        $periodos = collect($facturaPeriodo)
+            ->filter(fn($p) => !empty($p))
+            ->unique()
+            ->values()
+            ->all();
+
+        $periodosConciliados = [];
+        if (!empty($periodos)) {
+            $periodosConciliados = DB::table('comision_periodo')
+                ->whereIn('periodo', $periodos)
+                ->where('estado', 1)
+                ->pluck('periodo')
+                ->map(fn($p) => (string) $p)
+                ->all();
+        }
+        $periodosConciliados = array_fill_keys($periodosConciliados, true);
+
+        $yaRegistradas = [];
+        if (!empty($periodos) && DB::getSchemaBuilder()->hasTable('comision_politica_anterior_factura')) {
+            $rows = DB::table('comision_politica_anterior_factura')
+                ->whereIn('factura_id', $facturaIds)
+                ->whereIn('periodo', $periodos)
+                ->get(['factura_id', 'periodo']);
+
+            foreach ($rows as $r) {
+                $k = ((int) $r->factura_id) . '|' . ((string) $r->periodo);
+                $yaRegistradas[$k] = true;
+            }
+        }
+
+        $elegibles = [];
+        $bloqueadas = [];
+        $bloqueadasYaAgregadas = [];
+        $bloqueadasConciliado = [];
+
+        foreach ($facturaPeriodo as $facturaId => $periodo) {
+            if (!$periodo) {
+                $bloqueadas[] = (int) $facturaId;
+                continue;
+            }
+
+            if (isset($periodosConciliados[$periodo])) {
+                $bloqueadas[] = (int) $facturaId;
+                $bloqueadasConciliado[] = (int) $facturaId;
+                continue;
+            }
+
+            $k = ((int) $facturaId) . '|' . $periodo;
+            if (isset($yaRegistradas[$k])) {
+                $bloqueadas[] = (int) $facturaId;
+                $bloqueadasYaAgregadas[] = (int) $facturaId;
+                continue;
+            }
+
+            $elegibles[] = (int) $facturaId;
+        }
+
+        return [
+            'elegibles_ids' => array_values(array_unique($elegibles)),
+            'bloqueadas_ids' => array_values(array_unique($bloqueadas)),
+            'bloqueadas_ya_agregadas' => array_values(array_unique($bloqueadasYaAgregadas)),
+            'bloqueadas_periodo_conciliado' => array_values(array_unique($bloqueadasConciliado)),
+        ];
+    }
+
+    private function filtrarResultadoPorFacturaIds(array $resultado, array $facturaIdsPermitidas): array
+    {
+        $permitidas = array_fill_keys(array_map(fn($id) => (int) $id, $facturaIdsPermitidas), true);
+
+        $detalle = collect($resultado['detalle'] ?? [])
+            ->filter(fn($linea) => isset($permitidas[(int) ($linea['factura_id'] ?? 0)]))
+            ->values()
+            ->all();
+
+        $resumen = collect($resultado['resumen'] ?? [])
+            ->filter(fn($row) => isset($permitidas[(int) ($row['factura_id'] ?? 0)]))
+            ->values()
+            ->all();
+
+        $totales = [
+            'total_lineas' => count($detalle),
+            'total_subtotal' => round((float) collect($detalle)->sum('subtotal_linea'), 2),
+            'total_comision_no_miselaneo' => round((float) collect($detalle)->sum('comision_no_miselaneo'), 2),
+            'total_comision_miselanea' => round((float) collect($detalle)->sum('comision_miselanea'), 2),
+            'total_comision' => round((float) collect($detalle)->sum('comision_total_linea'), 2),
+        ];
+
+        return [
+            'detalle' => $detalle,
+            'resumen' => $resumen,
+            'totales' => $totales,
+        ];
+    }
+
+    private function normalizarPeriodo($valor): ?string
+    {
+        if ($valor === null) {
+            return null;
+        }
+
+        $raw = trim((string) $valor);
+        if ($raw === '') {
+            return null;
+        }
+
+        if (preg_match('/^\d{4}-\d{2}-\d{2}/', $raw)) {
+            return substr($raw, 0, 7) . '-01';
+        }
+
+        if (preg_match('/^(\d{2})-(\d{2})-(\d{4})/', $raw, $m)) {
+            return $m[3] . '-' . $m[2] . '-01';
+        }
+
+        return null;
+    }
+
+    private function calcularTotalEscalaPeriodoAbierto(string $periodo): float
+    {
+        $bruto = (float) DB::table('comision_empleado')
+            ->where('mes_comision', $periodo)
+            ->where('estado_id', 1)
+            ->where('comision_acumulada', '>', 0)
+            ->sum('comision_acumulada');
+
+        $retencion = (float) DB::table('comision_retencion_fuente')
+            ->where('periodo', $periodo)
+            ->where('estado', 1)
+            ->sum('monto_retencion');
+
+        return round(max(0.0, $bruto - $retencion), 2);
     }
 
     private function extraerIdsProductoDesdeHoja(array $sheet): array

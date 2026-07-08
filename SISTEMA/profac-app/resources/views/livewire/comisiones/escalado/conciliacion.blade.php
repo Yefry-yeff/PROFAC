@@ -1706,7 +1706,9 @@ function renderPeriodos(data) {
         + '<thead><tr>'
         + '<th>Período</th>'
         + '<th>Estado</th>'
-        + '<th style="text-align:right;">Total Comisiones</th>'
+        + '<th style="text-align:right;">Comisión Escala</th>'
+        + '<th style="text-align:right;">Comisión Política Anterior</th>'
+        + '<th style="text-align:right;">Total Global Comisión</th>'
         + '<th style="text-align:right;">Facturas</th>'
         + '<th>Conciliado por</th>'
         + '<th>Fecha Conciliación</th>'
@@ -1722,7 +1724,9 @@ function renderPeriodos(data) {
         html += `<tr class="${rowClass}">
             <td style="font-weight:600;">${p.periodo_label}${mesActBadge}</td>
             <td>${badgeEstado(p.estado)}</td>
-            <td class="td-num" style="font-weight:700;color:#1e293b;">${p.total_comision > 0 ? 'L ' + numFmt(p.total_comision) : '<span style="color:#d1d5db;">—</span>'}</td>
+            <td class="td-num">${p.total_comision_escala > 0 ? 'L ' + numFmt(p.total_comision_escala) : '<span style="color:#d1d5db;">—</span>'}</td>
+            <td class="td-num">${p.total_comision_politica_anterior > 0 ? 'L ' + numFmt(p.total_comision_politica_anterior) : '<span style="color:#d1d5db;">—</span>'}</td>
+            <td class="td-num" style="font-weight:700;color:#1e293b;">${p.total_comision_global > 0 ? 'L ' + numFmt(p.total_comision_global) : '<span style="color:#d1d5db;">—</span>'}</td>
             <td class="td-num">${p.cantidad_facturas > 0 ? p.cantidad_facturas : '<span style="color:#d1d5db;">—</span>'}</td>
             <td style="font-size:12.5px;color:#6b7280;">${p.usuario_concilio ?? '<span style="color:#d1d5db;">—</span>'}</td>
             <td style="font-size:12.5px;color:#6b7280;">${p.fecha_conciliacion ? fmtFecha(p.fecha_conciliacion) : '<span style="color:#d1d5db;">—</span>'}</td>

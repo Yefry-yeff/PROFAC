@@ -211,6 +211,9 @@ class Conciliacion extends Component
                 'cp.periodo',
                 'cp.estado',
                 'cp.total_comision',
+                'cp.total_comision_escala',
+                'cp.total_comision_politica_anterior',
+                'cp.total_comision_global',
                 'cp.cantidad_empleados',
                 'cp.cantidad_facturas',
                 'cp.observacion_conciliacion',
@@ -303,7 +306,16 @@ class Conciliacion extends Component
             // Para conciliados usamos el snapshot; para abiertos usamos live
             $retencionPeriodo = (float) ($retencionesLive->get($key)->total_retencion ?? 0);
             $totalLiveAbierto = max(0.0, (float) ($live->total ?? 0) - $retencionPeriodo);
-            $totalComision   = $estado === 'conciliado' ? (float) $reg->total_comision  : $totalLiveAbierto;
+
+            $totalEscala = $estado === 'conciliado'
+                ? (float) ($reg->total_comision_escala ?? $reg->total_comision ?? 0)
+                : $totalLiveAbierto;
+            $totalPoliticaAnterior = (float) ($reg->total_comision_politica_anterior ?? 0);
+            $totalGlobal = $estado === 'conciliado'
+                ? (float) ($reg->total_comision_global ?? ($totalEscala + $totalPoliticaAnterior))
+                : ($totalEscala + $totalPoliticaAnterior);
+
+            $totalComision = round((float) $totalGlobal, 2);
             $cantEmpleados   = $estado === 'conciliado' ? (int) $reg->cantidad_empleados : (int) ($live->empleados ?? 0);
             $cantFacturas    = $estado === 'conciliado' ? (int) $reg->cantidad_facturas  : (int) ($liveFac->facturas ?? 0);
 
@@ -314,6 +326,9 @@ class Conciliacion extends Component
                 'anio'                    => $carbon->year,
                 'mes'                     => $carbon->month,
                 'estado'                  => $estado,
+                'total_comision_escala'   => round((float) $totalEscala, 2),
+                'total_comision_politica_anterior' => round((float) $totalPoliticaAnterior, 2),
+                'total_comision_global'   => round((float) $totalGlobal, 2),
                 'total_comision'          => $totalComision,
                 'total_comision_fmt'      => 'L ' . number_format($totalComision, 2),
                 'cantidad_empleados'      => $cantEmpleados,
@@ -367,7 +382,15 @@ class Conciliacion extends Component
             // Calcular snapshot en tiempo real
             $snapshot = $this->_calcularSnapshot($periodo);
 
-            if ((int) ($snapshot['cantidad_facturas'] ?? 0) <= 0 || (float) ($snapshot['total_comision'] ?? 0) <= 0) {
+            $totalEscala = round((float) ($snapshot['total_comision'] ?? 0), 2);
+            $totalPolitica = round((float) ($existente ? ($existente->total_comision_politica_anterior ?? 0) : 0), 2);
+            $totalGlobal = round($totalEscala + $totalPolitica, 2);
+            $cantidadFacturasGlobal = max(
+                (int) ($snapshot['cantidad_facturas'] ?? 0),
+                (int) ($existente ? ($existente->cantidad_facturas ?? 0) : 0)
+            );
+
+            if ($cantidadFacturasGlobal <= 0 || $totalGlobal <= 0) {
                 return response()->json([
                     'icon'  => 'warning',
                     'title' => 'Sin comisiones',
@@ -379,9 +402,12 @@ class Conciliacion extends Component
             if ($existente) {
                 DB::table('comision_periodo')->where('id', $existente->id)->update([
                     'estado'                   => ModelComisionPeriodo::ESTADO_CONCILIADO,
-                    'total_comision'            => $snapshot['total_comision'],
+                    'total_comision_escala'     => $totalEscala,
+                    'total_comision_politica_anterior' => $totalPolitica,
+                    'total_comision_global'     => $totalGlobal,
+                    'total_comision'            => $totalGlobal,
                     'cantidad_empleados'        => $snapshot['cantidad_empleados'],
-                    'cantidad_facturas'         => $snapshot['cantidad_facturas'],
+                    'cantidad_facturas'         => $cantidadFacturasGlobal,
                     'observacion_conciliacion'  => $observacion ?: null,
                     'usuario_concilio'          => Auth::id(),
                     'fecha_conciliacion'        => now(),
@@ -392,9 +418,12 @@ class Conciliacion extends Component
                 $periodoId = DB::table('comision_periodo')->insertGetId([
                     'periodo'                   => $periodo,
                     'estado'                    => ModelComisionPeriodo::ESTADO_CONCILIADO,
-                    'total_comision'             => $snapshot['total_comision'],
+                    'total_comision_escala'      => $totalEscala,
+                    'total_comision_politica_anterior' => $totalPolitica,
+                    'total_comision_global'      => $totalGlobal,
+                    'total_comision'             => $totalGlobal,
                     'cantidad_empleados'         => $snapshot['cantidad_empleados'],
-                    'cantidad_facturas'          => $snapshot['cantidad_facturas'],
+                    'cantidad_facturas'          => $cantidadFacturasGlobal,
                     'observacion_conciliacion'   => $observacion ?: null,
                     'usuario_concilio'           => Auth::id(),
                     'fecha_conciliacion'         => now(),
@@ -410,15 +439,27 @@ class Conciliacion extends Component
                 'accion'                       => ModelComisionPeriodoLog::ACCION_CONCILIACION,
                 'estado_anterior'              => ModelComisionPeriodo::ESTADO_ABIERTO,
                 'estado_nuevo'                 => ModelComisionPeriodo::ESTADO_CONCILIADO,
-                'snapshot_total_comision'      => $snapshot['total_comision'],
+                'snapshot_total_comision'      => $totalGlobal,
                 'snapshot_cantidad_empleados'  => $snapshot['cantidad_empleados'],
-                'snapshot_cantidad_facturas'   => $snapshot['cantidad_facturas'],
+                'snapshot_cantidad_facturas'   => $cantidadFacturasGlobal,
                 'snapshot_detalle_empleados'   => $snapshot['detalle_empleados'],
                 'snapshot_detalle_facturas'    => $snapshot['detalle_facturas'],
                 'observacion'                  => $observacion ?: null,
                 'usuario_id'                   => Auth::id(),
                 'usuario_nombre'               => Auth::user()->name,
             ]);
+
+            if (DB::getSchemaBuilder()->hasTable('comision_politica_anterior_factura')) {
+                DB::table('comision_politica_anterior_factura')
+                    ->where('periodo', $periodo)
+                    ->update([
+                        'estado' => 1,
+                        'comision_periodo_id' => $periodoId,
+                        'usuario_concilio_id' => Auth::id(),
+                        'fecha_conciliacion' => now(),
+                        'updated_at' => now(),
+                    ]);
+            }
 
             DB::commit();
 
@@ -493,6 +534,17 @@ class Conciliacion extends Component
                 'usuario_id'                   => Auth::id(),
                 'usuario_nombre'               => Auth::user()->name,
             ]);
+
+            if (DB::getSchemaBuilder()->hasTable('comision_politica_anterior_factura')) {
+                DB::table('comision_politica_anterior_factura')
+                    ->where('periodo', $periodo)
+                    ->update([
+                        'estado' => 0,
+                        'usuario_concilio_id' => null,
+                        'fecha_conciliacion' => null,
+                        'updated_at' => now(),
+                    ]);
+            }
 
             DB::commit();
 

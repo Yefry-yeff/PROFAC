@@ -290,6 +290,9 @@
                                 <button type="button" id="btnCalcularComisionesFacturas" class="btn btn-primary pa-toolbar-btn">
                                     Calcular comisión
                                 </button>
+                                <button type="button" id="btnAgregarConciliacion" class="btn btn-success pa-toolbar-btn d-none" style="margin-left:6px;">
+                                    Agregar a conciliación
+                                </button>
                             </div>
                         </div>
 
@@ -353,6 +356,8 @@
     var dtNoMiselaneos = null;
     var dtDetalleComision = null;
     var facturasPoliticaAnterior = [];
+    var facturaIdsCalculados = [];
+    var facturaIdsElegiblesConciliacion = [];
 
     function activarTab(tabId){
         $('.pa-tab-section').addClass('d-none');
@@ -517,6 +522,39 @@
         return Array.from(new Set(ids));
     }
 
+    function construirPeriodosPorFactura(facturaIds){
+        var wanted = new Set((facturaIds || []).map(function(x){ return parseInt(x || 0, 10); }));
+        var map = {};
+
+        function normalizarPeriodo(fechaRaw){
+            var txt = String(fechaRaw || '').trim();
+            if(!txt) return '';
+
+            if(/^\d{4}-\d{2}-\d{2}/.test(txt)){
+                return txt.substring(0, 7) + '-01';
+            }
+
+            var m = txt.match(/^(\d{2})-(\d{2})-(\d{4})/);
+            if(m){
+                return m[3] + '-' + m[2] + '-01';
+            }
+
+            return '';
+        }
+
+        (facturasPoliticaAnterior || []).forEach(function(row){
+            var id = parseInt(row && row.factura_id ? row.factura_id : 0, 10);
+            if(!wanted.has(id)) return;
+
+            var periodo = normalizarPeriodo(row.fecha_pago || row.fecha_creacion_factura || row.fecha_factura || '');
+            if(periodo){
+                map[String(id)] = periodo;
+            }
+        });
+
+        return map;
+    }
+
     function renderTablaDetalleComision(filas){
         if ($.fn.DataTable.isDataTable('#tblDetalleComisionPoliticaAnterior')) {
             dtDetalleComision.clear();
@@ -568,16 +606,22 @@
             return;
         }
 
+        var periodos = construirPeriodosPorFactura(facturaIds);
+
         $.ajax({
             url: '/comision/politica-anterior/calcular-comisiones',
             method: 'POST',
             data: {
                 _token: $('meta[name="csrf-token"]').attr('content') || '',
-                factura_ids: facturaIds
+                factura_ids: facturaIds,
+                periodos_por_factura: periodos
             }
         }).done(function(resp){
             var filas = Array.isArray(resp && resp.detalle) ? resp.detalle : [];
             var tot = resp && resp.totales ? resp.totales : {};
+            var elegibles = Array.isArray(resp && resp.factura_ids_elegibles) ? resp.factura_ids_elegibles : facturaIds;
+            facturaIdsCalculados = facturaIds;
+            facturaIdsElegiblesConciliacion = elegibles;
 
             renderTablaDetalleComision(filas);
 
@@ -587,10 +631,55 @@
             $('#resTotalComision').text(money(tot.total_comision || 0));
             $('#seccionDetalleComision').removeClass('d-none');
 
+            if(resp && resp.puede_agregar){
+                $('#btnAgregarConciliacion').removeClass('d-none');
+            } else {
+                $('#btnAgregarConciliacion').addClass('d-none');
+            }
+
             Swal.fire({icon:'success',title:'Cálculo completado',text:(resp && resp.message) ? resp.message : 'Comisiones calculadas correctamente.'});
         }).fail(function(xhr){
             var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'No se pudo calcular la comisión.';
             Swal.fire({icon:'error',title:'Error',text:msg});
+        });
+    }
+
+    function agregarAConciliacion(){
+        var facturaIds = (facturaIdsElegiblesConciliacion || []).length
+            ? facturaIdsElegiblesConciliacion
+            : ((facturaIdsCalculados || []).length ? facturaIdsCalculados : getFacturaIdsParaCalculo());
+
+        if(!facturaIds.length){
+            Swal.fire({icon:'info',title:'Sin facturas elegibles',text:'No hay facturas disponibles para agregar a conciliación.'});
+            return;
+        }
+
+        var periodos = construirPeriodosPorFactura(facturaIds);
+
+        $.ajax({
+            url: '/comision/politica-anterior/agregar-conciliacion',
+            method: 'POST',
+            data: {
+                _token: $('meta[name="csrf-token"]').attr('content') || '',
+                factura_ids: facturaIds,
+                periodos_por_factura: periodos
+            }
+        }).done(function(resp){
+            var periodosTxt = Array.isArray(resp && resp.periodos)
+                ? resp.periodos.map(function(p){ return p.periodo + ' => L ' + money(p.total_global || 0); }).join(' | ')
+                : '';
+
+            Swal.fire({
+                icon:'success',
+                title:'Agregado a conciliación',
+                text: (resp && resp.message ? resp.message : 'Se agregaron los montos a conciliación.') + (periodosTxt ? ' ' + periodosTxt : '')
+            });
+
+            facturaIdsElegiblesConciliacion = [];
+            $('#btnAgregarConciliacion').addClass('d-none');
+        }).fail(function(xhr){
+            var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'No se pudo agregar a conciliación.';
+            Swal.fire({icon:'warning',title:'Atención',text:msg});
         });
     }
 
@@ -924,6 +1013,10 @@
 
         $('#btnCalcularComisionesFacturas').on('click', function(){
             calcularComisionesFacturas();
+        });
+
+        $('#btnAgregarConciliacion').on('click', function(){
+            agregarAConciliacion();
         });
 
         $('#fltCategoria').on('change', function(){

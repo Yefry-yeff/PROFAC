@@ -13,6 +13,9 @@ class ModelComisionPeriodo extends Model
         'periodo',
         'estado',
         'total_comision',
+        'total_comision_escala',
+        'total_comision_politica_anterior',
+        'total_comision_global',
         'cantidad_empleados',
         'cantidad_facturas',
         'observacion_conciliacion',
@@ -24,6 +27,9 @@ class ModelComisionPeriodo extends Model
         'periodo'             => 'date',
         'fecha_conciliacion'  => 'datetime',
         'total_comision'      => 'decimal:2',
+        'total_comision_escala' => 'decimal:2',
+        'total_comision_politica_anterior' => 'decimal:2',
+        'total_comision_global' => 'decimal:2',
         'estado'              => 'integer',
     ];
 
