@@ -1318,6 +1318,10 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::post('/comision/politica-anterior/parametrizacion', [ComisionPoliticaAnterior::class, 'guardarClasificacionProducto']);
     Route::get('/comision/politica-anterior/parametrizacion-checklist', [ComisionPoliticaAnterior::class, 'listarProductosChecklist']);
     Route::post('/comision/politica-anterior/parametrizacion-checklist', [ComisionPoliticaAnterior::class, 'guardarChecklist']);
+    Route::get('/comision/politica-anterior/no-miselaneos-registrados', [ComisionPoliticaAnterior::class, 'listarNoMiselaneosRegistrados']);
+    Route::post('/comision/politica-anterior/no-miselaneos/estado', [ComisionPoliticaAnterior::class, 'actualizarEstadoNoMiselaneo']);
+    Route::post('/comision/politica-anterior/parametrizacion/importar-no-miselaneos', [ComisionPoliticaAnterior::class, 'importarNoMiselaneosDesdeExcel']);
+    Route::post('/comision/politica-anterior/calcular-comisiones', [ComisionPoliticaAnterior::class, 'calcularComisionesFacturas']);
     Route::get('/reporte/reporteria', Reporteria::class);
 
     // Dashboard de Ventas BI
