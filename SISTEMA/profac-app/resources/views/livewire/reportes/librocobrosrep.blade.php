@@ -60,8 +60,8 @@
     #tbl_libro_cobros tbody tr.lc-row-pagada td:nth-child(n+10) { background:#f0fdf4!important; }
     #tbl_libro_cobros tbody tr.lc-row-parcial td:nth-child(n+10) { background:#fafafa; }
     /* Separador visual entre datos del cobro y detalle de factura */
-    #tbl_libro_cobros thead th:nth-child(10),
-    #tbl_libro_cobros tbody td:nth-child(10) { border-left:3px solid #f2d49a!important; }
+    #tbl_libro_cobros thead th:nth-child(12),
+    #tbl_libro_cobros tbody td:nth-child(12) { border-left:3px solid #f2d49a!important; }
     </style>
     @endpush
 
@@ -127,6 +127,8 @@
                                 <thead>
                                     <tr>
                                         {{-- Datos del cobro --}}
+                                        <th>Fecha Venta</th>
+                                        <th>Fecha Vcto.</th>
                                         <th>Fecha Pago</th>
                                         <th>Cliente</th>
                                         <th>Vendedor</th>

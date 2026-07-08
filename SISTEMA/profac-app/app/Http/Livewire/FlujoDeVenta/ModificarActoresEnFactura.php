@@ -225,8 +225,11 @@ class ModificarActoresEnFactura extends Component
 
     protected function cargarUsuarios(): array
     {
+        $excluidos = [34, 114, 105, 99, 104, 109, 67, 112, 102, 93, 95, 110, 23, 111, 25, 15, 101, 12];
+
         return DB::table('users as u')
             ->leftJoin('rol as r', 'r.id', '=', 'u.rol_id')
+            ->whereNotIn('u.id', $excluidos)
             ->orderBy('u.name')
             ->get([
                 'u.id',

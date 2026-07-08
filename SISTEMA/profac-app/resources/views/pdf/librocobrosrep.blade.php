@@ -108,6 +108,8 @@
                     </th>
                 </tr>
                 <tr>
+                    <th>FECHA VENTA</th>
+                    <th>FECHA VCTO.</th>
                     <th>FECHA PAGO</th>
                     <th>CLIENTE</th>
                     <th>VENDEDOR</th>
@@ -131,6 +133,8 @@
                         $gIsv     += (float)($row['isv']           ?? 0);
                     @endphp
                     <tr>
+                        <td>{{ $fmtF($row['fecha_venta'] ?? '') }}</td>
+                        <td>{{ $fmtF($row['fecha_vencimiento'] ?? '') }}</td>
                         <td>{{ $fmtF($row['fecha_pago'] ?? '') }}</td>
                         <td style="text-align:left;">{{ $row['cliente'] ?? '' }}</td>
                         <td style="text-align:left;">{{ $row['vendedor'] ?? '' }}</td>
@@ -154,7 +158,7 @@
                     $grandIsv     += $gIsv;
                 @endphp
                 <tr style="background:#FFF3E0;font-weight:bold;">
-                    <td colspan="4" style="text-align:right;font-weight:bold;">Subtotal {{ strtoupper($group['banco']) }}:</td>
+                    <td colspan="6" style="text-align:right;font-weight:bold;">Subtotal {{ strtoupper($group['banco']) }}:</td>
                     <td style="text-align:right;">{{ $fmtL($gCobrado) }}</td>
                     <td></td>
                     <td style="text-align:right;">{{ $fmtL($gExon) }}</td>
@@ -171,7 +175,7 @@
     <table>
         <tfoot>
             <tr style="background:#c05000;color:#fff;font-weight:bold;">
-                <td colspan="4" style="text-align:right;font-weight:bold;">TOTAL GENERAL:</td>
+                <td colspan="6" style="text-align:right;font-weight:bold;">TOTAL GENERAL:</td>
                 <td style="text-align:right;">{{ $fmtL($grandCobrado) }}</td>
                 <td></td>
                 <td style="text-align:right;">{{ $fmtL($grandExon) }}</td>
