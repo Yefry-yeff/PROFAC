@@ -81,6 +81,8 @@ function cargarTablaLC() {
             }
         },
         columns: [
+            { data: 'fecha_venta', render: function(d) { return fmtFechaLC(d); } },
+            { data: 'fecha_vencimiento', render: function(d) { return fmtFechaLC(d); } },
             { data: 'fecha_pago', render: function(d) { return fmtFechaLC(d); } },
             { data: 'cliente' },
             { data: 'vendedor' },

@@ -16,12 +16,13 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 /**
  * Libro de Cobros — Conciliación Bancaria
  *
- * Columnas (A–O, 15 cols):
- *  A  Fecha Pago      B  Cliente         C  Vendedor
- *  D  N° Factura      E  Monto Cobrado   F  Estado
- *  G  Banco           H  Cuenta          I  Observaciones
- *  J  Exonerado       K  Gravado         L  Exento
- *  M  Sub Total       N  ISV             O  Total Factura
+ * Columnas (A–Q, 17 cols):
+ *  A  Fecha Venta     B  Fecha Vcto.     C  Fecha Pago
+ *  D  Cliente         E  Vendedor        F  N° Factura
+ *  G  Monto Cobrado   H  Estado          I  Banco
+ *  J  Cuenta          K  Observaciones   L  Exonerado
+ *  M  Gravado         N  Exento          O  Sub Total
+ *  P  ISV             Q  Total Factura
  */
 class LibroCobrosExport implements FromArray, WithStyles, WithEvents, WithStrictNullComparison, WithColumnWidths
 {
@@ -29,8 +30,8 @@ class LibroCobrosExport implements FromArray, WithStyles, WithEvents, WithStrict
     protected string $fechaInicio;
     protected string $fechaFinal;
 
-    const LAST_COL  = 'O';
-    const COL_COUNT = 15;
+    const LAST_COL  = 'Q';
+    const COL_COUNT = 17;
 
     public function __construct($data, string $fechaInicio, string $fechaFinal)
     {
@@ -62,11 +63,12 @@ class LibroCobrosExport implements FromArray, WithStyles, WithEvents, WithStrict
 
         /* ── Fila 4 — cabeceras ── */
         $out[] = [
-            'FECHA PAGO', 'CLIENTE', 'VENDEDOR',
-            'N° FACTURA', 'MONTO COBRADO', 'ESTADO',
-            'BANCO', 'CUENTA',
-            'OBSERVACIONES', 'EXONERADO', 'GRAVADO',
-            'EXENTO', 'SUB TOTAL', 'ISV', 'TOTAL FACTURA',
+            'FECHA VENTA', 'FECHA VCTO.', 'FECHA PAGO',
+            'CLIENTE', 'VENDEDOR', 'N° FACTURA',
+            'MONTO COBRADO', 'ESTADO',
+            'BANCO', 'CUENTA', 'OBSERVACIONES',
+            'EXONERADO', 'GRAVADO', 'EXENTO',
+            'SUB TOTAL', 'ISV', 'TOTAL FACTURA',
         ];
 
         /* ── Agrupar por banco + cuenta ── */
@@ -108,15 +110,17 @@ class LibroCobrosExport implements FromArray, WithStyles, WithEvents, WithStrict
                 $gFact    += $fact;
 
                 $out[] = [
-                    $r['fecha_pago']    ?? '',
-                    $r['cliente']       ?? '',
-                    $r['vendedor']      ?? '',
-                    $r['factura']       ?? '',
+                    $r['fecha_venta']       ?? '',
+                    $r['fecha_vencimiento'] ?? '',
+                    $r['fecha_pago']        ?? '',
+                    $r['cliente']           ?? '',
+                    $r['vendedor']          ?? '',
+                    $r['factura']           ?? '',
                     $cobrado,
                     $estado,
-                    $r['banco']         ?? '',
-                    $r['cuenta_banco']  ?? '',
-                    $r['observaciones'] ?? '',
+                    $r['banco']             ?? '',
+                    $r['cuenta_banco']      ?? '',
+                    $r['observaciones']     ?? '',
                     $exon,
                     $grav,
                     $exen,
@@ -129,13 +133,13 @@ class LibroCobrosExport implements FromArray, WithStyles, WithEvents, WithStrict
             /* ── Subtotal del grupo ── */
             $st     = array_fill(0, self::COL_COUNT, '');
             $st[0]  = 'SUBTOTAL: ' . strtoupper($bancoNombre);
-            $st[4]  = $gCobrado;
-            $st[9]  = $gExon;
-            $st[10] = $gGrav;
-            $st[11] = $gExen;
-            $st[12] = $gSub;
-            $st[13] = $gIsv;
-            $st[14] = $gFact;
+            $st[6]  = $gCobrado;
+            $st[11] = $gExon;
+            $st[12] = $gGrav;
+            $st[13] = $gExen;
+            $st[14] = $gSub;
+            $st[15] = $gIsv;
+            $st[16] = $gFact;
             $out[]  = $st;
 
             /* ── Separador vacío ── */
@@ -153,13 +157,13 @@ class LibroCobrosExport implements FromArray, WithStyles, WithEvents, WithStrict
         /* ── Fila totales generales ── */
         $totRow     = array_fill(0, self::COL_COUNT, '');
         $totRow[0]  = 'TOTALES';
-        $totRow[4]  = $grandCobrado;
-        $totRow[9]  = $grandExon;
-        $totRow[10] = $grandGrav;
-        $totRow[11] = $grandExen;
-        $totRow[12] = $grandSub;
-        $totRow[13] = $grandIsv;
-        $totRow[14] = $grandFact;
+        $totRow[6]  = $grandCobrado;
+        $totRow[11] = $grandExon;
+        $totRow[12] = $grandGrav;
+        $totRow[13] = $grandExen;
+        $totRow[14] = $grandSub;
+        $totRow[15] = $grandIsv;
+        $totRow[16] = $grandFact;
         $out[]      = $totRow;
 
         return $out;
@@ -168,9 +172,10 @@ class LibroCobrosExport implements FromArray, WithStyles, WithEvents, WithStrict
     public function columnWidths(): array
     {
         return [
-            'A' => 12, 'B' => 32, 'C' => 20, 'D' => 20, 'E' => 14,
-            'F' => 10, 'G' => 20, 'H' => 18, 'I' => 28, 'J' => 13,
-            'K' => 13, 'L' => 13, 'M' => 13, 'N' => 12, 'O' => 14,
+            'A' => 12, 'B' => 12, 'C' => 12, 'D' => 32, 'E' => 20,
+            'F' => 20, 'G' => 14, 'H' => 10, 'I' => 20, 'J' => 18,
+            'K' => 28, 'L' => 13, 'M' => 13, 'N' => 13, 'O' => 13,
+            'P' => 12, 'Q' => 14,
         ];
     }
 
@@ -255,7 +260,7 @@ class LibroCobrosExport implements FromArray, WithStyles, WithEvents, WithStrict
                             ->setBorderStyle(Border::BORDER_MEDIUM)->getColor()->setRGB('e07000');
                         $sheet->getStyle("A{$row}:{$lc}{$row}")->getBorders()->getBottom()
                             ->setBorderStyle(Border::BORDER_MEDIUM)->getColor()->setRGB('e07000');
-                        foreach (['E', 'J', 'K', 'L', 'M', 'N', 'O'] as $c) {
+                        foreach (['G', 'L', 'M', 'N', 'O', 'P', 'Q'] as $c) {
                             $sheet->getStyle("{$c}{$row}")->getNumberFormat()->setFormatCode($currency);
                             $sheet->getStyle("{$c}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
                         }
@@ -273,7 +278,7 @@ class LibroCobrosExport implements FromArray, WithStyles, WithEvents, WithStrict
                             ->setHorizontal(Alignment::HORIZONTAL_CENTER);
                         $sheet->getStyle("A{$row}:{$lc}{$row}")->getBorders()->getTop()
                             ->setBorderStyle(Border::BORDER_MEDIUM)->getColor()->setRGB('e07000');
-                        foreach (['E', 'J', 'K', 'L', 'M', 'N', 'O'] as $c) {
+                        foreach (['G', 'L', 'M', 'N', 'O', 'P', 'Q'] as $c) {
                             $sheet->getStyle("{$c}{$row}")->getNumberFormat()->setFormatCode($currency);
                             $sheet->getStyle("{$c}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
                         }
@@ -285,37 +290,37 @@ class LibroCobrosExport implements FromArray, WithStyles, WithEvents, WithStrict
                     $sheet->getStyle("A{$row}:{$lc}{$row}")->getAlignment()
                         ->setHorizontal(Alignment::HORIZONTAL_CENTER)
                         ->setVertical(Alignment::VERTICAL_CENTER);
-                    foreach (['B', 'C', 'D', 'G', 'H', 'I'] as $c) {
+                    foreach (['D', 'E', 'F', 'I', 'J', 'K'] as $c) {
                         $sheet->getStyle("{$c}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
                     }
-                    foreach (['E', 'J', 'K', 'L', 'M', 'N', 'O'] as $c) {
+                    foreach (['G', 'L', 'M', 'N', 'O', 'P', 'Q'] as $c) {
                         $sheet->getStyle("{$c}{$row}")->getNumberFormat()->setFormatCode($currency);
                         $sheet->getStyle("{$c}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
                     }
 
-                    $estado = (string)($sheet->getCell("F{$row}")->getValue() ?? '');
+                    $estado = (string)($sheet->getCell("H{$row}")->getValue() ?? '');
                     if (strtoupper($estado) === 'PAGADA') {
-                        $sheet->getStyle("A{$row}:I{$row}")->getFill()
+                        $sheet->getStyle("A{$row}:K{$row}")->getFill()
                             ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('F0FDF4');
-                        $sheet->getStyle("J{$row}:{$lc}{$row}")->getFill()
+                        $sheet->getStyle("L{$row}:{$lc}{$row}")->getFill()
                             ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('DCFCE7');
-                        $sheet->getStyle("E{$row}")->getFont()->setBold(true)->getColor()->setRGB('1a7a4e');
-                        $sheet->getStyle("F{$row}")->getFill()
+                        $sheet->getStyle("G{$row}")->getFont()->setBold(true)->getColor()->setRGB('1a7a4e');
+                        $sheet->getStyle("H{$row}")->getFill()
                             ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('bbf7d0');
-                        $sheet->getStyle("F{$row}")->getFont()->setBold(true)->getColor()->setRGB('065f46');
+                        $sheet->getStyle("H{$row}")->getFont()->setBold(true)->getColor()->setRGB('065f46');
                     } else {
                         $sheet->getStyle("A{$row}:{$lc}{$row}")->getFill()
                             ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFFBEB');
-                        $sheet->getStyle("E{$row}")->getFont()->setBold(true)->getColor()->setRGB('92400e');
-                        $sheet->getStyle("F{$row}")->getFill()
+                        $sheet->getStyle("G{$row}")->getFont()->setBold(true)->getColor()->setRGB('92400e');
+                        $sheet->getStyle("H{$row}")->getFill()
                             ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('fef3c7');
-                        $sheet->getStyle("F{$row}")->getFont()->setBold(true)->getColor()->setRGB('92400e');
+                        $sheet->getStyle("H{$row}")->getFont()->setBold(true)->getColor()->setRGB('92400e');
                     }
                     $sheet->getRowDimension($row)->setRowHeight(14);
                 }
 
-                // Separador visual columna J
-                $sheet->getStyle("J4:J{$lastRow}")->getBorders()->getLeft()
+                // Separador visual columna L (primera columna de datos fiscales)
+                $sheet->getStyle("L4:L{$lastRow}")->getBorders()->getLeft()
                     ->setBorderStyle(Border::BORDER_MEDIUM)->getColor()->setRGB('f2a630');
 
                 // Bordes globales

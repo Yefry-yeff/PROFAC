@@ -54,6 +54,8 @@ class Librocobrosrep extends Component
                                 OVER (PARTITION BY inner_sub.factura) AS factura_tiene_pagada
                         FROM (
                             SELECT
+                                DATE_FORMAT(f.fecha_emision, '%Y-%m-%d')         AS fecha_venta,
+                                DATE_FORMAT(f.fecha_vencimiento, '%Y-%m-%d')     AS fecha_vencimiento,
                                 DATE_FORMAT(ac.fecha_pago, '%Y-%m-%d')          AS fecha_pago,
                                 f.nombre_cliente                                 AS cliente,
                                 u.name                                           AS vendedor,
@@ -402,6 +404,8 @@ class Librocobrosrep extends Component
                         OVER (PARTITION BY inner_sub.factura) AS factura_tiene_pagada
                 FROM (
                     SELECT
+                        DATE_FORMAT(f.fecha_emision, '%Y-%m-%d')         AS fecha_venta,
+                        DATE_FORMAT(f.fecha_vencimiento, '%Y-%m-%d')     AS fecha_vencimiento,
                         DATE_FORMAT(ac.fecha_pago, '%Y-%m-%d')          AS fecha_pago,
                         f.nombre_cliente                                 AS cliente,
                         u.name                                           AS vendedor,
