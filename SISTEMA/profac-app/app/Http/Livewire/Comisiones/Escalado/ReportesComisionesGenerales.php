@@ -1018,7 +1018,7 @@ class ReportesComisionesGenerales extends Component
             ->groupBy('ap.id', 'ap.factura_id', 'ap.fecha_cierre_factura')
             ->selectRaw("ap.id as aplicacion_pagos_id,
                          ap.factura_id,
-                         COALESCE(DATE(ap.fecha_cierre_factura), MAX(DATE(COALESCE(ac.fecha_pago, ac.created_at)))) as fecha_pago_cierre")
+                         COALESCE(MAX(DATE(ac.fecha_pago)), DATE(ap.fecha_cierre_factura)) as fecha_pago_cierre")
             ->havingRaw('fecha_pago_cierre IS NOT NULL')
             ->havingBetween('fecha_pago_cierre', [$fi, $ff])
             ->get();
@@ -1085,10 +1085,11 @@ class ReportesComisionesGenerales extends Component
             ->leftJoin('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')
             ->leftJoin('producto as p', 'p.id', '=', 'vhp.producto_id')
             ->whereIn('vhp.factura_id', $facturaIds)
+            ->groupBy('vhp.factura_id', 'vhp.producto_id', 'vhp.precios_producto_carga_id', 'vhp.precio_unidad', 'vhp.precioSeleccionado', 'ppc.categoria_precios_id', 'p.nombre', 'cp.nombre')
             ->selectRaw("vhp.factura_id,
                          vhp.producto_id,
                          p.nombre as producto,
-                         vhp.cantidad,
+                         COALESCE(SUM(vhp.cantidad_s), SUM(vhp.cantidad)) as cantidad,
                          vhp.precio_unidad,
                          vhp.precioSeleccionado,
                          vhp.precios_producto_carga_id,
@@ -1435,7 +1436,7 @@ class ReportesComisionesGenerales extends Component
             })
             ->groupBy('ap.factura_id')
             ->selectRaw("ap.factura_id,
-                         MAX(COALESCE(DATE(ap.fecha_cierre_factura), DATE(COALESCE(ac.fecha_pago, ac.created_at)))) as fecha_pago_cierre")
+                         COALESCE(MAX(DATE(ac.fecha_pago)), MAX(DATE(ap.fecha_cierre_factura))) as fecha_pago_cierre")
             ->havingRaw('fecha_pago_cierre IS NOT NULL')
             ->havingBetween('fecha_pago_cierre', [$fi, $ff])
             ->get();
@@ -1631,7 +1632,7 @@ class ReportesComisionesGenerales extends Component
                     })
                     ->groupBy('ap.id', 'ap.factura_id', 'ap.fecha_cierre_factura')
                     ->selectRaw("ap.id as aplicacion_pagos_id,
-                                 COALESCE(DATE(ap.fecha_cierre_factura), MAX(DATE(COALESCE(ac.fecha_pago, ac.created_at)))) as fecha_pago_cierre")
+                                 COALESCE(MAX(DATE(ac.fecha_pago)), DATE(ap.fecha_cierre_factura)) as fecha_pago_cierre")
                     ->havingRaw('fecha_pago_cierre IS NOT NULL')
                     ->orderByDesc('fecha_pago_cierre')
                     ->first();
@@ -1908,10 +1909,10 @@ class ReportesComisionesGenerales extends Component
                          ap.factura_id,
                          ap.estado_cerrado,
                          COALESCE(ap.saldo, 0) as saldo,
-                         COALESCE(DATE(ap.fecha_cierre_factura), MAX(DATE(COALESCE(ac.fecha_pago, ac.created_at)))) as fecha_pago_revision,
+                         COALESCE(MAX(DATE(ac.fecha_pago)), DATE(ap.fecha_cierre_factura)) as fecha_pago_revision,
                          COALESCE(SUM(ac.monto_abonado), 0) as monto_abonado_total,
                          COUNT(ac.id) as cantidad_abonos,
-                         MAX(DATE(COALESCE(ac.fecha_pago, ac.created_at))) as fecha_ultimo_abono")
+                         MAX(DATE(ac.fecha_pago)) as fecha_ultimo_abono")
             ->havingRaw('fecha_pago_revision IS NOT NULL')
             ->havingBetween('fecha_pago_revision', [$fi, $ff])
             ->get();

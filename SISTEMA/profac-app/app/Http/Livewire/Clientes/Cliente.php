@@ -103,7 +103,7 @@ class Cliente extends Component
 
     public function listaVendedores(){
         $vendedor = DB::SELECT("
-        select id, name from users where rol_id = 2
+        select id, name from users where rol_id IN (2,3) and estado_id = 1
         ");
 
         return response()->json([

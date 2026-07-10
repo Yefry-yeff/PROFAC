@@ -100,7 +100,7 @@ class ComisionPoliticaAnterior extends Component
             ->where('ap.estado', 1)
             ->where('ap.estado_cerrado', 2)
             ->groupBy('ap.factura_id')
-            ->selectRaw('ap.factura_id, MAX(COALESCE(DATE(ap.fecha_cierre_factura), DATE(COALESCE(ac.fecha_pago, ac.created_at)))) as fecha_pago_cierre')
+            ->selectRaw('ap.factura_id, COALESCE(MAX(DATE(ac.fecha_pago)), MAX(DATE(ap.fecha_cierre_factura))) as fecha_pago_cierre')
             ->get();
 
         $map = [];
