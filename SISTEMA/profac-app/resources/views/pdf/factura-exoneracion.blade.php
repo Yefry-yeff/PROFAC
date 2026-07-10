@@ -81,6 +81,12 @@
         $fechaImpresion   = now()->format('d/m/Y H:i');
     @endphp
 
+    @if ($cai->estado_venta_id == 2)
+    <div style="position:fixed; top:30%; left:0; width:100%; text-align:center; transform:rotate(-45deg); opacity:0.18; z-index:9999;">
+        <p style="font-size:90px; font-weight:900; color:#cc0000; letter-spacing:8px; margin:0;">FACTURA ANULADA</p>
+    </div>
+    @endif
+
     {{-- ENCABEZADO FIJO: se repite en todas las páginas (position:fixed en DomPDF) --}}
     <div id="encabezado-fijo">
 
@@ -254,12 +260,6 @@
                             <p style="margin:3px 0 0; font-size:8px; text-align:center;">Original: Cliente, Copia obligado tributario emisor.</p>
                         </div>
                     </div>
-
-                    @if ($cai->estado_venta_id == 2)
-                    <div style="position:fixed; top:30%; left:0; width:100%; text-align:center; transform:rotate(-45deg); opacity:0.18; z-index:9999;">
-                        <p style="font-size:90px; font-weight:900; color:#cc0000; letter-spacing:8px; margin:0;">FACTURA ANULADA</p>
-                    </div>
-                    @endif
 
                 </div>
 

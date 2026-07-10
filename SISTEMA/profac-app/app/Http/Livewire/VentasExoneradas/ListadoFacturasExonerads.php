@@ -22,6 +22,8 @@ use App\Models\ModelLogTranslados;
 
 class ListadoFacturasExonerads extends Component
 {
+    const ADMIN_ROLES = [1, 3, 5, 16];
+
     public function render()
     {
         return view('livewire.ventas-exoneradas.listado-facturas-exonerads');
@@ -46,7 +48,7 @@ class ListadoFacturasExonerads extends Component
             elseif ($filtroDesde)  { $whereFilters .= " AND DATE(factura.created_at) >= ? "; $bindings[] = $filtroDesde; }
             elseif ($filtroHasta)  { $whereFilters .= " AND DATE(factura.created_at) <= ? "; $bindings[] = $filtroHasta; }
 
-            if((Auth::user()->rol_id == 1 || Auth::user()->rol_id == 3 || Auth::user()->rol_id == 5)){
+            if (in_array((int) Auth::user()->rol_id, self::ADMIN_ROLES, true)) {
                 $listaFacturas = DB::SELECT("
                 select
                     factura.id as id,
@@ -120,8 +122,14 @@ class ListadoFacturasExonerads extends Component
 
 
 
+            $puedeAnular = in_array((int) Auth::user()->rol_id, self::ADMIN_ROLES, true);
+
             return Datatables::of($listaFacturas)
-            ->addColumn('opciones', function ($listaFacturas) {
+            ->addColumn('opciones', function ($listaFacturas) use ($puedeAnular) {
+
+                $opcionAnular = $puedeAnular
+                    ? '<li><a class="dropdown-item"  onclick="anularVentaConfirmar('.$listaFacturas->id.')" > <i class="fa-solid fa-ban text-danger"></i> Anular Factura </a></li>'
+                    : '';
 
                 if($listaFacturas->estado_venta_id==2){
                     return
@@ -171,9 +179,7 @@ class ListadoFacturasExonerads extends Component
                             <li>
                             <a class="dropdown-item" target="_blank"  href="/exonerado/actaRec/'.$listaFacturas->id.'"> <i class="fa-solid fa-print text-info"></i> Imprimir Acta de Recepción </a>
                             </li>
-                            <li>
-                            <a class="dropdown-item"  onclick="anularVentaConfirmar('.$listaFacturas->id.')" > <i class="fa-solid fa-ban text-danger"></i> Anular Factura </a>
-                            </li>
+                            '.$opcionAnular.'
 
                             <li>
                             <a class="dropdown-item" href="/crear/vale/'.$listaFacturas->id.'" > <i class="fa-solid fa-calendar-days text-success"></i> Agendar Entrega </a>
@@ -221,6 +227,14 @@ class ListadoFacturasExonerads extends Component
     }
 
     public function anularVentaRegistro(Request $request){
+        if (!in_array((int) Auth::user()->rol_id, self::ADMIN_ROLES, true)) {
+            return response()->json([
+                "text" => "No autorizado para anular facturas exoneradas.",
+                "icon" => "warning",
+                "title" => "Acceso denegado",
+            ], 403);
+        }
+
         $arrayLog = [];
         try {
         DB::beginTransaction();

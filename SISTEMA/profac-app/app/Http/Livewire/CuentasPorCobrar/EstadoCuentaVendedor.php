@@ -16,17 +16,39 @@ class EstadoCuentaVendedor extends Component
         return view('livewire.cuentas-por-cobrar.estado-cuenta-vendedor');
     }
 
+    const ADMIN_ROLES = [1, 3, 5, 16];
+
+    private function esAdmin(): bool
+    {
+        return in_array((int) Auth::user()->rol_id, self::ADMIN_ROLES, true);
+    }
+
     // ─── Buscar clientes (Select2) ────────────────────────────────────────────
     public function listarClientes(Request $request)
     {
         $search = $request->search ?? '';
-        $clientes = DB::select(
-            "SELECT id, CONCAT(id,' - ',nombre) AS text
-             FROM cliente
-             WHERE (id LIKE ? OR nombre LIKE ?)
-             LIMIT 15",
-            ["%{$search}%", "%{$search}%"]
-        );
+        $like   = "%{$search}%";
+
+        if ($this->esAdmin()) {
+            $clientes = DB::select(
+                "SELECT id, CONCAT(id,' - ',nombre) AS text
+                 FROM cliente
+                 WHERE (id LIKE ? OR nombre LIKE ?)
+                 LIMIT 15",
+                [$like, $like]
+            );
+        } else {
+            // Solo clientes asignados directamente al usuario (campo vendedor del cliente)
+            $uid = Auth::id();
+            $clientes = DB::select(
+                "SELECT id, CONCAT(id,' - ',nombre) AS text
+                 FROM cliente
+                 WHERE vendedor = ?
+                   AND (id LIKE ? OR nombre LIKE ?)
+                 LIMIT 15",
+                [$uid, $like, $like]
+            );
+        }
 
         return response()->json(['results' => $clientes], 200);
     }

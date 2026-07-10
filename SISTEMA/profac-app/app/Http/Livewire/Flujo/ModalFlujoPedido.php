@@ -248,6 +248,8 @@ class ModalFlujoPedido extends Component
         }
         if ($pasoFinal === 'factura') {
             $this->cargarFactura();
+        } elseif (in_array(3, $this->flujoTipos) || in_array(5, $this->flujoTipos)) {
+            $this->cargarFactura(); // cargar para detectar estado anulada en stepper
         }
         if ($pasoFinal === 'entrega') {
             $this->cargarHistorialEntregasFactura();
@@ -407,6 +409,8 @@ class ModalFlujoPedido extends Component
         }
         if ($pasoAbierto === 'factura') {
             $this->cargarFactura();
+        } elseif (in_array(3, $this->flujoTipos) || in_array(5, $this->flujoTipos)) {
+            $this->cargarFactura(); // cargar para detectar estado anulada en stepper
         }
         if ($pasoAbierto === 'entrega') {
             $this->cargarHistorialEntregasFactura();

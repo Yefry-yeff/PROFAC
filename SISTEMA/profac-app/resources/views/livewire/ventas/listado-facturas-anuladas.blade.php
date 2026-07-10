@@ -253,7 +253,6 @@
                                     <tr>
                                         <th>Codigo Interno</th>
                                         <th>N° Factura</th>
-                                        <th>CAI</th>
                                         <th>Fecha de Emision</th>
                                         <th>Cliente</th>
                                         <th>Tipo de Pago</th>
@@ -322,9 +321,9 @@
                     <div class="row">
                         <div class="col-md-12">
                             <div class="form-group">
-                                <label class="font-weight-bold small">N° Factura</label>
+                                    <label class="font-weight-bold small">CAI</label>
                                 <input type="text" class="form-control form-control-sm" id="anulFiltroCai"
-                                       placeholder="Ej: 000-001-01-00041992 o solo 41992">
+                                        placeholder="Ej: 000-001-01-00041992">
                             </div>
                         </div>
                         <div class="col-md-12">
@@ -646,7 +645,7 @@
                 var bar  = document.getElementById('filtrosBarAnul');
                 var html = '<span class="filtro-badge"><i class="fa fa-tag mr-1"></i>Tipo: ' + (anulNombresTipo[anulFiltros.idTipo] || '') + '</span>';
                 if (anulFiltros.cai)
-                    html += '<span class="filtro-badge">N° Factura: ' + anulFiltros.cai + ' <span class="filtro-remove" onclick="quitarFiltroAnul(\'cai\')">×</span></span>';
+                    html += '<span class="filtro-badge">CAI: ' + anulFiltros.cai + ' <span class="filtro-remove" onclick="quitarFiltroAnul(\'cai\')">×</span></span>';
                 if (anulFiltros.cliente)
                     html += '<span class="filtro-badge">Cliente: ' + ($('#anulFiltroCliente option:selected').text() || anulFiltros.cliente) + ' <span class="filtro-remove" onclick="quitarFiltroAnul(\'cliente\')">×</span></span>';
                 if (anulFiltros.vendedor)
@@ -684,8 +683,8 @@
                     buttons: [buildExcelButton({
                         fileName: 'Facturas_Anuladas',
                         reportTitle: 'Reporte de facturas anuladas',
-                        numberColumns: [7, 8, 9],
-                        moneyColumns: ['H', 'I', 'J']
+                        numberColumns: [6, 7, 8],
+                        moneyColumns: ['G', 'H', 'I']
                     })],
                     "ajax": {
                         'url':  '/ventas/anulado/listado',
@@ -703,7 +702,6 @@
                     },
                     "columns": [
                         { data: 'id' },
-                        { data: 'numero_factura' },
                         {
                             data: 'cai',
                             render: function(d, type, row) {

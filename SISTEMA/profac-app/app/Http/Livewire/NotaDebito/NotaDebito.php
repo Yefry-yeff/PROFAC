@@ -469,7 +469,9 @@ class NotaDebito extends Component
                     ,created_at
                     ,estado_id
                 from notadebito
-                where notadebito.estado_id = 1 and notadebito.factura_id = ".$idFactura
+                where notadebito.factura_id = ".$idFactura."
+                order by notadebito.id desc
+                limit 1"
             );
 
             $cai = DB::SELECTONE("select
@@ -498,7 +500,7 @@ class NotaDebito extends Component
             $montoConCentavos= DB::SELECTONE("
             select
                 FORMAT(monto_asignado,2) as total
-            from notadebito where factura_id = ".$idFactura);
+            from notadebito where id = ".$notaDebito->id);
 
             $pdf = PDF::loadView('/pdf/nodaDeDebito', compact('numeroLetras','notaDebito', 'cliente', 'cai', 'montoConCentavos'))->setPaper('letter');
 
@@ -521,7 +523,9 @@ class NotaDebito extends Component
                 ,created_at
                 ,estado_id
             from notadebito
-            where notadebito.factura_id = ".$idFactura
+            where notadebito.factura_id = ".$idFactura."
+            order by notadebito.id desc
+            limit 1"
         );
 
         $cai = DB::SELECTONE("select
@@ -549,7 +553,7 @@ class NotaDebito extends Component
         $montoConCentavos= DB::SELECTONE("
         select
             FORMAT(monto_asignado,2) as total
-        from notadebito where factura_id = ".$idFactura);
+        from notadebito where id = ".$notaDebito->id);
 
         $pdf = PDF::loadView('/pdf/nodaDeDebito_copia', compact('numeroLetras','notaDebito', 'cliente', 'cai', 'montoConCentavos'))->setPaper('letter');
 
