@@ -113,6 +113,7 @@ class Libroventarep extends Component
 
             $data = $this->buildLibroVentaQuery($request, $fechaInicio, $fechaFinal)
                 ->orderBy('factura.fecha_emision', 'ASC')
+                ->orderBy('factura.numero_secuencia_cai', 'ASC')
                 ->get()
                 ->map(function ($row) {
                     return (array) $row;
@@ -164,37 +165,58 @@ class Libroventarep extends Component
                 'users.name as VENDEDOR',
                 'cliente.nombre as CLIENTE',
                 'factura.numero_secuencia_cai as FACTURA',
-                // Para facturas exoneradas (tipo_venta_id=3), el desglose EXONERADO/EXCENTO
-                // viene de venta_has_producto según tipo_precio:
-                //   tipo_precio '2' = Gravado/Exonerado (producto con ISV en catálogo)
-                //   tipo_precio '1' = Excento (producto sin ISV en catálogo)
-                // Si tipo_precio es NULL se resuelve con el ISV actual del producto.
-                DB::raw("ROUND(CASE WHEN factura.tipo_venta_id = 3 THEN
-                    COALESCE((
-                        SELECT SUM(vhp.sub_total_s) FROM venta_has_producto vhp
-                        JOIN producto p ON p.id = vhp.producto_id
-                        WHERE vhp.factura_id = factura.id
-                        AND IF(vhp.tipo_precio IS NULL OR vhp.tipo_precio = '',
-                                IF(p.isv > 0, '2', '1'), vhp.tipo_precio) = '2'
-                    ), 0)
+                // Todos los montos se calculan desde venta_has_producto para garantizar
+                // exactitud, ya que las columnas de factura (sub_total_grabado, sub_total_excento)
+                // pueden tener datos desactualizados.
+                //
+                // tipo_precio '2' = Gravado (producto con ISV) → va a GRAVADO o EXONERADO
+                // tipo_precio '1' = Exento  (producto sin ISV) → va a EXENTO
+                // Si tipo_precio es NULL: facturas no-exoneradas usan vhp.isv; exoneradas usan producto.isv
+                // Facturas ANULADAS (estado_venta_id=2) aparecen con todos los montos en 0.
+                DB::raw("ROUND(CASE WHEN factura.estado_venta_id = 2 THEN 0
+                    WHEN factura.tipo_venta_id = 3 THEN
+                        COALESCE((
+                            SELECT SUM(vhp.sub_total_s) FROM venta_has_producto vhp
+                            JOIN producto p ON p.id = vhp.producto_id
+                            WHERE vhp.factura_id = factura.id
+                            AND IF(vhp.tipo_precio IS NULL OR vhp.tipo_precio = '',
+                                    IF(p.isv > 0, '2', '1'), vhp.tipo_precio) = '2'
+                        ), 0)
                 ELSE 0 END, 2) as EXONERADO"),
-                DB::raw("ROUND(COALESCE(factura.sub_total_grabado, 0), 2) as GRAVADO"),
-                DB::raw("ROUND(CASE WHEN factura.tipo_venta_id = 3 THEN
-                    COALESCE((
-                        SELECT SUM(vhp.sub_total_s) FROM venta_has_producto vhp
-                        JOIN producto p ON p.id = vhp.producto_id
-                        WHERE vhp.factura_id = factura.id
-                        AND IF(vhp.tipo_precio IS NULL OR vhp.tipo_precio = '',
-                                IF(p.isv > 0, '2', '1'), vhp.tipo_precio) = '1'
-                    ), 0)
-                ELSE COALESCE(factura.sub_total_excento, 0) END, 2) as EXCENTO"),
-                DB::raw("ROUND(COALESCE(factura.sub_total, 0), 2) as SUBTOTAL"),
-                DB::raw("ROUND(CASE WHEN factura.tipo_venta_id = 3 THEN 0 ELSE COALESCE(factura.isv, 0) END, 2) as ISV"),
-                DB::raw("ROUND(COALESCE(factura.total, 0), 2) as TOTAL"),
+                DB::raw("ROUND(CASE WHEN factura.estado_venta_id = 2 THEN 0
+                    WHEN factura.tipo_venta_id = 3 THEN 0
+                    ELSE
+                        COALESCE((
+                            SELECT SUM(vhp.sub_total_s) FROM venta_has_producto vhp
+                            WHERE vhp.factura_id = factura.id
+                            AND IF(vhp.tipo_precio IS NULL OR vhp.tipo_precio = '',
+                                    IF(vhp.isv > 0, '2', '1'), vhp.tipo_precio) = '2'
+                        ), 0)
+                END, 2) as GRAVADO"),
+                DB::raw("ROUND(CASE WHEN factura.estado_venta_id = 2 THEN 0
+                    WHEN factura.tipo_venta_id = 3 THEN
+                        COALESCE((
+                            SELECT SUM(vhp.sub_total_s) FROM venta_has_producto vhp
+                            JOIN producto p ON p.id = vhp.producto_id
+                            WHERE vhp.factura_id = factura.id
+                            AND IF(vhp.tipo_precio IS NULL OR vhp.tipo_precio = '',
+                                    IF(p.isv > 0, '2', '1'), vhp.tipo_precio) = '1'
+                        ), 0)
+                    ELSE
+                        COALESCE((
+                            SELECT SUM(vhp.sub_total_s) FROM venta_has_producto vhp
+                            WHERE vhp.factura_id = factura.id
+                            AND IF(vhp.tipo_precio IS NULL OR vhp.tipo_precio = '',
+                                    IF(vhp.isv > 0, '2', '1'), vhp.tipo_precio) = '1'
+                        ), 0)
+                END, 2) as EXENTO"),
+                DB::raw("ROUND(CASE WHEN factura.estado_venta_id = 2 THEN 0 ELSE COALESCE(factura.sub_total, 0) END, 2) as SUBTOTAL"),
+                DB::raw("ROUND(CASE WHEN factura.estado_venta_id = 2 THEN 0 WHEN factura.tipo_venta_id = 3 THEN 0 ELSE COALESCE(factura.isv, 0) END, 2) as ISV"),
+                DB::raw("ROUND(CASE WHEN factura.estado_venta_id = 2 THEN 0 ELSE COALESCE(factura.total, 0) END, 2) as TOTAL"),
+                'factura.estado_venta_id as ESTADO',
                 'factura.fecha_emision as FECHA VENTA'
             )
-            ->whereBetween('factura.fecha_emision', [$fechaInicio, $fechaFinal])
-            ->where('factura.estado_venta_id', '<>', 2);
+            ->whereBetween('factura.fecha_emision', [$fechaInicio, $fechaFinal]);
 
         if (!empty($cliente)) {
             $query->where('factura.cliente_id', $cliente);

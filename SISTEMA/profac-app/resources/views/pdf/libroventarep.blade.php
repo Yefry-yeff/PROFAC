@@ -96,7 +96,7 @@
                 <th>FACTURA</th>
                 <th>EXONERADO</th>
                 <th>GRAVADO</th>
-                <th>EXCENTO</th>
+                <th>EXENTO</th>
                 <th>SUBTOTAL</th>
                 <th>ISV</th>
                 <th>TOTAL</th>
@@ -111,7 +111,7 @@
                 <td>{{ $row['FACTURA'] }}</td>
                 <td>{{ number_format((float) $row['EXONERADO'], 2) }}</td>
                 <td>{{ number_format((float) $row['GRAVADO'], 2) }}</td>
-                <td>{{ number_format((float) $row['EXCENTO'], 2) }}</td>
+                <td>{{ number_format((float) $row['EXENTO'], 2) }}</td>
                 <td>{{ number_format((float) $row['SUBTOTAL'], 2) }}</td>
                 <td>{{ number_format((float) $row['ISV'], 2) }}</td>
                 <td>{{ number_format((float) $row['TOTAL'], 2) }}</td>
@@ -124,7 +124,7 @@
                 <th colspan="3" style="text-align: center;">Totales:</th>
                 <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['EXONERADO']), 2) }}</th>
                 <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['GRAVADO']), 2) }}</th>
-                <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['EXCENTO']), 2) }}</th>
+                <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['EXENTO']), 2) }}</th>
                 <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['SUBTOTAL']), 2) }}</th>
                 <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['ISV']), 2) }}</th>
                 <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['TOTAL']), 2) }}</th>

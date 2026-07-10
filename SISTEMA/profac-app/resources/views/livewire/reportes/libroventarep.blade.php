@@ -128,7 +128,7 @@
                                         <th>Factura</th>
                                         <th>Exonerado</th>
                                         <th>Gravado</th>
-                                        <th>Excento</th>
+                                        <th>Exento</th>
                                         <th>Subtotal</th>
                                         <th>ISV</th>
                                         <th>Total</th>
