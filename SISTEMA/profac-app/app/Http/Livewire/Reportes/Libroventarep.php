@@ -164,21 +164,28 @@ class Libroventarep extends Component
                 'users.name as VENDEDOR',
                 'cliente.nombre as CLIENTE',
                 'factura.numero_secuencia_cai as FACTURA',
+                // Para facturas exoneradas (tipo_venta_id=3), el desglose EXONERADO/EXCENTO
+                // viene de venta_has_producto según tipo_precio:
+                //   tipo_precio '2' = Gravado/Exonerado (producto con ISV en catálogo)
+                //   tipo_precio '1' = Excento (producto sin ISV en catálogo)
+                // Si tipo_precio es NULL se resuelve con el ISV actual del producto.
                 DB::raw("ROUND(CASE WHEN factura.tipo_venta_id = 3 THEN
-                    COALESCE(factura.sub_total, 0) - COALESCE((
+                    COALESCE((
                         SELECT SUM(vhp.sub_total_s) FROM venta_has_producto vhp
+                        JOIN producto p ON p.id = vhp.producto_id
                         WHERE vhp.factura_id = factura.id
-                        AND ((DATE(factura.fecha_emision) < '2026-06-07' AND COALESCE(vhp.isv,0) = 0)
-                             OR (DATE(factura.fecha_emision) >= '2026-06-07' AND vhp.tipo_precio = '1'))
+                        AND IF(vhp.tipo_precio IS NULL OR vhp.tipo_precio = '',
+                                IF(p.isv > 0, '2', '1'), vhp.tipo_precio) = '2'
                     ), 0)
                 ELSE 0 END, 2) as EXONERADO"),
                 DB::raw("ROUND(COALESCE(factura.sub_total_grabado, 0), 2) as GRAVADO"),
                 DB::raw("ROUND(CASE WHEN factura.tipo_venta_id = 3 THEN
                     COALESCE((
                         SELECT SUM(vhp.sub_total_s) FROM venta_has_producto vhp
+                        JOIN producto p ON p.id = vhp.producto_id
                         WHERE vhp.factura_id = factura.id
-                        AND ((DATE(factura.fecha_emision) < '2026-06-07' AND COALESCE(vhp.isv,0) = 0)
-                             OR (DATE(factura.fecha_emision) >= '2026-06-07' AND vhp.tipo_precio = '1'))
+                        AND IF(vhp.tipo_precio IS NULL OR vhp.tipo_precio = '',
+                                IF(p.isv > 0, '2', '1'), vhp.tipo_precio) = '1'
                     ), 0)
                 ELSE COALESCE(factura.sub_total_excento, 0) END, 2) as EXCENTO"),
                 DB::raw("ROUND(COALESCE(factura.sub_total, 0), 2) as SUBTOTAL"),

@@ -348,7 +348,7 @@ class ValeListaEspera extends Component
                 "sub_total_s" => $request->$keySubTotal,
                 "isv_s" => $request->$keyIsv,
                 "total_s" => $request->$keyTotal,
-                "tipo_precio" => ($request->$keyIsv > 0) ? '2' : '1',
+                "tipo_precio" => ($request->$keyIsv > 0) ? '2' : '1', // '1' = Excento (producto sin ISV, isv = 0) | '2' = Gravado (producto con ISV, isv > 0)
                 "precioSeleccionado" => $request->$keyprecioSeleccionado,
                 "idPrecioSeleccionado" => $request->$keyidPrecioSeleccionado,
                 "created_at" => now(),

@@ -468,7 +468,7 @@ class VentasExoneradas extends Component
                 // En exoneradas, el tipo se clasifica por el ISV real del producto,
                 // no por el valor enviado desde frontend (que puede venir en 0).
                 $isvProductoCatalogo = (float) (DB::table('producto')->where('id', $idProducto)->value('isv') ?? 0);
-                $tipoPrecio = ($isvProductoCatalogo > 0) ? '2' : '1'; // '2' = exonerado (tenia ISV), '1' = exento
+                $tipoPrecio = ($isvProductoCatalogo > 0) ? '2' : '1'; // '1' = Excento (producto sin ISV, isv = 0) | '2' = Gravado (producto con ISV, isv > 0)
                 $isv = 0;
                 $total = $subTotal;
                 $ivsProducto = 0;

@@ -202,7 +202,7 @@ class RestarVale extends Component
             }
 
             foreach($listaProductos as $producto){
-                $tipoPrecio = ($producto->ivsProducto > 0) ? '2' : '1';
+                $tipoPrecio = ($producto->ivsProducto > 0) ? '2' : '1'; // '1' = Excento (producto sin ISV, isv = 0) | '2' = Gravado (producto con ISV, isv > 0)
                 $this->restarUnidadesInventario(
                     $producto->resta_inventario_total,
                     $producto->producto_id,
