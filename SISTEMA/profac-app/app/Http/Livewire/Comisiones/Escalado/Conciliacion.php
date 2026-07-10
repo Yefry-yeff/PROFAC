@@ -4,6 +4,7 @@ namespace App\Http\Livewire\Comisiones\Escalado;
 
 use Livewire\Component;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Auth;
@@ -15,6 +16,52 @@ use App\Exports\Comisiones\ConciliacionResumenMasivoExport;
 
 class Conciliacion extends Component
 {
+    protected function tieneTotalesExtendidos(): bool
+    {
+        return Schema::hasTable('comision_periodo')
+            && Schema::hasColumn('comision_periodo', 'total_comision_escala')
+            && Schema::hasColumn('comision_periodo', 'total_comision_politica_anterior')
+            && Schema::hasColumn('comision_periodo', 'total_comision_global');
+    }
+
+    protected function columnasPeriodo(): array
+    {
+        $columnas = [
+            'cp.id',
+            'cp.periodo',
+            'cp.estado',
+            'cp.total_comision',
+            'cp.cantidad_empleados',
+            'cp.cantidad_facturas',
+            'cp.observacion_conciliacion',
+            'cp.fecha_conciliacion',
+            'u.name as nombre_concilio',
+        ];
+
+        if ($this->tieneTotalesExtendidos()) {
+            $columnas[] = 'cp.total_comision_escala';
+            $columnas[] = 'cp.total_comision_politica_anterior';
+            $columnas[] = 'cp.total_comision_global';
+        }
+
+        return $columnas;
+    }
+
+    protected function payloadTotalesPeriodo(float $totalEscala, float $totalPolitica, float $totalGlobal): array
+    {
+        $payload = [
+            'total_comision' => $totalGlobal,
+        ];
+
+        if ($this->tieneTotalesExtendidos()) {
+            $payload['total_comision_escala'] = $totalEscala;
+            $payload['total_comision_politica_anterior'] = $totalPolitica;
+            $payload['total_comision_global'] = $totalGlobal;
+        }
+
+        return $payload;
+    }
+
     public function render()
     {
         return view('livewire.comisiones.escalado.conciliacion');
@@ -206,20 +253,7 @@ class Conciliacion extends Component
         // Registros existentes en comision_periodo
         $registros = DB::table('comision_periodo as cp')
             ->leftJoin('users as u', 'u.id', '=', 'cp.usuario_concilio')
-            ->select(
-                'cp.id',
-                'cp.periodo',
-                'cp.estado',
-                'cp.total_comision',
-                'cp.total_comision_escala',
-                'cp.total_comision_politica_anterior',
-                'cp.total_comision_global',
-                'cp.cantidad_empleados',
-                'cp.cantidad_facturas',
-                'cp.observacion_conciliacion',
-                'cp.fecha_conciliacion',
-                'u.name as nombre_concilio'
-            )
+            ->select($this->columnasPeriodo())
             ->orderByDesc('cp.periodo')
             ->get()
             ->keyBy(fn($r) => $r->periodo); // keyed by "YYYY-MM-DD"
@@ -400,28 +434,22 @@ class Conciliacion extends Component
 
             // Upsert en comision_periodo
             if ($existente) {
-                DB::table('comision_periodo')->where('id', $existente->id)->update([
+                $payload = array_merge([
                     'estado'                   => ModelComisionPeriodo::ESTADO_CONCILIADO,
-                    'total_comision_escala'     => $totalEscala,
-                    'total_comision_politica_anterior' => $totalPolitica,
-                    'total_comision_global'     => $totalGlobal,
-                    'total_comision'            => $totalGlobal,
                     'cantidad_empleados'        => $snapshot['cantidad_empleados'],
                     'cantidad_facturas'         => $cantidadFacturasGlobal,
                     'observacion_conciliacion'  => $observacion ?: null,
                     'usuario_concilio'          => Auth::id(),
                     'fecha_conciliacion'        => now(),
                     'updated_at'               => now(),
-                ]);
+                ], $this->payloadTotalesPeriodo($totalEscala, $totalPolitica, $totalGlobal));
+
+                DB::table('comision_periodo')->where('id', $existente->id)->update($payload);
                 $periodoId = $existente->id;
             } else {
-                $periodoId = DB::table('comision_periodo')->insertGetId([
+                $payload = array_merge([
                     'periodo'                   => $periodo,
                     'estado'                    => ModelComisionPeriodo::ESTADO_CONCILIADO,
-                    'total_comision_escala'      => $totalEscala,
-                    'total_comision_politica_anterior' => $totalPolitica,
-                    'total_comision_global'      => $totalGlobal,
-                    'total_comision'             => $totalGlobal,
                     'cantidad_empleados'         => $snapshot['cantidad_empleados'],
                     'cantidad_facturas'          => $cantidadFacturasGlobal,
                     'observacion_conciliacion'   => $observacion ?: null,
@@ -429,7 +457,9 @@ class Conciliacion extends Component
                     'fecha_conciliacion'         => now(),
                     'created_at'                => now(),
                     'updated_at'                => now(),
-                ]);
+                ], $this->payloadTotalesPeriodo($totalEscala, $totalPolitica, $totalGlobal));
+
+                $periodoId = DB::table('comision_periodo')->insertGetId($payload);
             }
 
             // Registrar en el log de auditoría

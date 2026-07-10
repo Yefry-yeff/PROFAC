@@ -446,14 +446,15 @@ function renderProyecciones(resp){
             {data:'fecha_pago',className:'text-nowrap',render:function(d){return esc(d || '—');}},
             {data:'fecha_creacion_factura',className:'text-nowrap',render:function(d){return esc(d || '—');}},
             {data:'factura',render:function(d){return '<code style="background:#f1f5f9;padding:2px 6px;border-radius:4px;font-size:11px;">'+esc(d || '—')+'</code>'; }},
-            {data:'cliente',render:function(d){return '<strong>'+esc(d || '—')+'</strong>'; }},
+            {data:'producto',width:'340px',render:function(d){return '<strong style="display:block;min-width:340px;white-space:normal;">'+esc(d || '—')+'</strong>'; }},
+            {data:'cliente',width:'220px',render:function(d){return '<strong style="display:block;min-width:220px;white-space:normal;">'+esc(d || '—')+'</strong>'; }},
             {data:'escala_cliente',render:function(d){return esc(d || '—');}},
-            {data:'escala_precio_vendida',render:function(d){return esc(d || '—');}},
+            {data:'escala_precio_vendida',width:'110px',className:'text-center',render:function(d){return '<span style="display:block;min-width:110px;text-align:center;">'+esc(d || '—')+'</span>'; }},
             {data:'cantidad',className:'text-right',render:function(d){
                 return '<strong>'+parseFloat(d || 0).toLocaleString('es-HN',{minimumFractionDigits:0,maximumFractionDigits:2})+'</strong>';
             }},
-            {data:'capacidad',className:'text-center',render:function(d){
-                var txt = String(d || '—');
+            {data:'rol_nombre',className:'text-center',render:function(d, __, row){
+                var txt = String(d || row.capacidad || '—');
                 var cls = 'badge badge-secondary';
                 if(txt === 'ASESOR') cls = 'badge badge-success';
                 if(txt === 'TELEASESOR') cls = 'badge badge-primary';
@@ -492,8 +493,10 @@ function renderProyecciones(resp){
                 {data:'fecha_pago',className:'text-nowrap',render:function(d){return esc(d || '—');}},
                 {data:'fecha_creacion_factura',className:'text-nowrap',render:function(d){return esc(d || '—');}},
                 {data:'factura',render:function(d){return '<code style="background:#fef2f2;padding:2px 6px;border-radius:4px;font-size:11px;color:#991b1b;">'+esc(d || '—')+'</code>'; }},
+                {data:'producto',width:'280px',render:function(d){return '<div style="min-width:280px;white-space:normal;">'+esc(d || '—')+'</div>'; }},
                 {data:'cliente',render:function(d){return esc(d || '—');}},
-                {data:'capacidad',render:function(d){return esc(d || '—');}},
+                {data:'categoria_precio',render:function(d){return esc(d || '—');}},
+                {data:'rol_nombre',render:function(d, __, row){return esc(d || row.capacidad || '—');}},
                 {data:'usuario',render:function(d){return esc(d || '—');}},
                 {data:'razon_no_comisionable',render:function(d){return '<strong style="color:#991b1b;">'+esc(d || 'No definido')+'</strong>'; }},
                 {data:'motivos',render:function(d){
@@ -807,14 +810,16 @@ function exportarProyeccionesExcel(tipo){
             return;
         }
 
-        var dataEx = [['Fecha Pago','Fecha Creacion Factura','Factura','Cliente','Capacidad','Usuario','Razon No Comisionable','Detalle Tecnico']];
+        var dataEx = [['Fecha Pago','Fecha Creacion Factura','Factura','Producto','Cliente','Categoria Precio','Rol Comisión','Usuario','Razon No Comisionable','Detalle Tecnico']];
         proyeccionesExcluidasActual.forEach(function(r){
             dataEx.push([
                 r.fecha_pago || '',
                 r.fecha_creacion_factura || '',
                 r.factura || '',
+                r.producto || '',
                 r.cliente || '',
-                r.capacidad || '',
+                r.categoria_precio || '',
+                r.rol_nombre || r.capacidad || '',
                 r.usuario || '',
                 r.razon_no_comisionable || '',
                 Array.isArray(r.motivos) ? r.motivos.join(' | ') : ''
@@ -822,8 +827,8 @@ function exportarProyeccionesExcel(tipo){
         });
 
         var wsEx = XLSX.utils.aoa_to_sheet(dataEx);
-        wsEx['!autofilter'] = { ref: 'A1:H1' };
-        wsEx['!cols'] = [{wch:12},{wch:20},{wch:20},{wch:36},{wch:16},{wch:24},{wch:34},{wch:80}];
+        wsEx['!autofilter'] = { ref: 'A1:J1' };
+        wsEx['!cols'] = [{wch:12},{wch:20},{wch:20},{wch:30},{wch:36},{wch:24},{wch:16},{wch:24},{wch:34},{wch:80}];
         var wbEx = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wbEx, wsEx, 'Politica anterior');
         XLSX.writeFile(wbEx, 'facturas_politica_anterior_' + stamp + '.xlsx');
@@ -835,17 +840,18 @@ function exportarProyeccionesExcel(tipo){
         return;
     }
 
-    var dataPr = [['Fecha Pago','Fecha Creacion Factura','Factura','Cliente','Escala Cliente','Escala Precio Vendida','Cantidad','Capacidad','Usuario','Base Comisionable Unitaria','Base Comisionable','% Promedio','Comision Proyectada']];
+    var dataPr = [['Fecha Pago','Fecha Creacion Factura','Factura','Producto','Cliente','Escala Cliente','Escala Precio Vendida','Cantidad','Rol Comisión','Usuario','Base Comisionable Unitaria','Base Comisionable','% Promedio','Comision Proyectada']];
     proyeccionesDataActual.forEach(function(r){
         dataPr.push([
             r.fecha_pago || '',
             r.fecha_creacion_factura || '',
             r.factura || '',
+            r.producto || '',
             r.cliente || '',
             r.escala_cliente || '',
             r.escala_precio_vendida || '',
             parseFloat(r.cantidad || 0),
-            r.capacidad || '',
+            r.rol_nombre || r.capacidad || '',
             r.usuario || '',
             parseFloat(r.base_comisionable_unitaria || 0),
             parseFloat(r.base_comisionable || 0),
@@ -856,15 +862,15 @@ function exportarProyeccionesExcel(tipo){
 
     var wsPr = XLSX.utils.aoa_to_sheet(dataPr);
     for (var i = 2; i <= proyeccionesDataActual.length + 1; i++) {
-        ['J','K','M'].forEach(function(col){
+        ['K','L','N'].forEach(function(col){
             var ref = col + i;
             if (wsPr[ref] && typeof wsPr[ref].v === 'number') wsPr[ref].z = '"L." #,##0.00';
         });
-        var pctRef = 'L' + i;
+        var pctRef = 'M' + i;
         if (wsPr[pctRef] && typeof wsPr[pctRef].v === 'number') wsPr[pctRef].z = '0.00%';
     }
-    wsPr['!autofilter'] = { ref: 'A1:M1' };
-    wsPr['!cols'] = [{wch:12},{wch:20},{wch:20},{wch:34},{wch:24},{wch:45},{wch:12},{wch:16},{wch:24},{wch:20},{wch:18},{wch:12},{wch:18}];
+    wsPr['!autofilter'] = { ref: 'A1:N1' };
+    wsPr['!cols'] = [{wch:12},{wch:20},{wch:20},{wch:30},{wch:34},{wch:24},{wch:45},{wch:12},{wch:16},{wch:24},{wch:20},{wch:18},{wch:12},{wch:18}];
     var wbPr = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wbPr, wsPr, 'Proyectadas');
     XLSX.writeFile(wbPr, 'proyecciones_proyectadas_' + stamp + '.xlsx');

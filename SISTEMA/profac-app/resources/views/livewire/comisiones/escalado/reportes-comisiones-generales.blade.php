@@ -661,7 +661,7 @@ table.dataTable tbody td { font-size: 13px; vertical-align: middle; }
             <div id="proyInfo" style="display:none;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:12px 16px;font-size:13px;color:#1e3a8a;margin-bottom:14px;">
                 <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center;">
                     <span><i class="fa fa-file-invoice mr-1"></i>Facturas proyectadas: <strong id="proyFacturas">0</strong></span>
-                    <span><i class="fa fa-list mr-1"></i>Registros: <strong id="proyRegistros">0</strong></span>
+                    <span><i class="fa fa-list mr-1"></i>Líneas de producto: <strong id="proyRegistros">0</strong></span>
                     <span><i class="fa fa-calculator mr-1"></i>Base unitaria total: <strong id="proyBaseUnitaria">L. 0.00</strong></span>
                     <span><i class="fa fa-coins mr-1"></i>Base comisionable total: <strong id="proyBaseComisionable">L. 0.00</strong></span>
                     <span><i class="fa fa-money-bill-wave mr-1"></i>Comisión total: <strong id="proyComisionTotal">L. 0.00</strong></span>
@@ -691,11 +691,12 @@ table.dataTable tbody td { font-size: 13px; vertical-align: middle; }
                                 <th>Fecha Pago</th>
                                 <th>Fecha Creación Factura</th>
                                 <th>Factura</th>
-                                <th>Cliente</th>
+                                <th style="min-width:340px;">Producto</th>
+                                <th style="min-width:220px;">Cliente</th>
                                 <th>Escala Cliente</th>
-                                <th>Escala Precio Vendida</th>
+                                <th class="text-center" style="min-width:110px;">Escala</th>
                                 <th class="text-right">Cantidad</th>
-                                <th>Capacidad</th>
+                                <th>Rol Comisión</th>
                                 <th>Usuario</th>
                                 <th class="text-right">Base Comisionable Unitaria</th>
                                 <th class="text-right">Base Comisionable</th>
@@ -725,8 +726,10 @@ table.dataTable tbody td { font-size: 13px; vertical-align: middle; }
                                 <th>Fecha Pago</th>
                                 <th>Fecha Creación Factura</th>
                                 <th>Factura</th>
+                                <th style="min-width:280px;">Producto</th>
                                 <th>Cliente</th>
-                                <th>Capacidad</th>
+                                <th>Categoría Precio</th>
+                                <th>Rol Comisión</th>
                                 <th>Usuario</th>
                                 <th>Razón No Comisionable</th>
                                 <th>Detalle Técnico</th>

@@ -2,6 +2,7 @@
 
 namespace App\Http\Livewire\Reportes;
 
+use Carbon\Carbon;
 use Livewire\Component;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -11,9 +12,166 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class ComisionPoliticaAnterior extends Component
 {
+    private const CAPACIDAD_ROL_ALIASES = [
+        'FACTURADOR' => ['FACTURADOR', 'FACTURADORA'],
+        'VENDEDOR' => ['VENDEDOR', 'VENTAS'],
+        'ASESOR' => ['ASESOR', 'ASESORA'],
+        'TELEASESOR' => ['TELEASESOR', 'TELEASESOR', 'TELE ASESOR', 'TELEASESOR COMERCIAL'],
+        'GESTORENTREGA' => ['GESTORENTREGA', 'GESTOR ENTREGA', 'GESTOR DE ENTREGA', 'GESTOR DE ENTREGAS'],
+    ];
+
     public function render()
     {
         return view('livewire.reportes.comision-politica-anterior');
+    }
+
+    private function normalizarClaveTexto(?string $valor): string
+    {
+        return Str::of((string) $valor)
+            ->lower()
+            ->ascii()
+            ->replaceMatches('/[^a-z0-9]+/', '')
+            ->value();
+    }
+
+    private function parseFechaSegura(?string $valor): ?Carbon
+    {
+        $valor = trim((string) $valor);
+        if ($valor === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($valor);
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    private function construirContextoFacturasPoliticaAnterior(array $filasInput): array
+    {
+        $contexto = [];
+
+        foreach ($filasInput as $fila) {
+            if (!is_array($fila)) {
+                continue;
+            }
+
+            $facturaId = (int) ($fila['factura_id'] ?? 0);
+            if ($facturaId <= 0) {
+                continue;
+            }
+
+            if (!isset($contexto[$facturaId])) {
+                $contexto[$facturaId] = [
+                    'factura_id' => $facturaId,
+                    'factura' => (string) ($fila['factura'] ?? ''),
+                    'cliente' => (string) ($fila['cliente'] ?? ''),
+                    'capacidad' => (string) ($fila['capacidad'] ?? ''),
+                    'usuario' => (string) ($fila['usuario'] ?? ''),
+                    'fecha_pago' => (string) ($fila['fecha_pago'] ?? ''),
+                    'fecha_creacion_factura' => (string) ($fila['fecha_creacion_factura'] ?? ''),
+                ];
+                continue;
+            }
+
+            foreach (['factura', 'cliente', 'capacidad', 'usuario', 'fecha_pago', 'fecha_creacion_factura'] as $campo) {
+                if (empty($contexto[$facturaId][$campo]) && !empty($fila[$campo])) {
+                    $contexto[$facturaId][$campo] = (string) $fila[$campo];
+                }
+            }
+        }
+
+        return $contexto;
+    }
+
+    private function obtenerFechasCierrePagoPorFacturas(array $facturaIds): array
+    {
+        if (empty($facturaIds)) {
+            return [];
+        }
+
+        $rows = DB::table('aplicacion_pagos as ap')
+            ->leftJoin('abonos_creditos as ac', function ($join) {
+                $join->on('ac.aplicacion_pagos_id', '=', 'ap.id')
+                    ->where('ac.estado_abono', '=', 1);
+            })
+            ->whereIn('ap.factura_id', $facturaIds)
+            ->where('ap.estado', 1)
+            ->where('ap.estado_cerrado', 2)
+            ->groupBy('ap.factura_id')
+            ->selectRaw('ap.factura_id, MAX(COALESCE(DATE(ap.fecha_cierre_factura), DATE(COALESCE(ac.fecha_pago, ac.created_at)))) as fecha_pago_cierre')
+            ->get();
+
+        $map = [];
+        foreach ($rows as $row) {
+            $facturaId = (int) ($row->factura_id ?? 0);
+            $fecha = trim((string) ($row->fecha_pago_cierre ?? ''));
+            if ($facturaId > 0 && $fecha !== '') {
+                $map[$facturaId] = $fecha;
+            }
+        }
+
+        return $map;
+    }
+
+    private function resolverRolIdPorCapacidad(?string $capacidad): ?int
+    {
+        $capacidadNorm = $this->normalizarClaveTexto($capacidad);
+        if ($capacidadNorm === '') {
+            return null;
+        }
+
+        $roles = DB::table('rol')->select('id', 'nombre')->get();
+
+        foreach ($roles as $rol) {
+            $rolNorm = $this->normalizarClaveTexto($rol->nombre ?? '');
+            if ($rolNorm !== '' && $rolNorm === $capacidadNorm) {
+                return (int) $rol->id;
+            }
+        }
+
+        foreach (self::CAPACIDAD_ROL_ALIASES as $aliasKey => $aliases) {
+            if (!in_array($capacidadNorm, array_map(fn ($item) => $this->normalizarClaveTexto($item), $aliases), true)) {
+                continue;
+            }
+
+            foreach ($roles as $rol) {
+                $rolNorm = $this->normalizarClaveTexto($rol->nombre ?? '');
+                if ($rolNorm === $aliasKey) {
+                    return (int) $rol->id;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private function obtenerDiasGraciaPoliticaAnterior(array $rolIds): array
+    {
+        $rolIds = array_values(array_unique(array_filter(array_map('intval', $rolIds))));
+        if (empty($rolIds)) {
+            return [];
+        }
+
+        $rows = DB::table('dias_gracia_comision')
+            ->whereIn('rol_id', $rolIds)
+            ->whereIn('tipo_factura', ['contado', 'credito'])
+            ->where('dias_gracia', '>', 0)
+            ->get();
+
+        $map = [];
+        foreach ($rows as $row) {
+            $rolId = (int) ($row->rol_id ?? 0);
+            $tipo = (string) ($row->tipo_factura ?? '');
+            if ($rolId <= 0 || !in_array($tipo, ['contado', 'credito'], true)) {
+                continue;
+            }
+
+            $map[$rolId][$tipo] = $row;
+        }
+
+        return $map;
     }
 
     public function listarProductosActivos(Request $request)
@@ -607,26 +765,62 @@ class ComisionPoliticaAnterior extends Component
             $periodosInput = [];
         }
 
-        $resultado = $this->construirResultadoComisionFacturas($facturaIds);
-        $filtro = $this->filtrarFacturasGestionables($resultado['detalle'], $periodosInput);
-        $resultado = $this->filtrarResultadoPorFacturaIds($resultado, $filtro['elegibles_ids']);
+        $filasInput = $request->input('filas', []);
+        if (!is_array($filasInput)) {
+            $filasInput = [];
+        }
 
-        $bloqueadas = count($filtro['bloqueadas_ids']);
-        $msg = $bloqueadas > 0
-            ? 'Cálculo generado. Se omitieron ' . $bloqueadas . ' factura(s) bloqueadas por ya registradas o por período conciliado.'
-            : 'Cálculo de comisión generado correctamente.';
+        try {
+            $contextoFacturas = $this->construirContextoFacturasPoliticaAnterior($filasInput);
 
-        return response()->json([
-            'message' => $msg,
-            'detalle' => $resultado['detalle'],
-            'resumen' => $resultado['resumen'],
-            'totales' => $resultado['totales'],
-            'factura_ids_elegibles' => array_values($filtro['elegibles_ids']),
-            'factura_ids_bloqueadas' => array_values($filtro['bloqueadas_ids']),
-            'bloqueadas_ya_agregadas' => array_values($filtro['bloqueadas_ya_agregadas']),
-            'bloqueadas_periodo_conciliado' => array_values($filtro['bloqueadas_periodo_conciliado']),
-            'puede_agregar' => !empty($filtro['elegibles_ids']),
-        ]);
+            $resultado = $this->construirResultadoComisionFacturas($facturaIds, $contextoFacturas);
+            $filtro = $this->filtrarFacturasGestionables(
+                $resultado['detalle'],
+                $periodosInput,
+                array_values($resultado['factura_ids_omitidas_gracia'] ?? [])
+            );
+            $resultado = $this->filtrarResultadoPorFacturaIds($resultado, $filtro['elegibles_ids']);
+
+            $bloqueadas = count($filtro['bloqueadas_ids']);
+            $omitidasGracia = count($resultado['facturas_omitidas_gracia'] ?? []);
+            $sinParametrizacion = count($resultado['advertencias_gracia'] ?? []);
+
+            $msg = 'Cálculo de comisión generado correctamente.';
+            $partes = [];
+            if ($omitidasGracia > 0) {
+                $partes[] = 'Se omitieron ' . $omitidasGracia . ' factura(s) por fuera del tiempo de gracia.';
+            }
+            if ($bloqueadas > 0) {
+                $partes[] = 'Además, se bloquearon ' . $bloqueadas . ' factura(s) por ya registradas o por período conciliado.';
+            }
+            if ($sinParametrizacion > 0) {
+                $partes[] = 'Hay ' . $sinParametrizacion . ' factura(s) sin parametrización de días de gracia; se calcularon sin bloquearlas.';
+            }
+            if (!empty($partes)) {
+                $msg = 'Cálculo generado. ' . implode(' ', $partes);
+            }
+
+            return response()->json([
+                'message' => $msg,
+                'detalle' => $resultado['detalle'],
+                'resumen' => $resultado['resumen'],
+                'totales' => $resultado['totales'],
+                'factura_ids_elegibles' => array_values($filtro['elegibles_ids']),
+                'factura_ids_bloqueadas' => array_values($filtro['bloqueadas_ids']),
+                'bloqueadas_ya_agregadas' => array_values($filtro['bloqueadas_ya_agregadas']),
+                'bloqueadas_periodo_conciliado' => array_values($filtro['bloqueadas_periodo_conciliado']),
+                'factura_ids_omitidas_gracia' => array_values($resultado['factura_ids_omitidas_gracia'] ?? []),
+                'facturas_omitidas_gracia' => array_values($resultado['facturas_omitidas_gracia'] ?? []),
+                'advertencias_gracia' => array_values($resultado['advertencias_gracia'] ?? []),
+                'puede_agregar' => !empty($filtro['elegibles_ids']),
+            ]);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'message' => 'No se pudo calcular la comisión: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 
     public function agregarComisionPoliticaAnteriorAConciliacion(Request $request)
@@ -818,8 +1012,21 @@ class ComisionPoliticaAnterior extends Component
         }
     }
 
-    private function construirResultadoComisionFacturas(array $facturaIds): array
+    private function construirResultadoComisionFacturas(array $facturaIds, array $contextoFacturas = []): array
     {
+        $fechaCierrePagoPorFactura = $this->obtenerFechasCierrePagoPorFacturas($facturaIds);
+        $contextoFacturas = $this->construirContextoFacturasPoliticaAnterior($contextoFacturas);
+
+        $rolesRequeridos = [];
+        foreach ($contextoFacturas as $facturaContexto) {
+            $rolId = $this->resolverRolIdPorCapacidad($facturaContexto['capacidad'] ?? null);
+            if ($rolId) {
+                $rolesRequeridos[$rolId] = true;
+            }
+        }
+
+        $diasGraciaPorRol = $this->obtenerDiasGraciaPoliticaAnterior(array_keys($rolesRequeridos));
+
         $rows = DB::table('factura as f')
             ->join('venta_has_producto as vhp', 'vhp.factura_id', '=', 'f.id')
             ->join('producto as p', 'p.id', '=', 'vhp.producto_id')
@@ -833,6 +1040,9 @@ class ComisionPoliticaAnterior extends Component
             ->selectRaw('f.id as factura_id,
                          RIGHT(f.cai, 5) as factura,
                          DATE_FORMAT(f.created_at, "%Y-%m-%d %H:%i:%s") as fecha_factura,
+                         DATE_FORMAT(f.fecha_emision, "%Y-%m-%d") as fecha_emision,
+                         DATE_FORMAT(f.fecha_vencimiento, "%Y-%m-%d") as fecha_vencimiento,
+                         f.tipo_pago_id,
                          p.id as producto_id,
                          p.nombre as producto,
                          UPPER(tpv.descripcion) as tipo_pago,
@@ -854,10 +1064,98 @@ class ComisionPoliticaAnterior extends Component
             'total_comision' => 0.0,
         ];
 
+        $facturasOmitidasGracia = [];
+        $advertenciasGracia = [];
+        $facturasEvaluadasGracia = [];
+
         foreach ($rows as $row) {
             $subtotal = (float) $row->subtotal_linea;
             $esNoMiselaneo = (int) $row->es_no_miselaneo === 1;
             $tipoPagoNorm = Str::upper(Str::ascii((string) $row->tipo_pago));
+            $facturaId = (int) $row->factura_id;
+            $tipoKey = ((int) $row->tipo_pago_id === 1) ? 'contado' : 'credito';
+            $contexto = $contextoFacturas[$facturaId] ?? [];
+            $capacidad = (string) ($contexto['capacidad'] ?? '');
+            $rolId = $this->resolverRolIdPorCapacidad($capacidad);
+            $fechaPagoCierre = (string) ($contexto['fecha_pago'] ?? ($fechaCierrePagoPorFactura[$facturaId] ?? ''));
+            $fechaVencimiento = (string) ($row->fecha_vencimiento ?? $row->fecha_emision ?? '');
+
+            $motivoGracia = null;
+            $aplicaGracia = false;
+
+            if ($rolId) {
+                $configGracia = $diasGraciaPorRol[$rolId][$tipoKey] ?? null;
+                if ($configGracia) {
+                    $diasGracia = (int) $configGracia->dias_gracia;
+                    $fechaBase = $fechaVencimiento !== '' ? $fechaVencimiento : (string) ($row->fecha_factura ?? '');
+
+                    if ($fechaBase !== '' && $fechaPagoCierre !== '') {
+                        $fechaPagoCarbon = $this->parseFechaSegura($fechaPagoCierre)?->startOfDay();
+                        $fechaBaseCarbon = $this->parseFechaSegura($fechaBase)?->startOfDay();
+
+                        if (!$fechaPagoCarbon || !$fechaBaseCarbon) {
+                            $claveAdvertencia = $facturaId . '|' . $tipoKey . '|fechas';
+                            if (!isset($facturasEvaluadasGracia[$claveAdvertencia])) {
+                                $advertenciasGracia[] = [
+                                    'factura_id' => $facturaId,
+                                    'factura' => (string) $row->factura,
+                                    'capacidad' => $capacidad !== '' ? $capacidad : '—',
+                                    'tipo_pago' => $tipoKey,
+                                    'mensaje' => 'No se pudo interpretar la fecha de pago/cierre o la fecha base de gracia; la comisión se calculó sin bloquearse.',
+                                ];
+                                $facturasEvaluadasGracia[$claveAdvertencia] = true;
+                            }
+
+                            $configGracia = null;
+                        } else {
+                            $fechaLimite = $fechaBaseCarbon->copy()->addDays($diasGracia);
+                        if ($fechaPagoCarbon->gt($fechaLimite)) {
+                            $motivoGracia = 'Sin comisión por fuera de tiempo de gracia';
+                            $aplicaGracia = true;
+
+                            if (!isset($facturasOmitidasGracia[$facturaId])) {
+                                $facturasOmitidasGracia[$facturaId] = [
+                                    'factura_id' => $facturaId,
+                                    'factura' => (string) $row->factura,
+                                    'capacidad' => $capacidad !== '' ? $capacidad : '—',
+                                    'usuario' => (string) ($contexto['usuario'] ?? '—'),
+                                    'tipo_pago' => $tipoKey,
+                                    'fecha_pago_cierre' => $fechaPagoCarbon->toDateString(),
+                                    'fecha_vencimiento' => $fechaBaseCarbon->toDateString(),
+                                    'dias_gracia' => $diasGracia,
+                                    'dias_transcurridos' => $fechaPagoCarbon->diffInDays($fechaBaseCarbon),
+                                    'motivo' => 'Sin comisión por fuera de tiempo de gracia',
+                                ];
+                            }
+                        }
+                        }
+                    }
+                } else {
+                    $claveAdvertencia = $facturaId . '|' . $tipoKey;
+                    if (!isset($facturasEvaluadasGracia[$claveAdvertencia])) {
+                        $advertenciasGracia[] = [
+                            'factura_id' => $facturaId,
+                            'factura' => (string) $row->factura,
+                            'capacidad' => $capacidad !== '' ? $capacidad : '—',
+                            'tipo_pago' => $tipoKey,
+                            'mensaje' => 'No se encontró parametrización de días de gracia para este rol y tipo; la comisión se calculó sin bloquearse.',
+                        ];
+                        $facturasEvaluadasGracia[$claveAdvertencia] = true;
+                    }
+                }
+            } elseif ($capacidad !== '') {
+                $claveAdvertencia = $facturaId . '|' . $tipoKey;
+                if (!isset($facturasEvaluadasGracia[$claveAdvertencia])) {
+                    $advertenciasGracia[] = [
+                        'factura_id' => $facturaId,
+                        'factura' => (string) $row->factura,
+                        'capacidad' => $capacidad,
+                        'tipo_pago' => $tipoKey,
+                        'mensaje' => 'No se pudo resolver el rol para aplicar días de gracia; la comisión se calculó sin bloquearse.',
+                    ];
+                    $facturasEvaluadasGracia[$claveAdvertencia] = true;
+                }
+            }
 
             $porcentajeAplicado = 0.0;
             $clasificacion = 'MISELANEO';
@@ -885,6 +1183,9 @@ class ComisionPoliticaAnterior extends Component
                 'factura_id' => (int) $row->factura_id,
                 'factura' => (string) ($row->factura ?? ''),
                 'fecha_factura' => (string) ($row->fecha_factura ?? ''),
+                'fecha_pago_cierre' => $fechaPagoCierre !== '' ? $fechaPagoCierre : null,
+                'fecha_emision' => (string) ($row->fecha_emision ?? ''),
+                'fecha_vencimiento' => (string) ($row->fecha_vencimiento ?? ''),
                 'producto_id' => (int) $row->producto_id,
                 'producto' => (string) $row->producto,
                 'tipo_pago' => (string) $row->tipo_pago,
@@ -892,9 +1193,14 @@ class ComisionPoliticaAnterior extends Component
                 'subtotal_linea' => round($subtotal, 2),
                 'clasificacion' => $clasificacion,
                 'porcentaje_aplicado' => round($porcentajeAplicado * 100, 4),
-                'comision_no_miselaneo' => $comisionNoMiselaneo,
-                'comision_miselanea' => $comisionMiselanea,
-                'comision_total_linea' => $comisionTotalLinea,
+                'comision_no_miselaneo' => $aplicaGracia ? 0.0 : $comisionNoMiselaneo,
+                'comision_miselanea' => $aplicaGracia ? 0.0 : $comisionMiselanea,
+                'comision_total_linea' => $aplicaGracia ? 0.0 : $comisionTotalLinea,
+                'motivo_no_comision' => $motivoGracia,
+                'dias_gracia' => isset($configGracia) ? (int) $configGracia->dias_gracia : null,
+                'dias_transcurridos' => $aplicaGracia && isset($facturasOmitidasGracia[$facturaId])
+                    ? (int) $facturasOmitidasGracia[$facturaId]['dias_transcurridos']
+                    : null,
             ];
 
             $detalle[] = $linea;
@@ -946,10 +1252,13 @@ class ComisionPoliticaAnterior extends Component
             'detalle' => $detalle,
             'resumen' => $resumen,
             'totales' => $totales,
+            'factura_ids_omitidas_gracia' => array_values(array_keys($facturasOmitidasGracia)),
+            'facturas_omitidas_gracia' => array_values($facturasOmitidasGracia),
+            'advertencias_gracia' => array_values($advertenciasGracia),
         ];
     }
 
-    private function filtrarFacturasGestionables(array $detalle, array $periodosInput): array
+    private function filtrarFacturasGestionables(array $detalle, array $periodosInput, array $facturasBloqueadasGracia = []): array
     {
         $facturaPeriodo = [];
         foreach ($detalle as $linea) {
@@ -974,8 +1283,11 @@ class ComisionPoliticaAnterior extends Component
                 'bloqueadas_ids' => [],
                 'bloqueadas_ya_agregadas' => [],
                 'bloqueadas_periodo_conciliado' => [],
+                'bloqueadas_gracia' => [],
             ];
         }
+
+        $bloqueadasGraciaSet = array_fill_keys(array_map(fn($id) => (int) $id, $facturasBloqueadasGracia), true);
 
         $periodos = collect($facturaPeriodo)
             ->filter(fn($p) => !empty($p))
@@ -1011,8 +1323,15 @@ class ComisionPoliticaAnterior extends Component
         $bloqueadas = [];
         $bloqueadasYaAgregadas = [];
         $bloqueadasConciliado = [];
+        $bloqueadasGracia = [];
 
         foreach ($facturaPeriodo as $facturaId => $periodo) {
+            if (isset($bloqueadasGraciaSet[(int) $facturaId])) {
+                $bloqueadas[] = (int) $facturaId;
+                $bloqueadasGracia[] = (int) $facturaId;
+                continue;
+            }
+
             if (!$periodo) {
                 $bloqueadas[] = (int) $facturaId;
                 continue;
@@ -1039,6 +1358,7 @@ class ComisionPoliticaAnterior extends Component
             'bloqueadas_ids' => array_values(array_unique($bloqueadas)),
             'bloqueadas_ya_agregadas' => array_values(array_unique($bloqueadasYaAgregadas)),
             'bloqueadas_periodo_conciliado' => array_values(array_unique($bloqueadasConciliado)),
+            'bloqueadas_gracia' => array_values(array_unique($bloqueadasGracia)),
         ];
     }
 

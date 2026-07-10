@@ -315,6 +315,8 @@
                         </div>
 
                         <div id="seccionDetalleComision" class="d-none" style="margin-top:14px;">
+                            <div id="paGraciaWarning" class="alert alert-warning d-none" style="margin-bottom:12px;"></div>
+
                             <div class="row" style="margin-bottom:10px;">
                                 <div class="col-md-3"><div class="well well-sm" style="margin-bottom:0;"><strong>Líneas:</strong> <span id="resTotalLineas">0</span></div></div>
                                 <div class="col-md-3"><div class="well well-sm" style="margin-bottom:0;"><strong>Comisión no miselánea:</strong> <span id="resTotalNoMiselaneo">0.00</span></div></div>
@@ -336,10 +338,32 @@
                                             <th>CLASIFICACIÓN</th>
                                             <th>% APLICADO</th>
                                             <th>COM. TOTAL LÍNEA</th>
+                                            <th>MOTIVO</th>
                                         </tr>
                                     </thead>
                                     <tbody></tbody>
                                 </table>
+                            </div>
+
+                            <div id="paOmitidasGraceWrap" class="d-none" style="margin-top:16px;">
+                                <div class="pa-muted" style="margin-bottom:8px;font-weight:600;">Facturas omitidas por fuera del tiempo de gracia</div>
+                                <div class="table-responsive pa-table-wrap">
+                                    <table id="tblFacturasOmitidasGracia" class="table table-striped table-bordered table-hover w-100">
+                                        <thead>
+                                            <tr>
+                                                <th>FACTURA</th>
+                                                <th>CAPACIDAD</th>
+                                                <th>USUARIO</th>
+                                                <th>FECHA PAGO</th>
+                                                <th>VENCIMIENTO</th>
+                                                <th>DÍAS GRACIA</th>
+                                                <th>DÍAS TRANSCURRIDOS</th>
+                                                <th>MOTIVO</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -355,6 +379,7 @@
     var dtCfgProductos = null;
     var dtNoMiselaneos = null;
     var dtDetalleComision = null;
+    var dtOmitidasGracia = null;
     var facturasPoliticaAnterior = [];
     var facturaIdsCalculados = [];
     var facturaIdsElegiblesConciliacion = [];
@@ -522,6 +547,27 @@
         return Array.from(new Set(ids));
     }
 
+    function construirContextoFacturasCalculo(){
+        var mapa = {};
+
+        (facturasPoliticaAnterior || []).forEach(function(row){
+            var id = parseInt(row && row.factura_id ? row.factura_id : 0, 10);
+            if(id <= 0 || mapa[id]) return;
+
+            mapa[id] = {
+                factura_id: id,
+                factura: row && row.factura ? row.factura : '',
+                cliente: row && row.cliente ? row.cliente : '',
+                capacidad: row && row.capacidad ? row.capacidad : (row && row.rol_nombre ? row.rol_nombre : ''),
+                usuario: row && row.usuario ? row.usuario : '',
+                fecha_pago: row && row.fecha_pago ? row.fecha_pago : '',
+                fecha_creacion_factura: row && row.fecha_creacion_factura ? row.fecha_creacion_factura : ''
+            };
+        });
+
+        return Object.values(mapa);
+    }
+
     function construirPeriodosPorFactura(facturaIds){
         var wanted = new Set((facturaIds || []).map(function(x){ return parseInt(x || 0, 10); }));
         var map = {};
@@ -555,48 +601,98 @@
         return map;
     }
 
-    function renderTablaDetalleComision(filas){
+    function renderTablaDetalleComision(filas, omitidas){
         if ($.fn.DataTable.isDataTable('#tblDetalleComisionPoliticaAnterior')) {
             dtDetalleComision.clear();
             dtDetalleComision.rows.add(filas).draw();
-            return;
+        } else {
+            dtDetalleComision = $('#tblDetalleComisionPoliticaAnterior').DataTable({
+                data: filas,
+                order: [[2, 'desc'], [0, 'asc']],
+                pageLength: 15,
+                responsive: true,
+                autoWidth: false,
+                dom: '<"html5buttons"B>lfgitp',
+                buttons: [
+                    {
+                        extend: 'excel',
+                        title: 'DETALLE_COMISION_POLITICA_ANTERIOR',
+                        className: 'btn btn-success'
+                    }
+                ],
+                language: {
+                    search: 'Buscar detalle:',
+                    lengthMenu: 'Mostrar _MENU_ registros',
+                    info: 'Mostrando _START_ a _END_ de _TOTAL_',
+                    infoEmpty: 'Sin registros',
+                    zeroRecords: 'No hay líneas para mostrar',
+                    paginate: { first:'Primero', last:'Último', next:'Siguiente', previous:'Anterior' }
+                },
+                columns: [
+                    { data: 'factura' },
+                    { data: 'factura_id' },
+                    { data: 'fecha_factura' },
+                    { data: 'producto_id' },
+                    { data: 'producto', render: function(d){ return html(d); } },
+                    { data: 'tipo_pago' },
+                    { data: 'subtotal_linea', className: 'text-right', render: function(d){ return money(d); } },
+                    { data: 'clasificacion' },
+                    { data: 'porcentaje_aplicado', className: 'text-right', render: function(d){ return money(d) + '%'; } },
+                    { data: 'comision_total_linea', className: 'text-right', render: function(d){ return money(d); } },
+                    { data: 'motivo_no_comision', render: function(d){ return d ? html(d) : '—'; } }
+                ]
+            });
         }
 
-        dtDetalleComision = $('#tblDetalleComisionPoliticaAnterior').DataTable({
-            data: filas,
-            order: [[2, 'desc'], [0, 'asc']],
-            pageLength: 15,
-            responsive: true,
-            autoWidth: false,
-            dom: '<"html5buttons"B>lfgitp',
-            buttons: [
-                {
-                    extend: 'excel',
-                    title: 'DETALLE_COMISION_POLITICA_ANTERIOR',
-                    className: 'btn btn-success'
-                }
-            ],
-            language: {
-                search: 'Buscar detalle:',
-                lengthMenu: 'Mostrar _MENU_ registros',
-                info: 'Mostrando _START_ a _END_ de _TOTAL_',
-                infoEmpty: 'Sin registros',
-                zeroRecords: 'No hay líneas para mostrar',
-                paginate: { first:'Primero', last:'Último', next:'Siguiente', previous:'Anterior' }
-            },
-            columns: [
-                { data: 'factura' },
-                { data: 'factura_id' },
-                { data: 'fecha_factura' },
-                { data: 'producto_id' },
-                { data: 'producto', render: function(d){ return html(d); } },
-                { data: 'tipo_pago' },
-                { data: 'subtotal_linea', className: 'text-right', render: function(d){ return money(d); } },
-                { data: 'clasificacion' },
-                { data: 'porcentaje_aplicado', className: 'text-right', render: function(d){ return money(d) + '%'; } },
-                { data: 'comision_total_linea', className: 'text-right', render: function(d){ return money(d); } }
-            ]
-        });
+        var omitidasRows = Array.isArray(omitidas) ? omitidas : [];
+        if (omitidasRows.length) {
+            $('#paOmitidasGraceWrap').removeClass('d-none');
+            if ($.fn.DataTable.isDataTable('#tblFacturasOmitidasGracia')) {
+                dtOmitidasGracia.clear();
+                dtOmitidasGracia.rows.add(omitidasRows).draw();
+            } else {
+                dtOmitidasGracia = $('#tblFacturasOmitidasGracia').DataTable({
+                    data: omitidasRows,
+                    order: [[3, 'desc'], [0, 'asc']],
+                    pageLength: 10,
+                    responsive: true,
+                    autoWidth: false,
+                    dom: '<"html5buttons"B>lfgitp',
+                    buttons: [
+                        {
+                            extend: 'excel',
+                            title: 'FACTURAS_OMITIDAS_GRACIA',
+                            className: 'btn btn-warning'
+                        }
+                    ],
+                    language: {
+                        search: 'Buscar omitidas:',
+                        lengthMenu: 'Mostrar _MENU_ registros',
+                        info: 'Mostrando _START_ a _END_ de _TOTAL_',
+                        infoEmpty: 'Sin registros',
+                        zeroRecords: 'No hay facturas omitidas',
+                        paginate: { first:'Primero', last:'Último', next:'Siguiente', previous:'Anterior' }
+                    },
+                    columns: [
+                        { data: 'factura' },
+                        { data: 'capacidad', render: function(d){ return html(d || '—'); } },
+                        { data: 'usuario', render: function(d){ return html(d || '—'); } },
+                        { data: 'fecha_pago_cierre', className: 'text-nowrap', render: function(d){ return html(d || '—'); } },
+                        { data: 'fecha_vencimiento', className: 'text-nowrap', render: function(d){ return html(d || '—'); } },
+                        { data: 'dias_gracia', className: 'text-right', render: function(d){ return html(String(d || '—')); } },
+                        { data: 'dias_transcurridos', className: 'text-right', render: function(d){ return html(String(d || '—')); } },
+                        { data: 'motivo', render: function(d){ return '<strong style="color:#92400e;">'+html(d || '—')+'</strong>'; } }
+                    ]
+                });
+            }
+        } else {
+            $('#paOmitidasGraceWrap').addClass('d-none');
+            if (dtOmitidasGracia) {
+                dtOmitidasGracia.destroy();
+                dtOmitidasGracia = null;
+                $('#tblFacturasOmitidasGracia tbody').empty();
+            }
+        }
     }
 
     function calcularComisionesFacturas(){
@@ -614,16 +710,19 @@
             data: {
                 _token: $('meta[name="csrf-token"]').attr('content') || '',
                 factura_ids: facturaIds,
-                periodos_por_factura: periodos
+                periodos_por_factura: periodos,
+                filas: construirContextoFacturasCalculo()
             }
         }).done(function(resp){
             var filas = Array.isArray(resp && resp.detalle) ? resp.detalle : [];
             var tot = resp && resp.totales ? resp.totales : {};
             var elegibles = Array.isArray(resp && resp.factura_ids_elegibles) ? resp.factura_ids_elegibles : facturaIds;
+            var omitidas = Array.isArray(resp && resp.facturas_omitidas_gracia) ? resp.facturas_omitidas_gracia : [];
+            var advertencias = Array.isArray(resp && resp.advertencias_gracia) ? resp.advertencias_gracia : [];
             facturaIdsCalculados = facturaIds;
             facturaIdsElegiblesConciliacion = elegibles;
 
-            renderTablaDetalleComision(filas);
+            renderTablaDetalleComision(filas, omitidas);
 
             $('#resTotalLineas').text(tot.total_lineas || 0);
             $('#resTotalNoMiselaneo').text(money(tot.total_comision_no_miselaneo || 0));
@@ -631,13 +730,27 @@
             $('#resTotalComision').text(money(tot.total_comision || 0));
             $('#seccionDetalleComision').removeClass('d-none');
 
+            if (advertencias.length) {
+                var previewWarnings = advertencias.slice(0, 5).map(function(item){
+                    return '<li><strong>Factura ' + html(item.factura || item.factura_id || '—') + '</strong>: ' + html(item.mensaje || 'Sin detalle') + '</li>';
+                }).join('');
+                var extra = advertencias.length > 5 ? '<li>Y ' + (advertencias.length - 5) + ' más sin parametrización.</li>' : '';
+                $('#paGraciaWarning').removeClass('d-none').html('<strong>Advertencia de parametrización:</strong><ul style="margin:8px 0 0 18px;">' + previewWarnings + extra + '</ul>');
+            } else {
+                $('#paGraciaWarning').addClass('d-none').empty();
+            }
+
             if(resp && resp.puede_agregar){
                 $('#btnAgregarConciliacion').removeClass('d-none');
             } else {
                 $('#btnAgregarConciliacion').addClass('d-none');
             }
 
-            Swal.fire({icon:'success',title:'Cálculo completado',text:(resp && resp.message) ? resp.message : 'Comisiones calculadas correctamente.'});
+            Swal.fire({
+                icon: omitidas.length ? 'warning' : 'success',
+                title: 'Cálculo completado',
+                html: (resp && resp.message) ? html(resp.message) : 'Comisiones calculadas correctamente.'
+            });
         }).fail(function(xhr){
             var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'No se pudo calcular la comisión.';
             Swal.fire({icon:'error',title:'Error',text:msg});

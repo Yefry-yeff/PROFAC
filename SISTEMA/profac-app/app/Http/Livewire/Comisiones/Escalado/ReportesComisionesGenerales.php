@@ -96,10 +96,13 @@ class ReportesComisionesGenerales extends Component
             ->join('estado', 'users.estado_id', '=', 'estado.id')
             ->select('users.id', 'users.name')
             ->where('estado.id', 1)
-            ->where('name', 'LIKE', "%{$search}%")
-            ->orderBy('users.name')
-            ->limit(20)
-            ->get();
+            ->orderBy('users.name');
+
+        if ($search !== '') {
+            $empleados->where('users.name', 'LIKE', "%{$search}%");
+        }
+
+        $empleados = $empleados->get();
 
         return response()->json($empleados);
     }
@@ -1129,6 +1132,8 @@ class ReportesComisionesGenerales extends Component
 
         $filas = [];
         $excluidas = [];
+        $facturasProyectadas = [];
+        $facturasExcluidas = [];
 
         foreach ($facturas as $factura) {
             $facturaId = (int) $factura->id;
@@ -1172,18 +1177,33 @@ class ReportesComisionesGenerales extends Component
                     continue;
                 }
 
-                $motivos = [];
-
-                if ((int) ($factura->cliente_categoria_escala_id ?? 0) <= 0) {
-                    $motivos[] = 'Cliente sin categoria de escala configurada';
-                }
-
                 if ($lineas->isEmpty()) {
-                    $motivos[] = 'Factura sin lineas de productos para comision';
+                    $excluidas[] = [
+                        'factura_id' => $facturaId,
+                        'factura' => (string) ($factura->cai ?? ('#' . $facturaId)),
+                        'fecha_pago' => (string) ($cierre->fecha_pago_cierre ?? ''),
+                        'fecha_creacion_factura' => (string) ($factura->fecha_creacion_factura ?? ''),
+                        'cliente' => (string) ($factura->cliente ?? 'N/A'),
+                        'producto' => 'Sin producto',
+                        'categoria_precio' => 'N/A',
+                        'capacidad' => (string) $target['capacidad'],
+                        'rol_nombre' => (string) $target['rol_nombre'],
+                        'usuario_id' => (int) $target['user_id'],
+                        'usuario' => (string) ($target['usuario'] ?: ('Usuario #' . (int) $target['user_id'])),
+                        'razon_no_comisionable' => 'Factura sin lineas de productos para comision',
+                        'motivos' => ['Factura sin lineas de productos para comision'],
+                        'cantidad' => 0.0,
+                        'precio_unidad' => 0.0,
+                        'precio_seleccionado' => 0.0,
+                        'base_unitaria' => 0.0,
+                        'base_comisionable' => 0.0,
+                        'porcentaje_promedio' => 0.0,
+                        'comision_proyectada' => 0.0,
+                        'detalle_lineas' => [],
+                    ];
+                    $facturasExcluidas[$facturaId] = true;
+                    continue;
                 }
-
-                $categoriaBuckets = [];
-                $comisionTotal = 0.0;
 
                 foreach ($lineas as $linea) {
                     $cantidad = (float) ($linea->cantidad ?? 0);
@@ -1193,110 +1213,156 @@ class ReportesComisionesGenerales extends Component
 
                     $baseUnitaria = round($cantidad * $precioUnitario, 4);
                     $baseComisionable = round($cantidad * $precioParaComision, 4);
+                    $categoriaPrecioId = (int) ($linea->categoria_precios_id ?? 0);
+                    $categoriaPrecioNombre = (string) ($linea->categoria_precio ?? ('Categoria #' . $categoriaPrecioId));
+                    $productoNombre = (string) ($linea->producto ?? ('Producto #' . (int) $linea->producto_id));
 
+                    $motivos = [];
                     if (empty($linea->precios_producto_carga_id)) {
                         $motivos[] = 'Linea sin precios_producto_carga_id';
-                        continue;
                     }
-
-                    $categoriaPrecioId = (int) ($linea->categoria_precios_id ?? 0);
                     if ($categoriaPrecioId <= 0) {
                         $motivos[] = 'Linea sin categoria de precio (categoria_precios_id)';
-                        continue;
+                    }
+                    if ((int) ($factura->cliente_categoria_escala_id ?? 0) <= 0) {
+                        $motivos[] = 'Cliente sin categoria de escala configurada';
                     }
 
-                    $escalaKey = (int) $target['rol_id'] . '|' . (int) $factura->cliente_categoria_escala_id . '|' . $categoriaPrecioId;
-                    if (!isset($escalaMap[$escalaKey])) {
+                    $escalaKey = $categoriaPrecioId > 0
+                        ? ((int) $target['rol_id'] . '|' . (int) $factura->cliente_categoria_escala_id . '|' . $categoriaPrecioId)
+                        : null;
+
+                    if ($escalaKey && !isset($escalaMap[$escalaKey])) {
                         $motivos[] = 'Sin escala activa para rol/categoria cliente/categoria precio';
+                    }
+
+                    if (!empty($motivos)) {
+                        $excluidas[] = [
+                            'factura_id' => $facturaId,
+                            'factura' => (string) ($factura->cai ?? ('#' . $facturaId)),
+                            'fecha_pago' => (string) ($cierre->fecha_pago_cierre ?? ''),
+                            'fecha_creacion_factura' => (string) ($factura->fecha_creacion_factura ?? ''),
+                            'cliente' => (string) ($factura->cliente ?? 'N/A'),
+                            'producto' => $productoNombre,
+                            'categoria_precio' => $categoriaPrecioNombre,
+                            'capacidad' => (string) $target['capacidad'],
+                            'rol_nombre' => (string) $target['rol_nombre'],
+                            'usuario_id' => (int) $target['user_id'],
+                            'usuario' => (string) ($target['usuario'] ?: ('Usuario #' . (int) $target['user_id'])),
+                            'razon_no_comisionable' => (string) ($motivos[0] ?? 'No aplica para comision'),
+                            'motivos' => array_values(array_unique($motivos)),
+                            'cantidad' => round($cantidad, 4),
+                            'precio_unidad' => round($precioUnitario, 4),
+                            'precio_seleccionado' => round($precioSeleccionado, 4),
+                            'base_unitaria' => round($baseUnitaria, 4),
+                            'base_comisionable' => round($baseComisionable, 4),
+                            'porcentaje_promedio' => 0.0,
+                            'comision_proyectada' => 0.0,
+                            'detalle_lineas' => [
+                                [
+                                    'producto' => $productoNombre,
+                                    'categoria_precio' => $categoriaPrecioNombre,
+                                    'cantidad' => $cantidad,
+                                    'precio_unitario' => round($precioUnitario, 4),
+                                    'precio_para_comision' => round($precioParaComision, 4),
+                                    'base_unitaria' => round($baseUnitaria, 4),
+                                    'base_comisionable' => round($baseComisionable, 4),
+                                    'porcentaje' => 0.0,
+                                    'comision_linea' => 0.0,
+                                    'fuente_base_comisionable' => $precioSeleccionado > 0
+                                        ? 'Cantidad x precioSeleccionado'
+                                        : 'Cantidad x precio_unidad (fallback)',
+                                ],
+                            ],
+                        ];
+                        $facturasExcluidas[$facturaId] = true;
                         continue;
                     }
 
                     $porcentaje = (float) ($escalaMap[$escalaKey]->porcentaje_comision ?? 0);
                     $comisionLinea = round($baseComisionable * ($porcentaje / 100), 4);
 
-                    $comisionTotal += $comisionLinea;
-
-                    $categoriaPrecioNombre = (string) ($linea->categoria_precio ?? ('Categoria #' . $categoriaPrecioId));
-                    $bucketKey = $categoriaPrecioId . '|' . $categoriaPrecioNombre;
-
-                    if (!isset($categoriaBuckets[$bucketKey])) {
-                        $categoriaBuckets[$bucketKey] = [
-                            'categoria_precio_id' => $categoriaPrecioId,
+                    if ($comisionLinea <= 0) {
+                        $excluidas[] = [
+                            'factura_id' => $facturaId,
+                            'factura' => (string) ($factura->cai ?? ('#' . $facturaId)),
+                            'fecha_pago' => (string) ($cierre->fecha_pago_cierre ?? ''),
+                            'fecha_creacion_factura' => (string) ($factura->fecha_creacion_factura ?? ''),
+                            'cliente' => (string) ($factura->cliente ?? 'N/A'),
+                            'producto' => $productoNombre,
                             'categoria_precio' => $categoriaPrecioNombre,
-                            'cantidad' => 0.0,
-                            'base_unitaria' => 0.0,
-                            'base_comisionable' => 0.0,
-                            'comision' => 0.0,
-                            'porcentaje' => $porcentaje,
-                            'detalle_lineas' => [],
+                            'capacidad' => (string) $target['capacidad'],
+                            'rol_nombre' => (string) $target['rol_nombre'],
+                            'usuario_id' => (int) $target['user_id'],
+                            'usuario' => (string) ($target['usuario'] ?: ('Usuario #' . (int) $target['user_id'])),
+                            'razon_no_comisionable' => 'Comision proyectada igual a 0',
+                            'motivos' => ['Comision proyectada igual a 0'],
+                            'cantidad' => round($cantidad, 4),
+                            'precio_unidad' => round($precioUnitario, 4),
+                            'precio_seleccionado' => round($precioSeleccionado, 4),
+                            'base_unitaria' => round($baseUnitaria, 4),
+                            'base_comisionable' => round($baseComisionable, 4),
+                            'porcentaje_promedio' => round($porcentaje, 4),
+                            'comision_proyectada' => 0.0,
+                            'detalle_lineas' => [
+                                [
+                                    'producto' => $productoNombre,
+                                    'categoria_precio' => $categoriaPrecioNombre,
+                                    'cantidad' => $cantidad,
+                                    'precio_unitario' => round($precioUnitario, 4),
+                                    'precio_para_comision' => round($precioParaComision, 4),
+                                    'base_unitaria' => round($baseUnitaria, 4),
+                                    'base_comisionable' => round($baseComisionable, 4),
+                                    'porcentaje' => round($porcentaje, 4),
+                                    'comision_linea' => 0.0,
+                                    'fuente_base_comisionable' => $precioSeleccionado > 0
+                                        ? 'Cantidad x precioSeleccionado'
+                                        : 'Cantidad x precio_unidad (fallback)',
+                                ],
+                            ],
                         ];
+                        $facturasExcluidas[$facturaId] = true;
+                        continue;
                     }
 
-                    $categoriaBuckets[$bucketKey]['cantidad'] += $cantidad;
-                    $categoriaBuckets[$bucketKey]['base_unitaria'] += $baseUnitaria;
-                    $categoriaBuckets[$bucketKey]['base_comisionable'] += $baseComisionable;
-                    $categoriaBuckets[$bucketKey]['comision'] += $comisionLinea;
-                    $categoriaBuckets[$bucketKey]['porcentaje'] = $porcentaje;
-
-                    $categoriaBuckets[$bucketKey]['detalle_lineas'][] = [
-                        'producto' => (string) ($linea->producto ?? ('Producto #' . (int) $linea->producto_id)),
-                        'categoria_precio' => $categoriaPrecioNombre,
-                        'cantidad' => $cantidad,
-                        'precio_unitario' => round($precioUnitario, 4),
-                        'precio_para_comision' => round($precioParaComision, 4),
-                        'base_unitaria' => round($baseUnitaria, 4),
-                        'base_comisionable' => round($baseComisionable, 4),
-                        'porcentaje' => round($porcentaje, 4),
-                        'comision_linea' => round($comisionLinea, 4),
-                        'fuente_base_comisionable' => $precioSeleccionado > 0
-                            ? 'Cantidad x precioSeleccionado'
-                            : 'Cantidad x precio_unidad (fallback)',
-                    ];
-                }
-
-                $motivos = array_values(array_unique($motivos));
-
-                if (!empty($motivos) || $comisionTotal <= 0 || empty($categoriaBuckets)) {
-                    if ($comisionTotal <= 0 && empty($motivos)) {
-                        $motivos[] = 'Comision proyectada igual a 0';
-                    }
-
-                    $excluidas[] = [
-                        'factura_id' => $facturaId,
-                        'factura' => (string) ($factura->cai ?? ('#' . $facturaId)),
-                        'fecha_pago' => (string) ($cierre->fecha_pago_cierre ?? ''),
-                        'fecha_creacion_factura' => (string) ($factura->fecha_creacion_factura ?? ''),
-                        'cliente' => (string) ($factura->cliente ?? 'N/A'),
-                        'capacidad' => (string) $target['capacidad'],
-                        'usuario_id' => (int) $target['user_id'],
-                        'usuario' => (string) ($target['usuario'] ?: ('Usuario #' . (int) $target['user_id'])),
-                        'razon_no_comisionable' => (string) ($motivos[0] ?? 'No aplica para comision'),
-                        'motivos' => $motivos,
-                    ];
-                    continue;
-                }
-
-                foreach ($categoriaBuckets as $bucket) {
                     $filas[] = [
                         'factura_id' => $facturaId,
                         'factura' => (string) ($factura->cai ?? ('#' . $facturaId)),
                         'fecha_pago' => (string) ($cierre->fecha_pago_cierre ?? ''),
                         'fecha_creacion_factura' => (string) ($factura->fecha_creacion_factura ?? ''),
                         'cliente' => (string) ($factura->cliente ?? 'N/A'),
+                        'producto' => $productoNombre,
                         'escala_cliente' => (string) ($factura->escala_cliente ?? 'N/A'),
-                        'escala_precio_vendida' => (string) ($bucket['categoria_precio'] ?? 'N/A'),
-                        'cantidad' => round((float) ($bucket['cantidad'] ?? 0), 4),
+                        'escala_precio_vendida' => $categoriaPrecioNombre,
+                        'cantidad' => round($cantidad, 4),
                         'capacidad' => (string) $target['capacidad'],
                         'rol_id' => (int) $target['rol_id'],
                         'rol_nombre' => (string) $target['rol_nombre'],
                         'usuario_id' => (int) $target['user_id'],
                         'usuario' => (string) ($target['usuario'] ?: ('Usuario #' . (int) $target['user_id'])),
-                        'base_comisionable_unitaria' => round((float) ($bucket['base_unitaria'] ?? 0), 4),
-                        'base_comisionable' => round((float) ($bucket['base_comisionable'] ?? 0), 4),
-                        'comision_proyectada' => round((float) ($bucket['comision'] ?? 0), 4),
-                        'porcentaje_promedio' => round((float) ($bucket['porcentaje'] ?? 0), 4),
-                        'detalle_lineas' => $bucket['detalle_lineas'] ?? [],
+                        'base_comisionable_unitaria' => round($baseUnitaria, 4),
+                        'base_comisionable' => round($baseComisionable, 4),
+                        'comision_proyectada' => round($comisionLinea, 4),
+                        'porcentaje_promedio' => round($porcentaje, 4),
+                        'detalle_lineas' => [
+                            [
+                                'producto' => $productoNombre,
+                                'categoria_precio' => $categoriaPrecioNombre,
+                                'cantidad' => $cantidad,
+                                'precio_unitario' => round($precioUnitario, 4),
+                                'precio_para_comision' => round($precioParaComision, 4),
+                                'base_unitaria' => round($baseUnitaria, 4),
+                                'base_comisionable' => round($baseComisionable, 4),
+                                'porcentaje' => round($porcentaje, 4),
+                                'comision_linea' => round($comisionLinea, 4),
+                                'fuente_base_comisionable' => $precioSeleccionado > 0
+                                    ? 'Cantidad x precioSeleccionado'
+                                    : 'Cantidad x precio_unidad (fallback)',
+                            ],
+                        ],
                     ];
+
+                    $facturasProyectadas[$facturaId] = true;
                 }
             }
         }
@@ -1305,6 +1371,7 @@ class ReportesComisionesGenerales extends Component
             ->sortBy([
                 ['fecha_pago', 'asc'],
                 ['factura', 'asc'],
+                ['producto', 'asc'],
                 ['escala_precio_vendida', 'asc'],
                 ['capacidad', 'asc'],
             ])
@@ -1315,18 +1382,19 @@ class ReportesComisionesGenerales extends Component
             ->sortBy([
                 ['fecha_pago', 'asc'],
                 ['factura', 'asc'],
+                ['producto', 'asc'],
                 ['capacidad', 'asc'],
             ])
             ->values()
             ->all();
 
         $totales = [
-            'facturas_proyectadas' => count(array_unique(array_map(fn($r) => (int) $r['factura_id'], $filas))),
+            'facturas_proyectadas' => count($facturasProyectadas),
             'registros_proyectados' => count($filas),
             'base_unitaria_total' => round(array_sum(array_map(fn($r) => (float) $r['base_comisionable_unitaria'], $filas)), 4),
             'base_comisionable_total' => round(array_sum(array_map(fn($r) => (float) $r['base_comisionable'], $filas)), 4),
             'comision_proyectada_total' => round(array_sum(array_map(fn($r) => (float) $r['comision_proyectada'], $filas)), 4),
-            'facturas_excluidas' => count(array_unique(array_map(fn($r) => (string) $r['factura'] . '|' . (string) $r['capacidad'], $excluidas))),
+            'facturas_excluidas' => count($facturasExcluidas),
             'registros_excluidos' => count($excluidas),
         ];
 
