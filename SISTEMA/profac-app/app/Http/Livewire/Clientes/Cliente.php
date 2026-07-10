@@ -303,7 +303,7 @@ class Cliente extends Component
             from cliente
             inner join estado_cliente on estado_cliente.id = cliente.estado_cliente_id
             inner join users on users.id = cliente.users_id
-            " . ($soloAsignados ? " WHERE cliente.users_id = {$userId}" : "");
+            " . ($soloAsignados ? " WHERE cliente.vendedor = {$userId}" : "");
 
             $clientes = DB::SELECT($sql);
 

@@ -84,12 +84,18 @@ function cargarTablaLV() {
             { data: 'FACTURA', render: function(d) { return '<strong>' + escHtmlLV(d) + '</strong>'; } },
             { data: 'EXONERADO', className: 'text-right', render: function(d) { return fmtLpsLV(d); } },
             { data: 'GRAVADO', className: 'text-right', render: function(d) { return fmtLpsLV(d); } },
-            { data: 'EXCENTO', className: 'text-right', render: function(d) { return fmtLpsLV(d); } },
+            { data: 'EXENTO', className: 'text-right', render: function(d) { return fmtLpsLV(d); } },
             { data: 'SUBTOTAL', className: 'text-right', render: function(d) { return fmtLpsLV(d); } },
             { data: 'ISV', className: 'text-right', render: function(d) { return fmtLpsLV(d); } },
             { data: 'TOTAL', className: 'text-right', render: function(d) { return '<strong>' + fmtLpsLV(d) + '</strong>'; } },
-            { data: 'FECHA VENTA', render: function(d) { return fmtFechaLV(d); } }
+            { data: 'FECHA VENTA', render: function(d) { return fmtFechaLV(d); } },
+            { data: 'ESTADO', visible: false }
         ],
+        rowCallback: function(row, data) {
+            if (parseInt(data.ESTADO) === 2) {
+                $(row).css({ 'color': '#999', 'text-decoration': 'line-through', 'font-style': 'italic' });
+            }
+        },
         order: [[2, 'asc']],
         pageLength: 25,
         dom: '<"row"<"col-sm-6"l><"col-sm-6"f>>rt<"row"<"col-sm-5"i><"col-sm-7"p>>',

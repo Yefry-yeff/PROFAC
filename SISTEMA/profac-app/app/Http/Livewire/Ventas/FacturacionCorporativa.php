@@ -1206,7 +1206,7 @@ class FacturacionCorporativa extends Component
                 $subTotal = $request->$keySubTotal;
                 $isv = $request->$keyIsv;
                 $total = $request->$keyTotal;
-                $tipoPrecio = ($ivsProducto > 0) ? '2' : '1';
+                $tipoPrecio = ($ivsProducto > 0) ? '2' : '1'; // '1' = Excento (producto sin ISV, isv = 0) | '2' = Gravado (producto con ISV, isv > 0)
 
                 // dd($factura);
 

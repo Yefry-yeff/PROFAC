@@ -22,6 +22,8 @@ use App\Models\ModelLogTranslados;
 
 class ListadoFacturas extends Component
 {
+    const ADMIN_ROLES = [1, 3, 5, 16];
+
     public function render()
     {
         return view('livewire.ventas.listado-facturas-unificado', ['tipoVenta' => 'corporativo', 'nombreTipo' => 'Clientes B', 'esVendedor' => false]); // Vista unificada
@@ -127,8 +129,14 @@ class ListadoFacturas extends Component
 
 
 
+            $puedeAnular = in_array((int) Auth::user()->rol_id, self::ADMIN_ROLES, true);
+
             return Datatables::of($listaFacturas)
-            ->addColumn('opciones', function ($listaFacturas) {
+            ->addColumn('opciones', function ($listaFacturas) use ($puedeAnular) {
+
+                $opcionAnular = $puedeAnular
+                    ? '<li><a class="dropdown-item" onclick="anularVentaConfirmar('.$listaFacturas->id.')" > <i class="fa-solid fa-ban text-danger"></i> Anular Factura </a></li>'
+                    : '';
 
 
                     return
@@ -159,6 +167,8 @@ class ListadoFacturas extends Component
                             <li>
                                 <a class="dropdown-item" href="/crear/vale/'.$listaFacturas->id.'" > <i class="fa-solid fa-calendar-days text-success"></i> Agendar Entrega </a>
                             </li>
+
+                            '.$opcionAnular.'
 
 
                         </ul>
@@ -364,7 +374,11 @@ class ListadoFacturas extends Component
                 ->filterColumn('vendedor', function ($q, $keyword) {
                     $q->where('u.name', 'LIKE', "%{$keyword}%");
                 })
-                ->addColumn('opciones', function ($row) {
+                ->addColumn('opciones', function ($row) use ($esAdmin) {
+                    $opcionAnular = $esAdmin
+                        ? '<li><a class="dropdown-item" onclick="anularVentaConfirmar('.$row->id.')"><i class="fa-solid fa-ban text-danger"></i> Anular Factura</a></li>'
+                        : '';
+
                     return '<div class="btn-group">
                         <button data-toggle="dropdown" class="btn btn-warning dropdown-toggle">Ver más</button>
                         <ul class="dropdown-menu">
@@ -373,6 +387,7 @@ class ListadoFacturas extends Component
                             <li><a class="dropdown-item" target="_blank" href="/factura/cooporativoCopia/'.$row->id.'"><i class="fa-solid fa-print text-info"></i> Imprimir Factura Copia</a></li>
                             <li><a class="dropdown-item" target="_blank" href="/facturaCoor/actaRec/'.$row->id.'"><i class="fa-solid fa-print text-info"></i> Imprimir Acta de Recepción</a></li>
                             <li><a class="dropdown-item" href="/crear/vale/'.$row->id.'"><i class="fa-solid fa-calendar-days text-success"></i> Agendar Entrega</a></li>
+                            '.$opcionAnular.'
                         </ul>
                     </div>';
                 })
@@ -390,6 +405,14 @@ class ListadoFacturas extends Component
     }
 
     public function anularVentaRegistro(Request $request){
+        if (!in_array((int) Auth::user()->rol_id, self::ADMIN_ROLES, true)) {
+            return response()->json([
+                "text" => "No autorizado para anular facturas.",
+                "icon" => "warning",
+                "title" => "Acceso denegado",
+            ], 403);
+        }
+
         $arrayLog = [];
         try {
         DB::beginTransaction();

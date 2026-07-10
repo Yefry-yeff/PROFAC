@@ -21,7 +21,7 @@ use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
  *
  * Columnas (A–J, 10 cols):
  *  A Vendedor  B Cliente   C Factura   D Exonerado  E Gravado
- *  F Excento   G Subtotal  H ISV       I Total       J Fecha Compra
+ *  F Exento    G Subtotal  H ISV       I Total       J Fecha Compra
  */
 class LibroVentaExport implements FromArray, WithStyles, WithEvents, WithStrictNullComparison, WithColumnWidths
 {
@@ -47,7 +47,7 @@ class LibroVentaExport implements FromArray, WithStyles, WithEvents, WithStrictN
             'C' => 22, // Factura
             'D' => 14, // Exonerado
             'E' => 14, // Gravado
-            'F' => 14, // Excento
+            'F' => 14, // Exento
             'G' => 14, // Subtotal
             'H' => 12, // ISV
             'I' => 14, // Total
@@ -78,7 +78,7 @@ class LibroVentaExport implements FromArray, WithStyles, WithEvents, WithStrictN
         // Fila 4 — cabeceras
         $out[] = [
             'VENDEDOR', 'CLIENTE', 'FACTURA',
-            'EXONERADO', 'GRAVADO', 'EXCENTO',
+            'EXONERADO', 'GRAVADO', 'EXENTO',
             'SUBTOTAL', 'ISV', 'TOTAL', 'FECHA VENTA',
         ];
 
@@ -90,7 +90,7 @@ class LibroVentaExport implements FromArray, WithStyles, WithEvents, WithStrictN
 
             $exon  = (float) ($r['EXONERADO']    ?? 0);
             $grav  = (float) ($r['GRAVADO']       ?? 0);
-            $exen  = (float) ($r['EXCENTO']       ?? 0);
+            $exen  = (float) ($r['EXENTO']        ?? 0);
             $sub   = (float) ($r['SUBTOTAL']      ?? 0);
             $isv   = (float) ($r['ISV']           ?? 0);
             $total = (float) ($r['TOTAL']         ?? 0);

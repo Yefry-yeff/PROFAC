@@ -124,6 +124,7 @@
     $cobroCompletado     = ($cobroEstadoId === 1);
     $finalizadoCompletado = $entregaEsCompletada && $cobroCompletado;
     $facturaCompletada = in_array(5, $flujoTipos) || in_array(3, $flujoTipos);
+    $facturaAnulada = $facturaCompletada && isset($facturaData['estado_venta_id']) && (int)$facturaData['estado_venta_id'] === 2;
 
     // fPaso: número del paso activo en el stepper (1-6 para el pipeline principal)
     // 1=Pedido, 2=Ofertas, 3=RevCrédito, 4=RevInventario, 5=PreFactura, 6=Factura
@@ -246,10 +247,13 @@
                         // Rev. Crédito rechazada: mostrar como rojo con X
                         $esRechazado = ($info['key'] === 'revision_credito')
                             && ($tieneRevisionCreditoRechazada ?? false);
-                        if ($esDevuelto)  $pendiente = false;
-                        if ($esRechazado) { $pendiente = false; $completado = false; $activo = false; }
-                        $labelColor = ($esSinPedido || $esSinAplica) ? '#e74c3c' : ($esRechazado ? '#e74c3c' : ($completado ? '#1ab394' : ($activo ? '#1a7efb' : ($esDevuelto ? '#e67e22' : '#aab'))));
-                        $puedeClick = ($completado || $activo || $esDevuelto || $esRechazado) && !$esSinPedido && !$esSinAplica;
+                        // Factura anulada: mostrar paso 6 como rojo con X
+                        $esFacturaAnulada = ($info['key'] === 'factura') && ($facturaAnulada ?? false);
+                        if ($esDevuelto)     $pendiente = false;
+                        if ($esRechazado)    { $pendiente = false; $completado = false; $activo = false; }
+                        if ($esFacturaAnulada) { $pendiente = false; $completado = false; $activo = false; }
+                        $labelColor = ($esSinPedido || $esSinAplica) ? '#e74c3c' : ($esRechazado || $esFacturaAnulada ? '#e74c3c' : ($completado ? '#1ab394' : ($activo ? '#1a7efb' : ($esDevuelto ? '#e67e22' : '#aab'))));
+                        $puedeClick = ($completado || $activo || $esDevuelto || $esRechazado || $esFacturaAnulada) && !$esSinPedido && !$esSinAplica;
                     @endphp
 
                     {{-- Step card --}}
@@ -310,7 +314,7 @@
                                          width:20px; height:20px; display:flex; align-items:center; justify-content:center;
                                          font-size:10px; font-weight:800; border:2px solid #fff; line-height:1;">{{ $paso }}</span>
                         </div>
-                        @elseif ($esRechazado)
+                        @elseif ($esRechazado || $esFacturaAnulada)
                         <div class="fmp-step-circle" style="position:relative; width:60px; height:60px; margin-bottom:8px; flex-shrink:0;">
                             <div style="width:60px; height:60px; border-radius:50%;
                                         background:linear-gradient(135deg,#e74c3c,#c0392b); color:#fff;
@@ -355,6 +359,8 @@
                                     <i class="fa fa-map-marker" style="animation:dotBlink 1s ease-in-out infinite;"></i> Actual
                                 @elseif ($esDevuelto)
                                     <i class="fa fa-reply"></i> Devuelto
+                                @elseif ($esFacturaAnulada)
+                                    <i class="fa fa-times-circle"></i> Anulada
                                 @elseif ($esRechazado)
                                     <i class="fa fa-times-circle"></i> Rechazado
                                 @else
@@ -1577,6 +1583,7 @@
                     $crEstado     = $creditoRevisionData['estado'] ?? 'pendiente';
                     $crAprobado   = ($crEstado === 'aprobado');
                     $crRechazado  = ($crEstado === 'rechazado');
+                    $crMensajeOficial = trim((string)($creditoRevisionData['observaciones'] ?? ''));
                     $crColor      = $crAprobado ? '#1b5e20,#2e7d32' : ($crRechazado ? '#b71c1c,#c62828' : '#0d47a1,#1565c0');
                     $crIcon       = $crAprobado ? 'fa-check-circle' : ($crRechazado ? 'fa-times-circle' : 'fa-credit-card');
                 @endphp
@@ -1615,6 +1622,11 @@
                                             <i class="fa fa-user mr-1"></i>Aprobado por: <strong>{{ $creditoRevisionData['usuario_revision_nombre'] ?? '—' }}</strong>
                                         </span>
                                     @endif
+                                    @if($crMensajeOficial !== '')
+                                        <span style="display:block; margin-top:4px; word-break:break-word; overflow-wrap:anywhere;">
+                                            <strong>Mensaje:</strong> {{ $crMensajeOficial }}
+                                        </span>
+                                    @endif
                                 @elseif ($crRechazado)
                                     <i class="mr-1 fa fa-times-circle"></i>
                                     Crédito rechazado.
@@ -1626,6 +1638,11 @@
                                     @if(!empty($creditoRevisionData['motivo_rechazo']))
                                         <span style="display:block; margin-top:4px; word-break:break-word; overflow-wrap:anywhere;">
                                             Motivo: {{ $creditoRevisionData['motivo_rechazo'] }}
+                                        </span>
+                                    @endif
+                                    @if($crMensajeOficial !== '')
+                                        <span style="display:block; margin-top:4px; word-break:break-word; overflow-wrap:anywhere;">
+                                            <strong>Mensaje:</strong> {{ $crMensajeOficial }}
                                         </span>
                                     @endif
                                 @else

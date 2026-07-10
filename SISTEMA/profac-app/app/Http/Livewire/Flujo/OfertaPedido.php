@@ -169,7 +169,7 @@ class OfertaPedido extends Component
                     'seccion_id'              => $request->{'idSeccion'.$idx},
                     'resta_inventario'        => $request->{'restaInventario'.$idx},
                     'isv_producto'            => $request->{'isv'.$idx},
-                    'tipo_precio'             => ($request->{'isv'.$idx} > 0) ? '2' : '1',
+                    'tipo_precio'             => ($request->{'isv'.$idx} > 0) ? '2' : '1', // '1' = Excento (producto sin ISV, isv = 0) | '2' = Gravado (producto con ISV, isv > 0)
                     'unidad_medida_venta_id'  => $request->{'idUnidadVenta'.$idx},
                     'monto_descProducto'      => $request->{'acumuladoDescuento'.$idx} ?? 0,
                     'idPrecioSeleccionado'    => $request->{'idPrecioSeleccionado'.$idx},

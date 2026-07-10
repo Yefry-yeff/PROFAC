@@ -652,7 +652,7 @@ class Cotizacion extends Component
                 'seccion_id'=>$idSeccion,
                 'resta_inventario'=>$restaInventario,
                 'isv_producto'=>$ivsProductoAsignado,
-                'tipo_precio'=>($ivsProductoAsignado > 0) ? '2' : '1',
+                'tipo_precio'=>($ivsProductoAsignado > 0) ? '2' : '1', // '1' = Excento (producto sin ISV, isv = 0) | '2' = Gravado (producto con ISV, isv > 0)
                 'unidad_medida_venta_id'=>$idUnidadVenta,
                 'monto_descProducto'=>$monto_descProducto,
                 'idPrecioSeleccionado'=>$idPrecioSeleccionado,
