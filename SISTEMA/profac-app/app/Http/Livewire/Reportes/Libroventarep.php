@@ -186,7 +186,8 @@ class Libroventarep extends Component
                 DB::raw("ROUND(COALESCE(factura.total, 0), 2) as TOTAL"),
                 'factura.fecha_emision as FECHA VENTA'
             )
-            ->whereBetween('factura.fecha_emision', [$fechaInicio, $fechaFinal]);
+            ->whereBetween('factura.fecha_emision', [$fechaInicio, $fechaFinal])
+            ->where('factura.estado_venta_id', '<>', 2);
 
         if (!empty($cliente)) {
             $query->where('factura.cliente_id', $cliente);
