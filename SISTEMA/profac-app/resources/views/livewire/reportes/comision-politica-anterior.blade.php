@@ -616,9 +616,11 @@
                 dom: '<"html5buttons"B>lfgitp',
                 buttons: [
                     {
-                        extend: 'excel',
-                        title: 'DETALLE_COMISION_POLITICA_ANTERIOR',
-                        className: 'btn btn-success'
+                        text: '<i class="fa fa-file-excel-o mr-1"></i> Exportar Excel',
+                        className: 'btn btn-success btn-sm',
+                        action: function(e, dt){
+                            exportarDetalleComisionExcel(dt.rows().data().toArray());
+                        }
                     }
                 ],
                 language: {
@@ -1101,6 +1103,24 @@
     $(document).ready(function(){
         var payload = obtenerPayload();
         var filas = payload && Array.isArray(payload.filas) ? payload.filas : [];
+        // Filtro defensivo: descartar filas cuya fecha_pago esté fuera del rango del payload.
+        // Esto evita que datos de sessionStorage de consultas anteriores (rango distinto) contaminen el reporte.
+        if (payload && payload.fecha_inicio && payload.fecha_final && filas.length) {
+            var fi = payload.fecha_inicio;   // e.g. "2026-06-01"
+            var ff = payload.fecha_final;    // e.g. "2026-06-30"
+            var filasAntes = filas.length;
+            filas = filas.filter(function(row) {
+                var fp = (row && row.fecha_pago) ? String(row.fecha_pago).substring(0, 10) : '';
+                if (!fp) return true;  // sin fecha: conservar para que el backend decida
+                return fp >= fi && fp <= ff;
+            });
+            if (filas.length < filasAntes) {
+                console.warn('[PoliticaAnterior] Se descartaron ' + (filasAntes - filas.length) + ' fila(s) con fecha_pago fuera del rango ' + fi + ' – ' + ff + '. Posible sessionStorage desactualizado.');
+            }
+        }
+        
+        
+        
         facturasPoliticaAnterior = filas;
 
         actualizarInfo(payload, filas);
@@ -1198,5 +1218,49 @@
         });
     });
 })();
+
+/* ── Exportar Detalle Comisión a Excel formateado (PHP export) ── */
+function exportarDetalleComisionExcel(filas) {
+    if (!filas || !filas.length) {
+        Swal.fire({ icon: 'info', title: 'Sin datos', text: 'No hay líneas para exportar.' });
+        return;
+    }
+
+    var token = 'pa_dl_' + Date.now();
+    var form  = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/comision/politica-anterior/exportar-excel';
+    form.style.display = 'none';
+
+    var csrf = document.createElement('input');
+    csrf.type = 'hidden'; csrf.name = '_token';
+    csrf.value = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    form.appendChild(csrf);
+
+    var rowsInput = document.createElement('input');
+    rowsInput.type = 'hidden'; rowsInput.name = 'rows';
+    rowsInput.value = JSON.stringify(filas);
+    form.appendChild(rowsInput);
+
+    var tituloInput = document.createElement('input');
+    tituloInput.type = 'hidden'; tituloInput.name = 'titulo';
+    tituloInput.value = 'DETALLE COMISIÓN POLÍTICA ANTERIOR';
+    form.appendChild(tituloInput);
+
+    var periodoInput = document.createElement('input');
+    periodoInput.type = 'hidden'; periodoInput.name = 'periodo';
+    var now = new Date();
+    periodoInput.value = 'Generado: ' + now.toLocaleDateString('es-HN') + ' ' + now.toLocaleTimeString('es-HN');
+    form.appendChild(periodoInput);
+
+    var tokenInput = document.createElement('input');
+    tokenInput.type = 'hidden'; tokenInput.name = 'download_token';
+    tokenInput.value = token;
+    form.appendChild(tokenInput);
+
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
+}
 </script>
 @endpush

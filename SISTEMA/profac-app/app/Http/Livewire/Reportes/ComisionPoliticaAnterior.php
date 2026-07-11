@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\ComisionPoliticaAnteriorExport;
 
 class ComisionPoliticaAnterior extends Component
 {
@@ -1576,5 +1577,32 @@ class ComisionPoliticaAnterior extends Component
         $value = preg_replace('/[^0-9]/', '', $value);
 
         return $value === '' ? 0 : (int) $value;
+    }
+
+    public function exportarDetalleExcel(Request $request)
+    {
+        @set_time_limit(0);
+        @ini_set('memory_limit', '512M');
+
+        $rows = $request->input('rows', []);
+
+        if (!is_array($rows)) {
+            $rows = json_decode($rows, true) ?? [];
+        }
+
+        $titulo  = $request->input('titulo', 'DETALLE COMISIÓN POLÍTICA ANTERIOR');
+        $periodo = $request->input('periodo', now()->format('d/m/Y H:i'));
+
+        $response = Excel::download(
+            new ComisionPoliticaAnteriorExport($rows, $titulo, $periodo),
+            'comision_politica_anterior_' . now()->format('Ymd_His') . '.xlsx'
+        );
+
+        $token = (string) $request->input('download_token', '');
+        if ($token !== '') {
+            setcookie('pa_excel_token', $token, time() + 300, '/', '', false, false);
+        }
+
+        return $response;
     }
 }

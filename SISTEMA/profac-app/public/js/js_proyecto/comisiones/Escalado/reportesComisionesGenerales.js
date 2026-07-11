@@ -861,24 +861,23 @@ function exportarBrechaApFcExcel(){
 }
 
 function exportarProyeccionesExcel(tipo){
-    if(typeof XLSX === 'undefined'){
-        Swal.fire({icon:'warning',title:'Librería no disponible',text:'No fue posible cargar la librería de Excel.'});
-        return;
-    }
-
-    var ahora = new Date();
-    var stamp = ahora.getFullYear().toString()
-        + String(ahora.getMonth()+1).padStart(2,'0')
-        + String(ahora.getDate()).padStart(2,'0')
-        + '_' + String(ahora.getHours()).padStart(2,'0')
-        + String(ahora.getMinutes()).padStart(2,'0')
-        + String(ahora.getSeconds()).padStart(2,'0');
-
     if(tipo === 'excluidas'){
+        // Excluidas — mantiene export XLSX.js (sin tabs de rol)
+        if(typeof XLSX === 'undefined'){
+            Swal.fire({icon:'warning',title:'Librería no disponible',text:'No fue posible cargar la librería de Excel.'});
+            return;
+        }
         if(!proyeccionesExcluidasActual.length){
             Swal.fire({icon:'info',title:'Sin datos',text:'No hay facturas excluidas para exportar.'});
             return;
         }
+        var ahora = new Date();
+        var stamp = ahora.getFullYear().toString()
+            + String(ahora.getMonth()+1).padStart(2,'0')
+            + String(ahora.getDate()).padStart(2,'0')
+            + '_' + String(ahora.getHours()).padStart(2,'0')
+            + String(ahora.getMinutes()).padStart(2,'0')
+            + String(ahora.getSeconds()).padStart(2,'0');
 
         var dataEx = [['Fecha Pago','Fecha Creacion Factura','Factura','Producto','Cliente','Categoria Precio','Rol Comisión','Usuario','Razon No Comisionable','Detalle Tecnico']];
         proyeccionesExcluidasActual.forEach(function(r){
@@ -895,55 +894,44 @@ function exportarProyeccionesExcel(tipo){
                 Array.isArray(r.motivos) ? r.motivos.join(' | ') : ''
             ]);
         });
-
         var wsEx = XLSX.utils.aoa_to_sheet(dataEx);
         wsEx['!autofilter'] = { ref: 'A1:J1' };
         wsEx['!cols'] = [{wch:12},{wch:20},{wch:20},{wch:30},{wch:36},{wch:24},{wch:16},{wch:24},{wch:34},{wch:80}];
         var wbEx = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wbEx, wsEx, 'Politica anterior');
-        XLSX.writeFile(wbEx, 'facturas_politica_anterior_' + stamp + '.xlsx');
+        XLSX.utils.book_append_sheet(wbEx, wsEx, 'Excluidas');
+        XLSX.writeFile(wbEx, 'facturas_excluidas_' + stamp + '.xlsx');
         return;
     }
 
-    if(!proyeccionesDataActual.length){
+    // Proyectadas — export formateado vía PHP (3 pestañas por rol + Todas)
+    if(!proyeccionesDataActual || !proyeccionesDataActual.length){
         Swal.fire({icon:'info',title:'Sin datos',text:'No hay proyecciones para exportar.'});
         return;
     }
 
-    var dataPr = [['Fecha Pago','Fecha Creacion Factura','Factura','Producto','Cliente','Escala Cliente','Escala Precio Vendida','Cantidad','Rol Comisión','Usuario','Base Comisionable Unitaria','Base Comisionable','% Promedio','Comision Proyectada']];
-    proyeccionesDataActual.forEach(function(r){
-        dataPr.push([
-            r.fecha_pago || '',
-            r.fecha_creacion_factura || '',
-            r.factura || '',
-            r.producto || '',
-            r.cliente || '',
-            r.escala_cliente || '',
-            r.escala_precio_vendida || '',
-            parseFloat(r.cantidad || 0),
-            r.rol_nombre || r.capacidad || '',
-            r.usuario || '',
-            parseFloat(r.base_comisionable_unitaria || 0),
-            parseFloat(r.base_comisionable || 0),
-            parseFloat(r.porcentaje_promedio || 0),
-            parseFloat(r.comision_proyectada || 0)
-        ]);
-    });
+    var filtros = getFiltrosProyecciones ? getFiltrosProyecciones() : {};
+    var periodoTexto = (filtros.fechaInicio || '') + ' al ' + (filtros.fechaFin || '');
 
-    var wsPr = XLSX.utils.aoa_to_sheet(dataPr);
-    for (var i = 2; i <= proyeccionesDataActual.length + 1; i++) {
-        ['K','L','N'].forEach(function(col){
-            var ref = col + i;
-            if (wsPr[ref] && typeof wsPr[ref].v === 'number') wsPr[ref].z = '"L." #,##0.00';
-        });
-        var pctRef = 'M' + i;
-        if (wsPr[pctRef] && typeof wsPr[pctRef].v === 'number') wsPr[pctRef].z = '0.00%';
+    var token = 'proy_dl_' + Date.now();
+    var form  = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/comision/reporte/proyecciones/exportar-excel';
+    form.style.display = 'none';
+
+    function addInput(name, value) {
+        var inp = document.createElement('input');
+        inp.type = 'hidden'; inp.name = name; inp.value = value;
+        form.appendChild(inp);
     }
-    wsPr['!autofilter'] = { ref: 'A1:N1' };
-    wsPr['!cols'] = [{wch:12},{wch:20},{wch:20},{wch:30},{wch:34},{wch:24},{wch:45},{wch:12},{wch:16},{wch:24},{wch:20},{wch:18},{wch:12},{wch:18}];
-    var wbPr = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wbPr, wsPr, 'Proyectadas');
-    XLSX.writeFile(wbPr, 'proyecciones_proyectadas_' + stamp + '.xlsx');
+
+    addInput('_token', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
+    addInput('rows', JSON.stringify(proyeccionesDataActual));
+    addInput('periodo', periodoTexto);
+    addInput('download_token', token);
+
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
 }
 
 function getFiltrosRevisionFacturas(){

@@ -10,6 +10,7 @@ use Carbon\Carbon;
 use DataTables;
 use Auth;
 use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\ProyeccionComisionesExport;
 use App\Models\Comisiones\ModelComisionPeriodo;
 use App\Services\Comisiones\GeneradorFacturasComision;
 use App\Services\Comisiones\AplicadorRetencionesMora;
@@ -2244,5 +2245,32 @@ class ReportesComisionesGenerales extends Component
             'message' => 'Funcionalidad de export en desarrollo',
             'tipo' => $tipoReporte
         ]);
+    }
+
+    public function exportarProyeccionesExcel(Request $request)
+    {
+        @set_time_limit(0);
+        @ini_set('memory_limit', '512M');
+
+        $rows = $request->input('rows', []);
+        if (!is_array($rows)) {
+            $rows = json_decode($rows, true) ?? [];
+        }
+
+        $periodo     = $request->input('periodo', now()->format('d/m/Y'));
+        $generadoPor = Auth::user()->name ?? 'Sistema';
+        $empresa     = 'DISTRIBUCIONES VALENCIA   |   RTN: 08011986138652';
+
+        $response = Excel::download(
+            new ProyeccionComisionesExport($rows, $empresa, $periodo, $generadoPor),
+            'proyeccion_comisiones_' . now()->format('Ymd_His') . '.xlsx'
+        );
+
+        $token = (string) $request->input('download_token', '');
+        if ($token !== '') {
+            setcookie('proy_excel_token', $token, time() + 300, '/', '', false, false);
+        }
+
+        return $response;
     }
 }

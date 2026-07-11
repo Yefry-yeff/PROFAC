@@ -289,6 +289,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/comision/reporte/nomina',      [ReportesComisionesGenerales::class, 'reporteNomina']);
     Route::get('/comision/reporte/nomina/detalle', [ReportesComisionesGenerales::class, 'detalleNomina']);
     Route::get('/comision/reporte/proyecciones', [ReportesComisionesGenerales::class, 'reporteProyecciones']);
+    Route::post('/comision/reporte/proyecciones/exportar-excel', [ReportesComisionesGenerales::class, 'exportarProyeccionesExcel']);
     Route::get('/comision/reporte/revision/facturas', [ReportesComisionesGenerales::class, 'reporteRevisionFacturasFactura']);
     Route::get('/comision/reporte/revision/productos', [ReportesComisionesGenerales::class, 'reporteRevisionFacturasProductos']);
     Route::get('/comision/reporte/brecha-ap-fc', [ReportesComisionesGenerales::class, 'reporteBrechaApFc']);
@@ -1323,6 +1324,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::post('/comision/politica-anterior/parametrizacion/importar-no-miselaneos', [ComisionPoliticaAnterior::class, 'importarNoMiselaneosDesdeExcel']);
     Route::post('/comision/politica-anterior/calcular-comisiones', [ComisionPoliticaAnterior::class, 'calcularComisionesFacturas']);
     Route::post('/comision/politica-anterior/agregar-conciliacion', [ComisionPoliticaAnterior::class, 'agregarComisionPoliticaAnteriorAConciliacion']);
+    Route::post('/comision/politica-anterior/exportar-excel', [ComisionPoliticaAnterior::class, 'exportarDetalleExcel']);
     Route::get('/reporte/reporteria', Reporteria::class);
 
     // Dashboard de Ventas BI
