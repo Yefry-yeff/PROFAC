@@ -139,6 +139,61 @@ function esc(s){
     if(!s)return'';
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+
+function normalizarTokenPoliticaAnterior(v){
+    return String(v || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '');
+}
+
+function esFilaVendedorPoliticaAnterior(item){
+    var capacidadNorm = normalizarTokenPoliticaAnterior(item && item.capacidad ? item.capacidad : '');
+    var rolNombreNorm = normalizarTokenPoliticaAnterior(item && item.rol_nombre ? item.rol_nombre : '');
+    var rolId = parseInt(item && item.rol_id ? item.rol_id : 0, 10);
+
+    if (capacidadNorm === 'asesor' || capacidadNorm === 'vendedor' || capacidadNorm === 'ventas') {
+        return true;
+    }
+
+    if (rolId === 2) {
+        return true;
+    }
+
+    return rolNombreNorm === 'asesor'
+        || rolNombreNorm === 'asesorcomercial'
+        || rolNombreNorm === 'vendedor'
+        || rolNombreNorm === 'ventas';
+}
+
+function filtrarExcluidasPoliticaAnterior(rows, usuarioFiltro){
+    var filtroUsuario = parseInt(usuarioFiltro || 0, 10);
+
+    return (Array.isArray(rows) ? rows : []).filter(function(item){
+        if(!esFilaVendedorPoliticaAnterior(item)) return false;
+
+        if(filtroUsuario > 0){
+            var usuarioFila = parseInt(item && item.usuario_id ? item.usuario_id : 0, 10);
+            return usuarioFila === filtroUsuario;
+        }
+
+        return true;
+    });
+}
+
+function deduplicarFilasPoliticaAnteriorPorFactura(rows){
+    var mapa = {};
+
+    (Array.isArray(rows) ? rows : []).forEach(function(item){
+        var facturaId = parseInt(item && item.factura_id ? item.factura_id : 0, 10);
+        if(facturaId <= 0 || mapa[facturaId]) return;
+        mapa[facturaId] = item;
+    });
+
+    return Object.keys(mapa).map(function(k){ return mapa[k]; });
+}
+
 function badgeRol(r){
     if(!r)return'—';
     var rl=r.toLowerCase();
@@ -408,7 +463,9 @@ function cargarBrechaApFc(filtrosBase){
 
 function renderProyecciones(resp){
     var data = Array.isArray(resp.data) ? resp.data : [];
-    var excluidas = Array.isArray(resp.excluidas) ? resp.excluidas : [];
+    var excluidasRaw = Array.isArray(resp.excluidas) ? resp.excluidas : [];
+    var usuarioFiltro = parseInt($('#proyUsuario').val() || 0, 10);
+    var excluidas = filtrarExcluidasPoliticaAnterior(excluidasRaw, usuarioFiltro);
     var totales = resp.totales || {};
     proyeccionesDataActual = data;
     proyeccionesExcluidasActual = excluidas;
@@ -420,7 +477,7 @@ function renderProyecciones(resp){
     $('#proyBaseUnitaria').text(fmtMoney(totales.base_unitaria_total || 0));
     $('#proyBaseComisionable').text(fmtMoney(totales.base_comisionable_total || 0));
     $('#proyComisionTotal').text(fmtMoney(totales.comision_proyectada_total || 0));
-    $('#proyExcluidas').text(totales.registros_excluidos || 0);
+    $('#proyExcluidas').text(excluidas.length);
 
     $('#proyTableWrap').show();
 
@@ -706,9 +763,23 @@ function redirigirCalculoPoliticaAnterior(){
         Swal.fire({icon:'info',title:'Sin facturas',text:'No hay facturas para comisión por política anterior.'});
         return;
     }
+    var filtros = getFiltrosProyecciones();
+    var usuarioFiltro = parseInt(filtros && filtros.usuario_id ? filtros.usuario_id : 0, 10);
+
+    var filasPoliticaAnterior = filtrarExcluidasPoliticaAnterior(proyeccionesExcluidasActual, usuarioFiltro);
+    filasPoliticaAnterior = deduplicarFilasPoliticaAnteriorPorFactura(filasPoliticaAnterior);
+
+    if(!filasPoliticaAnterior.length){
+        Swal.fire({
+            icon:'info',
+            title:'Sin facturas elegibles',
+            text:'Para política anterior solo aplican facturas donde el usuario está en capacidad vendedor/asesor.'
+        });
+        return;
+    }
 
     var facturaIds = [];
-    proyeccionesExcluidasActual.forEach(function(item){
+    filasPoliticaAnterior.forEach(function(item){
         var id = parseInt(item && item.factura_id ? item.factura_id : 0, 10);
         if(id > 0) facturaIds.push(id);
     });
@@ -720,7 +791,6 @@ function redirigirCalculoPoliticaAnterior(){
         return;
     }
 
-    var filtros = getFiltrosProyecciones();
     var payload = {
         modo: 'politica_anterior',
         fecha_inicio: filtros.fechaInicio || '',
@@ -728,7 +798,7 @@ function redirigirCalculoPoliticaAnterior(){
         usuario_id: filtros.usuario_id || '',
         rol_id: filtros.rol_id || '',
         factura_ids: facturaIds,
-        filas: proyeccionesExcluidasActual
+        filas: filasPoliticaAnterior
     };
 
     try {

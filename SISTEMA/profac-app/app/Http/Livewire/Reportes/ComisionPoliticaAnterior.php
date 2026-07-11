@@ -62,12 +62,20 @@ class ComisionPoliticaAnterior extends Component
                 continue;
             }
 
+            $capacidad = (string) ($fila['capacidad'] ?? '');
+            if (!$this->esCapacidadVendedorPoliticaAnterior($capacidad)) {
+                continue;
+            }
+
+            $usuarioId = (int) ($fila['usuario_id'] ?? 0);
+
             if (!isset($contexto[$facturaId])) {
                 $contexto[$facturaId] = [
                     'factura_id' => $facturaId,
                     'factura' => (string) ($fila['factura'] ?? ''),
                     'cliente' => (string) ($fila['cliente'] ?? ''),
-                    'capacidad' => (string) ($fila['capacidad'] ?? ''),
+                    'capacidad' => $capacidad,
+                    'usuario_id' => $usuarioId,
                     'usuario' => (string) ($fila['usuario'] ?? ''),
                     'fecha_pago' => (string) ($fila['fecha_pago'] ?? ''),
                     'fecha_creacion_factura' => (string) ($fila['fecha_creacion_factura'] ?? ''),
@@ -80,9 +88,24 @@ class ComisionPoliticaAnterior extends Component
                     $contexto[$facturaId][$campo] = (string) $fila[$campo];
                 }
             }
+
+            if (empty($contexto[$facturaId]['usuario_id']) && $usuarioId > 0) {
+                $contexto[$facturaId]['usuario_id'] = $usuarioId;
+            }
         }
 
         return $contexto;
+    }
+
+    private function esCapacidadVendedorPoliticaAnterior(?string $capacidad): bool
+    {
+        $capacidadNorm = $this->normalizarClaveTexto($capacidad);
+
+        if ($capacidadNorm === '') {
+            return false;
+        }
+
+        return in_array($capacidadNorm, ['asesor', 'vendedor', 'ventas'], true);
     }
 
     private function obtenerFechasCierrePagoPorFacturas(array $facturaIds): array
@@ -773,6 +796,17 @@ class ComisionPoliticaAnterior extends Component
         try {
             $contextoFacturas = $this->construirContextoFacturasPoliticaAnterior($filasInput);
 
+            if (!empty($contextoFacturas)) {
+                $facturaIdsConContexto = array_map('intval', array_keys($contextoFacturas));
+                $facturaIds = array_values(array_intersect($facturaIds, $facturaIdsConContexto));
+            }
+
+            if (empty($facturaIds)) {
+                return response()->json([
+                    'message' => 'No hay facturas elegibles para política anterior con capacidad vendedor/asesor.',
+                ], 422);
+            }
+
             $resultado = $this->construirResultadoComisionFacturas($facturaIds, $contextoFacturas);
             $filtro = $this->filtrarFacturasGestionables(
                 $resultado['detalle'],
@@ -1042,6 +1076,7 @@ class ComisionPoliticaAnterior extends Component
                          DATE_FORMAT(f.created_at, "%Y-%m-%d %H:%i:%s") as fecha_factura,
                          DATE_FORMAT(f.fecha_emision, "%Y-%m-%d") as fecha_emision,
                          DATE_FORMAT(f.fecha_vencimiento, "%Y-%m-%d") as fecha_vencimiento,
+                         f.vendedor as vendedor_id,
                          f.tipo_pago_id,
                          p.id as producto_id,
                          p.nombre as producto,
@@ -1076,9 +1111,20 @@ class ComisionPoliticaAnterior extends Component
             $tipoKey = ((int) $row->tipo_pago_id === 1) ? 'contado' : 'credito';
             $contexto = $contextoFacturas[$facturaId] ?? [];
             $capacidad = (string) ($contexto['capacidad'] ?? '');
+            $usuarioIdContexto = (int) ($contexto['usuario_id'] ?? 0);
             $rolId = $this->resolverRolIdPorCapacidad($capacidad);
             $fechaPagoCierre = (string) ($contexto['fecha_pago'] ?? ($fechaCierrePagoPorFactura[$facturaId] ?? ''));
             $fechaVencimiento = (string) ($row->fecha_vencimiento ?? $row->fecha_emision ?? '');
+
+            if (!empty($contexto)) {
+                if (!$this->esCapacidadVendedorPoliticaAnterior($capacidad)) {
+                    continue;
+                }
+
+                if ($usuarioIdContexto > 0 && (int) $row->vendedor_id > 0 && $usuarioIdContexto !== (int) $row->vendedor_id) {
+                    continue;
+                }
+            }
 
             $motivoGracia = null;
             $aplicaGracia = false;

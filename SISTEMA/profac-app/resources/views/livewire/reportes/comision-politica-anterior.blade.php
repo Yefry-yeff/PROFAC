@@ -559,6 +559,7 @@
                 factura: row && row.factura ? row.factura : '',
                 cliente: row && row.cliente ? row.cliente : '',
                 capacidad: row && row.capacidad ? row.capacidad : (row && row.rol_nombre ? row.rol_nombre : ''),
+                usuario_id: row && row.usuario_id ? row.usuario_id : '',
                 usuario: row && row.usuario ? row.usuario : '',
                 fecha_pago: row && row.fecha_pago ? row.fecha_pago : '',
                 fecha_creacion_factura: row && row.fecha_creacion_factura ? row.fecha_creacion_factura : ''

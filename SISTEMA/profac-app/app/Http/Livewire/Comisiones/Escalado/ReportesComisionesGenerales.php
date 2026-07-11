@@ -90,21 +90,28 @@ class ReportesComisionesGenerales extends Component
      */
     public function listarEmpleados(Request $request)
     {
-        $search = $request->input('q', '');
+        $search = trim((string) $request->input('q', ''));
 
-        $empleados = DB::table('users')
-            ->join('estado', 'users.estado_id', '=', 'estado.id')
-            ->select('users.id', 'users.name')
-            ->where('estado.id', 1)
-            ->orderBy('users.name');
+        $empleados = DB::table('users as u')
+            ->leftJoin('rol as r', 'r.id', '=', 'u.rol_id')
+            ->select('u.id', 'u.name')
+            ->where('u.estado_id', 1)
+            ->where(function ($q) {
+                $q->whereNull('u.rol_id')
+                    ->orWhere('r.estado_id', 1);
+            })
+            ->orderBy('u.name');
 
         if ($search !== '') {
-            $empleados->where('users.name', 'LIKE', "%{$search}%");
+            $empleados->where('u.name', 'LIKE', "%{$search}%");
         }
 
-        $empleados = $empleados->get();
-
-        return response()->json($empleados);
+        return response()->json(
+            $empleados
+                ->distinct()
+                ->limit(50)
+                ->get()
+        );
     }
 
     /**
