@@ -290,6 +290,9 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/comision/reporte/nomina/detalle', [ReportesComisionesGenerales::class, 'detalleNomina']);
     Route::get('/comision/reporte/proyecciones', [ReportesComisionesGenerales::class, 'reporteProyecciones']);
     Route::post('/comision/reporte/proyecciones/exportar-excel', [ReportesComisionesGenerales::class, 'exportarProyeccionesExcel']);
+    Route::get('/comision/reporte/factura-por-actor', [ReportesComisionesGenerales::class, 'facturasPorActor']);
+    Route::get('/comision/reporte/empleados-por-rol', [ReportesComisionesGenerales::class, 'listarEmpleadosPorRol']);
+    Route::get('/comision/reporte/actores-por-periodo', [ReportesComisionesGenerales::class, 'actoresPorPeriodo']);
     Route::get('/comision/reporte/revision/facturas', [ReportesComisionesGenerales::class, 'reporteRevisionFacturasFactura']);
     Route::get('/comision/reporte/revision/productos', [ReportesComisionesGenerales::class, 'reporteRevisionFacturasProductos']);
     Route::get('/comision/reporte/brecha-ap-fc', [ReportesComisionesGenerales::class, 'reporteBrechaApFc']);

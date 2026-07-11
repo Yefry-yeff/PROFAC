@@ -446,6 +446,11 @@ table.dataTable tbody td { font-size: 13px; vertical-align: middle; }
                 <i class="fa fa-search"></i> Revisión de Facturas
             </a>
         </li>
+        <li class="nav-item">
+            <a class="nav-link" data-toggle="tab" href="#tab-factura-actor" role="tab">
+                <i class="fa fa-users"></i> Factura por Actor
+            </a>
+        </li>
     </ul>
 
     <div class="tab-content rrhh-tab-content" id="rrhhTabContent">
@@ -855,6 +860,88 @@ table.dataTable tbody td { font-size: 13px; vertical-align: middle; }
                                 <th class="text-right">Base Precio Seleccionado</th>
                                 <th class="text-right">% Comisión</th>
                                 <th class="text-right">Comisión Proyectada</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        {{-- TAB 5: FACTURA POR ACTOR --}}
+        <div class="tab-pane fade" id="tab-factura-actor" role="tabpanel">
+            <div class="filter-panel mb-4">
+                <div class="fp-title"><i class="fa fa-users"></i> Filtros — Factura por Actor</div>
+                <div class="row align-items-end">
+                    <div class="col-md-2 col-sm-6 mb-2">
+                        <label class="filter-label"><i class="fa fa-calendar-alt mr-1"></i>Desde</label>
+                        <input type="date" id="faDesde" class="fp-input">
+                    </div>
+                    <div class="col-md-2 col-sm-6 mb-2">
+                        <label class="filter-label"><i class="fa fa-calendar-check mr-1"></i>Hasta</label>
+                        <input type="date" id="faHasta" class="fp-input">
+                    </div>
+                    <div class="col-md-2 col-sm-6 mb-2">
+                        <label class="filter-label"><i class="fa fa-user-tie mr-1"></i>Asesor Comercial</label>
+                        <select id="faAsesor" class="form-control" style="width:100%;"></select>
+                    </div>
+                    <div class="col-md-2 col-sm-6 mb-2">
+                        <label class="filter-label"><i class="fa fa-headset mr-1"></i>Tele Asesor</label>
+                        <select id="faTeleasesor" class="form-control" style="width:100%;"></select>
+                    </div>
+                    <div class="col-md-2 col-sm-6 mb-2">
+                        <label class="filter-label"><i class="fa fa-truck mr-1"></i>Gestor de Entregas</label>
+                        <select id="faGestor" class="form-control" style="width:100%;"></select>
+                    </div>
+                    <div class="col-md-2 col-sm-12 mb-2">
+                        <label class="filter-label">&nbsp;</label>
+                        <div style="display:flex;gap:8px;">
+                            <button class="btn-generar" id="btnFaGenerar">
+                                <i class="fa fa-search"></i> Buscar
+                            </button>
+                            <button class="btn-limpiar" id="btnFaLimpiar">
+                                <i class="fa fa-times"></i> Limpiar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="faKpis" style="display:none;background:#f8fafc;border:1.5px solid #cbd5e1;border-radius:10px;padding:12px 16px;font-size:13px;color:#0f172a;margin-bottom:14px;">
+                <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center;">
+                    <span><i class="fa fa-file-invoice mr-1"></i>Facturas: <strong id="faTotalFacturas">0</strong></span>
+                    <span><i class="fa fa-money mr-1"></i>Subtotal: <strong id="faTotalSubtotal">L. 0.00</strong></span>
+                    <span><i class="fa fa-percent mr-1"></i>ISV: <strong id="faTotalIsv">L. 0.00</strong></span>
+                    <span><i class="fa fa-check-circle mr-1" style="color:#059669;"></i>Total: <strong id="faTotalTotal">L. 0.00</strong></span>
+                </div>
+            </div>
+
+            <div id="faEmptyState" class="empty-state">
+                <i class="fa fa-users"></i>
+                <p>Seleccione un período y presione <strong>Buscar</strong> para ver las facturas cerradas por actor.</p>
+            </div>
+
+            <div id="faTableWrap" style="display:none;">
+                <div class="tab-toolbar" style="margin-bottom:10px;">
+                    <div class="tab-title">
+                        <i class="fa fa-file-invoice" style="color:#7c3aed;"></i>
+                        Facturas Cerradas por Actor
+                    </div>
+                </div>
+                <div style="overflow-x:auto;border:1px solid #e2e8f0;border-radius:10px;background:#fff;">
+                    <table id="dtFacturaActor" class="table table-hover table-sm w-100 mb-0">
+                        <thead>
+                            <tr>
+                                <th>N° Factura (CAI)</th>
+                                <th>Asesor Comercial</th>
+                                <th>Tele Asesor</th>
+                                <th>Gestor de Entregas</th>
+                                <th>Fecha Creación</th>
+                                <th>Fecha Último Pago</th>
+                                <th>Tipo Factura</th>
+                                <th class="text-right">Subtotal</th>
+                                <th class="text-right">ISV</th>
+                                <th class="text-right">Total</th>
                             </tr>
                         </thead>
                         <tbody></tbody>

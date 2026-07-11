@@ -2273,4 +2273,159 @@ class ReportesComisionesGenerales extends Component
 
         return $response;
     }
+
+    /**
+     * Lista empleados filtrando por rol_id (para los selects de la pestaña Factura por Actor).
+     */
+    public function listarEmpleadosPorRol(Request $request)
+    {
+        $rolId  = (int) $request->input('rol_id', 0);
+        $search = trim((string) $request->input('q', ''));
+
+        $query = DB::table('users as u')
+            ->leftJoin('rol as r', 'r.id', '=', 'u.rol_id')
+            ->select('u.id', 'u.name')
+            ->where('u.estado_id', 1);
+
+        if ($rolId > 0) {
+            $query->where('u.rol_id', $rolId);
+        } else {
+            $query->where(function ($q) {
+                $q->whereNull('u.rol_id')->orWhere('r.estado_id', 1);
+            });
+        }
+
+        if ($search !== '') {
+            $query->where('u.name', 'LIKE', "%{$search}%");
+        }
+
+        return response()->json($query->orderBy('u.name')->distinct()->limit(100)->get());
+    }
+
+    /**
+     * Retorna los actores (asesor, teleasesor, gestor) que participan en facturas
+     * cerradas dentro del período indicado.
+     * Respuesta: { asesores: [...], teleasesores: [...], gestores: [...] }
+     */
+    public function actoresPorPeriodo(Request $request)
+    {
+        [$fi, $ff] = $this->resolveDateRange($request);
+
+        // Subquery: último pago por factura (mismo patrón que reporteProyecciones)
+        $ultimoPago = DB::table('aplicacion_pagos as ap')
+            ->leftJoin('abonos_creditos as ac', function ($j) {
+                $j->on('ac.aplicacion_pagos_id', '=', 'ap.id')
+                  ->where('ac.estado_abono', '=', 1);
+            })
+            ->where('ap.estado', 1)
+            ->where('ap.estado_cerrado', 2)
+            ->groupBy('ap.id', 'ap.factura_id', 'ap.fecha_cierre_factura')
+            ->selectRaw('ap.factura_id,
+                         COALESCE(MAX(DATE(ac.fecha_pago)), DATE(ap.fecha_cierre_factura)) as fecha_pago_cierre')
+            ->havingRaw('fecha_pago_cierre IS NOT NULL');
+
+        // IDs de facturas cuyo último pago cae en el período
+        $facturaIds = DB::table(DB::raw("({$ultimoPago->toSql()}) as up"))
+            ->mergeBindings($ultimoPago)
+            ->whereBetween('up.fecha_pago_cierre', [$fi, $ff])
+            ->pluck('up.factura_id');
+
+        if ($facturaIds->isEmpty()) {
+            return response()->json(['asesores' => [], 'teleasesores' => [], 'gestores' => []]);
+        }
+
+        $makeList = function (string $campo) use ($facturaIds): array {
+            return DB::table('factura as f')
+                ->join('users as u', "u.id", '=', "f.{$campo}")
+                ->whereIn('f.id', $facturaIds)
+                ->whereNotNull("f.{$campo}")
+                ->where("f.{$campo}", '>', 0)
+                ->select('u.id', 'u.name')
+                ->distinct()
+                ->orderBy('u.name')
+                ->get()
+                ->toArray();
+        };
+
+        return response()->json([
+            'asesores'     => $makeList('vendedor'),
+            'teleasesores' => $makeList('users_id'),
+            'gestores'     => $makeList('gestor_entrega'),
+        ]);
+    }
+
+    /**
+     * Facturas cerradas agrupadas por actor (Asesor, Tele Asesor, Gestor).
+     *
+     * Condiciones de cierre:
+     *   - aplicacion_pagos.estado = 1 AND estado_cerrado = 2  (saldo = 0)
+     *   - La fecha de último pago (MAX abonos_creditos.fecha_pago) cae dentro del período
+     *
+     * Filtros opcionales independientes:
+     *   - asesor_id   → factura.vendedor
+     *   - teleasesor_id → factura.users_id
+     *   - gestor_id   → factura.gestor_entrega
+     */
+    public function facturasPorActor(Request $request)
+    {
+        [$fi, $ff] = $this->resolveDateRange($request);
+        $asesorId      = (int) $request->input('asesor_id', 0);
+        $teleasesorId  = (int) $request->input('teleasesor_id', 0);
+        $gestorId      = (int) $request->input('gestor_id', 0);
+
+        // Sub-query: fecha del último pago por factura
+        $ultimoPago = DB::table('aplicacion_pagos as ap2')
+            ->leftJoin('abonos_creditos as ac2', function ($j) {
+                $j->on('ac2.aplicacion_pagos_id', '=', 'ap2.id')
+                  ->where('ac2.estado_abono', '=', 1);
+            })
+            ->where('ap2.estado', 1)
+            ->where('ap2.estado_cerrado', 2)
+            ->groupBy('ap2.id', 'ap2.factura_id', 'ap2.fecha_cierre_factura')
+            ->selectRaw('ap2.factura_id,
+                         COALESCE(MAX(DATE(ac2.fecha_pago)), DATE(ap2.fecha_cierre_factura)) as fecha_ultimo_pago')
+            ->havingRaw('fecha_ultimo_pago IS NOT NULL');
+
+        $query = DB::table('factura as f')
+            ->joinSub($ultimoPago, 'up', 'up.factura_id', '=', 'f.id')
+            ->leftJoin('users as uv', 'uv.id', '=', 'f.vendedor')
+            ->leftJoin('users as uf', 'uf.id', '=', 'f.users_id')
+            ->leftJoin('users as ug', 'ug.id', '=', 'f.gestor_entrega')
+            ->leftJoin('tipo_pago_venta as tp', 'tp.id', '=', 'f.tipo_pago_id')
+            ->where('f.estado_venta_id', '<>', 2)        // excluir anuladas
+            ->whereBetween('up.fecha_ultimo_pago', [$fi, $ff])
+            ->selectRaw("f.id,
+                         f.cai                                            as factura,
+                         COALESCE(uv.name, '—')                          as asesor_comercial,
+                         COALESCE(uf.name, '—')                          as tele_asesor,
+                         COALESCE(ug.name, '—')                          as gestor_entregas,
+                         DATE_FORMAT(f.created_at, '%Y-%m-%d')           as fecha_creacion,
+                         up.fecha_ultimo_pago                             as fecha_ultimo_pago,
+                         COALESCE(tp.descripcion, 'N/A')                 as tipo_factura,
+                         ROUND(COALESCE(f.sub_total, 0), 2)              as subtotal,
+                         ROUND(COALESCE(f.isv, 0), 2)                    as isv,
+                         ROUND(COALESCE(f.total, 0), 2)                  as total");
+
+        if ($asesorId > 0) {
+            $query->where('f.vendedor', $asesorId);
+        }
+        if ($teleasesorId > 0) {
+            $query->where('f.users_id', $teleasesorId);
+        }
+        if ($gestorId > 0) {
+            $query->where('f.gestor_entrega', $gestorId);
+        }
+
+        $rows = $query->orderBy('up.fecha_ultimo_pago', 'DESC')->get();
+
+        return response()->json([
+            'data'   => $rows,
+            'totales' => [
+                'facturas'  => $rows->count(),
+                'subtotal'  => round($rows->sum('subtotal'), 2),
+                'isv'       => round($rows->sum('isv'), 2),
+                'total'     => round($rows->sum('total'), 2),
+            ],
+        ]);
+    }
 }

@@ -1829,3 +1829,183 @@ function imprimirTabla(tabId){
     w.document.close();
     w.print();
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+ *  TAB: FACTURA POR ACTOR
+ * ═══════════════════════════════════════════════════════════════════ */
+var dtFacturaActor = null;
+
+function fmtMoneyFa(v) {
+    var n = parseFloat(v || 0);
+    return 'L ' + n.toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function initFaSelects() {
+    // Inicializar Select2 vacíos (se llenan al cambiar fechas)
+    var selectsCfg = [
+        { id: '#faAsesor',     placeholder: '— Todos los Asesores —' },
+        { id: '#faTeleasesor', placeholder: '— Todos los Tele Asesores —' },
+        { id: '#faGestor',     placeholder: '— Todos los Gestores —' },
+    ];
+    selectsCfg.forEach(function(cfg) {
+        if (!$(cfg.id).data('select2')) {
+            $(cfg.id).select2({ placeholder: cfg.placeholder, allowClear: true, width: '100%' });
+        }
+    });
+}
+
+function cargarActoresPorPeriodo() {
+    var desde = $('#faDesde').val();
+    var hasta = $('#faHasta').val();
+    if (!desde || !hasta) return;
+
+    // Guardar selecciones actuales para restaurarlas si siguen disponibles
+    var selAsesor    = $('#faAsesor').val();
+    var selTele      = $('#faTeleasesor').val();
+    var selGestor    = $('#faGestor').val();
+
+    $.getJSON('/comision/reporte/actores-por-periodo', { fechaInicio: desde, fechaFin: hasta })
+    .done(function(resp) {
+        var poblarSelect = function(selector, lista, selActual) {
+            var $sel = $(selector);
+            $sel.empty().append('<option value=""></option>');
+            (lista || []).forEach(function(u) {
+                var opt = new Option(u.name, u.id, false, String(u.id) === String(selActual));
+                $sel.append(opt);
+            });
+            $sel.trigger('change');
+        };
+        poblarSelect('#faAsesor',     resp.asesores     || [], selAsesor);
+        poblarSelect('#faTeleasesor', resp.teleasesores || [], selTele);
+        poblarSelect('#faGestor',     resp.gestores     || [], selGestor);
+    });
+}
+
+function setFaDefaultDates() {
+    var now  = new Date();
+    var y    = now.getFullYear();
+    var m    = now.getMonth(); // 0-based
+    var pad  = function(n) { return String(n).padStart(2, '0'); };
+    var lastDay = new Date(y, m + 1, 0).getDate();
+    $('#faDesde').val(y + '-' + pad(m + 1) + '-01');
+    $('#faHasta').val(y + '-' + pad(m + 1) + '-' + pad(lastDay));
+}
+
+function generarFacturaActor() {
+    var desde       = $('#faDesde').val();
+    var hasta       = $('#faHasta').val();
+    var asesorId    = $('#faAsesor').val()     || '';
+    var teleId      = $('#faTeleasesor').val() || '';
+    var gestorId    = $('#faGestor').val()     || '';
+
+    if (!desde || !hasta) {
+        Swal.fire({ icon: 'warning', title: 'Fechas requeridas', text: 'Seleccione el período de búsqueda.' });
+        return;
+    }
+
+    $('#btnFaGenerar').prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Buscando...');
+    $('#faEmptyState').hide();
+    $('#faTableWrap').hide();
+    $('#faKpis').hide();
+
+    $.getJSON('/comision/reporte/factura-por-actor', {
+        fechaInicio:    desde,
+        fechaFin:       hasta,
+        asesor_id:      asesorId,
+        teleasesor_id:  teleId,
+        gestor_id:      gestorId
+    })
+    .done(function(resp) {
+        var filas   = resp.data    || [];
+        var totales = resp.totales || {};
+
+        if (!filas.length) {
+            $('#faEmptyState').show().find('p').text('No se encontraron facturas cerradas para el período seleccionado.');
+            $('#btnFaGenerar').prop('disabled', false).html('<i class="fa fa-search"></i> Buscar');
+            return;
+        }
+
+        // KPIs
+        $('#faTotalFacturas').text(totales.facturas || 0);
+        $('#faTotalSubtotal').text(fmtMoneyFa(totales.subtotal));
+        $('#faTotalIsv').text(fmtMoneyFa(totales.isv));
+        $('#faTotalTotal').text(fmtMoneyFa(totales.total));
+        $('#faKpis').show();
+
+        // DataTable
+        if ($.fn.DataTable.isDataTable('#dtFacturaActor')) {
+            dtFacturaActor.clear().rows.add(filas).draw();
+        } else {
+            dtFacturaActor = $('#dtFacturaActor').DataTable({
+                data: filas,
+                pageLength: 25,
+                order: [[5, 'desc']],
+                scrollX: true,
+                autoWidth: false,
+                language: {
+                    search: 'Buscar:', lengthMenu: 'Mostrar _MENU_ registros',
+                    info: 'Mostrando _START_ a _END_ de _TOTAL_ registros',
+                    infoEmpty: 'Sin registros', zeroRecords: 'No hay resultados',
+                    paginate: { first: 'Primero', last: 'Último', next: 'Siguiente', previous: 'Anterior' }
+                },
+                columns: [
+                    { data: 'factura',          render: function(d) { return '<code style="background:#f3e8ff;padding:2px 6px;border-radius:4px;font-size:11px;color:#7c3aed;">' + (d || '—') + '</code>'; } },
+                    { data: 'asesor_comercial',  render: function(d) { return '<span style="font-weight:600;color:#059669;">' + (d || '—') + '</span>'; } },
+                    { data: 'tele_asesor',       render: function(d) { return '<span style="font-weight:600;color:#2563eb;">' + (d || '—') + '</span>'; } },
+                    { data: 'gestor_entregas',   render: function(d) { return '<span style="font-weight:600;color:#d97706;">' + (d || '—') + '</span>'; } },
+                    { data: 'fecha_creacion',    className: 'text-nowrap' },
+                    { data: 'fecha_ultimo_pago', className: 'text-nowrap', render: function(d) { return '<strong>' + (d || '—') + '</strong>'; } },
+                    { data: 'tipo_factura',      className: 'text-center', render: function(d) {
+                        var cls = (d || '').toLowerCase().indexOf('cred') !== -1 ? 'badge-info' : 'badge-success';
+                        return '<span class="badge ' + cls + '">' + (d || '—') + '</span>';
+                    }},
+                    { data: 'subtotal',   className: 'text-right', render: function(d) { return fmtMoneyFa(d); } },
+                    { data: 'isv',        className: 'text-right', render: function(d) { return fmtMoneyFa(d); } },
+                    { data: 'total',      className: 'text-right', render: function(d) { return '<strong>' + fmtMoneyFa(d) + '</strong>'; } },
+                ]
+            });
+        }
+
+        $('#faTableWrap').show();
+    })
+    .fail(function(xhr) {
+        Swal.fire({ icon: 'error', title: 'Error', text: (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Error al cargar los datos.' });
+    })
+    .always(function() {
+        $('#btnFaGenerar').prop('disabled', false).html('<i class="fa fa-search"></i> Buscar');
+    });
+}
+
+function limpiarFa() {
+    $('#faAsesor').val(null).trigger('change');
+    $('#faTeleasesor').val(null).trigger('change');
+    $('#faGestor').val(null).trigger('change');
+    setFaDefaultDates();
+    cargarActoresPorPeriodo();
+    if ($.fn.DataTable.isDataTable('#dtFacturaActor')) {
+        dtFacturaActor.clear().draw();
+    }
+    $('#faTableWrap').hide();
+    $('#faKpis').hide();
+    $('#faEmptyState').show();
+}
+
+// Init al entrar a la pestaña
+$('a[href="#tab-factura-actor"]').on('shown.bs.tab', function() {
+    if (!$('#faDesde').val()) setFaDefaultDates();
+    initFaSelects();
+    cargarActoresPorPeriodo();
+    if (dtFacturaActor) dtFacturaActor.columns.adjust();
+});
+
+$(document).ready(function() {
+    $('#btnFaGenerar').on('click', generarFacturaActor);
+    $('#btnFaLimpiar').on('click', limpiarFa);
+
+    // Recargar actores cuando cambian las fechas
+    var faDateTimer = null;
+    $('#faDesde, #faHasta').on('change', function() {
+        clearTimeout(faDateTimer);
+        faDateTimer = setTimeout(cargarActoresPorPeriodo, 400);
+    });
+});
