@@ -1959,6 +1959,11 @@ function generarFacturaActor() {
                         var cls = (d || '').toLowerCase().indexOf('cred') !== -1 ? 'badge-info' : 'badge-success';
                         return '<span class="badge ' + cls + '">' + (d || '—') + '</span>';
                     }},
+                    { data: 'politica', className: 'text-center', render: function(d) {
+                        if (!d || d === 'Sin asignar') return '<span class="badge badge-secondary">' + (d || 'Sin asignar') + '</span>';
+                        if (d === 'Política Anterior') return '<span class="badge badge-warning" style="background:#f59e0b;color:#fff;">Política Anterior</span>';
+                        return '<span class="badge badge-primary" style="background:#7c3aed;color:#fff;">Nueva Política</span>';
+                    }},
                     { data: 'subtotal',   className: 'text-right', render: function(d) { return fmtMoneyFa(d); } },
                     { data: 'isv',        className: 'text-right', render: function(d) { return fmtMoneyFa(d); } },
                     { data: 'total',      className: 'text-right', render: function(d) { return '<strong>' + fmtMoneyFa(d) + '</strong>'; } },

@@ -2402,6 +2402,11 @@ class ReportesComisionesGenerales extends Component
                          DATE_FORMAT(f.created_at, '%Y-%m-%d')           as fecha_creacion,
                          up.fecha_ultimo_pago                             as fecha_ultimo_pago,
                          COALESCE(tp.descripcion, 'N/A')                 as tipo_factura,
+                         CASE
+                             WHEN EXISTS (SELECT 1 FROM comision_politica_anterior_factura cpa WHERE cpa.factura_id = f.id) THEN 'Política Anterior'
+                             WHEN EXISTS (SELECT 1 FROM facturas_comision fc WHERE fc.factura_id = f.id) THEN 'Nueva Política'
+                             ELSE 'Sin asignar'
+                         END                                              as politica,
                          ROUND(COALESCE(f.sub_total, 0), 2)              as subtotal,
                          ROUND(COALESCE(f.isv, 0), 2)                    as isv,
                          ROUND(COALESCE(f.total, 0), 2)                  as total");

@@ -939,6 +939,7 @@ table.dataTable tbody td { font-size: 13px; vertical-align: middle; }
                                 <th>Fecha Creación</th>
                                 <th>Fecha Último Pago</th>
                                 <th>Tipo Factura</th>
+                                <th>Política</th>
                                 <th class="text-right">Subtotal</th>
                                 <th class="text-right">ISV</th>
                                 <th class="text-right">Total</th>
