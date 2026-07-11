@@ -282,15 +282,20 @@ class ComisionPoliticaAnterior extends Component
                 $join->on('cpnm.producto_id', '=', 'p.id')
                     ->where('cpnm.estado_id', '=', 1);
             })
-            ->where('p.estado_producto_id', 1)
             ->whereNull('cpnm.producto_id')
             ->selectRaw('p.id as producto_id,
                          p.nombre as producto,
                          COALESCE(m.nombre, "SIN MARCA") as marca,
                          cp.descripcion as categoria,
                          sc.descripcion as sub_categoria,
+                         CASE WHEN p.estado_producto_id = 1 THEN "ACTIVO" ELSE "INACTIVO" END as estado_producto,
                          0 as es_no_miselaneo,
                          NULL as updated_at');
+
+        // Por defecto se listan activos. Si se busca por ID/nombre/codigo, permitir incluir inactivos.
+        if ($search === '') {
+            $query->where('p.estado_producto_id', 1);
+        }
 
         if ($search !== '') {
             $query->where(function ($q) use ($search) {
@@ -324,6 +329,7 @@ class ComisionPoliticaAnterior extends Component
                 'marca' => (string) $r->marca,
                 'categoria' => (string) $r->categoria,
                 'sub_categoria' => (string) $r->sub_categoria,
+                'estado_producto' => (string) ($r->estado_producto ?? ''),
                 'es_no_miselaneo' => (int) $r->es_no_miselaneo,
                 'updated_at' => (string) ($r->updated_at ?? ''),
             ];
@@ -495,7 +501,6 @@ class ComisionPoliticaAnterior extends Component
 
                 $producto = DB::table('producto')
                     ->where('id', $productoId)
-                    ->where('estado_producto_id', 1)
                     ->first();
 
                 if (!$producto) {
@@ -1128,6 +1133,21 @@ class ComisionPoliticaAnterior extends Component
 
             $motivoGracia = null;
             $aplicaGracia = false;
+            $motivoFueraPolitica = null;
+            $aplicaFueraPolitica = false;
+
+            // — Regla "Fuera de política": pago después de vencimiento + 30 días —
+            if ($fechaVencimiento !== '' && $fechaPagoCierre !== '') {
+                $fechaPagoFP = $this->parseFechaSegura($fechaPagoCierre)?->startOfDay();
+                $fechaVencFP = $this->parseFechaSegura($fechaVencimiento)?->startOfDay();
+                if ($fechaPagoFP && $fechaVencFP) {
+                    $limitesFP = $fechaVencFP->copy()->addDays(30);
+                    if ($fechaPagoFP->gt($limitesFP)) {
+                        $aplicaFueraPolitica = true;
+                        $motivoFueraPolitica = 'Fuera de política';
+                    }
+                }
+            }
 
             if ($rolId) {
                 $configGracia = $diasGraciaPorRol[$rolId][$tipoKey] ?? null;
@@ -1239,10 +1259,10 @@ class ComisionPoliticaAnterior extends Component
                 'subtotal_linea' => round($subtotal, 2),
                 'clasificacion' => $clasificacion,
                 'porcentaje_aplicado' => round($porcentajeAplicado * 100, 4),
-                'comision_no_miselaneo' => $aplicaGracia ? 0.0 : $comisionNoMiselaneo,
-                'comision_miselanea' => $aplicaGracia ? 0.0 : $comisionMiselanea,
-                'comision_total_linea' => $aplicaGracia ? 0.0 : $comisionTotalLinea,
-                'motivo_no_comision' => $motivoGracia,
+                'comision_no_miselaneo' => ($aplicaGracia || $aplicaFueraPolitica) ? 0.0 : $comisionNoMiselaneo,
+                'comision_miselanea' => ($aplicaGracia || $aplicaFueraPolitica) ? 0.0 : $comisionMiselanea,
+                'comision_total_linea' => ($aplicaGracia || $aplicaFueraPolitica) ? 0.0 : $comisionTotalLinea,
+                'motivo_no_comision' => $aplicaFueraPolitica ? $motivoFueraPolitica : $motivoGracia,
                 'dias_gracia' => isset($configGracia) ? (int) $configGracia->dias_gracia : null,
                 'dias_transcurridos' => $aplicaGracia && isset($facturasOmitidasGracia[$facturaId])
                     ? (int) $facturasOmitidasGracia[$facturaId]['dias_transcurridos']

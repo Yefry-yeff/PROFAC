@@ -186,7 +186,7 @@
 
                         <div class="row mt-1">
                             <div class="col-12">
-                                <div class="pa-muted">Solo se listan productos activos que aún no están registrados como NO miseláneos.</div>
+                                <div class="pa-muted">Sin búsqueda se listan productos activos. Si busca por ID/nombre/código también se incluyen inactivos que aún no están registrados como NO miseláneos.</div>
                             </div>
                         </div>
 
