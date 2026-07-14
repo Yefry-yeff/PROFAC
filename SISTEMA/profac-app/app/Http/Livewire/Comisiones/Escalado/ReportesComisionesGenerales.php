@@ -18,6 +18,51 @@ use App\Services\Comisiones\ProcesadorComisiones;
 
 class ReportesComisionesGenerales extends Component
 {
+    private function totalNominaComisionPorRango(string $fechaInicio, string $fechaFin, int $usuarioId = 0, int $rolId = 0): float
+    {
+        $fi = $fechaInicio . ' 00:00:00';
+        $ff = $fechaFin . ' 23:59:59';
+
+        $query = DB::table('facturas_comision as fc')
+            ->join('factura as f', 'f.id', '=', 'fc.factura_id')
+            ->whereBetween('fc.fecha_cierre_factura', [$fi, $ff])
+            ->where('fc.estado_id', 1)
+            ->whereExists(function ($q) {
+                $q->select(DB::raw(1))
+                    ->from('aplicacion_pagos as ap')
+                    ->whereColumn('ap.id', 'fc.aplicacion_pagos_id')
+                    ->where('ap.estado', 1)
+                    ->where('ap.estado_cerrado', 2)
+                    ->where('ap.saldo', '<=', 0.0001);
+            })
+            ->whereRaw(
+                "CASE fc.tipo_comision
+                    WHEN 1 THEN f.users_id
+                    WHEN 2 THEN f.users_id
+                    WHEN 3 THEN f.vendedor
+                    WHEN 4 THEN f.gestor_entrega
+                    ELSE NULL
+                 END IS NOT NULL"
+            )
+            ->when($usuarioId > 0, function ($q) use ($usuarioId) {
+                $q->whereRaw(
+                    "CASE fc.tipo_comision
+                        WHEN 1 THEN f.users_id
+                        WHEN 2 THEN f.users_id
+                        WHEN 3 THEN f.vendedor
+                        WHEN 4 THEN f.gestor_entrega
+                        ELSE NULL
+                    END = ?",
+                    [$usuarioId]
+                );
+            })
+            ->when($rolId > 0, function ($q) use ($rolId) {
+                $q->where('fc.rol_id', $rolId);
+            });
+
+        return (float) $query->sum('fc.monto_rol');
+    }
+
     private function resolveDetalleProductoMode(float $esperado, float $sumaRaw, float $sumaWeighted): string
     {
         $tolerance = 0.05;
@@ -588,6 +633,14 @@ class ReportesComisionesGenerales extends Component
             ->leftJoin('rol as r', 'r.id', '=', 'fc.rol_id')
             ->whereBetween('fc.fecha_cierre_factura', [$fiFecha, $ffFecha])
             ->where('fc.estado_id', 1)
+            ->whereExists(function ($q) {
+                $q->select(DB::raw(1))
+                    ->from('aplicacion_pagos as ap')
+                    ->whereColumn('ap.id', 'fc.aplicacion_pagos_id')
+                    ->where('ap.estado', 1)
+                    ->where('ap.estado_cerrado', 2)
+                    ->where('ap.saldo', '<=', 0.0001);
+            })
             ->whereRaw(
                 "CASE fc.tipo_comision
                     WHEN 1 THEN f.users_id
@@ -774,6 +827,15 @@ class ReportesComisionesGenerales extends Component
             ->join('cliente as cl', 'cl.id', '=', 'f.cliente_id')
             ->leftJoin('rol as r', 'r.id', '=', 'fc.rol_id')
             ->whereBetween('fc.fecha_cierre_factura', [$mesInicio, $mesFin])
+            ->where('fc.estado_id', 1)
+            ->whereExists(function ($q) {
+                $q->select(DB::raw(1))
+                    ->from('aplicacion_pagos as ap')
+                    ->whereColumn('ap.id', 'fc.aplicacion_pagos_id')
+                    ->where('ap.estado', 1)
+                    ->where('ap.estado_cerrado', 2)
+                    ->where('ap.saldo', '<=', 0.0001);
+            })
             ->whereRaw(
                 "CASE fc.tipo_comision
                     WHEN 1 THEN f.users_id
@@ -1015,6 +1077,7 @@ class ReportesComisionesGenerales extends Component
         [$fi, $ff] = $this->resolveDateRange($request);
         $usuarioId = (int) $request->input('usuario_id', 0);
         $rolIdFiltro = (int) $request->input('rol_id', 0);
+        $totalNomina = round($this->totalNominaComisionPorRango($fi, $ff, $usuarioId, $rolIdFiltro), 4);
 
         $cierres = DB::table('aplicacion_pagos as ap')
             ->leftJoin('abonos_creditos as ac', function ($join) {
@@ -1040,7 +1103,8 @@ class ReportesComisionesGenerales extends Component
                     'registros_proyectados' => 0,
                     'base_unitaria_total' => 0,
                     'base_comisionable_total' => 0,
-                    'comision_proyectada_total' => 0,
+                    'comision_proyectada_total' => $totalNomina,
+                    'comision_recalculada_total' => 0,
                     'facturas_excluidas' => 0,
                     'registros_excluidos' => 0,
                 ],
@@ -1081,7 +1145,8 @@ class ReportesComisionesGenerales extends Component
                     'registros_proyectados' => 0,
                     'base_unitaria_total' => 0,
                     'base_comisionable_total' => 0,
-                    'comision_proyectada_total' => 0,
+                    'comision_proyectada_total' => $totalNomina,
+                    'comision_recalculada_total' => 0,
                     'facturas_excluidas' => 0,
                     'registros_excluidos' => 0,
                 ],
@@ -1397,12 +1462,15 @@ class ReportesComisionesGenerales extends Component
             ->values()
             ->all();
 
+        $comisionRecalculadaTotal = round(array_sum(array_map(fn($r) => (float) $r['comision_proyectada'], $filas)), 4);
+
         $totales = [
             'facturas_proyectadas' => count($facturasProyectadas),
             'registros_proyectados' => count($filas),
             'base_unitaria_total' => round(array_sum(array_map(fn($r) => (float) $r['base_comisionable_unitaria'], $filas)), 4),
             'base_comisionable_total' => round(array_sum(array_map(fn($r) => (float) $r['base_comisionable'], $filas)), 4),
-            'comision_proyectada_total' => round(array_sum(array_map(fn($r) => (float) $r['comision_proyectada'], $filas)), 4),
+            'comision_proyectada_total' => $totalNomina,
+            'comision_recalculada_total' => $comisionRecalculadaTotal,
             'facturas_excluidas' => count($facturasExcluidas),
             'registros_excluidos' => count($excluidas),
         ];
