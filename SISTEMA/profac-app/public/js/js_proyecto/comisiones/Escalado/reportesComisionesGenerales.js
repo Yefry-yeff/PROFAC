@@ -476,7 +476,10 @@ function renderProyecciones(resp){
     $('#proyRegistros').text(totales.registros_proyectados || 0);
     $('#proyBaseUnitaria').text(fmtMoney(totales.base_unitaria_total || 0));
     $('#proyBaseComisionable').text(fmtMoney(totales.base_comisionable_total || 0));
-    $('#proyComisionTotal').text(fmtMoney(totales.comision_proyectada_total || 0));
+    var totalComisionVisible = (typeof totales.comision_recalculada_total !== 'undefined')
+        ? totales.comision_recalculada_total
+        : (totales.comision_proyectada_total || 0);
+    $('#proyComisionTotal').text(fmtMoney(totalComisionVisible || 0));
     $('#proyExcluidas').text(excluidas.length);
 
     $('#proyTableWrap').show();
