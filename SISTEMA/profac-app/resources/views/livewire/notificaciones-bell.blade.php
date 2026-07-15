@@ -149,11 +149,12 @@
     .notif-footer-link:hover { background:#eff6ff; color:#1d4ed8; text-decoration:none; }
     </style>
 
-    {{-- Poll silencioso cada 3 minutos --}}
-    <div wire:poll.180s="cargar" style="display:none;"></div>
+    {{-- Poll liviano: solo contador (el detalle se carga al abrir la campana) --}}
+    <div wire:poll.{{ $pollSegundos }}s="cargarContador" style="display:none;"></div>
 
     {{-- Botón campana --}}
-    <button @click="open = !open; $el.classList.add('ringing'); setTimeout(() => $el.classList.remove('ringing'), 600)"
+        <button wire:click="cargar"
+            @click="open = !open; $el.classList.add('ringing'); setTimeout(() => $el.classList.remove('ringing'), 600)"
             class="notif-bell-btn"
             title="Notificaciones">
         <i class="fa fa-bell" style="color:#fff; font-size:1.05rem; text-shadow:0 1px 4px rgba(0,0,0,.35);"></i>

@@ -5,6 +5,10 @@
 
     RewriteEngine On
 
+    # Cloudflare RUM/browser telemetry beacon can hit origin on some setups.
+    # Return 204 so it does not fall through to Laravel and generate 404 noise.
+    RewriteRule ^cdn-cgi/rum/?$ - [R=204,L]
+
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
