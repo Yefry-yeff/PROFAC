@@ -754,7 +754,7 @@ table.dataTable tbody td { font-size: 13px; vertical-align: middle; }
                     <div style="font-size:15px;font-weight:700;">
                         <i class="fa fa-calculator mr-2"></i> Comisión por Política Anterior
                     </div>
-                    <button type="button" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:6px;padding:4px 12px;font-size:12px;cursor:pointer;" onclick="$('#seccionPoliticaAnterior').hide();$('#iframePoliticaAnterior').attr('src','');">
+                    <button type="button" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:6px;padding:4px 12px;font-size:12px;cursor:pointer;" onclick="$('#seccionPoliticaAnterior').hide();$('#iframePoliticaAnterior').attr('src','');$('#proyExcluidasWrap').show();">
                         <i class="fa fa-times mr-1"></i> Cerrar
                     </button>
                 </div>

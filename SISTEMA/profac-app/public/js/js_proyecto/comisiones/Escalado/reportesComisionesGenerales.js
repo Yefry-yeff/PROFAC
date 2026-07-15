@@ -813,6 +813,7 @@ function redirigirCalculoPoliticaAnterior(){
     // Mostrar sección inline en lugar de redirigir
     var $sec = $('#seccionPoliticaAnterior');
     $('#iframePoliticaAnterior').attr('src', '');
+    $('#proyExcluidasWrap').hide();
     $sec.show();
     $('#iframePoliticaAnterior').attr('src', '/reporte/comision/politica-anterior?embed=1');
     setTimeout(function(){ $sec[0].scrollIntoView({behavior:'smooth', block:'start'}); }, 150);
