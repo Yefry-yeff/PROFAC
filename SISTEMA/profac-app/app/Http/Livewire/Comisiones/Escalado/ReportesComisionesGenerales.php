@@ -11,6 +11,7 @@ use DataTables;
 use Auth;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\ProyeccionComisionesExport;
+use App\Exports\Comisiones\ProyeccionNominaSheet;
 use App\Models\Comisiones\ModelComisionPeriodo;
 use App\Services\Comisiones\GeneradorFacturasComision;
 use App\Services\Comisiones\AplicadorRetencionesMora;
@@ -1464,11 +1465,26 @@ class ReportesComisionesGenerales extends Component
 
         $comisionRecalculadaTotal = round(array_sum(array_map(fn($r) => (float) $r['comision_proyectada'], $filas)), 4);
 
+        // Base comisionable y base unitaria deduplicadas:
+        // cada línea de producto puede aparecer una vez por rol en $filas,
+        // pero la base es la misma → contar cada línea (factura+producto+escala) solo una vez.
+        $baseUnitariaUnica     = 0.0;
+        $baseComisionableUnica = 0.0;
+        $lineasContadas        = [];
+        foreach ($filas as $fila) {
+            $lineaKey = ($fila['factura_id'] ?? '') . '|' . ($fila['producto'] ?? '') . '|' . ($fila['escala_precio_vendida'] ?? '');
+            if (!isset($lineasContadas[$lineaKey])) {
+                $lineasContadas[$lineaKey] = true;
+                $baseUnitariaUnica     += (float) ($fila['base_comisionable_unitaria'] ?? 0);
+                $baseComisionableUnica += (float) ($fila['base_comisionable'] ?? 0);
+            }
+        }
+
         $totales = [
             'facturas_proyectadas' => count($facturasProyectadas),
             'registros_proyectados' => count($filas),
-            'base_unitaria_total' => round(array_sum(array_map(fn($r) => (float) $r['base_comisionable_unitaria'], $filas)), 4),
-            'base_comisionable_total' => round(array_sum(array_map(fn($r) => (float) $r['base_comisionable'], $filas)), 4),
+            'base_unitaria_total' => round($baseUnitariaUnica, 4),
+            'base_comisionable_total' => round($baseComisionableUnica, 4),
             'comision_proyectada_total' => $totalNomina,
             'comision_recalculada_total' => $comisionRecalculadaTotal,
             'facturas_excluidas' => count($facturasExcluidas),
@@ -2128,9 +2144,33 @@ class ReportesComisionesGenerales extends Component
         $totales = [
             'facturas' => count(array_unique(array_map(fn($r) => (int) $r['factura_id'], $rows))),
             'registros' => count($rows),
-            'monto_abonado_total' => round(array_sum(array_map(fn($r) => (float) $r['monto_abonado_total'], $rows)), 4),
-            'sub_total_total' => round(array_sum(array_map(fn($r) => (float) $r['sub_total_factura'], $rows)), 4),
-            'total_factura_total' => round(array_sum(array_map(fn($r) => (float) $r['total_factura'], $rows)), 4),
+            'monto_abonado_total' => round(array_sum(
+                array_map(fn($r) => (float) $r['monto_abonado_total'],
+                    array_values(array_reduce($rows, function ($carry, $r) {
+                        $id = (int) $r['factura_id'];
+                        if (!isset($carry[$id])) { $carry[$id] = $r; }
+                        return $carry;
+                    }, []))
+                )
+            ), 4),
+            'sub_total_total' => round(array_sum(
+                array_map(fn($r) => (float) $r['sub_total_factura'],
+                    array_values(array_reduce($rows, function ($carry, $r) {
+                        $id = (int) $r['factura_id'];
+                        if (!isset($carry[$id])) { $carry[$id] = $r; }
+                        return $carry;
+                    }, []))
+                )
+            ), 4),
+            'total_factura_total' => round(array_sum(
+                array_map(fn($r) => (float) $r['total_factura'],
+                    array_values(array_reduce($rows, function ($carry, $r) {
+                        $id = (int) $r['factura_id'];
+                        if (!isset($carry[$id])) { $carry[$id] = $r; }
+                        return $carry;
+                    }, []))
+                )
+            ), 4),
         ];
 
         return response()->json([
@@ -2343,8 +2383,154 @@ class ReportesComisionesGenerales extends Component
     }
 
     /**
-     * Lista empleados filtrando por rol_id (para los selects de la pestaña Factura por Actor).
+     * Descarga el Excel de nómina de proyección con el formato naranja estilizado.
+     * Recibe los mismos filtros que reporteProyecciones y recalcula internamente.
      */
+    public function exportarProyeccionesNomina(Request $request)
+    {
+        @set_time_limit(0);
+        @ini_set('memory_limit', '512M');
+
+        [$fi, $ff] = $this->resolveDateRange($request);
+        $usuarioId   = (int) $request->input('usuario_id', 0);
+        $rolIdFiltro = (int) $request->input('rol_id', 0);
+        $generadoPor = Auth::user()->name ?? 'Sistema';
+
+        // Nombre del empleado
+        $empleado = 'Usuario';
+        if ($usuarioId > 0) {
+            $u = DB::table('users')->where('id', $usuarioId)->value('name');
+            if ($u) {
+                $empleado = (string) $u;
+            }
+        }
+
+        // Periodo label
+        $periodoLabel = Carbon::parse($fi)->format('d/m/Y') . ' - ' . Carbon::parse($ff)->format('d/m/Y');
+
+        // Reutilizar la lógica de proyecciones
+        $resp = $this->reporteProyecciones($request);
+        $payload = json_decode($resp->getContent(), true);
+        $filas   = $payload['data']    ?? [];
+        $totales = $payload['totales'] ?? [];
+
+        $totalFacturas      = (int)   ($totales['facturas_proyectadas']  ?? 0);
+        $baseComisionable   = (float) ($totales['base_comisionable_total'] ?? 0);
+
+        // Desglosar comisión por rol (2=Asesor, 3=Teleasesor, 16=Gestor)
+        $comisionAsesor     = 0.0;
+        $comisionTeleasesor = 0.0;
+        $comisionGestor     = 0.0;
+        foreach ($filas as $fila) {
+            $rolId   = (int)   ($fila['rol_id']           ?? 0);
+            $monto   = (float) ($fila['comision_proyectada'] ?? 0);
+            if ($rolId === 2)  { $comisionAsesor     += $monto; }
+            if ($rolId === 3)  { $comisionTeleasesor += $monto; }
+            if ($rolId === 16) { $comisionGestor     += $monto; }
+        }
+        $comisionAsesor     = round($comisionAsesor, 4);
+        $comisionTeleasesor = round($comisionTeleasesor, 4);
+        $comisionGestor     = round($comisionGestor, 4);
+
+        // Agrupar facturas únicas por mes de pago
+        $facturasPorMes = [];
+        $todasFacturaIds = [];
+        foreach ($filas as $fila) {
+            $facturaId = (int) ($fila['factura_id'] ?? 0);
+            $fechaPago = (string) ($fila['fecha_pago'] ?? '');
+            if ($facturaId <= 0 || $fechaPago === '') {
+                continue;
+            }
+            $mesKey = Carbon::parse($fechaPago)->format('Y-m');
+            if (!isset($facturasPorMes[$mesKey])) {
+                $mesLabel = Carbon::parse($fechaPago)->locale('es')->isoFormat('MMMM YYYY');
+                $mesLabel = mb_convert_case($mesLabel, MB_CASE_TITLE, 'UTF-8');
+                $facturasPorMes[$mesKey] = ['mes_label' => $mesLabel, 'cantidad' => 0, 'total' => 0.0, 'vistas' => []];
+            }
+            if (!isset($facturasPorMes[$mesKey]['vistas'][$facturaId])) {
+                $facturasPorMes[$mesKey]['vistas'][$facturaId] = true;
+                $facturasPorMes[$mesKey]['cantidad']++;
+                $todasFacturaIds[$facturaId] = $mesKey;
+            }
+        }
+
+        $uniqueFacturaIds = array_keys($todasFacturaIds);
+
+        // Base comisionable: suma de (cantidad * precioSeleccionado) por factura única,
+        // sin duplicar por rol. Fuente: venta_has_producto.
+        $baseComisionable = 0.0;
+        if (!empty($uniqueFacturaIds)) {
+            $baseRows = DB::table('venta_has_producto as vhp')
+                ->whereIn('vhp.factura_id', $uniqueFacturaIds)
+                ->groupBy('vhp.factura_id', 'vhp.producto_id', 'vhp.precios_producto_carga_id',
+                          'vhp.precio_unidad', 'vhp.precioSeleccionado')
+                ->selectRaw("vhp.factura_id,
+                             COALESCE(SUM(vhp.cantidad_s), SUM(vhp.cantidad)) as cantidad,
+                             COALESCE(vhp.precioSeleccionado, vhp.precio_unidad) as precio")
+                ->get();
+            foreach ($baseRows as $br) {
+                $baseComisionable += (float) $br->cantidad * (float) $br->precio;
+            }
+            $baseComisionable = round($baseComisionable, 2);
+        }
+
+        // Total cobrado real: suma de abonos_creditos.monto_abonado por factura única
+        // (igual que la nómina conciliada — lo que realmente se cobró)
+        if (!empty($uniqueFacturaIds)) {
+            $cobradoRows = DB::table('aplicacion_pagos as ap')
+                ->join('abonos_creditos as ac', function ($j) {
+                    $j->on('ac.aplicacion_pagos_id', '=', 'ap.id')
+                      ->where('ac.estado_abono', '=', 1);
+                })
+                ->whereIn('ap.factura_id', $uniqueFacturaIds)
+                ->where('ap.estado', 1)
+                ->groupBy('ap.factura_id')
+                ->selectRaw('ap.factura_id, SUM(ac.monto_abonado) as cobrado')
+                ->get()
+                ->keyBy('factura_id');
+
+            foreach ($todasFacturaIds as $facturaId => $mesKey) {
+                $cobrado = (float) ($cobradoRows->get($facturaId)->cobrado ?? 0);
+                $facturasPorMes[$mesKey]['total'] += $cobrado;
+            }
+        }
+
+        ksort($facturasPorMes);
+        $mesesCobrados = array_values(array_map(function ($m) {
+            return ['mes_label' => $m['mes_label'], 'cantidad' => $m['cantidad'], 'total' => round($m['total'], 2)];
+        }, $facturasPorMes));
+        $totalCobrado = round(array_sum(array_column($mesesCobrados, 'total')), 2);
+
+        $sheet = new ProyeccionNominaSheet(
+            $empleado,
+            $periodoLabel,
+            $totalFacturas,
+            $baseComisionable,
+            $comisionAsesor,
+            $comisionTeleasesor,
+            $comisionGestor,
+            $mesesCobrados,
+            $totalCobrado,
+            $generadoPor
+        );
+
+        $filename = 'proyeccion_nomina_' . now()->format('Ymd_His') . '.xlsx';
+
+        $response = Excel::download(new class($sheet) implements \Maatwebsite\Excel\Concerns\WithMultipleSheets {
+            private $s;
+            public function __construct($s) { $this->s = $s; }
+            public function sheets(): array { return [$this->s]; }
+        }, $filename);
+
+        $token = (string) $request->input('download_token', '');
+        if ($token !== '') {
+            setcookie('proy_nomina_token', $token, time() + 300, '/', '', false, false);
+        }
+
+        return $response;
+    }
+
+    /**
     public function listarEmpleadosPorRol(Request $request)
     {
         $rolId  = (int) $request->input('rol_id', 0);
@@ -2371,54 +2557,30 @@ class ReportesComisionesGenerales extends Component
     }
 
     /**
-     * Retorna los actores (asesor, teleasesor, gestor) que participan en facturas
-     * cerradas dentro del período indicado.
+     * Retorna los actores (asesor, teleasesor, gestor) para los filtros de
+     * "Factura por Actor".
+     *
+     * Regla: deben aparecer absolutamente todos los usuarios ACTIVOS del sistema
+     * (users.estado_id = 1), congruente con el módulo /usuarios
+     * (App\Http\Livewire\Usuarios\ListarUsuarios, donde estado_id = 1 es Activo
+     * y estado_id = 2 es Inactivo). No se restringe por facturas del período,
+     * ya que el filtro es de selección de actor, no de resultados existentes.
+     *
      * Respuesta: { asesores: [...], teleasesores: [...], gestores: [...] }
      */
     public function actoresPorPeriodo(Request $request)
     {
-        [$fi, $ff] = $this->resolveDateRange($request);
-
-        // Subquery: último pago por factura (mismo patrón que reporteProyecciones)
-        $ultimoPago = DB::table('aplicacion_pagos as ap')
-            ->leftJoin('abonos_creditos as ac', function ($j) {
-                $j->on('ac.aplicacion_pagos_id', '=', 'ap.id')
-                  ->where('ac.estado_abono', '=', 1);
-            })
-            ->where('ap.estado', 1)
-            ->where('ap.estado_cerrado', 2)
-            ->groupBy('ap.id', 'ap.factura_id', 'ap.fecha_cierre_factura')
-            ->selectRaw('ap.factura_id,
-                         COALESCE(MAX(DATE(ac.fecha_pago)), DATE(ap.fecha_cierre_factura)) as fecha_pago_cierre')
-            ->havingRaw('fecha_pago_cierre IS NOT NULL');
-
-        // IDs de facturas cuyo último pago cae en el período
-        $facturaIds = DB::table(DB::raw("({$ultimoPago->toSql()}) as up"))
-            ->mergeBindings($ultimoPago)
-            ->whereBetween('up.fecha_pago_cierre', [$fi, $ff])
-            ->pluck('up.factura_id');
-
-        if ($facturaIds->isEmpty()) {
-            return response()->json(['asesores' => [], 'teleasesores' => [], 'gestores' => []]);
-        }
-
-        $makeList = function (string $campo) use ($facturaIds): array {
-            return DB::table('factura as f')
-                ->join('users as u', "u.id", '=', "f.{$campo}")
-                ->whereIn('f.id', $facturaIds)
-                ->whereNotNull("f.{$campo}")
-                ->where("f.{$campo}", '>', 0)
-                ->select('u.id', 'u.name')
-                ->distinct()
-                ->orderBy('u.name')
-                ->get()
-                ->toArray();
-        };
+        $usuariosActivos = DB::table('users as u')
+            ->where('u.estado_id', 1)
+            ->select('u.id', 'u.name')
+            ->orderBy('u.name')
+            ->get()
+            ->toArray();
 
         return response()->json([
-            'asesores'     => $makeList('vendedor'),
-            'teleasesores' => $makeList('users_id'),
-            'gestores'     => $makeList('gestor_entrega'),
+            'asesores'     => $usuariosActivos,
+            'teleasesores' => $usuariosActivos,
+            'gestores'     => $usuariosActivos,
         ]);
     }
 
@@ -2426,8 +2588,8 @@ class ReportesComisionesGenerales extends Component
      * Facturas cerradas agrupadas por actor (Asesor, Tele Asesor, Gestor).
      *
      * Condiciones de cierre:
-     *   - aplicacion_pagos.estado = 1 AND estado_cerrado = 2  (saldo = 0)
-     *   - La fecha de último pago (MAX abonos_creditos.fecha_pago) cae dentro del período
+        *   - aplicacion_pagos.estado = 1 AND estado_cerrado = 2 AND saldo <= 0.0001
+        *   - La fecha de último pago REAL (MAX abonos_creditos.fecha_pago) cae dentro del período
      *
      * Filtros opcionales independientes:
      *   - asesor_id   → factura.vendedor
@@ -2441,7 +2603,7 @@ class ReportesComisionesGenerales extends Component
         $teleasesorId  = (int) $request->input('teleasesor_id', 0);
         $gestorId      = (int) $request->input('gestor_id', 0);
 
-        // Sub-query: fecha del último pago por factura
+        // Sub-query estricto: fecha del último pago real por factura
         $ultimoPago = DB::table('aplicacion_pagos as ap2')
             ->leftJoin('abonos_creditos as ac2', function ($j) {
                 $j->on('ac2.aplicacion_pagos_id', '=', 'ap2.id')
@@ -2449,9 +2611,10 @@ class ReportesComisionesGenerales extends Component
             })
             ->where('ap2.estado', 1)
             ->where('ap2.estado_cerrado', 2)
+            ->where('ap2.saldo', '<=', 0.0001)
             ->groupBy('ap2.id', 'ap2.factura_id', 'ap2.fecha_cierre_factura')
             ->selectRaw('ap2.factura_id,
-                         COALESCE(MAX(DATE(ac2.fecha_pago)), DATE(ap2.fecha_cierre_factura)) as fecha_ultimo_pago')
+                         MAX(DATE(ac2.fecha_pago)) as fecha_ultimo_pago')
             ->havingRaw('fecha_ultimo_pago IS NOT NULL');
 
         $query = DB::table('factura as f')

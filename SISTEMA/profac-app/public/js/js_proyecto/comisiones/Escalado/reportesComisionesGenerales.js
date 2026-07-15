@@ -937,6 +937,42 @@ function exportarProyeccionesExcel(tipo){
     document.body.removeChild(form);
 }
 
+function exportarProyeccionesNomina(){
+    if(!proyeccionesDataActual || !proyeccionesDataActual.length){
+        Swal.fire({icon:'info',title:'Sin datos',text:'Genera primero la proyección antes de descargar la nómina.'});
+        return;
+    }
+
+    var filtros = getFiltrosProyecciones ? getFiltrosProyecciones() : {};
+    if(!filtros.usuario_id){
+        Swal.fire({icon:'warning',title:'Usuario requerido',text:'Selecciona un usuario activo para generar la nómina.'});
+        return;
+    }
+
+    var token = 'proy_nom_' + Date.now();
+    var form  = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/comision/reporte/proyecciones/exportar-nomina';
+    form.style.display = 'none';
+
+    function addInput(name, value){
+        var inp = document.createElement('input');
+        inp.type = 'hidden'; inp.name = name; inp.value = value;
+        form.appendChild(inp);
+    }
+
+    addInput('_token', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
+    addInput('fechaInicio', filtros.fechaInicio || '');
+    addInput('fechaFin',    filtros.fechaFin    || '');
+    addInput('usuario_id',  filtros.usuario_id  || '');
+    addInput('rol_id',      filtros.rol_id      || '');
+    addInput('download_token', token);
+
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
+}
+
 function getFiltrosRevisionFacturas(){
     var fechaInicio = normalizeDateInput($('#revFechaInicio').val());
     var fechaFin = normalizeDateInput($('#revFechaFin').val());
@@ -1837,6 +1873,7 @@ function imprimirTabla(tabId){
  *  TAB: FACTURA POR ACTOR
  * ═══════════════════════════════════════════════════════════════════ */
 var dtFacturaActor = null;
+var facturaActorDataActual = [];
 
 function fmtMoneyFa(v) {
     var n = parseFloat(v || 0);
@@ -1921,6 +1958,7 @@ function generarFacturaActor() {
     .done(function(resp) {
         var filas   = resp.data    || [];
         var totales = resp.totales || {};
+        facturaActorDataActual = filas;
 
         if (!filas.length) {
             $('#faEmptyState').show().find('p').text('No se encontraron facturas cerradas para el período seleccionado.');
@@ -1993,9 +2031,60 @@ function limpiarFa() {
     if ($.fn.DataTable.isDataTable('#dtFacturaActor')) {
         dtFacturaActor.clear().draw();
     }
+    facturaActorDataActual = [];
     $('#faTableWrap').hide();
     $('#faKpis').hide();
     $('#faEmptyState').show();
+}
+
+function exportarFacturaActorExcel(){
+    if(typeof XLSX === 'undefined'){
+        Swal.fire({icon:'warning',title:'Librería no disponible',text:'No fue posible cargar la librería de Excel.'});
+        return;
+    }
+
+    if(!facturaActorDataActual.length){
+        Swal.fire({icon:'info',title:'Sin datos',text:'No hay facturas para exportar.'});
+        return;
+    }
+
+    var ahora = new Date();
+    var stamp = ahora.getFullYear().toString()
+        + String(ahora.getMonth()+1).padStart(2,'0')
+        + String(ahora.getDate()).padStart(2,'0')
+        + '_' + String(ahora.getHours()).padStart(2,'0')
+        + String(ahora.getMinutes()).padStart(2,'0')
+        + String(ahora.getSeconds()).padStart(2,'0');
+
+    var dataEx = [['N° Factura (CAI)','Asesor Comercial','Tele Asesor','Gestor de Entregas','Fecha Creación','Fecha Último Pago','Tipo Factura','Política','Subtotal','ISV','Total']];
+    facturaActorDataActual.forEach(function(r){
+        dataEx.push([
+            r.factura || '',
+            r.asesor_comercial || '',
+            r.tele_asesor || '',
+            r.gestor_entregas || '',
+            r.fecha_creacion || '',
+            r.fecha_ultimo_pago || '',
+            r.tipo_factura || '',
+            r.politica || '',
+            parseFloat(r.subtotal || 0),
+            parseFloat(r.isv || 0),
+            parseFloat(r.total || 0)
+        ]);
+    });
+
+    var wsEx = XLSX.utils.aoa_to_sheet(dataEx);
+    for (var i = 2; i <= facturaActorDataActual.length + 1; i++) {
+        ['I','J','K'].forEach(function(col){
+            var ref = col + i;
+            if (wsEx[ref] && typeof wsEx[ref].v === 'number') wsEx[ref].z = '"L." #,##0.00';
+        });
+    }
+    wsEx['!autofilter'] = { ref: 'A1:K1' };
+    wsEx['!cols'] = [{wch:20},{wch:22},{wch:22},{wch:22},{wch:14},{wch:14},{wch:12},{wch:16},{wch:16},{wch:14},{wch:16}];
+    var wbEx = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wbEx, wsEx, 'Factura por Actor');
+    XLSX.writeFile(wbEx, 'factura_por_actor_' + stamp + '.xlsx');
 }
 
 // Init al entrar a la pestaña

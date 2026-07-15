@@ -679,6 +679,9 @@ table.dataTable tbody td { font-size: 13px; vertical-align: middle; }
                     <button class="btn-export" type="button" style="background:#fff1f2;color:#9f1239;border-color:#fecdd3;" onclick="exportarProyeccionesExcel('excluidas')">
                         <i class="fa fa-file-excel-o"></i> Descargar Excel Excluidas
                     </button>
+                    <button class="btn-export" type="button" style="background:#fff7ed;color:#9a3412;border-color:#fdba74;" onclick="exportarProyeccionesNomina()">
+                        <i class="fa fa-file-excel-o"></i> Descargar Nómina Proyectada
+                    </button>
                     <small style="display:flex;align-items:center;color:#334155;">Desplace horizontalmente para ver todas las columnas.</small>
                 </div>
             </div>
@@ -927,6 +930,9 @@ table.dataTable tbody td { font-size: 13px; vertical-align: middle; }
                         <i class="fa fa-file-invoice" style="color:#7c3aed;"></i>
                         Facturas Cerradas por Actor
                     </div>
+                    <button class="btn-export" type="button" onclick="exportarFacturaActorExcel()">
+                        <i class="fa fa-file-excel-o"></i> Descargar Excel
+                    </button>
                 </div>
                 <div style="overflow-x:auto;border:1px solid #e2e8f0;border-radius:10px;background:#fff;">
                     <table id="dtFacturaActor" class="table table-hover table-sm w-100 mb-0">
