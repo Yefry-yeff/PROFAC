@@ -23,7 +23,13 @@ class ComisionPoliticaAnterior extends Component
 
     public function render()
     {
-        return view('livewire.reportes.comision-politica-anterior');
+        $view = view('livewire.reportes.comision-politica-anterior');
+
+        if (request()->boolean('embed')) {
+            return $view->layout('layouts.embed');
+        }
+
+        return $view;
     }
 
     private function normalizarClaveTexto(?string $valor): string

@@ -748,6 +748,19 @@ table.dataTable tbody td { font-size: 13px; vertical-align: middle; }
                 </div>
             </div>
 
+            {{-- Sección inline Política Anterior --}}
+            <div id="seccionPoliticaAnterior" style="display:none;margin-top:24px;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.08);">
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 18px;background:linear-gradient(135deg,#1e3a5f,#2563eb);color:#fff;">
+                    <div style="font-size:15px;font-weight:700;">
+                        <i class="fa fa-calculator mr-2"></i> Comisión por Política Anterior
+                    </div>
+                    <button type="button" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:6px;padding:4px 12px;font-size:12px;cursor:pointer;" onclick="$('#seccionPoliticaAnterior').hide();$('#iframePoliticaAnterior').attr('src','');">
+                        <i class="fa fa-times mr-1"></i> Cerrar
+                    </button>
+                </div>
+                <iframe id="iframePoliticaAnterior" src="" style="width:100%;height:90vh;border:1px solid #e2e8f0;border-radius:0 0 12px 12px;display:block;"></iframe>
+            </div>
+
         </div>
 
         <div class="tab-pane fade" id="tab-revision-facturas" role="tabpanel">

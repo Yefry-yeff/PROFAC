@@ -810,7 +810,12 @@ function redirigirCalculoPoliticaAnterior(){
         // Ignorar si el navegador no permite almacenamiento.
     }
 
-    window.location.href = '/reporte/comision/politica-anterior';
+    // Mostrar sección inline en lugar de redirigir
+    var $sec = $('#seccionPoliticaAnterior');
+    $('#iframePoliticaAnterior').attr('src', '');
+    $sec.show();
+    $('#iframePoliticaAnterior').attr('src', '/reporte/comision/politica-anterior?embed=1');
+    setTimeout(function(){ $sec[0].scrollIntoView({behavior:'smooth', block:'start'}); }, 150);
 }
 
 function exportarBrechaApFcExcel(){
