@@ -1,4 +1,4 @@
-<div wire:poll.60s id="dash-root" class="{{ $darkMode ? 'dash-dark' : '' }}">
+<div wire:poll.3m id="dash-root" class="{{ $darkMode ? 'dash-dark' : '' }}">
 @push('styles')
 <style>
 /* ═══════════════════════════════════════════════════════════════

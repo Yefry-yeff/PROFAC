@@ -150,7 +150,7 @@
     </style>
 
     {{-- Poll silencioso --}}
-    <div wire:poll.30s="cargar" style="display:none;"></div>
+    <div wire:poll.2m="cargar" style="display:none;"></div>
 
     {{-- Botón campana --}}
     <button @click="open = !open; $el.classList.add('ringing'); setTimeout(() => $el.classList.remove('ringing'), 600)"
