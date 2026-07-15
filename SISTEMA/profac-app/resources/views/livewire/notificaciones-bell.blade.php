@@ -149,8 +149,8 @@
     .notif-footer-link:hover { background:#eff6ff; color:#1d4ed8; text-decoration:none; }
     </style>
 
-    {{-- Poll silencioso --}}
-    <div wire:poll.2m="cargar" style="display:none;"></div>
+    {{-- Poll silencioso cada 3 minutos --}}
+    <div wire:poll.180s="cargar" style="display:none;"></div>
 
     {{-- Botón campana --}}
     <button @click="open = !open; $el.classList.add('ringing'); setTimeout(() => $el.classList.remove('ringing'), 600)"

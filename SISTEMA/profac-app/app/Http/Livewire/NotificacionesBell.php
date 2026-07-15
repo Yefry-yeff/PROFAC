@@ -11,7 +11,7 @@ class NotificacionesBell extends Component
     public array  $notificaciones = [];
     public bool   $mostrarPanel   = false;
 
-    protected $listeners = ['$refresh' => 'cargar'];
+    protected $listeners = ['notificacionNueva' => 'cargar'];
 
     public function mount(): void
     {
