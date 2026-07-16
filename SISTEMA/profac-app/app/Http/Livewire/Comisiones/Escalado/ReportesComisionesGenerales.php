@@ -162,6 +162,30 @@ class ReportesComisionesGenerales extends Component
     }
 
     /**
+     * Lista todos los usuarios (activos e inactivos) con su rol y estado,
+     * para el selector de proyecciones donde se necesita visibilidad completa.
+     */
+    public function listarEmpleadosTodos(Request $request)
+    {
+        $search = trim((string) $request->input('q', ''));
+
+        $query = DB::table('users as u')
+            ->leftJoin('rol as r', 'r.id', '=', 'u.rol_id')
+            ->selectRaw("u.id,
+                         u.name,
+                         COALESCE(r.nombre, 'Sin rol') AS rol_nombre,
+                         CASE WHEN u.estado_id = 1 THEN 'Activo' ELSE 'Inactivo' END AS estado_label,
+                         u.estado_id")
+            ->orderByRaw("u.estado_id ASC, u.name ASC");
+
+        if ($search !== '') {
+            $query->where('u.name', 'LIKE', "%{$search}%");
+        }
+
+        return response()->json($query->limit(100)->get());
+    }
+
+    /**
      * Lista de roles para selector
      */
     public function listarRoles(Request $request)

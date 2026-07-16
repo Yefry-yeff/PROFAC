@@ -14,6 +14,40 @@ var revisionProductosDataActual=[];
 var detalleProductosFacturaMap = {};
 var detalleProductosFacturaActual = { facturaComisionId: null, factura: '', cliente: '', productos: [] };
 
+// ── Helpers globales para Select2 de empleados ────────────────────────────
+function _empTemplate(u) {
+    if (!u.id) return u.text;
+    var activo = u.estado && parseInt(u.estado) === 1;
+    var badge = activo
+        ? '<span style="background:#d1fae5;color:#065f46;font-size:10px;border-radius:3px;padding:1px 5px;margin-left:4px;">Activo</span>'
+        : '<span style="background:#f1f5f9;color:#64748b;font-size:10px;border-radius:3px;padding:1px 5px;margin-left:4px;">Inactivo</span>';
+    return $('<span style="color:'+(activo?'#1e293b':'#94a3b8')+';">'+u.text.split(' (')[0]+badge+'</span>');
+}
+
+function _empAjaxConfig(placeholder) {
+    return {
+        placeholder: placeholder || '— Todos —',
+        allowClear: true,
+        ajax: {
+            url: '/comision/empleados/todos', dataType: 'json', delay: 250,
+            data: function(p) { return { q: p.term }; },
+            processResults: function(d) {
+                return { results: d.map(function(u) {
+                    return { id: u.id, text: u.name + ' — ' + u.rol_nombre + ' (' + u.estado_label + ')', estado: u.estado_id };
+                })};
+            }
+        },
+        templateResult: _empTemplate,
+        templateSelection: function(u) { return u.text || u.id; }
+    };
+}
+
+function initEmpleadoSelectGlobal(selector, placeholder) {
+    if (!$(selector).hasClass('select2-hidden-accessible')) {
+        $(selector).select2(_empAjaxConfig(placeholder));
+    }
+}
+
 $(document).ready(function(){
     // Fechas por defecto: mes actual
     var hoy=new Date(), ini=new Date(hoy.getFullYear(),hoy.getMonth(),1);
@@ -24,17 +58,41 @@ $(document).ready(function(){
     $('#revFechaInicio').val(fmtDate(ini));
     $('#revFechaFin').val(fmtDate(hoy));
 
-    // Select2 empleado
-    $('#fpEmpleado').select2({
-        placeholder:'— Todos los empleados —', allowClear:true,
-        ajax:{
-            url:'/comision/empleados/lista', dataType:'json', delay:250,
-            data:function(p){return{q:p.term};},
-            processResults:function(d){return{results:d.map(function(u){return{id:u.id,text:u.name};})};}
-        }
-    });
+    // ── Helper reutilizable: Select2 empleados con rol y estado ────────────
+    // Renderizador de opción compartido
+    function _empTemplate(u) {
+        if (!u.id) return u.text;
+        var activo = u.estado && parseInt(u.estado) === 1;
+        var badge = activo
+            ? '<span style="background:#d1fae5;color:#065f46;font-size:10px;border-radius:3px;padding:1px 5px;margin-left:4px;">Activo</span>'
+            : '<span style="background:#f1f5f9;color:#64748b;font-size:10px;border-radius:3px;padding:1px 5px;margin-left:4px;">Inactivo</span>';
+        var color = activo ? '#1e293b' : '#94a3b8';
+        return $('<span style="color:'+color+';">'+u.text.split(' (')[0]+badge+'</span>');
+    }
 
-    // Select2 rol
+    function initEmpleadoSelect(selector, placeholder) {
+        $(selector).select2({
+            placeholder: placeholder || '— Todos —',
+            allowClear: true,
+            ajax: {
+                url: '/comision/empleados/todos', dataType: 'json', delay: 250,
+                data: function(p) { return { q: p.term }; },
+                processResults: function(d) {
+                    return { results: d.map(function(u) {
+                        var label = u.name + ' — ' + u.rol_nombre + ' (' + u.estado_label + ')';
+                        return { id: u.id, text: label, estado: u.estado_id };
+                    })};
+                }
+            },
+            templateResult: _empTemplate,
+            templateSelection: function(u) { return u.text || u.id; }
+        });
+    }
+
+    // Select2 empleado (Nómina)
+    initEmpleadoSelectGlobal('#fpEmpleado', '— Todos los empleados —');
+
+    // Select2 rol (Nómina)
     $('#fpRol').select2({
         placeholder:'— Todos los roles —', allowClear:true,
         ajax:{
@@ -45,14 +103,7 @@ $(document).ready(function(){
     });
 
     // Select2 usuario activo para proyecciones
-    $('#proyUsuario').select2({
-        placeholder:'— Seleccione usuario activo —', allowClear:true,
-        ajax:{
-            url:'/comision/empleados/lista', dataType:'json', delay:250,
-            data:function(p){return{q:p.term};},
-            processResults:function(d){return{results:d.map(function(u){return{id:u.id,text:u.name};})};}
-        }
-    });
+    initEmpleadoSelectGlobal('#proyUsuario', '— Seleccione usuario activo —');
 
     // Select2 rol comisionable para proyecciones
     $('#proyRol').select2({
@@ -64,15 +115,8 @@ $(document).ready(function(){
         }
     });
 
-    // Select2 usuario activo para revisión de facturas
-    $('#revUsuario').select2({
-        placeholder:'— Todos los usuarios activos —', allowClear:true,
-        ajax:{
-            url:'/comision/empleados/lista', dataType:'json', delay:250,
-            data:function(p){return{q:p.term};},
-            processResults:function(d){return{results:d.map(function(u){return{id:u.id,text:u.name};})};}
-        }
-    });
+    // Select2 usuario para revisión de facturas
+    initEmpleadoSelectGlobal('#revUsuario', '— Todos los usuarios —');
 
     // Select2 rol comisionable para revisión de facturas
     $('#revRol').select2({
@@ -1887,16 +1931,11 @@ function fmtMoneyFa(v) {
 }
 
 function initFaSelects() {
-    // Inicializar Select2 vacíos (se llenan al cambiar fechas)
-    var selectsCfg = [
-        { id: '#faAsesor',     placeholder: '— Todos los Asesores —' },
-        { id: '#faTeleasesor', placeholder: '— Todos los Tele Asesores —' },
-        { id: '#faGestor',     placeholder: '— Todos los Gestores —' },
-    ];
-    selectsCfg.forEach(function(cfg) {
-        if (!$(cfg.id).data('select2')) {
-            $(cfg.id).select2({ placeholder: cfg.placeholder, allowClear: true, width: '100%' });
-        }
+    ['#faAsesor', '#faTeleasesor', '#faGestor'].forEach(function(sel) {
+        var ph = sel === '#faAsesor' ? '— Todos los Asesores —'
+               : sel === '#faTeleasesor' ? '— Todos los Tele Asesores —'
+               : '— Todos los Gestores —';
+        initEmpleadoSelectGlobal(sel, ph);
     });
 }
 
@@ -2125,26 +2164,7 @@ function fmtL(v) {
 }
 
 function initCuadreSelect() {
-    if (!$('#cuadreVendedor').hasClass('select2-hidden-accessible')) {
-        $('#cuadreVendedor').select2({
-            placeholder: '— Todos los vendedores —',
-            allowClear: true,
-            ajax: {
-                url: '/comision/empleados/lista',
-                dataType: 'json',
-                delay: 250,
-                data: function(params) { return { search: params.term }; },
-                processResults: function(data) {
-                    var items = [{ id: '', text: '— Todos los vendedores —' }];
-                    $.each(data.data || data, function(i, u) {
-                        items.push({ id: u.id, text: u.name });
-                    });
-                    return { results: items };
-                },
-                cache: true
-            }
-        });
-    }
+    initEmpleadoSelectGlobal('#cuadreVendedor', '— Todos los vendedores —');
 }
 
 function setCuadreDefaultDates() {
@@ -2361,24 +2381,7 @@ var dtAuditoria = null;
 var auditoriaDataActual = [];
 
 function initAudSelect() {
-    if (!$('#audVendedor').hasClass('select2-hidden-accessible')) {
-        $('#audVendedor').select2({
-            placeholder: '— Seleccione vendedor —',
-            allowClear: true,
-            ajax: {
-                url: '/comision/empleados/lista',
-                dataType: 'json',
-                delay: 250,
-                data: function(p) { return { search: p.term }; },
-                processResults: function(data) {
-                    var items = [{ id: '', text: '— Todos —' }];
-                    $.each(data.data || data, function(i, u) { items.push({ id: u.id, text: u.name }); });
-                    return { results: items };
-                },
-                cache: true
-            }
-        });
-    }
+    initEmpleadoSelectGlobal('#audVendedor', '— Seleccione vendedor —');
 }
 
 function setAudDefaultDates() {
@@ -2575,4 +2578,7 @@ $('a[href="#tab-auditoria"]').on('shown.bs.tab', function() {
 $(document).ready(function() {
     $('#btnAudGenerar').on('click', generarAuditoria);
     $('#btnAudLimpiar').on('click', limpiarAuditoria);
+    // Inicializar select de auditoría al cargar la página
+    initAudSelect();
+    setAudDefaultDates();
 });
