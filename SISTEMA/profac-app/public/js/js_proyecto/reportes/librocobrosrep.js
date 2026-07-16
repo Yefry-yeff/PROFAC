@@ -99,7 +99,7 @@ function cargarTablaLC() {
             { data: 'isv', className: 'text-right', render: function(d) { return fmtLpsLC(d); } },
             { data: 'total_factura', className: 'text-right', render: function(d) { return '<strong>' + fmtLpsLC(d) + '</strong>'; } }
         ],
-        order: [[0, 'desc']],
+        order: [[2, 'asc']],
         pageLength: 25,
         dom: '<"row"<"col-sm-6"l><"col-sm-6"f>>rt<"row"<"col-sm-5"i><"col-sm-7"p>>',
         initComplete: function() {

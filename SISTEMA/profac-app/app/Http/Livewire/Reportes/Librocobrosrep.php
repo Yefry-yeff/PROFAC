@@ -246,7 +246,7 @@ class Librocobrosrep extends Component
                     $bindings[] = '%' . $factura . '%';
                 }
 
-                $sql .= ' ORDER BY sub.banco ASC, sub.cuenta_banco ASC, sub.fecha_pago ASC, sub.cliente ASC';
+                $sql .= ' ORDER BY sub.fecha_pago ASC, sub.banco ASC, sub.cuenta_banco ASC, sub.cliente ASC';
 
                 $consulta = DB::select($sql, $bindings);
 
@@ -589,7 +589,7 @@ class Librocobrosrep extends Component
             $bindings[] = '%' . $factura . '%';
         }
 
-        $sql .= ' ORDER BY sub.banco ASC, sub.cuenta_banco ASC, sub.fecha_pago ASC, sub.cliente ASC';
+        $sql .= ' ORDER BY sub.fecha_pago ASC, sub.banco ASC, sub.cuenta_banco ASC, sub.cliente ASC';
 
         return DB::select($sql, $bindings);
     }
