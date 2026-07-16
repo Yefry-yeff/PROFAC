@@ -2498,18 +2498,16 @@ class ReportesComisionesGenerales extends Component
             $baseComisionable = round($baseComisionable, 2);
         }
 
-        // Total cobrado real: suma de abonos_creditos.monto_abonado por factura única
-        // (igual que la nómina conciliada — lo que realmente se cobró)
+        // Total cobrado: directo desde abonos_creditos, igual que Libro de Cobros
+        // (mismo filtro: fecha_pago en rango, banco no excluido, estado_abono=1)
         if (!empty($uniqueFacturaIds)) {
-            $cobradoRows = DB::table('aplicacion_pagos as ap')
-                ->join('abonos_creditos as ac', function ($j) {
-                    $j->on('ac.aplicacion_pagos_id', '=', 'ap.id')
-                      ->where('ac.estado_abono', '=', 1);
-                })
-                ->whereIn('ap.factura_id', $uniqueFacturaIds)
-                ->where('ap.estado', 1)
-                ->groupBy('ap.factura_id')
-                ->selectRaw('ap.factura_id, SUM(ac.monto_abonado) as cobrado')
+            $cobradoRows = DB::table('abonos_creditos as ac')
+                ->whereIn('ac.factura_id', $uniqueFacturaIds)
+                ->where('ac.estado_abono', 1)
+                ->whereNotIn('ac.banco_id', [12, 13])
+                ->whereBetween(DB::raw('DATE(ac.fecha_pago)'), [$fi, $ff])
+                ->groupBy('ac.factura_id')
+                ->selectRaw('ac.factura_id, SUM(ac.monto_abonado) as cobrado')
                 ->get()
                 ->keyBy('factura_id');
 
@@ -2525,6 +2523,140 @@ class ReportesComisionesGenerales extends Component
         }, $facturasPorMes));
         $totalCobrado = round(array_sum(array_column($mesesCobrados, 'total')), 2);
 
+        // ── Política Anterior — IDs y totales ─────────────────────────────
+        $basePoliticaAnterior     = (float) $request->input('pol_base_comisionable', 0);
+        $comisionPoliticaAnterior = (float) $request->input('pol_total_comision',     0);
+
+        // IDs de facturas política anterior enviados desde el frontend
+        $facturasPoliticaIds = collect($request->input('pol_factura_ids', []))
+            ->map(fn($v) => (int) $v)
+            ->filter(fn($v) => $v > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        // Fallback si no vienen del frontend
+        if ($basePoliticaAnterior <= 0 && $comisionPoliticaAnterior <= 0 && $usuarioId > 0) {
+            $cierresParaPolitica = DB::table('aplicacion_pagos as ap')
+                ->leftJoin('abonos_creditos as ac', function ($j) {
+                    $j->on('ac.aplicacion_pagos_id', '=', 'ap.id')
+                      ->where('ac.estado_abono', '=', 1);
+                })
+                ->where('ap.estado', 1)
+                ->where('ap.estado_cerrado', 2)
+                ->where('ap.saldo', '<=', 0.0001)
+                ->groupBy('ap.id', 'ap.factura_id', 'ap.fecha_cierre_factura')
+                ->selectRaw("ap.factura_id,
+                             COALESCE(MAX(DATE(ac.fecha_pago)), DATE(ap.fecha_cierre_factura)) AS fecha_pago_cierre")
+                ->havingRaw('fecha_pago_cierre IS NOT NULL')
+                ->havingBetween('fecha_pago_cierre', [$fi, $ff])
+                ->get()
+                ->pluck('factura_id')
+                ->map(fn($v) => (int) $v)
+                ->all();
+
+            $enEscalaIds = !empty($cierresParaPolitica)
+                ? DB::table('facturas_comision')
+                    ->whereIn('factura_id', $cierresParaPolitica)
+                    ->where('estado_id', 1)
+                    ->distinct()
+                    ->pluck('factura_id')
+                    ->map(fn($v) => (int) $v)
+                    ->flip()
+                    ->all()
+                : [];
+
+            if (!empty($cierresParaPolitica)) {
+                $facturasFiltradas = DB::table('factura')
+                    ->whereIn('id', $cierresParaPolitica)
+                    ->where(function ($q) use ($usuarioId) {
+                        $q->where('users_id', $usuarioId)
+                          ->orWhere('vendedor', $usuarioId)
+                          ->orWhere('gestor_entrega', $usuarioId);
+                    })
+                    ->pluck('id')
+                    ->map(fn($v) => (int) $v)
+                    ->all();
+                foreach ($facturasFiltradas as $fid) {
+                    if (!isset($enEscalaIds[$fid])) {
+                        $facturasPoliticaIds[] = $fid;
+                    }
+                }
+            }
+
+            if (!empty($facturasPoliticaIds)) {
+                $lineaPolRows = DB::table('venta_has_producto as vhp')
+                    ->whereIn('vhp.factura_id', $facturasPoliticaIds)
+                    ->groupBy('vhp.factura_id', 'vhp.producto_id', 'vhp.precios_producto_carga_id',
+                              'vhp.precio_unidad', 'vhp.precioSeleccionado')
+                    ->selectRaw("COALESCE(SUM(vhp.cantidad_s), SUM(vhp.cantidad)) as cantidad,
+                                 COALESCE(vhp.precioSeleccionado, vhp.precio_unidad) as precio")
+                    ->get();
+                foreach ($lineaPolRows as $lr) {
+                    $basePoliticaAnterior += (float) $lr->cantidad * (float) $lr->precio;
+                }
+                $basePoliticaAnterior = round($basePoliticaAnterior, 2);
+            }
+        }
+
+        // ── Agregar facturas de política anterior a la sección "Facturas por Mes" ──
+        // Solo incluir IDs que no están ya en las facturas de escala
+        $facturasPoliticaIds = array_values(array_diff($facturasPoliticaIds, $uniqueFacturaIds));
+
+        if (!empty($facturasPoliticaIds)) {
+            // Obtener fecha de pago (desde AP cerrada) para agrupar por mes
+            $cierresPol = DB::table('aplicacion_pagos as ap')
+                ->leftJoin('abonos_creditos as ac', function ($j) {
+                    $j->on('ac.aplicacion_pagos_id', '=', 'ap.id')
+                      ->where('ac.estado_abono', '=', 1);
+                })
+                ->where('ap.estado', 1)
+                ->where('ap.estado_cerrado', 2)
+                ->whereIn('ap.factura_id', $facturasPoliticaIds)
+                ->groupBy('ap.factura_id', 'ap.fecha_cierre_factura')
+                ->selectRaw("ap.factura_id,
+                             COALESCE(MAX(DATE(ac.fecha_pago)), DATE(ap.fecha_cierre_factura)) AS fecha_pago_cierre")
+                ->get()
+                ->keyBy('factura_id');
+
+            // Cobrado en el rango para estas facturas (= mismo criterio que Libro de Cobros)
+            $cobradoPolRows = DB::table('abonos_creditos as ac')
+                ->whereIn('ac.factura_id', $facturasPoliticaIds)
+                ->where('ac.estado_abono', 1)
+                ->whereNotIn('ac.banco_id', [12, 13])
+                ->whereBetween(DB::raw('DATE(ac.fecha_pago)'), [$fi, $ff])
+                ->groupBy('ac.factura_id')
+                ->selectRaw('ac.factura_id, SUM(ac.monto_abonado) as cobrado')
+                ->get()
+                ->keyBy('factura_id');
+
+            foreach ($facturasPoliticaIds as $fid) {
+                $cierreFila = $cierresPol->get($fid);
+                $fechaPago  = $cierreFila ? (string) $cierreFila->fecha_pago_cierre : null;
+                if (!$fechaPago) continue;
+
+                $mesKey = Carbon::parse($fechaPago)->format('Y-m');
+                if (!isset($facturasPorMes[$mesKey])) {
+                    $mesLabel = Carbon::parse($fechaPago)->locale('es')->isoFormat('MMMM YYYY');
+                    $mesLabel = mb_convert_case($mesLabel, MB_CASE_TITLE, 'UTF-8');
+                    $facturasPorMes[$mesKey] = ['mes_label' => $mesLabel, 'cantidad' => 0, 'total' => 0.0, 'vistas' => []];
+                }
+                if (!isset($facturasPorMes[$mesKey]['vistas'][$fid])) {
+                    $facturasPorMes[$mesKey]['vistas'][$fid] = true;
+                    $facturasPorMes[$mesKey]['cantidad']++;
+                    $cobrado = (float) ($cobradoPolRows->get($fid)->cobrado ?? 0);
+                    $facturasPorMes[$mesKey]['total'] += $cobrado;
+                }
+            }
+
+            ksort($facturasPorMes);
+            $mesesCobrados = array_values(array_map(function ($m) {
+                return ['mes_label' => $m['mes_label'], 'cantidad' => $m['cantidad'], 'total' => round($m['total'], 2)];
+            }, $facturasPorMes));
+            $totalCobrado  = round(array_sum(array_column($mesesCobrados, 'total')), 2);
+            $totalFacturas = array_sum(array_column($mesesCobrados, 'cantidad'));
+        }
+
         $sheet = new ProyeccionNominaSheet(
             $empleado,
             $periodoLabel,
@@ -2533,6 +2665,8 @@ class ReportesComisionesGenerales extends Component
             $comisionAsesor,
             $comisionTeleasesor,
             $comisionGestor,
+            $basePoliticaAnterior,
+            $comisionPoliticaAnterior,
             $mesesCobrados,
             $totalCobrado,
             $generadoPor

@@ -465,6 +465,8 @@ function generarProyecciones(){
 
     $.getJSON('/comision/reporte/proyecciones', f, function(resp){
         renderProyecciones(resp || {});
+        // Auto-calcular política anterior con las mismas facturas excluidas
+        autoCalcularPoliticaAnterior();
     }).fail(function(xhr){
         var mensaje = (xhr.responseJSON && (xhr.responseJSON.error || xhr.responseJSON.text)) || 'No fue posible generar la proyección.';
         Swal.fire({icon:'warning',title:'Proyecciones',text:mensaje});
@@ -524,6 +526,9 @@ function renderProyecciones(resp){
         ? totales.comision_recalculada_total
         : (totales.comision_proyectada_total || 0);
     $('#proyComisionTotal').text(fmtMoney(totalComisionVisible || 0));
+    window._comisionEscalaActual = totalComisionVisible || 0;
+    $('#resumenComisionEscala').text(fmtMoney(window._comisionEscalaActual));
+    $('#resumenComisionTotal').text(fmtMoney(window._comisionEscalaActual)); // se actualizará al cargar pol. anterior
     $('#proyExcluidas').text(excluidas.length);
 
     $('#proyTableWrap').show();
@@ -765,7 +770,12 @@ function limpiarFiltrosProyecciones(){
     $('#proyRol').val(null).trigger('change');
 
     $('#proyInfo').hide();
+    $('#proyInfoPolitica').hide();
     $('#proyFacturas').text('0');
+    window._comisionEscalaActual         = 0;
+    window._comisionPolAnteriorActual    = 0;
+    window.politicaAnteriorTotalesActual = null;
+    window._politicaAnteriorFacturaIds   = [];
     $('#proyRegistros').text('0');
     $('#proyBaseUnitaria').text(fmtMoney(0));
     $('#proyBaseComisionable').text(fmtMoney(0));
@@ -777,6 +787,7 @@ function limpiarFiltrosProyecciones(){
     $('#proyExcluidasWrap').hide();
     $('#proyBrechaWrap').hide();
     $('#proyBrechaInfo').hide();
+    $('#proyPoliticaAnteriorResult').hide().empty();
     $('#proyBrechaPagadas').text('0');
     $('#proyBrechaTotal').text('0');
     $('#proyBrechaSinComision').text('0');
@@ -803,6 +814,103 @@ function limpiarFiltrosProyecciones(){
         dtProyBrecha = null;
         $('#dtProyBrecha tbody').empty();
     }
+}
+
+function autoCalcularPoliticaAnterior() {
+    var $wrap = $('#proyPoliticaAnteriorResult');
+    $wrap.hide();
+    $('#proyInfoPolitica').hide();
+    window.politicaAnteriorTotalesActual = null;
+    window._comisionPolAnteriorActual    = 0;
+
+    // Limpiar totales en el resumen
+    $('#polFacturas').text('0');
+    $('#polBase').text('L. 0.00');
+    $('#polComisionNoMisel').text('L. 0.00');
+    $('#polComisionMisel').text('L. 0.00');
+    $('#polComisionTotal').text('L. 0.00');
+    $('#resumenComisionPolitica').text('L. 0.00');
+    _actualizarResumenTotal();
+
+    if (!Array.isArray(proyeccionesExcluidasActual) || !proyeccionesExcluidasActual.length) {
+        return;
+    }
+
+    var filtros      = getFiltrosProyecciones();
+    var usuarioFiltro = parseInt(filtros.usuario_id || 0, 10);
+    var filasPol     = filtrarExcluidasPoliticaAnterior(proyeccionesExcluidasActual, usuarioFiltro);
+    filasPol         = deduplicarFilasPoliticaAnteriorPorFactura(filasPol);
+
+    if (!filasPol.length) return;
+
+    var facturaIds = Array.from(new Set(
+        filasPol.map(function(r){ return parseInt(r.factura_id || 0, 10); }).filter(function(id){ return id > 0; })
+    ));
+
+    if (!facturaIds.length) return;
+
+    // Mostrar spinner en la fila de política anterior del resumen
+    $('#proyInfoPolitica').show();
+    $('#polFacturas').html('<i class="fa fa-spinner fa-spin"></i>');
+    $('#polBase').html('<i class="fa fa-spinner fa-spin"></i>');
+    $('#polComisionTotal').html('<i class="fa fa-spinner fa-spin"></i>');
+
+    var payload = {
+        factura_ids:  facturaIds,
+        filas:        filasPol,
+        usuario_id:   filtros.usuario_id || '',
+        fecha_inicio: filtros.fechaInicio || '',
+        fecha_final:  filtros.fechaFin || ''
+    };
+
+    $.ajax({
+        url:         '/comision/politica-anterior/calcular-comisiones',
+        method:      'POST',
+        data:        JSON.stringify(payload),
+        contentType: 'application/json',
+        headers:     { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+        success: function(res) {
+            var tot = res.totales || {};
+            var nFacturas = Array.isArray(res.factura_ids_elegibles) ? res.factura_ids_elegibles.length : 0;
+
+            // Guardar para el export de nómina
+            window.politicaAnteriorTotalesActual = {
+                base_comisionable:          tot.total_subtotal || 0,
+                comision_no_miselaneo:      tot.total_comision_no_miselaneo || 0,
+                comision_miselanea:         tot.total_comision_miselanea || 0,
+                total_comision:             tot.total_comision || 0,
+                facturas_elegibles:         nFacturas
+            };
+            window._comisionPolAnteriorActual     = parseFloat(tot.total_comision || 0);
+            window._politicaAnteriorFacturaIds    = facturaIds; // IDs para el export
+
+            // Poblar fila de política anterior en el resumen
+            $('#polFacturas').text(nFacturas);
+            $('#polBase').text(fmtMoney(tot.total_subtotal || 0));
+            $('#polComisionNoMisel').text(fmtMoney(tot.total_comision_no_miselaneo || 0));
+            $('#polComisionMisel').text(fmtMoney(tot.total_comision_miselanea || 0));
+            $('#polComisionTotal').text(fmtMoney(tot.total_comision || 0));
+            $('#resumenComisionPolitica').text(fmtMoney(tot.total_comision || 0));
+            $('#proyInfoPolitica').show();
+            _actualizarResumenTotal();
+        },
+        error: function(xhr) {
+            window.politicaAnteriorTotalesActual = null;
+            var msg = (xhr.responseJSON && xhr.responseJSON.message) || 'Error al calcular política anterior';
+            $('#polFacturas').text('—');
+            $('#polBase').text('Error');
+            $('#polComisionTotal').html('<span style="color:#dc2626;">' + msg + '</span>');
+        }
+    });
+}
+
+function _actualizarResumenTotal() {
+    var comisionEscala = parseFloat(window._comisionEscalaActual || 0) || 0;
+    var comisionPol    = parseFloat(window._comisionPolAnteriorActual || 0) || 0;
+    var total          = comisionEscala + comisionPol;
+    $('#resumenComisionEscala').text(fmtMoney(comisionEscala));
+    $('#resumenComisionPolitica').text(fmtMoney(comisionPol));
+    $('#resumenComisionTotal').text(fmtMoney(total));
 }
 
 function redirigirCalculoPoliticaAnterior(){
@@ -1017,6 +1125,20 @@ function exportarProyeccionesNomina(){
     addInput('usuario_id',  filtros.usuario_id  || '');
     addInput('rol_id',      filtros.rol_id      || '');
     addInput('download_token', token);
+
+    // Pasar totales de política anterior calculados en pantalla
+    var pol = window.politicaAnteriorTotalesActual || {};
+    addInput('pol_base_comisionable',     pol.base_comisionable     || 0);
+    addInput('pol_comision_no_miselaneo', pol.comision_no_miselaneo || 0);
+    addInput('pol_comision_miselanea',    pol.comision_miselanea    || 0);
+    addInput('pol_total_comision',        pol.total_comision        || 0);
+
+    // Pasar IDs de facturas de política anterior para incluirlas en "Facturas por Mes"
+    var polIds = (window.politicaAnteriorTotalesActual && window._politicaAnteriorFacturaIds)
+        ? window._politicaAnteriorFacturaIds : [];
+    polIds.forEach(function(id) {
+        addInput('pol_factura_ids[]', id);
+    });
 
     document.body.appendChild(form);
     form.submit();

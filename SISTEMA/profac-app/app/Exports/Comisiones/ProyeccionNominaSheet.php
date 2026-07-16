@@ -22,22 +22,26 @@ class ProyeccionNominaSheet implements FromArray, WithTitle, WithEvents, WithStr
     protected float  $comisionAsesor;
     protected float  $comisionTeleasesor;
     protected float  $comisionGestor;
+    protected float  $basePoliticaAnterior;
+    protected float  $comisionPoliticaAnterior;
     protected array  $mesesCobrados;
     protected float  $totalCobrado;
     protected string $generadoPor;
 
-    public function __construct(string $empleado, string $periodoLabel, int $totalFacturas, float $baseComisionable, float $comisionAsesor, float $comisionTeleasesor, float $comisionGestor, array $mesesCobrados, float $totalCobrado, string $generadoPor)
+    public function __construct(string $empleado, string $periodoLabel, int $totalFacturas, float $baseComisionable, float $comisionAsesor, float $comisionTeleasesor, float $comisionGestor, float $basePoliticaAnterior, float $comisionPoliticaAnterior, array $mesesCobrados, float $totalCobrado, string $generadoPor)
     {
-        $this->empleado           = $empleado;
-        $this->periodoLabel       = $periodoLabel;
-        $this->totalFacturas      = $totalFacturas;
-        $this->baseComisionable   = $baseComisionable;
-        $this->comisionAsesor     = $comisionAsesor;
-        $this->comisionTeleasesor = $comisionTeleasesor;
-        $this->comisionGestor     = $comisionGestor;
-        $this->mesesCobrados      = $mesesCobrados;
-        $this->totalCobrado       = $totalCobrado;
-        $this->generadoPor        = $generadoPor;
+        $this->empleado                 = $empleado;
+        $this->periodoLabel             = $periodoLabel;
+        $this->totalFacturas            = $totalFacturas;
+        $this->baseComisionable         = $baseComisionable;
+        $this->comisionAsesor           = $comisionAsesor;
+        $this->comisionTeleasesor       = $comisionTeleasesor;
+        $this->comisionGestor           = $comisionGestor;
+        $this->basePoliticaAnterior     = $basePoliticaAnterior;
+        $this->comisionPoliticaAnterior = $comisionPoliticaAnterior;
+        $this->mesesCobrados            = $mesesCobrados;
+        $this->totalCobrado             = $totalCobrado;
+        $this->generadoPor              = $generadoPor;
     }
 
     public function title(): string
@@ -61,18 +65,22 @@ class ProyeccionNominaSheet implements FromArray, WithTitle, WithEvents, WithStr
         $rows[] = ['Tels.: (504)2234-9877 / 22349914', '', '', '', ''];
         $rows[] = ['E-mail: lisbeth.ortiz@distribucionesvalencia.hn / seyli.torres@distribucionesvalencia.hn  R.T.N. 08011986138652', '', '', '', ''];
         $rows[] = ['', '', '', '', ''];
-        $rows[] = ['NOMBRE: ' . $empleadoUp, '', '', '', ''];
-        $rows[] = ['PERIODO: ' . $periodoUpper, '', '', '', ''];
-        $rows[] = ['FACTURAS PROYECTADAS ' . $periodoUpper . ' COMISIONABLES', '', '', '', ''];
-        $rows[] = ['BASE COMISIONABLE ' . $periodoUpper, 'L', $this->baseComisionable, '', ''];
-        $rows[] = ['Comisión Asesor Comercial', 'L', $this->comisionAsesor, '', ''];
-        $rows[] = ['Comisión Teleasesor', 'L', $this->comisionTeleasesor, '', ''];
-        $rows[] = ['Comisión Gestor de Entrega', 'L', $this->comisionGestor, '', ''];
-        $rows[] = ['DEDUCCION RETENCION EN LA FUENTE', 'L', '', '', ''];  // C14 — el usuario ingresa el monto
-        $rows[] = ['TOTAL PROYECTADO', 'L', 0.0, '', ''];  // C15 — fórmula =C11+C12+C13-C14 (se pone en AfterSheet)
-        $rows[] = ['Generado por: ' . $this->generadoPor, '', 'Fecha generacion: ' . $ahora, '', ''];
-        $rows[] = ['FACTURAS POR MES EN ' . $periodoUpper, '', '', '', ''];
-        $rows[] = ['Mes cobrado', 'Cantidad de facturas', 'Total cobrado (L.)', '', ''];
+        $rows[] = ['NOMBRE: ' . $empleadoUp, '', '', '', ''];                                            // R7
+        $rows[] = ['PERIODO: ' . $periodoUpper, '', '', '', ''];                                         // R8
+        $rows[] = ['FACTURAS PROYECTADAS ' . $periodoUpper . ' COMISIONABLES', '', '', '', ''];          // R9
+        $rows[] = ['BASE COMISIONABLE ESCALA ' . $periodoUpper, 'L', $this->baseComisionable, '', ''];  // R10
+        $rows[] = ['Comisión Asesor Comercial', 'L', $this->comisionAsesor, '', ''];                    // R11
+        $rows[] = ['Comisión Teleasesor', 'L', $this->comisionTeleasesor, '', ''];                      // R12
+        $rows[] = ['Comisión Gestor de Entrega', 'L', $this->comisionGestor, '', ''];                   // R13
+        $rows[] = ['TOTAL ESCALA', 'L', 0.0, '', ''];                                                  // R14 =C11+C12+C13
+        $rows[] = ['BASE COMISIONABLE POLÍTICA ANTERIOR ' . $periodoUpper, 'L', $this->basePoliticaAnterior, '', ''];  // R15
+        $rows[] = ['Comisión Política Anterior', 'L', $this->comisionPoliticaAnterior, '', ''];         // R16
+        $rows[] = ['TOTAL COMISIÓN (ESCALA + POLÍTICA ANTERIOR)', 'L', 0.0, '', ''];                    // R17 =C14+C16
+        $rows[] = ['DEDUCCION RETENCION EN LA FUENTE', 'L', '', '', ''];                                // R18 vacío, usuario llena
+        $rows[] = ['TOTAL PROYECTADO NETO', 'L', 0.0, '', ''];                                         // R19 =C17-C18
+        $rows[] = ['Generado por: ' . $this->generadoPor, '', 'Fecha generacion: ' . $ahora, '', ''];  // R20
+        $rows[] = ['FACTURAS POR MES EN ' . $periodoUpper, '', '', '', ''];                             // R21
+        $rows[] = ['Mes cobrado', 'Cantidad de facturas', 'Total cobrado (L.)', '', ''];                // R22
 
         foreach ($this->mesesCobrados as $mes) {
             $mesLabel = (string) ($mes['mes_label'] ?? '');
@@ -100,17 +108,13 @@ class ProyeccionNominaSheet implements FromArray, WithTitle, WithEvents, WithStr
                 $sheet->mergeCells('A7:E7');
                 $sheet->mergeCells('A8:E8');
                 $sheet->mergeCells('A9:E9');
-                $sheet->mergeCells('C10:E10');
-                $sheet->mergeCells('C11:E11');
-                $sheet->mergeCells('C12:E12');
-                $sheet->mergeCells('C13:E13');
-                $sheet->mergeCells('C14:E14');
-                $sheet->mergeCells('C15:E15');
-                $sheet->mergeCells('A16:B16');
-                $sheet->mergeCells('C16:E16');
-                $sheet->mergeCells('A17:E17');
-                $sheet->mergeCells('C18:E18');
-                for ($r = 19; $r <= $lastRow; $r++) { $sheet->mergeCells("C{$r}:E{$r}"); }
+                // R10–R19: col C:E merged
+                foreach (range(10, 19) as $r) { $sheet->mergeCells("C{$r}:E{$r}"); }
+                $sheet->mergeCells('A20:B20');
+                $sheet->mergeCells('C20:E20');
+                $sheet->mergeCells('A21:E21');
+                $sheet->mergeCells('C22:E22');
+                for ($r = 23; $r <= $lastRow; $r++) { $sheet->mergeCells("C{$r}:E{$r}"); }
 
                 $sheet->getStyle('A1:E5')->applyFromArray([
                     'font' => ['bold' => true, 'size' => 13, 'color' => ['rgb' => '0F172A']],
@@ -123,66 +127,103 @@ class ProyeccionNominaSheet implements FromArray, WithTitle, WithEvents, WithStr
                 $sheet->getStyle('A5:E5')->getBorders()->getBottom()->setBorderStyle(Border::BORDER_MEDIUM);
                 $sheet->getStyle('A5:E5')->getBorders()->getBottom()->getColor()->setRGB('CBD5E1');
 
-                // Bloque naranja filas 7-15
-                $sheet->getStyle('A7:E15')->applyFromArray([
+                // Bloque naranja R7-R20
+                $sheet->getStyle('A7:E20')->applyFromArray([
                     'font'    => ['bold' => true, 'size' => 10, 'color' => ['rgb' => 'FFFFFF']],
                     'fill'    => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'E97824']],
                     'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '9A3412']]],
                 ]);
+                // Encabezados nombre/periodo más oscuros
                 $sheet->getStyle('A7:E9')->applyFromArray(['fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'CC6218']]]);
                 $sheet->getStyle('A7:E8')->applyFromArray([
                     'font'      => ['bold' => true, 'size' => 12, 'color' => ['rgb' => 'FFFFFF']],
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
                 ]);
                 $sheet->getStyle('A9')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
-                // Filas 10-14: label izq, L centro, monto der
-                $sheet->getStyle('A10:A14')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
-                $sheet->getStyle('B10:B14')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-                $sheet->getStyle('C10:E13')->getNumberFormat()->setFormatCode('"L "#,##0.00');
-                $sheet->getStyle('C10:C14')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
 
-                // Fila 14: DEDUCCION — celda C14 vacía y editable (fondo blanco)
-                $sheet->getStyle('C14:E14')->applyFromArray([
+                // R10-R13: base escala + comisiones unitarias
+                $sheet->getStyle('A10:A13')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+                $sheet->getStyle('B10:B13')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $sheet->getStyle('C10:E13')->getNumberFormat()->setFormatCode('"L "#,##0.00');
+                $sheet->getStyle('C10:C13')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+
+                // R14: TOTAL ESCALA = C11+C12+C13
+                $sheet->getStyle('A14:E14')->applyFromArray([
+                    'font'    => ['bold' => true, 'size' => 11, 'color' => ['rgb' => '0F172A']],
+                    'fill'    => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FED7AA']],
+                    'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_MEDIUM, 'color' => ['rgb' => '9A3412']]],
+                ]);
+                $sheet->getStyle('A14')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+                $sheet->getStyle('B14')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $sheet->getStyle('C14:E14')->getNumberFormat()->setFormatCode('"L "#,##0.00');
+                $sheet->getStyle('C14')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+                $sheet->setCellValue('C14', '=C11+C12+C13');
+
+                // R15: Base Política Anterior — fondo distinto
+                $sheet->getStyle('A15:E15')->applyFromArray(['fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'B85A10']]]);
+                $sheet->getStyle('B15')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $sheet->getStyle('C15:E15')->getNumberFormat()->setFormatCode('"L "#,##0.00');
+                $sheet->getStyle('C15')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+
+                // R16: Comisión Política Anterior
+                $sheet->getStyle('B16')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $sheet->getStyle('C16:E16')->getNumberFormat()->setFormatCode('"L "#,##0.00');
+                $sheet->getStyle('C16')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+
+                // R17: TOTAL COMISIÓN = C14+C16
+                $sheet->getStyle('A17:E17')->applyFromArray([
+                    'font'    => ['bold' => true, 'size' => 11, 'color' => ['rgb' => '0F172A']],
+                    'fill'    => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FDE68A']],
+                    'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_MEDIUM, 'color' => ['rgb' => '9A3412']]],
+                ]);
+                $sheet->getStyle('A17')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+                $sheet->getStyle('B17')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $sheet->getStyle('C17:E17')->getNumberFormat()->setFormatCode('"L "#,##0.00');
+                $sheet->getStyle('C17')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+                $sheet->setCellValue('C17', '=C14+C16');
+
+                // R18: DEDUCCION — celda vacía editable
+                $sheet->getStyle('C18:E18')->applyFromArray([
                     'fill'    => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FFFBEB']],
                     'font'    => ['bold' => false, 'size' => 11, 'color' => ['rgb' => '1E293B']],
                     'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_MEDIUM, 'color' => ['rgb' => 'F59E0B']]],
                 ]);
-                $sheet->getStyle('C14:E14')->getNumberFormat()->setFormatCode('"L "#,##0.00');
-                $sheet->setCellValue('C14', '');  // vacío para que el usuario ingrese
+                $sheet->getStyle('C18:E18')->getNumberFormat()->setFormatCode('"L "#,##0.00');
+                $sheet->setCellValue('C18', '');
 
-                // Fila 15: TOTAL PROYECTADO con fórmula =C11+C12+C13-C14
-                $sheet->getStyle('A15:E15')->applyFromArray([
+                // R19: TOTAL PROYECTADO NETO = C17-C18
+                $sheet->getStyle('A19:E19')->applyFromArray([
                     'font'    => ['bold' => true, 'size' => 12, 'color' => ['rgb' => '0F172A']],
                     'fill'    => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'F3F4F6']],
                     'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_MEDIUM, 'color' => ['rgb' => '9A3412']]],
                 ]);
-                $sheet->getStyle('A15')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
-                $sheet->getStyle('B15')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-                $sheet->getStyle('C15:E15')->getNumberFormat()->setFormatCode('"L "#,##0.00');
-                $sheet->getStyle('C15')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-                $sheet->setCellValue('C15', '=C11+C12+C13-C14');  // fórmula automática
+                $sheet->getStyle('A19')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+                $sheet->getStyle('B19')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $sheet->getStyle('C19:E19')->getNumberFormat()->setFormatCode('"L "#,##0.00');
+                $sheet->getStyle('C19')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+                $sheet->setCellValue('C19', '=C17-C18');
 
-                // Fila 16: generado por
-                $sheet->getStyle('A16:E16')->applyFromArray([
+                // R20: generado por
+                $sheet->getStyle('A20:E20')->applyFromArray([
                     'font'    => ['italic' => true, 'size' => 9, 'color' => ['rgb' => '64748B']],
                     'fill'    => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'F1F5F9']],
                     'borders' => ['bottom' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'CBD5E1']]],
                 ]);
-                // Fila 17: encabezado meses
-                $sheet->getStyle('A17:E17')->applyFromArray([
+                // R21: encabezado meses
+                $sheet->getStyle('A21:E21')->applyFromArray([
                     'font'      => ['bold' => true, 'size' => 11, 'color' => ['rgb' => 'FFFFFF']],
                     'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1E293B']],
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
                 ]);
-                // Fila 18: cabecera tabla
-                $sheet->getStyle('A18:E18')->applyFromArray([
+                // R22: cabecera tabla
+                $sheet->getStyle('A22:E22')->applyFromArray([
                     'font'      => ['bold' => true, 'size' => 10, 'color' => ['rgb' => '0F172A']],
                     'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'E2E8F0']],
                     'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'CBD5E1']]],
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
                 ]);
-                // Filas de datos
-                for ($r = 19; $r <= $lastRow - 1; $r++) {
+                // Filas de datos meses
+                for ($r = 23; $r <= $lastRow - 1; $r++) {
                     $bg = ($r % 2 === 0) ? 'F8FAFC' : 'FFFFFF';
                     $sheet->getStyle("A{$r}:E{$r}")->applyFromArray(['fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $bg]], 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_HAIR, 'color' => ['rgb' => 'E2E8F0']]]]);
                     $sheet->getStyle("C{$r}:E{$r}")->getNumberFormat()->setFormatCode('"L "#,##0.00');
