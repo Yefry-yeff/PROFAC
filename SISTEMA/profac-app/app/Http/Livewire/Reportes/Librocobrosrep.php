@@ -63,7 +63,7 @@ class Librocobrosrep extends Component
                                 ROUND(ac.monto_abonado, 2)                      AS monto_cobrado,
                                 GREATEST(
                                     ROUND(
-                                        f.total - SUM(ac.monto_abonado) OVER (
+                                        f.total - COALESCE(nc.total_notas_credito, 0) - SUM(ac.monto_abonado) OVER (
                                             PARTITION BY ac.factura_id
                                             ORDER BY ac.fecha_pago ASC, ac.id ASC
                                             ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
@@ -73,7 +73,7 @@ class Librocobrosrep extends Component
                                 CASE
                                     WHEN GREATEST(
                                         ROUND(
-                                            f.total - SUM(ac.monto_abonado) OVER (
+                                            f.total - COALESCE(nc.total_notas_credito, 0) - SUM(ac.monto_abonado) OVER (
                                                 PARTITION BY ac.factura_id
                                                 ORDER BY ac.fecha_pago ASC, ac.id ASC
                                                 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
@@ -189,6 +189,15 @@ class Librocobrosrep extends Component
                             INNER JOIN factura f  ON f.id  = ac.factura_id
                             INNER JOIN users u    ON u.id  = f.vendedor
                             INNER JOIN banco b    ON b.id  = ac.banco_id
+                                                        LEFT JOIN (
+                                                                SELECT
+                                                                        factura_id,
+                                                                        SUM(total) AS total_notas_credito
+                                                                FROM nota_credito
+                                                                WHERE estado_nota_id = 1
+                                                                    AND estado_rebajado = 2
+                                                                GROUP BY factura_id
+                                                        ) nc ON nc.factura_id = f.id
                             WHERE ac.estado_abono = 1
                               AND ac.banco_id NOT IN (12, 13)
                 ";
@@ -413,7 +422,7 @@ class Librocobrosrep extends Component
                         ROUND(ac.monto_abonado, 2)                      AS monto_cobrado,
                         GREATEST(
                             ROUND(
-                                f.total - SUM(ac.monto_abonado) OVER (
+                                f.total - COALESCE(nc.total_notas_credito, 0) - SUM(ac.monto_abonado) OVER (
                                     PARTITION BY ac.factura_id
                                     ORDER BY ac.fecha_pago ASC, ac.id ASC
                                     ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
@@ -423,7 +432,7 @@ class Librocobrosrep extends Component
                         CASE
                             WHEN GREATEST(
                                 ROUND(
-                                    f.total - SUM(ac.monto_abonado) OVER (
+                                    f.total - COALESCE(nc.total_notas_credito, 0) - SUM(ac.monto_abonado) OVER (
                                         PARTITION BY ac.factura_id
                                         ORDER BY ac.fecha_pago ASC, ac.id ASC
                                         ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
@@ -539,6 +548,15 @@ class Librocobrosrep extends Component
                     INNER JOIN factura f  ON f.id  = ac.factura_id
                     INNER JOIN users u    ON u.id  = f.vendedor
                     INNER JOIN banco b    ON b.id  = ac.banco_id
+                                        LEFT JOIN (
+                                                SELECT
+                                                        factura_id,
+                                                        SUM(total) AS total_notas_credito
+                                                FROM nota_credito
+                                                WHERE estado_nota_id = 1
+                                                    AND estado_rebajado = 2
+                                                GROUP BY factura_id
+                                        ) nc ON nc.factura_id = f.id
                     WHERE ac.estado_abono = 1
                       AND ac.banco_id NOT IN (12, 13)
                       AND ac.factura_id IN (
