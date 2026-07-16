@@ -508,7 +508,8 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
                             continue;
                         }
 
-                        $esAnu = strtoupper((string)($meta['estado_f01'] ?? '')) === 'ANULADO';
+                        $estadoF01 = strtoupper(trim((string)($meta['estado_f01'] ?? '')));
+                        $esAnu = str_starts_with($estadoF01, 'ANULAD');
                         $bg    = $esAnu ? 'EBEBEB' : 'FFF3E0';
 
                         $sheet->getStyle("A{$row}:{$lc}{$row}")->getFill()
@@ -548,7 +549,8 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
                             ->setBorderStyle(Border::BORDER_MEDIUM)->getColor()->setRGB('e07000');
                         $h = 16;
                     } elseif ($type === self::T_FACTURA) {                        // ── Fila factura: fondo naranja, negrita ──
-                        $esAnu = strtoupper((string)($meta['estado_f01'] ?? '')) === 'ANULADO';
+                        $estadoF01 = strtoupper(trim((string)($meta['estado_f01'] ?? '')));
+                        $esAnu = str_starts_with($estadoF01, 'ANULAD');
                         $bg    = $esAnu ? 'EBEBEB' : 'FFF3E0';
 
                         $sheet->getStyle("A{$row}:{$lc}{$row}")->getFill()
@@ -577,6 +579,7 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
                         // Estado cobro (col W, index 22)
                         $ec   = (string)($meta['estado_cobro'] ?? '');
                         $bgEc = match(true) {
+                            $ec === 'Anuladas'                                            => 'EBEBEB',
                             $ec === 'Pagada'                                               => 'D5F5E3',
                             $ec === 'Contado'                                              => 'D6EAF8',
                             $ec === 'Parcialmente Pagada'                                  => 'DBEAFE',

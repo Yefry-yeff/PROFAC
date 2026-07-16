@@ -294,6 +294,8 @@ class ReporteVentasCobros extends Component
             $saldo   = (float) ($r->saldo_pendiente ?? 0);
             $abonos  = (float) ($r->abonos          ?? 0);
             $credito = (int)   ($r->credito         ?? -1);
+            $estadoF01 = strtoupper(trim((string)($r->estado_f01 ?? '')));
+            $esAnulada = str_starts_with($estadoF01, 'ANULAD');
 
             // Días vencidos:
             // - Factura abierta (saldo > 0): CURDATE - fecha_vencimiento
@@ -309,7 +311,9 @@ class ReporteVentasCobros extends Component
             }
             $r->dias_vencidos = $dias;
 
-            if ($credito === 0) {
+            if ($esAnulada) {
+                $r->estado_cobro_v2 = 'Anuladas';
+            } elseif ($credito === 0) {
                 $r->estado_cobro_v2 = 'Contado';
             } elseif ($saldo <= 0.01) {
                 $r->estado_cobro_v2 = 'Pagada';
@@ -386,6 +390,7 @@ class ReporteVentasCobros extends Component
                 END, f.fecha_vencimiento
             )                                                            AS dias_vencidos,
             CASE
+                WHEN UPPER(COALESCE(ev.descripcion, '')) LIKE 'ANULAD%' THEN 'Anuladas'
                 WHEN f.credito = 0 THEN 'Contado'
                 WHEN (CASE WHEN apc.id IS NOT NULL THEN COALESCE(apc.saldo, 0)
                            ELSE COALESCE(f.total, 0)
@@ -659,6 +664,7 @@ class ReporteVentasCobros extends Component
                            + COALESCE(nd.total_notas_debito,0)
                            - ({$pagadoExpr})";
             $estadoExpr = "CASE
+                    WHEN UPPER(COALESCE(ev.descripcion, '')) LIKE 'ANULAD%' THEN 'Anuladas'
                     WHEN f.credito = 0 THEN 'Contado'
                     WHEN ({$saldoExpr}) <= 0.01 THEN 'Pagada'
                     WHEN DATEDIFF(CURDATE(), f.fecha_vencimiento) > 60 THEN 'Vencida Crítica'
@@ -1426,7 +1432,8 @@ class ReporteVentasCobros extends Component
             END";
 
         $estadoExpr = "CASE
-                WHEN f.credito = 0 THEN 'Contado'
+            WHEN UPPER(COALESCE(ev.descripcion, '')) LIKE 'ANULAD%' THEN 'Anuladas'
+            WHEN f.credito = 0 THEN 'Contado'
                 WHEN ({$saldoExpr}) <= 0.01 THEN 'Pagada'
                 WHEN DATEDIFF(CURDATE(), f.fecha_vencimiento) > 60 THEN 'Vencida Crítica'
                 WHEN DATEDIFF(CURDATE(), f.fecha_vencimiento) > 0 THEN 'Vencida'

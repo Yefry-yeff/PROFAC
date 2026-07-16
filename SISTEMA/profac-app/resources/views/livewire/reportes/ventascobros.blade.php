@@ -321,6 +321,7 @@
                                     <label>Estado cobro</label>
                                     <select id="fil_estado_cobro" class="form-control form-control-sm">
                                         <option value="">&#8212; Todos &#8212;</option>
+                                        <option value="Anuladas">Anuladas</option>
                                         <option value="Contado">Contado</option>
                                         <option value="Pagada">Pagada</option>
                                         <option value="Parcialmente Pagada">Parcialmente Pagada</option>

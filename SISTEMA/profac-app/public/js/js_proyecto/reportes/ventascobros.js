@@ -64,6 +64,7 @@ function escHtml(s) {
  * ──────────────────────────────────────────────────────────────────── */
 function renderBadgeEstado(v) {
     var map = {
+        'Anuladas':            ['badge-anulado',      'fa-ban',           'Anuladas'],
         'Pagada':               ['badge-pagada',      'fa-check-circle',  'Pagada'],
         'Contado':              ['badge-contado',      'fa-money',         'Contado'],
         'Parcialmente Pagada':  ['badge-parcial',      'fa-adjust',        'Parcial'],
@@ -329,6 +330,8 @@ function renderExpediente(resp) {
  *  Cálculo local de estado cobro (para el expediente)
  * ──────────────────────────────────────────────────────────────────── */
 function estadoCobro(c, saldoFinal) {
+    var estadoF01 = String(c.estado_f01 || '').toUpperCase();
+    if (estadoF01.indexOf('ANULAD') === 0) return 'Anuladas';
     if (c.credito == 0)             return 'Contado';
     if (parseFloat(saldoFinal) <= 0.01) return 'Pagada';
     if (c.dias_vencidos > 60)       return 'Vencida Cr\u00edtica';
