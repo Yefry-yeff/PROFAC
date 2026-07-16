@@ -40,11 +40,13 @@ function buildQueryString(f) {
  * ──────────────────────────────────────────────────────────────────── */
 function fmtLps(v) {
     var n = parseFloat(v) || 0;
+    if (Math.abs(n) < 0.005) n = 0;
     return 'L ' + n.toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 function fmtLpsAbs(v) { return fmtLps(Math.abs(parseFloat(v) || 0)); }
 function fmtLpsSaldo(v) {
     var n = parseFloat(v) || 0;
+    if (Math.abs(n) < 0.005) n = 0;
     if (n <= 0.01) return '<span style="color:#0e9f6e;font-weight:800;">' + fmtLps(0) + '</span>';
     return '<span style="color:#e02424;font-weight:800;">' + fmtLps(n) + '</span>';
 }
@@ -57,6 +59,11 @@ function fmtFecha(v) {
 function escHtml(s) {
     if (!s) return '';
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function esFacturaAnulada(row) {
+    var estadoF01 = String((row && row.estado_f01) || '').toUpperCase();
+    return estadoF01.indexOf('ANULAD') === 0 || String((row && row.estado_cobro_v2) || '') === 'Anuladas';
 }
 
 /* ────────────────────────────────────────────────────────────────────
@@ -114,21 +121,22 @@ function cargarTabla() {
             /* 3 – vendedor */
             { data: 'vendedor' },
             /* 4 – fecha venta */
-            { data: 'fecha_venta', render: function(d) { return fmtFecha(d); } },
+            { data: 'fecha_venta', render: function(d, type, row) { return esFacturaAnulada(row) ? '' : fmtFecha(d); } },
             /* 5 – modo pago */
             { data: 'modo_pago' },
             /* 6 – total */
-            { data: 'total', className: 'text-right', render: function(d) { return fmtLps(d); } },
+            { data: 'total', className: 'text-right', render: function(d, type, row) { return esFacturaAnulada(row) ? '' : fmtLps(d); } },
             /* 7 – monto pagado */
             { data: 'monto_pagado', className: 'text-right', render: function(d) { return fmtLps(d); } },
             /* 8 – saldo */
-            { data: 'saldo_pendiente', className: 'text-right', render: function(d) { return fmtLpsSaldo(d); } },
+            { data: 'saldo_pendiente', className: 'text-right', render: function(d, type, row) { return esFacturaAnulada(row) ? '' : fmtLpsSaldo(d); } },
             /* 9 – estado */
             { data: 'estado_cobro_v2', render: function(d) { return renderBadgeEstado(d); } },
             /* 10 – dias vencidos */
             {
                 data: 'dias_vencidos', className: 'text-center',
                 render: function(d, type, row) {
+                    if (esFacturaAnulada(row)) return '';
                     if (d === null || d === undefined) return '<span style="color:#9ca3af;">—</span>';
                     var n = parseInt(d, 10);
                     if (isNaN(n) || n <= 0) return '<span style="color:#9ca3af;">—</span>';
@@ -223,6 +231,7 @@ $(document).on('click', '.rfd-toggle-btn', function() {
 function renderExpediente(resp) {
     var c  = resp.cabecera;
     var ms = resp.movimientos;
+    var esAnulada = esFacturaAnulada(c);
 
     var saldoClass = parseFloat(c.total_factura) <= 0.01 ? '' :
                      (parseFloat(resp.saldo_final) <= 0.01 ? 'saldo-0' : (parseFloat(c.dias_vencidos) > 0 ? 'saldo-venc' : ''));
@@ -234,8 +243,8 @@ function renderExpediente(resp) {
     html += '<div class="rfd-exp-meta-grid">';
     html += metaItem('Cliente',        c.cliente);
     html += metaItem('Vendedor',       c.vendedor);
-    html += metaItem('Fecha Emisión',  fmtFecha(c.fecha_venta));
-    html += metaItem('Vencimiento',    fmtFecha(c.fecha_vencimiento));
+    html += metaItem('Fecha Emisión',  esAnulada ? '' : fmtFecha(c.fecha_venta));
+    html += metaItem('Vencimiento',    esAnulada ? '' : fmtFecha(c.fecha_vencimiento));
     html += metaItem('Días Crédito',   c.credito == 0 ? 'Contado' : (c.dias_credito + ' días'));
     html += metaItem('Modo Pago',      c.modo_pago);
     html += '<div class="rfd-meta-item">'
@@ -258,12 +267,12 @@ function renderExpediente(resp) {
 
     /* Montos fiscales */
     html += '<div class="rfd-fin-box"><h5><i class="fa fa-calculator" style="margin-right:5px;"></i>Montos Fiscales</h5>';
-    html += finRow('Gravado',    fmtLps(c.gravado));
-    html += finRow('Exento',     fmtLps(c.exento));
-    html += finRow('Exonerado',  fmtLps(c.exonerado));
-    html += finRow('Sub-Total',  fmtLps(c.sub_total));
-    html += finRow('ISV (15%)',  fmtLps(c.isv));
-    html += '<div class="rfd-fin-row total"><span class="lbl">TOTAL FACTURA</span><span class="val">' + fmtLps(c.total_factura) + '</span></div>';
+    html += finRow('Gravado',    esAnulada ? '' : fmtLps(c.gravado));
+    html += finRow('Exento',     esAnulada ? '' : fmtLps(c.exento));
+    html += finRow('Exonerado',  esAnulada ? '' : fmtLps(c.exonerado));
+    html += finRow('Sub-Total',  esAnulada ? '' : fmtLps(c.sub_total));
+    html += finRow('ISV (15%)',  esAnulada ? '' : fmtLps(c.isv));
+    html += '<div class="rfd-fin-row total"><span class="lbl">TOTAL FACTURA</span><span class="val">' + (esAnulada ? '' : fmtLps(c.total_factura)) + '</span></div>';
     html += '</div>';
 
     /* Estado financiero */
@@ -280,22 +289,25 @@ function renderExpediente(resp) {
     });
 
     html += '<div class="rfd-fin-box"><h5><i class="fa fa-line-chart" style="margin-right:5px;"></i>Estado Financiero Actual</h5>';
-    html += '<div class="rfd-fin-row"><span class="lbl">Total Facturado</span><span class="val" style="color:#111827;font-weight:600;">' + fmtLps(c.total_factura) + '</span></div>';
-    if (totalNotasDebito > 0) {
+    html += '<div class="rfd-fin-row"><span class="lbl">Total Facturado</span><span class="val" style="color:#111827;font-weight:600;">' + (esAnulada ? '' : fmtLps(c.total_factura)) + '</span></div>';
+    if (!esAnulada && totalNotasDebito > 0) {
         html += '<div class="rfd-fin-row"><span class="lbl" style="padding-left:12px;color:#6b7280;">↳ Notas de Débito</span><span class="val" style="color:#b45309;font-weight:600;">+ ' + fmtLps(totalNotasDebito) + '</span></div>';
     }
-    if (totalNotasCredito > 0) {
+    if (!esAnulada && totalNotasCredito > 0) {
         html += '<div class="rfd-fin-row"><span class="lbl" style="padding-left:12px;color:#6b7280;">↳ Notas de Crédito</span><span class="val" style="color:#e02424;font-weight:600;">- ' + fmtLps(totalNotasCredito) + '</span></div>';
     }
-    if (totalRetencion > 0) {
+    if (!esAnulada && totalRetencion > 0) {
         html += '<div class="rfd-fin-row"><span class="lbl" style="padding-left:12px;color:#6b7280;">↳ Retención ISV</span><span class="val" style="color:#0369a1;font-weight:600;">- ' + fmtLps(totalRetencion) + '</span></div>';
     }
     html += '<div class="rfd-fin-row"><span class="lbl">Total Abonado / Pagado</span><span class="val" style="color:#0e9f6e;font-weight:600;">' + fmtLps(totalAbonos) + '</span></div>';
     var saldoCalculado = (parseFloat(c.total_factura) || 0) + totalNotasDebito - totalNotasCredito - totalRetencion - totalAbonos;
-    if (saldoCalculado < 0) saldoCalculado = 0;
+    if (Math.abs(saldoCalculado) < 0.005 || saldoCalculado < 0) saldoCalculado = 0;
     var saldoClassCalc = saldoCalculado <= 0.01 ? 'saldo-0' : (parseInt(c.dias_vencidos) > 0 ? 'saldo-venc' : '');
-    html += '<div class="rfd-fin-row ' + saldoClassCalc + '"><span class="lbl">Saldo Pendiente</span><span class="val">' + fmtLps(saldoCalculado) + '</span></div>';
+    html += '<div class="rfd-fin-row ' + saldoClassCalc + '"><span class="lbl">Saldo Pendiente</span><span class="val">' + (esAnulada ? '' : fmtLps(saldoCalculado)) + '</span></div>';
     html += finRow('D\u00edas Vencidos',
+        esAnulada
+            ? ''
+            :
         (parseInt(c.dias_vencidos) > 0)
             ? '<span style="color:#e02424;font-weight:700;">' + c.dias_vencidos + ' d\u00edas</span>'
             : '<span style="color:#0e9f6e;font-weight:600;">Al d\u00eda</span>');

@@ -117,6 +117,16 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
         return self::$TIPO_LABEL[$tipo] ?? ucfirst(strtolower($tipo));
     }
 
+    private function money($value): float
+    {
+        $number = (float) ($value ?? 0);
+        if (abs($number) < 0.005) {
+            return 0.0;
+        }
+
+        return round($number, 2);
+    }
+
     /* ─────────────────────────────────────────────────────────────── */
 
     public function array(): array
@@ -171,6 +181,8 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
             $pagosAcum    = (float)($r->pagos_directos ?? 0);
             $dias         = (int)($r->dias_vencidos ?? 0);
             $estadoCobro = $r->estado_cobro_v2 ?? ($r->creditos_vencidos ?? '');
+            $estadoF01 = strtoupper(trim((string)($r->estado_f01 ?? '')));
+            $esAnulada = str_starts_with($estadoF01, 'ANULAD');
 
             /* ── PRE-CALCULAR TOTALES DEBITOS / CREDITOS ───── */
             $totalDebitos  = 0.0;
@@ -195,8 +207,8 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
             // Sumar retencion ISV al total de debitos
             $_montoRet = (float)($r->monto_retencion ?? 0);
             if ($_montoRet > 0) { $totalDebitos += $_montoRet; $_sfCalc -= $_montoRet; }
-            $finalSaldoFactura   = $_sfCalc;
-            $finalSaldoPendiente = $finalSaldoFactura - $totalPagos;
+            $finalSaldoFactura   = $this->money($_sfCalc);
+            $finalSaldoPendiente = $this->money($finalSaldoFactura - $totalPagos);
 
             /* ── FILA FACTURA ──────────────────────────────── */
             $item++;
@@ -223,25 +235,26 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
                         : ($r->orden_compra ?? '');
             $row[10] = $r->modo_pago ?? '';
             $row[11] = trim($r->flujo_forma_f01 ?? '') ?: 'N/A';
-            $row[12] = (float)($r->exonerado ?? 0) > 0 ? (float)$r->exonerado : '';
-            $row[13] = (float)($r->gravado   ?? 0) > 0 ? (float)$r->gravado   : '';
-            $row[14] = (float)($r->exento    ?? 0) > 0 ? (float)$r->exento    : '';
-            $row[15] = (float)($r->sub_total ?? 0);
-            $row[16] = (float)($r->isv       ?? 0);
-            $row[17] = (float)($r->total     ?? 0);
-            $row[18] = $totalDebitos  > 0 ? -$totalDebitos  : '';  // DISMINUCION EN FACT. (negativo)
-            $row[19] = $totalCreditos > 0 ? $totalCreditos : '';   // AUMENTO EN FACT.
+            $row[12] = $esAnulada ? '' : ($this->money($r->exonerado ?? 0) > 0 ? $this->money($r->exonerado ?? 0) : '');
+            $row[13] = $esAnulada ? '' : ($this->money($r->gravado ?? 0) > 0 ? $this->money($r->gravado ?? 0) : '');
+            $row[14] = $esAnulada ? '' : ($this->money($r->exento ?? 0) > 0 ? $this->money($r->exento ?? 0) : '');
+            $row[15] = $esAnulada ? '' : $this->money($r->sub_total ?? 0);
+            $row[16] = $esAnulada ? '' : $this->money($r->isv ?? 0);
+            $row[17] = $esAnulada ? '' : $this->money($r->total ?? 0);
+            $row[18] = $this->money($totalDebitos) > 0 ? -$this->money($totalDebitos) : '';  // DISMINUCION EN FACT. (negativo)
+            $row[19] = $this->money($totalCreditos) > 0 ? $this->money($totalCreditos) : '';   // AUMENTO EN FACT.
             // MONTO PAGADO: negativo (es un egreso)
             $_pagosVal = $totalPagos > 0 ? $totalPagos : (
                        (float)($r->abonos ?? 0) > 0 ? (float)$r->abonos : (
                        (float)($r->monto_pagado ?? 0) > 0 ? (float)$r->monto_pagado : 0
                        ));
+            $_pagosVal = $this->money($_pagosVal);
             $row[20] = $_pagosVal > 0 ? -$_pagosVal : '';
-            $row[21] = $finalSaldoPendiente; // SALDO PENDIENTE
+            $row[21] = $esAnulada ? '' : $finalSaldoPendiente; // SALDO PENDIENTE
             $row[22] = $estadoCobro;         // ESTADO COBRO
-            $row[23] = $this->fmt($r->fecha_venta);
-            $row[24] = $this->fmt($r->fecha_vencimiento);
-            $row[25] = $dias;                // DIAS VCTOS.
+            $row[23] = $esAnulada ? '' : $this->fmt($r->fecha_venta);
+            $row[24] = $esAnulada ? '' : $this->fmt($r->fecha_vencimiento);
+            $row[25] = $esAnulada ? '' : $dias;                // DIAS VCTOS.
             $row[26] = '';
             $row[27] = '';
             $row[28] = '';
@@ -249,14 +262,14 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
             $out[] = $row;
 
             // Acumular totales de fila factura
-            $totExon   += (float)($r->exonerado ?? 0);
-            $totGrav   += (float)($r->gravado   ?? 0);
-            $totExen   += (float)($r->exento    ?? 0);
-            $totSub    += (float)($r->sub_total ?? 0);
-            $totIsv    += (float)($r->isv       ?? 0);
-            $totTotal  += (float)($r->total     ?? 0);
-            $totDeb    += $totalDebitos;
-            $totCred   += $totalCreditos;
+            $totExon   += $this->money($r->exonerado ?? 0);
+            $totGrav   += $this->money($r->gravado ?? 0);
+            $totExen   += $this->money($r->exento ?? 0);
+            $totSub    += $this->money($r->sub_total ?? 0);
+            $totIsv    += $this->money($r->isv ?? 0);
+            $totTotal  += $this->money($r->total ?? 0);
+            $totDeb    += $this->money($totalDebitos);
+            $totCred   += $this->money($totalCreditos);
             $totPagado += $_pagosVal;
             $totSaldo  += $finalSaldoPendiente;
 
@@ -276,7 +289,7 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
                 elseif ($esCredito)  $saldoFactura += $monto;
                 elseif ($esPago)     $pagosAcum   += $monto;
                 // ENTREGA no cambia saldo
-                $saldoPendiente = $saldoFactura - $pagosAcum;
+                $saldoPendiente = $this->money($saldoFactura - $pagosAcum);
 
                 // Ocultar subfilas de Pago Contado en el Excel,
                 // pero conservar su impacto en los calculos.
@@ -304,6 +317,7 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
                 $movRow[7]  = trim((string)($mov->documento ?? ''));
                 $movRow[8]  = $mov->descripcion ?? '';
                 // cols 9-17: datos de factura en blanco (TOTAL solo en factura, no en sub-filas)
+                $monto = $this->money($monto);
                 $movRow[18] = $esDebito  ? -$monto : ''; // DISMINUCION EN FACT. (negativo)
                 $movRow[19] = $esCredito ? $monto  : ''; // AUMENTO EN FACT.
                 $movRow[20] = $esPago    ? -$monto : ''; // MONTO PAGADO (negativo)
@@ -321,7 +335,7 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
             $montoRet = (float)($r->monto_retencion ?? 0);
             if ($montoRet > 0) {
                 $saldoFactura   -= $montoRet;
-                $saldoPendiente = $saldoFactura - $pagosAcum;
+                $saldoPendiente = $this->money($saldoFactura - $pagosAcum);
                 $item++;
                 $excelRow = count($out) + 1;
                 $this->rowMeta[$excelRow] = [
@@ -341,7 +355,7 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
                 $retRow[6]  = 'Retencion ISV';
                 $retRow[7]  = trim((string)($r->numero_retencion ?? ''));
                 $retRow[8]  = 'Retencion ISV aplicada';
-                $retRow[18] = -$montoRet;      // DISMINUCION EN FACT. (negativo)
+                $retRow[18] = -$this->money($montoRet);      // DISMINUCION EN FACT. (negativo)
                 $retRow[19] = '';              // AUMENTO EN FACT.
                 $retRow[20] = '';              // MONTO PAGADO (retención no es pago)
                 $retRow[21] = $saldoPendiente; // SALDO PENDIENTE
@@ -353,6 +367,15 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
         $totRow = array_fill(0, self::COL_COUNT, '');
         $totRow[0]  = '';
         $totRow[4]  = 'TOTALES';              // CLIENTE col (label)
+        $totExon = $this->money($totExon);
+        $totGrav = $this->money($totGrav);
+        $totExen = $this->money($totExen);
+        $totSub = $this->money($totSub);
+        $totIsv = $this->money($totIsv);
+        $totTotal = $this->money($totTotal);
+        $totDeb = $this->money($totDeb);
+        $totCred = $this->money($totCred);
+        $totPagado = $this->money($totPagado);
         $totRow[12] = $totExon   > 0 ? $totExon   : '';  // EXONERADO
         $totRow[13] = $totGrav   > 0 ? $totGrav   : '';  // GRAVADO
         $totRow[14] = $totExen   > 0 ? $totExen   : '';  // EXENTO
@@ -362,7 +385,7 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
         $totRow[18] = $totDeb    > 0 ? -$totDeb   : '';  // DISMINUCION (negativo)
         $totRow[19] = $totCred   > 0 ? $totCred   : '';  // AUMENTO
         $totRow[20] = $totPagado > 0 ? -$totPagado : '';  // MONTO PAGADO (negativo)
-        $totRow[21] = $totTotal - $totDeb + $totCred - $totPagado; // SALDO PENDIENTE (cuadra con fórmula)
+        $totRow[21] = $this->money($totTotal - $totDeb + $totCred - $totPagado); // SALDO PENDIENTE (cuadra con fórmula)
         $excelRow = count($out) + 1;
         $this->rowMeta[$excelRow] = ['type' => 'TOTALES'];
         $out[] = $totRow;
