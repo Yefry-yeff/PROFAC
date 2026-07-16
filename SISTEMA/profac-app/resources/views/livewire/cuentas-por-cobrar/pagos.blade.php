@@ -691,6 +691,10 @@
         <div class="ap-stat-value" id="apStatCargo">—</div>
     </div>
     <div class="ap-stat-card red">
+        <div class="ap-stat-label"><i class="fa fa-exclamation-circle mr-1"></i> Total Vencido</div>
+        <div class="ap-stat-value red" id="apStatVencido">—</div>
+    </div>
+    <div class="ap-stat-card red">
         <div class="ap-stat-label"><i class="fa-solid fa-scale-unbalanced-flip mr-1"></i> Saldo Total</div>
         <div class="ap-stat-value red" id="apStatSaldo">—</div>
     </div>

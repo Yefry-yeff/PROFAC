@@ -165,6 +165,9 @@ class Pagos extends Component
                 movimiento_resta as        'movResta',
                 retencion_isv_factura as   'isv',
                 saldo as                   'saldo',
+                (select fecha_vencimiento
+                from factura
+                where id = factura_id) as  'fechaVencimiento',
                 estado_retencion_isv as    'estadoRetencion',
                 retencion_aplicada as      'retencion_aplicada',
                 COALESCE((select frs.estado from factura_retencion_seguimiento frs where frs.factura_id = aplicacion_pagos.factura_id limit 1), 'sin_marcar') as 'seguimientoRetencionEstado',

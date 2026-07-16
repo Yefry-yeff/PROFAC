@@ -485,18 +485,13 @@ function listarCuentasPorCobrar() {
                         });
 
                     // ── Stats cards ──
-                    var api = this.api();
-                    var rows = api.data().toArray();
-                    var fmt = function(n){ return 'L. '+parseFloat(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','); };
-                    $('#apStatFacturas').text(rows.length);
-                    $('#apStatCargo').text(fmt(rows.reduce(function(s,r){ return s+parseFloat(r.cargo||0); },0)));
-                    $('#apStatSaldo').text(fmt(rows.reduce(function(s,r){ return s+parseFloat(r.saldo||0); },0)));
-                    $('#apStatAbonado').text(fmt(rows.reduce(function(s,r){ return s+parseFloat(r.abonosCargo||0); },0)));
+                    updateStatsCards(rows);
                     // ── Badge pestaña Facturas ──
                     $('#badge-facturas').text(rows.length);
                 },
                 drawCallback: function() {
                     var count = this.api().data().count();
+                    updateStatsCards(this.api().data().toArray());
                     $('#badge-facturas').text(count);
                 }
 
@@ -505,6 +500,26 @@ function listarCuentasPorCobrar() {
 
             $('#btnEC').css('display','block');
             $('#btnEC').show();
+}
+
+function updateStatsCards(rows) {
+    var fmt = function(n){ return 'L. '+parseFloat(n || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','); };
+    var hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    var totalVencido = rows.reduce(function(s, r) {
+        var fechaRaw = r.fechaVencimiento || r.fecha_vencimiento || null;
+        if (!fechaRaw) return s;
+        var fecha = new Date(String(fechaRaw).substring(0, 10) + 'T00:00:00');
+        if (isNaN(fecha.getTime())) return s;
+        var diff = Math.floor((hoy - fecha) / 86400000);
+        return diff > 0 ? s + (parseFloat(r.saldo || 0) || 0) : s;
+    }, 0);
+
+    $('#apStatFacturas').text(rows.length);
+    $('#apStatCargo').text(fmt(rows.reduce(function(s,r){ return s + (parseFloat(r.cargo || 0) || 0); },0)));
+    $('#apStatVencido').text(fmt(totalVencido));
+    $('#apStatSaldo').text(fmt(rows.reduce(function(s,r){ return s + (parseFloat(r.saldo || 0) || 0); },0)));
+    $('#apStatAbonado').text(fmt(rows.reduce(function(s,r){ return s + (parseFloat(r.abonosCargo || 0) || 0); },0)));
 }
 
 function listarMovimientos() {
