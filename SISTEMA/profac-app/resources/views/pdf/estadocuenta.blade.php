@@ -70,6 +70,20 @@
 <body>
     @php
         $fecha_actual = date("Y-m-d");
+        $hoy = \Carbon\Carbon::today();
+        $diasVencidos = static function ($fechaVencimiento) use ($hoy) {
+            if (empty($fechaVencimiento)) {
+                return 0;
+            }
+
+            try {
+                $vence = \Carbon\Carbon::parse($fechaVencimiento)->startOfDay();
+            } catch (\Throwable $e) {
+                return 0;
+            }
+
+            return $vence->lt($hoy) ? $vence->diffInDays($hoy) : 0;
+        };
     @endphp
 
     <div class="pruebaFondo">
@@ -96,6 +110,7 @@
                                                     <th style="text-align: center">No. Compra</th>
                                                     <th style="text-align: center">Fecha Emisión</th>
                                                     <th style="text-align: center">Fecha Vencimiento</th>
+                                                    <th style="text-align: center">Días Venc.</th>
                                                     <th style="text-align: center">Cargo</th>
                                                     <th style="text-align: center">Crédito</th>
                                                     <th style="text-align: center">Notas Crédito</th>
@@ -112,6 +127,7 @@
                                             <td style="text-align: center">{{ $valor->numOrden }}</td>
                                             <td style="text-align: center">{{ $valor->fecha_emision }}</td>
                                             <td style="text-align: center">{{ $valor->fecha_vencimiento }}</td>
+                                            <td style="text-align: center">{{ $diasVencidos($valor->fecha_vencimiento ?? null) }}</td>
                                              <td style="text-align: center"> L. {{ number_format($valor->cargo, 2, ',') }}</td>
                                             <td style="text-align: center"> L. {{ number_format($valor->credito, 2, ',') }}</td>
                                             <td style="text-align: center"> L. {{ number_format($valor->notaCredito, 2, ',') }}</td>
