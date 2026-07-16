@@ -350,6 +350,10 @@
             <div class="ec-stat-value" id="ecStatCargo">—</div>
         </div>
         <div class="ec-stat-card red">
+            <div class="ec-stat-label"><i class="fa fa-exclamation-circle mr-1"></i> Total Vencido</div>
+            <div class="ec-stat-value red" id="ecStatVencido">—</div>
+        </div>
+        <div class="ec-stat-card red">
             <div class="ec-stat-label"><i class="fa-solid fa-scale-unbalanced-flip mr-1"></i> Saldo Total</div>
             <div class="ec-stat-value red" id="ecStatSaldo">—</div>
         </div>
@@ -594,8 +598,19 @@ function ecCargarDatos() {
             var totalSaldo = data.reduce(function (s, r) { return s + parseFloat(r.saldo       || 0); }, 0);
             var totalCargo = data.reduce(function (s, r) { return s + parseFloat(r.cargo       || 0); }, 0);
             var totalAbono = data.reduce(function (s, r) { return s + parseFloat(r.abonosCargo || 0); }, 0);
+            var hoy = new Date();
+            hoy.setHours(0, 0, 0, 0);
+            var totalVencido = data.reduce(function (s, r) {
+                var fechaRaw = r.fechaVencimiento || r.fecha_vencimiento || null;
+                if (!fechaRaw) return s;
+                var fechaVenc = new Date(String(fechaRaw).substring(0, 10) + 'T00:00:00');
+                if (isNaN(fechaVenc.getTime())) return s;
+                var dias = Math.floor((hoy - fechaVenc) / 86400000);
+                return dias > 0 ? s + (parseFloat(r.saldo || 0) || 0) : s;
+            }, 0);
             $('#ecStatFacturas').text(data.length);
             $('#ecStatCargo').text('L. ' + totalCargo.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','));
+            $('#ecStatVencido').text('L. ' + totalVencido.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','));
             $('#ecStatSaldo').text('L. ' + totalSaldo.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','));
             $('#ecStatAbonado').text('L. ' + totalAbono.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','));
         })

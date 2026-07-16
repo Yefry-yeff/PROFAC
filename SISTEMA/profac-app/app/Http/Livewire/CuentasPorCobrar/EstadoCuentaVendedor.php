@@ -105,6 +105,8 @@ class EstadoCuentaVendedor extends Component
                                             AS codigoFactura,
                 (SELECT fecha_emision FROM factura WHERE id = ap.factura_id)
                                             AS fechaFactura,
+                (SELECT fecha_vencimiento FROM factura WHERE id = ap.factura_id)
+                                            AS fechaVencimiento,
                 ap.total_factura_cargo      AS cargo,
                 ap.total_notas_credito      AS notasCredito,
                 ap.total_nodas_debito       AS notasDebito,
