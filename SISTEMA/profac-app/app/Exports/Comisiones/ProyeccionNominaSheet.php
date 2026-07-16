@@ -59,7 +59,7 @@ class ProyeccionNominaSheet implements FromArray, WithTitle, WithEvents, WithStr
         $rows[] = ['TEGUCIGALPA, M.D.C.', '', '', '', ''];
         $rows[] = ['Col. Godoy una cuadra arriba de fuerza aerea', '', '', '', ''];
         $rows[] = ['Tels.: (504)2234-9877 / 22349914', '', '', '', ''];
-        $rows[] = ['E-mail: seyli.torres@distribucionesvalencia.hn  R.T.N. 08011986138652', '', '', '', ''];
+        $rows[] = ['E-mail: lisbeth.ortiz@distribucionesvalencia.hn / seyli.torres@distribucionesvalencia.hn  R.T.N. 08011986138652', '', '', '', ''];
         $rows[] = ['', '', '', '', ''];
         $rows[] = ['NOMBRE: ' . $empleadoUp, '', '', '', ''];
         $rows[] = ['PERIODO: ' . $periodoUpper, '', '', '', ''];
