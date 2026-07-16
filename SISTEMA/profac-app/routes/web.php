@@ -300,6 +300,8 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::post('/comision/reporte/brecha-ap-fc/reprocesar', [ReportesComisionesGenerales::class, 'reprocesarBrechaApFc']);
     Route::get('/comision/reporte/ranking',     [ReportesComisionesGenerales::class, 'reporteRanking']);
     Route::get('/comision/reporte/comparativo', [ReportesComisionesGenerales::class, 'reporteComparativo']);
+    Route::get('/comision/reporte/cuadre-libro-cobros', [ReportesComisionesGenerales::class, 'reporteCuadreLibroCobros']);
+    Route::get('/comision/reporte/auditoria-contable',  [ReportesComisionesGenerales::class, 'reporteAuditoriaContable']);
 
     // Ruta para descarga de Excel
     Route::get('/comision/reporte/excel', [ReportesComisionesGenerales::class, 'descargarExcel']);

@@ -2112,3 +2112,467 @@ $(document).ready(function() {
         faDateTimer = setTimeout(cargarActoresPorPeriodo, 400);
     });
 });
+
+/* ===================================================================
+   TAB: CUADRE LIBRO DE COBROS vs BASE COMISIONABLE
+   =================================================================== */
+var dtCuadre = null;
+var cuadreDataActual = [];
+
+function fmtL(v) {
+    var n = parseFloat(v) || 0;
+    return 'L. ' + n.toLocaleString('es-HN', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+function initCuadreSelect() {
+    if (!$('#cuadreVendedor').hasClass('select2-hidden-accessible')) {
+        $('#cuadreVendedor').select2({
+            placeholder: '— Todos los vendedores —',
+            allowClear: true,
+            ajax: {
+                url: '/comision/empleados/lista',
+                dataType: 'json',
+                delay: 250,
+                data: function(params) { return { search: params.term }; },
+                processResults: function(data) {
+                    var items = [{ id: '', text: '— Todos los vendedores —' }];
+                    $.each(data.data || data, function(i, u) {
+                        items.push({ id: u.id, text: u.name });
+                    });
+                    return { results: items };
+                },
+                cache: true
+            }
+        });
+    }
+}
+
+function setCuadreDefaultDates() {
+    var hoy = new Date();
+    var primerDia = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+    var fmt = function(d) {
+        return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    };
+    $('#cuadreDesde').val(fmt(primerDia));
+    $('#cuadreHasta').val(fmt(hoy));
+}
+
+function generarCuadre() {
+    var fi = $('#cuadreDesde').val();
+    var ff = $('#cuadreHasta').val();
+    if (!fi || !ff) {
+        Swal.fire({icon:'warning', title:'Fechas requeridas', text:'Seleccione fecha inicio y fecha fin.'});
+        return;
+    }
+
+    var params = { fechaInicio: fi, fechaFin: ff };
+    var vid = $('#cuadreVendedor').val();
+    if (vid) params.usuario_id = vid;
+
+    $('#btnCuadreGenerar').prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Generando...');
+    $('#cuadreEmptyState').hide();
+    $('#cuadreInfo').hide();
+    $('#cuadreTableWrap').hide();
+
+    $.getJSON('/comision/reporte/cuadre-libro-cobros', params, function(res) {
+        cuadreDataActual = res.data || [];
+        var tot = res.totales || {};
+
+        // KPIs
+        $('#cuadreFacturasRango').text(tot.facturas_en_rango || 0);
+        $('#cuadreFacturasCompletas').text(tot.facturas_completas || 0);
+        $('#cuadreTotalCobrado').text(fmtL(tot.total_cobrado));
+        $('#cuadreCobradoSinIsv').text(fmtL(tot.total_cobrado_sin_isv));
+        $('#cuadreIsvCobrado').text(fmtL(tot.total_isv_cobrado));
+        $('#cuadreSubTotalFacturas').text(fmtL(tot.total_sub_total_facturas));
+
+        // Ecuación exacta: Cobrado Sin ISV + ISV Cobrado = Total Cobrado
+        $('#cuadreEcuacion').text(
+            fmtL(tot.total_cobrado_sin_isv) + ' + ' + fmtL(tot.total_isv_cobrado) + ' = ' + fmtL(tot.total_cobrado)
+        );
+
+        var brechaParciales = parseFloat(tot.brecha_parciales || 0);
+        $('#cuadreBrechaParciales').text(fmtL(brechaParciales))
+            .css('color', brechaParciales > 0.01 ? '#b45309' : '#059669');
+
+        $('#cuadreBaseComisionable').text(fmtL(tot.total_base_comisionable));
+        $('#cuadreBaseComisionableCierre').text(fmtL(tot.base_comisionable_cierre_en_rango));
+        $('#cuadreFacturasCierre').text(tot.facturas_cierre_en_rango || 0);
+
+        var dif = parseFloat(tot.diferencia || 0);
+        $('#cuadreDiferencia').text(fmtL(dif))
+            .css('color', dif > 0 ? '#dc2626' : (dif < 0 ? '#b45309' : '#059669'));
+
+        // Footer totals
+        $('#cuadreFootCobrado').text(fmtL(tot.total_cobrado));
+        $('#cuadreFootCobradoSinIsv').text(fmtL(tot.total_cobrado_sin_isv));
+        $('#cuadreFootBase').text(fmtL(tot.total_base_comisionable));
+        $('#cuadreFootDif').text(fmtL(tot.diferencia))
+            .css('color', dif > 0 ? '#dc2626' : '#059669');
+
+        // DataTable
+        if (dtCuadre) { dtCuadre.destroy(); }
+        $('#dtCuadre tbody').empty();
+
+        cuadreDataActual.forEach(function(r) {
+            var estadoBadge = r.estado_pago === 'PAGADA'
+                ? '<span style="background:#d1fae5;color:#065f46;border-radius:4px;padding:2px 6px;font-size:11px;font-weight:600;">PAGADA</span>'
+                : '<span style="background:#fef3c7;color:#92400e;border-radius:4px;padding:2px 6px;font-size:11px;font-weight:600;">PARCIAL</span>';
+
+            var difColor = parseFloat(r.diferencia || 0) > 50
+                ? 'color:#dc2626;font-weight:600;'
+                : (parseFloat(r.diferencia || 0) < -50 ? 'color:#b45309;font-weight:600;' : '');
+
+            $('#dtCuadre tbody').append(
+                '<tr>' +
+                '<td style="white-space:nowrap;font-size:11px;">' + (r.factura || '') + '</td>' +
+                '<td>' + (r.cliente || '') + '</td>' +
+                '<td>' + (r.vendedor || '') + '</td>' +
+                '<td>' + (r.facturador || '') + '</td>' +
+                '<td>' + (r.fecha_pago_cierre || '') + '</td>' +
+                '<td class="text-right">' + fmtL(r.total_cobrado_factura) + '</td>' +
+                '<td class="text-right">' + fmtL(r.cobrado_sin_isv) + '</td>' +
+                '<td class="text-right">' + fmtL(r.isv_cobrado) + '</td>' +
+                '<td class="text-right">' + fmtL(r.sub_total_factura) + '</td>' +
+                '<td class="text-right">' + fmtL(r.saldo_pendiente) + '</td>' +
+                '<td class="text-center">' + estadoBadge + '</td>' +
+                '<td class="text-right">' + fmtL(r.base_comisionable) + '</td>' +
+                '<td class="text-right" style="' + difColor + '">' + fmtL(r.diferencia) + '</td>' +
+                '<td style="font-size:11px;color:#64748b;max-width:260px;word-wrap:break-word;">' + (r.razones_diferencia || '—') + '</td>' +
+                '</tr>'
+            );
+        });
+
+        dtCuadre = $('#dtCuadre').DataTable({
+            language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json' },
+            pageLength: 25,
+            order: [[4, 'asc']],
+            columnDefs: [
+                { targets: [10], className: 'text-center' },
+                { targets: [5, 6, 7, 8, 9, 11, 12], className: 'text-right' }
+            ],
+            dom: '<"d-flex justify-content-between align-items-center mb-2"lf>rt<"d-flex justify-content-between"ip>'
+        });
+
+        $('#cuadreInfo').show();
+        $('#cuadreTableWrap').show();
+    })
+    .fail(function(xhr) {
+        Swal.fire({icon:'error', title:'Error', text: (xhr.responseJSON && xhr.responseJSON.message) || 'Error al generar el cuadre.'});
+    })
+    .always(function() {
+        $('#btnCuadreGenerar').prop('disabled', false).html('<i class="fa fa-balance-scale"></i> Generar Cuadre');
+    });
+}
+
+function limpiarCuadre() {
+    setCuadreDefaultDates();
+    if ($('#cuadreVendedor').hasClass('select2-hidden-accessible')) {
+        $('#cuadreVendedor').val(null).trigger('change');
+    }
+    if (dtCuadre) { dtCuadre.destroy(); dtCuadre = null; }
+    cuadreDataActual = [];
+    $('#dtCuadre tbody').empty();
+    $('#cuadreInfo').hide();
+    $('#cuadreTableWrap').hide();
+    $('#cuadreEmptyState').show();
+}
+
+function exportarCuadreExcel() {
+    if (typeof XLSX === 'undefined') {
+        Swal.fire({icon:'warning', title:'Librería no disponible', text:'No fue posible cargar la librería de Excel.'});
+        return;
+    }
+    if (!cuadreDataActual.length) {
+        Swal.fire({icon:'info', title:'Sin datos', text:'No hay datos para exportar.'});
+        return;
+    }
+
+    var ahora = new Date();
+    var stamp = ahora.getFullYear().toString()
+        + String(ahora.getMonth()+1).padStart(2,'0')
+        + String(ahora.getDate()).padStart(2,'0')
+        + '_' + String(ahora.getHours()).padStart(2,'0')
+        + String(ahora.getMinutes()).padStart(2,'0');
+
+    var headers = [
+        'Factura','Cliente','Vendedor','Fecha Pago',
+        '# Abonos Rango','Cobrado Rango','Cobrado Sin ISV','SubTotal Factura','ISV Factura',
+        'Saldo Pendiente','Estado Pago','AP Cerrada','Cierre en Rango',
+        'Base Comisionable','Diferencia (Sin ISV - Base)','Razones Diferencia'
+    ];
+    var rows = [headers];
+    cuadreDataActual.forEach(function(r) {
+        rows.push([
+            r.factura || '',
+            r.cliente || '',
+            r.vendedor || '',
+            r.ultima_fecha_pago || '',
+            parseInt(r.num_abonos_en_rango || 0),
+            parseFloat(r.total_cobrado_en_rango || 0),
+            parseFloat(r.cobrado_sin_isv || 0),
+            parseFloat(r.sub_total_factura || 0),
+            parseFloat(r.isv_factura || 0),
+            parseFloat(r.saldo_pendiente || 0),
+            r.estado_pago || '',
+            r.tiene_ap_cerrada ? 'Sí' : 'No',
+            r.cierre_en_rango ? 'Sí' : 'No',
+            parseFloat(r.base_comisionable || 0),
+            parseFloat(r.diferencia_cobrado_base || 0),
+            r.razones_diferencia || ''
+        ]);
+    });
+
+    var ws = XLSX.utils.aoa_to_sheet(rows);
+    var numCols = ['F','G','H','I','J','M','N'];
+    for (var i = 2; i <= cuadreDataActual.length + 1; i++) {
+        numCols.forEach(function(col) {
+            var ref = col + i;
+            if (ws[ref] && typeof ws[ref].v === 'number') ws[ref].z = '"L." #,##0.00';
+        });
+    }
+    ws['!autofilter'] = { ref: 'A1:P1' };
+    ws['!cols'] = [
+        {wch:22},{wch:28},{wch:20},{wch:12},
+        {wch:10},{wch:16},{wch:16},{wch:16},{wch:14},
+        {wch:14},{wch:10},{wch:10},{wch:14},
+        {wch:18},{wch:20},{wch:50}
+    ];
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Cuadre Cobros');
+    XLSX.writeFile(wb, 'cuadre_libro_cobros_' + stamp + '.xlsx');
+}
+
+$('a[href="#tab-cuadre-cobros"]').on('shown.bs.tab', function() {
+    if (!$('#cuadreDesde').val()) setCuadreDefaultDates();
+    initCuadreSelect();
+    if (dtCuadre) dtCuadre.columns.adjust();
+});
+
+$(document).ready(function() {
+    $('#btnCuadreGenerar').on('click', generarCuadre);
+    $('#btnCuadreLimpiar').on('click', limpiarCuadre);
+});
+
+/* ===================================================================
+   TAB: AUDITORÍA CONTABLE
+   =================================================================== */
+var dtAuditoria = null;
+var auditoriaDataActual = [];
+
+function initAudSelect() {
+    if (!$('#audVendedor').hasClass('select2-hidden-accessible')) {
+        $('#audVendedor').select2({
+            placeholder: '— Seleccione vendedor —',
+            allowClear: true,
+            ajax: {
+                url: '/comision/empleados/lista',
+                dataType: 'json',
+                delay: 250,
+                data: function(p) { return { search: p.term }; },
+                processResults: function(data) {
+                    var items = [{ id: '', text: '— Todos —' }];
+                    $.each(data.data || data, function(i, u) { items.push({ id: u.id, text: u.name }); });
+                    return { results: items };
+                },
+                cache: true
+            }
+        });
+    }
+}
+
+function setAudDefaultDates() {
+    var hoy = new Date();
+    var fmt = function(d) {
+        return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    };
+    $('#audDesde').val(fmt(new Date(hoy.getFullYear(), hoy.getMonth(), 1)));
+    $('#audHasta').val(fmt(hoy));
+}
+
+function generarAuditoria() {
+    var fi = $('#audDesde').val();
+    var ff = $('#audHasta').val();
+    if (!fi || !ff) { Swal.fire({icon:'warning', title:'Fechas requeridas'}); return; }
+
+    var params = { fechaInicio: fi, fechaFin: ff };
+    var vid = $('#audVendedor').val();
+    if (vid) params.vendedor_id = vid;
+
+    $('#btnAudGenerar').prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Auditando...');
+    $('#audEmptyState').hide();
+    $('#audKpis').hide();
+    $('#audTableWrap').hide();
+
+    $.getJSON('/comision/reporte/auditoria-contable', params, function(res) {
+        auditoriaDataActual = res.data || [];
+        var k = res.kpi || {};
+
+        // KPIs
+        $('#audTotalCobrado').text(fmtL(k.total_cobrado_rango));
+        $('#audTotalFacturas').text(k.facturas_total || 0);
+        $('#audEnComisiones').text(k.facturas_en_comisiones || 0);
+        $('#audEnComisionesDetalle').text(
+            'Escala: ' + (k.facturas_en_escala||0) +
+            ' · Pol.Ant Elegible: ' + (k.facturas_en_politica_elegible||0) +
+            ' · Pol.Ant Registrada: ' + (k.facturas_en_politica_registrada||0)
+        );
+        $('#audSinComisiones').text(k.facturas_sin_comisiones || 0);
+        $('#audPagadas').text(k.facturas_pagadas_completas || 0);
+        $('#audParciales').text(k.facturas_parciales || 0);
+        $('#audCuadreOk').text(k.facturas_con_cuadre_ok || 0);
+        $('#audCuadreError').text(k.facturas_con_cuadre_error || 0);
+
+        // Table
+        if (dtAuditoria) { dtAuditoria.destroy(); }
+        $('#dtAuditoria tbody').empty();
+
+        auditoriaDataActual.forEach(function(r) {
+            // Color de fila:
+            // Rojo = sin comisiones Y tiene AP en rango (debería tener comisión)
+            // Rosa claro = sin AP en rango (solo abono parcial, no aplica)
+            // Amarillo = pago parcial
+            // Naranja = cuadre falla
+            var rowStyle = '';
+            if (!r.en_comisiones && r.tiene_ap_en_rango) rowStyle = 'background:#fff1f2;';
+            else if (!r.en_comisiones && !r.tiene_ap_en_rango) rowStyle = 'background:#f8fafc;';
+            else if (r.estado_pago === 'PARCIAL') rowStyle = 'background:#fffbeb;';
+            else if (!r.cuadre_ok) rowStyle = 'background:#fff7ed;';
+
+            var cuadreBadge = r.cuadre_ok
+                ? '<span style="color:#059669;font-weight:700;font-size:13px;">✓</span>'
+                : '<span style="color:#dc2626;font-weight:700;font-size:13px;">✗ L.' + Math.abs(parseFloat(r.diferencia_cuadre||0)).toFixed(2) + '</span>';
+
+            var estadoBadge = r.estado_pago === 'PAGADA'
+                ? '<span style="background:#d1fae5;color:#065f46;border-radius:4px;padding:2px 6px;font-size:11px;font-weight:600;">PAGADA</span>'
+                : '<span style="background:#fef3c7;color:#92400e;border-radius:4px;padding:2px 6px;font-size:11px;font-weight:600;">PARCIAL</span>';
+
+            var apBadge = r.tiene_ap_cerrada
+                ? '<span style="color:#059669;font-weight:700;">✓</span>'
+                : '<span style="color:#94a3b8;">—</span>';
+
+            var comBadge = r.en_comisiones
+                ? '<span style="color:#059669;font-weight:700;">✓</span>'
+                : '<span style="background:#fee2e2;color:#dc2626;border-radius:4px;padding:1px 6px;font-size:11px;font-weight:700;">NO</span>';
+
+            var alertasHtml = r.alertas
+                ? '<span style="font-size:11px;color:#dc2626;">' + r.alertas + '</span>'
+                : '<span style="color:#94a3b8;font-size:11px;">—</span>';
+
+            $('#dtAuditoria tbody').append(
+                '<tr style="' + rowStyle + '">' +
+                '<td style="font-size:11px;white-space:nowrap;">' + (r.factura||'') + '</td>' +
+                '<td style="font-size:12px;">' + (r.cliente||'') + '</td>' +
+                '<td style="font-size:12px;">' + (r.vendedor||'') + '</td>' +
+                '<td>' + (r.fecha_creacion_factura||'') + '</td>' +
+                '<td>' + (r.ultima_fecha_pago_rango||'') + '</td>' +
+                '<td class="text-center">' + (r.num_abonos_en_rango||0) + '</td>' +
+                '<td class="text-right">' + fmtL(r.cobrado_en_rango) + '</td>' +
+                '<td class="text-right"><strong>' + fmtL(r.total_abonado_historico) + '</strong></td>' +
+                '<td class="text-right"><strong>' + fmtL(r.total_factura) + '</strong></td>' +
+                '<td class="text-right">' + cuadreBadge + '</td>' +
+                '<td class="text-center">' + cuadreBadge + '</td>' +
+                '<td class="text-center">' + estadoBadge + '</td>' +
+                '<td class="text-center">' + apBadge + '</td>' +
+                '<td class="text-center">' + comBadge + '</td>' +
+                '<td style="font-size:11px;">' + (r.politica||'') + '</td>' +
+                '<td>' + alertasHtml + '</td>' +
+                '</tr>'
+            );
+        });
+
+        dtAuditoria = $('#dtAuditoria').DataTable({
+            language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json' },
+            pageLength: 50,
+            order: [[4, 'asc']],
+            dom: '<"d-flex justify-content-between align-items-center mb-2"lf>rt<"d-flex justify-content-between"ip>'
+        });
+
+        $('#audKpis').show();
+        $('#audTableWrap').show();
+    })
+    .fail(function(xhr) {
+        Swal.fire({icon:'error', title:'Error', text:(xhr.responseJSON && xhr.responseJSON.message)||'Error al auditar.'});
+    })
+    .always(function() {
+        $('#btnAudGenerar').prop('disabled', false).html('<i class="fa fa-search-dollar"></i> Auditar');
+    });
+}
+
+function limpiarAuditoria() {
+    setAudDefaultDates();
+    if ($('#audVendedor').hasClass('select2-hidden-accessible')) $('#audVendedor').val(null).trigger('change');
+    if (dtAuditoria) { dtAuditoria.destroy(); dtAuditoria = null; }
+    auditoriaDataActual = [];
+    $('#dtAuditoria tbody').empty();
+    $('#audKpis').hide();
+    $('#audTableWrap').hide();
+    $('#audEmptyState').show();
+}
+
+function exportarAuditoriaExcel() {
+    if (typeof XLSX === 'undefined') { Swal.fire({icon:'warning',title:'Librería no disponible'}); return; }
+    if (!auditoriaDataActual.length) { Swal.fire({icon:'info',title:'Sin datos'}); return; }
+
+    var ahora = new Date();
+    var stamp = ahora.getFullYear().toString()
+        + String(ahora.getMonth()+1).padStart(2,'0')
+        + String(ahora.getDate()).padStart(2,'0')
+        + '_' + String(ahora.getHours()).padStart(2,'0')
+        + String(ahora.getMinutes()).padStart(2,'0');
+
+    var headers = ['Factura','Cliente','Vendedor','Facturador','Fecha Creación',
+        'Último Pago Rango','# Abonos Rango','Cobrado en Rango',
+        'Total Abonado Histórico','Total Factura','Diferencia Cuadre','Cuadre OK',
+        'Estado Pago','AP Cerrada','AP Cerrada en Rango','Fecha Cierre AP',
+        'En Comisiones','En Escala','Pol.Ant Elegible','Pol.Ant Registrada','Política','Alertas'];
+    var rows = [headers];
+    auditoriaDataActual.forEach(function(r) {
+        rows.push([
+            r.factura||'', r.cliente||'', r.vendedor||'', r.facturador||'',
+            r.fecha_creacion_factura||'', r.ultima_fecha_pago_rango||'',
+            parseInt(r.num_abonos_en_rango||0),
+            parseFloat(r.cobrado_en_rango||0),
+            parseFloat(r.total_abonado_historico||0),
+            parseFloat(r.total_factura||0),
+            parseFloat(r.diferencia_cuadre||0),
+            r.cuadre_ok ? 'SÍ' : 'NO',
+            r.estado_pago||'',
+            r.tiene_ap_cerrada ? 'SÍ' : 'NO',
+            r.tiene_ap_en_rango ? 'SÍ' : 'NO',
+            r.fecha_cierre_ap||'',
+            r.en_comisiones ? 'SÍ' : 'NO',
+            r.en_escala ? 'SÍ' : 'NO',
+            r.en_politica_elegible ? 'SÍ' : 'NO',
+            r.en_politica_registrada ? 'SÍ' : 'NO',
+            r.politica||'',
+            r.alertas||''
+        ]);
+    });
+
+    var ws = XLSX.utils.aoa_to_sheet(rows);
+    ['H','I','J','K'].forEach(function(col) {
+        for (var i = 2; i <= auditoriaDataActual.length + 1; i++) {
+            var ref = col + i;
+            if (ws[ref] && typeof ws[ref].v === 'number') ws[ref].z = '"L." #,##0.00';
+        }
+    });
+    ws['!autofilter'] = { ref: 'A1:T1' };
+    ws['!cols'] = [{wch:22},{wch:28},{wch:20},{wch:20},{wch:13},{wch:14},
+                   {wch:10},{wch:16},{wch:18},{wch:16},{wch:14},{wch:10},
+                   {wch:12},{wch:10},{wch:14},{wch:12},{wch:10},{wch:14},{wch:20},{wch:60}];
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Auditoría Contable');
+    XLSX.writeFile(wb, 'auditoria_contable_' + stamp + '.xlsx');
+}
+
+$('a[href="#tab-auditoria"]').on('shown.bs.tab', function() {
+    if (!$('#audDesde').val()) setAudDefaultDates();
+    initAudSelect();
+    if (dtAuditoria) dtAuditoria.columns.adjust();
+});
+
+$(document).ready(function() {
+    $('#btnAudGenerar').on('click', generarAuditoria);
+    $('#btnAudLimpiar').on('click', limpiarAuditoria);
+});

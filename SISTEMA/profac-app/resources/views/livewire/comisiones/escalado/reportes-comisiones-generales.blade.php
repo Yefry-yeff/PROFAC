@@ -441,7 +441,7 @@ table.dataTable tbody td { font-size: 13px; vertical-align: middle; }
                 <i class="fa fa-chart-line"></i> Proyecciones
             </a>
         </li>
-        <li class="nav-item">
+        <li class="nav-item" style="display:none;">
             <a class="nav-link" data-toggle="tab" href="#tab-revision-facturas" role="tab">
                 <i class="fa fa-search"></i> Revisión de Facturas
             </a>
@@ -449,6 +449,16 @@ table.dataTable tbody td { font-size: 13px; vertical-align: middle; }
         <li class="nav-item">
             <a class="nav-link" data-toggle="tab" href="#tab-factura-actor" role="tab">
                 <i class="fa fa-users"></i> Factura por Actor
+            </a>
+        </li>
+        <li class="nav-item" style="display:none;">
+            <a class="nav-link" data-toggle="tab" href="#tab-cuadre-cobros" role="tab">
+                <i class="fa fa-balance-scale"></i> Cuadre Libro de Cobros
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-toggle="tab" href="#tab-auditoria" role="tab" style="color:#dc2626;font-weight:700;">
+                <i class="fa fa-search-dollar"></i> Auditoría Contable
             </a>
         </li>
     </ul>
@@ -967,6 +977,269 @@ table.dataTable tbody td { font-size: 13px; vertical-align: middle; }
                         <tbody></tbody>
                     </table>
                 </div>
+            </div>
+        </div>
+
+        {{-- TAB CUADRE LIBRO DE COBROS --}}
+        <div class="tab-pane fade" id="tab-cuadre-cobros" role="tabpanel">
+            <div class="filter-panel mb-4">
+                <div class="fp-title"><i class="fa fa-balance-scale"></i> Cuadre — Libro de Cobros vs Base Comisionable</div>
+                <div class="row align-items-end">
+                    <div class="col-md-2 col-sm-6 mb-2">
+                        <label class="filter-label"><i class="fa fa-calendar-alt mr-1"></i>Fecha Inicio</label>
+                        <input type="date" id="cuadreDesde" class="fp-input">
+                    </div>
+                    <div class="col-md-2 col-sm-6 mb-2">
+                        <label class="filter-label"><i class="fa fa-calendar-check mr-1"></i>Fecha Fin</label>
+                        <input type="date" id="cuadreHasta" class="fp-input">
+                    </div>
+                    <div class="col-md-3 col-sm-6 mb-2">
+                        <label class="filter-label"><i class="fa fa-briefcase mr-1"></i>Vendedor</label>
+                        <select id="cuadreVendedor" class="form-control" style="width:100%;"></select>
+                    </div>
+                    <div class="col-md-3 col-sm-12 mb-2">
+                        <label class="filter-label">&nbsp;</label>
+                        <div style="display:flex;gap:8px;">
+                            <button class="btn-generar" id="btnCuadreGenerar">
+                                <i class="fa fa-balance-scale"></i> Generar Cuadre
+                            </button>
+                            <button class="btn-limpiar" id="btnCuadreLimpiar">
+                                <i class="fa fa-times"></i> Limpiar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="cuadreInfo" style="display:none;background:#fff7ed;border:1.5px solid #fed7aa;border-radius:10px;padding:14px 18px;font-size:13px;margin-bottom:14px;">
+
+                {{-- Ecuación principal siempre exacta --}}
+                <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;padding:10px 16px;margin-bottom:14px;font-size:13px;color:#14532d;">
+                    <i class="fa fa-check-circle mr-1" style="color:#16a34a;"></i>
+                    <strong>Ecuación que siempre cuadra:</strong>
+                    &nbsp;Cobrado Sin ISV &nbsp;<strong>+</strong>&nbsp; ISV Cobrado &nbsp;<strong>=</strong>&nbsp; Total Cobrado (Libro)
+                    &nbsp;&nbsp;|&nbsp;&nbsp;
+                    <span id="cuadreEcuacion" style="font-family:monospace;font-weight:700;">— + — = —</span>
+                </div>
+
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:12px;">
+                    <div style="background:#fff;border-radius:8px;padding:10px 14px;border:2px solid #86efac;">
+                        <div style="font-size:11px;color:#15803d;text-transform:uppercase;font-weight:700;">① Total Cobrado (Libro)</div>
+                        <div style="font-size:18px;font-weight:800;color:#059669;" id="cuadreTotalCobrado">L. 0.00</div>
+                        <div style="font-size:11px;color:#64748b;">SUM(monto_abonado) en el rango · incluye ISV</div>
+                    </div>
+                    <div style="background:#fff;border-radius:8px;padding:10px 14px;border:1px solid #bfdbfe;">
+                        <div style="font-size:11px;color:#1d4ed8;text-transform:uppercase;font-weight:600;">② Cobrado Sin ISV</div>
+                        <div style="font-size:18px;font-weight:800;color:#0284c7;" id="cuadreCobradoSinIsv">L. 0.00</div>
+                        <div style="font-size:11px;color:#64748b;">abono × (subtotal / total) por factura</div>
+                    </div>
+                    <div style="background:#fff;border-radius:8px;padding:10px 14px;border:1px solid #fde68a;">
+                        <div style="font-size:11px;color:#b45309;text-transform:uppercase;font-weight:600;">③ ISV Cobrado</div>
+                        <div style="font-size:18px;font-weight:800;color:#d97706;" id="cuadreIsvCobrado">L. 0.00</div>
+                        <div style="font-size:11px;color:#64748b;">abono × (isv / total) · ② + ③ = ①</div>
+                    </div>
+                    <div style="background:#fff;border-radius:8px;padding:10px 14px;border:1px solid #e9d5ff;">
+                        <div style="font-size:11px;color:#7c3aed;text-transform:uppercase;font-weight:600;">SubTotal Facturas</div>
+                        <div style="font-size:18px;font-weight:800;color:#7c3aed;" id="cuadreSubTotalFacturas">L. 0.00</div>
+                        <div style="font-size:11px;color:#64748b;">Valor total de las facturas (no lo cobrado)</div>
+                    </div>
+                    <div style="background:#fff;border-radius:8px;padding:10px 14px;border:1px solid #fde68a;">
+                        <div style="font-size:11px;color:#92400e;text-transform:uppercase;font-weight:600;">Brecha por Parciales</div>
+                        <div style="font-size:18px;font-weight:800;color:#b45309;" id="cuadreBrechaParciales">L. 0.00</div>
+                        <div style="font-size:11px;color:#64748b;">SubTotal Fact. − Cobrado Sin ISV (no cobrado aún)</div>
+                    </div>
+                    <div style="background:#fff;border-radius:8px;padding:10px 14px;border:1px solid #e2e8f0;">
+                        <div style="font-size:11px;color:#64748b;text-transform:uppercase;font-weight:600;">Facturas en Rango</div>
+                        <div style="font-size:18px;font-weight:800;color:#1e293b;" id="cuadreFacturasRango">0</div>
+                        <div style="font-size:11px;color:#64748b;"><span id="cuadreFacturasCompletas">0</span> completamente pagadas</div>
+                    </div>
+                    <div style="background:#fff;border-radius:8px;padding:10px 14px;border:1px solid #e2e8f0;">
+                        <div style="font-size:11px;color:#64748b;text-transform:uppercase;font-weight:600;">Base Comisionable</div>
+                        <div style="font-size:18px;font-weight:800;color:#4f46e5;" id="cuadreBaseComisionable">L. 0.00</div>
+                        <div style="font-size:11px;color:#64748b;">Cantidad × precio (productos parametrizados)</div>
+                    </div>
+                    <div style="background:#fff;border-radius:8px;padding:10px 14px;border:2px solid #c7d2fe;">
+                        <div style="font-size:11px;color:#4338ca;text-transform:uppercase;font-weight:700;">Base Comisionable ≈ Proyección ✓</div>
+                        <div style="font-size:18px;font-weight:800;color:#4338ca;" id="cuadreBaseComisionableCierre">L. 0.00</div>
+                        <div style="font-size:11px;color:#64748b;"><span id="cuadreFacturasCierre">0</span> facturas con AP cerrada en rango · debe coincidir con Proyección</div>
+                    </div>
+                    <div style="background:#fff;border-radius:8px;padding:10px 14px;border:1px solid #e2e8f0;">
+                        <div style="font-size:11px;color:#64748b;text-transform:uppercase;font-weight:600;">Diferencia (② − Base)</div>
+                        <div style="font-size:18px;font-weight:800;" id="cuadreDiferencia">L. 0.00</div>
+                        <div style="font-size:11px;color:#64748b;">Parciales + sin escala + excluidos</div>
+                    </div>
+                </div>
+                <div style="background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:8px 12px;font-size:12px;color:#78350f;">
+                    <i class="fa fa-info-circle mr-1"></i>
+                    <strong>SubTotal Facturas ≠ Cobrado Sin ISV</strong> porque el subtotal es el valor <em>total</em> de la factura,
+                    no lo cobrado en el rango. La diferencia entre ambos (Brecha por Parciales) son facturas con abonos
+                    fuera del rango o aún pendientes de cobro.
+                </div>
+            </div>
+
+            <div id="cuadreEmptyState" class="empty-state">
+                <i class="fa fa-balance-scale"></i>
+                <p>Seleccione rango de fechas y vendedor, luego presione <strong>Generar Cuadre</strong></p>
+            </div>
+
+            <div id="cuadreTableWrap" style="display:none;">
+                <div class="tab-toolbar" style="margin-bottom:10px;">
+                    <div class="tab-title">
+                        <i class="fa fa-table" style="color:#ea580c;"></i>
+                        Detalle por Factura
+                    </div>
+                    <button class="btn-export" type="button" onclick="exportarCuadreExcel()">
+                        <i class="fa fa-file-excel-o"></i> Descargar Excel
+                    </button>
+                </div>
+                <div style="overflow-x:auto;border:1px solid #e2e8f0;border-radius:10px;background:#fff;">
+                    <table id="dtCuadre" class="table table-hover table-sm w-100 mb-0">
+                        <thead>
+                            <tr>
+                                <th>Factura</th>
+                                <th>Cliente</th>
+                                <th>Vendedor</th>
+                                <th>Facturador</th>
+                                <th>Fecha Cierre AP</th>
+                                <th class="text-right">Total Cobrado</th>
+                                <th class="text-right">Cobrado Sin ISV</th>
+                                <th class="text-right">ISV Cobrado</th>
+                                <th class="text-right">SubTotal Factura</th>
+                                <th class="text-right">Saldo Pendiente</th>
+                                <th class="text-center">Estado Pago</th>
+                                <th class="text-right">Base Comisionable</th>
+                                <th class="text-right">Diferencia</th>
+                                <th style="min-width:260px;">Razones Diferencia</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                        <tfoot>
+                            <tr style="font-weight:800;background:#f8fafc;font-size:12px;">
+                                <td colspan="5" class="text-right" style="padding-right:8px;">TOTALES:</td>
+                                <td class="text-right" id="cuadreFootCobrado">—</td>
+                                <td class="text-right" id="cuadreFootCobradoSinIsv">—</td>
+                                <td colspan="3"></td>
+                                <td></td>
+                                <td class="text-right" id="cuadreFootBase">—</td>
+                                <td class="text-right" id="cuadreFootDif">—</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        {{-- TAB: AUDITORÍA CONTABLE --}}
+        <div class="tab-pane fade" id="tab-auditoria" role="tabpanel">
+            <div class="filter-panel mb-4" style="border-left:4px solid #dc2626;">
+                <div class="fp-title" style="color:#dc2626;"><i class="fa fa-search-dollar"></i> Auditoría Contable — Libro de Cobros vs Comisiones</div>
+                <div class="row align-items-end">
+                    <div class="col-md-2 col-sm-6 mb-2">
+                        <label class="filter-label"><i class="fa fa-calendar-alt mr-1"></i>Fecha Inicio</label>
+                        <input type="date" id="audDesde" class="fp-input">
+                    </div>
+                    <div class="col-md-2 col-sm-6 mb-2">
+                        <label class="filter-label"><i class="fa fa-calendar-check mr-1"></i>Fecha Fin</label>
+                        <input type="date" id="audHasta" class="fp-input">
+                    </div>
+                    <div class="col-md-3 col-sm-6 mb-2">
+                        <label class="filter-label"><i class="fa fa-briefcase mr-1"></i>Vendedor</label>
+                        <select id="audVendedor" class="form-control" style="width:100%;"></select>
+                    </div>
+                    <div class="col-md-3 col-sm-12 mb-2">
+                        <label class="filter-label">&nbsp;</label>
+                        <div style="display:flex;gap:8px;">
+                            <button class="btn-generar" id="btnAudGenerar" style="background:#dc2626;">
+                                <i class="fa fa-search-dollar"></i> Auditar
+                            </button>
+                            <button class="btn-limpiar" id="btnAudLimpiar">
+                                <i class="fa fa-times"></i> Limpiar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="audEmptyState" class="empty-state">
+                <i class="fa fa-search-dollar" style="color:#dc2626;"></i>
+                <p>Seleccione rango y vendedor para auditar las facturas del <strong>Libro de Cobros</strong> contra <strong>Comisiones</strong>.</p>
+            </div>
+
+            <div id="audKpis" style="display:none;margin-bottom:16px;">
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:10px;">
+                    <div style="background:#fff;border-radius:8px;padding:10px 14px;border:2px solid #86efac;">
+                        <div style="font-size:11px;color:#15803d;font-weight:700;text-transform:uppercase;">Total Cobrado (Libro)</div>
+                        <div style="font-size:20px;font-weight:800;color:#059669;" id="audTotalCobrado">L. 0.00</div>
+                        <div style="font-size:11px;color:#64748b;">SUM(abonos) en el rango</div>
+                    </div>
+                    <div style="background:#fff;border-radius:8px;padding:10px 14px;border:1px solid #e2e8f0;">
+                        <div style="font-size:11px;color:#64748b;font-weight:600;text-transform:uppercase;">Facturas en Rango</div>
+                        <div style="font-size:20px;font-weight:800;color:#1e293b;" id="audTotalFacturas">0</div>
+                    </div>
+                    <div style="background:#fff;border-radius:8px;padding:10px 14px;border:1px solid #bbf7d0;">
+                        <div style="font-size:11px;color:#15803d;font-weight:600;text-transform:uppercase;">En Comisiones</div>
+                        <div style="font-size:20px;font-weight:800;color:#059669;" id="audEnComisiones">0</div>
+                        <div style="font-size:11px;color:#64748b;" id="audEnComisionesDetalle">Escala: 0 · Pol.Ant: 0</div>
+                    </div>
+                    <div style="background:#fff;border-radius:8px;padding:10px 14px;border:2px solid #fca5a5;">
+                        <div style="font-size:11px;color:#dc2626;font-weight:700;text-transform:uppercase;">Sin Comisiones ⚠</div>
+                        <div style="font-size:20px;font-weight:800;color:#dc2626;" id="audSinComisiones">0</div>
+                        <div style="font-size:11px;color:#64748b;">Facturas no contempladas</div>
+                    </div>
+                    <div style="background:#fff;border-radius:8px;padding:10px 14px;border:1px solid #bbf7d0;">
+                        <div style="font-size:11px;color:#15803d;font-weight:600;text-transform:uppercase;">Pagadas Completas</div>
+                        <div style="font-size:20px;font-weight:800;color:#059669;" id="audPagadas">0</div>
+                    </div>
+                    <div style="background:#fff;border-radius:8px;padding:10px 14px;border:1px solid #fde68a;">
+                        <div style="font-size:11px;color:#b45309;font-weight:600;text-transform:uppercase;">Parciales</div>
+                        <div style="font-size:20px;font-weight:800;color:#d97706;" id="audParciales">0</div>
+                    </div>
+                    <div style="background:#fff;border-radius:8px;padding:10px 14px;border:1px solid #bbf7d0;">
+                        <div style="font-size:11px;color:#15803d;font-weight:700;text-transform:uppercase;">Cuadre OK ✓</div>
+                        <div style="font-size:20px;font-weight:800;color:#059669;" id="audCuadreOk">0</div>
+                        <div style="font-size:11px;color:#64748b;">SUM(abonos) = total_factura</div>
+                    </div>
+                    <div style="background:#fff;border-radius:8px;padding:10px 14px;border:2px solid #fca5a5;">
+                        <div style="font-size:11px;color:#dc2626;font-weight:700;text-transform:uppercase;">Cuadre FALLA ✗</div>
+                        <div style="font-size:20px;font-weight:800;color:#dc2626;" id="audCuadreError">0</div>
+                        <div style="font-size:11px;color:#64748b;">SUM(abonos) ≠ total_factura</div>
+                    </div>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <button class="btn-export" type="button" onclick="exportarAuditoriaExcel()">
+                        <i class="fa fa-file-excel-o"></i> Descargar Excel Completo
+                    </button>
+                    <small style="display:flex;align-items:center;color:#64748b;font-size:12px;">
+                        <i class="fa fa-info-circle mr-1"></i> Rojo = factura sin comisiones · Amarillo = pago parcial · Naranja = cuadre contable falla
+                    </small>
+                </div>
+            </div>
+
+            <div id="audTableWrap" style="display:none;overflow-x:auto;border:1px solid #e2e8f0;border-radius:10px;background:#fff;">
+                <table id="dtAuditoria" class="table table-hover table-sm w-100 mb-0">
+                    <thead>
+                        <tr>
+                            <th>Factura (CAI)</th>
+                            <th>Cliente</th>
+                            <th>Vendedor</th>
+                            <th>Fecha Creación</th>
+                            <th>Último Pago (Rango)</th>
+                            <th class="text-center"># Abonos Rango</th>
+                            <th class="text-right">Cobrado en Rango</th>
+                            <th class="text-right">Total Abonado (Histórico)</th>
+                            <th class="text-right">Total Factura</th>
+                            <th class="text-right">Diferencia Cuadre</th>
+                            <th class="text-center">Cuadre</th>
+                            <th class="text-center">Estado Pago</th>
+                            <th class="text-center">AP Cerrada</th>
+                            <th class="text-center">En Comisiones</th>
+                            <th>Política</th>
+                            <th style="min-width:280px;">Alertas</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
             </div>
         </div>
 

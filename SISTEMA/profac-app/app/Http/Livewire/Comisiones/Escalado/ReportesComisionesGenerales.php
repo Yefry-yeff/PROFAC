@@ -2664,4 +2664,548 @@ class ReportesComisionesGenerales extends Component
             ],
         ]);
     }
+
+    /**
+     * Cuadre Libro de Cobros vs Base Comisionable (Proyección).
+     *
+     * Compara, para el mismo rango de fechas y vendedor, lo que el Libro de Cobros
+     * registra como cobrado (monto_abonado) versus la base comisionable de líneas
+     * de producto, explicando por factura las razones de la brecha.
+     */
+    public function reporteCuadreLibroCobros(Request $request)
+    {
+        [$fi, $ff] = $this->resolveDateRange($request);
+        $usuarioId = (int) $request->input('usuario_id', 0);   // mismo parámetro que Proyección
+
+        // ── PASO 1: Facturas cerradas en el rango ─────────────────────────────
+        // Idéntico al inicio de reporteProyecciones: AP cerrada, saldo<=0,
+        // fecha_pago_cierre dentro del rango.
+        $cierres = DB::table('aplicacion_pagos as ap')
+            ->leftJoin('abonos_creditos as ac', function ($join) {
+                $join->on('ac.aplicacion_pagos_id', '=', 'ap.id')
+                    ->where('ac.estado_abono', '=', 1);
+            })
+            ->where('ap.estado', 1)
+            ->where('ap.estado_cerrado', 2)
+            ->where('ap.saldo', '<=', 0.0001)
+            ->groupBy('ap.id', 'ap.factura_id', 'ap.fecha_cierre_factura')
+            ->selectRaw("ap.id AS aplicacion_pagos_id,
+                         ap.factura_id,
+                         COALESCE(MAX(DATE(ac.fecha_pago)), DATE(ap.fecha_cierre_factura)) AS fecha_pago_cierre")
+            ->havingRaw('fecha_pago_cierre IS NOT NULL')
+            ->havingBetween('fecha_pago_cierre', [$fi, $ff])
+            ->get();
+
+        if ($cierres->isEmpty()) {
+            return response()->json(['data' => [], 'totales' => $this->cuadreTotalesVacios()]);
+        }
+
+        $cierresPorFactura = $cierres->keyBy('factura_id');
+        $facturaIds        = $cierres->pluck('factura_id')->map(fn($v) => (int) $v)->all();
+
+        // ── PASO 2: Datos de la factura (mismo join que Proyección) ──────────
+        $facturas = DB::table('factura as f')
+            ->leftJoin('cliente as cl', 'cl.id', '=', 'f.cliente_id')
+            ->leftJoin('cliente_categoria_escala as cce', 'cce.id', '=', 'cl.cliente_categoria_escala_id')
+            ->leftJoin('users as uf', 'uf.id', '=', 'f.users_id')
+            ->leftJoin('users as uv', 'uv.id', '=', 'f.vendedor')
+            ->leftJoin('users as ug', 'ug.id', '=', 'f.gestor_entrega')
+            ->whereIn('f.id', $facturaIds)
+            // Filtro de usuario igual que Proyección: cualquier rol
+            ->when($usuarioId > 0, function ($q) use ($usuarioId) {
+                $q->where(function ($or) use ($usuarioId) {
+                    $or->where('f.users_id', $usuarioId)
+                       ->orWhere('f.vendedor', $usuarioId)
+                       ->orWhere('f.gestor_entrega', $usuarioId);
+                });
+            })
+            ->selectRaw("f.id,
+                         f.cai,
+                         f.nombre_cliente                                     AS cliente,
+                         ROUND(COALESCE(f.sub_total, 0), 2)                  AS sub_total_factura,
+                         ROUND(COALESCE(f.total, 0), 2)                      AS total_factura,
+                         ROUND(COALESCE(f.total,0) - COALESCE(f.sub_total,0),2) AS isv_factura,
+                         DATE_FORMAT(f.created_at, '%Y-%m-%d %H:%i:%s')      AS fecha_creacion_factura,
+                         f.users_id  AS facturador_id, uf.name AS facturador,
+                         f.vendedor  AS vendedor_id,   uv.name AS vendedor,
+                         f.gestor_entrega AS gestor_id, ug.name AS gestor,
+                         cl.cliente_categoria_escala_id,
+                         cce.nombre_categoria AS escala_cliente")
+            ->get()
+            ->keyBy('id');
+
+        if ($facturas->isEmpty()) {
+            return response()->json(['data' => [], 'totales' => $this->cuadreTotalesVacios()]);
+        }
+
+        $facturaIdsFiltrados = $facturas->keys()->map(fn($v) => (int) $v)->all();
+
+        // ── PASO 3: Total cobrado histórico por factura (todos los abonos) ───
+        $totalAbonado = DB::table('abonos_creditos')
+            ->whereIn('factura_id', $facturaIdsFiltrados)
+            ->where('estado_abono', 1)
+            ->groupBy('factura_id')
+            ->selectRaw('factura_id, ROUND(SUM(monto_abonado), 2) AS total_abonado')
+            ->get()
+            ->keyBy('factura_id');
+
+        // ── PASO 4: Líneas de producto (idéntico a Proyección) ───────────────
+        $lineasFactura = DB::table('venta_has_producto as vhp')
+            ->leftJoin('precios_producto_carga as ppc', 'ppc.id', '=', 'vhp.precios_producto_carga_id')
+            ->leftJoin('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')
+            ->leftJoin('producto as p', 'p.id', '=', 'vhp.producto_id')
+            ->whereIn('vhp.factura_id', $facturaIdsFiltrados)
+            ->groupBy('vhp.factura_id', 'vhp.producto_id', 'vhp.precios_producto_carga_id',
+                      'vhp.precio_unidad', 'vhp.precioSeleccionado', 'ppc.categoria_precios_id',
+                      'p.nombre', 'cp.nombre')
+            ->selectRaw("vhp.factura_id,
+                         vhp.producto_id,
+                         p.nombre                                            AS producto,
+                         COALESCE(SUM(vhp.cantidad_s), SUM(vhp.cantidad))   AS cantidad,
+                         vhp.precio_unidad,
+                         vhp.precioSeleccionado,
+                         vhp.precios_producto_carga_id,
+                         ppc.categoria_precios_id,
+                         cp.nombre                                           AS categoria_precio")
+            ->get()
+            ->groupBy('factura_id');
+
+        // ── PASO 5: Mapa de escalas (idéntico a Proyección) ──────────────────
+        $clienteEscalaIds = $facturas->pluck('cliente_categoria_escala_id')
+            ->filter(fn($v) => (int) $v > 0)->unique()->values()->all();
+        $categoriaIds = $lineasFactura->flatten(1)->pluck('categoria_precios_id')
+            ->filter(fn($v) => (int) $v > 0)->unique()->values()->all();
+
+        $escalaMap = [];
+        if (!empty($clienteEscalaIds) && !empty($categoriaIds)) {
+            DB::table('comision_escala')
+                ->where('estado_id', 1)
+                ->whereIn('rol_id', [2, 3, 16])
+                ->whereIn('cliente_categoria_escala_id', $clienteEscalaIds)
+                ->whereIn('categoria_precios_id', $categoriaIds)
+                ->select('rol_id', 'cliente_categoria_escala_id', 'categoria_precios_id')
+                ->get()
+                ->each(function ($e) use (&$escalaMap) {
+                    $escalaMap[$e->rol_id . '|' . $e->cliente_categoria_escala_id . '|' . $e->categoria_precios_id] = true;
+                });
+        }
+
+        // ── PASO 6: Construir filas de cuadre ────────────────────────────────
+        $data = [];
+        $sumCobrado              = 0.0;
+        $sumCobradoSinIsv        = 0.0;
+        $sumIsvCobrado           = 0.0;
+        $sumSubTotalFacturas     = 0.0;
+        $sumBaseComisionable     = 0.0;
+        $sumBaseComisionableCierreEnRango = 0.0;
+        $cntFacturasCompletas    = 0;
+        $cntFacturasCierreEnRango = 0;
+
+        foreach ($facturas as $factura) {
+            $facturaId    = (int) $factura->id;
+            $cierre       = $cierresPorFactura->get($facturaId);
+            $totalFact    = (float) $factura->total_factura;
+            $subTotalFact = (float) $factura->sub_total_factura;
+            $isvFact      = (float) $factura->isv_factura;
+
+            // Cobrado total histórico de la factura
+            $cobradoTotal = (float) ($totalAbonado[$facturaId]->total_abonado ?? 0);
+            $saldo        = max(round($totalFact - $cobradoTotal, 2), 0);
+            $estadoPago   = $saldo <= 0.01 ? 'PAGADA' : 'PARCIAL';
+
+            // Cobrado proporcional: para facturas PAGADAS cobradoTotal ≈ total_factura
+            // Se usa total_factura como base de la proporción sin ISV
+            $cobradoSinIsv = $totalFact > 0
+                ? round($cobradoTotal * $subTotalFact / $totalFact, 2)
+                : $cobradoTotal;
+            $isvCobrado    = round($cobradoTotal - $cobradoSinIsv, 2);
+
+            // fecha_pago_cierre del AP (mismo que Proyección)
+            $fechaCierreAp = $cierre ? (string) $cierre->fecha_pago_cierre : null;
+            // Siempre true aquí porque ya filtramos por fecha_pago_cierre en Paso 1
+            $cierreEnRango = true;
+
+            // Base comisionable de líneas (idéntico a Proyección)
+            $baseComisionable   = 0.0;
+            $lineasComisionables = 0;
+            $lineasExcluidas    = 0;
+            $razonesExclusion   = [];
+            $escalaClienteId    = (int) ($factura->cliente_categoria_escala_id ?? 0);
+
+            $lineas = collect($lineasFactura->get($facturaId, collect([])));
+            foreach ($lineas as $linea) {
+                $cantidad           = (float) ($linea->cantidad ?? 0);
+                $precioSeleccionado = (float) ($linea->precioSeleccionado ?? 0);
+                $precioUnitario     = (float) ($linea->precio_unidad ?? 0);
+                $precioParaComision = $precioSeleccionado > 0 ? $precioSeleccionado : $precioUnitario;
+                $catId              = (int) ($linea->categoria_precios_id ?? 0);
+
+                $motivosLinea = [];
+                if (empty($linea->precios_producto_carga_id)) $motivosLinea[] = 'sin precios_producto_carga_id';
+                if ($catId <= 0)          $motivosLinea[] = 'sin categoría de precio';
+                if ($escalaClienteId <= 0) $motivosLinea[] = 'cliente sin categoría de escala';
+
+                if (empty($motivosLinea)) {
+                    $tieneEscala = false;
+                    foreach ([2, 3, 16] as $rolId) {
+                        if (isset($escalaMap[$rolId . '|' . $escalaClienteId . '|' . $catId])) {
+                            $tieneEscala = true;
+                            break;
+                        }
+                    }
+                    if (!$tieneEscala) $motivosLinea[] = 'sin escala configurada';
+                }
+
+                if (empty($motivosLinea)) {
+                    $baseComisionable += $cantidad * $precioParaComision;
+                    $lineasComisionables++;
+                } else {
+                    $lineasExcluidas++;
+                    foreach ($motivosLinea as $m) $razonesExclusion[] = $m;
+                }
+            }
+            $baseComisionable = round($baseComisionable, 2);
+
+            // Razones de la diferencia cobrado_sin_isv vs base_comisionable
+            $razones = [];
+            if ($estadoPago === 'PARCIAL') {
+                $razones[] = 'Pago parcial (saldo L.' . number_format($saldo, 2) . ')';
+            }
+            if ($isvFact > 0) {
+                $razones[] = 'ISV L.' . number_format($isvFact, 2);
+            }
+            if ($lineasExcluidas > 0) {
+                $razones[] = $lineasExcluidas . ' línea(s) sin escala: ' . implode(', ', array_unique($razonesExclusion));
+            }
+            if ($lineas->isEmpty()) {
+                $razones[] = 'Sin líneas de producto';
+            }
+
+            $diferencia = round($cobradoSinIsv - $baseComisionable, 2);
+
+            $sumCobrado                      += $cobradoTotal;
+            $sumCobradoSinIsv                += $cobradoSinIsv;
+            $sumIsvCobrado                   += $isvCobrado;
+            $sumSubTotalFacturas             += $subTotalFact;
+            $sumBaseComisionable             += $baseComisionable;
+            $sumBaseComisionableCierreEnRango += $baseComisionable;
+            $cntFacturasCierreEnRango++;
+            if ($estadoPago === 'PAGADA') $cntFacturasCompletas++;
+
+            $data[] = [
+                'factura_id'             => $facturaId,
+                'factura'                => (string) ($factura->cai ?? '#' . $facturaId),
+                'cliente'                => (string) ($factura->cliente ?? ''),
+                'facturador'             => (string) ($factura->facturador ?? ''),
+                'vendedor'               => (string) ($factura->vendedor ?? ''),
+                'gestor'                 => (string) ($factura->gestor ?? ''),
+                'fecha_creacion_factura' => (string) ($factura->fecha_creacion_factura ?? ''),
+                'fecha_pago_cierre'      => $fechaCierreAp ?? '',
+                'total_cobrado_factura'  => $cobradoTotal,
+                'cobrado_sin_isv'        => $cobradoSinIsv,
+                'isv_cobrado'            => $isvCobrado,
+                'sub_total_factura'      => $subTotalFact,
+                'isv_factura'            => $isvFact,
+                'total_factura'          => $totalFact,
+                'saldo_pendiente'        => $saldo,
+                'estado_pago'            => $estadoPago,
+                'lineas_comisionables'   => $lineasComisionables,
+                'lineas_excluidas'       => $lineasExcluidas,
+                'base_comisionable'      => $baseComisionable,
+                'diferencia'             => $diferencia,
+                'razones_diferencia'     => implode(' | ', $razones),
+            ];
+        }
+
+        usort($data, fn($a, $b) => strcmp(
+            $a['fecha_pago_cierre'] . $a['factura'],
+            $b['fecha_pago_cierre'] . $b['factura']
+        ));
+
+        return response()->json([
+            'data'    => $data,
+            'totales' => [
+                'facturas_en_rango'                 => count($data),
+                'facturas_completas'                => $cntFacturasCompletas,
+                'facturas_cierre_en_rango'          => $cntFacturasCierreEnRango,
+                'total_cobrado'                     => round($sumCobrado, 2),
+                'total_cobrado_sin_isv'             => round($sumCobradoSinIsv, 2),
+                'total_isv_cobrado'                 => round($sumIsvCobrado, 2),
+                'total_sub_total_facturas'          => round($sumSubTotalFacturas, 2),
+                'brecha_parciales'                  => round($sumSubTotalFacturas - $sumCobradoSinIsv, 2),
+                'total_base_comisionable'           => round($sumBaseComisionable, 2),
+                'base_comisionable_cierre_en_rango' => round($sumBaseComisionableCierreEnRango, 2),
+                'diferencia'                        => round($sumCobradoSinIsv - $sumBaseComisionable, 2),
+            ],
+        ]);
+    }
+
+    private function cuadreTotalesVacios(): array
+    {
+        return [
+            'facturas_en_rango'                 => 0,
+            'facturas_completas'                => 0,
+            'facturas_cierre_en_rango'          => 0,
+            'total_cobrado'                     => 0,
+            'total_cobrado_sin_isv'             => 0,
+            'total_isv_cobrado'                 => 0,
+            'total_sub_total_facturas'          => 0,
+            'brecha_parciales'                  => 0,
+            'total_base_comisionable'           => 0,
+            'base_comisionable_cierre_en_rango' => 0,
+            'diferencia'                        => 0,
+        ];
+    }
+
+    /**
+     * Auditoría contable: para todas las facturas de un vendedor/usuario
+     * que tuvieron pagos en el rango (= universo del Libro de Cobros),
+     * muestra por factura:
+     *   - Si está contemplada en comisiones (escala o política anterior)
+     *   - Si está completamente pagada
+     *   - Si SUM(abonos) == total_factura (cuadre contable)
+     *   - El total cobrado en el rango y el total histórico
+     */
+    public function reporteAuditoriaContable(Request $request)
+    {
+        [$fi, $ff] = $this->resolveDateRange($request);
+        $vendedorId = (int) $request->input('vendedor_id', 0);
+
+        // 1. Todas las facturas con abonos en el rango (= universo Libro de Cobros)
+        $abonosRango = DB::table('abonos_creditos as ac')
+            ->join('factura as f', 'f.id', '=', 'ac.factura_id')
+            ->leftJoin('users as uv', 'uv.id', '=', 'f.vendedor')
+            ->leftJoin('users as uf', 'uf.id', '=', 'f.users_id')
+            ->where('ac.estado_abono', 1)
+            ->whereNotIn('ac.banco_id', [12, 13])
+            ->whereBetween(DB::raw('DATE(ac.fecha_pago)'), [$fi, $ff])
+            ->when($vendedorId > 0, fn($q) => $q->where('f.vendedor', $vendedorId))
+            ->groupBy('f.id', 'f.cai', 'f.nombre_cliente', 'f.vendedor', 'f.users_id',
+                      'f.sub_total', 'f.total', 'f.created_at', 'f.estado_venta_id',
+                      'uv.name', 'uf.name')
+            ->selectRaw("
+                f.id                                                    AS factura_id,
+                f.cai,
+                f.nombre_cliente                                        AS cliente,
+                f.vendedor                                              AS vendedor_id,
+                uv.name                                                 AS vendedor,
+                uf.name                                                 AS facturador,
+                ROUND(COALESCE(f.sub_total, 0), 2)                     AS sub_total_factura,
+                ROUND(COALESCE(f.total, 0), 2)                         AS total_factura,
+                ROUND(COALESCE(f.total,0) - COALESCE(f.sub_total,0),2) AS isv_factura,
+                DATE_FORMAT(f.created_at, '%Y-%m-%d')                  AS fecha_creacion_factura,
+                ROUND(SUM(ac.monto_abonado), 2)                        AS cobrado_en_rango,
+                COUNT(DISTINCT ac.id)                                   AS num_abonos_en_rango,
+                MAX(DATE(ac.fecha_pago))                                AS ultima_fecha_pago_rango,
+                f.estado_venta_id
+            ")
+            ->orderByRaw('MAX(DATE(ac.fecha_pago)) ASC, f.cai ASC')
+            ->get();
+
+        if ($abonosRango->isEmpty()) {
+            return response()->json(['data' => [], 'totales' => []]);
+        }
+
+        $facturaIds = $abonosRango->pluck('factura_id')->map(fn($v) => (int) $v)->all();
+
+        // 2. Total abonado HISTÓRICO por factura (todos los abonos, no solo los del rango)
+        $totalHistorico = DB::table('abonos_creditos')
+            ->whereIn('factura_id', $facturaIds)
+            ->where('estado_abono', 1)
+            ->groupBy('factura_id')
+            ->selectRaw('factura_id, ROUND(SUM(monto_abonado), 2) AS total_abonado_historico, COUNT(*) AS num_abonos_total')
+            ->get()
+            ->keyBy('factura_id');
+
+        // 3. AP cerrada por factura (indica que el sistema la cerró formalmente)
+        $apCerrada = DB::table('aplicacion_pagos')
+            ->where('estado', 1)
+            ->where('estado_cerrado', 2)
+            ->where('saldo', '<=', 0.0001)
+            ->whereIn('factura_id', $facturaIds)
+            ->selectRaw('factura_id, MIN(fecha_cierre_factura) AS fecha_cierre_ap')
+            ->groupBy('factura_id')
+            ->get()
+            ->keyBy('factura_id');
+
+        // 4. ¿Está en facturas_comision (escala nueva)?
+        $enEscala = DB::table('facturas_comision')
+            ->whereIn('factura_id', $facturaIds)
+            ->where('estado_id', 1)
+            ->distinct()
+            ->pluck('factura_id')
+            ->map(fn($v) => (int) $v)
+            ->flip()
+            ->all();   // hash map id => 0
+
+        // 5a. ¿Ya registrada en comision_politica_anterior_factura? (registrada formalmente)
+        $politicaRegistrada = DB::getSchemaBuilder()->hasTable('comision_politica_anterior_factura')
+            ? DB::table('comision_politica_anterior_factura')
+                ->whereIn('factura_id', $facturaIds)
+                ->distinct()
+                ->pluck('factura_id')
+                ->map(fn($v) => (int) $v)
+                ->flip()
+                ->all()
+            : [];
+
+        // 5b. AP cerrada en el rango (congruente con Proyección):
+        //     facturas que tienen aplicacion_pagos cerrada con fecha_pago_cierre en el rango.
+        //     Estas son exactamente las que la Proyección y Política Anterior procesan.
+        $apEnRango = DB::table('aplicacion_pagos as ap')
+            ->leftJoin('abonos_creditos as ac', function ($j) {
+                $j->on('ac.aplicacion_pagos_id', '=', 'ap.id')
+                  ->where('ac.estado_abono', '=', 1);
+            })
+            ->where('ap.estado', 1)
+            ->where('ap.estado_cerrado', 2)
+            ->where('ap.saldo', '<=', 0.0001)
+            ->whereIn('ap.factura_id', $facturaIds)
+            ->groupBy('ap.id', 'ap.factura_id', 'ap.fecha_cierre_factura')
+            ->selectRaw("ap.factura_id,
+                         COALESCE(MAX(DATE(ac.fecha_pago)), DATE(ap.fecha_cierre_factura)) AS fecha_pago_cierre")
+            ->havingRaw('fecha_pago_cierre IS NOT NULL')
+            ->havingBetween('fecha_pago_cierre', [$fi, $ff])
+            ->get()
+            ->keyBy('factura_id');
+
+        // 5c. ¿Es elegible para política anterior?
+        //     = AP cerrada en rango + NO en escala (facturas_comision)
+        //     Exactamente las que la Proyección marca como "excluidas" y envía a Política Anterior.
+        $elegiblePoliticaAnterior = [];
+        foreach ($apEnRango as $fid => $row) {
+            if (!isset($enEscala[(int)$fid])) {
+                $elegiblePoliticaAnterior[(int)$fid] = true;
+            }
+        }
+
+        // 6. Construir filas de auditoría
+        $data = [];
+        $kpi  = [
+            'total_cobrado_rango'                  => 0.0,
+            'facturas_total'                       => 0,
+            'facturas_en_escala'                   => 0,
+            'facturas_en_politica_registrada'      => 0,
+            'facturas_en_politica_elegible'        => 0,
+            'facturas_en_comisiones'               => 0,
+            'facturas_sin_comisiones'              => 0,
+            'facturas_sin_ap_en_rango'             => 0,
+            'facturas_pagadas_completas'           => 0,
+            'facturas_parciales'                   => 0,
+            'facturas_con_cuadre_ok'               => 0,
+            'facturas_con_cuadre_error'            => 0,
+            'total_facturas_valor'                 => 0.0,
+            'total_cobrado_historico'              => 0.0,
+        ];
+
+        foreach ($abonosRango as $row) {
+            $fid          = (int) $row->factura_id;
+            $totalFact    = (float) $row->total_factura;
+            $subTotal     = (float) $row->sub_total_factura;
+            $isvFact      = (float) $row->isv_factura;
+            $cobradoRango = (float) $row->cobrado_en_rango;
+
+            $hist         = $totalHistorico[$fid] ?? null;
+            $totalHist    = $hist ? (float) $hist->total_abonado_historico : 0.0;
+            $numAbonos    = $hist ? (int) $hist->num_abonos_total : 0;
+
+            $ap           = $apCerrada[$fid] ?? null;
+            $tieneAp      = $ap !== null;
+            $fechaCierreAp = $tieneAp ? (string) $ap->fecha_cierre_ap : null;
+
+            $saldo        = max(round($totalFact - $totalHist, 2), 0);
+            $estadoPago   = $saldo <= 0.01 ? 'PAGADA' : 'PARCIAL';
+
+            // Cuadre contable: ¿SUM(abonos) == total_factura?
+            $diferenciaCuadre = round($totalFact - $totalHist, 2);
+            $cuadreOk = abs($diferenciaCuadre) <= 0.01;
+
+            $enEsc             = isset($enEscala[$fid]);
+            $enPolRegistrada   = isset($politicaRegistrada[$fid]);
+            $enPolElegible     = isset($elegiblePoliticaAnterior[$fid]);
+            $tieneApEnRango    = isset($apEnRango[$fid]);
+            // En comisiones = en escala O en política anterior (registrada o elegible)
+            $enCom = $enEsc || $enPolRegistrada || $enPolElegible;
+
+            if ($enEsc && $enPolRegistrada)        $politica = 'Escala + Pol.Ant (Registrada)';
+            elseif ($enEsc && $enPolElegible)      $politica = 'Escala (Nueva Política)';
+            elseif ($enEsc)                        $politica = 'Escala (Nueva Política)';
+            elseif ($enPolRegistrada)              $politica = 'Política Anterior (Registrada)';
+            elseif ($enPolElegible)                $politica = 'Política Anterior (Elegible)';
+            else                                   $politica = '—';
+
+            // Alertas
+            $alertas = [];
+            if (!$enCom && !$tieneApEnRango) {
+                $alertas[] = 'Sin AP cerrada en rango — solo abonos parciales (no aplica comisión)';
+            } elseif (!$enCom) {
+                $alertas[] = 'FACTURA AP-CERRADA EN RANGO PERO SIN COMISIÓN ASIGNADA';
+            }
+            if ($estadoPago === 'PARCIAL') {
+                $alertas[] = 'Pago parcial — saldo pendiente L.' . number_format($saldo, 2);
+            }
+            if (!$cuadreOk) {
+                $alertas[] = 'CUADRE CONTABLE FALLA: sum_abonos ≠ total_factura (dif L.' . number_format(abs($diferenciaCuadre), 2) . ')';
+            }
+            if ($tieneAp && $estadoPago === 'PARCIAL') {
+                $alertas[] = 'AP cerrada pero saldo > 0.01 (revisar)';
+            }
+            if ((int)($row->estado_venta_id ?? 0) === 2) {
+                $alertas[] = 'FACTURA ANULADA';
+            }
+
+            // KPIs
+            $kpi['total_cobrado_rango']               += $cobradoRango;
+            $kpi['total_cobrado_historico']           += $totalHist;
+            $kpi['total_facturas_valor']              += $totalFact;
+            $kpi['facturas_total']++;
+            if ($enEsc)           $kpi['facturas_en_escala']++;
+            if ($enPolRegistrada) $kpi['facturas_en_politica_registrada']++;
+            if ($enPolElegible)   $kpi['facturas_en_politica_elegible']++;
+            if ($enCom)           $kpi['facturas_en_comisiones']++;
+            else                  $kpi['facturas_sin_comisiones']++;
+            if (!$tieneApEnRango) $kpi['facturas_sin_ap_en_rango']++;
+            if ($estadoPago === 'PAGADA')   $kpi['facturas_pagadas_completas']++;
+            else                           $kpi['facturas_parciales']++;
+            if ($cuadreOk) $kpi['facturas_con_cuadre_ok']++;
+            else           $kpi['facturas_con_cuadre_error']++;
+
+            $data[] = [
+                'factura_id'               => $fid,
+                'factura'                       => (string) ($row->cai ?? '#' . $fid),
+                'cliente'                       => (string) ($row->cliente ?? ''),
+                'vendedor'                      => (string) ($row->vendedor ?? ''),
+                'facturador'                    => (string) ($row->facturador ?? ''),
+                'fecha_creacion_factura'        => (string) ($row->fecha_creacion_factura ?? ''),
+                'ultima_fecha_pago_rango'       => (string) ($row->ultima_fecha_pago_rango ?? ''),
+                'num_abonos_en_rango'           => (int) $row->num_abonos_en_rango,
+                'cobrado_en_rango'              => $cobradoRango,
+                'total_abonado_historico'       => $totalHist,
+                'num_abonos_total'              => $numAbonos,
+                'sub_total_factura'             => $subTotal,
+                'isv_factura'                   => $isvFact,
+                'total_factura'                 => $totalFact,
+                'saldo_pendiente'               => $saldo,
+                'diferencia_cuadre'             => $diferenciaCuadre,
+                'cuadre_ok'                     => $cuadreOk,
+                'tiene_ap_cerrada'              => $tieneAp,
+                'tiene_ap_en_rango'             => $tieneApEnRango,
+                'fecha_cierre_ap'               => $fechaCierreAp,
+                'estado_pago'                   => $estadoPago,
+                'en_comisiones'                 => $enCom,
+                'en_escala'                     => $enEsc,
+                'en_politica_registrada'        => $enPolRegistrada,
+                'en_politica_elegible'          => $enPolElegible,
+                'politica'                      => $politica,
+                'alertas'                       => implode(' | ', $alertas),
+            ];
+        }
+
+        // Redondear KPIs
+        $kpi['total_cobrado_rango']     = round($kpi['total_cobrado_rango'], 2);
+        $kpi['total_cobrado_historico'] = round($kpi['total_cobrado_historico'], 2);
+        $kpi['total_facturas_valor']    = round($kpi['total_facturas_valor'], 2);
+
+        return response()->json(['data' => $data, 'kpi' => $kpi]);
+    }
 }
