@@ -529,6 +529,7 @@ function renderProyecciones(resp){
     window._comisionEscalaActual = totalComisionVisible || 0;
     $('#resumenComisionEscala').text(fmtMoney(window._comisionEscalaActual));
     $('#resumenComisionTotal').text(fmtMoney(window._comisionEscalaActual)); // se actualizará al cargar pol. anterior
+    $('#proyRetencionMora').text(fmtMoney(totales.retencion_mora_total || 0));
     $('#proyExcluidas').text(excluidas.length);
 
     $('#proyTableWrap').show();
@@ -562,6 +563,10 @@ function renderProyecciones(resp){
             {data:'cantidad',className:'text-right',render:function(d){
                 return '<strong>'+parseFloat(d || 0).toLocaleString('es-HN',{minimumFractionDigits:0,maximumFractionDigits:2})+'</strong>';
             }},
+            {data:'precio_unitario',className:'text-right',render:function(d){return fmtMoney(d || 0);}},
+            {data:'precio_seleccionado',className:'text-right',render:function(d){
+                return d && parseFloat(d) > 0 ? '<strong style="color:#0f766e;">'+fmtMoney(d)+'</strong>' : '<span class="text-muted">—</span>';
+            }},
             {data:'rol_nombre',className:'text-center',render:function(d, __, row){
                 var txt = String(d || row.capacidad || '—');
                 var cls = 'badge badge-secondary';
@@ -574,6 +579,11 @@ function renderProyecciones(resp){
             {data:'base_comisionable_unitaria',className:'text-right',render:function(d){return '<strong>'+fmtMoney(d || 0)+'</strong>'; }},
             {data:'base_comisionable',className:'text-right',render:function(d){return '<strong style="color:#0f766e;">'+fmtMoney(d || 0)+'</strong>'; }},
             {data:'porcentaje_promedio',className:'text-right',render:function(d){return parseFloat(d || 0).toFixed(2)+'%';}},
+            {data:'comision_bruta',className:'text-right',render:function(d){return fmtMoney(d || 0);}},
+            {data:'retencion_mora',className:'text-right',render:function(d){
+                var v = parseFloat(d || 0);
+                return v > 0 ? '<strong style="color:#dc2626;">− '+fmtMoney(v)+'</strong>' : '<span class="text-muted">—</span>';
+            }},
             {data:'comision_proyectada',className:'text-right',render:function(d){return '<strong class="monto-com">'+fmtMoney(d || 0)+'</strong>'; }}
         ]
     });

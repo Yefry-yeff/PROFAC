@@ -1056,7 +1056,8 @@ $(document).on('submit', '#formabonos', function(event) {
             params: {
                 factura_id:          facturaId,
                 monto_abono:         montoAbono,
-                aplicacion_pagos_id: aplicacionPagoId
+                aplicacion_pagos_id: aplicacionPagoId,
+                fecha_pago:          fechaPago
             }
         }).then(function(response) {
             var preview = response.data;
@@ -1197,6 +1198,7 @@ function renderSrResumen(preview) {
     var cat  = preview.sr_categoria_baja || null;
     var productos = Array.isArray(preview.sr_productos) ? preview.sr_productos : [];
     var porcentajes = Array.isArray(preview.sr_porcentajes) ? preview.sr_porcentajes : [];
+    var penaliza = preview.sr_penaliza === true;
 
     var badgeTipo = tipo.nombre
         ? '<span style="display:inline-block;background:#fee2e2;color:#991b1b;border:1px solid #fecaca;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;">' + apEsc(tipo.nombre) + '</span>'
@@ -1205,6 +1207,18 @@ function renderSrResumen(preview) {
     var catHtml = cat
         ? '<strong>' + apEsc(cat.nombre) + '</strong> <span style="color:#64748b;">(ID: ' + apEsc(cat.id) + (cat.porc_precio_a != null ? ', %Precio A: ' + Number(cat.porc_precio_a).toFixed(2) + '%' : '') + ')</span>'
         : '<span style="color:#b91c1c;">No se encontró categoría activa para la escala del cliente.</span>';
+
+    // Mensaje y estilo según si hay penalización o no
+    var srMensaje, srColor, srBorder, srIcono;
+    if (penaliza) {
+        srColor  = '#fff7ed'; srBorder = '#fdba74'; srIcono = 'fa-exclamation-triangle'; 
+        srMensaje = 'Esta factura fue emitida como <strong>SR</strong>. Uno o más productos se vendieron <strong>por debajo del precio de la categoría más baja</strong> de la escala del cliente ('
+            + catHtml + '). La comisión de esos productos se calculará por esa categoría mínima como penalización.';
+    } else {
+        srColor  = '#f0fdf4'; srBorder = '#86efac'; srIcono = 'fa-check-circle';
+        srMensaje = 'Esta factura fue emitida como <strong>SR</strong>, pero todos los productos se vendieron <strong>al precio de la categoría real o por encima</strong> del precio mínimo ('
+            + catHtml + '). La comisión se calculará por la categoría de precio real usada en cada línea. <strong>No aplica penalización SR.</strong>';
+    }
 
     var rowsProd = productos.map(function(p) {
         return '<tr>'
@@ -1223,17 +1237,26 @@ function renderSrResumen(preview) {
             + '</tr>';
     }).join('');
 
+    var header = penaliza
+        ? '<strong style="color:#9a3412;">Regla SR — Penalización aplicada</strong>'
+        : '<strong style="color:#166534;">Factura SR — Sin penalización</strong>';
+
+    var tablasPct = penaliza
+        ? '<div class="table-responsive" style="margin-bottom:8px;">'
+            + '  <table class="table table-bordered table-sm mb-0" style="font-size:.83rem;">'
+            + '    <thead style="background:#1f2937;color:#fff;"><tr><th>Capacidad</th><th>Rol</th><th class="text-right">% Comisión (categoría más baja)</th></tr></thead>'
+            + '    <tbody>' + (rowsPct || '<tr><td colspan="3" class="text-center text-muted">Sin porcentajes configurados para la categoría más baja</td></tr>') + '</tbody>'
+            + '  </table>'
+            + '</div>'
+        : '';
+
     return ''
-        + '<div style="background:#fff7ed;border:1.5px solid #fdba74;border-radius:10px;padding:12px 14px;margin-bottom:14px;">'
+        + '<div style="background:' + srColor + ';border:1.5px solid ' + srBorder + ';border-radius:10px;padding:12px 14px;margin-bottom:14px;">'
         + '  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;">'
-        + '    <i class="fa fa-exclamation-triangle" style="color:#c2410c;"></i>'
-        + '    <strong style="color:#9a3412;">Regla SR aplicada</strong>'
-        +      badgeTipo
+        + '    <i class="fa ' + srIcono + '" style="color:' + (penaliza ? '#c2410c' : '#16a34a') + ';"></i>'
+        + '    ' + header + ' ' + badgeTipo
         + '  </div>'
-        + '  <div style="font-size:12.5px;color:#7c2d12;line-height:1.6;">'
-        + '    Esta factura fue emitida como SR. La comisión se calculará por la categoría de precio más baja de la escala del cliente: '
-        +      catHtml
-        + '  </div>'
+        + '  <div style="font-size:12.5px;color:' + (penaliza ? '#7c2d12' : '#14532d') + ';line-height:1.6;">' + srMensaje + '</div>'
         + '</div>'
         + '<div class="table-responsive" style="margin-bottom:10px;">'
         + '  <table class="table table-bordered table-sm mb-0" style="font-size:.83rem;">'
@@ -1241,12 +1264,7 @@ function renderSrResumen(preview) {
         + '    <tbody>' + (rowsProd || '<tr><td colspan="4" class="text-center text-muted">Sin líneas de producto</td></tr>') + '</tbody>'
         + '  </table>'
         + '</div>'
-        + '<div class="table-responsive" style="margin-bottom:8px;">'
-        + '  <table class="table table-bordered table-sm mb-0" style="font-size:.83rem;">'
-        + '    <thead style="background:#1f2937;color:#fff;"><tr><th>Capacidad</th><th>Rol</th><th class="text-right">% Comisión (categoría más baja)</th></tr></thead>'
-        + '    <tbody>' + (rowsPct || '<tr><td colspan="3" class="text-center text-muted">Sin porcentajes configurados para la categoría más baja</td></tr>') + '</tbody>'
-        + '  </table>'
-        + '</div>';
+        + tablasPct;
 }
 
 function renderPreviewSinComisiones(preview) {
@@ -1274,6 +1292,34 @@ function renderPreviewSinComisiones(preview) {
 }
 
 /* Renderiza la tabla de roles a comisionar en el modal de preview */
+function renderMoraRetencionAviso(preview) {
+    var mora = preview && preview.mora_retencion;
+    if (!mora || !mora.aplica || !Array.isArray(mora.detalles) || mora.detalles.length === 0) return '';
+
+    var filas = '';
+    mora.detalles.forEach(function(d) {
+        filas += '<tr>'
+            + '<td><strong>' + d.capacidad + '</strong> — ' + d.rol_nombre + '</td>'
+            + '<td class="text-center">' + d.periodos_vencidos + '</td>'
+            + '<td class="text-center">' + Number(d.porcentaje_por_periodo).toFixed(2) + '% × ' + d.periodos_vencidos + ' = <strong>' + Number(d.porcentaje_total_retencion).toFixed(2) + '%</strong></td>'
+            + '</tr>';
+    });
+
+    return '<div style="background:#fff7ed;border-left:4px solid #ea580c;border-radius:4px;padding:12px 14px;margin-bottom:12px;">'
+        + '<div style="font-weight:700;color:#c2410c;margin-bottom:6px;">'
+        + '<i class="fa fa-exclamation-circle mr-1"></i> Retención por mora — Factura de crédito'
+        + '</div>'
+        + '<p style="font-size:12.5px;color:#7c2d12;margin:0 0 8px;">'
+        + 'La factura venció el <strong>' + mora.fecha_vencimiento + '</strong> y han transcurrido <strong>' + mora.dias_transcurridos + ' días</strong> desde el vencimiento. '
+        + 'Se aplicará una retención del <strong>' + Number(mora.detalles[0].porcentaje_por_periodo).toFixed(2) + '% por período de gracia vencido</strong> sobre la comisión de cada empleado:'
+        + '</p>'
+        + '<table class="table table-sm table-bordered mb-0" style="font-size:12px;background:#fff;">'
+        + '<thead style="background:#ea580c;color:#fff;"><tr><th>Empleado / Rol</th><th class="text-center">Períodos vencidos</th><th class="text-center">Retención total</th></tr></thead>'
+        + '<tbody>' + filas + '</tbody>'
+        + '</table>'
+        + '</div>';
+}
+
 function renderPreviewComisiones(preview) {
     var targets = (preview && Array.isArray(preview.targets)) ? preview.targets : [];
     var tipoConfig = {
@@ -1284,6 +1330,7 @@ function renderPreviewComisiones(preview) {
     };
 
     var html = renderSrResumen(preview)
+        + renderMoraRetencionAviso(preview)
         + '<div class="table-responsive">'
         + '<table class="table table-bordered table-sm mb-0" style="font-size:.9rem;">'
         + '<thead style="background:#1e40af;color:#fff;">'

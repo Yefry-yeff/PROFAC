@@ -686,6 +686,7 @@ table.dataTable tbody td { font-size: 13px; vertical-align: middle; }
                         <span><i class="fa fa-calculator mr-1"></i>Base unitaria total: <strong id="proyBaseUnitaria">L. 0.00</strong></span>
                         <span><i class="fa fa-coins mr-1"></i>Base comisionable: <strong id="proyBaseComisionable">L. 0.00</strong></span>
                         <span><i class="fa fa-money-bill-wave mr-1"></i><strong>Comisión Escala: <span id="proyComisionTotal" style="color:#059669;">L. 0.00</span></strong></span>
+                        <span><i class="fa fa-minus-circle mr-1" style="color:#dc2626;"></i>Retención Mora: <strong id="proyRetencionMora" style="color:#dc2626;">L. 0.00</strong></span>
                         <span><i class="fa fa-exclamation-triangle mr-1"></i>Excluidas: <strong id="proyExcluidas">0</strong></span>
                     </div>
                 </div>
@@ -757,12 +758,16 @@ table.dataTable tbody td { font-size: 13px; vertical-align: middle; }
                                 <th>Escala Cliente</th>
                                 <th class="text-center" style="min-width:110px;">Escala</th>
                                 <th class="text-right">Cantidad</th>
+                                <th class="text-right">Precio Ingresado</th>
+                                <th class="text-right">Precio Seleccionado</th>
                                 <th>Rol Comisión</th>
                                 <th>Usuario</th>
                                 <th class="text-right">Base Comisionable Unitaria</th>
                                 <th class="text-right">Base Comisionable</th>
                                 <th class="text-right">% Promedio</th>
-                                <th class="text-right">Comisión Proyectada</th>
+                                <th class="text-right">Comisión Bruta</th>
+                                <th class="text-right">Retención Mora</th>
+                                <th class="text-right">Comisión Neta</th>
                             </tr>
                         </thead>
                         <tbody></tbody>
