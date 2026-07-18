@@ -31,6 +31,8 @@ class GenerarVentasCobrosExcelJob
 
     /** Umbral para omitir movimientos y loop por fila (superFastMode) */
     const SUPER_FAST_THRESHOLD = 8000;
+    /** Umbral por filas estimadas del Excel (facturas + movimientos). */
+    const SUPER_FAST_EXCEL_ROWS_THRESHOLD = 12000;
 
     private function progress(string $statusKey, int $pct, string $msg = ''): void
     {
@@ -59,23 +61,31 @@ class GenerarVentasCobrosExcelJob
             $rows     = $ctrl->buildExcelRowsFromPayload($this->payload);
             $rowCount = count($rows);
 
-            // Para datasets grandes (>8K facturas) se omiten los movimientos de detalle
-            // para evitar 14+ queries UNION ALL que pueden tardar varios minutos.
+            // Para datasets grandes (>8K facturas) activa superFastMode.
             $superFastMode = $rowCount >= self::SUPER_FAST_THRESHOLD;
+            $totalMovs = 0;
 
             if ($superFastMode) {
                 // Para datasets grandes: usa JOIN directo con filtros en vez de IN(N IDs)
                 $this->progress($statusKey, 50, "Consultando movimientos ({$rowCount} facturas)...");
                 $movimientos = $ctrl->buildExcelMovimientosFromPayload($this->payload);
                 $fastMode    = true;
+                foreach ($movimientos as $ms) { $totalMovs += count($ms); }
             } else {
                 $this->progress($statusKey, 45, 'Consultando movimientos...');
                 $facturaIds  = array_map(fn($r) => (int) $r->factura_id, $rows);
                 $movimientos = $ctrl->buildExcelMovimientosFromFacturaIds($facturaIds);
 
-                $totalMovs = 0;
                 foreach ($movimientos as $ms) { $totalMovs += count($ms); }
                 $fastMode  = ($rowCount + $totalMovs) > 4000;
+
+                // Si el Excel final va a tener muchas filas, forzar superFast para reducir
+                // el costo de estilos por fila durante la escritura.
+                $estimatedExcelRows = $rowCount + $totalMovs + 10;
+                if ($estimatedExcelRows >= self::SUPER_FAST_EXCEL_ROWS_THRESHOLD) {
+                    $superFastMode = true;
+                    $fastMode = true;
+                }
 
                 $this->progress($statusKey, 60, 'Generando archivo Excel...');
             }

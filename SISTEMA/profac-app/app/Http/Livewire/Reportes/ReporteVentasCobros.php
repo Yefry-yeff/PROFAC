@@ -284,7 +284,7 @@ class ReporteVentasCobros extends Component
             ORDER BY apx.id DESC LIMIT 1
         )
         WHERE {$where}
-        ORDER BY f.numero_secuencia_cai DESC
+        ORDER BY f.fecha_emision ASC, f.id ASC
         ";
 
         $rows = DB::select($innerSql, $params);
