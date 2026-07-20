@@ -104,6 +104,20 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
         return $ts ? date('d/m/Y', $ts) : '';
     }
 
+    /**
+     * Convierte una fecha a valor serial de Excel para que la celda
+     * se reconozca como fecha real (con el formato dd/mm/yyyy aplicado en AfterSheet).
+     *
+     * @return float|string Valor serial de Excel o '' si no hay fecha valida.
+     */
+    private function excelDate(?string $d)
+    {
+        if (!$d) return '';
+        $ts = strtotime($d);
+        if (!$ts) return '';
+        return \PhpOffice\PhpSpreadsheet\Shared\Date::timestampToExcel($ts);
+    }
+
     private function mesNombre(?string $d): string
     {
         if (!$d) return '';
@@ -223,7 +237,7 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
             $row = array_fill(0, self::COL_COUNT, '');
             $row[0]  = $item;
             $row[1]  = strtoupper($r->mes ?? '');
-            $row[2]  = $this->fmt($r->fecha_venta);
+            $row[2]  = $this->excelDate($r->fecha_venta);
             $row[3]  = $r->vendedor ?? '';
             $row[4]  = $r->cliente ?? '';
             $row[5]  = $facturaNum;
@@ -252,8 +266,8 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
             $row[20] = $_pagosVal > 0 ? -$_pagosVal : '';
             $row[21] = $esAnulada ? '' : $finalSaldoPendiente; // SALDO PENDIENTE
             $row[22] = $estadoCobro;         // ESTADO COBRO
-            $row[23] = $esAnulada ? '' : $this->fmt($r->fecha_venta);
-            $row[24] = $esAnulada ? '' : $this->fmt($r->fecha_vencimiento);
+            $row[23] = $esAnulada ? '' : $this->excelDate($r->fecha_venta);
+            $row[24] = $esAnulada ? '' : $this->excelDate($r->fecha_vencimiento);
             $row[25] = $esAnulada ? '' : $dias;                // DIAS VCTOS.
             $row[26] = '';
             $row[27] = '';
@@ -309,7 +323,7 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
                 $movRow = array_fill(0, self::COL_COUNT, '');
                 $movRow[0]  = $item;
                 $movRow[1]  = $this->mesNombre($mov->fecha);
-                $movRow[2]  = $this->fmt($mov->fecha);
+                $movRow[2]  = $this->excelDate($mov->fecha);
                 $movRow[3]  = $mov->responsable ?? '';
                 $movRow[4]  = $r->cliente ?? '';
                 $movRow[5]  = $facturaNum;
@@ -348,7 +362,7 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
                 $retRow = array_fill(0, self::COL_COUNT, '');
                 $retRow[0]  = $item;
                 $retRow[1]  = $r->fecha_retencion ? $this->mesNombre($r->fecha_retencion) : '';
-                $retRow[2]  = $this->fmt($r->fecha_retencion ?? '');
+                $retRow[2]  = $this->excelDate($r->fecha_retencion ?? '');
                 $retRow[3]  = $r->usuario_retencion ?? '';
                 $retRow[4]  = $r->cliente ?? '';
                 $retRow[5]  = $facturaNum;
@@ -504,6 +518,12 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
                 // Dias vencidos (col Z, index 25): formato numerico simple
                 $sheet->getStyle("Z5:Z{$lastRow}")
                     ->getNumberFormat()->setFormatCode('0');
+
+                // Fechas (FECHA, FECHA VENTA, FECHA VCTO.): formato de fecha real dd/mm/yyyy
+                foreach (['C', 'X', 'Y'] as $c) {
+                    $sheet->getStyle("{$c}5:{$c}{$lastRow}")
+                        ->getNumberFormat()->setFormatCode('dd/mm/yyyy');
+                }
 
                 if ($this->superFastMode) {
                     // superFastMode: solo estilos en bloque, cero loops por fila.
