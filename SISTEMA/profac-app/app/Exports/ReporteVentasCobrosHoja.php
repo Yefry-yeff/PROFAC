@@ -4,12 +4,11 @@ namespace App\Exports;
 
 use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Concerns\WithStyles;
-use Maatwebsite\Excel\Concerns\FromGenerator;
+use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithDrawings;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithStrictNullComparison;
 use Maatwebsite\Excel\Events\AfterSheet;
-use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
@@ -41,14 +40,13 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
  *  - DIAS VCTOS. (factura): celda verde si <= 0, roja si > 0
  *  - Sub-filas: sin fondo; celda DEBITOS en rojo claro, celda CREDITOS en verde claro
  */
-class ReporteVentasCobrosHoja implements FromGenerator, WithTitle, WithStyles, WithDrawings, WithEvents, WithStrictNullComparison
+class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithDrawings, WithEvents, WithStrictNullComparison
 {
     protected $rows;
     protected $usuario;
     protected $movimientos;
     protected $fastMode;
     protected $superFastMode;
-    protected $summaryMode;
     protected $rowMeta = [];
 
     const LAST_COL  = 'AD';
@@ -88,14 +86,13 @@ class ReporteVentasCobrosHoja implements FromGenerator, WithTitle, WithStyles, W
         9 => 'Septiembre', 10 => 'Octubre', 11 => 'Noviembre', 12 => 'Diciembre',
     ];
 
-    public function __construct($rows, $usuario = 'Sistema', $movimientos = [], $fastMode = false, $superFastMode = false, $summaryMode = false)
+    public function __construct($rows, $usuario = 'Sistema', $movimientos = [], $fastMode = false, $superFastMode = false)
     {
         $this->rows          = $rows;
         $this->usuario       = $usuario;
         $this->movimientos   = $movimientos;
         $this->fastMode      = (bool) $fastMode;
         $this->superFastMode = (bool) $superFastMode;
-        $this->summaryMode   = (bool) $summaryMode;
     }
 
     public function title(): string { return 'Ventas y Cobros'; }
@@ -105,13 +102,6 @@ class ReporteVentasCobrosHoja implements FromGenerator, WithTitle, WithStyles, W
         if (!$d) return '';
         $ts = strtotime($d);
         return $ts ? date('d/m/Y', $ts) : '';
-    }
-
-    private function excelDate($d)
-    {
-        if (!$d) return '';
-        $ts = strtotime((string) $d);
-        return $ts ? ExcelDate::PHPToExcel($ts) : '';
     }
 
     private function mesNombre(?string $d): string
@@ -139,11 +129,11 @@ class ReporteVentasCobrosHoja implements FromGenerator, WithTitle, WithStyles, W
 
     /* ─────────────────────────────────────────────────────────────── */
 
-    public function generator(): \Generator
+    public function array(): array
     {
         $this->rowMeta = [];
+        $out  = [];
         $item = 0;
-        $excelRow = 0;
 
         // Acumuladores de totales (solo filas FACTURA)
         $totExon   = 0.0;
@@ -160,24 +150,20 @@ class ReporteVentasCobrosHoja implements FromGenerator, WithTitle, WithStyles, W
         /* Fila 1 */
         $r1 = array_fill(0, self::COL_COUNT, '');
         $r1[0] = 'DISTRIBUCIONES VALENCIA   |   RTN: 08011986138652';
-        $excelRow++;
-        yield $r1;
+        $out[] = $r1;
 
         /* Fila 2 */
         $r2 = array_fill(0, self::COL_COUNT, '');
         $r2[0] = 'REPORTE DE VENTAS Y COBROS';
-        $excelRow++;
-        yield $r2;
+        $out[] = $r2;
 
         /* Fila 3 */
         $r3 = array_fill(0, self::COL_COUNT, '');
         $r3[0] = 'Generado: ' . now()->format('d/m/Y H:i') . '   |   Descargado por: ' . $this->usuario;
-        $excelRow++;
-        yield $r3;
+        $out[] = $r3;
 
         /* Fila 4 – cabeceras */
-        $excelRow++;
-        yield [
+        $out[] = [
             '#','MES','FECHA','USUARIO','CLIENTE',
             'DOCUMENTO','TIPO DOCUMENTO','NRO DOCUMENTO','OBSERVACION','ORDEN COMPRA',
             'CONDICION DE VENTA','ESTADO F01','EXONERADO','GRAVADO','EXENTO',
@@ -226,20 +212,18 @@ class ReporteVentasCobrosHoja implements FromGenerator, WithTitle, WithStyles, W
 
             /* ── FILA FACTURA ──────────────────────────────── */
             $item++;
-            $excelRow++;
-            if (!$this->fastMode && !$this->superFastMode) {
-                $this->rowMeta[$excelRow] = [
-                    'type'          => self::T_FACTURA,
-                    'estado_cobro'  => $estadoCobro,
-                    'estado_f01'    => $r->estado_f01 ?? '',
-                    'dias_vencidos' => $dias,
-                ];
-            }
+            $excelRow = count($out) + 1;
+            $this->rowMeta[$excelRow] = [
+                'type'          => self::T_FACTURA,
+                'estado_cobro'  => $estadoCobro,
+                'estado_f01'    => $r->estado_f01 ?? '',
+                'dias_vencidos' => $dias,
+            ];
 
             $row = array_fill(0, self::COL_COUNT, '');
             $row[0]  = $item;
             $row[1]  = strtoupper($r->mes ?? '');
-            $row[2]  = $this->excelDate($r->fecha_venta);
+            $row[2]  = $this->fmt($r->fecha_venta);
             $row[3]  = $r->vendedor ?? '';
             $row[4]  = $r->cliente ?? '';
             $row[5]  = $facturaNum;
@@ -268,14 +252,14 @@ class ReporteVentasCobrosHoja implements FromGenerator, WithTitle, WithStyles, W
             $row[20] = $_pagosVal > 0 ? -$_pagosVal : '';
             $row[21] = $esAnulada ? '' : $finalSaldoPendiente; // SALDO PENDIENTE
             $row[22] = $estadoCobro;         // ESTADO COBRO
-            $row[23] = $esAnulada ? '' : $this->excelDate($r->fecha_venta);
-            $row[24] = $esAnulada ? '' : $this->excelDate($r->fecha_vencimiento);
+            $row[23] = $esAnulada ? '' : $this->fmt($r->fecha_venta);
+            $row[24] = $esAnulada ? '' : $this->fmt($r->fecha_vencimiento);
             $row[25] = $esAnulada ? '' : $dias;                // DIAS VCTOS.
             $row[26] = '';
             $row[27] = '';
             $row[28] = '';
             $row[29] = '';
-            yield $row;
+            $out[] = $row;
 
             // Acumular totales de fila factura
             $totExon   += $this->money($r->exonerado ?? 0);
@@ -300,47 +284,51 @@ class ReporteVentasCobrosHoja implements FromGenerator, WithTitle, WithStyles, W
                 $esCredito = in_array($tipo, self::$TIPOS_CREDITO);
                 $esPago    = in_array($tipo, self::$TIPOS_PAGO);
 
+                // Actualizar saldo progresivo
                 if ($esDebito)       $saldoFactura -= $monto;
                 elseif ($esCredito)  $saldoFactura += $monto;
                 elseif ($esPago)     $pagosAcum   += $monto;
+                // ENTREGA no cambia saldo
                 $saldoPendiente = $this->money($saldoFactura - $pagosAcum);
 
+                // Ocultar subfilas de Pago Contado en el Excel,
+                // pero conservar su impacto en los calculos.
                 if ($tipo === self::T_PAGO) {
                     continue;
                 }
 
                 $item++;
-                $excelRow++;
-                if (!$this->fastMode && !$this->superFastMode) {
-                    $this->rowMeta[$excelRow] = [
-                        'type'      => $tipo,
-                        'dir'       => $esDebito ? 'debito' : ($esCredito ? 'credito' : ($esPago ? 'pago' : 'neutral')),
-                        'saldo_dir' => $esDebito ? 'down' : ($esCredito ? 'up' : 'neutral'),
-                        'has_monto' => ($tipo !== 'ENTREGA' && $monto > 0),
-                    ];
-                }
+                $excelRow = count($out) + 1;
+                $this->rowMeta[$excelRow] = [
+                    'type'      => $tipo,
+                    'dir'       => $esDebito ? 'debito' : ($esCredito ? 'credito' : ($esPago ? 'pago' : 'neutral')),
+                    'saldo_dir' => $esDebito ? 'down' : ($esCredito ? 'up' : 'neutral'),
+                    'has_monto' => ($tipo !== 'ENTREGA' && $monto > 0),
+                ];
 
                 $movRow = array_fill(0, self::COL_COUNT, '');
                 $movRow[0]  = $item;
                 $movRow[1]  = $this->mesNombre($mov->fecha);
-                $movRow[2]  = $this->excelDate($mov->fecha);
+                $movRow[2]  = $this->fmt($mov->fecha);
                 $movRow[3]  = $mov->responsable ?? '';
                 $movRow[4]  = $r->cliente ?? '';
                 $movRow[5]  = $facturaNum;
                 $movRow[6]  = $this->tipoLabel($tipo);
                 $movRow[7]  = trim((string)($mov->documento ?? ''));
                 $movRow[8]  = $mov->descripcion ?? '';
+                // cols 9-17: datos de factura en blanco (TOTAL solo en factura, no en sub-filas)
                 $monto = $this->money($monto);
-                $movRow[18] = $esDebito  ? -$monto : '';
-                $movRow[19] = $esCredito ? $monto  : '';
-                $movRow[20] = $esPago    ? -$monto : '';
-                $movRow[21] = $saldoPendiente;
-                $movRow[22] = '';
-                $movRow[26] = $this->excelDate($mov->fecha);
+                $movRow[18] = $esDebito  ? -$monto : ''; // DISMINUCION EN FACT. (negativo)
+                $movRow[19] = $esCredito ? $monto  : ''; // AUMENTO EN FACT.
+                $movRow[20] = $esPago    ? -$monto : ''; // MONTO PAGADO (negativo)
+                $movRow[21] = $saldoPendiente; // SALDO PENDIENTE siempre
+                $movRow[22] = '';              // ESTADO COBRO: en blanco en sub-filas
+                // cols 23-25: fechas venta/vcto/dias en blanco
+                $movRow[26] = $this->fmt($mov->fecha); // FECHA PAGO
                 $movRow[27] = $mov->forma_pago ?? '';
-                $movRow[28] = $mov->banco_nombre ?? '';
-                $movRow[29] = $mov->banco_cuenta ?? '';
-                yield $movRow;
+                $movRow[28] = $mov->banco_nombre ?? ''; // BANCO
+                $movRow[29] = $mov->banco_cuenta ?? ''; // CUENTA
+                $out[] = $movRow;
             }
 
             /* ── RETENCIÓN ISV ─────────────────────────────── */
@@ -349,20 +337,18 @@ class ReporteVentasCobrosHoja implements FromGenerator, WithTitle, WithStyles, W
                 $saldoFactura   -= $montoRet;
                 $saldoPendiente = $this->money($saldoFactura - $pagosAcum);
                 $item++;
-                $excelRow++;
-                if (!$this->fastMode && !$this->superFastMode) {
-                    $this->rowMeta[$excelRow] = [
-                        'type'      => self::T_RETENCION,
-                        'dir'       => 'debito',
-                        'saldo_dir' => 'down',
-                        'has_monto' => true,
-                    ];
-                }
+                $excelRow = count($out) + 1;
+                $this->rowMeta[$excelRow] = [
+                    'type'      => self::T_RETENCION,
+                    'dir'       => 'debito',
+                    'saldo_dir' => 'down',
+                    'has_monto' => true,
+                ];
 
                 $retRow = array_fill(0, self::COL_COUNT, '');
                 $retRow[0]  = $item;
                 $retRow[1]  = $r->fecha_retencion ? $this->mesNombre($r->fecha_retencion) : '';
-                $retRow[2]  = $this->excelDate($r->fecha_retencion ?? '');
+                $retRow[2]  = $this->fmt($r->fecha_retencion ?? '');
                 $retRow[3]  = $r->usuario_retencion ?? '';
                 $retRow[4]  = $r->cliente ?? '';
                 $retRow[5]  = $facturaNum;
@@ -373,7 +359,7 @@ class ReporteVentasCobrosHoja implements FromGenerator, WithTitle, WithStyles, W
                 $retRow[19] = '';              // AUMENTO EN FACT.
                 $retRow[20] = '';              // MONTO PAGADO (retención no es pago)
                 $retRow[21] = $saldoPendiente; // SALDO PENDIENTE
-                yield $retRow;
+                $out[] = $retRow;
             }
         }
 
@@ -400,11 +386,11 @@ class ReporteVentasCobrosHoja implements FromGenerator, WithTitle, WithStyles, W
         $totRow[19] = $totCred   > 0 ? $totCred   : '';  // AUMENTO
         $totRow[20] = $totPagado > 0 ? -$totPagado : '';  // MONTO PAGADO (negativo)
         $totRow[21] = $this->money($totTotal - $totDeb + $totCred - $totPagado); // SALDO PENDIENTE (cuadra con fórmula)
-        $excelRow++;
-        if (!$this->fastMode && !$this->superFastMode) {
-            $this->rowMeta[$excelRow] = ['type' => 'TOTALES'];
-        }
-        yield $totRow;
+        $excelRow = count($out) + 1;
+        $this->rowMeta[$excelRow] = ['type' => 'TOTALES'];
+        $out[] = $totRow;
+
+        return $out;
     }
 
     /* ─────────────────────────────────────────────────────────────── */
@@ -519,16 +505,17 @@ class ReporteVentasCobrosHoja implements FromGenerator, WithTitle, WithStyles, W
                 $sheet->getStyle("Z5:Z{$lastRow}")
                     ->getNumberFormat()->setFormatCode('0');
 
-                foreach (['C','X','Y','AA'] as $c) {
-                    $sheet->getStyle("{$c}5:{$c}{$lastRow}")
-                        ->getNumberFormat()->setFormatCode('dd/mm/yyyy');
-                }
-
                 if ($this->superFastMode) {
                     // superFastMode: solo estilos en bloque, cero loops por fila.
+                    // Para 27K+ filas el loop individual tarda minutos extra.
                     $sheet->getStyle("A5:{$lc}{$lastRow}")->getFont()->setSize(8);
+                    $sheet->getStyle("A4:{$lc}{$lastRow}")->getBorders()->getAllBorders()
+                        ->setBorderStyle(Border::BORDER_THIN)->getColor()->setRGB('E8D5BF');
+                    $sheet->getStyle("A4:{$lc}{$lastRow}")->getBorders()->getOutline()
+                        ->setBorderStyle(Border::BORDER_MEDIUM)->getColor()->setRGB('e07000');
                     $sheet->getStyle("A4:{$lc}4")->getBorders()->getBottom()
                         ->setBorderStyle(Border::BORDER_MEDIUM)->getColor()->setRGB('b05000');
+                    // Fila de totales
                     $sheet->getStyle("A{$lastRow}:{$lc}{$lastRow}")->getFill()
                         ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFF3E0');
                     $sheet->getStyle("A{$lastRow}:{$lc}{$lastRow}")->getFont()
@@ -537,13 +524,35 @@ class ReporteVentasCobrosHoja implements FromGenerator, WithTitle, WithStyles, W
                 }
 
                 if ($this->fastMode) {
+                    // fastMode (<8K filas): colorea solo filas FACTURA, sin sub-filas.
+                    for ($row = 5; $row <= $lastRow; $row++) {
+                        $meta = $this->rowMeta[$row] ?? ['type' => ''];
+                        if (($meta['type'] ?? '') !== self::T_FACTURA) {
+                            continue;
+                        }
+
+                        $estadoF01 = strtoupper(trim((string)($meta['estado_f01'] ?? '')));
+                        $esAnu = str_starts_with($estadoF01, 'ANULAD');
+                        $bg    = $esAnu ? 'EBEBEB' : 'FFF3E0';
+
+                        $sheet->getStyle("A{$row}:{$lc}{$row}")->getFill()
+                            ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB($bg);
+                        $sheet->getStyle("A{$row}:{$lc}{$row}")->getFont()
+                            ->setBold(true)->setSize(8.5);
+
+                        if ($esAnu) {
+                            $sheet->getStyle("A{$row}:{$lc}{$row}")->getFont()
+                                ->setStrikethrough(true)->getColor()->setRGB('999999');
+                        }
+                    }
+
                     $sheet->getStyle("A5:{$lc}{$lastRow}")->getFont()->setSize(8);
+                    $sheet->getStyle("A4:{$lc}{$lastRow}")->getBorders()->getAllBorders()
+                        ->setBorderStyle(Border::BORDER_THIN)->getColor()->setRGB('E8D5BF');
+                    $sheet->getStyle("A4:{$lc}{$lastRow}")->getBorders()->getOutline()
+                        ->setBorderStyle(Border::BORDER_MEDIUM)->getColor()->setRGB('e07000');
                     $sheet->getStyle("A4:{$lc}4")->getBorders()->getBottom()
                         ->setBorderStyle(Border::BORDER_MEDIUM)->getColor()->setRGB('b05000');
-                    $sheet->getStyle("A{$lastRow}:{$lc}{$lastRow}")->getFill()
-                        ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFF3E0');
-                    $sheet->getStyle("A{$lastRow}:{$lc}{$lastRow}")->getFont()
-                        ->setBold(true)->setSize(9)->getColor()->setRGB('7d3f00');
                     return;
                 }
 

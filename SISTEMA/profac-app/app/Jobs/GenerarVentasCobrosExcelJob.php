@@ -15,7 +15,11 @@ class GenerarVentasCobrosExcelJob
     use Dispatchable, Queueable, SerializesModels;
 
     public $timeout = 3600;
-        public $memory = 2048;
+
+    private $payload;
+    private $token;
+    private $userId;
+    private $usuario;
 
     public function __construct(array $payload, string $token, int $userId, string $usuario)
     {
@@ -27,6 +31,7 @@ class GenerarVentasCobrosExcelJob
 
     /** Umbral para omitir movimientos y loop por fila (superFastMode) */
     const SUPER_FAST_THRESHOLD = 8000;
+
     private function progress(string $statusKey, int $pct, string $msg = ''): void
     {
         Cache::put($statusKey, [
@@ -41,7 +46,7 @@ class GenerarVentasCobrosExcelJob
     public function handle(): void
     {
         @set_time_limit(0);
-        @ini_set('memory_limit', '2048M');
+        @ini_set('memory_limit', '1024M');
 
         $statusKey = 'rvc_export_status_' . $this->token;
 
@@ -63,8 +68,6 @@ class GenerarVentasCobrosExcelJob
                 $this->progress($statusKey, 50, "Consultando movimientos ({$rowCount} facturas)...");
                 $movimientos = $ctrl->buildExcelMovimientosFromPayload($this->payload);
                 $fastMode    = true;
-                $totalMovs   = 0;
-                foreach ($movimientos as $ms) { $totalMovs += count($ms); }
             } else {
                 $this->progress($statusKey, 45, 'Consultando movimientos...');
                 $facturaIds  = array_map(fn($r) => (int) $r->factura_id, $rows);
@@ -85,7 +88,7 @@ class GenerarVentasCobrosExcelJob
             $this->progress($statusKey, 72, 'Escribiendo Excel...');
 
             Excel::store(
-                new ReporteVentasCobrosExport($rows, $this->usuario, $movimientos, $fastMode, $superFastMode, false),
+                new ReporteVentasCobrosExport($rows, $this->usuario, $movimientos, $fastMode, $superFastMode),
                 $relativePath,
                 'local'
             );

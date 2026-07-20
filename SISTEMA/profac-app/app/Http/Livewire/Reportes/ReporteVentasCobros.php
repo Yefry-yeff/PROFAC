@@ -1010,12 +1010,10 @@ class ReporteVentasCobros extends Component
             foreach ($movimientos as $ms) {
                 $totalMovs += count($ms);
             }
-            $estimatedRows = count($rows) + $totalMovs;
-            $fastMode = $estimatedRows > 4000;
-            $superFastMode = count($rows) >= 8000;
+            $fastMode = (count($rows) + $totalMovs) > 4000;
 
             return Excel::download(
-                new ReporteVentasCobrosExport($rows, $usuario, $movimientos, $fastMode, $superFastMode, false),
+                new ReporteVentasCobrosExport($rows, $usuario, $movimientos, $fastMode),
                 "ReporteVentasCobros_" . now()->format('Y-m-d') . ".xlsx"
             );
         } catch (\Throwable $e) {
