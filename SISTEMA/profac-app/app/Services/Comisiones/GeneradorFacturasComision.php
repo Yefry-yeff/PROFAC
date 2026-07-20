@@ -236,6 +236,20 @@ class GeneradorFacturasComision
             return [];
         }
 
+        // Regla SR: precargar precio_a de la categoría más baja para comparar por producto.
+        // La categoría forzada solo aplica si el precio vendido es MAYOR al precio de esa categoría.
+        $precioRefMasBajaMap = [];
+        if ($esFacturaSr && $categoriaPrecioForzadaId) {
+            $precioRefs = DB::table('precios_producto_carga')
+                ->where('categoria_precios_id', $categoriaPrecioForzadaId)
+                ->whereIn('producto_id', $productos->pluck('producto_id')->unique()->values()->all())
+                ->select('producto_id', 'precio_a')
+                ->get();
+            foreach ($precioRefs as $ref) {
+                $precioRefMasBajaMap[(int) $ref->producto_id] = (float) $ref->precio_a;
+            }
+        }
+
         $resultado = [];
 
         foreach ($targetsList as $target) {
@@ -247,9 +261,20 @@ class GeneradorFacturasComision
             $lineasProducto = [];
 
             foreach ($productos as $prod) {
-                // Regla SR: comisionar siempre contra la categoría más baja de la escala del cliente,
-                // sin importar la categoría de precio usada para vender la línea.
-                $categoriaPrecioParaComision = $categoriaPrecioForzadaId ?: (int) $prod->categoria_precios_id;
+                // Regla SR: usar la categoría más baja SOLO si el precio vendido es
+                // estrictamente mayor al precio_a de esa categoría para este producto.
+                // Si es menor o igual, se comisiona por la categoría real de la línea.
+                if ($esFacturaSr && $categoriaPrecioForzadaId) {
+                    $precioVendido  = (float) ($prod->precio_para_comision ?? $prod->precio_unidad ?? 0);
+                    $precioRefBaja  = $precioRefMasBajaMap[(int) $prod->producto_id] ?? null;
+                    // Penalizar con categoría más baja SOLO si vendió por DEBAJO del precio de esa categoría.
+                    // Si vendió igual o por encima, comisiona por la categoría real usada en la venta.
+                    $categoriaPrecioParaComision = ($precioRefBaja !== null && $precioVendido < $precioRefBaja)
+                        ? $categoriaPrecioForzadaId
+                        : (int) $prod->categoria_precios_id;
+                } else {
+                    $categoriaPrecioParaComision = (int) $prod->categoria_precios_id;
+                }
 
                 $key = $rolId . '_' . $clienteCategoriaEscalaId . '_' . $categoriaPrecioParaComision;
                 if (!isset($escala[$key])) {

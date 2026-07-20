@@ -270,6 +270,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
 
     // Rutas para listas de empleados y roles
     Route::get('/comision/empleados/lista', [ReportesComisionesGenerales::class, 'listarEmpleados']);
+    Route::get('/comision/empleados/todos', [ReportesComisionesGenerales::class, 'listarEmpleadosTodos']);
     Route::get('/comision/roles/lista', [ReportesComisionesGenerales::class, 'listarRoles']);
     Route::get('/comision/roles/comisionables', [ReportesComisionesGenerales::class, 'listarRolesComisionables']);
 

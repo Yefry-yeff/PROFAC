@@ -952,7 +952,9 @@ class Pagos extends Component
                     ug.name     AS gestor_nombre,
                     tf.codigo   AS tipo_factura_codigo,
                     tf.nombre   AS tipo_factura_nombre,
-                    cl.cliente_categoria_escala_id
+                    cl.cliente_categoria_escala_id,
+                    f.tipo_pago_id,
+                    DATE(f.fecha_vencimiento) as fecha_vencimiento
              FROM factura f
              INNER JOIN users uf ON uf.id = f.users_id
              INNER JOIN users uv ON uv.id = f.vendedor
@@ -1079,8 +1081,38 @@ class Pagos extends Component
             ->values()
             ->all();
 
+        // Regla SR: usar categoría más baja SOLO para productos cuyo precio vendido
+        // está por DEBAJO del precio_a de esa categoría. Si está igual o por encima,
+        // el producto comisiona por su categoría real.
+        $srPenalizaAlgunProducto = false;
         if ($esFacturaSr && $categoriaBajaId) {
-            $categoriasProductoFactura = [$categoriaBajaId];
+            $productosConPrecio = DB::table('venta_has_producto as vp')
+                ->join('precios_producto_carga as ppc', 'ppc.id', '=', 'vp.precios_producto_carga_id')
+                ->where('vp.factura_id', $facturaId)
+                ->selectRaw('vp.producto_id, ppc.categoria_precios_id,
+                              COALESCE(NULLIF(vp.precioSeleccionado,0), vp.precio_unidad) as precio_vendido')
+                ->get();
+
+            $precioRefBajaCat = DB::table('precios_producto_carga')
+                ->where('categoria_precios_id', $categoriaBajaId)
+                ->whereIn('producto_id', $productosConPrecio->pluck('producto_id')->all())
+                ->get(['producto_id', 'precio_a'])
+                ->keyBy('producto_id');
+
+            $categoriasEfectivas = [];
+            foreach ($productosConPrecio as $prod) {
+                $ref = $precioRefBajaCat->get((int) $prod->producto_id);
+                $precioVendido = (float) $prod->precio_vendido;
+                if ($ref !== null && $precioVendido < (float) $ref->precio_a) {
+                    // Vendió por debajo del precio mínimo → penalizar con categoría más baja
+                    $categoriasEfectivas[] = $categoriaBajaId;
+                    $srPenalizaAlgunProducto = true;
+                } else {
+                    // Vendió igual o por encima → usa su categoría real
+                    $categoriasEfectivas[] = (int) $prod->categoria_precios_id;
+                }
+            }
+            $categoriasProductoFactura = array_values(array_unique($categoriasEfectivas));
         }
 
         foreach ($targets as &$t) {
@@ -1142,12 +1174,69 @@ class Pagos extends Component
             ];
         }, $targets);
 
+        // ── Retención por mora crédito ─────────────────────────────────────
+        $moraRetencion = null;
+        if ((int) ($fila->tipo_pago_id ?? 0) === 2 && !empty($fila->fecha_vencimiento)) {
+            $fechaPagoInput = trim((string) $request->input('fecha_pago', ''));
+            $fechaReferencia = ($fechaPagoInput !== '')
+                ? Carbon::parse($fechaPagoInput)->startOfDay()
+                : Carbon::now()->startOfDay();
+
+            $fechaVenc  = Carbon::parse($fila->fecha_vencimiento)->startOfDay();
+            $diasTransc = (int) $fechaVenc->diffInDays($fechaReferencia, false);
+
+            if ($diasTransc > 0 && !empty($targets)) {
+                $rolIdsTargets = array_unique(array_column($targets, 'rol_id'));
+                $configs = DB::table('dias_gracia_comision')
+                    ->whereIn('rol_id', $rolIdsTargets)
+                    ->where('tipo_factura', 'credito')
+                    ->where('dias_gracia', '>', 0)
+                    ->get()
+                    ->keyBy('rol_id');
+
+                $moraDetalles = [];
+                foreach ($targets as $t) {
+                    $config = $configs->get($t['rol_id']);
+                    if (!$config) {
+                        continue;
+                    }
+                    $diasGracia = (int) $config->dias_gracia;
+                    if ($diasTransc <= $diasGracia) {
+                        continue;
+                    }
+                    $pct      = (float) $config->porcentaje_retencion;
+                    $periodos = (int) ceil(($diasTransc - $diasGracia) / $diasGracia);
+                    $moraDetalles[] = [
+                        'rol_id'                     => (int) $t['rol_id'],
+                        'rol_nombre'                 => (string) $t['rol_nombre'],
+                        'capacidad'                  => (string) $t['capacidad'],
+                        'dias_gracia'                => $diasGracia,
+                        'dias_transcurridos'         => $diasTransc,
+                        'periodos_vencidos'          => $periodos,
+                        'porcentaje_por_periodo'     => $pct,
+                        'porcentaje_total_retencion' => min(100, round($periodos * $pct, 4)),
+                    ];
+                }
+
+                if (!empty($moraDetalles)) {
+                    $moraRetencion = [
+                        'aplica'             => true,
+                        'dias_transcurridos' => $diasTransc,
+                        'fecha_vencimiento'  => (string) $fila->fecha_vencimiento,
+                        'detalles'           => $moraDetalles,
+                    ];
+                }
+            }
+        }
+        // ──────────────────────────────────────────────────────────────────
+
         return response()->json([
             'cerrara'        => true,
             'ya_comisionada' => false,
             'sin_config'     => count($targets) === 0,
             'targets'        => $targets,
             'sr_forzado'     => $esFacturaSr,
+            'sr_penaliza'    => $srPenalizaAlgunProducto,
             'sr_tipo_factura' => $esFacturaSr
                 ? [
                     'codigo' => $tipoFacturaCodigo,
@@ -1157,6 +1246,7 @@ class Pagos extends Component
             'sr_categoria_baja' => $categoriaBaja,
             'sr_productos'      => $productosSr,
             'sr_porcentajes'    => $porcentajesSr,
+            'mora_retencion'    => $moraRetencion,
         ]);
     }
 

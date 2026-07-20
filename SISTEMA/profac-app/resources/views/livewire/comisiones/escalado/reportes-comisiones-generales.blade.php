@@ -673,27 +673,71 @@ table.dataTable tbody td { font-size: 13px; vertical-align: middle; }
                 </div>
             </div>
 
-            <div id="proyInfo" style="display:none;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:12px 16px;font-size:13px;color:#1e3a8a;margin-bottom:14px;">
-                <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center;">
-                    <span><i class="fa fa-file-invoice mr-1"></i>Facturas proyectadas: <strong id="proyFacturas">0</strong></span>
-                    <span><i class="fa fa-list mr-1"></i>Líneas de producto: <strong id="proyRegistros">0</strong></span>
-                    <span><i class="fa fa-calculator mr-1"></i>Base unitaria total: <strong id="proyBaseUnitaria">L. 0.00</strong></span>
-                    <span><i class="fa fa-coins mr-1"></i>Base comisionable total: <strong id="proyBaseComisionable">L. 0.00</strong></span>
-                    <span><i class="fa fa-money-bill-wave mr-1"></i>Comisión total: <strong id="proyComisionTotal">L. 0.00</strong></span>
-                    <span><i class="fa fa-exclamation-triangle mr-1"></i>Excluidas: <strong id="proyExcluidas">0</strong></span>
+            <div id="proyInfo" style="display:none;border-radius:10px;overflow:hidden;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,.07);">
+
+                {{-- Fila 1: Escala --}}
+                <div style="background:#eff6ff;border:1.5px solid #bfdbfe;border-bottom:none;padding:12px 16px;font-size:13px;color:#1e3a8a;">
+                    <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#3b82f6;margin-bottom:6px;letter-spacing:.05em;">
+                        <i class="fa fa-chart-line mr-1"></i> ESCALA (NUEVA POLÍTICA)
+                    </div>
+                    <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center;">
+                        <span><i class="fa fa-file-invoice mr-1"></i>Facturas proyectadas: <strong id="proyFacturas">0</strong></span>
+                        <span><i class="fa fa-list mr-1"></i>Líneas de producto: <strong id="proyRegistros">0</strong></span>
+                        <span><i class="fa fa-calculator mr-1"></i>Base unitaria total: <strong id="proyBaseUnitaria">L. 0.00</strong></span>
+                        <span><i class="fa fa-coins mr-1"></i>Base comisionable: <strong id="proyBaseComisionable">L. 0.00</strong></span>
+                        <span><i class="fa fa-money-bill-wave mr-1"></i><strong>Comisión Escala: <span id="proyComisionTotal" style="color:#059669;">L. 0.00</span></strong></span>
+                        <span><i class="fa fa-minus-circle mr-1" style="color:#dc2626;"></i>Retención Mora: <strong id="proyRetencionMora" style="color:#dc2626;">L. 0.00</strong></span>
+                        <span><i class="fa fa-exclamation-triangle mr-1"></i>Excluidas: <strong id="proyExcluidas">0</strong></span>
+                    </div>
                 </div>
-                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
-                    <button class="btn-export" type="button" onclick="exportarProyeccionesExcel('proyectadas')">
-                        <i class="fa fa-file-excel-o"></i> Descargar Excel Proyectadas
-                    </button>
-                    <button class="btn-export" type="button" style="background:#fff1f2;color:#9f1239;border-color:#fecdd3;" onclick="exportarProyeccionesExcel('excluidas')">
-                        <i class="fa fa-file-excel-o"></i> Descargar Excel Excluidas
-                    </button>
-                    <button class="btn-export" type="button" style="background:#fff7ed;color:#9a3412;border-color:#fdba74;" onclick="exportarProyeccionesNomina()">
-                        <i class="fa fa-file-excel-o"></i> Descargar Nómina Proyectada
-                    </button>
-                    <small style="display:flex;align-items:center;color:#334155;">Desplace horizontalmente para ver todas las columnas.</small>
+
+                {{-- Fila 2: Política Anterior (se llena dinámicamente) --}}
+                <div id="proyInfoPolitica" style="display:none;background:#faf5ff;border:1.5px solid #d8b4fe;border-top:none;border-bottom:none;padding:12px 16px;font-size:13px;color:#4c1d95;">
+                    <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#7c3aed;margin-bottom:6px;letter-spacing:.05em;">
+                        <i class="fa fa-calculator mr-1"></i> POLÍTICA ANTERIOR
+                    </div>
+                    <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center;">
+                        <span><i class="fa fa-file-invoice mr-1"></i>Facturas elegibles: <strong id="polFacturas">0</strong></span>
+                        <span><i class="fa fa-coins mr-1"></i>Base comisionable: <strong id="polBase">L. 0.00</strong></span>
+                        <span><i class="fa fa-check-circle mr-1" style="color:#059669;"></i>Comisión no miselánea: <strong id="polComisionNoMisel" style="color:#059669;">L. 0.00</strong></span>
+                        <span><i class="fa fa-tag mr-1" style="color:#d97706;"></i>Comisión miselánea: <strong id="polComisionMisel" style="color:#d97706;">L. 0.00</strong></span>
+                        <span><i class="fa fa-calculator mr-1"></i><strong>Comisión Pol. Anterior: <span id="polComisionTotal" style="color:#7c3aed;">L. 0.00</span></strong></span>
+                    </div>
                 </div>
+
+                {{-- Fila 3: Total combinado + botones --}}
+                <div style="background:#1e293b;padding:12px 16px;font-size:13px;color:#fff;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+                        <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:center;">
+                            <span style="font-size:13px;">
+                                <i class="fa fa-money-bill-wave mr-1" style="color:#34d399;"></i>
+                                Comisión Escala: <strong style="color:#34d399;" id="resumenComisionEscala">L. 0.00</strong>
+                            </span>
+                            <span style="color:#94a3b8;">+</span>
+                            <span style="font-size:13px;">
+                                <i class="fa fa-calculator mr-1" style="color:#a78bfa;"></i>
+                                Pol. Anterior: <strong style="color:#a78bfa;" id="resumenComisionPolitica">L. 0.00</strong>
+                            </span>
+                            <span style="color:#94a3b8;">=</span>
+                            <span style="font-size:15px;font-weight:800;">
+                                <i class="fa fa-equals mr-1" style="color:#fbbf24;"></i>
+                                TOTAL COMISIÓN: <strong style="color:#fbbf24;" id="resumenComisionTotal">L. 0.00</strong>
+                            </span>
+                        </div>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                            <button class="btn-export" type="button" style="background:#fff;color:#1e293b;" onclick="exportarProyeccionesExcel('proyectadas')">
+                                <i class="fa fa-file-excel-o"></i> Excel Proyectadas
+                            </button>
+                            <button class="btn-export" type="button" style="background:#fff1f2;color:#9f1239;border-color:#fecdd3;" onclick="exportarProyeccionesExcel('excluidas')">
+                                <i class="fa fa-file-excel-o"></i> Excel Excluidas
+                            </button>
+                            <button class="btn-export" type="button" style="background:#fff7ed;color:#9a3412;border-color:#fdba74;" onclick="exportarProyeccionesNomina()">
+                                <i class="fa fa-file-excel-o"></i> Descargar Nómina Proyectada
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
             </div>
 
             <div id="proyEmptyState" class="empty-state">
@@ -714,12 +758,16 @@ table.dataTable tbody td { font-size: 13px; vertical-align: middle; }
                                 <th>Escala Cliente</th>
                                 <th class="text-center" style="min-width:110px;">Escala</th>
                                 <th class="text-right">Cantidad</th>
+                                <th class="text-right">Precio Ingresado</th>
+                                <th class="text-right">Precio Seleccionado</th>
                                 <th>Rol Comisión</th>
                                 <th>Usuario</th>
                                 <th class="text-right">Base Comisionable Unitaria</th>
                                 <th class="text-right">Base Comisionable</th>
                                 <th class="text-right">% Promedio</th>
-                                <th class="text-right">Comisión Proyectada</th>
+                                <th class="text-right">Comisión Bruta</th>
+                                <th class="text-right">Retención Mora</th>
+                                <th class="text-right">Comisión Neta</th>
                             </tr>
                         </thead>
                         <tbody></tbody>
@@ -757,6 +805,9 @@ table.dataTable tbody td { font-size: 13px; vertical-align: middle; }
                     </table>
                 </div>
             </div>
+
+            {{-- Resultado automático de Política Anterior --}}
+            <div id="proyPoliticaAnteriorResult" style="display:none;margin-top:18px;"></div>
 
             {{-- Sección inline Política Anterior --}}
             <div id="seccionPoliticaAnterior" style="display:none;margin-top:24px;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.08);">

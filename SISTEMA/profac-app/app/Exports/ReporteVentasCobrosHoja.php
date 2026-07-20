@@ -14,7 +14,6 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
-use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 
 /**
  * Hoja del reporte Ventas & Cobros (v6).
@@ -105,11 +104,18 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
         return $ts ? date('d/m/Y', $ts) : '';
     }
 
-    private function excelDate($d)
+    /**
+     * Convierte una fecha a valor serial de Excel para que la celda
+     * se reconozca como fecha real (con el formato dd/mm/yyyy aplicado en AfterSheet).
+     *
+     * @return float|string Valor serial de Excel o '' si no hay fecha valida.
+     */
+    private function excelDate(?string $d)
     {
         if (!$d) return '';
-        $ts = strtotime((string) $d);
-        return $ts ? ExcelDate::PHPToExcel($ts) : '';
+        $ts = strtotime($d);
+        if (!$ts) return '';
+        return \PhpOffice\PhpSpreadsheet\Shared\Date::timestampToExcel($ts);
     }
 
     private function mesNombre(?string $d): string
@@ -221,14 +227,12 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
             /* ── FILA FACTURA ──────────────────────────────── */
             $item++;
             $excelRow = count($out) + 1;
-            if (!$this->fastMode && !$this->superFastMode) {
-                $this->rowMeta[$excelRow] = [
-                    'type'          => self::T_FACTURA,
-                    'estado_cobro'  => $estadoCobro,
-                    'estado_f01'    => $r->estado_f01 ?? '',
-                    'dias_vencidos' => $dias,
-                ];
-            }
+            $this->rowMeta[$excelRow] = [
+                'type'          => self::T_FACTURA,
+                'estado_cobro'  => $estadoCobro,
+                'estado_f01'    => $r->estado_f01 ?? '',
+                'dias_vencidos' => $dias,
+            ];
 
             $row = array_fill(0, self::COL_COUNT, '');
             $row[0]  = $item;
@@ -309,14 +313,12 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
 
                 $item++;
                 $excelRow = count($out) + 1;
-                if (!$this->fastMode && !$this->superFastMode) {
-                    $this->rowMeta[$excelRow] = [
-                        'type'      => $tipo,
-                        'dir'       => $esDebito ? 'debito' : ($esCredito ? 'credito' : ($esPago ? 'pago' : 'neutral')),
-                        'saldo_dir' => $esDebito ? 'down' : ($esCredito ? 'up' : 'neutral'),
-                        'has_monto' => ($tipo !== 'ENTREGA' && $monto > 0),
-                    ];
-                }
+                $this->rowMeta[$excelRow] = [
+                    'type'      => $tipo,
+                    'dir'       => $esDebito ? 'debito' : ($esCredito ? 'credito' : ($esPago ? 'pago' : 'neutral')),
+                    'saldo_dir' => $esDebito ? 'down' : ($esCredito ? 'up' : 'neutral'),
+                    'has_monto' => ($tipo !== 'ENTREGA' && $monto > 0),
+                ];
 
                 $movRow = array_fill(0, self::COL_COUNT, '');
                 $movRow[0]  = $item;
@@ -336,7 +338,7 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
                 $movRow[21] = $saldoPendiente; // SALDO PENDIENTE siempre
                 $movRow[22] = '';              // ESTADO COBRO: en blanco en sub-filas
                 // cols 23-25: fechas venta/vcto/dias en blanco
-                $movRow[26] = $this->excelDate($mov->fecha); // FECHA PAGO
+                $movRow[26] = $this->fmt($mov->fecha); // FECHA PAGO
                 $movRow[27] = $mov->forma_pago ?? '';
                 $movRow[28] = $mov->banco_nombre ?? ''; // BANCO
                 $movRow[29] = $mov->banco_cuenta ?? ''; // CUENTA
@@ -350,14 +352,12 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
                 $saldoPendiente = $this->money($saldoFactura - $pagosAcum);
                 $item++;
                 $excelRow = count($out) + 1;
-                if (!$this->fastMode && !$this->superFastMode) {
-                    $this->rowMeta[$excelRow] = [
-                        'type'      => self::T_RETENCION,
-                        'dir'       => 'debito',
-                        'saldo_dir' => 'down',
-                        'has_monto' => true,
-                    ];
-                }
+                $this->rowMeta[$excelRow] = [
+                    'type'      => self::T_RETENCION,
+                    'dir'       => 'debito',
+                    'saldo_dir' => 'down',
+                    'has_monto' => true,
+                ];
 
                 $retRow = array_fill(0, self::COL_COUNT, '');
                 $retRow[0]  = $item;
@@ -401,9 +401,7 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
         $totRow[20] = $totPagado > 0 ? -$totPagado : '';  // MONTO PAGADO (negativo)
         $totRow[21] = $this->money($totTotal - $totDeb + $totCred - $totPagado); // SALDO PENDIENTE (cuadra con fórmula)
         $excelRow = count($out) + 1;
-        if (!$this->fastMode && !$this->superFastMode) {
-            $this->rowMeta[$excelRow] = ['type' => 'TOTALES'];
-        }
+        $this->rowMeta[$excelRow] = ['type' => 'TOTALES'];
         $out[] = $totRow;
 
         return $out;
@@ -521,8 +519,8 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
                 $sheet->getStyle("Z5:Z{$lastRow}")
                     ->getNumberFormat()->setFormatCode('0');
 
-                // Fechas como formato fecha (los valores ya vienen en serial Excel desde array()).
-                foreach (['C', 'X', 'Y', 'AA'] as $c) {
+                // Fechas (FECHA, FECHA VENTA, FECHA VCTO.): formato de fecha real dd/mm/yyyy
+                foreach (['C', 'X', 'Y'] as $c) {
                     $sheet->getStyle("{$c}5:{$c}{$lastRow}")
                         ->getNumberFormat()->setFormatCode('dd/mm/yyyy');
                 }
@@ -546,8 +544,28 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
                 }
 
                 if ($this->fastMode) {
-                    // fastMode: sin recorrido fila-por-fila para maximizar velocidad.
-                    // Se aplican solo estilos globales y una marca visual para la fila final.
+                    // fastMode (<8K filas): colorea solo filas FACTURA, sin sub-filas.
+                    for ($row = 5; $row <= $lastRow; $row++) {
+                        $meta = $this->rowMeta[$row] ?? ['type' => ''];
+                        if (($meta['type'] ?? '') !== self::T_FACTURA) {
+                            continue;
+                        }
+
+                        $estadoF01 = strtoupper(trim((string)($meta['estado_f01'] ?? '')));
+                        $esAnu = str_starts_with($estadoF01, 'ANULAD');
+                        $bg    = $esAnu ? 'EBEBEB' : 'FFF3E0';
+
+                        $sheet->getStyle("A{$row}:{$lc}{$row}")->getFill()
+                            ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB($bg);
+                        $sheet->getStyle("A{$row}:{$lc}{$row}")->getFont()
+                            ->setBold(true)->setSize(8.5);
+
+                        if ($esAnu) {
+                            $sheet->getStyle("A{$row}:{$lc}{$row}")->getFont()
+                                ->setStrikethrough(true)->getColor()->setRGB('999999');
+                        }
+                    }
+
                     $sheet->getStyle("A5:{$lc}{$lastRow}")->getFont()->setSize(8);
                     $sheet->getStyle("A4:{$lc}{$lastRow}")->getBorders()->getAllBorders()
                         ->setBorderStyle(Border::BORDER_THIN)->getColor()->setRGB('E8D5BF');
@@ -555,10 +573,6 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
                         ->setBorderStyle(Border::BORDER_MEDIUM)->getColor()->setRGB('e07000');
                     $sheet->getStyle("A4:{$lc}4")->getBorders()->getBottom()
                         ->setBorderStyle(Border::BORDER_MEDIUM)->getColor()->setRGB('b05000');
-                    $sheet->getStyle("A{$lastRow}:{$lc}{$lastRow}")->getFill()
-                        ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFF3E0');
-                    $sheet->getStyle("A{$lastRow}:{$lc}{$lastRow}")->getFont()
-                        ->setBold(true)->setSize(9)->getColor()->setRGB('7d3f00');
                     return;
                 }
 

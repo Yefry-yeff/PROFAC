@@ -162,6 +162,30 @@ class ReportesComisionesGenerales extends Component
     }
 
     /**
+     * Lista todos los usuarios (activos e inactivos) con su rol y estado,
+     * para el selector de proyecciones donde se necesita visibilidad completa.
+     */
+    public function listarEmpleadosTodos(Request $request)
+    {
+        $search = trim((string) $request->input('q', ''));
+
+        $query = DB::table('users as u')
+            ->leftJoin('rol as r', 'r.id', '=', 'u.rol_id')
+            ->selectRaw("u.id,
+                         u.name,
+                         COALESCE(r.nombre, 'Sin rol') AS rol_nombre,
+                         CASE WHEN u.estado_id = 1 THEN 'Activo' ELSE 'Inactivo' END AS estado_label,
+                         u.estado_id")
+            ->orderByRaw("u.estado_id ASC, u.name ASC");
+
+        if ($search !== '') {
+            $query->where('u.name', 'LIKE', "%{$search}%");
+        }
+
+        return response()->json($query->limit(100)->get());
+    }
+
+    /**
      * Lista de roles para selector
      */
     public function listarRoles(Request $request)
@@ -1121,6 +1145,7 @@ class ReportesComisionesGenerales extends Component
             ->leftJoin('users as uf', 'uf.id', '=', 'f.users_id')
             ->leftJoin('users as uv', 'uv.id', '=', 'f.vendedor')
             ->leftJoin('users as ug', 'ug.id', '=', 'f.gestor_entrega')
+            ->leftJoin('tipo_factura as tf', 'tf.id', '=', 'f.tipo_factura_id')
             ->whereIn('f.id', $facturaIds)
             ->selectRaw("f.id,
                          f.cai,
@@ -1134,7 +1159,10 @@ class ReportesComisionesGenerales extends Component
                          ug.name as gestor_nombre,
                          cl.nombre as cliente,
                          cl.cliente_categoria_escala_id,
-                         cce.nombre_categoria as escala_cliente")
+                         cce.nombre_categoria as escala_cliente,
+                         f.tipo_pago_id,
+                         DATE(f.fecha_vencimiento) as fecha_vencimiento,
+                         tf.codigo as tipo_factura_codigo")
             ->get();
 
         if ($facturas->isEmpty()) {
@@ -1204,6 +1232,73 @@ class ReportesComisionesGenerales extends Component
                 $escalaMap[$key] = $esc;
             }
         }
+
+        // ── Mapas para regla SR ────────────────────────────────────────────
+        // Para facturas SR: la categoría más baja solo aplica si precioSeleccionado
+        // es estrictamente mayor al precio_a de esa categoría para el producto.
+        $tiposSR = ['sin_restriccion_gobierno', 'sin_restriccion_precio'];
+
+        // escala_id → categoria_precio_mas_baja_id
+        $escalaMasBajaMap = [];
+        $escalaIdsConSR = $facturas
+            ->filter(fn($f) => in_array((string) ($f->tipo_factura_codigo ?? ''), $tiposSR, true))
+            ->pluck('cliente_categoria_escala_id')
+            ->filter(fn($v) => (int) $v > 0)
+            ->map(fn($v) => (int) $v)
+            ->unique()
+            ->values()
+            ->all();
+
+        if (!empty($escalaIdsConSR)) {
+            $catMasBajas = DB::table('categoria_precios')
+                ->whereIn('cliente_categoria_escala_id', $escalaIdsConSR)
+                ->where('estado_id', 1)
+                ->orderByRaw('CASE WHEN porc_precio_a IS NULL THEN 1 ELSE 0 END ASC')
+                ->orderBy('porc_precio_a', 'asc')
+                ->orderBy('id', 'asc')
+                ->get(['id', 'cliente_categoria_escala_id']);
+
+            foreach ($catMasBajas as $row) {
+                $eid = (int) $row->cliente_categoria_escala_id;
+                if (!isset($escalaMasBajaMap[$eid])) {
+                    $escalaMasBajaMap[$eid] = (int) $row->id;
+                }
+            }
+        }
+
+        // (producto_id, categoria_forzada_id) → precio_a de referencia
+        $precioRefSRMap = [];
+        if (!empty($escalaMasBajaMap)) {
+            $catForzadasIds = array_unique(array_values($escalaMasBajaMap));
+            $productoIdsSR  = $lineasFactura->flatten(1)
+                ->pluck('producto_id')
+                ->filter(fn($v) => (int) $v > 0)
+                ->map(fn($v) => (int) $v)
+                ->unique()
+                ->values()
+                ->all();
+
+            if (!empty($productoIdsSR)) {
+                $refs = DB::table('precios_producto_carga')
+                    ->whereIn('categoria_precios_id', $catForzadasIds)
+                    ->whereIn('producto_id', $productoIdsSR)
+                    ->select('categoria_precios_id', 'producto_id', 'precio_a')
+                    ->get();
+
+                foreach ($refs as $ref) {
+                    $precioRefSRMap[(int) $ref->producto_id . '_' . (int) $ref->categoria_precios_id] = (float) $ref->precio_a;
+                }
+            }
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
+        // Cargar configuración de días de gracia para crédito (1% por período)
+        $diasGraciaMap = DB::table('dias_gracia_comision')
+            ->whereIn('rol_id', [2, 3, 16])
+            ->where('tipo_factura', 'credito')
+            ->where('dias_gracia', '>', 0)
+            ->get()
+            ->keyBy('rol_id');
 
         $filas = [];
         $excluidas = [];
@@ -1289,6 +1384,23 @@ class ReportesComisionesGenerales extends Component
                     $baseUnitaria = round($cantidad * $precioUnitario, 4);
                     $baseComisionable = round($cantidad * $precioParaComision, 4);
                     $categoriaPrecioId = (int) ($linea->categoria_precios_id ?? 0);
+
+                    // ── Regla SR: solo forzar categoría más baja si precio vendido > precio_a de esa categoría ──
+                    $esSR = in_array((string) ($factura->tipo_factura_codigo ?? ''), $tiposSR, true);
+                    $escalaId = (int) ($factura->cliente_categoria_escala_id ?? 0);
+                    if ($esSR && $escalaId > 0 && isset($escalaMasBajaMap[$escalaId])) {
+                        $catForzada = $escalaMasBajaMap[$escalaId];
+                        $productoId = (int) ($linea->producto_id ?? 0);
+                        $precioRefKey = $productoId . '_' . $catForzada;
+                        $precioRef = $precioRefSRMap[$precioRefKey] ?? null;
+                        // Penalizar con categoría más baja SOLO si vendió por DEBAJO del precio de esa categoría.
+                        if ($precioRef !== null && $precioParaComision < $precioRef) {
+                            $categoriaPrecioId = $catForzada;
+                        }
+                        // Si vendió igual o por encima, comisiona por la categoría real
+                    }
+                    // ────────────────────────────────────────────────────────────────────────────
+
                     $categoriaPrecioNombre = (string) ($linea->categoria_precio ?? ('Categoria #' . $categoriaPrecioId));
                     $productoNombre = (string) ($linea->producto ?? ('Producto #' . (int) $linea->producto_id));
 
@@ -1357,6 +1469,31 @@ class ReportesComisionesGenerales extends Component
                     $porcentaje = (float) ($escalaMap[$escalaKey]->porcentaje_comision ?? 0);
                     $comisionLinea = round($baseComisionable * ($porcentaje / 100), 4);
 
+                    // ── Retención por mora de crédito (1% por período vencido) ──────
+                    $retencionMoraAplicada  = 0.0;
+                    $periodosVencidosMora   = 0;
+                    $diasGracia             = 0;
+                    if ($comisionLinea > 0) {
+                        $tipoPagoId = (int) ($factura->tipo_pago_id ?? 0);
+                        if ($tipoPagoId === 2 && !empty($factura->fecha_vencimiento) && !empty($cierre->fecha_pago_cierre)) {
+                            $fechaVenc  = \Carbon\Carbon::parse($factura->fecha_vencimiento)->startOfDay();
+                            $fechaPago  = \Carbon\Carbon::parse($cierre->fecha_pago_cierre)->startOfDay();
+                            $diasTransc = (int) $fechaVenc->diffInDays($fechaPago, false);
+                            $confGracia = $diasGraciaMap->get($target['rol_id']);
+                            if ($confGracia && $diasTransc > 0) {
+                                $diasGracia = (int) $confGracia->dias_gracia;
+                                if ($diasTransc > $diasGracia) {
+                                    $pct              = (float) $confGracia->porcentaje_retencion;
+                                    $periodosVencidosMora = (int) ceil(($diasTransc - $diasGracia) / $diasGracia);
+                                    $montoPorPeriodo  = $comisionLinea * ($pct / 100);
+                                    $retencionMoraAplicada = min($comisionLinea, round($periodosVencidosMora * $montoPorPeriodo, 4));
+                                    $comisionLinea    = round(max(0, $comisionLinea - $retencionMoraAplicada), 4);
+                                }
+                            }
+                        }
+                    }
+                    // ─────────────────────────────────────────────────────────────
+
                     if ($comisionLinea <= 0) {
                         $excluidas[] = [
                             'factura_id' => $facturaId,
@@ -1410,6 +1547,8 @@ class ReportesComisionesGenerales extends Component
                         'escala_cliente' => (string) ($factura->escala_cliente ?? 'N/A'),
                         'escala_precio_vendida' => $categoriaPrecioNombre,
                         'cantidad' => round($cantidad, 4),
+                        'precio_unitario' => round($precioUnitario, 4),
+                        'precio_seleccionado' => round($precioSeleccionado, 4),
                         'capacidad' => (string) $target['capacidad'],
                         'rol_id' => (int) $target['rol_id'],
                         'rol_nombre' => (string) $target['rol_nombre'],
@@ -1417,8 +1556,12 @@ class ReportesComisionesGenerales extends Component
                         'usuario' => (string) ($target['usuario'] ?: ('Usuario #' . (int) $target['user_id'])),
                         'base_comisionable_unitaria' => round($baseUnitaria, 4),
                         'base_comisionable' => round($baseComisionable, 4),
+                        'comision_bruta' => round($comisionLinea + $retencionMoraAplicada, 4),
                         'comision_proyectada' => round($comisionLinea, 4),
                         'porcentaje_promedio' => round($porcentaje, 4),
+                        'retencion_mora' => round($retencionMoraAplicada, 4),
+                        'periodos_vencidos_mora' => $periodosVencidosMora,
+                        'dias_gracia_mora' => $diasGracia,
                         'detalle_lineas' => [
                             [
                                 'producto' => $productoNombre,
@@ -1430,6 +1573,7 @@ class ReportesComisionesGenerales extends Component
                                 'base_comisionable' => round($baseComisionable, 4),
                                 'porcentaje' => round($porcentaje, 4),
                                 'comision_linea' => round($comisionLinea, 4),
+                                'retencion_mora' => round($retencionMoraAplicada, 4),
                                 'fuente_base_comisionable' => $precioSeleccionado > 0
                                     ? 'Cantidad x precioSeleccionado'
                                     : 'Cantidad x precio_unidad (fallback)',
@@ -1464,6 +1608,8 @@ class ReportesComisionesGenerales extends Component
             ->all();
 
         $comisionRecalculadaTotal = round(array_sum(array_map(fn($r) => (float) $r['comision_proyectada'], $filas)), 4);
+        $retencionMoraTotal        = round(array_sum(array_map(fn($r) => (float) $r['retencion_mora'], $filas)), 4);
+        $comisionBrutaTotal        = round(array_sum(array_map(fn($r) => (float) $r['comision_bruta'], $filas)), 4);
 
         // Base comisionable y base unitaria deduplicadas:
         // cada línea de producto puede aparecer una vez por rol en $filas,
@@ -1487,6 +1633,8 @@ class ReportesComisionesGenerales extends Component
             'base_comisionable_total' => round($baseComisionableUnica, 4),
             'comision_proyectada_total' => $totalNomina,
             'comision_recalculada_total' => $comisionRecalculadaTotal,
+            'retencion_mora_total' => $retencionMoraTotal,
+            'comision_bruta_total' => $comisionBrutaTotal,
             'facturas_excluidas' => count($facturasExcluidas),
             'registros_excluidos' => count($excluidas),
         ];
@@ -2474,18 +2622,16 @@ class ReportesComisionesGenerales extends Component
             $baseComisionable = round($baseComisionable, 2);
         }
 
-        // Total cobrado real: suma de abonos_creditos.monto_abonado por factura única
-        // (igual que la nómina conciliada — lo que realmente se cobró)
+        // Total cobrado: directo desde abonos_creditos, igual que Libro de Cobros
+        // (mismo filtro: fecha_pago en rango, banco no excluido, estado_abono=1)
         if (!empty($uniqueFacturaIds)) {
-            $cobradoRows = DB::table('aplicacion_pagos as ap')
-                ->join('abonos_creditos as ac', function ($j) {
-                    $j->on('ac.aplicacion_pagos_id', '=', 'ap.id')
-                      ->where('ac.estado_abono', '=', 1);
-                })
-                ->whereIn('ap.factura_id', $uniqueFacturaIds)
-                ->where('ap.estado', 1)
-                ->groupBy('ap.factura_id')
-                ->selectRaw('ap.factura_id, SUM(ac.monto_abonado) as cobrado')
+            $cobradoRows = DB::table('abonos_creditos as ac')
+                ->whereIn('ac.factura_id', $uniqueFacturaIds)
+                ->where('ac.estado_abono', 1)
+                ->whereNotIn('ac.banco_id', [12, 13])
+                ->whereBetween(DB::raw('DATE(ac.fecha_pago)'), [$fi, $ff])
+                ->groupBy('ac.factura_id')
+                ->selectRaw('ac.factura_id, SUM(ac.monto_abonado) as cobrado')
                 ->get()
                 ->keyBy('factura_id');
 
@@ -2501,6 +2647,140 @@ class ReportesComisionesGenerales extends Component
         }, $facturasPorMes));
         $totalCobrado = round(array_sum(array_column($mesesCobrados, 'total')), 2);
 
+        // ── Política Anterior — IDs y totales ─────────────────────────────
+        $basePoliticaAnterior     = (float) $request->input('pol_base_comisionable', 0);
+        $comisionPoliticaAnterior = (float) $request->input('pol_total_comision',     0);
+
+        // IDs de facturas política anterior enviados desde el frontend
+        $facturasPoliticaIds = collect($request->input('pol_factura_ids', []))
+            ->map(fn($v) => (int) $v)
+            ->filter(fn($v) => $v > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        // Fallback si no vienen del frontend
+        if ($basePoliticaAnterior <= 0 && $comisionPoliticaAnterior <= 0 && $usuarioId > 0) {
+            $cierresParaPolitica = DB::table('aplicacion_pagos as ap')
+                ->leftJoin('abonos_creditos as ac', function ($j) {
+                    $j->on('ac.aplicacion_pagos_id', '=', 'ap.id')
+                      ->where('ac.estado_abono', '=', 1);
+                })
+                ->where('ap.estado', 1)
+                ->where('ap.estado_cerrado', 2)
+                ->where('ap.saldo', '<=', 0.0001)
+                ->groupBy('ap.id', 'ap.factura_id', 'ap.fecha_cierre_factura')
+                ->selectRaw("ap.factura_id,
+                             COALESCE(MAX(DATE(ac.fecha_pago)), DATE(ap.fecha_cierre_factura)) AS fecha_pago_cierre")
+                ->havingRaw('fecha_pago_cierre IS NOT NULL')
+                ->havingBetween('fecha_pago_cierre', [$fi, $ff])
+                ->get()
+                ->pluck('factura_id')
+                ->map(fn($v) => (int) $v)
+                ->all();
+
+            $enEscalaIds = !empty($cierresParaPolitica)
+                ? DB::table('facturas_comision')
+                    ->whereIn('factura_id', $cierresParaPolitica)
+                    ->where('estado_id', 1)
+                    ->distinct()
+                    ->pluck('factura_id')
+                    ->map(fn($v) => (int) $v)
+                    ->flip()
+                    ->all()
+                : [];
+
+            if (!empty($cierresParaPolitica)) {
+                $facturasFiltradas = DB::table('factura')
+                    ->whereIn('id', $cierresParaPolitica)
+                    ->where(function ($q) use ($usuarioId) {
+                        $q->where('users_id', $usuarioId)
+                          ->orWhere('vendedor', $usuarioId)
+                          ->orWhere('gestor_entrega', $usuarioId);
+                    })
+                    ->pluck('id')
+                    ->map(fn($v) => (int) $v)
+                    ->all();
+                foreach ($facturasFiltradas as $fid) {
+                    if (!isset($enEscalaIds[$fid])) {
+                        $facturasPoliticaIds[] = $fid;
+                    }
+                }
+            }
+
+            if (!empty($facturasPoliticaIds)) {
+                $lineaPolRows = DB::table('venta_has_producto as vhp')
+                    ->whereIn('vhp.factura_id', $facturasPoliticaIds)
+                    ->groupBy('vhp.factura_id', 'vhp.producto_id', 'vhp.precios_producto_carga_id',
+                              'vhp.precio_unidad', 'vhp.precioSeleccionado')
+                    ->selectRaw("COALESCE(SUM(vhp.cantidad_s), SUM(vhp.cantidad)) as cantidad,
+                                 COALESCE(vhp.precioSeleccionado, vhp.precio_unidad) as precio")
+                    ->get();
+                foreach ($lineaPolRows as $lr) {
+                    $basePoliticaAnterior += (float) $lr->cantidad * (float) $lr->precio;
+                }
+                $basePoliticaAnterior = round($basePoliticaAnterior, 2);
+            }
+        }
+
+        // ── Agregar facturas de política anterior a la sección "Facturas por Mes" ──
+        // Solo incluir IDs que no están ya en las facturas de escala
+        $facturasPoliticaIds = array_values(array_diff($facturasPoliticaIds, $uniqueFacturaIds));
+
+        if (!empty($facturasPoliticaIds)) {
+            // Obtener fecha de pago (desde AP cerrada) para agrupar por mes
+            $cierresPol = DB::table('aplicacion_pagos as ap')
+                ->leftJoin('abonos_creditos as ac', function ($j) {
+                    $j->on('ac.aplicacion_pagos_id', '=', 'ap.id')
+                      ->where('ac.estado_abono', '=', 1);
+                })
+                ->where('ap.estado', 1)
+                ->where('ap.estado_cerrado', 2)
+                ->whereIn('ap.factura_id', $facturasPoliticaIds)
+                ->groupBy('ap.factura_id', 'ap.fecha_cierre_factura')
+                ->selectRaw("ap.factura_id,
+                             COALESCE(MAX(DATE(ac.fecha_pago)), DATE(ap.fecha_cierre_factura)) AS fecha_pago_cierre")
+                ->get()
+                ->keyBy('factura_id');
+
+            // Cobrado en el rango para estas facturas (= mismo criterio que Libro de Cobros)
+            $cobradoPolRows = DB::table('abonos_creditos as ac')
+                ->whereIn('ac.factura_id', $facturasPoliticaIds)
+                ->where('ac.estado_abono', 1)
+                ->whereNotIn('ac.banco_id', [12, 13])
+                ->whereBetween(DB::raw('DATE(ac.fecha_pago)'), [$fi, $ff])
+                ->groupBy('ac.factura_id')
+                ->selectRaw('ac.factura_id, SUM(ac.monto_abonado) as cobrado')
+                ->get()
+                ->keyBy('factura_id');
+
+            foreach ($facturasPoliticaIds as $fid) {
+                $cierreFila = $cierresPol->get($fid);
+                $fechaPago  = $cierreFila ? (string) $cierreFila->fecha_pago_cierre : null;
+                if (!$fechaPago) continue;
+
+                $mesKey = Carbon::parse($fechaPago)->format('Y-m');
+                if (!isset($facturasPorMes[$mesKey])) {
+                    $mesLabel = Carbon::parse($fechaPago)->locale('es')->isoFormat('MMMM YYYY');
+                    $mesLabel = mb_convert_case($mesLabel, MB_CASE_TITLE, 'UTF-8');
+                    $facturasPorMes[$mesKey] = ['mes_label' => $mesLabel, 'cantidad' => 0, 'total' => 0.0, 'vistas' => []];
+                }
+                if (!isset($facturasPorMes[$mesKey]['vistas'][$fid])) {
+                    $facturasPorMes[$mesKey]['vistas'][$fid] = true;
+                    $facturasPorMes[$mesKey]['cantidad']++;
+                    $cobrado = (float) ($cobradoPolRows->get($fid)->cobrado ?? 0);
+                    $facturasPorMes[$mesKey]['total'] += $cobrado;
+                }
+            }
+
+            ksort($facturasPorMes);
+            $mesesCobrados = array_values(array_map(function ($m) {
+                return ['mes_label' => $m['mes_label'], 'cantidad' => $m['cantidad'], 'total' => round($m['total'], 2)];
+            }, $facturasPorMes));
+            $totalCobrado  = round(array_sum(array_column($mesesCobrados, 'total')), 2);
+            $totalFacturas = array_sum(array_column($mesesCobrados, 'cantidad'));
+        }
+
         $sheet = new ProyeccionNominaSheet(
             $empleado,
             $periodoLabel,
@@ -2509,6 +2789,8 @@ class ReportesComisionesGenerales extends Component
             $comisionAsesor,
             $comisionTeleasesor,
             $comisionGestor,
+            $basePoliticaAnterior,
+            $comisionPoliticaAnterior,
             $mesesCobrados,
             $totalCobrado,
             $generadoPor

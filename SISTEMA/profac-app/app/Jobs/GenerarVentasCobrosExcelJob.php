@@ -48,7 +48,7 @@ class GenerarVentasCobrosExcelJob
     public function handle(): void
     {
         @set_time_limit(0);
-        @ini_set('memory_limit', '1024M');
+        @ini_set('memory_limit', '3072M');
 
         $statusKey = 'rvc_export_status_' . $this->token;
 
@@ -94,6 +94,9 @@ class GenerarVentasCobrosExcelJob
 
             $fileName     = 'ReporteVentasCobros_' . now()->format('Y-m-d_H-i-s') . '_' . substr($this->token, 0, 8) . '.xlsx';
             $relativePath = 'exports/ventas-cobros/' . $fileName;
+
+            // Libera memoria de objetos temporales antes del paso mas pesado (escritura xlsx + zip).
+            gc_collect_cycles();
 
             $this->progress($statusKey, 72, 'Escribiendo Excel...');
 

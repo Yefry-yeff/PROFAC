@@ -14,6 +14,40 @@ var revisionProductosDataActual=[];
 var detalleProductosFacturaMap = {};
 var detalleProductosFacturaActual = { facturaComisionId: null, factura: '', cliente: '', productos: [] };
 
+// ── Helpers globales para Select2 de empleados ────────────────────────────
+function _empTemplate(u) {
+    if (!u.id) return u.text;
+    var activo = u.estado && parseInt(u.estado) === 1;
+    var badge = activo
+        ? '<span style="background:#d1fae5;color:#065f46;font-size:10px;border-radius:3px;padding:1px 5px;margin-left:4px;">Activo</span>'
+        : '<span style="background:#f1f5f9;color:#64748b;font-size:10px;border-radius:3px;padding:1px 5px;margin-left:4px;">Inactivo</span>';
+    return $('<span style="color:'+(activo?'#1e293b':'#94a3b8')+';">'+u.text.split(' (')[0]+badge+'</span>');
+}
+
+function _empAjaxConfig(placeholder) {
+    return {
+        placeholder: placeholder || '— Todos —',
+        allowClear: true,
+        ajax: {
+            url: '/comision/empleados/todos', dataType: 'json', delay: 250,
+            data: function(p) { return { q: p.term }; },
+            processResults: function(d) {
+                return { results: d.map(function(u) {
+                    return { id: u.id, text: u.name + ' — ' + u.rol_nombre + ' (' + u.estado_label + ')', estado: u.estado_id };
+                })};
+            }
+        },
+        templateResult: _empTemplate,
+        templateSelection: function(u) { return u.text || u.id; }
+    };
+}
+
+function initEmpleadoSelectGlobal(selector, placeholder) {
+    if (!$(selector).hasClass('select2-hidden-accessible')) {
+        $(selector).select2(_empAjaxConfig(placeholder));
+    }
+}
+
 $(document).ready(function(){
     // Fechas por defecto: mes actual
     var hoy=new Date(), ini=new Date(hoy.getFullYear(),hoy.getMonth(),1);
@@ -24,17 +58,41 @@ $(document).ready(function(){
     $('#revFechaInicio').val(fmtDate(ini));
     $('#revFechaFin').val(fmtDate(hoy));
 
-    // Select2 empleado
-    $('#fpEmpleado').select2({
-        placeholder:'— Todos los empleados —', allowClear:true,
-        ajax:{
-            url:'/comision/empleados/lista', dataType:'json', delay:250,
-            data:function(p){return{q:p.term};},
-            processResults:function(d){return{results:d.map(function(u){return{id:u.id,text:u.name};})};}
-        }
-    });
+    // ── Helper reutilizable: Select2 empleados con rol y estado ────────────
+    // Renderizador de opción compartido
+    function _empTemplate(u) {
+        if (!u.id) return u.text;
+        var activo = u.estado && parseInt(u.estado) === 1;
+        var badge = activo
+            ? '<span style="background:#d1fae5;color:#065f46;font-size:10px;border-radius:3px;padding:1px 5px;margin-left:4px;">Activo</span>'
+            : '<span style="background:#f1f5f9;color:#64748b;font-size:10px;border-radius:3px;padding:1px 5px;margin-left:4px;">Inactivo</span>';
+        var color = activo ? '#1e293b' : '#94a3b8';
+        return $('<span style="color:'+color+';">'+u.text.split(' (')[0]+badge+'</span>');
+    }
 
-    // Select2 rol
+    function initEmpleadoSelect(selector, placeholder) {
+        $(selector).select2({
+            placeholder: placeholder || '— Todos —',
+            allowClear: true,
+            ajax: {
+                url: '/comision/empleados/todos', dataType: 'json', delay: 250,
+                data: function(p) { return { q: p.term }; },
+                processResults: function(d) {
+                    return { results: d.map(function(u) {
+                        var label = u.name + ' — ' + u.rol_nombre + ' (' + u.estado_label + ')';
+                        return { id: u.id, text: label, estado: u.estado_id };
+                    })};
+                }
+            },
+            templateResult: _empTemplate,
+            templateSelection: function(u) { return u.text || u.id; }
+        });
+    }
+
+    // Select2 empleado (Nómina)
+    initEmpleadoSelectGlobal('#fpEmpleado', '— Todos los empleados —');
+
+    // Select2 rol (Nómina)
     $('#fpRol').select2({
         placeholder:'— Todos los roles —', allowClear:true,
         ajax:{
@@ -45,14 +103,7 @@ $(document).ready(function(){
     });
 
     // Select2 usuario activo para proyecciones
-    $('#proyUsuario').select2({
-        placeholder:'— Seleccione usuario activo —', allowClear:true,
-        ajax:{
-            url:'/comision/empleados/lista', dataType:'json', delay:250,
-            data:function(p){return{q:p.term};},
-            processResults:function(d){return{results:d.map(function(u){return{id:u.id,text:u.name};})};}
-        }
-    });
+    initEmpleadoSelectGlobal('#proyUsuario', '— Seleccione usuario activo —');
 
     // Select2 rol comisionable para proyecciones
     $('#proyRol').select2({
@@ -64,15 +115,8 @@ $(document).ready(function(){
         }
     });
 
-    // Select2 usuario activo para revisión de facturas
-    $('#revUsuario').select2({
-        placeholder:'— Todos los usuarios activos —', allowClear:true,
-        ajax:{
-            url:'/comision/empleados/lista', dataType:'json', delay:250,
-            data:function(p){return{q:p.term};},
-            processResults:function(d){return{results:d.map(function(u){return{id:u.id,text:u.name};})};}
-        }
-    });
+    // Select2 usuario para revisión de facturas
+    initEmpleadoSelectGlobal('#revUsuario', '— Todos los usuarios —');
 
     // Select2 rol comisionable para revisión de facturas
     $('#revRol').select2({
@@ -421,6 +465,8 @@ function generarProyecciones(){
 
     $.getJSON('/comision/reporte/proyecciones', f, function(resp){
         renderProyecciones(resp || {});
+        // Auto-calcular política anterior con las mismas facturas excluidas
+        autoCalcularPoliticaAnterior();
     }).fail(function(xhr){
         var mensaje = (xhr.responseJSON && (xhr.responseJSON.error || xhr.responseJSON.text)) || 'No fue posible generar la proyección.';
         Swal.fire({icon:'warning',title:'Proyecciones',text:mensaje});
@@ -480,6 +526,10 @@ function renderProyecciones(resp){
         ? totales.comision_recalculada_total
         : (totales.comision_proyectada_total || 0);
     $('#proyComisionTotal').text(fmtMoney(totalComisionVisible || 0));
+    window._comisionEscalaActual = totalComisionVisible || 0;
+    $('#resumenComisionEscala').text(fmtMoney(window._comisionEscalaActual));
+    $('#resumenComisionTotal').text(fmtMoney(window._comisionEscalaActual)); // se actualizará al cargar pol. anterior
+    $('#proyRetencionMora').text(fmtMoney(totales.retencion_mora_total || 0));
     $('#proyExcluidas').text(excluidas.length);
 
     $('#proyTableWrap').show();
@@ -513,6 +563,10 @@ function renderProyecciones(resp){
             {data:'cantidad',className:'text-right',render:function(d){
                 return '<strong>'+parseFloat(d || 0).toLocaleString('es-HN',{minimumFractionDigits:0,maximumFractionDigits:2})+'</strong>';
             }},
+            {data:'precio_unitario',className:'text-right',render:function(d){return fmtMoney(d || 0);}},
+            {data:'precio_seleccionado',className:'text-right',render:function(d){
+                return d && parseFloat(d) > 0 ? '<strong style="color:#0f766e;">'+fmtMoney(d)+'</strong>' : '<span class="text-muted">—</span>';
+            }},
             {data:'rol_nombre',className:'text-center',render:function(d, __, row){
                 var txt = String(d || row.capacidad || '—');
                 var cls = 'badge badge-secondary';
@@ -525,6 +579,11 @@ function renderProyecciones(resp){
             {data:'base_comisionable_unitaria',className:'text-right',render:function(d){return '<strong>'+fmtMoney(d || 0)+'</strong>'; }},
             {data:'base_comisionable',className:'text-right',render:function(d){return '<strong style="color:#0f766e;">'+fmtMoney(d || 0)+'</strong>'; }},
             {data:'porcentaje_promedio',className:'text-right',render:function(d){return parseFloat(d || 0).toFixed(2)+'%';}},
+            {data:'comision_bruta',className:'text-right',render:function(d){return fmtMoney(d || 0);}},
+            {data:'retencion_mora',className:'text-right',render:function(d){
+                var v = parseFloat(d || 0);
+                return v > 0 ? '<strong style="color:#dc2626;">− '+fmtMoney(v)+'</strong>' : '<span class="text-muted">—</span>';
+            }},
             {data:'comision_proyectada',className:'text-right',render:function(d){return '<strong class="monto-com">'+fmtMoney(d || 0)+'</strong>'; }}
         ]
     });
@@ -721,7 +780,12 @@ function limpiarFiltrosProyecciones(){
     $('#proyRol').val(null).trigger('change');
 
     $('#proyInfo').hide();
+    $('#proyInfoPolitica').hide();
     $('#proyFacturas').text('0');
+    window._comisionEscalaActual         = 0;
+    window._comisionPolAnteriorActual    = 0;
+    window.politicaAnteriorTotalesActual = null;
+    window._politicaAnteriorFacturaIds   = [];
     $('#proyRegistros').text('0');
     $('#proyBaseUnitaria').text(fmtMoney(0));
     $('#proyBaseComisionable').text(fmtMoney(0));
@@ -733,6 +797,7 @@ function limpiarFiltrosProyecciones(){
     $('#proyExcluidasWrap').hide();
     $('#proyBrechaWrap').hide();
     $('#proyBrechaInfo').hide();
+    $('#proyPoliticaAnteriorResult').hide().empty();
     $('#proyBrechaPagadas').text('0');
     $('#proyBrechaTotal').text('0');
     $('#proyBrechaSinComision').text('0');
@@ -759,6 +824,103 @@ function limpiarFiltrosProyecciones(){
         dtProyBrecha = null;
         $('#dtProyBrecha tbody').empty();
     }
+}
+
+function autoCalcularPoliticaAnterior() {
+    var $wrap = $('#proyPoliticaAnteriorResult');
+    $wrap.hide();
+    $('#proyInfoPolitica').hide();
+    window.politicaAnteriorTotalesActual = null;
+    window._comisionPolAnteriorActual    = 0;
+
+    // Limpiar totales en el resumen
+    $('#polFacturas').text('0');
+    $('#polBase').text('L. 0.00');
+    $('#polComisionNoMisel').text('L. 0.00');
+    $('#polComisionMisel').text('L. 0.00');
+    $('#polComisionTotal').text('L. 0.00');
+    $('#resumenComisionPolitica').text('L. 0.00');
+    _actualizarResumenTotal();
+
+    if (!Array.isArray(proyeccionesExcluidasActual) || !proyeccionesExcluidasActual.length) {
+        return;
+    }
+
+    var filtros      = getFiltrosProyecciones();
+    var usuarioFiltro = parseInt(filtros.usuario_id || 0, 10);
+    var filasPol     = filtrarExcluidasPoliticaAnterior(proyeccionesExcluidasActual, usuarioFiltro);
+    filasPol         = deduplicarFilasPoliticaAnteriorPorFactura(filasPol);
+
+    if (!filasPol.length) return;
+
+    var facturaIds = Array.from(new Set(
+        filasPol.map(function(r){ return parseInt(r.factura_id || 0, 10); }).filter(function(id){ return id > 0; })
+    ));
+
+    if (!facturaIds.length) return;
+
+    // Mostrar spinner en la fila de política anterior del resumen
+    $('#proyInfoPolitica').show();
+    $('#polFacturas').html('<i class="fa fa-spinner fa-spin"></i>');
+    $('#polBase').html('<i class="fa fa-spinner fa-spin"></i>');
+    $('#polComisionTotal').html('<i class="fa fa-spinner fa-spin"></i>');
+
+    var payload = {
+        factura_ids:  facturaIds,
+        filas:        filasPol,
+        usuario_id:   filtros.usuario_id || '',
+        fecha_inicio: filtros.fechaInicio || '',
+        fecha_final:  filtros.fechaFin || ''
+    };
+
+    $.ajax({
+        url:         '/comision/politica-anterior/calcular-comisiones',
+        method:      'POST',
+        data:        JSON.stringify(payload),
+        contentType: 'application/json',
+        headers:     { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+        success: function(res) {
+            var tot = res.totales || {};
+            var nFacturas = Array.isArray(res.factura_ids_elegibles) ? res.factura_ids_elegibles.length : 0;
+
+            // Guardar para el export de nómina
+            window.politicaAnteriorTotalesActual = {
+                base_comisionable:          tot.total_subtotal || 0,
+                comision_no_miselaneo:      tot.total_comision_no_miselaneo || 0,
+                comision_miselanea:         tot.total_comision_miselanea || 0,
+                total_comision:             tot.total_comision || 0,
+                facturas_elegibles:         nFacturas
+            };
+            window._comisionPolAnteriorActual     = parseFloat(tot.total_comision || 0);
+            window._politicaAnteriorFacturaIds    = facturaIds; // IDs para el export
+
+            // Poblar fila de política anterior en el resumen
+            $('#polFacturas').text(nFacturas);
+            $('#polBase').text(fmtMoney(tot.total_subtotal || 0));
+            $('#polComisionNoMisel').text(fmtMoney(tot.total_comision_no_miselaneo || 0));
+            $('#polComisionMisel').text(fmtMoney(tot.total_comision_miselanea || 0));
+            $('#polComisionTotal').text(fmtMoney(tot.total_comision || 0));
+            $('#resumenComisionPolitica').text(fmtMoney(tot.total_comision || 0));
+            $('#proyInfoPolitica').show();
+            _actualizarResumenTotal();
+        },
+        error: function(xhr) {
+            window.politicaAnteriorTotalesActual = null;
+            var msg = (xhr.responseJSON && xhr.responseJSON.message) || 'Error al calcular política anterior';
+            $('#polFacturas').text('—');
+            $('#polBase').text('Error');
+            $('#polComisionTotal').html('<span style="color:#dc2626;">' + msg + '</span>');
+        }
+    });
+}
+
+function _actualizarResumenTotal() {
+    var comisionEscala = parseFloat(window._comisionEscalaActual || 0) || 0;
+    var comisionPol    = parseFloat(window._comisionPolAnteriorActual || 0) || 0;
+    var total          = comisionEscala + comisionPol;
+    $('#resumenComisionEscala').text(fmtMoney(comisionEscala));
+    $('#resumenComisionPolitica').text(fmtMoney(comisionPol));
+    $('#resumenComisionTotal').text(fmtMoney(total));
 }
 
 function redirigirCalculoPoliticaAnterior(){
@@ -973,6 +1135,20 @@ function exportarProyeccionesNomina(){
     addInput('usuario_id',  filtros.usuario_id  || '');
     addInput('rol_id',      filtros.rol_id      || '');
     addInput('download_token', token);
+
+    // Pasar totales de política anterior calculados en pantalla
+    var pol = window.politicaAnteriorTotalesActual || {};
+    addInput('pol_base_comisionable',     pol.base_comisionable     || 0);
+    addInput('pol_comision_no_miselaneo', pol.comision_no_miselaneo || 0);
+    addInput('pol_comision_miselanea',    pol.comision_miselanea    || 0);
+    addInput('pol_total_comision',        pol.total_comision        || 0);
+
+    // Pasar IDs de facturas de política anterior para incluirlas en "Facturas por Mes"
+    var polIds = (window.politicaAnteriorTotalesActual && window._politicaAnteriorFacturaIds)
+        ? window._politicaAnteriorFacturaIds : [];
+    polIds.forEach(function(id) {
+        addInput('pol_factura_ids[]', id);
+    });
 
     document.body.appendChild(form);
     form.submit();
@@ -1887,16 +2063,11 @@ function fmtMoneyFa(v) {
 }
 
 function initFaSelects() {
-    // Inicializar Select2 vacíos (se llenan al cambiar fechas)
-    var selectsCfg = [
-        { id: '#faAsesor',     placeholder: '— Todos los Asesores —' },
-        { id: '#faTeleasesor', placeholder: '— Todos los Tele Asesores —' },
-        { id: '#faGestor',     placeholder: '— Todos los Gestores —' },
-    ];
-    selectsCfg.forEach(function(cfg) {
-        if (!$(cfg.id).data('select2')) {
-            $(cfg.id).select2({ placeholder: cfg.placeholder, allowClear: true, width: '100%' });
-        }
+    ['#faAsesor', '#faTeleasesor', '#faGestor'].forEach(function(sel) {
+        var ph = sel === '#faAsesor' ? '— Todos los Asesores —'
+               : sel === '#faTeleasesor' ? '— Todos los Tele Asesores —'
+               : '— Todos los Gestores —';
+        initEmpleadoSelectGlobal(sel, ph);
     });
 }
 
@@ -2125,26 +2296,7 @@ function fmtL(v) {
 }
 
 function initCuadreSelect() {
-    if (!$('#cuadreVendedor').hasClass('select2-hidden-accessible')) {
-        $('#cuadreVendedor').select2({
-            placeholder: '— Todos los vendedores —',
-            allowClear: true,
-            ajax: {
-                url: '/comision/empleados/lista',
-                dataType: 'json',
-                delay: 250,
-                data: function(params) { return { search: params.term }; },
-                processResults: function(data) {
-                    var items = [{ id: '', text: '— Todos los vendedores —' }];
-                    $.each(data.data || data, function(i, u) {
-                        items.push({ id: u.id, text: u.name });
-                    });
-                    return { results: items };
-                },
-                cache: true
-            }
-        });
-    }
+    initEmpleadoSelectGlobal('#cuadreVendedor', '— Todos los vendedores —');
 }
 
 function setCuadreDefaultDates() {
@@ -2361,24 +2513,7 @@ var dtAuditoria = null;
 var auditoriaDataActual = [];
 
 function initAudSelect() {
-    if (!$('#audVendedor').hasClass('select2-hidden-accessible')) {
-        $('#audVendedor').select2({
-            placeholder: '— Seleccione vendedor —',
-            allowClear: true,
-            ajax: {
-                url: '/comision/empleados/lista',
-                dataType: 'json',
-                delay: 250,
-                data: function(p) { return { search: p.term }; },
-                processResults: function(data) {
-                    var items = [{ id: '', text: '— Todos —' }];
-                    $.each(data.data || data, function(i, u) { items.push({ id: u.id, text: u.name }); });
-                    return { results: items };
-                },
-                cache: true
-            }
-        });
-    }
+    initEmpleadoSelectGlobal('#audVendedor', '— Seleccione vendedor —');
 }
 
 function setAudDefaultDates() {
@@ -2575,4 +2710,7 @@ $('a[href="#tab-auditoria"]').on('shown.bs.tab', function() {
 $(document).ready(function() {
     $('#btnAudGenerar').on('click', generarAuditoria);
     $('#btnAudLimpiar').on('click', limpiarAuditoria);
+    // Inicializar select de auditoría al cargar la página
+    initAudSelect();
+    setAudDefaultDates();
 });
