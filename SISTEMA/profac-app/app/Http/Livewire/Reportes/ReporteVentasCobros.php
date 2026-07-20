@@ -156,9 +156,13 @@ class ReporteVentasCobros extends Component
                     AND ((DATE(f.fecha_emision) < '2026-06-07' AND COALESCE(vhp.isv,0) = 0)
                          OR (DATE(f.fecha_emision) >= '2026-06-07' AND vhp.tipo_precio = '1'))
                 ), 0)
+            WHEN f.codigo_exoneracion_id IS NULL THEN 0
             ELSE GREATEST(COALESCE(f.sub_total,0) - COALESCE(f.sub_total_grabado,0) - COALESCE(f.sub_total_excento,0), 0)
             END                                                         AS exonerado,
-            COALESCE(f.sub_total_grabado, 0)                           AS gravado,
+            CASE WHEN f.tipo_venta_id != 3 AND f.codigo_exoneracion_id IS NULL
+                THEN GREATEST(COALESCE(f.sub_total,0) - COALESCE(f.sub_total_excento,0), 0)
+                ELSE COALESCE(f.sub_total_grabado, 0)
+            END                                                         AS gravado,
             CASE WHEN f.tipo_venta_id = 3 THEN
                 COALESCE((
                     SELECT SUM(vhp.sub_total_s) FROM venta_has_producto vhp
@@ -779,8 +783,8 @@ class ReporteVentasCobros extends Component
                     COALESCE((SELECT def2.fecha_entrega_real
                         FROM distribuciones_entrega_facturas def2
                         WHERE def2.factura_id = f.id ORDER BY def2.id DESC LIMIT 1), NULL) AS fecha_entrega,
-                    CASE WHEN f.tipo_venta_id = 3 THEN COALESCE(f.sub_total,0) - COALESCE((SELECT SUM(vhp.sub_total_s) FROM venta_has_producto vhp WHERE vhp.factura_id = f.id AND ((DATE(f.fecha_emision) < '2026-06-07' AND COALESCE(vhp.isv,0) = 0) OR (DATE(f.fecha_emision) >= '2026-06-07' AND vhp.tipo_precio = '1'))), 0) ELSE GREATEST(COALESCE(f.sub_total,0)-COALESCE(f.sub_total_grabado,0)-COALESCE(f.sub_total_excento,0),0) END AS exonerado,
-                    COALESCE(f.sub_total_grabado, 0)                        AS gravado,
+                    CASE WHEN f.tipo_venta_id = 3 THEN COALESCE(f.sub_total,0) - COALESCE((SELECT SUM(vhp.sub_total_s) FROM venta_has_producto vhp WHERE vhp.factura_id = f.id AND ((DATE(f.fecha_emision) < '2026-06-07' AND COALESCE(vhp.isv,0) = 0) OR (DATE(f.fecha_emision) >= '2026-06-07' AND vhp.tipo_precio = '1'))), 0) WHEN f.codigo_exoneracion_id IS NULL THEN 0 ELSE GREATEST(COALESCE(f.sub_total,0)-COALESCE(f.sub_total_grabado,0)-COALESCE(f.sub_total_excento,0),0) END AS exonerado,
+                    CASE WHEN f.tipo_venta_id != 3 AND f.codigo_exoneracion_id IS NULL THEN GREATEST(COALESCE(f.sub_total,0)-COALESCE(f.sub_total_excento,0),0) ELSE COALESCE(f.sub_total_grabado, 0) END                        AS gravado,
                     CASE WHEN f.tipo_venta_id = 3 THEN COALESCE((SELECT SUM(vhp.sub_total_s) FROM venta_has_producto vhp WHERE vhp.factura_id = f.id AND ((DATE(f.fecha_emision) < '2026-06-07' AND COALESCE(vhp.isv,0) = 0) OR (DATE(f.fecha_emision) >= '2026-06-07' AND vhp.tipo_precio = '1'))), 0) ELSE COALESCE(f.sub_total_excento, 0) END AS exento,
                     COALESCE(f.sub_total, 0)                                AS sub_total,
                     CASE WHEN f.tipo_venta_id = 3 THEN 0 ELSE COALESCE(f.isv, 0) END AS isv,
@@ -898,9 +902,22 @@ class ReporteVentasCobros extends Component
                     FROM aplicacion_pagos apc_ret
                     LEFT JOIN users u_ret ON u_ret.id = apc_ret.usr_cerro
                     WHERE apc_ret.factura_id = ? AND apc_ret.estado_retencion_isv = 2
+
+                    UNION ALL
+
+                    /* Otro movimiento (ajuste manual: suma=Nota Debito, resta=Nota Credito) */
+                    SELECT CASE WHEN om.tipo_movimiento = 1 THEN 'NOTA_DEBITO' ELSE 'NOTA_CREDITO' END,
+                           om.created_at, CONCAT('OM-', om.id),
+                           om.monto, NULL, NULL, NULL,
+                           COALESCE(NULLIF(TRIM(om.comentario),''), 'Otro movimiento'),
+                           COALESCE(u_om.name,''), NULL,
+                           CASE WHEN om.tipo_movimiento = 1 THEN 6 ELSE 5 END
+                    FROM otros_movimientos om
+                    LEFT JOIN users u_om ON u_om.id = om.usr_registro
+                    WHERE om.factura_id = ? AND om.estado = 1
                 ) AS _movs
                 ORDER BY fecha ASC, orden_tipo ASC
-            ", [$facturaId, $facturaId, $facturaId, $facturaId, $facturaId]);
+            ", [$facturaId, $facturaId, $facturaId, $facturaId, $facturaId, $facturaId]);
 
             /* ── Calcular saldo progresivo ── */
             $saldo = (float) $cab->total_factura;
@@ -910,6 +927,9 @@ class ReporteVentasCobros extends Component
                     $mov->saldo_resultante = $saldo;
                 } elseif (in_array($mov->tipo, ['ABONO', 'NOTA_CREDITO', 'RETENCION'])) {
                     $saldo -= $monto;
+                    $mov->saldo_resultante = max($saldo, 0);
+                } elseif ($mov->tipo === 'NOTA_DEBITO') {
+                    $saldo += $monto;
                     $mov->saldo_resultante = max($saldo, 0);
                 } else {
                     $mov->saldo_resultante = null; // ENTREGA no cambia saldo
@@ -1215,12 +1235,29 @@ class ReporteVentasCobros extends Component
                 INNER JOIN factura f ON f.id = nd.factura_id
                 LEFT JOIN users u_nd ON u_nd.id = nd.users_registra_id
                 WHERE {$whereF}
+
+                UNION ALL
+
+                SELECT CASE WHEN om.tipo_movimiento = 1 THEN 'NOTA_DEBITO' ELSE 'NOTA_CREDITO' END AS tipo,
+                       om.factura_id AS factura_id,
+                       om.created_at AS fecha,
+                       CONCAT('OM-', om.id) AS documento,
+                       om.monto AS monto,
+                       NULL AS banco_nombre, NULL AS banco_cuenta, NULL AS recibo,
+                       COALESCE(NULLIF(TRIM(om.comentario),''), 'Otro movimiento') AS descripcion,
+                       COALESCE(u_om.name,'') AS responsable,
+                       NULL AS forma_pago,
+                       CASE WHEN om.tipo_movimiento = 1 THEN 6 ELSE 5 END AS orden_tipo
+                FROM otros_movimientos om
+                INNER JOIN factura f ON f.id = om.factura_id
+                LEFT JOIN users u_om ON u_om.id = om.usr_registro
+                WHERE om.estado = 1 AND {$whereF}
             ) AS _movs
             ORDER BY factura_id ASC, fecha ASC, orden_tipo ASC
         ";
 
         // Cada UNION branch usa los mismos parámetros de filtro
-        $allParams = array_merge($params, $params, $params);
+        $allParams = array_merge($params, $params, $params, $params);
         $movs      = DB::select($sql, $allParams);
 
         $grouped = [];
@@ -1317,6 +1354,19 @@ class ReporteVentasCobros extends Component
                 FROM notadebito nd
                 LEFT JOIN users u_nd ON u_nd.id = nd.users_registra_id
                 WHERE nd.factura_id IN ({$ph})
+
+                UNION ALL
+
+                  SELECT CASE WHEN om.tipo_movimiento = 1 THEN 'NOTA_DEBITO' ELSE 'NOTA_CREDITO' END AS tipo,
+                      om.factura_id AS factura_id, om.created_at AS fecha,
+                      CONCAT('OM-', om.id) AS documento, om.monto AS monto,
+                      NULL AS banco_nombre, NULL AS banco_cuenta, NULL AS recibo,
+                      COALESCE(NULLIF(TRIM(om.comentario),''), 'Otro movimiento') AS descripcion,
+                      COALESCE(u_om.name,'') AS responsable, NULL AS forma_pago,
+                      CASE WHEN om.tipo_movimiento = 1 THEN 6 ELSE 5 END AS orden_tipo
+                FROM otros_movimientos om
+                LEFT JOIN users u_om ON u_om.id = om.usr_registro
+                WHERE om.factura_id IN ({$ph}) AND om.estado = 1
             ) AS _movs
             ORDER BY factura_id ASC, fecha ASC, orden_tipo ASC
         ");
@@ -1466,8 +1516,8 @@ class ReporteVentasCobros extends Component
             COALESCE(tpv.descripcion, '') AS modo_pago,
             UPPER(ev.descripcion) AS estado_f01,
             COALESCE(flujo_doc.numero_forma_f01, '') AS flujo_forma_f01,
-            CASE WHEN f.tipo_venta_id = 3 THEN COALESCE(f.sub_total,0) - COALESCE((SELECT SUM(vhp.sub_total_s) FROM venta_has_producto vhp WHERE vhp.factura_id = f.id AND ((DATE(f.fecha_emision) < '2026-06-07' AND COALESCE(vhp.isv,0) = 0) OR (DATE(f.fecha_emision) >= '2026-06-07' AND vhp.tipo_precio = '1'))), 0) ELSE GREATEST(COALESCE(f.sub_total,0) - COALESCE(f.sub_total_grabado,0) - COALESCE(f.sub_total_excento,0), 0) END AS exonerado,
-            COALESCE(f.sub_total_grabado, 0) AS gravado,
+            CASE WHEN f.tipo_venta_id = 3 THEN COALESCE(f.sub_total,0) - COALESCE((SELECT SUM(vhp.sub_total_s) FROM venta_has_producto vhp WHERE vhp.factura_id = f.id AND ((DATE(f.fecha_emision) < '2026-06-07' AND COALESCE(vhp.isv,0) = 0) OR (DATE(f.fecha_emision) >= '2026-06-07' AND vhp.tipo_precio = '1'))), 0) WHEN f.codigo_exoneracion_id IS NULL THEN 0 ELSE GREATEST(COALESCE(f.sub_total,0) - COALESCE(f.sub_total_grabado,0) - COALESCE(f.sub_total_excento,0), 0) END AS exonerado,
+            CASE WHEN f.tipo_venta_id != 3 AND f.codigo_exoneracion_id IS NULL THEN GREATEST(COALESCE(f.sub_total,0) - COALESCE(f.sub_total_excento,0), 0) ELSE COALESCE(f.sub_total_grabado, 0) END AS gravado,
             CASE WHEN f.tipo_venta_id = 3 THEN COALESCE((SELECT SUM(vhp.sub_total_s) FROM venta_has_producto vhp WHERE vhp.factura_id = f.id AND ((DATE(f.fecha_emision) < '2026-06-07' AND COALESCE(vhp.isv,0) = 0) OR (DATE(f.fecha_emision) >= '2026-06-07' AND vhp.tipo_precio = '1'))), 0) ELSE COALESCE(f.sub_total_excento, 0) END AS exento,
             COALESCE(f.sub_total, 0) AS sub_total,
             CASE WHEN f.tipo_venta_id = 3 THEN 0 ELSE COALESCE(f.isv, 0) END AS isv,
