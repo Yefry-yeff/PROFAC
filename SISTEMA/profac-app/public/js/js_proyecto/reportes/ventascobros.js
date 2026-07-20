@@ -630,6 +630,9 @@ function exportarExcel() {
 function _pollExportExcel(token) {
     var startedAt = Date.now();
     var lastPct   = 3;
+    var warnedSlow = false;
+    var SOFT_WARN_MS = 15 * 60 * 1000;
+    var HARD_STOP_MS = 2 * 60 * 60 * 1000;
     var pollId = setInterval(function() {
         $.ajax({
             url: '/reporte/ventas-cobros/exportar-excel-estado/' + encodeURIComponent(token),
@@ -682,13 +685,18 @@ function _pollExportExcel(token) {
             }
         });
 
-        // Timeout de polling en cliente (15 min)
-        if (Date.now() - startedAt > 15 * 60 * 1000) {
+        var elapsed = Date.now() - startedAt;
+        if (!warnedSlow && elapsed > SOFT_WARN_MS) {
+            warnedSlow = true;
+            _vcProgressUpdate(Math.max(lastPct, 90), 'Tomando mas de lo normal. Seguimos procesando...');
+        }
+
+        if (elapsed > HARD_STOP_MS) {
             clearInterval(pollId);
             Swal.fire({
                 icon: 'warning',
-                title: 'Demora en exportación',
-                text: 'La generación sigue en proceso. Intenta nuevamente en unos minutos.'
+                title: 'Exportacion muy demorada',
+                text: 'El archivo sigue en proceso. Puedes intentar descargar nuevamente en unos minutos.'
             });
         }
     }, 2500);
