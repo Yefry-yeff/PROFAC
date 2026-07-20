@@ -169,9 +169,10 @@ class Cliente extends Component
             $cliente->dias_credito=$request->dias_credito;
             $cliente->latitud =TRIM($request->latitud_cliente);
             $cliente->longitud =TRIM($request->longitud_cliente);
-            $cliente->tipo_cliente_id = $request->categoria_cliente;
+            // Todo cliente nuevo se registra siempre como Estatal (A), sin importar lo enviado.
+            $cliente->tipo_cliente_id = 2;
             $cliente->tipo_personalidad_id = $request->tipo_personalidad ;
-            $cliente->categoria_id = $request->categoria_cliente ;
+            $cliente->categoria_id = 2 ;
             $cliente->vendedor = $request->vendedor_cliente ;
             $cliente->users_id = Auth::user()->id;
             $cliente->estado_cliente_id = 1;
@@ -218,9 +219,10 @@ class Cliente extends Component
                 $cliente->dias_credito=TRIM($request->dias_credito);
                 $cliente->latitud =TRIM($request->latitud_cliente);
                 $cliente->longitud =TRIM($request->longitud_cliente);
-                $cliente->tipo_cliente_id = $request->categoria_cliente;
+                // Todo cliente nuevo se registra siempre como Estatal (A), sin importar lo enviado.
+                $cliente->tipo_cliente_id = 2;
                 $cliente->tipo_personalidad_id = $request->tipo_personalidad ;
-                $cliente->categoria_id = $request->categoria_cliente ;
+                $cliente->categoria_id = 2 ;
                 $cliente->vendedor = $request->vendedor_cliente ;
                 $cliente->users_id = Auth::user()->id;
                 $cliente->estado_cliente_id = 1;
@@ -453,9 +455,13 @@ class Cliente extends Component
         $cliente->dias_credito = trim($request->dias_credito_editar);
         $cliente->latitud = trim($request->latitud_cliente_editar);
         $cliente->longitud = trim($request->longitud_cliente_editar);
-        $cliente->tipo_cliente_id = $request->categoria_cliente_editar;
+        // Solo roles autorizados (Administrador, Créditos y Cobros) pueden cambiar el tipo de cliente al editar.
+        $puedeEditarTipoCliente = in_array((int) (Auth::user()->rol_id ?? 0), [1, 4], true);
+        if ($puedeEditarTipoCliente && $request->filled('categoria_cliente_editar')) {
+            $cliente->tipo_cliente_id = $request->categoria_cliente_editar;
+            $cliente->categoria_id = $request->categoria_cliente_editar;
+        }
         $cliente->tipo_personalidad_id = $request->tipo_personalidad_editar;
-        $cliente->categoria_id = $request->categoria_cliente_editar;
         $cliente->vendedor = $request->vendedor_cliente_editar;
         $cliente->users_id = Auth::user()->id;
         $cliente->estado_cliente_id = 1;

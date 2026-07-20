@@ -243,13 +243,15 @@ $(document).ready(function() {
            axios.get('/cliente/tipo/cliente')
            .then(function(response) {
            let array = response.data.tipoCliente;
-           let html = "<option selected disabled>---Seleccione una opción---</option>";
+           // Todo cliente nuevo se registra siempre como Estatal (A): el select
+           // permanece bloqueado (disabled) y se preselecciona automáticamente.
+           let html = "";
 
            array.forEach(tipo => {
-
+               let esEstatal = tipo.id == 2;
                html +=
                    `
-           <option value="${ tipo.id }">${tipo.descripcion}</option>
+           <option value="${ tipo.id }" ${ esEstatal ? 'selected' : '' }>${tipo.descripcion}</option>
            `
            });
 
