@@ -983,7 +983,7 @@ class ReporteVentasCobros extends Component
     {
         try {
             @set_time_limit(0);
-            @ini_set('memory_limit', '1024M');
+            @ini_set('memory_limit', '3072M');
 
             $rows = $this->sqlReporteExcel(
                 $this->norm($request->input('vendedor',    $vendedorId)),
