@@ -379,8 +379,9 @@ class FacturacionEstatal extends Component
                       ->orWhere('nombre', 'LIKE', $like);
                 });
 
-            // Admin (1) y Tele asesor (3) ven todos; los demás solo sus asignados
-            if (!in_array((int) Auth::user()->rol_id, [1, 3], true)) {
+            // Admin (1) y Tele asesor (3) ven todos; usuarios especiales 121/122 también; los demás solo sus asignados
+            $specialUsers = [121, 122];
+            if (!in_array((int) Auth::user()->rol_id, [1, 3], true) && !in_array(Auth::id(), $specialUsers, true)) {
                 $query->where('vendedor', Auth::id());
             }
 

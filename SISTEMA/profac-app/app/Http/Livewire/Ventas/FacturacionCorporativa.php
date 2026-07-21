@@ -97,8 +97,9 @@ class FacturacionCorporativa extends Component
                       ->orWhere('cliente.nombre', 'LIKE', $like);
                 });
 
-            // Admin (1) y Tele asesor (3) ven todos; los demás solo sus asignados
-            if (!in_array($rolId, [1, 3], true)) {
+            // Admin (1) y Tele asesor (3) ven todos; usuarios especiales 121/122 también; los demás solo sus asignados
+            $specialUsers = [121, 122];
+            if (!in_array($rolId, [1, 3], true) && !in_array(Auth::id(), $specialUsers, true)) {
                 $query->where('cliente.vendedor', Auth::id());
             }
 

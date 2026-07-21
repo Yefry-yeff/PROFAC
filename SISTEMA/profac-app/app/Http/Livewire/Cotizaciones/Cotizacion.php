@@ -225,8 +225,9 @@ class Cotizacion extends Component
                       ->orWhere('nombre', 'LIKE', $like);
                 });
 
-            // Admin (1) y Tele asesor (3) ven todos; los demás solo sus asignados
-            if (!in_array($rolId, [1, 3], true)) {
+            // Admin (1) y Tele asesor (3) ven todos; usuarios especiales 121/122 también; los demás solo sus asignados
+            $specialUsers = [121, 122];
+            if (!in_array($rolId, [1, 3], true) && !in_array(Auth::id(), $specialUsers, true)) {
                 $query->where('vendedor', Auth::id());
             }
 
@@ -244,8 +245,8 @@ class Cotizacion extends Component
 
     public function clientesCorporativo(Request $request)
     {
-
-        if (Auth::user()->rol_id == 1 || Auth::user()->rol_id == 9) {
+        $specialUsers = [121, 122];
+        if (Auth::user()->rol_id == 1 || Auth::user()->rol_id == 9 || in_array(Auth::id(), $specialUsers, true)) {
             $listaClientes = DB::SELECT("
             select
                 id,
@@ -283,8 +284,8 @@ class Cotizacion extends Component
 
     public function clientesEstatal(Request $request)
     {
-
-        if (Auth::user()->rol_id == 1 || Auth::user()->rol_id == 3 || Auth::user()->rol_id == 9) {
+        $specialUsers = [121, 122];
+        if (Auth::user()->rol_id == 1 || Auth::user()->rol_id == 3 || Auth::user()->rol_id == 9 || in_array(Auth::id(), $specialUsers, true)) {
             $listaClientes = DB::SELECT("
                     select
                         id,
@@ -312,9 +313,8 @@ class Cotizacion extends Component
 
     public function clientesExonerados(Request $request)
     {
-
-
-        if (Auth::user()->rol_id == 1 || Auth::user()->rol_id == 9) {
+        $specialUsers = [121, 122];
+        if (Auth::user()->rol_id == 1 || Auth::user()->rol_id == 9 || in_array(Auth::id(), $specialUsers, true)) {
             $listaClientes = DB::SELECT("
                     select
                         id,
