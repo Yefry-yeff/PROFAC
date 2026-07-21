@@ -1565,5 +1565,21 @@ Route::post('/reporte/ventas-cobros/actualizar-f01/{facturaId}',                
     Route::get('/flujo_de_venta/modificar_actores_en_factura', \App\Http\Livewire\FlujoDeVenta\ModificarActoresEnFactura::class)
         ->name('flujo_de_venta.modificar_actores_en_factura');
 
+
+    // Ruta auto-generada para: LogisticaDeEntregas\AgrupacionesDeEntregas
+    Route::get('/logistica_de_entregas/agrupaciones_de_entregas', \App\Http\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class);
+
+    // Agrupación de Facturas por Zona Geográfica (Zonas)
+    Route::get('/logistica/zonas/listar', [\App\Http\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'listarZonas'])->name('logistica.zonas.listar');
+    Route::get('/logistica/zonas/departamentos', [\App\Http\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'obtenerDepartamentos'])->name('logistica.zonas.departamentos');
+    Route::get('/logistica/zonas/municipios/{departamentoId}', [\App\Http\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'obtenerMunicipios'])->name('logistica.zonas.municipios');
+    Route::get('/logistica/zonas/obtener/{id}', [\App\Http\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'obtenerZona'])->name('logistica.zonas.obtener');
+    Route::post('/logistica/zonas/guardar', [\App\Http\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'guardarZona'])->name('logistica.zonas.guardar');
+    Route::post('/logistica/zonas/actualizar', [\App\Http\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'actualizarZona'])->name('logistica.zonas.actualizar');
+    Route::post('/logistica/zonas/eliminar/{id}', [\App\Http\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'eliminarZona'])->name('logistica.zonas.eliminar');
+    Route::post('/logistica/zonas/reordenar', [\App\Http\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'reordenarZonas'])->name('logistica.zonas.reordenar');
+    Route::get('/logistica/zonas/resumen', [\App\Http\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'resumenZonas'])->name('logistica.zonas.resumen');
+    Route::get('/logistica/zonas/facturas', [\App\Http\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'facturasPorZona'])->name('logistica.zonas.facturas');
+
     // [auto-routes-anchor]
 });

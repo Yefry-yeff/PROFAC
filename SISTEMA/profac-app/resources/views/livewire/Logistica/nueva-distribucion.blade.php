@@ -76,7 +76,12 @@
                         <!-- Tabs de búsqueda -->
                         <ul class="mb-3 nav nav-pills nav-fill" id="tipoBusquedaTabs" role="tablist">
                             <li class="nav-item">
-                                <a class="nav-link active" id="tab-factura" data-toggle="pill" href="#busqueda-factura" role="tab">
+                                <a class="nav-link active" id="tab-zona" data-toggle="pill" href="#busqueda-zona" role="tab">
+                                    <i class="fas fa-map-marked-alt"></i> Facturas por Zona
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" id="tab-factura" data-toggle="pill" href="#busqueda-factura" role="tab">
                                     <i class="fas fa-file-invoice"></i> Buscar por Número de Factura
                                 </a>
                             </li>
@@ -88,9 +93,29 @@
                         </ul>
 
                         <div class="tab-content" id="tipoBusquedaContent">
-                            
+
+                            <!-- Búsqueda por Zona Geográfica -->
+                            <div class="tab-pane fade show active" id="busqueda-zona" role="tabpanel">
+                                <div id="zonasCardsWrap" class="row">
+                                    <div class="col-12 text-center text-muted py-3">
+                                        <i class="fas fa-spinner fa-spin"></i> Cargando zonas...
+                                    </div>
+                                </div>
+
+                                <!-- Facturas de la zona seleccionada -->
+                                <div id="facturasZonaSeleccionada" style="display: none;" class="mt-3">
+                                    <div class="alert alert-success d-flex justify-content-between align-items-center">
+                                        <span><i class="fas fa-map-marked-alt"></i> <strong>Zona:</strong> <span id="nombreZonaSeleccionada"></span></span>
+                                        <button type="button" class="close" onclick="limpiarZonaSeleccionada()">
+                                            <span>&times;</span>
+                                        </button>
+                                    </div>
+                                    <div id="listaFacturasZona"></div>
+                                </div>
+                            </div>
+
                             <!-- Búsqueda por Factura -->
-                            <div class="tab-pane fade show active" id="busqueda-factura" role="tabpanel">
+                            <div class="tab-pane fade" id="busqueda-factura" role="tabpanel">
                                 <div class="mb-3 input-group input-group-lg">
                                     <div class="input-group-prepend">
                                         <span class="text-white input-group-text bg-primary">
@@ -415,6 +440,204 @@ function limpiarClienteSeleccionado() {
     $('#facturasClienteSeleccionado').hide();
     $('#listaFacturasCliente').html('');
     $('#nombreClienteSeleccionado').text('');
+}
+
+// ========== BÚSQUEDA POR ZONA GEOGRÁFICA ==========
+
+let zonaSeleccionada = null;
+
+function cargarZonasParaBusqueda() {
+    $.get("{{ route('logistica.zonas.resumen') }}", function (data) {
+        if (!data.success) {
+            $('#zonasCardsWrap').html('<div class="col-12"><div class="alert alert-danger mb-0"><i class="fas fa-exclamation-triangle"></i> No se pudieron cargar las zonas</div></div>');
+            return;
+        }
+
+        let html = '';
+        (data.zonas || []).forEach(z => {
+            const badgeColor = z.facturas_pendientes > 0 ? 'warning' : 'secondary';
+            html += `
+            <div class="col-md-4 col-lg-3 mb-3">
+                <div class="card h-100 shadow-sm zona-card" style="cursor:pointer;" onclick="verFacturasDeZona(${z.id}, '${(z.name || '').replace(/'/g, "\\'")}')">
+                    <div class="card-body text-center">
+                        <i class="fas fa-map-marked-alt fa-2x text-primary mb-2"></i>
+                        <h6 class="mb-1">${z.name}</h6>
+                        <span class="badge badge-${badgeColor}">${z.facturas_pendientes} pendiente(s)</span>
+                    </div>
+                </div>
+            </div>`;
+        });
+
+        const sinClasificar = data.sin_clasificar || 0;
+        html += `
+        <div class="col-md-4 col-lg-3 mb-3">
+            <div class="card h-100 shadow-sm zona-card border-secondary" style="cursor:pointer;" onclick="verFacturasDeZona('sin_clasificar', 'Sin clasificar')">
+                <div class="card-body text-center">
+                    <i class="fas fa-question-circle fa-2x text-secondary mb-2"></i>
+                    <h6 class="mb-1">Sin clasificar</h6>
+                    <span class="badge badge-${sinClasificar > 0 ? 'warning' : 'secondary'}">${sinClasificar} pendiente(s)</span>
+                </div>
+            </div>
+        </div>`;
+
+        if (!(data.zonas || []).length && sinClasificar === 0) {
+            html = '<div class="col-12"><div class="alert alert-info mb-0"><i class="fas fa-info-circle"></i> No hay zonas configuradas. Cree zonas en el módulo de Agrupaciones de Entregas.</div></div>';
+        }
+
+        $('#zonasCardsWrap').html(html);
+    }).fail(function () {
+        $('#zonasCardsWrap').html('<div class="col-12"><div class="alert alert-danger mb-0"><i class="fas fa-exclamation-triangle"></i> Error al cargar las zonas</div></div>');
+    });
+}
+
+function limpiarZonaSeleccionada() {
+    zonaSeleccionada = null;
+    $('#facturasZonaSeleccionada').hide();
+    $('#listaFacturasZona').html('');
+    $('#nombreZonaSeleccionada').text('');
+}
+
+function verFacturasDeZona(zonaId, nombreZona) {
+    zonaSeleccionada = { id: zonaId, nombre: nombreZona };
+    $('#nombreZonaSeleccionada').text(nombreZona);
+    $('#facturasZonaSeleccionada').show();
+    $('#listaFacturasZona').html('<div class="text-center text-muted py-3"><i class="fas fa-spinner fa-spin"></i> Cargando facturas...</div>');
+
+    $.get("{{ route('logistica.zonas.facturas') }}", { zona_id: zonaId }, function (data) {
+        const facturas = (data && data.facturas) || [];
+        if (!facturas.length) {
+            $('#listaFacturasZona').html(`
+                <div class="mb-0 alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    No hay facturas pendientes en esta zona
+                </div>
+            `);
+            return;
+        }
+
+        let html = `
+        <div class="mb-3 d-flex justify-content-between align-items-center">
+            <button type="button" class="btn btn-success btn-sm" onclick="agregarFacturasSeleccionadasZona()">
+                <i class="fas fa-plus-circle"></i> Agregar Seleccionadas
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="toggleSeleccionarTodasZona()">
+                <i class="fas fa-check-square"></i> Seleccionar Todas
+            </button>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover table-bordered">
+                <thead class="thead-light">
+                    <tr>
+                        <th width="40px" class="text-center">
+                            <input type="checkbox" id="checkTodasFacturasZona" onchange="seleccionarTodasFacturasZona(this.checked)">
+                        </th>
+                        <th>Factura</th>
+                        <th>Cliente</th>
+                        <th>Municipio</th>
+                        <th>Dirección</th>
+                        <th>Asesor Comercial</th>
+                        <th>Fecha</th>
+                        <th width="100px" class="text-center">Productos</th>
+                        <th width="80px" class="text-center">Estado</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
+        facturas.forEach(f => {
+            const yaAgregada = facturasSelTmp.find(fs => fs.id === f.id);
+            const checkDisabled = yaAgregada ? 'disabled' : '';
+            const rowClass = yaAgregada ? 'table-success' : '';
+            const badge = yaAgregada ? '<span class="badge badge-success"><i class="fas fa-check"></i> Agregada</span>' : '<span class="badge badge-light">Disponible</span>';
+
+            html += `
+                <tr class="${rowClass}">
+                    <td class="text-center">
+                        <input type="checkbox" class="check-factura-zona" ${checkDisabled}
+                               data-id="${f.id}"
+                               data-numero="${f.cai}"
+                               data-cliente="${(f.cliente || '').replace(/"/g, '&quot;')}"
+                               data-total="${f.total}"
+                               data-productos="${f.cantidad_productos || 0}">
+                    </td>
+                    <td>
+                        <strong>#${f.cai}</strong>
+                        <a href="javascript:void(0)" onclick="verDetalleFactura(${f.id})" class="ml-2 text-info" title="Ver detalle">
+                            <i class="fas fa-eye"></i>
+                        </a>
+                    </td>
+                    <td><small>${f.cliente}</small></td>
+                    <td><small>${f.municipio || '-'}</small></td>
+                    <td><small>${f.direccion_completa || '-'}</small></td>
+                    <td><small>${f.asesor_comercial || '-'}</small></td>
+                    <td><small class="text-muted"><i class="fas fa-calendar"></i> ${f.fecha_emision}</small></td>
+                    <td class="text-center">
+                        <span class="badge badge-info">${f.cantidad_productos || 0} <i class="fas fa-box"></i></span>
+                    </td>
+                    <td class="text-center">${badge}</td>
+                </tr>`;
+        });
+
+        html += `
+                </tbody>
+            </table>
+        </div>`;
+
+        $('#listaFacturasZona').html(html);
+    }).fail(function () {
+        $('#listaFacturasZona').html(`
+            <div class="mb-0 alert alert-danger">
+                <i class="fas fa-exclamation-triangle"></i>
+                Error al cargar las facturas de la zona
+            </div>
+        `);
+    });
+}
+
+function seleccionarTodasFacturasZona(checked) {
+    $('.check-factura-zona:not(:disabled)').prop('checked', checked);
+}
+
+function toggleSeleccionarTodasZona() {
+    const todasMarcadas = $('.check-factura-zona:not(:disabled):checked').length === $('.check-factura-zona:not(:disabled)').length;
+    seleccionarTodasFacturasZona(!todasMarcadas);
+    $('#checkTodasFacturasZona').prop('checked', !todasMarcadas);
+}
+
+function agregarFacturasSeleccionadasZona() {
+    const seleccionadas = [];
+    $('.check-factura-zona:checked').each(function () {
+        const id = parseInt($(this).data('id'));
+        const numero = $(this).data('numero');
+        const cliente = $(this).data('cliente');
+        const total = parseFloat($(this).data('total'));
+        const cantidadProductos = parseInt($(this).data('productos')) || 0;
+
+        if (!facturasSelTmp.find(f => f.id === id)) {
+            seleccionadas.push({ id, numero, cliente, total, cantidadProductos });
+        }
+    });
+
+    if (seleccionadas.length === 0) {
+        toastr.warning('No hay facturas seleccionadas', 'Atención', {
+            positionClass: 'toast-top-right',
+            timeOut: 2000
+        });
+        return;
+    }
+
+    seleccionadas.forEach(f => {
+        agregarFactura(f.id, f.numero, f.cliente, '', f.total, f.cantidadProductos);
+    });
+
+    // Recargar la lista de la zona para refrescar los estados "Agregada"
+    if (zonaSeleccionada) {
+        verFacturasDeZona(zonaSeleccionada.id, zonaSeleccionada.nombre);
+    }
+
+    toastr.success(`${seleccionadas.length} factura(s) agregada(s)`, 'Éxito', {
+        positionClass: 'toast-top-right',
+        timeOut: 2000
+    });
 }
 
 function seleccionarTodasFacturas(checked) {
@@ -847,6 +1070,9 @@ function distribuccionAccion(accion) {
 
 // Inicialización cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', function() {
+
+// ========== CARGA INICIAL: pestaña "Facturas por Zona" ==========
+cargarZonasParaBusqueda();
 
 // ========== MODO EDICIÓN: detectar ?editar=ID ==========
 (function() {
