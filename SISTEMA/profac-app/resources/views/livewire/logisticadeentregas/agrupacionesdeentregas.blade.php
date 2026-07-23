@@ -142,6 +142,33 @@
         min-height: 90px;
     }
 
+    .zn-page .zn-preview-list .zn-preview-item {
+        background: var(--zn-bg-soft);
+        border: 1px dashed #cbd5e1;
+        border-radius: 10px;
+        padding: .55rem .7rem;
+        margin-bottom: .45rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: .5rem;
+    }
+
+    .zn-page .zn-preview-label {
+        font-size: .8rem;
+        color: #475569;
+        margin-bottom: .3rem;
+    }
+
+    .zn-page .zn-preview-empty {
+        border: 1px dashed #cbd5e1;
+        border-radius: 10px;
+        padding: .55rem .7rem;
+        color: #64748b;
+        font-size: .82rem;
+        background: #f8fafc;
+    }
+
     .zn-page .form-control,
     .zn-page .custom-select {
         border-radius: 10px;
@@ -182,6 +209,11 @@
     .swal-over-modal { z-index: 10000 !important; }
     #modalNuevaZona, #modalEditarZona { z-index: 2050 !important; }
     .modal-backdrop { z-index: 2040 !important; }
+
+    /* Fix: el tema (Inspinia) fija .modal-dialog en z-index:2200, por lo que el
+       dropdown de Select2 (z-index:1051 por defecto) quedaba pintado detrás del
+       contenido del modal, invisible aunque técnicamente estuviera abierto. */
+    .zn-modal .select2-dropdown { z-index: 2210 !important; }
 </style>
 @endpush
 
@@ -309,7 +341,7 @@
                 <div class="modal-body">
                     <form id="formNuevaZona">
                         <div class="zn-section">
-                            <div class="zn-section-title"><i class="fas fa-info-circle"></i>Datos Generales</div>
+                            <div class="zn-section-title"><i class="fas fa-info-circle"></i>Datos Generales de la Agrupación</div>
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group mb-md-0">
@@ -330,10 +362,28 @@
                         <div class="zn-section">
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <div class="zn-section-title mb-0"><i class="fas fa-map"></i>Departamentos y Municipios</div>
-                                <button type="button" class="btn btn-success btn-sm" onclick="agregarDeptoRow('nueva')"><i class="fa fa-plus mr-1"></i>Agregar Departamento</button>
+                                <button type="button" class="btn btn-success btn-sm" onclick="agregarDepartamentoSeleccion('nueva')"><i class="fa fa-plus mr-1"></i>Agregar Departamento</button>
                             </div>
-                            <div id="listaDeptosNueva"></div>
-                            <small class="text-muted">Si no selecciona municipios específicos, se incluirá <strong>todo el departamento</strong>.</small>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-md-0">
+                                        <label class="font-weight-semibold mb-1">Departamento *</label>
+                                        <select class="form-control" id="nuevaDeptoSelect" onchange="onDepartamentoChange('nueva')"></select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group mb-0">
+                                        <label class="font-weight-semibold mb-1">Municipio</label>
+                                        <select class="form-control" id="nuevaMunicipioSelect"></select>
+                                    </div>
+                                </div>
+                            </div>
+                            <small class="text-muted">La opción <strong>Todos los municipios</strong> se selecciona por defecto al elegir un departamento.</small>
+                        </div>
+
+                        <div class="zn-section">
+                            <div class="zn-section-title mb-2"><i class="fas fa-list-check"></i>Vista previa de la agrupación</div>
+                            <div class="zn-preview-list" id="previewDeptosNueva"></div>
                         </div>
                     </form>
                 </div>
@@ -357,7 +407,7 @@
                     <form id="formEditarZona">
                         <input type="hidden" id="editZonaId">
                         <div class="zn-section">
-                            <div class="zn-section-title"><i class="fas fa-info-circle"></i>Datos Generales</div>
+                            <div class="zn-section-title"><i class="fas fa-info-circle"></i>Datos Generales de la Agrupación</div>
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group mb-md-0">
@@ -378,10 +428,28 @@
                         <div class="zn-section">
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <div class="zn-section-title mb-0"><i class="fas fa-map"></i>Departamentos y Municipios</div>
-                                <button type="button" class="btn btn-success btn-sm" onclick="agregarDeptoRow('editar')"><i class="fa fa-plus mr-1"></i>Agregar Departamento</button>
+                                <button type="button" class="btn btn-success btn-sm" onclick="agregarDepartamentoSeleccion('editar')"><i class="fa fa-plus mr-1"></i>Agregar Departamento</button>
                             </div>
-                            <div id="listaDeptosEditar"></div>
-                            <small class="text-muted">Si no selecciona municipios específicos, se incluirá <strong>todo el departamento</strong>.</small>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-md-0">
+                                        <label class="font-weight-semibold mb-1">Departamento *</label>
+                                        <select class="form-control" id="editDeptoSelect" onchange="onDepartamentoChange('editar')"></select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group mb-0">
+                                        <label class="font-weight-semibold mb-1">Municipio</label>
+                                        <select class="form-control" id="editMunicipioSelect"></select>
+                                    </div>
+                                </div>
+                            </div>
+                            <small class="text-muted">La opción <strong>Todos los municipios</strong> se selecciona por defecto al elegir un departamento.</small>
+                        </div>
+
+                        <div class="zn-section">
+                            <div class="zn-section-title mb-2"><i class="fas fa-list-check"></i>Vista previa de la actualización</div>
+                            <div class="zn-preview-list" id="previewDeptosEditar"></div>
                         </div>
                     </form>
                 </div>
@@ -397,9 +465,13 @@
 @push('scripts')
 <script>
     let tablaZonas, departamentosCache = [];
+    const detallesSeleccionados = { nueva: [], editar: [] };
 
     $(document).ready(() => {
         cargarDepartamentos();
+
+        $('#modalNuevaZona').on('shown.bs.modal', () => inicializarSelectsModo('nueva'));
+        $('#modalEditarZona').on('shown.bs.modal', () => inicializarSelectsModo('editar'));
 
         tablaZonas = $('#tablaZonas').DataTable({
             processing: true,
@@ -429,8 +501,30 @@
     }
 
     function cargarDepartamentos() {
-        $.get("{{ route('logistica.zonas.departamentos') }}", r => {
-            departamentosCache = r.departamentos || [];
+        return $.ajax({
+            url: "{{ route('logistica.zonas.departamentos') }}",
+            method: 'GET',
+            dataType: 'json'
+        }).done(r => {
+            const departamentos = Array.isArray(r?.departamentos)
+                ? r.departamentos
+                : (r?.departamentos ? Object.values(r.departamentos) : []);
+
+            departamentosCache = departamentos;
+            renderSelectDepartamentos('nueva');
+            renderSelectDepartamentos('editar');
+            inicializarSelectsModo('nueva');
+            inicializarSelectsModo('editar');
+
+            if (!departamentosCache.length) {
+                Swal.fire({title: 'Sin datos', text: 'No se encontraron departamentos para mostrar.', icon: 'info', customClass: {container: 'swal-over-modal'}});
+            }
+        }).fail(x => {
+            departamentosCache = [];
+            renderSelectDepartamentos('nueva');
+            renderSelectDepartamentos('editar');
+            const msg = x.responseJSON?.mensaje || x.statusText || 'No se pudieron cargar los departamentos.';
+            Swal.fire({title: 'Error', text: msg, icon: 'error', customClass: {container: 'swal-over-modal'}});
         });
     }
 
@@ -444,92 +538,184 @@
         });
     }
 
-    /**
-     * Agrega una fila de "Departamento + Municipios" al modal indicado ('nueva' | 'editar').
-     * detalleInicial permite precargar (usado al editar): {department_id, municipios: [id,...]}
-     */
-    function agregarDeptoRow(modo, detalleInicial = null) {
-        const idx = Date.now() + Math.floor(Math.random() * 1000);
-        const contenedor = modo === 'nueva' ? '#listaDeptosNueva' : '#listaDeptosEditar';
+    function obtenerConfigModo(modo) {
+        return modo === 'nueva'
+            ? {
+                depto: '#nuevaDeptoSelect',
+                muni: '#nuevaMunicipioSelect',
+                preview: '#previewDeptosNueva'
+            }
+            : {
+                depto: '#editDeptoSelect',
+                muni: '#editMunicipioSelect',
+                preview: '#previewDeptosEditar'
+            };
+    }
 
-        let optsDepto = '<option value="">-- Seleccione Departamento --</option>';
-        departamentosCache.forEach(d => {
-            const sel = detalleInicial && detalleInicial.department_id == d.id ? 'selected' : '';
-            optsDepto += `<option value="${d.id}" ${sel}>${d.nombre}</option>`;
+    function inicializarSelectBuscable(selector, modalSelector) {
+        const $el = $(selector);
+        if (!$el.length || typeof $el.select2 !== 'function') return;
+
+        if ($el.hasClass('select2-hidden-accessible')) {
+            $el.select2('destroy');
+        }
+
+        $el.select2({
+            width: '100%',
+            dropdownParent: $(modalSelector)
         });
+    }
 
-        const html = `
-            <div class="zn-depto-row" data-row-id="${idx}">
-                <div class="row">
-                    <div class="col-md-5">
-                        <label class="font-weight-semibold mb-1 small">Departamento</label>
-                        <select class="form-control depto-select" onchange="cargarMunicipiosRow(${idx})">${optsDepto}</select>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="font-weight-semibold mb-1 small">Municipios específicos (opcional)</label>
-                        <select class="form-control municipio-select" multiple></select>
-                    </div>
-                    <div class="col-md-1 d-flex align-items-end">
-                        <button type="button" class="btn btn-danger btn-sm mb-1" onclick="$(this).closest('.zn-depto-row').remove()"><i class="fa fa-trash"></i></button>
-                    </div>
-                </div>
-            </div>`;
+    function inicializarSelectsModo(modo) {
+        const cfg = obtenerConfigModo(modo);
+        const modalSelector = modo === 'nueva' ? '#modalNuevaZona' : '#modalEditarZona';
+        inicializarSelectBuscable(cfg.depto, modalSelector);
+        inicializarSelectBuscable(cfg.muni, modalSelector);
+    }
 
-        $(contenedor).append(html);
+    function renderSelectDepartamentos(modo) {
+        const cfg = obtenerConfigModo(modo);
+        let opts = '<option value="">-- Seleccione Departamento --</option>';
+        departamentosCache.forEach(d => {
+            opts += `<option value="${d.id}">${d.nombre}</option>`;
+        });
+        $(cfg.depto).html(opts);
+        $(cfg.depto).val('');
+        if ($(cfg.depto).hasClass('select2-hidden-accessible')) {
+            $(cfg.depto).trigger('change.select2');
+        }
+        limpiarSelectMunicipios(modo);
+    }
 
-        if (detalleInicial && detalleInicial.department_id) {
-            cargarMunicipiosRow(idx, detalleInicial.municipios || []);
+    function limpiarSelectMunicipios(modo) {
+        const cfg = obtenerConfigModo(modo);
+        $(cfg.muni).html('<option value="__TODOS__">Todos los municipios</option>');
+        $(cfg.muni).val('__TODOS__');
+        if ($(cfg.muni).hasClass('select2-hidden-accessible')) {
+            $(cfg.muni).trigger('change.select2');
         }
     }
 
-    function cargarMunicipiosRow(rowId, seleccionados = []) {
-        const $row = $(`.zn-depto-row[data-row-id="${rowId}"]`);
-        const deptoId = $row.find('.depto-select').val();
-        const $muniSelect = $row.find('.municipio-select');
-        $muniSelect.html('');
+    function onDepartamentoChange(modo) {
+        const cfg = obtenerConfigModo(modo);
+        const deptoId = $(cfg.depto).val();
 
-        if (!deptoId) return;
+        if (!deptoId) {
+            limpiarSelectMunicipios(modo);
+            return;
+        }
 
-        $.get("{{ url('/logistica/zonas/municipios') }}/" + deptoId, r => {
-            let opts = '';
-            (r.municipios || []).forEach(m => {
-                const sel = seleccionados.includes(m.id) ? 'selected' : '';
-                opts += `<option value="${m.id}" ${sel}>${m.nombre}</option>`;
+        $.ajax({
+            url: "{{ url('/logistica/zonas/municipios') }}/" + deptoId,
+            method: 'GET',
+            dataType: 'json'
+        }).done(r => {
+            let opts = '<option value="__TODOS__" selected>Todos los municipios</option>';
+            const municipios = Array.isArray(r?.municipios)
+                ? r.municipios
+                : (r?.municipios ? Object.values(r.municipios) : []);
+
+            municipios.forEach(m => {
+                opts += `<option value="${m.id}">${m.nombre}</option>`;
             });
-            $muniSelect.html(opts);
+            $(cfg.muni).html(opts);
+            $(cfg.muni).val('__TODOS__');
+            if ($(cfg.muni).hasClass('select2-hidden-accessible')) {
+                $(cfg.muni).trigger('change.select2');
+            }
+        }).fail(x => {
+            limpiarSelectMunicipios(modo);
+            const msg = x.responseJSON?.mensaje || x.statusText || 'No se pudieron cargar los municipios.';
+            Swal.fire({title: 'Error', text: msg, icon: 'error', customClass: {container: 'swal-over-modal'}});
         });
     }
 
-    /**
-     * Extrae la lista plana de "detalles" (department_id/municipality_id) a partir
-     * de las filas dinámicas del modal indicado.
-     */
-    function recolectarDetalles(contenedor) {
-        const detalles = [];
-        let valido = true;
+    function agregarDepartamentoSeleccion(modo) {
+        const cfg = obtenerConfigModo(modo);
+        const deptoId = parseInt($(cfg.depto).val(), 10);
+        if (!deptoId) {
+            Swal.fire({title: 'Datos incompletos', text: 'Seleccione un departamento.', icon: 'warning', customClass: {container: 'swal-over-modal'}});
+            return;
+        }
 
-        $(contenedor).find('.zn-depto-row').each(function () {
-            const deptoId = $(this).find('.depto-select').val();
-            if (!deptoId) { valido = false; return; }
+        const deptoNombre = $(cfg.depto + ' option:selected').text().trim();
+        const municipioVal = $(cfg.muni).val() || '__TODOS__';
+        const municipioId = municipioVal === '__TODOS__' ? null : parseInt(municipioVal, 10);
+        const municipioNombre = municipioId === null
+            ? 'Todos los municipios'
+            : $(cfg.muni + ' option:selected').text().trim();
 
-            const municipios = $(this).find('.municipio-select').val() || [];
-            if (municipios.length === 0) {
-                detalles.push({ department_id: parseInt(deptoId), municipality_id: null });
-            } else {
-                municipios.forEach(mid => {
-                    detalles.push({ department_id: parseInt(deptoId), municipality_id: parseInt(mid) });
-                });
+        if (municipioId === null) {
+            detallesSeleccionados[modo] = detallesSeleccionados[modo].filter(d => d.department_id !== deptoId);
+        } else {
+            detallesSeleccionados[modo] = detallesSeleccionados[modo].filter(d => !(d.department_id === deptoId && d.municipality_id === null));
+            const repetido = detallesSeleccionados[modo].some(d => d.department_id === deptoId && d.municipality_id === municipioId);
+            if (repetido) {
+                Swal.fire({title: 'Duplicado', text: 'Ese municipio ya está agregado en la vista previa.', icon: 'info', customClass: {container: 'swal-over-modal'}});
+                return;
             }
+        }
+
+        detallesSeleccionados[modo].push({
+            department_id: deptoId,
+            municipality_id: municipioId,
+            departamento: deptoNombre,
+            municipio: municipioNombre
         });
 
-        return valido ? detalles : null;
+        renderPreviewDetalles(modo);
+    }
+
+    function quitarDetallePreview(modo, idx) {
+        detallesSeleccionados[modo].splice(idx, 1);
+        renderPreviewDetalles(modo);
+    }
+
+    function renderPreviewDetalles(modo) {
+        const cfg = obtenerConfigModo(modo);
+        const lista = detallesSeleccionados[modo] || [];
+
+        if (!lista.length) {
+            $(cfg.preview).html('<div class="zn-preview-empty">Aún no ha agregado departamentos o municipios.</div>');
+            return;
+        }
+
+        let html = '';
+        lista.forEach((d, idx) => {
+            html += `
+                <div class="zn-preview-item">
+                    <div>
+                        <div class="zn-preview-label">Departamento</div>
+                        <strong>${d.departamento}</strong>
+                        <span class="mx-1 text-muted">/</span>
+                        <span>${d.municipio}</span>
+                    </div>
+                    <button type="button" class="btn btn-danger btn-sm" onclick="quitarDetallePreview('${modo}', ${idx})" title="Quitar">
+                        <i class="fa fa-trash"></i>
+                    </button>
+                </div>`;
+        });
+
+        $(cfg.preview).html(html);
+    }
+
+    function recolectarDetalles(modo) {
+        return (detallesSeleccionados[modo] || []).map(d => ({
+            department_id: d.department_id,
+            municipality_id: d.municipality_id
+        }));
     }
 
     function abrirModalNuevaZona() {
         $('#formNuevaZona')[0].reset();
         $('#inputNombreZonaNueva').removeClass('is-invalid');
-        $('#listaDeptosNueva').html('');
-        agregarDeptoRow('nueva');
+        detallesSeleccionados.nueva = [];
+        if (!departamentosCache.length) {
+            cargarDepartamentos();
+        } else {
+            renderSelectDepartamentos('nueva');
+        }
+        renderPreviewDetalles('nueva');
         $('#modalNuevaZona').modal('show');
     }
 
@@ -541,8 +727,8 @@
         }
         $('#inputNombreZonaNueva').removeClass('is-invalid');
 
-        const detalles = recolectarDetalles('#listaDeptosNueva');
-        if (detalles === null || detalles.length === 0) {
+        const detalles = recolectarDetalles('nueva');
+        if (detalles.length === 0) {
             Swal.fire({title: 'Datos incompletos', text: 'Seleccione al menos un departamento válido.', icon: 'warning', customClass: {container: 'swal-over-modal'}});
             return;
         }
@@ -578,18 +764,19 @@
             $('#editZonaId').val(r.zona.id);
             $('#editNombreZona').val(r.zona.name).removeClass('is-invalid');
             $('#editDescripcionZona').val(r.zona.description);
-            $('#listaDeptosEditar').html('');
+            detallesSeleccionados.editar = (r.detalles || []).map(d => ({
+                department_id: parseInt(d.department_id, 10),
+                municipality_id: d.municipality_id ? parseInt(d.municipality_id, 10) : null,
+                departamento: d.departamento,
+                municipio: d.municipality_id ? d.municipio : 'Todos los municipios'
+            }));
 
-            // Agrupar detalles por departamento
-            const porDepto = {};
-            (r.detalles || []).forEach(d => {
-                if (!porDepto[d.department_id]) porDepto[d.department_id] = [];
-                if (d.municipality_id) porDepto[d.department_id].push(d.municipality_id);
-            });
-
-            Object.keys(porDepto).forEach(deptoId => {
-                agregarDeptoRow('editar', { department_id: parseInt(deptoId), municipios: porDepto[deptoId] });
-            });
+            if (!departamentosCache.length) {
+                cargarDepartamentos();
+            } else {
+                renderSelectDepartamentos('editar');
+            }
+            renderPreviewDetalles('editar');
 
             $('#modalEditarZona').modal('show');
         }).fail(() => Swal.fire({title: 'Error', text: 'No se pudo cargar la zona', icon: 'error'}));
@@ -603,8 +790,8 @@
         }
         $('#editNombreZona').removeClass('is-invalid');
 
-        const detalles = recolectarDetalles('#listaDeptosEditar');
-        if (detalles === null || detalles.length === 0) {
+        const detalles = recolectarDetalles('editar');
+        if (detalles.length === 0) {
             Swal.fire({title: 'Datos incompletos', text: 'Seleccione al menos un departamento válido.', icon: 'warning', customClass: {container: 'swal-over-modal'}});
             return;
         }

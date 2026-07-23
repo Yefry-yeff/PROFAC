@@ -1304,6 +1304,17 @@ class DistribucionEntrega extends Component
         try {
             Log::info("=== Completando distribución ID: {$distribucionId} ===");
 
+            $request = request();
+
+            $horaLlegada = $request->input('hora_llegada');
+            if (empty($horaLlegada) || !preg_match('/^\d{2}:\d{2}(:\d{2})?$/', $horaLlegada)) {
+                return response()->json([
+                    'icon' => 'warning',
+                    'title' => 'Hora requerida',
+                    'text' => 'Debe indicar la hora de llegada del equipo para completar la distribución',
+                ], 422);
+            }
+
             $distribucion = ModelDistribucionEntrega::findOrFail($distribucionId);
 
             Log::info("Distribución encontrada:", [
@@ -1392,7 +1403,8 @@ class DistribucionEntrega extends Component
 
             DB::beginTransaction();
 
-            $distribucion->estado_id = 3; // Completada
+            $distribucion->estado_id    = 3; // Completada
+            $distribucion->hora_llegada = $horaLlegada;
             $distribucion->save();
 
             // Sincronizar historico_flujo (tipo_tramite_id = 5) por cada factura

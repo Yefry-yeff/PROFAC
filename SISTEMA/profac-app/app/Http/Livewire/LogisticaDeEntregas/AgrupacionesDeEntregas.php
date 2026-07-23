@@ -71,26 +71,58 @@ class AgrupacionesDeEntregas extends Component
     }
 
     /**
-     * Subconsulta que resuelve el zone_group_id de un cliente aliasado como "c"
-     * (requiere c.municipio_id). Prioridad: coincidencia por municipio específico
-     * primero, luego coincidencia por "todo el departamento". Si no hay coincidencia
-     * devuelve NULL (el cliente cae en el grupo "Sin clasificar").
+     * Subconsulta que resuelve el zone_group_id de una factura aliasada como "f"
+     * a partir del departamento/municipio que el GESTOR DE ENTREGA registró al
+     * "tratar" la factura (tabla factura_tratamiento_entrega), y ya NO desde el
+     * municipio del cliente. Prioridad: coincidencia por municipio específico
+     * primero, luego coincidencia por "todo el departamento". Si la factura aún
+     * no ha sido tratada, o no hay coincidencia con NINGUNA zona, devuelve NULL
+     * (cae en el grupo "Sin clasificar"). Se usa ÚNICAMENTE para detectar
+     * facturas sin ninguna zona asociada; para el conteo por zona individual
+     * usar {@see condicionFacturaEnZona()}, ya que una factura puede pertenecer
+     * a más de una zona a la vez (p. ej. una zona de municipio específico y
+     * otra de "todo el departamento" que también lo cubre).
      */
     private function subconsultaZonaResuelta(): string
     {
         return "
             COALESCE(
                 (SELECT zgd1.zone_group_id
-                 FROM zone_group_details zgd1
+                 FROM factura_tratamiento_entrega fte1
+                 INNER JOIN zone_group_details zgd1 ON zgd1.status = 1 AND zgd1.municipality_id = fte1.municipality_id
                  INNER JOIN zone_groups zg1 ON zg1.id = zgd1.zone_group_id AND zg1.status = 1
-                 WHERE zgd1.status = 1 AND zgd1.municipality_id = c.municipio_id
+                 WHERE fte1.factura_id = f.id
                  ORDER BY zgd1.id LIMIT 1),
                 (SELECT zgd2.zone_group_id
-                 FROM zone_group_details zgd2
+                 FROM factura_tratamiento_entrega fte2
+                 INNER JOIN zone_group_details zgd2 ON zgd2.status = 1 AND zgd2.municipality_id IS NULL AND zgd2.department_id = fte2.department_id
                  INNER JOIN zone_groups zg2 ON zg2.id = zgd2.zone_group_id AND zg2.status = 1
-                 INNER JOIN municipio m2 ON m2.id = c.municipio_id
-                 WHERE zgd2.status = 1 AND zgd2.municipality_id IS NULL AND zgd2.department_id = m2.departamento_id
+                 WHERE fte2.factura_id = f.id
                  ORDER BY zgd2.id LIMIT 1)
+            )
+        ";
+    }
+
+    /**
+     * Condición EXISTS que determina si la factura aliasada como "f" pertenece
+     * a la zona indicada en $zoneGroupIdExpr (puede ser un literal correlacionado
+     * como "zg.id" o un marcador "?"). A diferencia de subconsultaZonaResuelta(),
+     * esta condición NO es excluyente: una factura puede cumplir esta condición
+     * para varias zonas simultáneamente (p. ej. si una zona cubre el municipio
+     * específico tratado y otra zona cubre "todo el departamento").
+     */
+    private function condicionFacturaEnZona(string $zoneGroupIdExpr): string
+    {
+        return "
+            EXISTS (
+                SELECT 1
+                FROM factura_tratamiento_entrega fte
+                INNER JOIN zone_group_details zgd ON zgd.status = 1
+                    AND zgd.zone_group_id = {$zoneGroupIdExpr}
+                    AND zgd.department_id = fte.department_id
+                    AND (zgd.municipality_id = fte.municipality_id OR zgd.municipality_id IS NULL)
+                INNER JOIN zone_groups zgchk ON zgchk.id = zgd.zone_group_id AND zgchk.status = 1
+                WHERE fte.factura_id = f.id
             )
         ";
     }
@@ -121,7 +153,7 @@ class AgrupacionesDeEntregas extends Component
     {
         try {
             $pendiente = $this->condicionFacturaPendiente();
-            $zonaResuelta = $this->subconsultaZonaResuelta();
+            $facturaEnZona = $this->condicionFacturaEnZona('zg.id');
 
             $zonas = DB::select("
                 SELECT
@@ -137,7 +169,7 @@ class AgrupacionesDeEntregas extends Component
                         FROM factura f
                         INNER JOIN cliente c ON c.id = f.cliente_id
                         WHERE {$pendiente}
-                        AND {$zonaResuelta} = zg.id
+                        AND {$facturaEnZona}
                     ) AS facturas_pendientes
                 FROM zone_groups zg
                 ORDER BY zg.orden ASC, zg.name ASC
@@ -492,44 +524,47 @@ class AgrupacionesDeEntregas extends Component
     {
         try {
             $pendiente = $this->condicionFacturaPendiente();
+            $facturaEnZona = $this->condicionFacturaEnZona('zg.id');
             $zonaResuelta = $this->subconsultaZonaResuelta();
 
-            $conteos = DB::select("
-                SELECT resolved.zone_group_id, COUNT(*) AS total
-                FROM (
-                    SELECT f.id, {$zonaResuelta} AS zone_group_id
-                    FROM factura f
-                    INNER JOIN cliente c ON c.id = f.cliente_id
-                    WHERE {$pendiente}
-                ) resolved
-                GROUP BY resolved.zone_group_id
+            $zonas = DB::select("
+                SELECT
+                    zg.id,
+                    zg.name,
+                    zg.description,
+                    (
+                        SELECT COUNT(*)
+                        FROM factura f
+                        INNER JOIN cliente c ON c.id = f.cliente_id
+                        WHERE {$pendiente}
+                        AND {$facturaEnZona}
+                    ) AS facturas_pendientes
+                FROM zone_groups zg
+                WHERE zg.status = 1
+                ORDER BY zg.orden ASC, zg.name ASC
             ");
 
-            $conteosPorZona = [];
-            $sinClasificar = 0;
-            foreach ($conteos as $c) {
-                if (is_null($c->zone_group_id)) {
-                    $sinClasificar = (int) $c->total;
-                } else {
-                    $conteosPorZona[$c->zone_group_id] = (int) $c->total;
-                }
-            }
+            $sinClasificar = DB::selectOne("
+                SELECT COUNT(*) AS total
+                FROM factura f
+                INNER JOIN cliente c ON c.id = f.cliente_id
+                WHERE {$pendiente}
+                AND {$zonaResuelta} IS NULL
+            ")->total;
 
-            $zonas = ZoneGroup::activos()->orderBy('orden')->orderBy('name')->get(['id', 'name', 'description']);
-
-            $resultado = $zonas->map(function ($z) use ($conteosPorZona) {
+            $resultado = collect($zonas)->map(function ($z) {
                 return [
                     'id' => $z->id,
                     'name' => $z->name,
                     'description' => $z->description,
-                    'facturas_pendientes' => $conteosPorZona[$z->id] ?? 0,
+                    'facturas_pendientes' => (int) $z->facturas_pendientes,
                 ];
             })->values();
 
             return response()->json([
                 'success' => true,
                 'zonas' => $resultado,
-                'sin_clasificar' => $sinClasificar,
+                'sin_clasificar' => (int) $sinClasificar,
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
@@ -560,19 +595,16 @@ class AgrupacionesDeEntregas extends Component
                     f.fecha_emision,
                     c.nombre AS cliente,
                     COALESCE(m.nombre, '') AS municipio,
-                    CONCAT(
-                        c.direccion,
-                        CASE WHEN c.ref_referencias IS NOT NULL AND TRIM(c.ref_referencias) <> ''
-                             THEN CONCAT(' - ', c.ref_referencias)
-                             ELSE ''
-                        END
-                    ) AS direccion_completa,
+                    COALESCE(fte.direccion_entrega, '') AS direccion_completa,
                     COALESCE(uv.name, '') AS asesor_comercial,
+                    COALESCE(g.name, '') AS gestor,
                     (SELECT COUNT(*) FROM venta_has_producto vhp WHERE vhp.factura_id = f.id) AS cantidad_productos
                 FROM factura f
                 INNER JOIN cliente c ON c.id = f.cliente_id
-                LEFT JOIN municipio m ON m.id = c.municipio_id
+                LEFT JOIN factura_tratamiento_entrega fte ON fte.factura_id = f.id
+                LEFT JOIN municipio m ON m.id = fte.municipality_id
                 LEFT JOIN users uv ON uv.id = f.vendedor
+                LEFT JOIN users g ON g.id = f.gestor_entrega
                 WHERE {$pendiente}
             ";
 
@@ -580,7 +612,7 @@ class AgrupacionesDeEntregas extends Component
                 $sql .= " AND {$zonaResuelta} IS NULL";
                 $params = [];
             } else {
-                $sql .= " AND {$zonaResuelta} = ?";
+                $sql .= " AND {$this->condicionFacturaEnZona('?')}";
                 $params = [(int) $zonaId];
             }
 

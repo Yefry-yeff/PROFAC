@@ -536,6 +536,7 @@ function verFacturasDeZona(zonaId, nombreZona) {
                         <th>Municipio</th>
                         <th>Dirección</th>
                         <th>Asesor Comercial</th>
+                        <th>Gestor de Entrega</th>
                         <th>Fecha</th>
                         <th width="100px" class="text-center">Productos</th>
                         <th width="80px" class="text-center">Estado</th>
@@ -569,6 +570,7 @@ function verFacturasDeZona(zonaId, nombreZona) {
                     <td><small>${f.municipio || '-'}</small></td>
                     <td><small>${f.direccion_completa || '-'}</small></td>
                     <td><small>${f.asesor_comercial || '-'}</small></td>
+                    <td><small>${f.gestor || '-'}</small></td>
                     <td><small class="text-muted"><i class="fas fa-calendar"></i> ${f.fecha_emision}</small></td>
                     <td class="text-center">
                         <span class="badge badge-info">${f.cantidad_productos || 0} <i class="fas fa-box"></i></span>

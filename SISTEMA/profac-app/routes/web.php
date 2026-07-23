@@ -1522,11 +1522,19 @@ Route::post('/reporte/ventas-cobros/actualizar-f01/{facturaId}',                
     Route::get('/logistica/reporte_logistica',        ReporteLogistica::class);
     Route::get('/logistica/reportes/filtros',         [ReporteLogistica::class, 'obtenerFiltros']);
     Route::get('/logistica/reportes/kpis',            [ReporteLogistica::class, 'obtenerKPIs']);
+    Route::get('/logistica/reportes/pendientes-reales', [ReporteLogistica::class, 'obtenerPendientesReales']);
     Route::get('/logistica/reportes/evolucion',       [ReporteLogistica::class, 'obtenerEvolucion']);
     Route::get('/logistica/reportes/por-equipo',      [ReporteLogistica::class, 'obtenerPorEquipo']);
     Route::get('/logistica/reportes/estados',         [ReporteLogistica::class, 'obtenerEstados']);
     Route::get('/logistica/reportes/tabla',           [ReporteLogistica::class, 'obtenerTabla']);
     Route::get('/logistica/reportes/tabla-facturas',  [ReporteLogistica::class, 'obtenerTablaFacturas']);
+    Route::get('/logistica/reportes/facturas-sin-asignar', [ReporteLogistica::class, 'obtenerFacturasSinAsignar']);
+    Route::get('/logistica/reportes/tabla-equipos',   [ReporteLogistica::class, 'obtenerTablaEquipos']);
+    Route::get('/logistica/reportes/detalle-equipo',  [ReporteLogistica::class, 'obtenerDetalleEquipo']);
+    Route::get('/logistica/reportes/exportar-excel-equipos', [ReporteLogistica::class, 'exportarExcelEquipos']);
+    Route::get('/logistica/reportes/exportar-excel-distribucion', [ReporteLogistica::class, 'exportarExcelDistribucion']);
+    Route::get('/logistica/reportes/exportar-excel-facturas', [ReporteLogistica::class, 'exportarExcelFacturas']);
+    Route::get('/logistica/reportes/exportar-excel-resumen-detalle', [ReporteLogistica::class, 'exportarExcelResumenDetalle']);
 
 
 
@@ -1580,6 +1588,21 @@ Route::post('/reporte/ventas-cobros/actualizar-f01/{facturaId}',                
     Route::post('/logistica/zonas/reordenar', [\App\Http\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'reordenarZonas'])->name('logistica.zonas.reordenar');
     Route::get('/logistica/zonas/resumen', [\App\Http\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'resumenZonas'])->name('logistica.zonas.resumen');
     Route::get('/logistica/zonas/facturas', [\App\Http\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'facturasPorZona'])->name('logistica.zonas.facturas');
+
+
+    // Ruta auto-generada para: LogisticaDeEntregas\GestionDeFacturas
+    Route::get('/logistica_de_entregas/gestion_de_facturas', \App\Http\Livewire\LogisticaDeEntregas\GestionDeFacturas::class);
+
+    // Gestión de Distribución de Entregas (tratamiento y asignación por gestor)
+    Route::get('/logistica/gestion/sin-gestor', [\App\Http\Livewire\LogisticaDeEntregas\GestionDeFacturas::class, 'listarSinGestor'])->name('logistica.gestion.singestor');
+    Route::get('/logistica/gestion/sin-tratar', [\App\Http\Livewire\LogisticaDeEntregas\GestionDeFacturas::class, 'listarSinTratar'])->name('logistica.gestion.sintratar');
+    Route::get('/logistica/gestion/tratadas', [\App\Http\Livewire\LogisticaDeEntregas\GestionDeFacturas::class, 'listarTratadas'])->name('logistica.gestion.tratadas');
+    Route::get('/logistica/gestion/asignadas', [\App\Http\Livewire\LogisticaDeEntregas\GestionDeFacturas::class, 'listarAsignadas'])->name('logistica.gestion.asignadas');
+    Route::get('/logistica/gestion/completadas', [\App\Http\Livewire\LogisticaDeEntregas\GestionDeFacturas::class, 'listarCompletadas'])->name('logistica.gestion.completadas');
+    Route::get('/logistica/gestion/resumen', [\App\Http\Livewire\LogisticaDeEntregas\GestionDeFacturas::class, 'resumenEstados'])->name('logistica.gestion.resumen');
+    Route::post('/logistica/gestion/tratar', [\App\Http\Livewire\LogisticaDeEntregas\GestionDeFacturas::class, 'tratarFacturas'])->name('logistica.gestion.tratar');
+    Route::post('/logistica/gestion/asignar', [\App\Http\Livewire\LogisticaDeEntregas\GestionDeFacturas::class, 'asignarEquipo'])->name('logistica.gestion.asignar');
+    Route::get('/logistica/gestion/historial/{facturaId}', [\App\Http\Livewire\LogisticaDeEntregas\GestionDeFacturas::class, 'historialFactura'])->name('logistica.gestion.historial');
 
     // [auto-routes-anchor]
 });

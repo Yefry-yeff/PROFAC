@@ -125,8 +125,56 @@
 
         {{-- KPI Cards --}}
         <div class="px-3 pt-3">
+            <h6 class="text-uppercase font-weight-bold small mb-2" style="color:#0d9488; letter-spacing:.5px">
+                <i class="fas fa-file-invoice-dollar mr-1"></i>Facturación
+            </h6>
             <div class="row">
                 <div class="col-6 col-md-3 col-lg mb-3">
+                    <div class="card dl-kpi h-100" style="border-left-color:#36b9cc">
+                        <div class="px-3 py-2 card-body">
+                            <div class="kpi-lbl text-info">Total Facturas</div>
+                            <div class="kpi-val text-info" id="kpi-fact-gen">—</div>
+                            <div class="small text-muted mt-1" id="kpi-fact-gen-sub">generadas del período</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3 col-lg mb-3">
+                    <div class="card dl-kpi h-100" style="border-left-color:#f6c23e"
+                         title="Facturas ya asignadas a una distribución activa que aún no se han entregado (sin_entrega/parcial), emitidas dentro del período filtrado">
+                        <div class="px-3 py-2 card-body">
+                            <div class="kpi-lbl text-warning">Pendientes Asignadas</div>
+                            <div class="kpi-val text-warning" id="kpi-pend-asignadas">—</div>
+                            <div class="small text-muted mt-1">en distribución, sin entregar</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3 col-lg mb-3">
+                    <div class="card dl-kpi h-100" style="border-left-color:#dc6803"
+                         title="Facturas que no han sido agregadas a ninguna distribución activa, emitidas dentro del período filtrado">
+                        <div class="px-3 py-2 card-body">
+                            <div class="kpi-lbl" style="color:#dc6803">Pendientes sin Asignar</div>
+                            <div class="kpi-val" style="color:#dc6803" id="kpi-pend-sin-asignar">—</div>
+                            <div class="small text-muted mt-1">sin distribución asignada</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3 col-lg mb-3">
+                    <div class="card dl-kpi h-100" style="border-left-color:#0d9488"
+                         title="(Total de facturas generadas del período − Pendientes reales) / Total de facturas generadas">
+                        <div class="px-3 py-2 card-body">
+                            <div class="kpi-lbl" style="color:#0d9488">Efectividad</div>
+                            <div class="kpi-val" style="color:#0d9488" id="kpi-efect">—</div>
+                            <div class="small text-muted mt-1" id="kpi-efect-sub">generadas vs. pendientes reales</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <h6 class="text-uppercase font-weight-bold small mb-2 mt-1" style="color:#0d9488; letter-spacing:.5px">
+                <i class="fas fa-truck mr-1"></i>Distribución
+            </h6>
+            <div class="row">
+                <div class="col-6 col-md-4 col-lg mb-3">
                     <div class="card dl-kpi h-100" style="border-left-color:#0d9488">
                         <div class="px-3 py-2 card-body">
                             <div class="kpi-lbl" style="color:#0d9488">Distribuciones</div>
@@ -135,16 +183,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-6 col-md-3 col-lg mb-3">
-                    <div class="card dl-kpi h-100" style="border-left-color:#1cc88a">
-                        <div class="px-3 py-2 card-body">
-                            <div class="kpi-lbl text-success">Completadas</div>
-                            <div class="kpi-val text-success" id="kpi-comp">—</div>
-                            <div class="small text-muted mt-1">distribuciones finalizadas</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-6 col-md-3 col-lg mb-3">
+                <div class="col-6 col-md-4 col-lg mb-3">
                     <div class="card dl-kpi h-100" style="border-left-color:#36b9cc">
                         <div class="px-3 py-2 card-body">
                             <div class="kpi-lbl text-info">Total Facturas</div>
@@ -153,7 +192,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-6 col-md-3 col-lg mb-3">
+                <div class="col-6 col-md-4 col-lg mb-3">
                     <div class="card dl-kpi h-100" style="border-left-color:#1cc88a">
                         <div class="px-3 py-2 card-body">
                             <div class="kpi-lbl text-success">Entregadas</div>
@@ -162,16 +201,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-6 col-md-3 col-lg mb-3">
-                    <div class="card dl-kpi h-100" style="border-left-color:#f6c23e">
-                        <div class="px-3 py-2 card-body">
-                            <div class="kpi-lbl text-warning">Pendientes</div>
-                            <div class="kpi-val text-warning" id="kpi-pend">—</div>
-                            <div class="small text-muted mt-1">sin entregar / parcial</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-6 col-md-3 col-lg mb-3">
+                <div class="col-6 col-md-4 col-lg mb-3">
                     <div class="card dl-kpi h-100" style="border-left-color:#e74a3b">
                         <div class="px-3 py-2 card-body">
                             <div class="kpi-lbl text-danger">Anuladas</div>
@@ -180,12 +210,12 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-6 col-md-3 col-lg mb-3">
-                    <div class="card dl-kpi h-100" style="border-left-color:#0d9488">
+                <div class="col-6 col-md-4 col-lg mb-3">
+                    <div class="card dl-kpi h-100" style="border-left-color:#1cc88a">
                         <div class="px-3 py-2 card-body">
-                            <div class="kpi-lbl" style="color:#0d9488">Efectividad</div>
-                            <div class="kpi-val" style="color:#0d9488" id="kpi-efect">—</div>
-                            <div class="small text-muted mt-1">% entregas exitosas</div>
+                            <div class="kpi-lbl text-success">Completadas</div>
+                            <div class="kpi-val text-success" id="kpi-comp">—</div>
+                            <div class="small text-muted mt-1">distribuciones finalizadas</div>
                         </div>
                     </div>
                 </div>
@@ -210,6 +240,11 @@
                         <i class="fas fa-file-invoice mr-1"></i>Por Factura
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link" id="tab-equipos" data-toggle="tab" href="#pane-equipos" role="tab">
+                        <i class="fas fa-users-cog mr-1"></i>Por Equipo
+                    </a>
+                </li>
             </ul>
         </div>
 
@@ -218,6 +253,14 @@
 
             {{-- ── PESTAÑA RESUMEN ── --}}
             <div class="tab-pane fade show active" id="pane-resumen" role="tabpanel">
+
+                {{-- Chip de filtro activo (clic en gráficos) --}}
+                <div id="resumen-filtro-chip" class="alert alert-info d-flex justify-content-between align-items-center py-2 mb-3" style="display:none">
+                    <span id="resumen-filtro-txt"></span>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="dashLogistica.limpiarFiltroClick()">
+                        <i class="fas fa-times mr-1"></i> Quitar filtro
+                    </button>
+                </div>
 
                 {{-- Fila 1: Evolución --}}
                 <div class="mb-3 row">
@@ -278,11 +321,53 @@
                     </div>
                 </div>
 
+                {{-- Fila 3: Detalle de facturas (pendientes / entregadas / anuladas) --}}
+                <div class="mb-3 row">
+                    <div class="col-12">
+                        <div class="shadow-sm card">
+                                <div class="py-2 px-3 card-header d-flex align-items-center justify-content-between">
+                                <span class="font-weight-bold">
+                                    <i class="fas fa-list-ul mr-1 text-teal"></i>
+                                    Detalle de Facturas (Pendientes / Entregadas / Anuladas)
+                                </span>
+                                <button class="btn btn-sm btn-success" onclick="dashLogistica.exportarExcelResumenDetalle()"
+                                        title="Exportar Excel">
+                                    <i class="fas fa-file-excel mr-1"></i> Exportar Excel
+                                </button>
+                            </div>
+                            <div class="p-2 card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-bordered table-hover w-100" id="tabla-resumen-detalle">
+                                        <thead class="thead-light">
+                                            <tr>
+                                                <th>Factura</th>
+                                                <th>Cliente</th>
+                                                <th>Equipo</th>
+                                                <th>Fecha Prog.</th>
+                                                <th class="text-center">Estado</th>
+                                                <th>Fecha Entrega</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
             {{-- /pane-resumen --}}
 
+
             {{-- ── PESTAÑA DETALLE ── --}}
             <div class="tab-pane fade" id="pane-detalle" role="tabpanel">
+                <div class="d-flex justify-content-end mb-2">
+                    <button class="btn btn-sm btn-success" onclick="dashLogistica.exportarExcelDistribucion()"
+                            title="Exportar Excel">
+                        <i class="fas fa-file-excel mr-1"></i> Exportar Excel
+                    </button>
+                </div>
                 <div class="table-responsive">
                     <table class="table table-sm table-bordered table-hover w-100" id="tabla-logistica">
                         <thead class="thead-light">
@@ -309,12 +394,18 @@
             <div class="tab-pane fade" id="pane-facturas" role="tabpanel">
 
                 {{-- Leyenda de estado --}}
-                <div class="mb-2 d-flex flex-wrap" style="gap:6px">
-                    <span class="badge badge-pill" style="background:#1cc88a;color:#fff">Entregado</span>
-                    <span class="badge badge-pill" style="background:#f6c23e;color:#333">Parcial</span>
-                    <span class="badge badge-pill" style="background:#858796;color:#fff">Sin Entregar</span>
-                    <span class="badge badge-pill" style="background:#e74a3b;color:#fff">Anulada</span>
-                    <small class="text-muted ml-2 align-self-center">* Las columnas de motivo solo aplican a facturas anuladas o confirmadas</small>
+                <div class="mb-2 d-flex flex-wrap align-items-center justify-content-between">
+                    <div class="d-flex flex-wrap align-items-center" style="gap:6px">
+                        <span class="badge badge-pill" style="background:#1cc88a;color:#fff">Entregado</span>
+                        <span class="badge badge-pill" style="background:#f6c23e;color:#333">Parcial</span>
+                        <span class="badge badge-pill" style="background:#858796;color:#fff">Sin Entregar</span>
+                        <span class="badge badge-pill" style="background:#e74a3b;color:#fff">Anulada</span>
+                        <small class="text-muted ml-2">* Las columnas de motivo solo aplican a facturas anuladas o confirmadas</small>
+                    </div>
+                    <button class="btn btn-sm btn-success" onclick="dashLogistica.exportarExcelFacturas()"
+                            title="Exportar Excel">
+                        <i class="fas fa-file-excel mr-1"></i> Exportar Excel
+                    </button>
                 </div>
 
                 <div class="table-responsive">
@@ -340,6 +431,33 @@
             </div>
             {{-- /pane-facturas --}}
 
+            {{-- ── PESTAÑA POR EQUIPO ── --}}
+            <div class="tab-pane fade" id="pane-equipos" role="tabpanel">
+                <div class="d-flex justify-content-end mb-2">
+                    <button class="btn btn-sm btn-success" onclick="dashLogistica.exportarExcelEquipos()"
+                            title="Exportar Excel detallado por factura">
+                        <i class="fas fa-file-excel mr-1"></i> Exportar Excel Detallado
+                    </button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered table-hover w-100" id="tabla-equipos">
+                        <thead class="thead-light">
+                            <tr>
+                                <th>Equipo</th>
+                                <th>Fecha</th>
+                                <th>Hora Salida</th>
+                                <th>Hora Última Entrega</th>
+                                <th>Hora Llegada</th>
+                                <th>Miembros / % Comisión</th>
+                                <th class="text-center">Facturas Entregadas</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+            {{-- /pane-equipos --}}
+
         </div>
     </div>
     {{-- /dl-main-card --}}
@@ -349,4 +467,47 @@
 @push('scripts')
 <script src="{{ asset('js/js_proyecto/reportes/dashboard-logistica.js') }}"></script>
 @endpush
+
+<!-- Modal: Detalle de entregas por equipo -->
+<div class="modal fade" id="modalDetalleEquipo" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="text-white modal-header" style="background: linear-gradient(135deg,#0f766e,#14b8a6);">
+                <h5 class="modal-title">
+                    <i class="fas fa-users-cog"></i> Entregas del equipo: <span id="detEquipoNombre"></span>
+                </h5>
+                <button type="button" class="text-white close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered">
+                        <thead class="thead-light">
+                            <tr>
+                                <th>Factura</th>
+                                <th>Cliente</th>
+                                <th>Dirección de Entrega</th>
+                                <th class="text-center">Hora de Entrega</th>
+                                <th class="text-center">Hallazgo</th>
+                            </tr>
+                        </thead>
+                        <tbody id="detEquipoTablaBody">
+                            <tr>
+                                <td colspan="5" class="text-center py-4">
+                                    <i class="fas fa-spinner fa-spin"></i> Cargando...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <i class="fas fa-times"></i> Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
