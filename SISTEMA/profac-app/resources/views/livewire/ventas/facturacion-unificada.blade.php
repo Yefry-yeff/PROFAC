@@ -2618,8 +2618,10 @@
                     htmlprecios = '<option value="' + producto.precio1 + '" data-id="p1" selected>' + producto.precio1 + ' - A</option>';
                 }
 
-                // Determinar el min del precio
-                let minPrecio = (tipoFacturaConfig && tipoFacturaConfig.multiples_precios) ? '' : 'min="' + producto.precio1 + '"';
+                // Precio de referencia de la escala seleccionada. NO se usa para bloquear la escritura
+                // (una Oferta debe poder guardarse con un valor menor); se valida al enviar el formulario
+                // en las facturas con restricción — ver validarPrecioEscalaAntesDeGuardar().
+                let precioEscalaRef = producto.precio1;
 
                 let html = `
                 <tr id='${numeroInputs}'>
@@ -2657,7 +2659,7 @@
                     </td>
                     <td style="vertical-align:middle; padding:4px 6px;">
                         <input type="number" id="precio${numeroInputs}" name="precio${numeroInputs}" value="${producto.precio1}" class="form-control form-control-sm"
-                            ${minPrecio} data-parsley-required step="any" autocomplete="off" style="min-width:80px; font-size:11px;"
+                            data-precio-escala="${precioEscalaRef}" data-parsley-required step="any" autocomplete="off" style="min-width:80px; font-size:11px;"
                             onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
                     </td>
                     <td style="vertical-align:middle; padding:4px 6px;">
@@ -2882,11 +2884,54 @@
         var idprecioIngresado = idprecio.id;
 
         document.getElementById(idprecioIngresado).value = precioSeleccionado;
+        // Guarda el precio de la escala seleccionada como referencia. No bloquea la escritura;
+        // se valida al enviar el formulario — ver validarPrecioEscalaAntesDeGuardar().
+        document.getElementById(idprecioIngresado).setAttribute("data-precio-escala", precioSeleccionado);
+    }
 
-        // Solo aplicar mínimo si NO es sin restricción
-        if (tipoFacturaConfig && !tipoFacturaConfig.multiples_precios) {
-            document.getElementById(idprecioIngresado).setAttribute("min", precioSeleccionado);
+    // ================================================================
+    // VALIDACIÓN: precio ingresado vs. precio de la escala seleccionada
+    // Aplica solo a facturas con restricción (no Ofertas, no Facturas SR).
+    // Las Ofertas pueden guardarse con un valor menor; las Facturas SR ya
+    // manejan su propio flujo de autorización (mostrarModalSrAutorizacion).
+    // ================================================================
+    function obtenerProductosPorDebajoEscala() {
+        var items = [];
+        for (var i = 0; i < arregloIdInputs.length; i++) {
+            var idx = arregloIdInputs[i];
+            var precioInput = document.getElementById('precio' + idx);
+            if (!precioInput) continue;
+            var precioEscala = parseFloat(precioInput.getAttribute('data-precio-escala'));
+            var precioIngresado = parseFloat(precioInput.value);
+            if (!isNaN(precioEscala) && precioEscala > 0 && !isNaN(precioIngresado) && precioIngresado < precioEscala) {
+                var nombreEl = document.getElementById('nombre' + idx);
+                items.push({
+                    nombre: nombreEl ? nombreEl.value : ('Producto #' + idx),
+                    precioEscala: precioEscala,
+                    precioIngresado: precioIngresado
+                });
+            }
         }
+        return items;
+    }
+
+    function mostrarErrorPrecioBajoEscala(productos) {
+        var filas = productos.map(function (p) {
+            return '<tr>'
+                + '<td style="padding:4px 8px; text-align:left;">' + p.nombre + '</td>'
+                + '<td style="padding:4px 8px; text-align:right;">L. ' + p.precioEscala.toFixed(2) + '</td>'
+                + '<td style="padding:4px 8px; text-align:right; color:#c62828; font-weight:700;">L. ' + p.precioIngresado.toFixed(2) + '</td>'
+                + '</tr>';
+        }).join('');
+
+        Swal.fire({
+            icon: 'error',
+            title: 'No se puede facturar',
+            width: 560,
+            html: '<p class="text-left">El valor ingresado es <b>menor</b> al precio de la escala seleccionada para uno o más productos:</p>'
+                + '<table class="table table-sm" style="font-size:12px;"><thead><tr><th>Producto</th><th>Escala</th><th>Ingresado</th></tr></thead><tbody>' + filas + '</tbody></table>'
+                + '<p class="text-left mt-2" style="margin-top:10px;">Si necesita facturar con un valor menor al de la escala, debe realizar la factura desde <b>Editar Factura</b> seleccionando el tipo <b>Factura SR</b>.</p>'
+        });
     }
 
     // ================================================================
@@ -3690,6 +3735,15 @@
 
     $(document).on('submit', '#crear_venta', function(event) {
         event.preventDefault();
+        // 0. Facturas con restricción (no Oferta, no Factura SR): bloquear si algún precio
+        //    ingresado quedó por debajo del precio de la escala seleccionada.
+        if (codigoActual !== 'cotizacion_clientes_a' && !(tipoFacturaConfig && tipoFacturaConfig.multiples_precios)) {
+            var productosBajoEscala = obtenerProductosPorDebajoEscala();
+            if (productosBajoEscala.length > 0) {
+                mostrarErrorPrecioBajoEscala(productosBajoEscala);
+                return;
+            }
+        }
         // 1. Para facturas (no cotizaciones): mostrar modal de gestor de entrega primero
         if (codigoActual !== 'cotizacion_clientes_a') {
             var gestorHidden = document.getElementById('gestor_entrega_hidden');
@@ -4220,8 +4274,9 @@
                         htmlprecios = '<option value="' + precioOpcFmt + '" data-id="p1" selected>' + precioOpcFmt + ' - Escala</option>';
                     }
 
-                    // min = precio de escala actual (precio mínimo de referencia)
-                    var minPrecio = (tipoFacturaConfig && tipoFacturaConfig.multiples_precios) ? '' : 'min="' + precioOpcFmt + '"';
+                    // Precio de referencia de la escala actual. NO bloquea la escritura (ver nota arriba);
+                    // se valida al enviar el formulario en las facturas con restricción.
+                    var precioEscalaRef = precioOpcFmt;
                     var cantidadUsar = prod.cantidad || 1;
                     var esSinExistencia = !(parseFloat(prod.resta_inventario || 0) > 0);
                     var bodegaTexto = esSinExistencia ? 'SIN EXISTENCIA' : (prod.nombre_bodega || '');
@@ -4267,7 +4322,7 @@
                         </td>
                         <td style="vertical-align:middle; padding:4px 6px;">
                             <input type="number" id="precio${idx}" name="precio${idx}" value="${precioUnidFmt}" class="form-control form-control-sm"
-                                ${minPrecio} data-parsley-required step="any" autocomplete="off" style="min-width:80px; font-size:11px;"
+                                data-precio-escala="${precioEscalaRef}" data-parsley-required step="any" autocomplete="off" style="min-width:80px; font-size:11px;"
                                 onchange="calcularTotales(precio${idx},cantidad${idx},${producto.isv},unidad${idx},${idx},restaInventario${idx})">
                         </td>
                         <td style="vertical-align:middle; padding:4px 6px;">

@@ -1098,6 +1098,47 @@ class PrefacturaController
             return response()->json(['error' => 'La prefactura no tiene productos.'], 422);
         }
 
+        // ── Validar precio vs. escala seleccionada ─────────────────────────
+        // Bloquea la facturación directa si el precio unitario de algún producto
+        // quedó por debajo del precio de la escala seleccionada en la prefactura.
+        // El usuario debe usar "Editar Factura" y seleccionar el tipo "Factura SR"
+        // si necesita facturar con un valor menor al de la escala.
+        $productosBajoEscala = [];
+        foreach ($productos as $prod) {
+            $precioEscala = (float) ($prod->precioSeleccionado ?? 0);
+            $precioUnidad = (float) ($prod->precio_unidad ?? 0);
+            if ($precioEscala > 0 && $precioUnidad < $precioEscala - 0.0001) {
+                $productosBajoEscala[] = [
+                    'nombre_producto' => $prod->nombre_producto,
+                    'precio_escala'   => round($precioEscala, 2),
+                    'precio_unidad'   => round($precioUnidad, 2),
+                ];
+            }
+        }
+
+        if (!empty($productosBajoEscala)) {
+            $filas = collect($productosBajoEscala)->map(function ($p) {
+                return '<tr>'
+                    . '<td style="padding:4px 8px; text-align:left;">' . e($p['nombre_producto']) . '</td>'
+                    . '<td style="padding:4px 8px; text-align:right;">L. ' . number_format($p['precio_escala'], 2) . '</td>'
+                    . '<td style="padding:4px 8px; text-align:right; color:#c62828; font-weight:700;">L. ' . number_format($p['precio_unidad'], 2) . '</td>'
+                    . '</tr>';
+            })->implode('');
+
+            $html = '<div style="text-align:left;">'
+                . '<p style="font-size:13px;color:#555;">El valor ingresado es <b>menor</b> al precio de la escala seleccionada para uno o más productos:</p>'
+                . '<table class="table table-sm" style="font-size:12px;width:100%;"><thead><tr><th>Producto</th><th>Escala</th><th>Ingresado</th></tr></thead><tbody>' . $filas . '</tbody></table>'
+                . '<p style="font-size:13px;color:#555;margin-top:10px;">Si necesita facturar con un valor menor al de la escala, debe realizar la factura desde <b>Editar Factura</b> seleccionando el tipo <b>Factura SR</b>.</p>'
+                . '</div>';
+
+            return response()->json([
+                'icon'                   => 'warning',
+                'title'                  => 'No se puede facturar',
+                'warning'                => $html,
+                'productos_bajo_escala'  => $productosBajoEscala,
+            ], 422);
+        }
+
         // ── Construir índices y datos por producto ────────────────────────
         $indicesArr = [];
         $productoData = [];
