@@ -102,6 +102,49 @@
     box-shadow: 0 0 0 .18rem rgba(230,126,34,.2);
 }
 
+/* -- Roles adicionales (multi-rol) -- */
+.usr-roladd-buscar { display: flex; gap: 8px; align-items: flex-start; }
+.usr-roladd-buscar .select2-container { flex: 1 1 auto; }
+.btn-usr-roladd {
+    background: var(--pf-grad) !important;
+    color: #fff !important;
+    border: none !important;
+    border-radius: 5px !important;
+    font-weight: 600 !important;
+    font-size: .78rem;
+    padding: 6px 14px;
+    white-space: nowrap;
+}
+.btn-usr-roladd:hover { filter: brightness(1.05); color: #fff !important; }
+.usr-chip-lista { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; min-height: 30px; }
+.usr-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #fdf4e7;
+    color: #7d3f00;
+    border: 1px solid #f2d49a;
+    border-radius: 20px;
+    padding: 4px 6px 4px 12px;
+    font-size: .78rem;
+    font-weight: 600;
+}
+.usr-chip .usr-chip-remove {
+    cursor: pointer;
+    color: #b45309;
+    background: rgba(180,83,9,.12);
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .68rem;
+    transition: background .15s;
+}
+.usr-chip .usr-chip-remove:hover { background: rgba(180,83,9,.28); }
+.usr-chip-empty { color: #9ca3af; font-size: .78rem; font-style: italic; }
+
 /* -- Responsive -- */
 @media (max-width: 575px) {
     .modal-dialog { margin: .5rem; }
@@ -185,6 +228,19 @@
                                 </div>
                             </div>
                         </form>
+
+                        <p class="modal-section-label mt-2">
+                            <i class="fa fa-user-tag mr-1"></i>Roles adicionales
+                            <span class="text-muted font-weight-normal text-lowercase">(opcional, además del rol principal — se guardan al instante)</span>
+                        </p>
+                        <input type="hidden" id="usr_roladd_usuario_id">
+                        <div class="usr-roladd-buscar">
+                            <select class="form-control form-control-sm" id="usr_roladd_select" style="width:100%"></select>
+                            <button type="button" class="btn-usr-roladd" onclick="agregarRolAdicionalUsuario()">
+                                <i class="fa fa-plus mr-1"></i>Agregar
+                            </button>
+                        </div>
+                        <div id="usr_roladd_lista" class="usr-chip-lista"></div>
                     </div>
 
                     <div class="modal-footer py-2">

@@ -91,12 +91,21 @@ class ListarHistorialPedidos extends Component
             );
 
         // ── Filtro por usuario ─────────────────────────────────────────────
-        // El administrador ve todo; los vendedores sólo ven los flujos
-        // donde el cliente esté asignado al vendedor o el pedido lo creó el usuario.
+        // El administrador ve todo; los demás sólo ven los flujos que ellos
+        // crearon, donde están involucrados (asesor asignado al cliente vía
+        // el campo legacy cliente.vendedor), o donde en Cartera de Clientes
+        // están asignados como Tele Asesor (rol_id=3 en cliente_usuario).
         if (!$this->esAdmin) {
             $q->where(function ($sub) {
                 $sub->where('c.vendedor', Auth::id())
-                    ->orWhere('p.users_id', Auth::id());
+                    ->orWhere('p.users_id', Auth::id())
+                    ->orWhereExists(function ($existe) {
+                        $existe->select(DB::raw(1))
+                            ->from('cliente_usuario as cu')
+                            ->whereColumn('cu.cliente_id', 'c.id')
+                            ->where('cu.usuario_id', Auth::id())
+                            ->where('cu.rol_id', 3);
+                    });
             });
         }
 

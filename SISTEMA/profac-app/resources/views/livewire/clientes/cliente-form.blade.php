@@ -202,7 +202,10 @@
                                         <input type="text" id="dp_dni" class="form-control" maxlength="20">
                                     </div>
                                 </div>
-                                <div class="col-md-6 col-lg-4">
+                                <div class="col-md-6 col-lg-4 d-none">
+                                    {{-- Campo "Vendedor" (Asesor Comercial) oculto: la asignación de asesores
+                                         comerciales y teleasesores ahora se gestiona exclusivamente desde el
+                                         módulo "Cartera de Clientes" (soporta múltiples asesores por cliente). --}}
                                     <div class="form-group">
                                         <label>Vendedor <span class="text-danger">*</span></label>
                                         <select id="dp_vendedor" class="form-control" @if(!$puedeEditarCamposRestringidos) disabled @endif>

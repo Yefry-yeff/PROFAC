@@ -34,6 +34,21 @@ class ReporteUsuariosPorRolExport implements FromQuery, WithHeadings, WithMappin
 
     public function query()
     {
+        // Incluye una fila por CADA rol del usuario (principal + adicionales).
+        $adicionales = DB::table('usuario_rol as ur')
+            ->join('rol as r', 'r.id', '=', 'ur.rol_id')
+            ->join('users as u', 'u.id', '=', 'ur.usuario_id')
+            ->where('u.estado_id', 1)
+            ->where('r.estado_id', 1)
+            ->select([
+                'r.nombre  as rol_nombre',
+                'u.name    as usuario_nombre',
+                'u.email',
+                'u.identidad',
+                'u.telefono',
+                'u.created_at',
+            ]);
+
         return DB::table('users as u')
             ->join('rol as r', 'r.id', '=', 'u.rol_id')
             ->where('u.estado_id', 1)
@@ -46,8 +61,9 @@ class ReporteUsuariosPorRolExport implements FromQuery, WithHeadings, WithMappin
                 'u.telefono',
                 'u.created_at',
             ])
-            ->orderBy('r.nombre')
-            ->orderBy('u.name');
+            ->unionAll($adicionales)
+            ->orderBy('rol_nombre')
+            ->orderBy('usuario_nombre');
     }
 
     public function headings(): array

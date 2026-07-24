@@ -36,8 +36,8 @@
     </li>
 @endforeach
 
-{{-- ── Sección Configuración: solo para Administrador ── --}}
-@if(optional(Auth::user()->rol)->nombre === 'Administrador' || Auth::user()->rol_id == 1)
+{{-- ── Sección Configuración: solo para Administrador (principal o adicional) ── --}}
+@if(Auth::user()->esAdministrador())
 @php
     $configActivo = request()->is('configuracion/*');
 @endphp

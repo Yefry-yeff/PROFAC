@@ -1764,7 +1764,7 @@
             bodegas: '/estatal/listar/bodegas/{idProducto}',
             imprimir: '/cotizacion/imprimir/{id}',
             historial_precios: '/estatal/historial/precios',
-            vendedores: '/ventas/corporativo/vendedores',
+            vendedores: '/cotizacion/vendedores-asignados',
             orden_compra: null,
             codigos_exoneracion: null
         }
@@ -1813,7 +1813,13 @@
             ajax: {
                 url: urlVendedores,
                 data: function(params) {
-                    return { search: params.term, type: 'public', page: params.page || 1 };
+                    var clienteSel = document.getElementById('seleccionarCliente');
+                    return {
+                        search: params.term,
+                        type: 'public',
+                        page: params.page || 1,
+                        cliente_id: clienteSel ? clienteSel.value : null
+                    };
                 }
             }
         });
@@ -2196,10 +2202,39 @@
     // ================================================================
     // CLIENTE
     // ================================================================
+    // ================================================================
+    // ASESOR COMERCIAL ASIGNADO (solo modo "Nueva Oferta" / cotizacion_clientes_a)
+    // Autocompleta y bloquea el campo "Asesor Comercial" con el asesor asignado al
+    // cliente en Cartera de Clientes. Solo se deja editable si el usuario autenticado
+    // tiene el rol de Asesor Comercial (principal o adicional vía multi-rol — p.ej. un
+    // Tele Asesor que también es Asesor Comercial) y el cliente está dentro de su cartera.
+    // ================================================================
+    function aplicarAsesorAsignado(idCliente) {
+        if (codigoActual !== 'cotizacion_clientes_a' || !idCliente) return;
+
+        axios.post('/cotizacion/asesor-asignado', { cliente_id: idCliente })
+            .then(response => {
+                var data = response.data;
+                var vendedorSelect = $('#vendedor');
+
+                if (data.asesor) {
+                    var opt = new Option(data.asesor.text, data.asesor.id, true, true);
+                    vendedorSelect.empty().append(opt).trigger('change');
+                }
+
+                vendedorSelect.prop('disabled', !data.puede_editar);
+            })
+            .catch(err => {
+                console.log(err);
+            });
+    }
+
     function obtenerDatosCliente() {
         let idCliente = document.getElementById("seleccionarCliente").value;
         if (!idCliente) return; // Evitar error al desvincular pedido
         var urlDatosCliente = urls.datos_cliente;
+
+        aplicarAsesorAsignado(idCliente);
 
         axios.post(urlDatosCliente, { id: idCliente })
             .then(response => {
@@ -3778,6 +3813,11 @@
         // Forzar inclusión del cliente aunque el select esté deshabilitado (pedido vinculado)
         var clienteVal = $('#seleccionarCliente').val();
         if (clienteVal) data.set('seleccionarCliente', clienteVal);
+
+        // Forzar inclusión del Asesor Comercial aunque el select esté deshabilitado
+        // (bloqueado por el asesor asignado en Cartera de Clientes)
+        var vendedorVal = $('#vendedor').val();
+        if (vendedorVal) data.set('vendedor', vendedorVal);
 
         let longitudArreglo = arregloIdInputs.length;
         for (var i = 0; i < longitudArreglo; i++) {

@@ -619,6 +619,12 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::post('/usuario/actualizar', [ListarUsuarios::class, 'actualizarUsuarios']);
     Route::post('/usuario/cambiar-contrasena', [ListarUsuarios::class, 'cambiarContrasenaUsuario']);
 
+    /*------------------------------------------------ROLES ADICIONALES (multi-rol) del usuario */
+    Route::get('/usuario/{idUsuario}/roles-adicionales', [ListarUsuarios::class, 'obtenerRolesAdicionales']);
+    Route::get('/usuario/{idUsuario}/roles-adicionales/buscar', [ListarUsuarios::class, 'buscarRolesAdicionalesDisponibles']);
+    Route::post('/usuario/{idUsuario}/roles-adicionales/agregar', [ListarUsuarios::class, 'agregarRolAdicional']);
+    Route::post('/usuario/{idUsuario}/roles-adicionales/quitar', [ListarUsuarios::class, 'quitarRolAdicional']);
+
     //-----------------------------------------------Roles-------------------------------------------------------------------------------------------//
     Route::get('/usuarios/roles', App\Http\Livewire\Usuarios\Roles::class)->name('roles.gestion');
     Route::get('/roles/listar', [App\Http\Livewire\Usuarios\Roles::class, 'listarRoles']);
@@ -635,6 +641,12 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/usuarios/{id}/rol-anterior', [App\Http\Livewire\Usuarios\Roles::class, 'obtenerRolAnteriorUsuario']);
     Route::get('/roles/{id}/permisos', [App\Http\Livewire\Usuarios\Roles::class, 'obtenerPermisosDelRol']);
     Route::get('/submenus/todos', [App\Http\Livewire\Usuarios\Roles::class, 'listarTodosSubmenus']);
+
+    /*------------------------------------------------USUARIOS ADICIONALES (multi-rol) del rol */
+    Route::get('/roles/{id}/usuarios-adicionales', [App\Http\Livewire\Usuarios\Roles::class, 'obtenerUsuariosAdicionalesDelRol']);
+    Route::get('/roles/{id}/usuarios-adicionales/buscar', [App\Http\Livewire\Usuarios\Roles::class, 'buscarUsuariosAdicionalesDisponibles']);
+    Route::post('/roles/{id}/usuarios-adicionales/agregar', [App\Http\Livewire\Usuarios\Roles::class, 'agregarUsuarioAdicionalAlRol']);
+    Route::post('/roles/{id}/usuarios-adicionales/quitar', [App\Http\Livewire\Usuarios\Roles::class, 'quitarUsuarioAdicionalDelRol']);
     // Catálogos de jerarquía de roles
     Route::get('/roles/catalogos/niveles', [App\Http\Livewire\Usuarios\Roles::class, 'listarNiveles'])->name('roles.niveles');
     Route::get('/roles/catalogos/areas',   [App\Http\Livewire\Usuarios\Roles::class, 'listarAreas'])->name('roles.areas');
@@ -871,6 +883,8 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
 
     Route::get('/proforma/cotizacion/{id}', Cotizacion::class);
     Route::get('/cotizacion/clientes', [Cotizacion::class, 'listarClientes']);
+    Route::post('/cotizacion/asesor-asignado', [Cotizacion::class, 'obtenerAsesorAsignado']);
+    Route::get('/cotizacion/vendedores-asignados', [Cotizacion::class, 'listadoVendedoresAsignados']);
     Route::post('/guardar/cotizacion', [Cotizacion::class, 'guardarCotizacion']);
     Route::post('/cotizacion/adjunto/subir', [Cotizacion::class, 'subirAdjunto']);
 
@@ -1603,6 +1617,20 @@ Route::post('/reporte/ventas-cobros/actualizar-f01/{facturaId}',                
     Route::post('/logistica/gestion/tratar', [\App\Http\Livewire\LogisticaDeEntregas\GestionDeFacturas::class, 'tratarFacturas'])->name('logistica.gestion.tratar');
     Route::post('/logistica/gestion/asignar', [\App\Http\Livewire\LogisticaDeEntregas\GestionDeFacturas::class, 'asignarEquipo'])->name('logistica.gestion.asignar');
     Route::get('/logistica/gestion/historial/{facturaId}', [\App\Http\Livewire\LogisticaDeEntregas\GestionDeFacturas::class, 'historialFactura'])->name('logistica.gestion.historial');
+
+
+    // Ruta auto-generada para: FlujoDeVenta\CarteraDeClientes
+    Route::get('/flujo_de_venta/cartera_de_clientes', \App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class);
+
+    // Cartera de Clientes - endpoints de listado, filtros, asignación e historial
+    Route::get('/flujo_de_venta/cartera_de_clientes/listar', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'listar'])->name('cartera_clientes.listar');
+    Route::get('/flujo_de_venta/cartera_de_clientes/agrupado', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'listarAgrupado'])->name('cartera_clientes.agrupado');
+    Route::get('/flujo_de_venta/cartera_de_clientes/usuarios', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'buscarUsuarios'])->name('cartera_clientes.usuarios');
+    Route::get('/flujo_de_venta/cartera_de_clientes/datos/{id}', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'datosCliente'])->name('cartera_clientes.datos');
+    Route::get('/flujo_de_venta/cartera_de_clientes/historial/{id}', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'historialCliente'])->name('cartera_clientes.historial');
+    Route::post('/flujo_de_venta/cartera_de_clientes/historial-masivo', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'historialMasivo'])->name('cartera_clientes.historial_masivo');
+    Route::post('/flujo_de_venta/cartera_de_clientes/asignar', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'asignarIndividual'])->name('cartera_clientes.asignar');
+    Route::post('/flujo_de_venta/cartera_de_clientes/asignar-masivo', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'asignarMasivo'])->name('cartera_clientes.asignar_masivo');
 
     // [auto-routes-anchor]
 });

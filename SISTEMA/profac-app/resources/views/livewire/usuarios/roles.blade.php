@@ -172,6 +172,10 @@
 .dataTables_wrapper .dataTables_length,
 .dataTables_wrapper .dataTables_filter { margin-bottom: 8px; }
 .dataTables_wrapper .dt-buttons { margin-bottom: 8px; }
+/* Bootstrap4 le agrega la clase "form-inline" al wrapper de DataTables, la cual aplica
+   "display:flex" y pone la barra de filtros y la tabla LADO A LADO (en vez de apiladas),
+   comprimiendo la tabla a una fracción del ancho disponible en pantallas grandes. */
+.dataTables_wrapper.form-inline { display: block !important; }
 
 /* -- Ancho completo: eliminar padding acumulado del tema INSPINIA -- */
 /* El layout app.blade.php ya aplica .wrapper-content, el componente agrega otro.  */
@@ -232,6 +236,14 @@
 }
 .rpt-chip:hover { background: #fde8b0; }
 #reporteAccesosBuscar:focus { border-color: #e67e22; box-shadow: 0 0 0 .18rem rgba(230,126,34,.2); }
+
+/* -- Sub-sección "Usuarios adicionales" (multi-rol) dentro del tab Usuarios -- */
+.rol-subtabla-titulo {
+    font-size: .78rem;
+    font-weight: 700;
+    color: #7d3f00;
+    margin-bottom: 8px;
+}
 
 /* -- Responsive -- */
 @media (max-width: 767px) {
@@ -456,7 +468,38 @@
                                             </tbody>
                                         </table>
                                     </div>
+
+                                    <hr>
+
+                                    <p class="rol-subtabla-titulo">
+                                        <i class="fa fa-user-tag mr-1"></i>Usuarios adicionales con este rol
+                                        <span class="text-muted font-weight-normal text-lowercase">(además de su rol principal — se guardan al instante)</span>
+                                    </p>
+                                    <div class="input-group input-group-sm mb-2">
+                                        <select class="form-control form-control-sm" id="selectUsuarioAdicionalAgregar" style="width:100%"></select>
+                                        <div class="input-group-append">
+                                            <button type="button" class="btn btn-primary btn-sm"
+                                                    onclick="event.stopPropagation(); event.preventDefault(); agregarUsuarioAdicionalAlRol(); return false;">
+                                                <i class="fa fa-plus"></i> Agregar
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="table-responsive" style="max-height:200px;overflow-y:auto">
+                                        <table class="table table-sm table-bordered table-hover mb-0" id="tablaUsuariosAdicionalesRol">
+                                            <thead class="thead-light">
+                                                <tr>
+                                                    <th>ID</th><th>Nombre</th><th>Email</th><th style="width:60px">Acción</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="listaUsuariosAdicionalesRol">
+                                                <tr><td colspan="4" class="text-center text-muted py-3">
+                                                    <i class="fa fa-user-tag mr-1"></i>Sin usuarios adicionales
+                                                </td></tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
+
 
                                 <div class="tab-pane fade" id="tab-permisos" role="tabpanel">
                                     <div class="input-group input-group-sm mb-2">

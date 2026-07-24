@@ -5245,6 +5245,21 @@ a.close-canvas-menu:hover {
 .modal {
   z-index: 2050 !important;
 }
+/* Los modales de este tema fuerzan z-index:2050, pero Select2 fija su
+   dropdown en z-index:1051. Cuando un select2 usa dropdownParent apuntando
+   al modal (necesario para que el dropdown no quede recortado/oculto),
+   el dropdown termina renderizando detrás del contenido del modal.
+   Se sube el z-index del dropdown por encima del modal para corregirlo. */
+.modal .select2-dropdown {
+  z-index: 3000 !important;
+}
+/* Mismo problema que con Select2: SweetAlert2 fija su contenedor en
+   z-index:1060, por debajo del z-index:2050 forzado para .modal. Cualquier
+   confirmación (Swal.fire) invocada con un modal abierto detrás quedaba
+   oculta. Se sube por encima de los modales. */
+.swal2-container {
+  z-index: 3100 !important;
+}
 .spiner-example {
   height: 200px;
   padding-top: 70px;

@@ -66,7 +66,7 @@
                                 {{ __('Perfil') }}
                             </x-jet-dropdown-link>
 
-                            @if(optional(Auth::user()->rol)->nombre === 'Administrador' || Auth::user()->rol_id == 1)
+                            @if(Auth::user()->esAdministrador())
                                 <div class="border-t border-gray-100"></div>
                                 <div class="block px-4 py-2 text-xs text-gray-400 uppercase tracking-wide">
                                     <i class="fa fa-cog mr-1"></i> Administración

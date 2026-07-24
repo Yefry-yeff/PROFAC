@@ -112,6 +112,7 @@ function infoUsuario(idUsuario){
             document.getElementById('telefono_usuario').value = response.data[0].telefono ?? '';
 
             selectRoles(response.data[0].rol_id, response.data[0].rol);
+            usrCargarRolesAdicionales(response.data[0].id);
 
             $("#modal_usuario_rol").modal("show");
         })
@@ -294,3 +295,98 @@ function activar(idUsuario){
         }
     });
 }
+
+// ======================================================================
+// ROLES ADICIONALES (multi-rol) del usuario — NO afecta el rol principal.
+// Cada Agregar/Quitar se guarda de inmediato (independiente del botón
+// "Actualizar" del formulario principal).
+// ======================================================================
+
+function usrCargarRolesAdicionales(idUsuario) {
+    document.getElementById('usr_roladd_usuario_id').value = idUsuario;
+
+    var $sel = $('#usr_roladd_select');
+    if ($sel.data('select2')) { $sel.select2('destroy'); }
+    $sel.empty();
+    $sel.select2({
+        placeholder: 'Buscar rol para agregar...',
+        width: '100%',
+        dropdownParent: $sel.closest('.modal'),
+        ajax: {
+            url: '/usuario/' + idUsuario + '/roles-adicionales/buscar',
+            dataType: 'json',
+            delay: 250,
+            data: function (params) { return { q: params.term }; },
+            processResults: function (data) { return { results: data.results || [] }; }
+        }
+    });
+
+    axios.get('/usuario/' + idUsuario + '/roles-adicionales')
+        .then(function (response) {
+            usrRenderRolesAdicionales(response.data.data || []);
+        })
+        .catch(function (error) {
+            console.error(error);
+            usrRenderRolesAdicionales([]);
+        });
+}
+
+function usrRenderRolesAdicionales(roles) {
+    var $cont = $('#usr_roladd_lista').empty();
+    if (!roles.length) {
+        $cont.html('<span class="usr-chip-empty">Sin roles adicionales asignados.</span>');
+        return;
+    }
+    roles.forEach(function (rol) {
+        $cont.append(
+            $('<span class="usr-chip" data-id="' + rol.id + '"></span>')
+                .append($('<span></span>').text(rol.nombre))
+                .append($('<i class="fa fa-times usr-chip-remove"></i>').on('click', function () { usrQuitarRolAdicional(rol.id); }))
+        );
+    });
+}
+
+function agregarRolAdicionalUsuario() {
+    var idUsuario = document.getElementById('usr_roladd_usuario_id').value;
+    var $sel = $('#usr_roladd_select');
+    var data = $sel.select2('data');
+
+    if (!data || !data.length) {
+        Swal.fire({ icon: 'warning', title: 'Atención', text: 'Seleccione un rol para agregar.' });
+        return;
+    }
+    var rolId = parseInt(data[0].id, 10);
+
+    axios.post('/usuario/' + idUsuario + '/roles-adicionales/agregar', { rol_id: rolId })
+        .then(function () {
+            $sel.val(null).trigger('change');
+            usrCargarRolesAdicionales(idUsuario);
+        })
+        .catch(function (error) {
+            var d = error.response ? error.response.data : {};
+            Swal.fire({ icon: d.icon || 'error', title: d.title || 'Error', text: d.text || 'No se pudo agregar el rol.' });
+        });
+}
+
+function usrQuitarRolAdicional(rolId) {
+    var idUsuario = document.getElementById('usr_roladd_usuario_id').value;
+    Swal.fire({
+        title: '¿Quitar rol adicional?',
+        text: 'El usuario perderá los accesos que le otorgaba este rol adicional.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Sí, quitar',
+        cancelButtonText: 'Cancelar'
+    }).then(function (result) {
+        if (!result.isConfirmed) return;
+        axios.post('/usuario/' + idUsuario + '/roles-adicionales/quitar', { rol_id: rolId })
+            .then(function () { usrCargarRolesAdicionales(idUsuario); })
+            .catch(function (error) {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo quitar el rol.' });
+                console.error(error);
+            });
+    });
+}
+
