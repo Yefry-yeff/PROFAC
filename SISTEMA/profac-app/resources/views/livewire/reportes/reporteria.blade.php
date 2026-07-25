@@ -298,6 +298,9 @@
         $('#tbl_facdia').DataTable({
             "order": ['0', 'desc'],
             "paging": true,
+            "processing": true,
+            "serverSide": true,
+            "searchDelay": 500,
             "language": {
                 "url": "//cdn.datatables.net/1.13.5/css/jquery.dataTables.min.css"
             },
