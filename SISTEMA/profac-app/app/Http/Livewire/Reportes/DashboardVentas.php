@@ -323,11 +323,13 @@ class DashboardVentas extends Component
         $fi         = $request->fecha_inicio ?? date('Y-m-01');
         $ff         = $request->fecha_final  ?? date('Y-m-d');
         $vend       = $request->vendedor      ? (int)$request->vendedor     : null;
+        $teleasesor = $request->teleasesor    ? (int)$request->teleasesor   : null;
         $tc         = $request->tipo_cliente  ? (int)$request->tipo_cliente : null;
         $diaSemana  = $request->dia_semana    ?? null;
 
         $where = "f.estado_venta_id = 1 AND f.fecha_emision BETWEEN '$fi' AND '$ff'";
         if ($vend)      $where .= " AND f.vendedor = $vend";
+        if ($teleasesor) $where .= " AND f.users_id = $teleasesor";
         if ($tc)        $where .= " AND tc.id = $tc";
         if ($diaSemana) $where .= " AND DAYNAME(f.fecha_emision) = '" . addslashes($diaSemana) . "'";
 
@@ -340,6 +342,7 @@ class DashboardVentas extends Component
                 f.cai                                     AS documento,
                 f.nombre_cliente                          AS cliente,
                 u.name                                    AS vendedor,
+                COALESCE(ut.name, '-')                    AS teleasesor,
                 tc.descripcion                            AS tipo_cliente,
                 FORMAT(f.sub_total, 2)                    AS subtotal,
                 FORMAT(f.isv, 2)                          AS impuesto,
@@ -348,6 +351,7 @@ class DashboardVentas extends Component
                 f.total                                   AS total_raw
             FROM factura f
             INNER JOIN users u       ON u.id  = f.vendedor
+            LEFT JOIN users ut       ON ut.id = f.users_id
             INNER JOIN cliente cli   ON cli.id = f.cliente_id
             INNER JOIN tipo_cliente tc ON tc.id = cli.tipo_cliente_id
             WHERE $where
@@ -363,11 +367,13 @@ class DashboardVentas extends Component
         $fi        = $request->fecha_inicio ?? date('Y-m-01');
         $ff        = $request->fecha_final  ?? date('Y-m-d');
         $vend      = $request->vendedor     ? (int)$request->vendedor     : null;
+        $teleasesor = $request->teleasesor   ? (int)$request->teleasesor   : null;
         $tc        = $request->tipo_cliente ? (int)$request->tipo_cliente : null;
         $diaSemana = $request->dia_semana   ?? null;
 
         $where = "f.estado_venta_id = 1 AND f.fecha_emision BETWEEN '$fi' AND '$ff'";
         if ($vend)      $where .= " AND f.vendedor = $vend";
+        if ($teleasesor) $where .= " AND f.users_id = $teleasesor";
         if ($tc)        $where .= " AND tc.id = $tc";
         if ($diaSemana) $where .= " AND DAYNAME(f.fecha_emision) = '" . addslashes($diaSemana) . "'";
 
@@ -379,6 +385,7 @@ class DashboardVentas extends Component
                 f.cai                                     AS documento,
                 f.nombre_cliente                          AS cliente,
                 u.name                                    AS vendedor,
+                COALESCE(ut.name, '-')                    AS teleasesor,
                 tc.descripcion                            AS tipo_cliente,
                 f.sub_total                               AS subtotal,
                 f.isv                                     AS impuesto,
@@ -386,6 +393,7 @@ class DashboardVentas extends Component
                 f.total                                   AS total
             FROM factura f
             INNER JOIN users u         ON u.id  = f.vendedor
+            LEFT JOIN users ut         ON ut.id = f.users_id
             INNER JOIN cliente cli     ON cli.id = f.cliente_id
             INNER JOIN tipo_cliente tc ON tc.id  = cli.tipo_cliente_id
             WHERE $where
@@ -401,11 +409,13 @@ class DashboardVentas extends Component
         $fi         = $request->fecha_inicio ?? date('Y-m-01');
         $ff         = $request->fecha_final  ?? date('Y-m-d');
         $vend       = $request->vendedor      ? (int)$request->vendedor     : null;
+        $teleasesor = $request->teleasesor    ? (int)$request->teleasesor   : null;
         $tc         = $request->tipo_cliente  ? (int)$request->tipo_cliente : null;
         $diaSemana  = $request->dia_semana    ?? null;
 
         $where = "f.estado_venta_id = 1 AND f.fecha_emision BETWEEN '$fi' AND '$ff'";
         if ($vend)      $where .= " AND f.vendedor = $vend";
+        if ($teleasesor) $where .= " AND f.users_id = $teleasesor";
         if ($tc)        $where .= " AND tc.id = $tc";
         if ($diaSemana) $where .= " AND DAYNAME(f.fecha_emision) = '" . addslashes($diaSemana) . "'";
 
@@ -422,6 +432,14 @@ class DashboardVentas extends Component
         $mejorVend = DB::SELECTONE("
             SELECT u.name, SUM(f.total) AS monto FROM factura f
             INNER JOIN users u ON u.id = f.vendedor
+            INNER JOIN cliente cli ON cli.id = f.cliente_id
+            INNER JOIN tipo_cliente tc ON tc.id = cli.tipo_cliente_id
+            WHERE $where GROUP BY u.id, u.name ORDER BY monto DESC LIMIT 1
+        ");
+
+        $mejorTeleasesor = DB::SELECTONE("
+            SELECT u.name, SUM(f.total) AS monto FROM factura f
+            INNER JOIN users u ON u.id = f.users_id
             INNER JOIN cliente cli ON cli.id = f.cliente_id
             INNER JOIN tipo_cliente tc ON tc.id = cli.tipo_cliente_id
             WHERE $where GROUP BY u.id, u.name ORDER BY monto DESC LIMIT 1
@@ -456,6 +474,7 @@ class DashboardVentas extends Component
             'ticket_promedio'=> round((float)$totales->ticket_promedio, 2),
             'total_sin_isv'  => round((float)$totales->total_sin_isv, 2),
             'mejor_vendedor' => $mejorVend   ? $mejorVend->name          : '-',
+            'mejor_teleasesor' => $mejorTeleasesor ? $mejorTeleasesor->name : '-',
             'mejor_cliente'  => $mejorCliente ? $mejorCliente->nombre    : '-',
             'mejor_dia'      => $mejorDia    ? $mejorDia->fecha          : '-',
             'mejor_dia_monto'=> $mejorDia    ? round((float)$mejorDia->monto, 2) : 0,
@@ -470,12 +489,14 @@ class DashboardVentas extends Component
         $ff         = $request->fecha_final  ?? date('Y-m-d');
         $tc         = $request->tipo_cliente  ? (int)$request->tipo_cliente : null;
         $vend       = $request->vendedor      ? (int)$request->vendedor     : null;
+        $teleasesor = $request->teleasesor    ? (int)$request->teleasesor   : null;
         $diaSemana  = $request->dia_semana    ?? null;
         $vendExpr   = $this->vendedorFacturaExpr('f');
 
         $where = "f.estado_venta_id = 1 AND f.fecha_emision BETWEEN '$fi' AND '$ff'";
         if ($tc)        $where .= " AND tc.id = $tc";
         if ($vend)      $where .= " AND $vendExpr = $vend";
+        if ($teleasesor) $where .= " AND f.users_id = $teleasesor";
         if ($diaSemana) $where .= " AND DAYNAME(f.fecha_emision) = '" . addslashes($diaSemana) . "'";
 
         $rows = DB::SELECT("
@@ -972,10 +993,16 @@ class DashboardVentas extends Component
         $fi    = $request->fecha_inicio ?? date('Y-m-01');
         $ff    = $request->fecha_final  ?? date('Y-m-d');
         $vend  = $request->vendedor      ? (int)$request->vendedor : null;
+        $teleasesor = $request->teleasesor ? (int)$request->teleasesor : null;
+        $tc = $request->tipo_cliente ? (int)$request->tipo_cliente : null;
+        $diaSemana = $request->dia_semana ?? null;
         $limit = $request->limite        ? (int)$request->limite   : 5;
 
         $where = "f.estado_venta_id = 1 AND f.fecha_emision BETWEEN '$fi' AND '$ff'";
         if ($vend) $where .= " AND f.vendedor = $vend";
+        if ($teleasesor) $where .= " AND f.users_id = $teleasesor";
+        if ($tc) $where .= " AND cli.tipo_cliente_id = $tc";
+        if ($diaSemana) $where .= " AND DAYNAME(f.fecha_emision) = '" . addslashes($diaSemana) . "'";
 
         $rows = DB::SELECT("
             SELECT
@@ -1749,11 +1776,13 @@ class DashboardVentas extends Component
         $fi         = $request->fecha_inicio  ?? date('Y-01-01');
         $ff         = $request->fecha_final   ?? date('Y-m-d');
         $vend       = $request->vendedor       ? (int)$request->vendedor      : null;
+        $teleasesor = $request->teleasesor     ? (int)$request->teleasesor    : null;
         $tc         = $request->tipo_cliente   ? (int)$request->tipo_cliente  : null;
         $diaSemana  = $request->dia_semana     ?? null;
 
         $where = "f.estado_venta_id = 1 AND f.fecha_emision BETWEEN '$fi' AND '$ff'";
         if ($vend)      $where .= " AND f.vendedor = $vend";
+        if ($teleasesor) $where .= " AND f.users_id = $teleasesor";
         if ($tc)        $where .= " AND tc.id = $tc";
         if ($diaSemana) $where .= " AND DAYNAME(f.fecha_emision) = '" . addslashes($diaSemana) . "'";
 
@@ -2185,19 +2214,27 @@ class DashboardVentas extends Component
     // ─── TELE-ASESOR: resumen KPI por facturador (users_id) ───────────────────
     public function topTeleAsesores(Request $request)
     {
-        $fi   = $request->fecha_inicio ?? date('Y-01-01');
-        $ff   = $request->fecha_final  ?? date('Y-m-d');
-        $inIds = '';
+        $fi         = $request->fecha_inicio ?? date('Y-01-01');
+        $ff         = $request->fecha_final  ?? date('Y-m-d');
+        $tc         = $request->tipo_cliente ? (int)$request->tipo_cliente : null;
+        $vend       = $request->vendedor ? (int)$request->vendedor : null;
+        $teleasesor = $request->teleasesor ? (int)$request->teleasesor : null;
+        $diaSemana  = $request->dia_semana ?? null;
 
         $vendedoresRaw = $request->vendedores ?? '';
-        if (!$vendedoresRaw) return response()->json([]);
-        if (is_array($vendedoresRaw)) {
-            $ids = array_filter(array_map('intval', $vendedoresRaw));
-        } else {
-            $ids = array_filter(array_map('intval', explode(',', $vendedoresRaw)));
+        $ids = [];
+        if ($vendedoresRaw) {
+            $ids = is_array($vendedoresRaw)
+                ? array_filter(array_map('intval', $vendedoresRaw))
+                : array_filter(array_map('intval', explode(',', $vendedoresRaw)));
         }
-        if (empty($ids)) return response()->json([]);
-        $inIds = implode(',', $ids);
+
+        $where = "f.estado_venta_id = 1 AND f.fecha_emision BETWEEN '$fi' AND '$ff'";
+        if ($ids)        $where .= " AND f.users_id IN (" . implode(',', $ids) . ")";
+        if ($tc)         $where .= " AND tc.id = $tc";
+        if ($vend)       $where .= " AND f.vendedor = $vend";
+        if ($teleasesor) $where .= " AND f.users_id = $teleasesor";
+        if ($diaSemana)  $where .= " AND DAYNAME(f.fecha_emision) = '" . addslashes($diaSemana) . "'";
 
         $rows = DB::SELECT("
             SELECT
@@ -2210,9 +2247,9 @@ class DashboardVentas extends Component
                 COALESCE(SUM(f.sub_total), 0)              AS total_sin_isv
             FROM factura f
             INNER JOIN users u ON u.id = f.users_id
-            WHERE f.estado_venta_id = 1
-              AND f.fecha_emision BETWEEN '$fi' AND '$ff'
-              AND f.users_id IN ($inIds)
+            LEFT JOIN cliente cli ON cli.id = f.cliente_id
+            LEFT JOIN tipo_cliente tc ON tc.id = cli.tipo_cliente_id
+            WHERE $where
             GROUP BY u.id, u.name
             ORDER BY total_ventas DESC
         ");
