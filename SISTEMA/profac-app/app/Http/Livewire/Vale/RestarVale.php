@@ -148,6 +148,34 @@ class RestarVale extends Component
     public function anularVale(Request $request){
            try {
             DB::beginTransaction();
+
+            $vale = ModelVale::where('id', $request->idVale)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$vale) {
+                DB::rollBack();
+
+                return response()->json([
+                    'icon' => 'warning',
+                    'text' => 'El vale indicado no existe.',
+                    'title' => 'Acción no permitida!',
+                ], 404);
+            }
+
+            if ((int) $vale->estado_id !== 1) {
+                DB::rollBack();
+
+                return response()->json([
+                    'icon' => 'warning',
+                    'text' => 'Este vale ya fue anulado.',
+                    'title' => 'Acción no permitida!',
+                ], 200);
+            }
+
+            $this->arrayProductos = [];
+            $this->arrayLogs = [];
+
             $listaProductos = DB::SELECT("
             select
                 B.resta_inventario_total,
@@ -192,6 +220,8 @@ class RestarVale extends Component
             }
 
             if ($flag) {
+                DB::rollBack();
+
                 return response()->json([
                     'icon' => "warning",
                     'text' =>  '<p class="text-left">' . $mensaje . '</p>',
@@ -234,7 +264,16 @@ class RestarVale extends Component
 
             ModelLogTranslados::insert($this->arrayLogs);
 
-            $vale =  ModelVale::find($request->idVale);
+            foreach($listaProductos as $producto){
+                DB::table('venta_has_producto')
+                    ->where('factura_id', $producto->idFactura)
+                    ->where('producto_id', $producto->producto_id)
+                    ->where('lote', 1)
+                    ->where('seccion_id', 0)
+                    ->where('numero_unidades_resta_inventario', 0)
+                    ->delete();
+            }
+
             $vale->estado_id = 2;
             $vale->comentario_anular = $request->motivo;
             $vale->save();
@@ -413,6 +452,29 @@ class RestarVale extends Component
         }
 
         $factura->save();
+
+        $aplicacionPago = DB::table('aplicacion_pagos')
+            ->where('factura_id', $factura->id)
+            ->where('estado', 1)
+            ->lockForUpdate()
+            ->first();
+
+        if ($aplicacionPago) {
+            $diferenciaCargo = round(
+                (float) $factura->total - (float) $aplicacionPago->total_factura_cargo,
+                2
+            );
+
+            DB::table('aplicacion_pagos')
+                ->where('id', $aplicacionPago->id)
+                ->update([
+                    'total_factura_cargo' => $factura->total,
+                    'retencion_isv_factura' => $factura->isv,
+                    'saldo' => round((float) $aplicacionPago->saldo + $diferenciaCargo, 2),
+                    'ultimo_usr_actualizo' => Auth::user()->id,
+                    'updated_at' => now(),
+                ]);
+        }
 
 
 
