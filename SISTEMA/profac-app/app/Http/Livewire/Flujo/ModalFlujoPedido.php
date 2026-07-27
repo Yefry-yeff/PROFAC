@@ -442,6 +442,27 @@ class ModalFlujoPedido extends Component
         return $data;
     }
 
+    private function diasVigenciaPrefactura(int $flujoId): int
+    {
+        $credito = DB::table('credito_revision')
+            ->where('flujo_id', $flujoId)
+            ->where('estado', CreditoRevision::APROBADO)
+            ->latest('id')
+            ->first(['dias_credito_aprobados', 'fecha_aprobacion', 'fecha_vencimiento_credito']);
+
+        if ($credito && !is_null($credito->dias_credito_aprobados)) {
+            return max(0, (int) $credito->dias_credito_aprobados);
+        }
+
+        if ($credito && $credito->fecha_aprobacion && $credito->fecha_vencimiento_credito) {
+            return max(0, (int) \Carbon\Carbon::parse($credito->fecha_aprobacion)
+                ->diffInDays(\Carbon\Carbon::parse($credito->fecha_vencimiento_credito), false));
+        }
+
+        return max(0, (int) (DB::table('configuracion_prefactura')
+            ->orderByDesc('id')->value('dias_validez') ?? 7));
+    }
+
     private function recargar(): void
     {
         if (!$this->pedidoData) return;
@@ -1607,8 +1628,7 @@ class ModalFlujoPedido extends Component
             return;
         }
 
-        $config      = DB::table('configuracion_prefactura')->first();
-        $diasValidez = $config ? (int) $config->dias_validez : 7;
+        $diasValidez = $this->diasVigenciaPrefactura((int) $this->flujoId);
 
         DB::beginTransaction();
         try {

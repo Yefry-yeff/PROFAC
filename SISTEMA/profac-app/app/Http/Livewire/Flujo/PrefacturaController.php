@@ -20,6 +20,34 @@ use Carbon\Carbon;
  */
 class PrefacturaController
 {
+    private function obtenerDiasCreditoAprobados(?int $flujoId): ?int
+    {
+        if (!$flujoId) {
+            return null;
+        }
+
+        $credito = DB::table('credito_revision')
+            ->where('flujo_id', $flujoId)
+            ->where('estado', CreditoRevision::APROBADO)
+            ->latest('id')
+            ->first(['dias_credito_aprobados', 'fecha_aprobacion', 'fecha_vencimiento_credito']);
+
+        if (!$credito) {
+            return null;
+        }
+
+        if (!is_null($credito->dias_credito_aprobados)) {
+            return max(0, (int) $credito->dias_credito_aprobados);
+        }
+
+        if ($credito->fecha_aprobacion && $credito->fecha_vencimiento_credito) {
+            return max(0, (int) Carbon::parse($credito->fecha_aprobacion)
+                ->diffInDays(Carbon::parse($credito->fecha_vencimiento_credito), false));
+        }
+
+        return null;
+    }
+
     // ─────────────────────────────────────────────────────────────────────
     // POST /flujo/prefactura/guardar
     // ─────────────────────────────────────────────────────────────────────
@@ -50,7 +78,11 @@ class PrefacturaController
 
         // ── Calcular fecha de vencimiento ──────────────────────────────────
         $config = DB::table('configuracion_prefactura')->first();
-        $diasValidez = $config ? (int) $config->dias_validez : 7;
+        $diasConfiguracion = $config ? (int) $config->dias_validez : 7;
+        $diasCreditoAprobados = $this->obtenerDiasCreditoAprobados(
+            $request->flujo_id ? (int) $request->flujo_id : null
+        );
+        $diasValidez = $diasCreditoAprobados ?? $diasConfiguracion;
         $fechaEmision    = $request->fecha_emision ?? now()->toDateString();
         $fechaVencimiento = \Carbon\Carbon::parse($fechaEmision)->addDays($diasValidez)->toDateString();
 
@@ -570,7 +602,9 @@ class PrefacturaController
 
         // ── 3. Calcular fecha vencimiento ──────────────────────────────────
         $config      = DB::table('configuracion_prefactura')->first();
-        $diasValidez = $config ? (int) $config->dias_validez : 7;
+        $diasConfiguracion = $config ? (int) $config->dias_validez : 7;
+        $diasCreditoAprobados = $this->obtenerDiasCreditoAprobados($flujoId ? (int) $flujoId : null);
+        $diasValidez = $diasCreditoAprobados ?? $diasConfiguracion;
         $fechaEmision     = now()->toDateString();
         $fechaVencimiento = \Carbon\Carbon::parse($fechaEmision)->addDays($diasValidez)->toDateString();
 
@@ -923,7 +957,7 @@ class PrefacturaController
         try {
             // Si la prefactura ya venció, su reserva se considera liberada y debe
             // revalidarse la disponibilidad real antes de permitir facturar.
-            if ($this->prefacturaVencio($pf->fecha_vencimiento ?? null)) {
+            if ($this->reservaPrefacturaVencio($pf)) {
                 $faltantes = $this->obtenerFaltantesInventarioPrefactura((int) $pf->id, true);
                 if (!empty($faltantes)) {
                     return response()->json([
@@ -1027,9 +1061,8 @@ class PrefacturaController
         }
 
         // ── Calcular fecha_vencimiento ────────────────────────────────────
-        // Para ventas a crédito, si existe fecha de vencimiento aprobada en
-        // revisión de crédito, se respeta exactamente esa fecha.
-        // Si no existe, se calcula desde la fecha de emisión de la factura.
+        // La aprobación conserva una cantidad de días, no una fecha absoluta.
+        // Cada factura calcula su vencimiento desde su propia fecha de emisión.
         //
         // Fuente de días (en orden de prioridad para cálculo por días):
         //   1. credito_revision.dias_credito_aprobados
@@ -1038,15 +1071,6 @@ class PrefacturaController
         //   4. cliente.dias_credito
         $fechaEmision = now()->toDateString();
         if ($tipoPago === 2) {
-            $fechaVencimientoAprobado = ($creditoAprobadoReg && !empty($creditoAprobadoReg->fecha_vencimiento_credito))
-                ? \Carbon\Carbon::parse($creditoAprobadoReg->fecha_vencimiento_credito)->toDateString()
-                : null;
-
-            if ($fechaVencimientoAprobado) {
-                $fechaVencimiento = $fechaVencimientoAprobado;
-                $diasCredito = max(0, (int) \Carbon\Carbon::parse($fechaEmision)
-                    ->diffInDays(\Carbon\Carbon::parse($fechaVencimiento), false));
-            } else {
             // 1. Días aprobados explícitamente en la revisión de crédito
             if ($creditoAprobadoReg && !is_null($creditoAprobadoReg->dias_credito_aprobados)) {
                 $diasCredito = (int) $creditoAprobadoReg->dias_credito_aprobados;
@@ -1082,8 +1106,7 @@ class PrefacturaController
                         : 0;
                 }
             }
-                $fechaVencimiento = \Carbon\Carbon::parse($fechaEmision)->addDays($diasCredito)->toDateString();
-            }
+            $fechaVencimiento = \Carbon\Carbon::parse($fechaEmision)->addDays($diasCredito)->toDateString();
         } else {
             $diasCredito = 0;
             $fechaVencimiento = $fechaEmision;
@@ -1401,14 +1424,16 @@ class PrefacturaController
         ], 200);
     }
 
-    private function prefacturaVencio(?string $fechaVencimiento): bool
+    private function reservaPrefacturaVencio(object $prefactura): bool
     {
-        if (empty($fechaVencimiento)) {
-            return false;
-        }
-
         try {
-            return now()->gt(Carbon::parse($fechaVencimiento)->endOfDay());
+            $diasValidez = max(0, (int) (DB::table('configuracion_prefactura')
+                ->orderByDesc('id')->value('dias_validez') ?? 7));
+            $fechaBase = !empty($prefactura->created_at)
+                ? Carbon::parse($prefactura->created_at)
+                : Carbon::parse($prefactura->fecha_emision)->startOfDay();
+
+            return now()->gt($fechaBase->addDays($diasValidez));
         } catch (\Throwable $e) {
             return false;
         }

@@ -54,6 +54,7 @@ class RevisionCreditos extends Component
     public ?string $estadoCredito           = null;
     public ?string $fechaAprobacionActual   = null;
     public ?string $fechaVencimientoActual  = null;
+    public ?int    $diasCreditoAprobadosActual = null;
     public ?string $motivoRechazoActual     = null;
     public ?string $obsAprobacionActual      = null;
     public ?string $usuarioAprobadorActual   = null;
@@ -379,6 +380,9 @@ class RevisionCreditos extends Component
                 ? Carbon::parse($cr->fecha_aprobacion)->format('Y-m-d') : null;
             $this->fechaVencimientoActual  = $cr->fecha_vencimiento_credito
                 ? Carbon::parse($cr->fecha_vencimiento_credito)->format('Y-m-d') : null;
+            $this->diasCreditoAprobadosActual = !is_null($cr->dias_credito_aprobados)
+                ? (int) $cr->dias_credito_aprobados
+                : $this->calcularDiasSolicitados($this->fechaAprobacionActual, $this->fechaVencimientoActual);
             $this->motivoRechazoActual     = $cr->motivo_rechazo;
             $this->obsAprobacionActual     = $cr->observaciones;
             $this->usuarioAprobadorActual  = $cr->usuario_revision
@@ -399,6 +403,7 @@ class RevisionCreditos extends Component
             $this->estadoCredito          = CreditoRevision::PENDIENTE;
             $this->fechaAprobacionActual  = null;
             $this->fechaVencimientoActual = null;
+            $this->diasCreditoAprobadosActual = null;
             $this->motivoRechazoActual    = null;
             $this->obsAprobacionActual    = null;
             $this->usuarioAprobadorActual = null;
@@ -422,6 +427,7 @@ class RevisionCreditos extends Component
         $this->estadoCredito          = null;
         $this->fechaAprobacionActual  = null;
         $this->fechaVencimientoActual = null;
+        $this->diasCreditoAprobadosActual = null;
         $this->motivoRechazoActual    = null;
         $this->obsAprobacionActual    = null;
         $this->usuarioAprobadorActual = null;
@@ -682,9 +688,8 @@ class RevisionCreditos extends Component
                 : max(0, (int) $this->diasCreditoEditable);
 
             $dtVencimiento = null;
-            if ($this->tipoPagoSolicitud !== 'contado' && $this->fechaEmisionOferta) {
-                $dtVencimiento = Carbon::createFromFormat('Y-m-d', $this->fechaEmisionOferta)
-                    ->addDays($diasAprobados);
+            if ($this->tipoPagoSolicitud !== 'contado') {
+                $dtVencimiento = $dtAprobacion->copy()->addDays($diasAprobados);
             }
 
             if ($cr) {
@@ -719,12 +724,28 @@ class RevisionCreditos extends Component
                 ]);
             }
 
+            if ($this->cotizacionId) {
+                $fechaEmisionOferta = DB::table('cotizacion')
+                    ->where('id', $this->cotizacionId)
+                    ->value('fecha_emision');
+
+                if ($fechaEmisionOferta) {
+                    DB::table('cotizacion')
+                        ->where('id', $this->cotizacionId)
+                        ->update([
+                            'fecha_vencimiento' => Carbon::parse($fechaEmisionOferta)
+                                ->addDays($diasAprobados)
+                                ->toDateString(),
+                            'updated_at' => now(),
+                        ]);
+                }
+            }
+
             $cr->registrarHistorial(
                 'aprobado',
                 $estadoAnterior ?? CreditoRevision::PENDIENTE,
                 CreditoRevision::APROBADO,
                 'Crédito aprobado. Fecha: ' . $dtAprobacion->format('d/m/Y')
-                . ($dtVencimiento ? '. Vence: ' . $dtVencimiento->format('d/m/Y') : '')
                 . '. Oferta: L ' . number_format((float) $this->montoTotalOferta, 2)
                 . '. Días aprobados: ' . (int) $diasAprobados,
                 $ip
