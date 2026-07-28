@@ -786,6 +786,7 @@ function limpiarFiltrosProyecciones(){
     window._comisionPolAnteriorActual    = 0;
     window.politicaAnteriorTotalesActual = null;
     window._politicaAnteriorFacturaIds   = [];
+    window._politicaAnteriorDetalleRows  = [];
     $('#proyRegistros').text('0');
     $('#proyBaseUnitaria').text(fmtMoney(0));
     $('#proyBaseComisionable').text(fmtMoney(0));
@@ -893,6 +894,7 @@ function autoCalcularPoliticaAnterior() {
             };
             window._comisionPolAnteriorActual     = parseFloat(tot.total_comision || 0);
             window._politicaAnteriorFacturaIds    = facturaIds; // IDs para el export
+            window._politicaAnteriorDetalleRows   = Array.isArray(res.detalle) ? res.detalle : []; // detalle líneas
 
             // Poblar fila de política anterior en el resumen
             $('#polFacturas').text(nFacturas);
@@ -1105,6 +1107,11 @@ function exportarProyeccionesExcel(tipo){
     document.body.removeChild(form);
 }
 
+function _getCookieProyNomina(name) {
+    var match = document.cookie.match('(?:^|; )' + name.replace(/([.$?*|{}()[\]\\/+^])/g, '\\$1') + '=([^;]*)');
+    return match ? decodeURIComponent(match[1]) : null;
+}
+
 function exportarProyeccionesNomina(){
     if(!proyeccionesDataActual || !proyeccionesDataActual.length){
         Swal.fire({icon:'info',title:'Sin datos',text:'Genera primero la proyección antes de descargar la nómina.'});
@@ -1150,9 +1157,89 @@ function exportarProyeccionesNomina(){
         addInput('pol_factura_ids[]', id);
     });
 
+    // Pasar filas proyectadas para pestañas por rol
+    addInput('rows', JSON.stringify(proyeccionesDataActual || []));
+    var periodo = (filtros.fechaInicio || '') + ' al ' + (filtros.fechaFin || '');
+    addInput('periodo', periodo);
+
+    // Pasar detalle de política anterior para pestaña extra
+    var polDetalle = window._politicaAnteriorDetalleRows || [];
+    addInput('pol_detalle', JSON.stringify(polDetalle));
+
+    // Calcular tamaño estimado para dar un tiempo de espera orientativo en el mensaje
+    var nFilas       = (proyeccionesDataActual  || []).length;
+    var nPolDetalle  = (window._politicaAnteriorDetalleRows || []).length;
+    var totalLineas  = nFilas + nPolDetalle;
+    var tiempoEst    = totalLineas < 300  ? 'unos segundos'
+                     : totalLineas < 1000 ? 'menos de un minuto'
+                     : 'puede tardar un par de minutos';
+
+    var etapas = [
+        { pct: 10, msg: 'Calculando comisiones y períodos...' },
+        { pct: 30, msg: 'Construyendo pestañas por rol...' },
+        { pct: 55, msg: 'Generando hoja de Política Anterior...' },
+        { pct: 75, msg: 'Aplicando estilos al documento...' },
+        { pct: 92, msg: 'Finalizando y enviando archivo...' },
+    ];
+
+    Swal.fire({
+        title: '<strong>Generando Nómina Proyectada</strong>',
+        html: '<div id="_nomina_dl_msg" style="margin-bottom:8px;">Preparando documento Excel...</div>'
+            + '<div style="background:#f1f5f9;border-radius:8px;overflow:hidden;height:10px;margin:4px 0 8px;">'
+            + '  <div id="_nomina_dl_bar" style="height:10px;width:0%;background:linear-gradient(90deg,#e07000,#f59e0b);transition:width 0.6s ease;border-radius:8px;"></div>'
+            + '</div>'
+            + '<small style="color:#64748b;">' + totalLineas + ' líneas · ' + tiempoEst + '</small>',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        showConfirmButton: false,
+        customClass: { popup: 'swal2-nomina-dl' },
+        didOpen: function() {
+            // Animar barra progresiva por etapas mientras el servidor procesa
+            var etapaIdx = 0;
+            var barEl  = document.getElementById('_nomina_dl_bar');
+            var msgEl  = document.getElementById('_nomina_dl_msg');
+
+            function avanzarEtapa() {
+                if (etapaIdx >= etapas.length) return;
+                var e = etapas[etapaIdx++];
+                if (barEl) barEl.style.width = e.pct + '%';
+                if (msgEl) msgEl.textContent = e.msg;
+                // Intervalo dinámico: más lento en etapas pesadas
+                var delay = totalLineas < 300 ? 600 : totalLineas < 1000 ? 1100 : 1800;
+                if (etapaIdx < etapas.length) {
+                    setTimeout(avanzarEtapa, delay);
+                }
+            }
+            setTimeout(avanzarEtapa, 300);
+        }
+    });
+
+    // Polling por cookie para detectar cuando el servidor terminó
+    var startedAt = Date.now();
+    var maxWait   = 10 * 60 * 1000; // 10 min tope absoluto
+    var pollInterval = setInterval(function() {
+        if (_getCookieProyNomina('proy_nomina_token') === token) {
+            clearInterval(pollInterval);
+            // Limpiar cookie
+            document.cookie = 'proy_nomina_token=; path=/; max-age=0';
+            var barEl = document.getElementById('_nomina_dl_bar');
+            var msgEl = document.getElementById('_nomina_dl_msg');
+            if (barEl) barEl.style.width = '100%';
+            if (msgEl) msgEl.textContent = '¡Listo! El archivo se está descargando.';
+            setTimeout(function() { Swal.close(); }, 700);
+        } else if (Date.now() - startedAt > maxWait) {
+            clearInterval(pollInterval);
+            Swal.fire({
+                icon: 'warning',
+                title: 'Demora inesperada',
+                text: 'El archivo sigue generándose. Si no descarga en breve, intenta nuevamente.'
+            });
+        }
+    }, 350);
+
     document.body.appendChild(form);
     form.submit();
-    document.body.removeChild(form);
+    setTimeout(function() { document.body.removeChild(form); }, 2000);
 }
 
 function getFiltrosRevisionFacturas(){

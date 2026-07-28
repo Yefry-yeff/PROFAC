@@ -12,6 +12,7 @@ use Auth;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\ProyeccionComisionesExport;
 use App\Exports\Comisiones\ProyeccionNominaSheet;
+use App\Exports\Comisiones\PoliticaAnteriorDetalleSheet;
 use App\Models\Comisiones\ModelComisionPeriodo;
 use App\Services\Comisiones\GeneradorFacturasComision;
 use App\Services\Comisiones\AplicadorRetencionesMora;
@@ -2781,7 +2782,7 @@ class ReportesComisionesGenerales extends Component
             $totalFacturas = array_sum(array_column($mesesCobrados, 'cantidad'));
         }
 
-        $sheet = new ProyeccionNominaSheet(
+        $nominaSheet = new ProyeccionNominaSheet(
             $empleado,
             $periodoLabel,
             $totalFacturas,
@@ -2796,12 +2797,68 @@ class ReportesComisionesGenerales extends Component
             $generadoPor
         );
 
-        $filename = 'proyeccion_nomina_' . now()->format('Ymd_His') . '.xlsx';
+        // ── Pestañas por rol (igual que Excel Proyectadas) ───────────────
+        $rowsProyectadas = $request->input('rows', []);
+        if (!is_array($rowsProyectadas)) {
+            $rowsProyectadas = json_decode($rowsProyectadas, true) ?? [];
+        }
+        $empresa = 'DISTRIBUCIONES VALENCIA   |   RTN: 08011986138652';
 
-        $response = Excel::download(new class($sheet) implements \Maatwebsite\Excel\Concerns\WithMultipleSheets {
-            private $s;
-            public function __construct($s) { $this->s = $s; }
-            public function sheets(): array { return [$this->s]; }
+        $tabsRol = [
+            ['label' => 'Asesor Comercial',  'capacidad' => 'ASESOR'],
+            ['label' => 'Teleasesor',         'capacidad' => 'TELEASESOR'],
+            ['label' => 'Gestor de Entregas', 'capacidad' => 'GESTOR_ENTREGA'],
+        ];
+        $rolSheets = [];
+        foreach ($tabsRol as $tab) {
+            $filtered = array_values(array_filter($rowsProyectadas, function ($row) use ($tab) {
+                $r = (array) $row;
+                return ($r['capacidad'] ?? '') === $tab['capacidad'];
+            }));
+            $rolSheets[] = new \App\Exports\ProyeccionComisionesSheetExport(
+                $filtered,
+                $tab['label'],
+                $empresa,
+                $periodoLabel,
+                $generadoPor
+            );
+        }
+        $rolSheets[] = new \App\Exports\ProyeccionComisionesSheetExport(
+            $rowsProyectadas,
+            'Todas',
+            $empresa,
+            $periodoLabel,
+            $generadoPor
+        );
+
+        // ── Pestaña detalle Política Anterior ────────────────────────────
+        $polDetalleRaw = $request->input('pol_detalle', []);
+        if (!is_array($polDetalleRaw)) {
+            $polDetalleRaw = json_decode($polDetalleRaw, true) ?? [];
+        }
+        $polDetalleSheet = new PoliticaAnteriorDetalleSheet(
+            $polDetalleRaw,
+            $empresa,
+            $periodoLabel,
+            $generadoPor
+        );
+
+        // ── Armar workbook: Nómina + por rol + Política Anterior ─────────
+        $allSheets = array_merge([$nominaSheet], $rolSheets, [$polDetalleSheet]);
+
+        // Nombre del archivo: Comisiones_Mes_DiaIni_DiaFin_Nombre_Apellido.xlsx
+        $mesNombre  = Carbon::parse($fi)->locale('es')->isoFormat('MMMM');
+        $mesNombre  = mb_convert_case($mesNombre, MB_CASE_TITLE, 'UTF-8');
+        $diaIni     = Carbon::parse($fi)->format('d');
+        $diaFin     = Carbon::parse($ff)->format('d');
+        $nombreLimpio = preg_replace('/[^a-zA-Z0-9\s]/', '', $empleado);   // quitar tildes/especiales ya normalizados
+        $nombreLimpio = preg_replace('/\s+/', '_', trim($nombreLimpio));
+        $filename = 'Comisiones_' . $mesNombre . '_' . $diaIni . '_' . $diaFin . '_' . $nombreLimpio . '.xlsx';
+
+        $response = Excel::download(new class($allSheets) implements \Maatwebsite\Excel\Concerns\WithMultipleSheets {
+            private array $sheets;
+            public function __construct(array $sheets) { $this->sheets = $sheets; }
+            public function sheets(): array { return $this->sheets; }
         }, $filename);
 
         $token = (string) $request->input('download_token', '');

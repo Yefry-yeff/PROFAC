@@ -288,6 +288,29 @@ class ValeListaEspera extends Component
         }
         $factura->save();
 
+        $aplicacionPago = DB::table('aplicacion_pagos')
+            ->where('factura_id', $factura->id)
+            ->where('estado', 1)
+            ->lockForUpdate()
+            ->first();
+
+        if ($aplicacionPago) {
+            $diferenciaCargo = round(
+                (float) $factura->total - (float) $aplicacionPago->total_factura_cargo,
+                2
+            );
+
+            DB::table('aplicacion_pagos')
+                ->where('id', $aplicacionPago->id)
+                ->update([
+                    'total_factura_cargo' => $factura->total,
+                    'retencion_isv_factura' => $factura->isv,
+                    'saldo' => round((float) $aplicacionPago->saldo + $diferenciaCargo, 2),
+                    'ultimo_usr_actualizo' => Auth::user()->id,
+                    'updated_at' => now(),
+                ]);
+        }
+
 
 
 

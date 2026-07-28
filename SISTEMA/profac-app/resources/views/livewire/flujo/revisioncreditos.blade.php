@@ -104,10 +104,10 @@
                                     <div style="font-weight:700;">{{ \Carbon\Carbon::parse($fechaAprobacionActual)->format('d/m/Y') }}</div>
                                 </div>
                                 @endif
-                                @if ($fechaVencimientoActual)
+                                @if (!is_null($diasCreditoAprobadosActual))
                                 <div>
-                                    <div style="font-size:11px; color:#66bb6a; font-weight:700; text-transform:uppercase;">Vence</div>
-                                    <div style="font-weight:700;">{{ \Carbon\Carbon::parse($fechaVencimientoActual)->format('d/m/Y') }}</div>
+                                    <div style="font-size:11px; color:#66bb6a; font-weight:700; text-transform:uppercase;">Días aprobados</div>
+                                    <div style="font-weight:700;">{{ $diasCreditoAprobadosActual }} días</div>
                                 </div>
                                 @endif
                                 @if ($usuarioAprobadorActual)

@@ -2,17 +2,29 @@
 
 namespace App\Http\Livewire\Reportes;
 
+use App\Exports\Reportes\AnaliticaProductosExport;
 use Livewire\Component;
+use Livewire\WithPagination;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 class AnaliticaDeProductos extends Component
 {
+    use WithPagination;
+
+    protected $paginationTheme = 'bootstrap';
+    protected $queryString = [
+        'tablaTab' => ['except' => 'criticos'],
+    ];
+
     // ── Filtros ────────────────────────────────────────────────────────────────
     public $filtroCategoria   = '';
     public $filtroMarca       = '';
     public $filtroFechaInicio = '';
     public $filtroFechaFin    = '';
+    public $filtroTipoCliente = '';
+    public $filtroProducto    = '';
+    public $filtroProductoSinImagen = '';
     public $tablaTab          = 'criticos';
 
     // ── Datos calculados ───────────────────────────────────────────────────────
@@ -28,6 +40,7 @@ class AnaliticaDeProductos extends Component
     // ── Catálogos filtros ──────────────────────────────────────────────────────
     public $categorias = [];
     public $marcas     = [];
+    public $tiposCliente = [];
 
     public function mount()
     {
@@ -37,14 +50,25 @@ class AnaliticaDeProductos extends Component
             ->map(fn($r) => ['id' => $r->id, 'descripcion' => $r->descripcion])->toArray();
         $this->marcas = DB::table('marca')->orderBy('nombre')->limit(200)->get(['id','nombre'])
             ->map(fn($r) => ['id' => $r->id, 'nombre' => $r->nombre])->toArray();
+        $this->tiposCliente = DB::table('cliente_categoria_escala')
+            ->where('estado_id', 1)
+            ->orderBy('nombre_categoria')->get(['id', 'nombre_categoria'])
+            ->map(fn($r) => ['id' => $r->id, 'nombre' => $r->nombre_categoria])->toArray();
         $this->calcularMetricas();
     }
 
-    public function updatedFiltroCategoria()   { $this->calcularMetricas(); }
-    public function updatedFiltroMarca()        { $this->calcularMetricas(); }
+    public function updatedFiltroCategoria()   { $this->resetPage(); $this->calcularMetricas(); }
+    public function updatedFiltroMarca()        { $this->resetPage(); $this->calcularMetricas(); }
     public function updatedFiltroFechaInicio()  { $this->calcularMetricas(); }
     public function updatedFiltroFechaFin()     { $this->calcularMetricas(); }
-    public function updatedTablaTab()           { $this->cargarTabla(); }
+    public function updatedFiltroTipoCliente()  { $this->resetPage(); }
+    public function updatedFiltroProducto()     { $this->resetPage(); }
+    public function updatedFiltroProductoSinImagen() { $this->resetPage(); }
+    public function updatedTablaTab()
+    {
+        $this->resetPage();
+        $this->cargarTabla();
+    }
 
     public function actualizarMetricas()
     {
@@ -293,6 +317,11 @@ class AnaliticaDeProductos extends Component
         $dias = max(1, Carbon::parse($fi)->diffInDays(Carbon::parse($ff)));
 
         switch ($this->tablaTab) {
+            case 'sin_imagenes':
+            case 'precios':
+                $this->tablaProductos = [];
+                break;
+
             case 'top_rotacion':
                 $this->tablaProductos = $this->baseProductoQuery()
                     ->join('venta_has_producto as vhp', 'vhp.producto_id', '=', 'p.id')
@@ -384,8 +413,133 @@ class AnaliticaDeProductos extends Component
         }
     }
 
+    private function productosSinImagenQuery()
+    {
+        $busqueda = trim($this->filtroProductoSinImagen);
+
+        return DB::table('producto as p')
+            ->leftJoin('sub_categoria as sc', 'sc.id', '=', 'p.sub_categoria_id')
+            ->leftJoin('categoria_producto as cp', 'cp.id', '=', 'sc.categoria_producto_id')
+            ->leftJoin('marca as m', 'm.id', '=', 'p.marca_id')
+            ->whereNotExists(function ($query) {
+                $query->select(DB::raw(1))
+                    ->from('img_producto as ip')
+                    ->whereColumn('ip.producto_id', 'p.id')
+                    ->whereNotNull('ip.url_img')
+                    ->where('ip.url_img', '<>', '');
+            })
+            ->when($this->filtroCategoria, fn($query) => $query->where('cp.id', $this->filtroCategoria))
+            ->when($this->filtroMarca, fn($query) => $query->where('m.id', $this->filtroMarca))
+            ->when($busqueda !== '', function ($query) use ($busqueda) {
+                $query->where(function ($subquery) use ($busqueda) {
+                    $subquery->where('p.nombre', 'like', "%{$busqueda}%")
+                        ->orWhere('p.codigo_barra', 'like', "%{$busqueda}%")
+                        ->orWhere('p.codigo_estatal', 'like', "%{$busqueda}%");
+                    if (ctype_digit($busqueda)) {
+                        $subquery->orWhere('p.id', (int) $busqueda);
+                    }
+                });
+            })
+            ->select('p.id', 'p.nombre', 'p.codigo_barra', 'cp.descripcion as categoria',
+                'm.nombre as marca', 'p.precio_base', 'p.estado_producto_id',
+                DB::raw("IF(p.estado_producto_id = 1, 'Activo', 'Inactivo') as estado"))
+            ->orderBy('p.nombre');
+    }
+
+    private function preciosProductosQuery()
+    {
+        $busqueda = trim($this->filtroProducto);
+
+        return DB::table('precios_producto_carga as ppc')
+            ->join('producto as p', 'p.id', '=', 'ppc.producto_id')
+            ->join('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')
+            ->join('cliente_categoria_escala as cce', 'cce.id', '=', 'cp.cliente_categoria_escala_id')
+            ->leftJoin('marca as m', 'm.id', '=', 'p.marca_id')
+            ->where('ppc.estado_id', 1)
+            ->where('cp.estado_id', 1)
+            ->where('cce.estado_id', 1)
+            ->where('p.estado_producto_id', 1)
+            ->when($this->filtroTipoCliente, fn($query) => $query->where('cce.id', $this->filtroTipoCliente))
+            ->when($busqueda !== '', function ($query) use ($busqueda) {
+                $query->where(function ($subquery) use ($busqueda) {
+                    $subquery->where('p.nombre', 'like', "%{$busqueda}%")
+                        ->orWhere('p.codigo_barra', 'like', "%{$busqueda}%");
+                    if (ctype_digit($busqueda)) {
+                        $subquery->orWhere('p.id', (int) $busqueda);
+                    }
+                });
+            })
+            ->select([
+                'p.id', 'p.codigo_barra', 'p.nombre', 'm.nombre as marca',
+                'cce.nombre_categoria as tipo_cliente', 'cp.nombre as escala',
+                'ppc.precio_base_venta', 'ppc.precio_a',
+            ])
+            ->orderBy('p.nombre')
+            ->orderBy('cce.nombre_categoria')
+            ->orderBy('cp.nombre');
+    }
+
+    public function descargarExcel()
+    {
+        $columnas = $this->columnasExportacion();
+        if ($this->tablaTab === 'sin_imagenes') {
+            $productos = $this->productosSinImagenQuery()->get();
+        } elseif ($this->tablaTab === 'precios') {
+            $productos = $this->preciosProductosQuery()->get();
+        } else {
+            $productos = collect($this->tablaProductos);
+        }
+
+        $filas = collect($productos)->map(function ($producto) use ($columnas) {
+            $producto = (array) $producto;
+            return collect($columnas)->keys()->map(fn($campo) => $producto[$campo] ?? null)->all();
+        })->all();
+
+        return (new AnaliticaProductosExport(array_values($columnas), $filas))
+            ->download('analitica-productos-'.$this->tablaTab.'-'.now()->format('Y-m-d_His').'.xlsx');
+    }
+
+    private function columnasExportacion(): array
+    {
+        if ($this->tablaTab === 'sin_imagenes') {
+            return [
+                'id' => 'ID', 'codigo_barra' => 'Código de barra', 'nombre' => 'Producto',
+                'categoria' => 'Categoría', 'marca' => 'Marca', 'precio_base' => 'Precio base',
+                'estado' => 'Estado',
+            ];
+        }
+
+        if ($this->tablaTab === 'precios') {
+            return [
+                'id' => 'ID', 'codigo_barra' => 'Código de barra', 'nombre' => 'Producto',
+                'marca' => 'Marca', 'tipo_cliente' => 'Tipo de cliente', 'escala' => 'Escala',
+                'precio_base_venta' => 'Precio base', 'precio_a' => 'Precio A',
+            ];
+        }
+
+        $columnas = [
+            'id' => 'ID', 'nombre' => 'Producto', 'categoria' => 'Categoría',
+            'total_vendido' => 'Unidades vendidas', 'rotacion_mensual' => 'Rotación mensual',
+        ];
+        if ($this->tablaTab === 'mayor_crecimiento') {
+            $columnas['pct_crecimiento'] = 'Crecimiento %';
+        }
+        $columnas['ultima_venta'] = 'Última venta';
+        $columnas['tiempo_recuperacion_meses'] = 'Recuperación (meses)';
+
+        return $columnas;
+    }
+
     public function render()
     {
-        return view('livewire.reportes.analiticadeproductos');
+        if ($this->tablaTab === 'sin_imagenes') {
+            $tablaPaginada = $this->productosSinImagenQuery()->paginate(10);
+        } elseif ($this->tablaTab === 'precios') {
+            $tablaPaginada = $this->preciosProductosQuery()->paginate(11);
+        } else {
+            $tablaPaginada = collect($this->tablaProductos);
+        }
+
+        return view('livewire.reportes.analiticadeproductos', compact('tablaPaginada'));
     }
 }

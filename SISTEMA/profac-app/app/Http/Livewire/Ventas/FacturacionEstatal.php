@@ -56,13 +56,31 @@ class FacturacionEstatal extends Component
             ->where('flujo_id', $flujoId)
             ->where('estado', 'aprobado')
             ->latest('id')
-            ->first(['dias_credito_aprobados']);
+            ->first(['dias_credito_aprobados', 'fecha_aprobacion', 'fecha_vencimiento_credito']);
 
-        if (!$creditoAprobado || is_null($creditoAprobado->dias_credito_aprobados)) {
+        if (!$creditoAprobado) {
             return null;
         }
 
-        return (int) $creditoAprobado->dias_credito_aprobados;
+        if (!is_null($creditoAprobado->dias_credito_aprobados)) {
+            return max(0, (int) $creditoAprobado->dias_credito_aprobados);
+        }
+
+        if ($creditoAprobado->fecha_aprobacion && $creditoAprobado->fecha_vencimiento_credito) {
+            return max(0, (int) \Carbon\Carbon::parse($creditoAprobado->fecha_aprobacion)
+                ->diffInDays(\Carbon\Carbon::parse($creditoAprobado->fecha_vencimiento_credito), false));
+        }
+
+        return null;
+    }
+
+    private function resolverDiasCreditoFactura(int $tipoPago, ?int $flujoId, int $diasCliente): int
+    {
+        if ($tipoPago !== 2) {
+            return 0;
+        }
+
+        return $this->obtenerDiasCreditoAprobados($flujoId) ?? max(0, $diasCliente);
     }
 
     public function mount($id = null)
@@ -379,8 +397,9 @@ class FacturacionEstatal extends Component
                       ->orWhere('nombre', 'LIKE', $like);
                 });
 
-            // Admin (1) y Tele asesor (3) ven todos; los demás solo sus asignados
-            if (!in_array((int) Auth::user()->rol_id, [1, 3], true)) {
+            // Admin (1) y Tele asesor (3) ven todos; usuarios especiales 121/122 también; los demás solo sus asignados
+            $specialUsers = [121, 122];
+            if (!in_array((int) Auth::user()->rol_id, [1, 3], true) && !in_array(Auth::id(), $specialUsers, true)) {
                 $query->where('vendedor', Auth::id());
             }
 
@@ -509,10 +528,10 @@ class FacturacionEstatal extends Component
                         INNER JOIN prefactura pf2 ON pf2.id = php2.prefactura_id
                                                                                                 WHERE pf2.estado = 'activo'
                                                                                                         AND TIMESTAMPADD(
-                                                                                                                    DAY,
-                                                                                                                    COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7),
-                                                                                                                    COALESCE(pf2.created_at, CONCAT(COALESCE(pf2.fecha_emision, CURDATE()), ' 00:00:00'))
-                                                                                                                ) > NOW()
+                                                                                                            DAY,
+                                                                                                            COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7),
+                                                                                                            COALESCE(pf2.created_at, CONCAT(COALESCE(pf2.fecha_emision, CURDATE()), ' 00:00:00'))
+                                                                                                        ) > NOW()
                           {$pfExcludeClause2}
                           AND php2.producto_id = {$prodId}
                           AND php2.seccion_id  = A.seccion_id
@@ -534,10 +553,10 @@ class FacturacionEstatal extends Component
                 INNER JOIN prefactura pf3 ON pf3.id = php3.prefactura_id
                                                                 WHERE pf3.estado = 'activo'
                                                                         AND TIMESTAMPADD(
-                                                                                    DAY,
-                                                                                    COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7),
-                                                                                    COALESCE(pf3.created_at, CONCAT(COALESCE(pf3.fecha_emision, CURDATE()), ' 00:00:00'))
-                                                                                ) > NOW()
+                                                                            DAY,
+                                                                            COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7),
+                                                                            COALESCE(pf3.created_at, CONCAT(COALESCE(pf3.fecha_emision, CURDATE()), ' 00:00:00'))
+                                                                        ) > NOW()
                   {$pfExcludeClause3}
                   AND php3.producto_id = {$prodId}
                   AND php3.seccion_id  = A.seccion_id
@@ -873,10 +892,10 @@ class FacturacionEstatal extends Component
                              INNER JOIN prefactura pf2 ON pf2.id = php2.prefactura_id
                                                                                                                  WHERE pf2.estado = 'activo'
                                                                                                                          AND TIMESTAMPADD(
-                                                                                                                                     DAY,
-                                                                                                                                     COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7),
-                                                                                                                                     COALESCE(pf2.created_at, CONCAT(COALESCE(pf2.fecha_emision, CURDATE()), ' 00:00:00'))
-                                                                                                                                 ) > NOW()
+                                                                                                                             DAY,
+                                                                                                                             COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7),
+                                                                                                                             COALESCE(pf2.created_at, CONCAT(COALESCE(pf2.fecha_emision, CURDATE()), ' 00:00:00'))
+                                                                                                                         ) > NOW()
                                {$excludePfClause}
                                AND php2.producto_id = " . (int)$request->$keyIdProducto . "
                                AND php2.seccion_id  = " . (int)$request->$keyIdSeccion . "
@@ -984,7 +1003,7 @@ class FacturacionEstatal extends Component
                 (int) $diasCredito
             );
             $factura->tipo_pago_id = $request->tipoPagoVenta;
-            $factura->dias_credito = $diasCredito;
+            $factura->dias_credito = $this->resolverDiasCreditoFactura((int) $request->tipoPagoVenta, (int) ($request->flujo_id ?? 0), (int) $diasCredito);
             $factura->cai_id = $cai->id;
             $factura->estado_venta_id = 1;
             $factura->cliente_id = $request->seleccionarCliente;

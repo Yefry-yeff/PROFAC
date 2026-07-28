@@ -63,8 +63,9 @@ class CreditoRevision extends Model
     }
 
     /**
-     * Verifica si para el flujo dado ya existe una aprobación vigente.
-     * Condición: estado = 'aprobado' Y fecha_vencimiento_credito >= hoy (o NULL = sin vencimiento).
+     * Verifica si el flujo conserva una aprobación de crédito.
+     * El contrato aprobado es la cantidad de días; cada documento calcula
+     * su vencimiento desde su propia fecha de emisión.
      */
     public static function creditoVigenteParaFlujo(int $flujoId): bool
     {
@@ -73,18 +74,7 @@ class CreditoRevision extends Model
                           ->latest('id')
                           ->first();
 
-        if (!$registro) {
-            return false;
-        }
-
-        // Si no tiene fecha de vencimiento definida, se considera vigente indefinidamente
-        if (!$registro->fecha_vencimiento_credito) {
-            return true;
-        }
-
-        return now()->startOfDay()->lte(
-            \Carbon\Carbon::parse($registro->fecha_vencimiento_credito)->startOfDay()
-        );
+        return $registro !== null;
     }
 
     /**

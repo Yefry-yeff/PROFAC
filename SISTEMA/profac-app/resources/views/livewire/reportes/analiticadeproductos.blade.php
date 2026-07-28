@@ -109,6 +109,18 @@
     border-bottom:2px solid transparent; transition:.15s; white-space:nowrap; }
 .ii-tab.active { color:#2980b9; border-bottom-color:#2980b9; background:#fff; }
 .ii-tab:hover:not(.active) { background:#edf2f7; }
+.ii-table-filters { display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end; padding:14px 18px; background:#fff; border-bottom:1px solid var(--ii-border); }
+.ii-table-filter { display:flex; flex-direction:column; gap:5px; min-width:220px; }
+.ii-table-filter label { color:#64748b; font-size:10px; font-weight:700; text-transform:uppercase; }
+.ii-table-filter select, .ii-table-filter input { height:34px; border:1px solid #cbd5e1; border-radius:6px; padding:6px 10px; color:#334155; font-size:12px; outline:none; background:#fff; }
+.ii-table-filter input:focus, .ii-table-filter select:focus { border-color:#2980b9; box-shadow:0 0 0 2px rgba(41,128,185,.12); }
+button.ii-btn-export { background:#1f8f4e; color:#fff; border-radius:6px; padding:7px 13px; }
+button.ii-btn-export:hover { background:#187640; }
+button.ii-btn-export:disabled { opacity:.55; cursor:not-allowed; transform:none; }
+.ii-pagination { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; padding:14px 18px; border-top:1px solid var(--ii-border); background:#fff; }
+.ii-pagination-info { color:#64748b; font-size:11px; }
+.ii-pagination nav { margin-left:auto; }
+.ii-pagination .pagination { margin:0; }
 .ii-table-wrap { overflow-x:auto; }
 .ii-table { width:100%; border-collapse:collapse; font-size:12px; }
 .ii-table thead th { background:linear-gradient(135deg,#1a2035,#2d3561); color:#a8c8e0;
@@ -338,15 +350,108 @@
 <div class="ii-table-card">
     <div class="ii-card-header">
         <div class="ii-card-title"><i class="fa fa-table" style="color:#2980b9;"></i> Análisis Detallado de Productos</div>
+        <button type="button" class="ii-btn ii-btn-export" wire:click="descargarExcel" wire:loading.attr="disabled" wire:target="descargarExcel" @if($tablaPaginada->isEmpty()) disabled @endif>
+            <i class="fa fa-file-excel-o" wire:loading.remove wire:target="descargarExcel"></i>
+            <i class="fa fa-circle-o-notch fa-spin" wire:loading wire:target="descargarExcel"></i>
+            Descargar Excel
+        </button>
     </div>
     <div class="ii-tabs">
         <div class="ii-tab {{ $tablaTab === 'criticos' ? 'active' : '' }}" wire:click="$set('tablaTab','criticos')">🔥 Más vendidos</div>
         <div class="ii-tab {{ $tablaTab === 'top_rotacion' ? 'active' : '' }}" wire:click="$set('tablaTab','top_rotacion')">📈 Mayor rotación</div>
         <div class="ii-tab {{ $tablaTab === 'sin_movimiento' ? 'active' : '' }}" wire:click="$set('tablaTab','sin_movimiento')">🛑 Sin movimiento</div>
         <div class="ii-tab {{ $tablaTab === 'mayor_crecimiento' ? 'active' : '' }}" wire:click="$set('tablaTab','mayor_crecimiento')">🚀 Mayor crecimiento</div>
+        <div class="ii-tab {{ $tablaTab === 'sin_imagenes' ? 'active' : '' }}" wire:click="$set('tablaTab','sin_imagenes')"><i class="fa fa-picture-o"></i> Productos sin imágenes</div>
+        <div class="ii-tab {{ $tablaTab === 'precios' ? 'active' : '' }}" wire:click="$set('tablaTab','precios')"><i class="fa fa-tags"></i> Precios de productos</div>
     </div>
+    @if($tablaTab === 'precios')
+    <div class="ii-table-filters">
+        <div class="ii-table-filter">
+            <label for="ii-tipo-cliente">Tipo de cliente</label>
+            <select id="ii-tipo-cliente" wire:model="filtroTipoCliente">
+                <option value="">Todos los tipos de cliente</option>
+                @foreach($tiposCliente as $tipoCliente)
+                    <option value="{{ $tipoCliente['id'] }}">{{ $tipoCliente['nombre'] }}</option>
+                @endforeach
+            </select>
+        </div>
+        <div class="ii-table-filter" style="flex:1;max-width:420px;">
+            <label for="ii-producto-precio">Producto</label>
+            <input id="ii-producto-precio" type="search" wire:model.debounce.500ms="filtroProducto" placeholder="Buscar por ID, código de barra o nombre">
+        </div>
+        <span wire:loading wire:target="filtroTipoCliente,filtroProducto" style="color:#64748b;font-size:11px;padding-bottom:8px;">
+            <i class="fa fa-circle-o-notch fa-spin"></i> Filtrando escalas...
+        </span>
+    </div>
+    @endif
+    @if($tablaTab === 'sin_imagenes')
+    <div class="ii-table-filters">
+        <div class="ii-table-filter" style="flex:1;max-width:420px;">
+            <label for="ii-producto-sin-imagen">Buscar producto</label>
+            <input id="ii-producto-sin-imagen" type="search" wire:model.debounce.500ms="filtroProductoSinImagen" placeholder="Buscar por ID, código o nombre">
+        </div>
+        <span wire:loading wire:target="filtroProductoSinImagen" style="color:#64748b;font-size:11px;padding-bottom:8px;">
+            <i class="fa fa-circle-o-notch fa-spin"></i> Buscando productos...
+        </span>
+    </div>
+    @endif
     <div class="ii-table-wrap">
         <table class="ii-table">
+            @if($tablaTab === 'sin_imagenes')
+            <thead>
+                <tr>
+                    <th>#</th><th>ID</th><th>Código de barra</th><th>Producto</th>
+                    <th>Categoría</th><th>Marca</th><th>Precio base</th><th>Estado</th><th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse($tablaPaginada as $i => $prod)
+                @php $prod = (object)$prod; @endphp
+                <tr>
+                    <td style="color:#94a3b8;font-size:11px;">{{ $tablaPaginada->firstItem()+$i }}</td>
+                    <td>{{ $prod->id }}</td>
+                    <td>{{ $prod->codigo_barra ?: '—' }}</td>
+                    <td><span class="prod-name" title="{{ $prod->nombre }}">{{ $prod->nombre }}</span></td>
+                    <td><span class="cat-badge">{{ $prod->categoria ?? '—' }}</span></td>
+                    <td>{{ $prod->marca ?? '—' }}</td>
+                    <td style="font-weight:700;white-space:nowrap;">L {{ number_format($prod->precio_base ?? 0, 2) }}</td>
+                    <td><span class="ii-badge ii-badge-{{ (int)$prod->estado_producto_id === 1 ? 'green' : 'gray' }}">{{ $prod->estado }}</span></td>
+                    <td style="white-space:nowrap;">
+                        <button type="button" class="ii-btn-xs" onclick="abrirModalFotoProducto({{ $prod->id }})" title="Subir imagen"><i class="fa fa-upload"></i> Subir imagen</button>
+                        <a href="/reportes/analitica_de_productos/{{ $prod->id }}" target="_blank" class="ii-btn-xs" title="Ver producto"><i class="fa fa-external-link"></i></a>
+                    </td>
+                </tr>
+                @empty
+                <tr><td colspan="10" class="ii-empty"><i class="fa fa-picture-o"></i><p>No hay productos sin imágenes con los filtros actuales</p></td></tr>
+                @endforelse
+            </tbody>
+            @elseif($tablaTab === 'precios')
+            <thead>
+                <tr>
+                    <th>#</th><th>ID</th><th>Código</th><th>Producto</th><th>Marca</th>
+                    <th>Tipo de cliente</th><th>Escala</th><th>Precio base</th>
+                    <th>Precio A</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse($tablaPaginada as $i => $prod)
+                @php $prod = (object)$prod; @endphp
+                <tr>
+                    <td style="color:#94a3b8;font-size:11px;">{{ $tablaPaginada->firstItem()+$i }}</td>
+                    <td>{{ $prod->id }}</td>
+                    <td>{{ $prod->codigo_barra ?: '—' }}</td>
+                    <td><span class="prod-name" title="{{ $prod->nombre }}">{{ $prod->nombre }}</span></td>
+                    <td>{{ $prod->marca ?? '—' }}</td>
+                    <td><span class="cat-badge">{{ $prod->tipo_cliente }}</span></td>
+                    <td><span class="ii-badge ii-badge-blue">{{ $prod->escala }}</span></td>
+                    <td style="font-weight:700;white-space:nowrap;">L {{ number_format($prod->precio_base_venta ?? 0, 2) }}</td>
+                    <td style="white-space:nowrap;">L {{ number_format($prod->precio_a ?? 0, 2) }}</td>
+                </tr>
+                @empty
+                <tr><td colspan="9" class="ii-empty"><i class="fa fa-tags"></i><p>No hay escalas de precios con los filtros seleccionados</p></td></tr>
+                @endforelse
+            </tbody>
+            @else
             <thead>
                 <tr>
                     <th>#</th>
@@ -362,7 +467,7 @@
                 </tr>
             </thead>
             <tbody>
-                @forelse($tablaProductos as $i => $prod)
+                @forelse($tablaPaginada as $i => $prod)
                 @php
                     $prod = (object)$prod;
                     $rec  = $prod->tiempo_recuperacion_meses ?? null;
@@ -422,12 +527,27 @@
                 </tr>
                 @endforelse
             </tbody>
+            @endif
         </table>
     </div>
+    @if(in_array($tablaTab, ['sin_imagenes', 'precios']))
+    <div class="ii-pagination">
+        <span class="ii-pagination-info">
+            Mostrando {{ $tablaPaginada->firstItem() ?? 0 }}-{{ $tablaPaginada->lastItem() ?? 0 }} de {{ $tablaPaginada->total() }} registros
+        </span>
+        {{ $tablaPaginada->onEachSide(1)->links() }}
+    </div>
+    @endif
 </div>
 
 </div>{{-- /ii-content --}}
 </div>{{-- /ii-wrap --}}
+
+<div wire:ignore>
+    @include('components.producto.modal-subir-fotografia', ['productoId' => null, 'incluirSpinner' => true])
+</div>
+
+<script src="{{ asset('js/js_proyecto/inventario/modal-foto-producto.js') }}?v={{ filemtime(public_path('js/js_proyecto/inventario/modal-foto-producto.js')) }}"></script>
 
 <script>
 (function () {

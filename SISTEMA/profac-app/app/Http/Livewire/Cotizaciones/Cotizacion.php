@@ -19,8 +19,6 @@ use App\Models\ModelCotizacionProducto;
 class Cotizacion extends Component
 
 {
-    const ROL_ASESOR_COMERCIAL = 2;
-    const ROL_TELE_ASESOR = 3;
 
     public $tipoCotizacion;
     public $fromFlujo = false;
@@ -119,7 +117,6 @@ class Cotizacion extends Component
             return;
         }
         $esNum = is_numeric($term);
-        $user  = Auth::user();
         $q = DB::table('pedido as p')
             ->join('cliente as c', 'c.id', '=', 'p.cliente_id')
             ->leftJoin('users as u', 'u.id', '=', 'p.users_id')
@@ -133,16 +130,6 @@ class Cotizacion extends Component
             )
             ->orderByDesc('p.created_at')
             ->limit(8);
-
-        // Solo deben aparecer los flujos (pedidos) que el usuario creó o en los que está
-        // involucrado (asesor asignado al cliente vía el campo legacy vendedor). El
-        // administrador ve todos.
-        if (!$user->esAdministrador()) {
-            $q->where(function ($sub) use ($user) {
-                $sub->where('p.users_id', $user->id)
-                    ->orWhere('c.vendedor', $user->id);
-            });
-        }
 
         if ($esNum) {
             $q->where('p.id', (int) $term);
@@ -226,8 +213,8 @@ class Cotizacion extends Component
     public function listarClientes(Request $request)
     {
         try {
-            $user = Auth::user();
-            $like = '%' . $request->search . '%';
+            $rolId   = Auth::user()->rol_id;
+            $like    = '%' . $request->search . '%';
 
             $query = DB::table('cliente')
                 ->select('id', 'nombre as text')
@@ -238,20 +225,9 @@ class Cotizacion extends Component
                       ->orWhere('nombre', 'LIKE', $like);
                 });
 
-            // Admin (1) ve todos los clientes. Tele Asesor (3, principal o adicional via
-            // multi-rol) solo ve los clientes que tiene asignados en Cartera de Clientes
-            // (cualquier rol_id — asesor comercial y/o tele asesor). Los demás (p.ej. Asesor
-            // Comercial puro) solo ven sus clientes asignados vía el campo legacy vendedor.
-            if ($user->tieneRol(1)) {
-                // sin restricción
-            } elseif ($user->tieneRol(self::ROL_TELE_ASESOR)) {
-                $query->whereExists(function ($q) use ($user) {
-                    $q->select(DB::raw(1))
-                        ->from('cliente_usuario as cu')
-                        ->whereColumn('cu.cliente_id', 'cliente.id')
-                        ->where('cu.usuario_id', $user->id);
-                });
-            } else {
+            // Admin (1) y Tele asesor (3) ven todos; usuarios especiales 121/122 también; los demás solo sus asignados
+            $specialUsers = [121, 122];
+            if (!in_array($rolId, [1, 3], true) && !in_array(Auth::id(), $specialUsers, true)) {
                 $query->where('vendedor', Auth::id());
             }
 
@@ -267,94 +243,10 @@ class Cotizacion extends Component
         }
     }
 
-    /**
-     * Devuelve el Asesor Comercial asignado a un cliente en Cartera de Clientes (rol_id=2 en
-     * cliente_usuario) y si el campo debe mostrarse como lista desplegable editable en la
-     * oferta. Regla independiente de quién esté viendo la oferta: se bloquea si el cliente
-     * tiene un solo Asesor Comercial asignado; se vuelve una lista desplegable si tiene 2 o
-     * más (hay ambigüedad de a quién elegir). Ver resolverAsesorAsignado().
-     */
-    public function obtenerAsesorAsignado(Request $request)
-    {
-        $clienteId = (int) $request->get('cliente_id');
-        [$asesor, $puedeEditar] = $this->resolverAsesorAsignado($clienteId);
-
-        return response()->json([
-            'asesor' => $asesor ? ['id' => $asesor->id, 'text' => $asesor->name] : null,
-            'puede_editar' => $puedeEditar,
-        ]);
-    }
-
-    /**
-     * Búsqueda de "Asesor Comercial" para el select2 del campo, restringida ÚNICAMENTE a los
-     * usuarios asignados como Asesor Comercial (rol_id=2) a ESE cliente en Cartera de Clientes —
-     * nadie más debe aparecer. Se usa cuando el campo está desbloqueado (ver
-     * resolverAsesorAsignado()); si el campo está bloqueado el usuario no puede interactuar con
-     * el select de todas formas.
-     */
-    public function listadoVendedoresAsignados(Request $request)
-    {
-        $clienteId = (int) $request->get('cliente_id');
-        $search = trim((string) $request->get('search', ''));
-
-        if (!$clienteId) {
-            return response()->json(['results' => []]);
-        }
-
-        $query = DB::table('cliente_usuario as cu')
-            ->join('users as u', 'u.id', '=', 'cu.usuario_id')
-            ->where('cu.cliente_id', $clienteId)
-            ->where('cu.rol_id', self::ROL_ASESOR_COMERCIAL)
-            ->where('u.estado_id', 1)
-            ->select('u.id', DB::raw('u.name as text'))
-            ->distinct();
-
-        if ($search !== '') {
-            $query->where('u.name', 'like', '%' . $search . '%');
-        }
-
-        return response()->json(['results' => $query->orderBy('u.name')->get()]);
-    }
-
-    /**
-     * Resuelve el Asesor Comercial asignado a un cliente (Cartera de Clientes) y si el campo
-     * debe mostrarse como lista desplegable editable en la oferta. Ver obtenerAsesorAsignado().
-     *
-     * Regla (independiente del rol de quien esté viendo la oferta): siempre se muestra el
-     * Asesor Comercial asignado (el más reciente); si el cliente tiene 2 o más usuarios
-     * asignados como Asesor Comercial, el campo se vuelve una lista desplegable para elegir
-     * entre ellos. Con un solo Asesor Comercial asignado no hay nada que elegir, se bloquea.
-     *
-     * @return array{0: ?object, 1: bool}
-     */
-    private function resolverAsesorAsignado(int $clienteId): array
-    {
-        $asesor = DB::table('cliente_usuario as cu')
-            ->join('users as u', 'u.id', '=', 'cu.usuario_id')
-            ->where('cu.cliente_id', $clienteId)
-            ->where('cu.rol_id', self::ROL_ASESOR_COMERCIAL)
-            ->orderByDesc('cu.fecha_asignacion')
-            ->select('u.id', 'u.name')
-            ->first();
-
-        if ($asesor) {
-            $asesor->id = (int) $asesor->id;
-        }
-
-        $totalAsesores = DB::table('cliente_usuario')
-            ->where('cliente_id', $clienteId)
-            ->where('rol_id', self::ROL_ASESOR_COMERCIAL)
-            ->count();
-
-        $puedeEditar = $totalAsesores >= 2;
-
-        return [$asesor, $puedeEditar];
-    }
-
     public function clientesCorporativo(Request $request)
     {
-
-        if (Auth::user()->rol_id == 1 || Auth::user()->rol_id == 9) {
+        $specialUsers = [121, 122];
+        if (Auth::user()->rol_id == 1 || Auth::user()->rol_id == 9 || in_array(Auth::id(), $specialUsers, true)) {
             $listaClientes = DB::SELECT("
             select
                 id,
@@ -392,8 +284,8 @@ class Cotizacion extends Component
 
     public function clientesEstatal(Request $request)
     {
-
-        if (Auth::user()->rol_id == 1 || Auth::user()->rol_id == 3 || Auth::user()->rol_id == 9) {
+        $specialUsers = [121, 122];
+        if (Auth::user()->rol_id == 1 || Auth::user()->rol_id == 3 || Auth::user()->rol_id == 9 || in_array(Auth::id(), $specialUsers, true)) {
             $listaClientes = DB::SELECT("
                     select
                         id,
@@ -421,9 +313,8 @@ class Cotizacion extends Component
 
     public function clientesExonerados(Request $request)
     {
-
-
-        if (Auth::user()->rol_id == 1 || Auth::user()->rol_id == 9) {
+        $specialUsers = [121, 122];
+        if (Auth::user()->rol_id == 1 || Auth::user()->rol_id == 9 || in_array(Auth::id(), $specialUsers, true)) {
             $listaClientes = DB::SELECT("
                     select
                         id,
@@ -501,13 +392,7 @@ class Cotizacion extends Component
             $cotizacion->total = $request->totalGeneral;
             $cotizacion->cliente_id = $request->seleccionarCliente;
             $cotizacion->tipo_venta_id = $request->tipo_venta_id;
-            // El Asesor Comercial se autocompleta y bloquea según el cliente asignado en
-            // Cartera de Clientes; solo se respeta lo enviado por el request si el usuario
-            // tiene permiso para modificarlo (ver resolverAsesorAsignado()).
-            [$asesorAsignado, $puedeEditarAsesor] = $this->resolverAsesorAsignado((int) $request->seleccionarCliente);
-            $cotizacion->vendedor = ($asesorAsignado && !$puedeEditarAsesor)
-                ? $asesorAsignado->id
-                : $request->vendedor;
+            $cotizacion->vendedor = $request->vendedor;
             $cotizacion->users_id = Auth::user()->id;
             $cotizacion->arregloIdInputs = json_encode($request->arregloIdInputs);
             $cotizacion->numeroInputs = $request->numeroInputs;

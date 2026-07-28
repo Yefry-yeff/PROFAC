@@ -1614,8 +1614,10 @@
                                     @if(!empty($creditoRevisionData['fecha_aprobacion']))
                                         Autorizado el {{ \Carbon\Carbon::parse($creditoRevisionData['fecha_aprobacion'])->format('d/m/Y') }}.
                                     @endif
-                                    @if(!empty($creditoRevisionData['fecha_vencimiento_credito']))
-                                        Vence el {{ \Carbon\Carbon::parse($creditoRevisionData['fecha_vencimiento_credito'])->format('d/m/Y') }}.
+                                    @if(array_key_exists('dias_credito_aprobados', $creditoRevisionData) && !is_null($creditoRevisionData['dias_credito_aprobados']))
+                                        Días de crédito aprobados: <strong>{{ (int) $creditoRevisionData['dias_credito_aprobados'] }}</strong>.
+                                    @elseif(!empty($creditoRevisionData['fecha_aprobacion']) && !empty($creditoRevisionData['fecha_vencimiento_credito']))
+                                        Días de crédito aprobados: <strong>{{ max(0, \Carbon\Carbon::parse($creditoRevisionData['fecha_aprobacion'])->diffInDays(\Carbon\Carbon::parse($creditoRevisionData['fecha_vencimiento_credito']), false)) }}</strong>.
                                     @endif
                                     @if(!empty($creditoRevisionData['usuario_revision']))
                                         <span style="display:block; margin-top:4px;">

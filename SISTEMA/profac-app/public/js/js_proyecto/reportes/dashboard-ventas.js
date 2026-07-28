@@ -243,6 +243,7 @@ var dashboardVentas = (function () {
             fecha_inicio: $('#s-fi').val() || primerDiaMes(),
             fecha_final:  $('#s-ff').val() || todayStr(),
             vendedor:     $('#s-vendedor').val() || '',
+            teleasesor:   $('#s-teleasesor').val() || '',
             tipo_cliente: $('#s-tipo-cliente').val() || '',
             dia_semana:   _filtroSemDia || ''
         };
@@ -400,6 +401,12 @@ var dashboardVentas = (function () {
             var tlasData = Array.isArray(data.teleAsesores) ? data.teleAsesores : vendsData;
             _tlasCatalogo = tlasData;
             _renderTlaChecks(tlasData);
+            var tlaOpts = '<option value="">Todos</option>';
+            tlasData.forEach(function (tla) {
+                tlaOpts += '<option value="' + tla.id + '">' + tla.name + '</option>';
+            });
+            $('#s-teleasesor').html(tlaOpts);
+            _activarBuscadorSelect($('#s-teleasesor'), 'Todos los teleasesores');
             $('#tla-fi').val(_firstOfMonth);
             $('#tla-ff').val(todayStr());
             _filtrarTlaChecksPorFecha();
@@ -611,7 +618,7 @@ var dashboardVentas = (function () {
     function cargarSemanal() {
         var p = getP2();
 
-        ['s-kpi-total','s-kpi-facturas','s-kpi-sin-isv','s-kpi-mejor-dia','s-kpi-vend','s-kpi-cliente']
+        ['s-kpi-total','s-kpi-facturas','s-kpi-sin-isv','s-kpi-mejor-dia','s-kpi-vend','s-kpi-teleasesor','s-kpi-cliente']
             .forEach(skeleton);
 
         /* Resumen KPIs + gráfica por día */
@@ -621,6 +628,7 @@ var dashboardVentas = (function () {
             setText('s-kpi-sin-isv',  fmt(d.total_sin_isv));
             setText('s-kpi-mejor-dia', d.mejor_dia || '-');
             setText('s-kpi-vend',     d.mejor_vendedor || '-');
+            setText('s-kpi-teleasesor', d.mejor_teleasesor || '-');
             setText('s-kpi-cliente',  d.mejor_cliente || '-');
             renderPorDia(d.por_dia);
         });
@@ -636,9 +644,14 @@ var dashboardVentas = (function () {
             recalcularCrecimiento();      /* también actualiza chart crecimiento */
         });
 
+        $.get('/reporte/dashboard/top-tele-asesores', p).then(function (rows) {
+            renderRankingTeleasesorSem(rows);
+        });
+
         /* Top 5 clientes */
         $.get('/reporte/dashboard/top-clientes-vendedor', $.extend({}, p, { limite: 5 })).then(function (rows) {
             renderTopCliSem(rows, p.vendedor);
+            renderTopCliTeleasesorSem(rows, p.teleasesor);
         });
 
         /* Tabla server-side */
@@ -705,7 +718,6 @@ var dashboardVentas = (function () {
         var sorted = rows.slice().sort(function (a, b) {
             return parseFloat(b.total_ventas) - parseFloat(a.total_ventas);
         });
-
         charts['chart-ranking-vend-sem'] = new ApexCharts(get('chart-ranking-vend-sem'), {
             chart: {
                 type: 'bar', height: 300, toolbar: { show: false },
@@ -729,6 +741,37 @@ var dashboardVentas = (function () {
         charts['chart-ranking-vend-sem'].render();
     }
 
+    function renderRankingTeleasesorSem(rows) {
+        destroyChart('chart-ranking-teleasesor-sem');
+        if (!rows || !rows.length) return;
+
+        var sorted = rows.slice().sort(function (a, b) {
+            return parseFloat(b.total_ventas) - parseFloat(a.total_ventas);
+        });
+
+        charts['chart-ranking-teleasesor-sem'] = new ApexCharts(get('chart-ranking-teleasesor-sem'), {
+            chart: {
+                type: 'bar', height: 300, toolbar: { show: false },
+                events: {
+                    dataPointSelection: function (e, ctx, cfg) {
+                        var teleasesor = sorted[cfg.dataPointIndex];
+                        $('#s-teleasesor').val(teleasesor.vendedor_id).trigger('change');
+                        $('#filter-badge-teleasesor').text('Teleasesor: ' + teleasesor.vendedor).show();
+                        $('#sem-active-filters').removeClass('d-none');
+                        cargarSemanal();
+                    }
+                }
+            },
+            series: [{ name: 'Total Ventas', data: sorted.map(function (r) { return parseFloat(r.total_ventas); }) }],
+            xaxis: { categories: sorted.map(function (r) { return r.vendedor; }), labels: { formatter: function (v) { return 'L.' + fmtN(v); } } },
+            yaxis: {},
+            tooltip: { y: { formatter: function (v) { return fmt(v); } } },
+            colors: ['#36b9cc'],
+            plotOptions: { bar: { borderRadius: 4, horizontal: true } }
+        });
+        charts['chart-ranking-teleasesor-sem'].render();
+    }
+
     function renderTopCliSem(rows, vendedor) {
         destroyChart('chart-top-cli-sem');
         setText('top-cli-sem-label', vendedor ? 'Asesor comercial seleccionado' : 'Todos los asesores comerciales');
@@ -744,6 +787,23 @@ var dashboardVentas = (function () {
             plotOptions: { bar: { borderRadius: 4 } }
         });
         charts['chart-top-cli-sem'].render();
+    }
+
+    function renderTopCliTeleasesorSem(rows, teleasesor) {
+        destroyChart('chart-top-cli-teleasesor-sem');
+        setText('top-cli-teleasesor-sem-label', teleasesor ? 'Teleasesor seleccionado' : 'Todos los teleasesores');
+        if (!rows || !rows.length) return;
+
+        charts['chart-top-cli-teleasesor-sem'] = new ApexCharts(get('chart-top-cli-teleasesor-sem'), {
+            chart: { type: 'bar', height: 280, toolbar: { show: false } },
+            series: [{ name: 'Ventas', data: rows.map(function (r) { return parseFloat(r.total_comprado); }) }],
+            xaxis: { categories: rows.map(function (r) { return r.cliente; }) },
+            yaxis: { labels: { formatter: function (v) { return 'L.' + fmtN(v); } } },
+            tooltip: { y: { formatter: function (v) { return fmt(v); } } },
+            colors: ['#36b9cc'],
+            plotOptions: { bar: { borderRadius: 4 } }
+        });
+        charts['chart-top-cli-teleasesor-sem'].render();
     }
 
     function _cargarTablaSemanal(p) {
@@ -775,6 +835,7 @@ var dashboardVentas = (function () {
                 },
                 { data: 'cliente' },
                 { data: 'vendedor' },
+                { data: 'teleasesor' },
                 { data: 'tipo_cliente' },
                 { data: 'subtotal',  className: 'text-right' },
                 { data: 'impuesto',  className: 'text-right' },
@@ -815,6 +876,14 @@ var dashboardVentas = (function () {
             setText('crec-vend-periodo-label', 'vs. ' + fi2 + ' al ' + ff2);
             _renderCrecimientoVend(res[0], res[1]);
         });
+
+        Promise.all([
+            $.get('/reporte/dashboard/top-tele-asesores', p),
+            $.get('/reporte/dashboard/top-tele-asesores', pBase)
+        ]).then(function (res) {
+            setText('crec-teleasesor-periodo-label', 'vs. ' + fi2 + ' al ' + ff2);
+            _renderCrecimientoTeleasesor(res[0], res[1]);
+        });
     }
 
     function _renderCrecimientoVend(actual, anterior) {
@@ -844,11 +913,38 @@ var dashboardVentas = (function () {
         charts['chart-crec-vend-sem'].render();
     }
 
+    function _renderCrecimientoTeleasesor(actual, anterior) {
+        destroyChart('chart-crec-teleasesor-sem');
+        if (!actual || !actual.length) return;
+
+        var anteriorMap = {};
+        anterior.forEach(function (r) { anteriorMap[r.vendedor] = parseFloat(r.total_ventas); });
+        var sorted = actual.slice().sort(function (a, b) {
+            return parseFloat(b.total_ventas) - parseFloat(a.total_ventas);
+        });
+
+        charts['chart-crec-teleasesor-sem'] = new ApexCharts(get('chart-crec-teleasesor-sem'), {
+            chart: { type: 'bar', height: 300, toolbar: { show: false } },
+            series: [
+                { name: 'Período actual', data: sorted.map(function (r) { return parseFloat(r.total_ventas); }) },
+                { name: 'Período anterior', data: sorted.map(function (r) { return anteriorMap[r.vendedor] || 0; }) }
+            ],
+            xaxis: { categories: sorted.map(function (r) { return r.vendedor; }) },
+            yaxis: { labels: { formatter: function (v) { return 'L.' + fmtN(v); } } },
+            tooltip: { y: { formatter: function (v) { return fmt(v); } } },
+            colors: ['#36b9cc', '#858796'],
+            plotOptions: { bar: { columnWidth: '60%', borderRadius: 3 } },
+            legend: { position: 'top' }
+        });
+        charts['chart-crec-teleasesor-sem'].render();
+    }
+
     function limpiarFiltrosSem() {
         _filtroSemDia = null;
         $('#s-vendedor').val('').trigger('change');
+        $('#s-teleasesor').val('').trigger('change');
         $('#s-tipo-cliente').val('');
-        $('#filter-badge-dia, #filter-badge-vend').hide();
+        $('#filter-badge-dia, #filter-badge-vend, #filter-badge-teleasesor').hide();
         $('#sem-active-filters').addClass('d-none');
         cargarSemanal();
     }
@@ -3761,6 +3857,7 @@ var dashboardVentas = (function () {
                     ['Facturas',        d.facturas || 0],
                     ['Ticket Promedio', parseFloat(d.ticket_promedio) || 0],
                     ['Mejor Asesor Comercial',  d.mejor_vendedor || '-'],
+                    ['Mejor Teleasesor', d.mejor_teleasesor || '-'],
                     ['Mejor Cliente',   d.mejor_cliente || '-'],
                     ['Mejor Día',       d.mejor_dia || '-']
                 ];
@@ -3889,8 +3986,8 @@ var dashboardVentas = (function () {
             wb.created = new Date();
 
             var ws      = wb.addWorksheet('Detalle Facturas');
-            var headers = ['Fecha', 'Día', 'Semana', 'Documento', 'Cliente', 'Vendedor', 'Tipo', 'Subtotal', 'ISV', 'Descuento', 'Total'];
-            var widths  = [14, 14, 10, 22, 35, 22, 18, 14, 14, 14, 14];
+            var headers = ['Fecha', 'Día', 'Semana', 'Documento', 'Cliente', 'Asesor Comercial', 'Teleasesor', 'Tipo', 'Subtotal', 'ISV', 'Descuento', 'Total'];
+            var widths  = [14, 14, 10, 22, 35, 22, 22, 18, 14, 14, 14, 14];
 
             /* Título y encabezados */
             ws.addRow(['Detalle de Facturas — Reporte Semanal']);
@@ -3914,13 +4011,13 @@ var dashboardVentas = (function () {
             widths.forEach(function (w, i) { ws.getColumn(i + 1).width = w; });
             ws.getRow(5).height = 22;
 
-            /* Columnas monetarias (índice 1-based): Subtotal=8, ISV=9, Descuento=10, Total=11 */
+            /* Columnas monetarias (índice 1-based): Subtotal=9, ISV=10, Descuento=11, Total=12 */
             var CUR_FMT = '"L."#,##0.00';
 
             rows.forEach(function (r, idx) {
                 var dataRow = ws.addRow([
                     r.fecha, r.dia_semana, r.semana_iso, r.documento,
-                    r.cliente, r.vendedor, r.tipo_cliente,
+                    r.cliente, r.vendedor, r.teleasesor, r.tipo_cliente,
                     parseFloat(r.subtotal)   || 0,
                     parseFloat(r.impuesto)   || 0,
                     parseFloat(r.descuento)  || 0,
@@ -3936,7 +4033,7 @@ var dashboardVentas = (function () {
                         left:   { style: 'hair', color: { argb: 'FFCCCCCC' } },
                         right:  { style: 'hair', color: { argb: 'FFCCCCCC' } }
                     };
-                    if ([8, 9, 10, 11].indexOf(colNum) !== -1) {
+                    if ([9, 10, 11, 12].indexOf(colNum) !== -1) {
                         cell.numFmt    = CUR_FMT;
                         cell.alignment = { horizontal: 'right' };
                     }
@@ -3945,7 +4042,7 @@ var dashboardVentas = (function () {
 
             /* Fila de totales */
             var totRow = ws.addRow([
-                'TOTAL', '', '', '', '', '', '',
+                'TOTAL', '', '', '', '', '', '', '',
                 rows.reduce(function (s, r) { return s + (parseFloat(r.subtotal)  || 0); }, 0),
                 rows.reduce(function (s, r) { return s + (parseFloat(r.impuesto)  || 0); }, 0),
                 rows.reduce(function (s, r) { return s + (parseFloat(r.descuento) || 0); }, 0),
@@ -3954,7 +4051,7 @@ var dashboardVentas = (function () {
             totRow.eachCell({ includeEmpty: true }, function (cell, colNum) {
                 cell.font = { bold: true };
                 cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE0B2' } };
-                if ([8, 9, 10, 11].indexOf(colNum) !== -1) {
+                if ([9, 10, 11, 12].indexOf(colNum) !== -1) {
                     cell.numFmt    = CUR_FMT;
                     cell.alignment = { horizontal: 'right' };
                 }
