@@ -2,12 +2,15 @@
 
 namespace App\Http\Livewire\FlujoDeVenta;
 
+use App\Exports\CarteraClientesExport;
+use App\Exports\ZonificacionClientesExport;
 use Livewire\Component;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use DataTables;
+use Maatwebsite\Excel\Facades\Excel;
 
 class CarteraDeClientes extends Component
 {
@@ -175,6 +178,190 @@ class CarteraDeClientes extends Component
         }
     }
 
+    public function listarIds(Request $request)
+    {
+        try {
+            [$where, $bindings] = $this->construirFiltros($request);
+            $ids = DB::select("\n                SELECT cliente.id\n                FROM cliente\n                LEFT JOIN municipio ON municipio.id = cliente.municipio_id\n                LEFT JOIN departamento ON departamento.id = municipio.departamento_id\n                WHERE {$where}\n                ORDER BY cliente.id\n            ", $bindings);
+
+            return response()->json([
+                'success' => true,
+                'ids' => array_map(fn($cliente) => (int) $cliente->id, $ids),
+                'total' => count($ids),
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['success' => false, 'mensaje' => 'No se pudieron obtener los clientes filtrados.'], 500);
+        }
+    }
+
+    public function exportarExcel(Request $request)
+    {
+        $request->validate([
+            'vista' => 'required|in:individual,municipio,departamento,zonificacion',
+            'departamento_id' => 'nullable|integer|exists:departamento,id',
+            'municipio_id' => 'nullable|integer|exists:municipio,id',
+            'zona_id' => 'nullable|integer|exists:cliente_zonas,id',
+            'busqueda_zona' => 'nullable|string|max:150',
+            'busqueda_tabla' => 'nullable|string|max:150',
+        ]);
+
+        if ($request->vista === 'zonificacion') {
+            return $this->exportarExcelZonificacion($request);
+        }
+
+        [$where, $bindings] = $this->construirFiltros($request);
+        $busquedaTabla = trim((string) $request->get('busqueda_tabla', ''));
+        if ($busquedaTabla !== '') {
+            $where .= ' AND (
+                cliente.nombre LIKE ? OR cliente.rtn LIKE ? OR cliente.telefono_empresa LIKE ?
+                OR municipio.nombre LIKE ? OR departamento.nombre LIKE ? OR estado_cliente.descripcion LIKE ?
+                OR EXISTS (
+                    SELECT 1 FROM cliente_usuario cu_busqueda
+                    INNER JOIN users u_busqueda ON u_busqueda.id = cu_busqueda.usuario_id
+                    WHERE cu_busqueda.cliente_id = cliente.id AND u_busqueda.name LIKE ?
+                )
+            )';
+            for ($indice = 0; $indice < 7; $indice++) {
+                $bindings[] = "%{$busquedaTabla}%";
+            }
+        }
+
+        $clientes = DB::select("
+            SELECT cliente.id, cliente.nombre, cliente.rtn, cliente.telefono_empresa,
+                municipio.nombre AS municipio_nombre, departamento.nombre AS departamento_nombre,
+                estado_cliente.descripcion AS estado_descripcion,
+                COALESCE((
+                    SELECT GROUP_CONCAT(DISTINCT u.name ORDER BY u.name SEPARATOR ', ')
+                    FROM cliente_usuario cu
+                    INNER JOIN users u ON u.id = cu.usuario_id
+                    WHERE cu.cliente_id = cliente.id AND cu.rol_id = " . self::ROL_ASESOR_COMERCIAL . "
+                ), 'Sin asignar') AS asesores_comerciales,
+                COALESCE((
+                    SELECT GROUP_CONCAT(DISTINCT u.name ORDER BY u.name SEPARATOR ', ')
+                    FROM cliente_usuario cu
+                    INNER JOIN users u ON u.id = cu.usuario_id
+                    WHERE cu.cliente_id = cliente.id AND cu.rol_id = " . self::ROL_TELE_ASESOR . "
+                ), 'Sin asignar') AS teleasesores
+            FROM cliente
+            LEFT JOIN municipio ON municipio.id = cliente.municipio_id
+            LEFT JOIN departamento ON departamento.id = municipio.departamento_id
+            LEFT JOIN estado_cliente ON estado_cliente.id = cliente.estado_cliente_id
+            WHERE {$where}
+            ORDER BY departamento.nombre, municipio.nombre, cliente.nombre
+        ", $bindings);
+
+        $vistaNombre = [
+            'individual' => 'INDIVIDUAL',
+            'municipio' => 'POR MUNICIPIO',
+            'departamento' => 'POR DEPARTAMENTO',
+        ][$request->vista];
+        $alcance = 'Todos los resultados';
+        if ($request->municipio_id) {
+            $ubicacion = DB::table('municipio as m')
+                ->leftJoin('departamento as d', 'd.id', '=', 'm.departamento_id')
+                ->where('m.id', (int) $request->municipio_id)
+                ->first(['m.nombre as municipio', 'd.nombre as departamento']);
+            $alcance = 'Municipio: ' . ($ubicacion->municipio ?? '-') . ' | Departamento: ' . ($ubicacion->departamento ?? '-');
+        } elseif ($request->departamento_id) {
+            $departamento = DB::table('departamento')->where('id', (int) $request->departamento_id)->value('nombre');
+            $alcance = 'Departamento: ' . ($departamento ?? '-');
+        }
+
+        $filtros = array_filter([
+            trim((string) $request->nombre) !== '' ? 'Cliente: ' . trim($request->nombre) : null,
+            trim((string) $request->asesor) !== '' ? 'Asesor: ' . trim($request->asesor) : null,
+            trim((string) $request->teleasesor) !== '' ? 'Teleasesor: ' . trim($request->teleasesor) : null,
+            $request->filled('estado_cliente_id') ? 'Estado: ' . ((int) $request->estado_cliente_id === 1 ? 'Activo' : 'Inactivo') : null,
+            $request->boolean('sin_asignar') ? 'Solo sin asignar' : null,
+            $busquedaTabla !== '' ? 'Búsqueda de tabla: ' . $busquedaTabla : null,
+        ]);
+        $resumenFiltros = empty($filtros) ? 'Sin filtros adicionales' : implode(' | ', $filtros);
+        $nombreArchivo = 'cartera_clientes_' . Str::slug($alcance, '_') . '_' . now()->format('Ymd_His') . '.xlsx';
+
+        return Excel::download(new CarteraClientesExport(
+            $clientes,
+            'CARTERA DE CLIENTES - ' . $vistaNombre,
+            $alcance,
+            $resumenFiltros,
+            Auth::user()->name ?? 'Sistema'
+        ), $nombreArchivo);
+    }
+
+    private function exportarExcelZonificacion(Request $request)
+    {
+        $query = DB::table('cliente_zona_miembros as zm')
+            ->join('cliente_zonas as z', 'z.id', '=', 'zm.zona_id')
+            ->join('departamento as zd', 'zd.id', '=', 'z.departamento_id')
+            ->join('cliente as cliente', 'cliente.id', '=', 'zm.cliente_id')
+            ->leftJoin('municipio', 'municipio.id', '=', 'cliente.municipio_id')
+            ->leftJoin('departamento', 'departamento.id', '=', 'municipio.departamento_id')
+            ->leftJoin('estado_cliente', 'estado_cliente.id', '=', 'cliente.estado_cliente_id');
+
+        if ($request->filled('zona_id')) {
+            $query->where('z.id', (int) $request->zona_id);
+        } elseif ($request->filled('departamento_id')) {
+            $query->where('z.departamento_id', (int) $request->departamento_id);
+        }
+
+        $busquedaZona = trim((string) $request->get('busqueda_zona', ''));
+        if ($busquedaZona !== '') {
+            $query->where(function ($consulta) use ($busquedaZona) {
+                $consulta->where('z.nombre', 'like', "%{$busquedaZona}%")
+                    ->orWhere('zd.nombre', 'like', "%{$busquedaZona}%");
+            });
+        }
+
+        $busquedaTabla = trim((string) $request->get('busqueda_tabla', ''));
+        if ($busquedaTabla !== '') {
+            $query->where(function ($consulta) use ($busquedaTabla) {
+                $consulta->where('cliente.nombre', 'like', "%{$busquedaTabla}%")
+                    ->orWhere('cliente.rtn', 'like', "%{$busquedaTabla}%")
+                    ->orWhere('municipio.nombre', 'like', "%{$busquedaTabla}%")
+                    ->orWhere('departamento.nombre', 'like', "%{$busquedaTabla}%");
+            });
+        }
+
+        $clientes = $query->select([
+            'cliente.id', 'cliente.nombre', 'cliente.rtn', 'cliente.telefono_empresa',
+            'municipio.nombre as municipio_nombre', 'departamento.nombre as departamento_nombre',
+            'estado_cliente.descripcion as estado_descripcion', 'z.nombre as zona_nombre',
+            'zd.nombre as zona_departamento_nombre',
+        ])->selectRaw("COALESCE((
+            SELECT GROUP_CONCAT(DISTINCT u.name ORDER BY u.name SEPARATOR ', ')
+            FROM cliente_usuario cu INNER JOIN users u ON u.id = cu.usuario_id
+            WHERE cu.cliente_id = cliente.id AND cu.rol_id = " . self::ROL_ASESOR_COMERCIAL . "
+        ), 'Sin asignar') AS asesores_comerciales")
+            ->selectRaw("COALESCE((
+                SELECT GROUP_CONCAT(DISTINCT u.name ORDER BY u.name SEPARATOR ', ')
+                FROM cliente_usuario cu INNER JOIN users u ON u.id = cu.usuario_id
+                WHERE cu.cliente_id = cliente.id AND cu.rol_id = " . self::ROL_TELE_ASESOR . "
+            ), 'Sin asignar') AS teleasesores")
+            ->orderBy('zd.nombre')->orderBy('z.nombre')->orderBy('cliente.nombre')->get();
+
+        $alcance = 'Todas las zonas';
+        if ($request->filled('zona_id')) {
+            $zona = DB::table('cliente_zonas as z')->join('departamento as d', 'd.id', '=', 'z.departamento_id')
+                ->where('z.id', (int) $request->zona_id)->first(['z.nombre', 'd.nombre as departamento']);
+            $alcance = 'Zona: ' . ($zona->nombre ?? '-') . ' | Departamento: ' . ($zona->departamento ?? '-');
+        } elseif ($request->filled('departamento_id')) {
+            $departamento = DB::table('departamento')->where('id', (int) $request->departamento_id)->value('nombre');
+            $alcance = 'Departamento de zona: ' . ($departamento ?? '-');
+        }
+
+        $filtros = array_filter([
+            $busquedaZona !== '' ? 'Búsqueda de zona: ' . $busquedaZona : null,
+            $busquedaTabla !== '' ? 'Búsqueda de cliente: ' . $busquedaTabla : null,
+        ]);
+        $nombreArchivo = 'zonificacion_clientes_' . Str::slug($alcance, '_') . '_' . now()->format('Ymd_His') . '.xlsx';
+
+        return Excel::download(new ZonificacionClientesExport(
+            $clientes,
+            $alcance,
+            empty($filtros) ? 'Sin filtros adicionales' : implode(' | ', $filtros),
+            Auth::user()->name ?? 'Sistema'
+        ), $nombreArchivo);
+    }
+
     private function renderChips(array $usuarios, string $tipoClase): string
     {
         if (empty($usuarios)) {
@@ -208,12 +395,13 @@ class CarteraDeClientes extends Component
                 ";
             } else {
                 $sql = "
-                    SELECT municipio.id, municipio.nombre, departamento.nombre AS departamento_nombre, COUNT(cliente.id) AS total
+                    SELECT municipio.id, municipio.nombre, departamento.id AS departamento_id,
+                        departamento.nombre AS departamento_nombre, COUNT(cliente.id) AS total
                     FROM cliente
                     INNER JOIN municipio ON municipio.id = cliente.municipio_id
                     LEFT JOIN departamento ON departamento.id = municipio.departamento_id
                     WHERE {$where}
-                    GROUP BY municipio.id, municipio.nombre, departamento.nombre
+                    GROUP BY municipio.id, municipio.nombre, departamento.id, departamento.nombre
                     ORDER BY departamento.nombre ASC, municipio.nombre ASC
                 ";
             }
@@ -548,6 +736,9 @@ class CarteraDeClientes extends Component
             'asesores_comerciales.*' => 'integer|distinct|exists:users,id',
             'teleasesores' => 'nullable|array',
             'teleasesores.*' => 'integer|distinct|exists:users,id',
+            'decisiones' => 'nullable|array',
+            'decisiones.*.cliente_id' => 'required|integer|distinct|exists:cliente,id',
+            'decisiones.*.operacion' => 'required|in:no_modificar,reemplazar,agregar',
         ]);
 
         $duplicada = DB::table('cliente_zonas')
@@ -559,9 +750,30 @@ class CarteraDeClientes extends Component
             return response()->json(['icon' => 'warning', 'title' => 'Zona duplicada', 'text' => 'Ya existe una zona con ese nombre en el departamento.'], 422);
         }
 
+        $anterior = $request->id ? DB::table('cliente_zonas')->where('id', (int) $request->id)->first() : null;
+        $destino = [
+            self::ROL_ASESOR_COMERCIAL => array_values(array_unique(array_map('intval', $request->input('asesores_comerciales', [])))),
+            self::ROL_TELE_ASESOR => array_values(array_unique(array_map('intval', $request->input('teleasesores', [])))),
+        ];
+        $responsablesAnteriores = $anterior ? $this->responsablesDeZonas([(int) $anterior->id]) : [];
+        $cambiaronResponsables = $anterior && (
+            $this->idsUsuarios($responsablesAnteriores[$anterior->id][self::ROL_ASESOR_COMERCIAL] ?? []) !== $this->idsOrdenados($destino[self::ROL_ASESOR_COMERCIAL])
+            || $this->idsUsuarios($responsablesAnteriores[$anterior->id][self::ROL_TELE_ASESOR] ?? []) !== $this->idsOrdenados($destino[self::ROL_TELE_ASESOR])
+        );
+        $vistaPrevia = [];
+        if ($cambiaronResponsables && $request->boolean('activo')) {
+            $vistaPrevia = $this->vistaPreviaResponsablesZona((int) $anterior->id, $destino);
+            if (!empty($vistaPrevia) && !$request->has('decisiones')) {
+                return response()->json([
+                    'requiere_decisiones' => true,
+                    'zona' => ['id' => (int) $anterior->id, 'nombre' => trim($request->nombre)],
+                    'clientes' => $vistaPrevia,
+                ]);
+            }
+        }
+
         try {
             DB::beginTransaction();
-            $anterior = $request->id ? DB::table('cliente_zonas')->where('id', (int) $request->id)->first() : null;
             if ($anterior && (int) $anterior->departamento_id !== (int) $request->departamento_id) {
                 $fuera = DB::table('cliente_zona_miembros as zm')
                     ->join('cliente as c', 'c.id', '=', 'zm.cliente_id')
@@ -602,11 +814,24 @@ class CarteraDeClientes extends Component
 
             $zona = DB::table('cliente_zonas')->where('id', $zonaId)->first();
             $miembros = DB::table('cliente_zona_miembros')->where('zona_id', $zonaId)->pluck('cliente_id')->all();
-            foreach ($miembros as $clienteId) {
-                if ($zona->activo) {
-                    $this->aplicarHerenciaZona($zona, (int) $clienteId, false);
-                } else {
-                    $this->retirarClienteDeZona($zonaId, (int) $clienteId, 'Zona desactivada');
+            if ($zona->activo && $cambiaronResponsables && !empty($vistaPrevia)) {
+                $decisiones = collect($request->input('decisiones', []))->keyBy(fn($decision) => (int) $decision['cliente_id']);
+                $idsEsperados = collect($vistaPrevia)->pluck('id')->map(fn($id) => (int) $id)->sort()->values()->all();
+                $idsRecibidos = $decisiones->keys()->map(fn($id) => (int) $id)->sort()->values()->all();
+                if ($idsEsperados !== $idsRecibidos) {
+                    DB::rollBack();
+                    return response()->json(['icon' => 'warning', 'title' => 'Decisiones incompletas', 'text' => 'Debe indicar una operación para cada cliente mostrado.'], 422);
+                }
+                foreach ($vistaPrevia as $cliente) {
+                    $this->aplicarDecisionResponsablesZona($zona, (int) $cliente['id'], $destino, $decisiones[(int) $cliente['id']]['operacion']);
+                }
+            } else {
+                foreach ($miembros as $clienteId) {
+                    if ($zona->activo) {
+                        $this->aplicarHerenciaZona($zona, (int) $clienteId, false);
+                    } else {
+                        $this->retirarClienteDeZona($zonaId, (int) $clienteId, 'Zona desactivada');
+                    }
                 }
             }
             $this->auditarZona($zonaId, null, $accion, null, $anterior, $zona);
@@ -633,16 +858,23 @@ class CarteraDeClientes extends Component
         }
 
         $ids = array_values(array_unique(array_map('intval', $request->cliente_ids)));
-        $fueraDepartamento = DB::table('cliente as c')
+        $departamentosSeleccionados = DB::table('cliente as c')
             ->join('municipio as m', 'm.id', '=', 'c.municipio_id')
+            ->join('departamento as d', 'd.id', '=', 'm.departamento_id')
             ->whereIn('c.id', $ids)
             ->where('m.departamento_id', '<>', $zona->departamento_id)
-            ->pluck('c.nombre');
-        if ($fueraDepartamento->isNotEmpty()) {
+            ->distinct()
+            ->orderBy('d.nombre')
+            ->pluck('d.nombre');
+        if ($departamentosSeleccionados->isNotEmpty()) {
+            $departamentoZona = DB::table('departamento')->where('id', $zona->departamento_id)->value('nombre');
+            $seleccionTexto = $departamentosSeleccionados->count() === 1
+                ? 'El departamento seleccionado es ' . $departamentosSeleccionados->first()
+                : 'Los departamentos seleccionados son ' . $departamentosSeleccionados->implode(', ');
             return response()->json([
                 'icon' => 'warning',
                 'title' => 'Departamento incompatible',
-                'text' => 'Estos clientes no pertenecen al departamento de la zona: ' . $fueraDepartamento->implode(', '),
+                'text' => $seleccionTexto . ' y el departamento de la zona es ' . ($departamentoZona ?? 'desconocido') . '.',
             ], 422);
         }
 
@@ -999,5 +1231,87 @@ class CarteraDeClientes extends Component
         $ids = array_map(fn($usuario) => (int) $usuario['id'], $usuarios);
         sort($ids);
         return $ids;
+    }
+
+    private function idsOrdenados(array $ids): array
+    {
+        $ids = array_values(array_unique(array_map('intval', $ids)));
+        sort($ids);
+        return $ids;
+    }
+
+    private function vistaPreviaResponsablesZona(int $zonaId, array $destino): array
+    {
+        $clientes = DB::table('cliente_zona_miembros as m')
+            ->join('cliente as c', 'c.id', '=', 'm.cliente_id')
+            ->where('m.zona_id', $zonaId)
+            ->orderBy('c.nombre')
+            ->get(['c.id', 'c.nombre', 'c.rtn']);
+        $actuales = $this->asignacionesDeClientes($clientes->pluck('id')->all());
+        $usuariosDestino = DB::table('users')
+            ->whereIn('id', array_unique(array_merge($destino[self::ROL_ASESOR_COMERCIAL], $destino[self::ROL_TELE_ASESOR])))
+            ->get(['id', 'name'])
+            ->keyBy('id');
+        $asesoresNuevos = collect($destino[self::ROL_ASESOR_COMERCIAL])->map(fn($id) => ['id' => $id, 'name' => $usuariosDestino[$id]->name ?? ('Usuario ' . $id)])->all();
+        $teleasesoresNuevos = collect($destino[self::ROL_TELE_ASESOR])->map(fn($id) => ['id' => $id, 'name' => $usuariosDestino[$id]->name ?? ('Usuario ' . $id)])->all();
+        $resultado = [];
+        foreach ($clientes as $cliente) {
+            $asesoresActuales = $actuales[$cliente->id][self::ROL_ASESOR_COMERCIAL] ?? [];
+            $teleasesoresActuales = $actuales[$cliente->id][self::ROL_TELE_ASESOR] ?? [];
+            if ($this->idsUsuarios($asesoresActuales) === $this->idsOrdenados($destino[self::ROL_ASESOR_COMERCIAL])
+                && $this->idsUsuarios($teleasesoresActuales) === $this->idsOrdenados($destino[self::ROL_TELE_ASESOR])) {
+                continue;
+            }
+            $resultado[] = [
+                'id' => (int) $cliente->id,
+                'nombre' => $cliente->nombre,
+                'rtn' => $cliente->rtn,
+                'asesores_actuales' => $asesoresActuales,
+                'teleasesores_actuales' => $teleasesoresActuales,
+                'asesores_nuevos' => $asesoresNuevos,
+                'teleasesores_nuevos' => $teleasesoresNuevos,
+            ];
+        }
+        return $resultado;
+    }
+
+    private function aplicarDecisionResponsablesZona(object $zona, int $clienteId, array $destino, string $operacion): void
+    {
+        if ($operacion === 'no_modificar') {
+            $this->marcarExcepcionesZona($clienteId, [self::ROL_ASESOR_COMERCIAL, self::ROL_TELE_ASESOR], 'Responsables de zona: cliente sin modificar por decisión del usuario');
+            return;
+        }
+
+        $actualesAntes = [
+            self::ROL_ASESOR_COMERCIAL => DB::table('cliente_usuario')->where('cliente_id', $clienteId)->where('rol_id', self::ROL_ASESOR_COMERCIAL)->pluck('usuario_id')->map(fn($id) => (int) $id)->all(),
+            self::ROL_TELE_ASESOR => DB::table('cliente_usuario')->where('cliente_id', $clienteId)->where('rol_id', self::ROL_TELE_ASESOR)->pluck('usuario_id')->map(fn($id) => (int) $id)->all(),
+        ];
+        $modo = $operacion === 'reemplazar' ? 'reemplazar' : 'agregar';
+        $this->aplicarAsignacion(
+            $clienteId,
+            $destino[self::ROL_ASESOR_COMERCIAL],
+            $modo,
+            $destino[self::ROL_TELE_ASESOR],
+            $modo,
+            (string) Str::uuid(),
+            $operacion === 'reemplazar' ? 'Reemplazo por nuevos responsables de zona' : 'Adición de nuevos responsables de zona'
+        );
+        DB::table('cliente_zona_excepciones')->where('cliente_id', $clienteId)->whereIn('rol_id', [self::ROL_ASESOR_COMERCIAL, self::ROL_TELE_ASESOR])->delete();
+
+        if ($operacion === 'reemplazar') {
+            DB::table('cliente_zona_asignaciones')->where('zona_id', $zona->id)->where('cliente_id', $clienteId)->delete();
+        }
+        foreach ($destino as $rolId => $usuarioIds) {
+            foreach ($usuarioIds as $usuarioId) {
+                if ($operacion === 'agregar' && in_array((int) $usuarioId, $actualesAntes[$rolId], true)) {
+                    continue;
+                }
+                DB::table('cliente_zona_asignaciones')->updateOrInsert(
+                    ['zona_id' => $zona->id, 'cliente_id' => $clienteId, 'usuario_id' => $usuarioId, 'rol_id' => $rolId],
+                    ['created_at' => now(), 'updated_at' => now()]
+                );
+            }
+        }
+        $this->auditarZona((int) $zona->id, $clienteId, 'ACTUALIZAR_RESPONSABLES_CLIENTE', 'Operación aplicada: ' . $operacion);
     }
 }

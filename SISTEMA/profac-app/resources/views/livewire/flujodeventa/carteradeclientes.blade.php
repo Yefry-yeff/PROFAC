@@ -30,6 +30,8 @@
     .cdc-group-header { background:#fdf4e7; padding:10px 16px; display:flex; align-items:center; justify-content:between; gap:10px; cursor:pointer; }
     .cdc-group-header:hover { background:#fbe9d0; }
     .cdc-group-title { font-weight:700; color:#7d3f00; font-size:.9rem; flex:1; }
+    .cdc-group-select { display:inline-flex; align-items:center; gap:5px; margin:0; color:#7d3f00; font-size:.72rem; font-weight:700; cursor:pointer; white-space:nowrap; }
+    .cdc-group-select input { margin:0; }
     .cdc-group-badge { background:var(--cdc-grad); color:#fff; border-radius:12px; padding:2px 12px; font-size:.75rem; font-weight:700; }
     .cdc-group-chevron { transition:transform .2s; color:#7d3f00; }
     .cdc-group.open .cdc-group-chevron { transform:rotate(90deg); }
@@ -38,6 +40,22 @@
     .cdc-mini-row { display:flex; align-items:center; gap:10px; padding:8px 6px; border-bottom:1px solid #f3ecdf; font-size:.83rem; flex-wrap:wrap; }
     .cdc-mini-row:last-child { border-bottom:none; }
     .cdc-mini-nombre { font-weight:600; min-width:200px; flex:1; }
+    .cdc-agrupado-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:14px; }
+    .cdc-agrupado-card { position:relative; display:flex; align-items:center; gap:13px; min-height:104px; padding:15px; border:1px solid #e2c7a6; border-radius:8px; background:#fdfaf6; box-shadow:0 2px 8px rgba(91,55,20,.08); cursor:pointer; transition:transform .16s,box-shadow .16s,border-color .16s; }
+    .cdc-agrupado-card:hover { transform:translateY(-2px); border-color:#d79951; box-shadow:0 7px 16px rgba(91,55,20,.14); }
+    .cdc-agrupado-card-icon { display:flex; align-items:center; justify-content:center; flex:0 0 46px; width:46px; height:46px; border-radius:7px; background:#f3dcc0; color:#c4690d; font-size:1.25rem; }
+    .cdc-agrupado-card-info { flex:1; min-width:0; }
+    .cdc-agrupado-card-info strong { display:block; color:#633300; font-size:.95rem; overflow-wrap:anywhere; }
+    .cdc-agrupado-card-info small { display:block; margin-top:3px; color:#806e5b; font-size:.74rem; font-weight:700; }
+    .cdc-agrupado-subitems { display:block; margin-top:6px; color:#6f6255; font-size:.7rem; line-height:1.35; }
+    .cdc-agrupado-select { position:absolute; top:8px; right:9px; display:inline-flex; align-items:center; gap:4px; margin:0; padding:3px 7px; border-radius:4px; background:#fff; color:#7d3f00; font-size:.67rem; font-weight:700; cursor:pointer; }
+    .cdc-agrupado-enter { color:#a56a30; margin-top:24px; }
+    .cdc-agrupado-head { display:none; align-items:center; gap:10px; margin-bottom:13px; padding-bottom:11px; border-bottom:1px solid #ead9c8; }
+    .cdc-agrupado-head-title { flex:1; min-width:0; }
+    .cdc-agrupado-head-title strong { display:block; color:#633300; font-size:1.02rem; }
+    .cdc-agrupado-head-title small { color:#806e5b; font-weight:700; }
+    #tbl_cdc_agrupado_clientes thead th { background:#fdf4e7; color:#7d3f00; font-size:.72rem; font-weight:700; text-transform:uppercase; white-space:nowrap; vertical-align:middle; }
+    #tbl_cdc_agrupado_clientes tbody td { font-size:.83rem; vertical-align:middle; }
     .modal-header-cdc { background:var(--cdc-grad); color:#fff; border-radius:var(--cdc-radius) var(--cdc-radius) 0 0; padding:14px 20px; }
     .modal-header-cdc .modal-title { color:#fff; font-size:.95rem; font-weight:700; }
     .modal-header-cdc .close { color:#fff; opacity:.8; text-shadow:none; font-size:1.4rem; }
@@ -56,7 +74,7 @@
     .cdc-chip-remove-icon { cursor:pointer; opacity:.65; font-size:.7rem; padding:3px; }
     .cdc-chip-remove-icon:hover { opacity:1; }
     #tbl_cdc_historial thead th, #tbl_cdc_historial_masivo thead th { background:#fdf4e7; color:#7d3f00; font-size:.72rem; text-transform:uppercase; }
-    #tbl_cdc_zona_detalle thead th, #tbl_cdc_zona_historial thead th, #tbl_cdc_zona_cambios thead th { background:#fdf4e7; color:#7d3f00; font-size:.72rem; text-transform:uppercase; white-space:nowrap; }
+    #tbl_cdc_zona_detalle thead th, #tbl_cdc_zona_historial thead th, #tbl_cdc_zona_cambios thead th, #tbl_cdc_responsables_decisiones thead th { background:#fdf4e7; color:#7d3f00; font-size:.72rem; text-transform:uppercase; white-space:nowrap; }
     .cdc-zona-toolbar { display:flex; align-items:center; gap:8px; justify-content:space-between; flex-wrap:wrap; margin-bottom:12px; }
     .cdc-zona-toolbar .input-group { max-width:360px; }
     .cdc-zona-resumen { display:flex; gap:6px; flex-wrap:wrap; }
@@ -93,6 +111,12 @@
     .cdc-zona-detalle-filtro { max-width:310px; }
     #tbl_cdc_zona_detalle td { vertical-align:middle; font-size:.82rem; }
     .cdc-cambio-usuarios { min-width:150px; }
+    .cdc-decision-toolbar { display:flex; align-items:end; gap:8px; flex-wrap:wrap; padding:10px 12px; margin-bottom:10px; background:#fff8ee; border:1px solid #f2d49a; border-radius:6px; }
+    .cdc-decision-toolbar .form-group { margin:0; min-width:220px; }
+    .cdc-decision-toolbar label { display:block; margin-bottom:3px; color:#7d3f00; font-size:.68rem; font-weight:700; text-transform:uppercase; }
+    .cdc-operacion-cliente { min-width:190px; font-size:.78rem; }
+    #tbl_cdc_responsables_decisiones td { vertical-align:middle; font-size:.8rem; }
+    #modalResponsablesZonaCdc .modal-dialog { width:calc(100% - 32px); max-width:1100px; }
     .cdc-zona-miembros { border:1px solid #ead9c8; border-radius:6px; max-height:240px; overflow:auto; }
     .cdc-zona-miembro { display:grid; grid-template-columns:minmax(180px,1fr) 150px 32px; gap:8px; align-items:center; padding:7px 10px; border-bottom:1px solid #f3ecdf; font-size:.8rem; }
     .cdc-zona-miembro:last-child { border-bottom:0; }
@@ -103,7 +127,7 @@
     .swal2-container { z-index:99999!important; }
     #modalAsignacionCdc .modal-body, #modalAsignacionMasivaCdc .modal-body { max-height:calc(100vh - 210px); overflow-y:auto; }
     @media (max-width:575px) {
-        .cdc-departamentos-grid, .cdc-zona-grid { grid-template-columns:minmax(0,1fr); }
+        .cdc-departamentos-grid, .cdc-zona-grid, .cdc-agrupado-grid { grid-template-columns:minmax(0,1fr); }
         .cdc-zona-grid { padding:8px; }
         .cdc-departamento-head { padding:10px; }
     }
@@ -191,6 +215,8 @@
                             <div>
                                 <button type="button" class="btn btn-cdc-primary btn-sm" onclick="cdcAplicarFiltros()"><i class="fa fa-search mr-1"></i>Buscar</button>
                                 <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cdcLimpiarFiltros()"><i class="fa fa-eraser mr-1"></i>Limpiar</button>
+                                <button type="button" class="btn btn-outline-warning btn-sm" id="cdc_btn_seleccionar_filtrados" onclick="cdcAlternarSeleccionFiltrada()" style="display:none;"><i class="fa fa-check-double mr-1"></i><span>Seleccionar resultados</span></button>
+                                <button type="button" class="btn btn-outline-success btn-sm" onclick="cdcDescargarExcel()"><i class="fa fa-file-excel mr-1"></i>Excel</button>
                             </div>
                         </div>
                     </div>
@@ -215,6 +241,7 @@
                                             <button class="btn btn-outline-secondary" type="button" onclick="cdcCargarZonas()"><i class="fa fa-search"></i></button>
                                         </div>
                                     </div>
+                                    <button type="button" class="btn btn-outline-success btn-sm" onclick="cdcDescargarExcel()"><i class="fa fa-file-excel mr-1"></i>Excel</button>
                                     <button type="button" class="btn btn-cdc-primary btn-sm" onclick="cdcNuevaZona()"><i class="fa fa-plus mr-1"></i>Nueva Zona</button>
                                 </div>
                                 <div id="cdc_departamento_zonas_head" class="cdc-departamento-zonas-head">
@@ -233,6 +260,7 @@
                                         <div class="input-group-prepend"><span class="input-group-text"><i class="fa fa-search"></i></span></div>
                                         <input type="search" id="cdc_zona_detalle_filtro" class="form-control" placeholder="Buscar cliente...">
                                     </div>
+                                    <button type="button" class="btn btn-outline-success btn-sm" onclick="cdcDescargarExcel()"><i class="fa fa-file-excel mr-1"></i>Excel</button>
                                     <button type="button" class="btn btn-outline-warning btn-sm" onclick="cdcEditarZona(cdcZonaActivaId)"><i class="fa fa-user-plus mr-1"></i>Administrar zona</button>
                                 </div>
                                 <div style="overflow-x:auto;">
@@ -266,7 +294,18 @@
 
                         {{-- Vista Agrupada (Municipio/Departamento) --}}
                         <div id="cdc_vista_agrupada" style="display:none;">
-                            <div id="cdc_grupos"></div>
+                            <div id="cdc_agrupado_head" class="cdc-agrupado-head">
+                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cdcVolverAgrupado()" title="Volver"><i class="fa fa-arrow-left"></i></button>
+                                <span class="cdc-departamento-folder"><i id="cdc_agrupado_head_icon" class="fa fa-folder-open"></i></span>
+                                <div class="cdc-agrupado-head-title"><strong id="cdc_agrupado_head_nombre"></strong><small id="cdc_agrupado_head_subtitulo"></small></div>
+                            </div>
+                            <div id="cdc_agrupado_grid" class="cdc-agrupado-grid"></div>
+                            <div id="cdc_agrupado_clientes_wrap" style="display:none;overflow-x:auto;">
+                                <table id="tbl_cdc_agrupado_clientes" class="table table-hover table-bordered" style="width:100%;">
+                                    <thead><tr><th style="width:30px"><input type="checkbox" id="cdc_agrupado_chk_all" title="Seleccionar todos los clientes filtrados"></th><th>Cliente</th><th>Ubicación</th><th>Asesores Comerciales</th><th>Teleasesores</th><th>Estado</th><th>Acciones</th></tr></thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
                         </div>
 
                     </div>
@@ -490,6 +529,30 @@
         </div>
     </div>
 
+    {{-- Modal Decisiones de Responsables por Cliente --}}
+    <div class="modal fade" id="modalResponsablesZonaCdc" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header modal-header-cdc"><h5 class="modal-title"><i class="fa fa-users-cog mr-2"></i>Aplicar nuevos actores — <span id="cdc_responsables_zona_nombre"></span></h5><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button></div>
+                <div class="modal-body">
+                    <p class="small text-muted">Seleccione una operación para cada cliente con actores diferentes. Puede marcar varias filas y asignarles la misma operación sin afectar las demás.</p>
+                    <div class="cdc-decision-toolbar">
+                        <div class="form-group"><label>Operación para seleccionados</label><select id="cdc_responsables_operacion_masiva" class="form-control form-control-sm"><option value="no_modificar">No modificar</option><option value="reemplazar">Reemplazar por actores de zona</option><option value="agregar">Agregar a los actores actuales</option></select></div>
+                        <button type="button" class="btn btn-outline-warning btn-sm" onclick="cdcAplicarOperacionResponsablesSeleccionados()"><i class="fa fa-check-double mr-1"></i>Aplicar a seleccionados</button>
+                        <span class="small text-muted ml-auto"><strong id="cdc_responsables_total_clientes">0</strong> clientes con diferencias</span>
+                    </div>
+                    <div style="overflow:auto;max-height:56vh;">
+                        <table id="tbl_cdc_responsables_decisiones" class="table table-sm table-bordered mb-0">
+                            <thead><tr><th style="width:34px"><input type="checkbox" id="cdc_responsables_chk_all"></th><th>Cliente</th><th>Asesores actuales</th><th>Teleasesores actuales</th><th>Nuevos asesores</th><th>Nuevos teleasesores</th><th>Operación</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer py-2"><button type="button" class="btn btn-outline-secondary btn-sm" data-dismiss="modal">Cancelar</button><button type="button" class="btn btn-cdc-primary btn-sm" id="cdc_guardar_decisiones_responsables" onclick="cdcConfirmarDecisionesResponsables()"><i class="fa fa-save mr-1"></i>Guardar zona y aplicar</button></div>
+            </div>
+        </div>
+    </div>
+
     {{-- Modal Historial de Zona --}}
     <div class="modal fade" id="modalHistorialZonaCdc" tabindex="-1" role="dialog" aria-hidden="true">
         <div class="modal-dialog modal-lg modal-dialog-centered" role="document"><div class="modal-content">
@@ -505,6 +568,8 @@
 <script>
     window.CDC_ROUTES = {
         listar: '{{ route('cartera_clientes.listar') }}',
+        listarIds: '{{ route('cartera_clientes.listar_ids') }}',
+        exportarExcel: '{{ route('cartera_clientes.exportar_excel') }}',
         agrupado: '{{ route('cartera_clientes.agrupado') }}',
         usuarios: '{{ route('cartera_clientes.usuarios') }}',
         datos: '{{ url('/flujo_de_venta/cartera_de_clientes/datos') }}',

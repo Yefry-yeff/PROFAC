@@ -1624,6 +1624,8 @@ Route::post('/reporte/ventas-cobros/actualizar-f01/{facturaId}',                
 
     // Cartera de Clientes - endpoints de listado, filtros, asignación e historial
     Route::get('/flujo_de_venta/cartera_de_clientes/listar', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'listar'])->name('cartera_clientes.listar');
+    Route::get('/flujo_de_venta/cartera_de_clientes/listar-ids', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'listarIds'])->name('cartera_clientes.listar_ids');
+    Route::get('/flujo_de_venta/cartera_de_clientes/exportar-excel', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'exportarExcel'])->name('cartera_clientes.exportar_excel');
     Route::get('/flujo_de_venta/cartera_de_clientes/agrupado', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'listarAgrupado'])->name('cartera_clientes.agrupado');
     Route::get('/flujo_de_venta/cartera_de_clientes/usuarios', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'buscarUsuarios'])->name('cartera_clientes.usuarios');
     Route::get('/flujo_de_venta/cartera_de_clientes/datos/{id}', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'datosCliente'])->name('cartera_clientes.datos');

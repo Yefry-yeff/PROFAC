@@ -10,7 +10,14 @@ var cdcFiltros = { nombre: '', asesor: '', teleasesor: '', estado_cliente_id: ''
 var cdcZonaCatalogos = { departamentos: [], zonas: [] };
 var cdcZonaMiembros = [];
 var cdcZonaActivaId = null;
+var cdcZonaDepartamentoActivoId = null;
 var cdcZonasCargadas = [];
+var cdcGuardadoZonaPendiente = null;
+var cdcAgrupadoTable = null;
+var cdcAgrupadoDatos = [];
+var cdcAgrupadoDepartamento = null;
+var cdcAgrupadoMunicipio = null;
+var cdcAgrupadoNivel = 'departamentos';
 
 function cdcToken() {
     return $('meta[name="csrf-token"]').attr('content');
@@ -106,6 +113,7 @@ function cdcAplicarFiltros() {
     cdcFiltros.teleasesor = $('#cdc_fil_teleasesor').val() ? $('#cdc_fil_teleasesor').select2('data')[0].text : '';
     cdcFiltros.estado_cliente_id = $('#cdc_fil_estado').val() || '';
     cdcFiltros.sin_asignar = $('#cdc_fil_sin_asignar').is(':checked') ? 1 : 0;
+    cdcRestablecerBotonSeleccionFiltrada();
 
     if (cdcVista === 'individual') {
         cdcCargarTabla();
@@ -121,6 +129,7 @@ function cdcLimpiarFiltros() {
     $('#cdc_fil_estado').val('');
     $('#cdc_fil_sin_asignar').prop('checked', false);
     cdcFiltros = { nombre: '', asesor: '', teleasesor: '', estado_cliente_id: '', sin_asignar: 0 };
+    cdcRestablecerBotonSeleccionFiltrada();
     if (cdcVista === 'individual') {
         cdcCargarTabla();
     } else {
@@ -134,6 +143,7 @@ function cdcCambiarVista(vista) {
     $('#btn_vista_' + vista).addClass('active');
 
     $('#cdc_filtros_clientes').toggle(vista !== 'zonificacion');
+    $('#cdc_btn_seleccionar_filtrados').toggle(vista === 'municipio' || vista === 'departamento');
     if (vista === 'zonificacion') {
         $('#cdc_vista_zonificacion').show();
         $('#cdc_vista_individual, #cdc_vista_agrupada').hide();
@@ -191,6 +201,16 @@ function cdcCargarTabla() {
 }
 
 function cdcCargarAgrupado(tipo) {
+    if (cdcAgrupadoTable) {
+        cdcAgrupadoTable.destroy();
+        cdcAgrupadoTable = null;
+    }
+    cdcAgrupadoDatos = [];
+    cdcAgrupadoDepartamento = null;
+    cdcAgrupadoMunicipio = null;
+    cdcAgrupadoNivel = 'departamentos';
+    $('#cdc_agrupado_head, #cdc_agrupado_clientes_wrap').hide();
+    $('#cdc_agrupado_grid').show().html('<p class="text-muted text-center py-4"><i class="fa fa-spinner fa-spin mr-1"></i>Cargando...</p>');
     $.get(window.CDC_ROUTES.agrupado, {
         tipo: tipo,
         nombre: cdcFiltros.nombre,
@@ -199,74 +219,244 @@ function cdcCargarAgrupado(tipo) {
         estado_cliente_id: cdcFiltros.estado_cliente_id,
         sin_asignar: cdcFiltros.sin_asignar
     }).done(function (resp) {
-        var $cont = $('#cdc_grupos').empty();
+        var $cont = $('#cdc_agrupado_grid').empty();
         if (!resp.success || !resp.data.length) {
             $cont.html('<p class="text-muted text-center py-4">No se encontraron clientes con los filtros aplicados.</p>');
             return;
         }
-        resp.data.forEach(function (g) {
-            var subtitulo = (tipo === 'municipio' && g.departamento_nombre) ? ' <small class="text-muted">(' + g.departamento_nombre + ')</small>' : '';
-            var $grupo = $(
-                '<div class="cdc-group" data-tipo="' + tipo + '" data-id="' + g.id + '">' +
-                    '<div class="cdc-group-header">' +
-                        '<i class="fa fa-chevron-right cdc-group-chevron"></i>' +
-                        '<span class="cdc-group-title">' + g.nombre + subtitulo + '</span>' +
-                        '<span class="cdc-group-badge">' + g.total + '</span>' +
-                    '</div>' +
-                    '<div class="cdc-group-body"></div>' +
-                '</div>'
-            );
-            $grupo.find('.cdc-group-header').on('click', function () { cdcToggleGrupo($grupo, tipo, g.id); });
-            $cont.append($grupo);
-        });
+        cdcAgrupadoDatos = resp.data;
+        cdcRenderDepartamentosAgrupados();
+    }).fail(function () {
+        $('#cdc_agrupado_grid').html('<p class="text-danger text-center py-4">No se pudo cargar la agrupación.</p>');
     });
 }
 
-function cdcToggleGrupo($grupo, tipo, id) {
-    var abierto = $grupo.hasClass('open');
-    if (abierto) { $grupo.removeClass('open'); return; }
-
-    $grupo.addClass('open');
-    var $body = $grupo.find('.cdc-group-body');
-    if ($body.data('cargado')) { return; }
-
-    $body.html('<p class="text-muted small py-2"><i class="fa fa-spinner fa-spin mr-1"></i>Cargando...</p>');
-
-    var params = {
-        draw: 1, start: 0, length: 500,
-        nombre: cdcFiltros.nombre, asesor: cdcFiltros.asesor, teleasesor: cdcFiltros.teleasesor,
-        estado_cliente_id: cdcFiltros.estado_cliente_id, sin_asignar: cdcFiltros.sin_asignar
-    };
-    params[tipo === 'departamento' ? 'departamento_id' : 'municipio_id'] = id;
-
-    $.get(window.CDC_ROUTES.listar, params).done(function (resp) {
-        $body.data('cargado', true);
-        var rows = resp.data || [];
-        if (!rows.length) {
-            $body.html('<p class="text-muted small py-2">Sin clientes en este grupo.</p>');
-            return;
-        }
-        var html = '';
-        rows.forEach(function (c) {
-            html += '<div class="cdc-mini-row">' +
-                        c.seleccionar +
-                        '<span class="cdc-mini-nombre">' + c.nombre + '</span>' +
-                        '<span>' + c.asesores_html + '</span>' +
-                        '<span>' + c.teleasesores_html + '</span>' +
-                        '<span>' + c.acciones + '</span>' +
-                    '</div>';
-        });
-        $body.html(html);
-        $body.find('.cdc-chk-cliente').each(function () {
-            var id2 = parseInt($(this).val(), 10);
-            $(this).prop('checked', cdcSeleccion.has(id2));
-        });
-        $body.on('change', '.cdc-chk-cliente', function () {
-            var cid = parseInt($(this).val(), 10);
-            if (this.checked) { cdcSeleccion.add(cid); } else { cdcSeleccion.delete(cid); }
-            cdcActualizarBarraSeleccion();
-        });
+function cdcRenderDepartamentosAgrupados() {
+    cdcAgrupadoNivel = 'departamentos';
+    cdcAgrupadoDepartamento = null;
+    cdcAgrupadoMunicipio = null;
+    $('#cdc_agrupado_head, #cdc_agrupado_clientes_wrap').hide();
+    var $grid = $('#cdc_agrupado_grid').empty().show();
+    var departamentos = {};
+    cdcAgrupadoDatos.forEach(function (grupo) {
+        var departamentoId = cdcVista === 'departamento' ? grupo.id : grupo.departamento_id;
+        var departamentoNombre = cdcVista === 'departamento' ? grupo.nombre : grupo.departamento_nombre;
+        if (!departamentos[departamentoId]) departamentos[departamentoId] = { id: Number(departamentoId), nombre: departamentoNombre, total: 0, municipios: [] };
+        departamentos[departamentoId].total += Number(grupo.total || 0);
+        if (cdcVista === 'municipio') departamentos[departamentoId].municipios.push(grupo);
     });
+    Object.keys(departamentos).forEach(function (id) {
+        var departamento = departamentos[id];
+        var nombres = departamento.municipios.map(function (m) { return m.nombre; });
+        var detalle = cdcVista === 'municipio' ? nombres.join(', ') : '';
+        var subtitulo = cdcVista === 'municipio'
+            ? departamento.municipios.length + (departamento.municipios.length === 1 ? ' municipio' : ' municipios') + ' · ' + departamento.total + ' clientes'
+            : departamento.total + (departamento.total === 1 ? ' cliente' : ' clientes');
+        $grid.append(cdcCrearCardAgrupada(departamento.nombre, subtitulo, detalle, { departamento_id: departamento.id }, function () {
+            cdcAgrupadoDepartamento = departamento;
+            if (cdcVista === 'municipio') cdcRenderMunicipiosAgrupados(departamento); else cdcAbrirClientesAgrupados({ departamento_id: departamento.id }, departamento.nombre, subtitulo);
+        }));
+    });
+}
+
+function cdcRenderMunicipiosAgrupados(departamento) {
+    cdcAgrupadoNivel = 'municipios';
+    cdcAgrupadoDepartamento = departamento;
+    cdcAgrupadoMunicipio = null;
+    $('#cdc_agrupado_clientes_wrap').hide();
+    cdcConfigurarCabeceraAgrupada(departamento.nombre, departamento.municipios.length + (departamento.municipios.length === 1 ? ' municipio' : ' municipios'), { departamento_id: departamento.id }, 'fa-folder-open');
+    var $grid = $('#cdc_agrupado_grid').empty().show();
+    departamento.municipios.forEach(function (municipio) {
+        $grid.append(cdcCrearCardAgrupada(municipio.nombre, Number(municipio.total) + (Number(municipio.total) === 1 ? ' cliente' : ' clientes'), '', { municipio_id: Number(municipio.id) }, function () {
+            cdcAgrupadoMunicipio = municipio;
+            cdcAbrirClientesAgrupados({ municipio_id: Number(municipio.id) }, municipio.nombre, departamento.nombre + ' · ' + municipio.total + ' clientes');
+        }, 'fa-map-marker-alt'));
+    });
+}
+
+function cdcCrearCardAgrupada(nombre, subtitulo, detalle, filtro, alAbrir, icono) {
+    var $card = $('<article class="cdc-agrupado-card" role="button" tabindex="0"></article>');
+    $card.append('<span class="cdc-agrupado-card-icon"><i class="fa ' + (icono || 'fa-folder') + '"></i></span>');
+    var $info = $('<span class="cdc-agrupado-card-info"><strong></strong><small></small></span>');
+    $info.find('strong').text(nombre);
+    $info.find('small').text(subtitulo);
+    if (detalle) $info.append($('<span class="cdc-agrupado-subitems"></span>').text(detalle));
+    $card.append($info).append('<i class="fa fa-chevron-right cdc-agrupado-enter"></i>');
+    var $seleccionar = $('<label class="cdc-agrupado-select"><input type="checkbox"> Seleccionar todos</label>');
+    $seleccionar.on('click', function (event) { event.stopPropagation(); });
+    $seleccionar.find('input').on('change', function () { cdcSeleccionarFiltroAgrupado(filtro, this.checked, $(this)); });
+    $card.append($seleccionar);
+    $card.on('click', alAbrir).on('keydown', function (event) { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); alAbrir(); } });
+    return $card;
+}
+
+function cdcConfigurarCabeceraAgrupada(nombre, subtitulo, filtro, icono) {
+    $('#cdc_agrupado_head').css('display', 'flex');
+    $('#cdc_agrupado_head_nombre').text(nombre);
+    $('#cdc_agrupado_head_subtitulo').text(subtitulo);
+    $('#cdc_agrupado_head_icon').attr('class', 'fa ' + icono);
+}
+
+function cdcAbrirClientesAgrupados(filtro, nombre, subtitulo) {
+    cdcAgrupadoNivel = 'clientes';
+    $('#cdc_agrupado_grid').hide();
+    $('#cdc_agrupado_clientes_wrap').show();
+    cdcConfigurarCabeceraAgrupada(nombre, subtitulo, filtro, 'fa-users');
+    if (cdcAgrupadoTable) cdcAgrupadoTable.destroy();
+    $('#tbl_cdc_agrupado_clientes tbody').empty();
+    cdcAgrupadoTable = $('#tbl_cdc_agrupado_clientes').DataTable({
+        order: [[1, 'asc']], language: { url: '/js/plugins/dataTables/i18n/Spanish.json' }, pageLength: 25,
+        ajax: { url: window.CDC_ROUTES.listar, type: 'GET', data: function (d) { $.extend(d, cdcParametrosSeleccion(filtro)); } },
+        columns: [
+            { data: 'seleccionar', orderable: false, searchable: false }, { data: 'nombre' }, { data: 'ubicacion', orderable: false },
+            { data: 'asesores_html', orderable: false }, { data: 'teleasesores_html', orderable: false }, { data: 'estado_descripcion' },
+            { data: 'acciones', orderable: false, searchable: false }
+        ],
+        drawCallback: function () {
+            $('#tbl_cdc_agrupado_clientes .cdc-chk-cliente').each(function () { $(this).prop('checked', cdcSeleccion.has(Number(this.value))); });
+            cdcActualizarSeleccionFiltradaTabla();
+            cdcActualizarBarraSeleccion();
+        }
+    });
+    $('#cdc_agrupado_chk_all').off('change').prop('checked', false).prop('indeterminate', false).on('change', function () {
+        cdcSeleccionarFiltradosTablaAgrupada(this.checked);
+    });
+    $('#tbl_cdc_agrupado_clientes tbody').off('change', '.cdc-chk-cliente').on('change', '.cdc-chk-cliente', function () {
+        var id = Number(this.value);
+        if (this.checked) cdcSeleccion.add(id); else cdcSeleccion.delete(id);
+        cdcActualizarSeleccionFiltradaTabla();
+        cdcActualizarBarraSeleccion();
+    });
+}
+
+function cdcIdsFiltradosTablaAgrupada() {
+    if (!cdcAgrupadoTable) return [];
+    return cdcAgrupadoTable.rows({ search: 'applied' }).data().toArray().map(function (cliente) { return Number(cliente.id); });
+}
+
+function cdcSeleccionarFiltradosTablaAgrupada(marcar) {
+    cdcIdsFiltradosTablaAgrupada().forEach(function (id) {
+        if (marcar) cdcSeleccion.add(id); else cdcSeleccion.delete(id);
+    });
+    $('#tbl_cdc_agrupado_clientes .cdc-chk-cliente').each(function () { $(this).prop('checked', cdcSeleccion.has(Number(this.value))); });
+    cdcActualizarSeleccionFiltradaTabla();
+    cdcActualizarBarraSeleccion();
+}
+
+function cdcActualizarSeleccionFiltradaTabla() {
+    var ids = cdcIdsFiltradosTablaAgrupada();
+    var seleccionados = ids.filter(function (id) { return cdcSeleccion.has(id); }).length;
+    $('#cdc_agrupado_chk_all')
+        .prop('checked', ids.length > 0 && seleccionados === ids.length)
+        .prop('indeterminate', seleccionados > 0 && seleccionados < ids.length);
+}
+
+function cdcVolverAgrupado() {
+    if (cdcAgrupadoTable) { cdcAgrupadoTable.destroy(); cdcAgrupadoTable = null; }
+    if (cdcVista === 'municipio' && cdcAgrupadoNivel === 'clientes' && cdcAgrupadoDepartamento) {
+        cdcRenderMunicipiosAgrupados(cdcAgrupadoDepartamento);
+    } else {
+        cdcRenderDepartamentosAgrupados();
+    }
+}
+
+function cdcSeleccionarFiltroAgrupado(filtro, marcar, $checkbox) {
+    $checkbox.prop('disabled', true);
+    $.get(window.CDC_ROUTES.listarIds, cdcParametrosSeleccion(filtro)).done(function (resp) {
+        (resp.ids || []).map(Number).forEach(function (id) { if (marcar) cdcSeleccion.add(id); else cdcSeleccion.delete(id); });
+        $('.cdc-chk-cliente').each(function () { $(this).prop('checked', cdcSeleccion.has(Number(this.value))); });
+        $checkbox.prop('checked', marcar);
+        cdcActualizarBarraSeleccion();
+    }).fail(function () {
+        $checkbox.prop('checked', !marcar);
+        Swal.fire('Error', 'No se pudo seleccionar la carpeta completa.', 'error');
+    }).always(function () { $checkbox.prop('disabled', false); });
+}
+
+function cdcParametrosSeleccion(extra) {
+    return $.extend({
+        nombre: cdcFiltros.nombre,
+        asesor: cdcFiltros.asesor,
+        teleasesor: cdcFiltros.teleasesor,
+        estado_cliente_id: cdcFiltros.estado_cliente_id,
+        sin_asignar: cdcFiltros.sin_asignar
+    }, extra || {});
+}
+
+function cdcSeleccionarGrupoCompleto($grupo, tipo, id, marcar) {
+    var $checkbox = $grupo.find('.cdc-group-chk-all').prop('disabled', true);
+    var extra = {};
+    extra[tipo === 'departamento' ? 'departamento_id' : 'municipio_id'] = id;
+    $.get(window.CDC_ROUTES.listarIds, cdcParametrosSeleccion(extra)).done(function (resp) {
+        var ids = (resp.ids || []).map(Number);
+        $grupo.data('clienteIds', ids);
+        ids.forEach(function (clienteId) {
+            if (marcar) { cdcSeleccion.add(clienteId); } else { cdcSeleccion.delete(clienteId); }
+        });
+        $grupo.find('.cdc-chk-cliente').each(function () { $(this).prop('checked', cdcSeleccion.has(Number(this.value))); });
+        $checkbox.prop('checked', marcar);
+        cdcActualizarBarraSeleccion();
+    }).fail(function () {
+        $checkbox.prop('checked', !marcar);
+        Swal.fire('Error', 'No se pudo seleccionar el grupo completo.', 'error');
+    }).always(function () { $checkbox.prop('disabled', false); });
+}
+
+function cdcActualizarCheckboxGrupo($grupo) {
+    var ids = $grupo.data('clienteIds');
+    if (!ids || !ids.length) return;
+    $grupo.find('.cdc-group-chk-all').prop('checked', ids.every(function (id) { return cdcSeleccion.has(Number(id)); }));
+}
+
+function cdcAlternarSeleccionFiltrada() {
+    var $boton = $('#cdc_btn_seleccionar_filtrados').prop('disabled', true);
+    $.get(window.CDC_ROUTES.listarIds, cdcParametrosSeleccion()).done(function (resp) {
+        var ids = (resp.ids || []).map(Number);
+        var todosSeleccionados = ids.length > 0 && ids.every(function (id) { return cdcSeleccion.has(id); });
+        ids.forEach(function (clienteId) {
+            if (todosSeleccionados) { cdcSeleccion.delete(clienteId); } else { cdcSeleccion.add(clienteId); }
+        });
+        $('.cdc-chk-cliente').each(function () { $(this).prop('checked', cdcSeleccion.has(Number(this.value))); });
+        $('.cdc-group').each(function () { cdcActualizarCheckboxGrupo($(this)); });
+        $boton.find('span').text(todosSeleccionados ? 'Seleccionar resultados' : 'Quitar resultados');
+        cdcActualizarBarraSeleccion();
+    }).fail(function () { Swal.fire('Error', 'No se pudieron seleccionar los resultados filtrados.', 'error'); })
+      .always(function () { $boton.prop('disabled', false); });
+}
+
+function cdcRestablecerBotonSeleccionFiltrada() {
+    $('#cdc_btn_seleccionar_filtrados span').text('Seleccionar resultados');
+}
+
+function cdcDescargarExcel() {
+    var parametros = cdcParametrosSeleccion({ vista: cdcVista });
+    var busquedaTabla = '';
+
+    if (cdcVista === 'zonificacion') {
+        if (cdcZonaActivaId) {
+            parametros.zona_id = cdcZonaActivaId;
+            busquedaTabla = $('#cdc_zona_detalle_filtro').val() || '';
+        } else if (cdcZonaDepartamentoActivoId) {
+            parametros.departamento_id = cdcZonaDepartamentoActivoId;
+        } else {
+            parametros.busqueda_zona = $('#cdc_zona_buscar').val() || '';
+        }
+    } else if (cdcVista === 'individual' && cdcTable) {
+        busquedaTabla = cdcTable.search() || '';
+    } else if (cdcVista === 'departamento') {
+        if (cdcAgrupadoDepartamento) parametros.departamento_id = cdcAgrupadoDepartamento.id;
+        if (cdcAgrupadoNivel === 'clientes' && cdcAgrupadoTable) busquedaTabla = cdcAgrupadoTable.search() || '';
+    } else if (cdcVista === 'municipio') {
+        if (cdcAgrupadoMunicipio && cdcAgrupadoNivel === 'clientes') {
+            parametros.municipio_id = cdcAgrupadoMunicipio.id;
+        } else if (cdcAgrupadoDepartamento) {
+            parametros.departamento_id = cdcAgrupadoDepartamento.id;
+        }
+        if (cdcAgrupadoNivel === 'clientes' && cdcAgrupadoTable) busquedaTabla = cdcAgrupadoTable.search() || '';
+    }
+
+    if (busquedaTabla) parametros.busqueda_tabla = busquedaTabla;
+    window.location.href = window.CDC_ROUTES.exportarExcel + '?' + $.param(parametros);
 }
 
 /* ---------------------------- Asignación individual ---------------------------- */
@@ -437,7 +627,7 @@ function cdcGuardarAsignacionMasiva() {
         teleasesores: $('#cdc_masiva_teleasesores').val() || []
     };
 
-    $.post(window.CDC_ROUTES.asignarMasivo, payload)
+    $.ajax({ url: window.CDC_ROUTES.asignarMasivo, method: 'POST', contentType: 'application/json', data: JSON.stringify(payload) })
         .done(function (resp) {
             $('#modalAsignacionMasivaCdc').modal('hide');
             Swal.fire({ icon: resp.icon || 'success', title: resp.title || 'Éxito', text: resp.text });
@@ -496,7 +686,7 @@ function cdcAbrirHistorial(clienteId, nombreCliente) {
 function cdcAbrirHistorialMasivo() {
     if (cdcSeleccion.size === 0) { Swal.fire('Atención', 'Seleccione al menos un cliente.', 'warning'); return; }
 
-    $.post(window.CDC_ROUTES.historialMasivo, { _token: cdcToken(), cliente_ids: Array.from(cdcSeleccion) })
+    $.ajax({ url: window.CDC_ROUTES.historialMasivo, method: 'POST', contentType: 'application/json', data: JSON.stringify({ _token: cdcToken(), cliente_ids: Array.from(cdcSeleccion) }) })
         .done(function (resp) {
             var $tbody = $('#tbl_cdc_historial_masivo tbody').empty();
             var rows = resp.data || [];
@@ -529,6 +719,7 @@ function cdcCargarZonas() {
         var $grid = $('#cdc_zona_grid').empty();
         var zonas = resp.data || [];
         cdcZonasCargadas = zonas;
+        cdcZonaDepartamentoActivoId = null;
         $('#cdc_departamento_zonas_head').hide();
         $grid.removeClass('cdc-zona-grid').addClass('cdc-departamentos-grid');
         if (!zonas.length) {
@@ -556,6 +747,7 @@ function cdcCargarZonas() {
 function cdcAbrirDepartamentoZonas(departamentoId) {
     var zonas = cdcZonasCargadas.filter(function (zona) { return Number(zona.departamento_id) === Number(departamentoId); });
     if (!zonas.length) return;
+    cdcZonaDepartamentoActivoId = Number(departamentoId);
 
     var $grid = $('#cdc_zona_grid').empty().removeClass('cdc-departamentos-grid').addClass('cdc-zona-grid');
     $('#cdc_departamento_zonas_nombre').text(zonas[0].departamento_nombre);
@@ -577,6 +769,7 @@ function cdcAbrirDepartamentoZonas(departamentoId) {
 }
 
 function cdcVolverDepartamentos() {
+    cdcZonaDepartamentoActivoId = null;
     var $grid = $('#cdc_zona_grid').empty().removeClass('cdc-zona-grid').addClass('cdc-departamentos-grid');
     $('#cdc_departamento_zonas_head').hide();
     cdcCargarZonas();
@@ -635,9 +828,71 @@ function cdcGuardarZona() {
         nombre: $('#cdc_zona_nombre').val(), activo: $('#cdc_zona_activo').val(), observaciones: $('#cdc_zona_observaciones').val(),
         asesores_comerciales: $('#cdc_zona_asesor').val() || [], teleasesores: $('#cdc_zona_teleasesor').val() || [] };
     $.post(window.CDC_ROUTES.zonaGuardar, payload).done(function (resp) {
+        if (resp.requiere_decisiones) {
+            cdcMostrarDecisionesResponsables(resp, payload);
+            return;
+        }
         $('#modalZonaCdc').modal('hide'); Swal.fire(resp.title || 'Éxito', resp.text, resp.icon || 'success');
         cdcCargarCatalogosZonas(function () { cdcCargarZonas(); });
     }).fail(function (xhr) { var r = xhr.responseJSON || {}; Swal.fire(r.title || 'Error', r.text || r.message || 'No se pudo guardar.', r.icon || 'error'); });
+}
+
+function cdcMostrarDecisionesResponsables(resp, payload) {
+    cdcGuardadoZonaPendiente = payload;
+    var $body = $('#tbl_cdc_responsables_decisiones tbody').empty();
+    (resp.clientes || []).forEach(function (cliente) {
+        $body.append('<tr data-cliente-id="' + cliente.id + '"><td><input type="checkbox" class="cdc-responsable-chk" checked></td>' +
+            '<td><strong>' + cdcEsc(cliente.nombre) + '</strong><br><small class="text-muted">' + cdcEsc(cliente.rtn || '') + '</small></td>' +
+            '<td class="cdc-cambio-usuarios">' + cdcRenderUsuarios(cliente.asesores_actuales, 'asesor', 'Sin asignar') + '</td>' +
+            '<td class="cdc-cambio-usuarios">' + cdcRenderUsuarios(cliente.teleasesores_actuales, 'teleasesor', 'Sin asignar') + '</td>' +
+            '<td class="cdc-cambio-usuarios">' + cdcRenderUsuarios(cliente.asesores_nuevos, 'asesor', 'Sin asignar') + '</td>' +
+            '<td class="cdc-cambio-usuarios">' + cdcRenderUsuarios(cliente.teleasesores_nuevos, 'teleasesor', 'Sin asignar') + '</td>' +
+            '<td><select class="form-control form-control-sm cdc-operacion-cliente"><option value="no_modificar">No modificar</option><option value="reemplazar">Reemplazar por zona</option><option value="agregar">Agregar a actuales</option></select></td></tr>');
+    });
+    $('#cdc_responsables_zona_nombre').text(resp.zona ? resp.zona.nombre : 'Zona');
+    $('#cdc_responsables_total_clientes').text((resp.clientes || []).length);
+    $('#cdc_responsables_chk_all').prop('checked', true);
+    $('#cdc_responsables_operacion_masiva').val('no_modificar');
+    $('#cdc_responsables_chk_all').off('change').on('change', function () { $('.cdc-responsable-chk').prop('checked', this.checked); });
+
+    var $origen = $('#modalZonaCdc');
+    var $modal = $('#modalResponsablesZonaCdc');
+    var aplicado = false;
+    $modal.one('hidden.bs.modal', function () {
+        if (!aplicado && cdcGuardadoZonaPendiente) $origen.modal('show');
+    });
+    $modal.data('marcar-aplicado', function () { aplicado = true; });
+    $origen.one('hidden.bs.modal', function () { $modal.modal('show'); }).modal('hide');
+}
+
+function cdcAplicarOperacionResponsablesSeleccionados() {
+    var operacion = $('#cdc_responsables_operacion_masiva').val();
+    $('#tbl_cdc_responsables_decisiones tbody tr').each(function () {
+        if ($(this).find('.cdc-responsable-chk').is(':checked')) $(this).find('.cdc-operacion-cliente').val(operacion);
+    });
+}
+
+function cdcConfirmarDecisionesResponsables() {
+    if (!cdcGuardadoZonaPendiente) return;
+    var decisiones = [];
+    $('#tbl_cdc_responsables_decisiones tbody tr').each(function () {
+        decisiones.push({ cliente_id: Number($(this).data('cliente-id')), operacion: $(this).find('.cdc-operacion-cliente').val() });
+    });
+    var payload = $.extend(true, {}, cdcGuardadoZonaPendiente, { decisiones: decisiones });
+    var $boton = $('#cdc_guardar_decisiones_responsables').prop('disabled', true);
+    $.post(window.CDC_ROUTES.zonaGuardar, payload).done(function (resp) {
+        var marcarAplicado = $('#modalResponsablesZonaCdc').data('marcar-aplicado');
+        if (typeof marcarAplicado === 'function') marcarAplicado();
+        cdcGuardadoZonaPendiente = null;
+        $('#modalResponsablesZonaCdc').modal('hide');
+        Swal.fire(resp.title || 'Éxito', resp.text, resp.icon || 'success').then(function () {
+            cdcCargarCatalogosZonas(function () { cdcCargarZonas(); });
+            if (cdcZonaActivaId) cdcAbrirDetalleZona(cdcZonaActivaId);
+        });
+    }).fail(function (xhr) {
+        var r = xhr.responseJSON || {};
+        Swal.fire(r.title || 'Error', r.text || r.message || 'No se pudieron aplicar las decisiones.', r.icon || 'error');
+    }).always(function () { $boton.prop('disabled', false); });
 }
 
 function cdcRenderMiembrosZona() {
@@ -698,7 +953,7 @@ function cdcConfirmarAgregarZona(confirmar) {
 }
 
 function cdcEnviarClientesZona(zonaId, clienteIds, confirmar, terminado) {
-    $.ajax({ url: window.CDC_ROUTES.zonaAsignarClientes, method: 'POST', data: { _token: cdcToken(), zona_id: zonaId, cliente_ids: clienteIds, confirmar_movimiento: confirmar ? 1 : 0 } })
+    $.ajax({ url: window.CDC_ROUTES.zonaAsignarClientes, method: 'POST', contentType: 'application/json', data: JSON.stringify({ _token: cdcToken(), zona_id: zonaId, cliente_ids: clienteIds, confirmar_movimiento: confirmar ? 1 : 0 }) })
         .done(function (resp) {
             cdcCargarCatalogosZonas();
             Swal.fire(resp.title, resp.text, resp.icon).then(function () { if (terminado) terminado(); });
