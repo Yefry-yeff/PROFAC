@@ -1251,6 +1251,10 @@ class Cliente extends Component
             if ($nombreImagen) $cliente->url_imagen = $nombreImagen;
             $cliente->save();
 
+            // El vendedor seleccionado es también el Asesor Comercial inicial
+            // del cliente dentro del módulo Cartera de Clientes.
+            $this->registrarAsesorComercialEnCartera($cliente, $cliente->vendedor);
+
             // ---- contactos ----
             foreach ([
                 ['nombre' => 'nombre_contacto1', 'telefono' => 'telefono_contacto1'],
@@ -1338,6 +1342,10 @@ class Cliente extends Component
             $logDesc = count($changed) > 0 ? 'Campos: ' . implode(', ', $changed) : 'Sin cambios en datos principales';
 
             $cliente->save();
+
+            // Si se seleccionó un nuevo vendedor, incorporarlo a la cartera sin
+            // eliminar otros asesores comerciales asignados al mismo cliente.
+            $this->registrarAsesorComercialEnCartera($cliente, $cliente->vendedor);
 
             // ---- contactos ----
             ModelContacto::where('cliente_id', $id)->update(['estado_id' => 2]);
