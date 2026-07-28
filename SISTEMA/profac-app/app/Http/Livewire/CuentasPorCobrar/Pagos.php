@@ -132,6 +132,22 @@ class Pagos extends Component
         }
     }
 
+    private function sincronizarTotalesFacturasCliente(int $clienteId): void
+    {
+        DB::update("
+            UPDATE aplicacion_pagos ap
+            INNER JOIN factura f ON f.id = ap.factura_id
+            SET ap.saldo = ROUND(ap.saldo + (f.total - ap.total_factura_cargo), 2),
+                ap.total_factura_cargo = f.total,
+                ap.retencion_isv_factura = f.isv,
+                ap.ultimo_usr_actualizo = ?,
+                ap.updated_at = NOW()
+            WHERE ap.cliente_id = ?
+              AND ap.estado = 1
+              AND ABS(f.total - ap.total_factura_cargo) >= 0.005
+        ", [Auth::id() ?? 0, $clienteId]);
+    }
+
 
     public function listarCuentasPorCobrar($id){
         try{
@@ -149,6 +165,8 @@ class Pagos extends Component
                     "title"=>"Error!"
                 ],402);
             }
+
+            $this->sincronizarTotalesFacturasCliente((int) $id);
 
             $cuentas = DB::select("
                 select
@@ -1661,6 +1679,7 @@ class Pagos extends Component
     }
 
     public function imprimirEstadoCuenta($idClientepdf){
+        $this->sincronizarTotalesFacturasCliente((int) $idClientepdf);
         $estadoCuenta = DB::select("CALL estadoCuenta_sp('".$idClientepdf."');");
 
         $estadoCuenta = array_map(function ($row) {
