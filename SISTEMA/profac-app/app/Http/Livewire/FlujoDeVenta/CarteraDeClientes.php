@@ -365,6 +365,12 @@ class CarteraDeClientes extends Component
                 'Asignación individual'
             );
 
+            $this->marcarExcepcionesZona(
+                (int) $request->cliente_id,
+                [self::ROL_ASESOR_COMERCIAL, self::ROL_TELE_ASESOR],
+                'Asignación individual fuera de la configuración de zona'
+            );
+
             DB::commit();
             return response()->json(['icon' => 'success', 'title' => 'Éxito', 'text' => 'Asignación actualizada correctamente.']);
         } catch (\Throwable $e) {
@@ -407,6 +413,15 @@ class CarteraDeClientes extends Component
                     $loteId,
                     'Asignación masiva'
                 );
+
+                $rolesModificados = [];
+                if ($request->modo_asesores !== 'sin_cambios') {
+                    $rolesModificados[] = self::ROL_ASESOR_COMERCIAL;
+                }
+                if ($request->modo_teleasesores !== 'sin_cambios') {
+                    $rolesModificados[] = self::ROL_TELE_ASESOR;
+                }
+                $this->marcarExcepcionesZona((int) $clienteId, $rolesModificados, 'Asignación masiva fuera de la configuración de zona');
             }
 
             DB::commit();
@@ -419,6 +434,308 @@ class CarteraDeClientes extends Component
             DB::rollBack();
             return response()->json(['icon' => 'error', 'title' => 'Error', 'text' => 'No se pudo aplicar la asignación masiva.', 'error' => $e->getMessage()], 500);
         }
+    }
+
+    public function listarZonas(Request $request)
+    {
+        $buscar = trim((string) $request->get('q', ''));
+        $query = DB::table('cliente_zonas as z')
+            ->join('departamento as d', 'd.id', '=', 'z.departamento_id')
+            ->leftJoin('cliente_zona_miembros as m', 'm.zona_id', '=', 'z.id')
+            ->selectRaw('z.id, z.nombre, z.departamento_id, d.nombre as departamento_nombre,
+                z.activo, z.observaciones, COUNT(m.id) as total_clientes')
+            ->groupBy('z.id', 'z.nombre', 'z.departamento_id', 'd.nombre', 'z.activo', 'z.observaciones');
+
+        if ($buscar !== '') {
+            $query->where(function ($q) use ($buscar) {
+                $q->where('z.nombre', 'like', "%{$buscar}%")
+                    ->orWhere('d.nombre', 'like', "%{$buscar}%");
+            });
+        }
+        if ($request->filled('activo')) {
+            $query->where('z.activo', (int) $request->activo);
+        }
+
+        $zonas = $query->orderBy('d.nombre')->orderBy('z.nombre')->get();
+        $responsables = $this->responsablesDeZonas($zonas->pluck('id')->all());
+        foreach ($zonas as $zona) {
+            $zona->asesores_comerciales = $responsables[$zona->id][self::ROL_ASESOR_COMERCIAL] ?? [];
+            $zona->teleasesores = $responsables[$zona->id][self::ROL_TELE_ASESOR] ?? [];
+        }
+
+        return response()->json(['success' => true, 'data' => $zonas]);
+    }
+
+    public function catalogosZonas()
+    {
+        return response()->json([
+            'success' => true,
+            'departamentos' => DB::table('departamento')->orderBy('nombre')->get(['id', 'nombre']),
+            'zonas' => DB::table('cliente_zonas as z')
+                ->join('departamento as d', 'd.id', '=', 'z.departamento_id')
+                ->where('z.activo', 1)
+                ->orderBy('d.nombre')->orderBy('z.nombre')
+                ->get(['z.id', 'z.nombre', 'z.departamento_id', 'd.nombre as departamento_nombre']),
+        ]);
+    }
+
+    public function datosZona($id)
+    {
+        $zona = DB::table('cliente_zonas')->where('id', (int) $id)->first();
+        if (!$zona) {
+            return response()->json(['success' => false, 'mensaje' => 'Zona no encontrada.'], 404);
+        }
+
+        $miembros = DB::table('cliente_zona_miembros as m')
+            ->join('cliente as c', 'c.id', '=', 'm.cliente_id')
+            ->leftJoin('municipio as mu', 'mu.id', '=', 'c.municipio_id')
+            ->leftJoin('departamento as d', 'd.id', '=', 'mu.departamento_id')
+            ->leftJoin('estado_cliente as e', 'e.id', '=', 'c.estado_cliente_id')
+            ->where('m.zona_id', $zona->id)
+            ->orderBy('c.nombre')
+            ->get([
+                'c.id', 'c.nombre', 'c.rtn', 'c.telefono_empresa',
+                'mu.nombre as municipio_nombre', 'd.nombre as departamento_nombre',
+                'e.descripcion as estado_descripcion',
+            ]);
+
+        $asignaciones = $this->asignacionesDeClientes($miembros->pluck('id')->all());
+        foreach ($miembros as $miembro) {
+            $miembro->asesores_comerciales = $asignaciones[$miembro->id][self::ROL_ASESOR_COMERCIAL] ?? [];
+            $miembro->teleasesores = $asignaciones[$miembro->id][self::ROL_TELE_ASESOR] ?? [];
+        }
+
+        $responsables = $this->responsablesDeZonas([$zona->id]);
+        $zona->asesores_comerciales = $responsables[$zona->id][self::ROL_ASESOR_COMERCIAL] ?? [];
+        $zona->teleasesores = $responsables[$zona->id][self::ROL_TELE_ASESOR] ?? [];
+
+        return response()->json(['success' => true, 'zona' => $zona, 'miembros' => $miembros]);
+    }
+
+    public function buscarClientesZona(Request $request)
+    {
+        $request->validate(['departamento_id' => 'required|integer|exists:departamento,id']);
+        $term = trim((string) $request->get('q', ''));
+        $query = DB::table('cliente as c')
+            ->join('municipio as m', 'm.id', '=', 'c.municipio_id')
+            ->leftJoin('cliente_zona_miembros as zm', 'zm.cliente_id', '=', 'c.id')
+            ->leftJoin('cliente_zonas as z', 'z.id', '=', 'zm.zona_id')
+            ->where('m.departamento_id', (int) $request->departamento_id)
+            ->select('c.id', 'c.nombre', 'c.rtn', 'zm.zona_id', 'z.nombre as zona_nombre');
+
+        if ($term !== '') {
+            $query->where(function ($q) use ($term) {
+                $q->where('c.nombre', 'like', "%{$term}%")->orWhere('c.rtn', 'like', "%{$term}%");
+            });
+        }
+
+        $clientes = $query->orderBy('c.nombre')->limit(40)->get();
+        return response()->json(['results' => $clientes->map(function ($c) {
+            $zona = $c->zona_nombre ? " - Zona actual: {$c->zona_nombre}" : '';
+            return ['id' => (int) $c->id, 'text' => $c->nombre . $zona, 'zona_id' => $c->zona_id];
+        })->values()]);
+    }
+
+    public function guardarZona(Request $request)
+    {
+        $request->validate([
+            'id' => 'nullable|integer|exists:cliente_zonas,id',
+            'departamento_id' => 'required|integer|exists:departamento,id',
+            'nombre' => 'required|string|max:120',
+            'activo' => 'required|boolean',
+            'observaciones' => 'nullable|string|max:1000',
+            'asesores_comerciales' => 'nullable|array',
+            'asesores_comerciales.*' => 'integer|distinct|exists:users,id',
+            'teleasesores' => 'nullable|array',
+            'teleasesores.*' => 'integer|distinct|exists:users,id',
+        ]);
+
+        $duplicada = DB::table('cliente_zonas')
+            ->where('departamento_id', $request->departamento_id)
+            ->whereRaw('LOWER(nombre) = ?', [mb_strtolower(trim($request->nombre))])
+            ->when($request->id, fn($q) => $q->where('id', '<>', (int) $request->id))
+            ->exists();
+        if ($duplicada) {
+            return response()->json(['icon' => 'warning', 'title' => 'Zona duplicada', 'text' => 'Ya existe una zona con ese nombre en el departamento.'], 422);
+        }
+
+        try {
+            DB::beginTransaction();
+            $anterior = $request->id ? DB::table('cliente_zonas')->where('id', (int) $request->id)->first() : null;
+            if ($anterior && (int) $anterior->departamento_id !== (int) $request->departamento_id) {
+                $fuera = DB::table('cliente_zona_miembros as zm')
+                    ->join('cliente as c', 'c.id', '=', 'zm.cliente_id')
+                    ->join('municipio as m', 'm.id', '=', 'c.municipio_id')
+                    ->where('zm.zona_id', $anterior->id)
+                    ->where('m.departamento_id', '<>', (int) $request->departamento_id)
+                    ->exists();
+                if ($fuera) {
+                    DB::rollBack();
+                    return response()->json(['icon' => 'warning', 'title' => 'Departamento incompatible', 'text' => 'Retire o mueva los clientes actuales antes de cambiar el departamento.'], 422);
+                }
+            }
+
+            $datos = [
+                'departamento_id' => (int) $request->departamento_id,
+                'nombre' => trim($request->nombre),
+                'activo' => $request->boolean('activo'),
+                'observaciones' => trim((string) $request->observaciones) ?: null,
+                'asesor_comercial_id' => $request->input('asesores_comerciales.0'),
+                'teleasesor_id' => $request->input('teleasesores.0'),
+                'updated_by' => Auth::id(),
+                'updated_at' => now(),
+            ];
+
+            if ($anterior) {
+                DB::table('cliente_zonas')->where('id', $anterior->id)->update($datos);
+                $zonaId = (int) $anterior->id;
+                $accion = 'ACTUALIZAR_ZONA';
+            } else {
+                $datos['created_by'] = Auth::id();
+                $datos['created_at'] = now();
+                $zonaId = (int) DB::table('cliente_zonas')->insertGetId($datos);
+                $accion = 'CREAR_ZONA';
+            }
+
+            $this->guardarResponsablesZona($zonaId, self::ROL_ASESOR_COMERCIAL, $request->input('asesores_comerciales', []));
+            $this->guardarResponsablesZona($zonaId, self::ROL_TELE_ASESOR, $request->input('teleasesores', []));
+
+            $zona = DB::table('cliente_zonas')->where('id', $zonaId)->first();
+            $miembros = DB::table('cliente_zona_miembros')->where('zona_id', $zonaId)->pluck('cliente_id')->all();
+            foreach ($miembros as $clienteId) {
+                if ($zona->activo) {
+                    $this->aplicarHerenciaZona($zona, (int) $clienteId, false);
+                } else {
+                    $this->retirarClienteDeZona($zonaId, (int) $clienteId, 'Zona desactivada');
+                }
+            }
+            $this->auditarZona($zonaId, null, $accion, null, $anterior, $zona);
+            DB::commit();
+            return response()->json(['icon' => 'success', 'title' => 'Éxito', 'text' => 'Zona guardada correctamente.', 'id' => $zonaId]);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json(['icon' => 'error', 'title' => 'Error', 'text' => 'No se pudo guardar la zona.', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function asignarClientesZona(Request $request)
+    {
+        $request->validate([
+            'zona_id' => 'required|integer|exists:cliente_zonas,id',
+            'cliente_ids' => 'required|array|min:1',
+            'cliente_ids.*' => 'integer|exists:cliente,id',
+            'confirmar_movimiento' => 'nullable|boolean',
+        ]);
+
+        $zona = DB::table('cliente_zonas')->where('id', (int) $request->zona_id)->first();
+        if (!$zona || !$zona->activo) {
+            return response()->json(['icon' => 'warning', 'title' => 'Zona no disponible', 'text' => 'Solo puede agregar clientes a una zona activa.'], 422);
+        }
+
+        $ids = array_values(array_unique(array_map('intval', $request->cliente_ids)));
+        $fueraDepartamento = DB::table('cliente as c')
+            ->join('municipio as m', 'm.id', '=', 'c.municipio_id')
+            ->whereIn('c.id', $ids)
+            ->where('m.departamento_id', '<>', $zona->departamento_id)
+            ->pluck('c.nombre');
+        if ($fueraDepartamento->isNotEmpty()) {
+            return response()->json([
+                'icon' => 'warning',
+                'title' => 'Departamento incompatible',
+                'text' => 'Estos clientes no pertenecen al departamento de la zona: ' . $fueraDepartamento->implode(', '),
+            ], 422);
+        }
+
+        $conflictos = DB::table('cliente_zona_miembros as m')
+            ->join('cliente_zonas as z', 'z.id', '=', 'm.zona_id')
+            ->join('cliente as c', 'c.id', '=', 'm.cliente_id')
+            ->whereIn('m.cliente_id', $ids)
+            ->where('m.zona_id', '<>', $zona->id)
+            ->get(['c.id', 'c.nombre', 'z.nombre as zona_nombre']);
+        $responsables = $this->responsablesDeZonas([$zona->id]);
+        $destino = [
+            self::ROL_ASESOR_COMERCIAL => $responsables[$zona->id][self::ROL_ASESOR_COMERCIAL] ?? [],
+            self::ROL_TELE_ASESOR => $responsables[$zona->id][self::ROL_TELE_ASESOR] ?? [],
+        ];
+        $actuales = $this->asignacionesDeClientes($ids);
+        $clientes = DB::table('cliente')->whereIn('id', $ids)->get(['id', 'nombre'])->keyBy('id');
+        $vistaPrevia = [];
+        foreach ($ids as $clienteId) {
+            $asesoresActuales = $actuales[$clienteId][self::ROL_ASESOR_COMERCIAL] ?? [];
+            $teleasesoresActuales = $actuales[$clienteId][self::ROL_TELE_ASESOR] ?? [];
+            $conflicto = $conflictos->firstWhere('id', $clienteId);
+            if ($conflicto
+                || $this->idsUsuarios($asesoresActuales) !== $this->idsUsuarios($destino[self::ROL_ASESOR_COMERCIAL])
+                || $this->idsUsuarios($teleasesoresActuales) !== $this->idsUsuarios($destino[self::ROL_TELE_ASESOR])) {
+                $vistaPrevia[] = [
+                    'id' => $clienteId,
+                    'nombre' => $clientes[$clienteId]->nombre ?? ('Cliente ' . $clienteId),
+                    'zona_actual' => $conflicto->zona_nombre ?? null,
+                    'asesores_actuales' => $asesoresActuales,
+                    'teleasesores_actuales' => $teleasesoresActuales,
+                    'asesores_nuevos' => $destino[self::ROL_ASESOR_COMERCIAL],
+                    'teleasesores_nuevos' => $destino[self::ROL_TELE_ASESOR],
+                ];
+            }
+        }
+        if (!empty($vistaPrevia) && !$request->boolean('confirmar_movimiento')) {
+            return response()->json([
+                'requiere_confirmacion' => true,
+                'zona' => ['id' => $zona->id, 'nombre' => $zona->nombre],
+                'cambios' => $vistaPrevia,
+            ], 409);
+        }
+
+        try {
+            DB::beginTransaction();
+            foreach ($ids as $clienteId) {
+                $anterior = DB::table('cliente_zona_miembros')->where('cliente_id', $clienteId)->first();
+                if ($anterior && (int) $anterior->zona_id !== (int) $zona->id) {
+                    $this->retirarClienteDeZona((int) $anterior->zona_id, $clienteId, 'Movido a otra zona');
+                }
+                DB::table('cliente_zona_miembros')->updateOrInsert(
+                    ['cliente_id' => $clienteId],
+                    ['zona_id' => $zona->id, 'asignado_por' => Auth::id(), 'created_at' => now(), 'updated_at' => now()]
+                );
+                DB::table('cliente_zona_excepciones')->where('cliente_id', $clienteId)->delete();
+                $this->aplicarHerenciaZona($zona, $clienteId, true);
+                $this->auditarZona((int) $zona->id, $clienteId, $anterior ? 'MOVER_CLIENTE' : 'AGREGAR_CLIENTE', 'Cliente incorporado a la zona');
+            }
+            DB::commit();
+            return response()->json(['icon' => 'success', 'title' => 'Éxito', 'text' => count($ids) . ' cliente(s) agregados a la zona.']);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json(['icon' => 'error', 'title' => 'Error', 'text' => 'No se pudieron agregar los clientes.', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function quitarClienteZona(Request $request)
+    {
+        $request->validate([
+            'zona_id' => 'required|integer|exists:cliente_zonas,id',
+            'cliente_id' => 'required|integer|exists:cliente,id',
+        ]);
+
+        try {
+            DB::transaction(function () use ($request) {
+                $this->retirarClienteDeZona((int) $request->zona_id, (int) $request->cliente_id, 'Retirado manualmente de la zona');
+            });
+            return response()->json(['icon' => 'success', 'title' => 'Éxito', 'text' => 'Cliente retirado de la zona.']);
+        } catch (\Throwable $e) {
+            return response()->json(['icon' => 'error', 'title' => 'Error', 'text' => 'No se pudo retirar el cliente.', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function historialZona($id)
+    {
+        $rows = DB::table('cliente_zona_auditoria as a')
+            ->leftJoin('cliente as c', 'c.id', '=', 'a.cliente_id')
+            ->leftJoin('users as u', 'u.id', '=', 'a.usuario_id')
+            ->where('a.zona_id', (int) $id)
+            ->orderByDesc('a.created_at')
+            ->get(['a.*', 'c.nombre as cliente_nombre', 'u.name as usuario_nombre']);
+
+        return response()->json(['success' => true, 'data' => $rows]);
     }
 
     private function aplicarAsignacion(int $clienteId, array $asesoresComerciales, string $modoAsesores, array $teleasesores, string $modoTeleasesores, string $loteId, string $comentario)
@@ -510,5 +827,177 @@ class CarteraDeClientes extends Component
         if ($principal) {
             DB::table('cliente')->where('id', $clienteId)->update(['vendedor' => $principal]);
         }
+    }
+
+    private function aplicarHerenciaZona(object $zona, int $clienteId, bool $reiniciar): void
+    {
+        $responsables = $this->responsablesDeZonas([$zona->id]);
+        $configuracion = [
+            self::ROL_ASESOR_COMERCIAL => $responsables[$zona->id][self::ROL_ASESOR_COMERCIAL] ?? [],
+            self::ROL_TELE_ASESOR => $responsables[$zona->id][self::ROL_TELE_ASESOR] ?? [],
+        ];
+        $loteId = (string) Str::uuid();
+
+        foreach ($configuracion as $rolId => $usuarios) {
+            if ($reiniciar) {
+                $asignacionesActuales = DB::table('cliente_usuario')
+                    ->where('cliente_id', $clienteId)
+                    ->where('rol_id', $rolId)
+                    ->pluck('usuario_id');
+                foreach ($asignacionesActuales as $usuarioActualId) {
+                    DB::table('cliente_asesor_auditoria')->insert([
+                        'cliente_id' => $clienteId, 'asesor_id' => $usuarioActualId,
+                        'tipo' => $rolId === self::ROL_ASESOR_COMERCIAL ? 'Asesor Comercial' : 'Tele Asesor',
+                        'accion' => 'DELETE', 'usuario' => Auth::id(), 'comentario' => 'Reemplazo por asignación de zona',
+                        'lote_id' => $loteId, 'fecha' => now(),
+                    ]);
+                }
+                DB::table('cliente_usuario')->where('cliente_id', $clienteId)->where('rol_id', $rolId)->delete();
+                DB::table('cliente_zona_asignaciones')->where('cliente_id', $clienteId)->where('rol_id', $rolId)->delete();
+            }
+
+            if (!$reiniciar && DB::table('cliente_zona_excepciones')->where('cliente_id', $clienteId)->where('rol_id', $rolId)->exists()) {
+                continue;
+            }
+
+            $heredadas = $reiniciar ? collect() : DB::table('cliente_zona_asignaciones')->where('cliente_id', $clienteId)->where('rol_id', $rolId)->get();
+            $usuariosIds = array_map(fn($usuario) => (int) $usuario['id'], $usuarios);
+            foreach ($heredadas->whereNotIn('usuario_id', $usuariosIds) as $heredada) {
+                DB::table('cliente_usuario')->where('cliente_id', $clienteId)->where('usuario_id', $heredada->usuario_id)->where('rol_id', $rolId)->delete();
+                DB::table('cliente_asesor_auditoria')->insert([
+                    'cliente_id' => $clienteId, 'asesor_id' => $heredada->usuario_id,
+                    'tipo' => $rolId === self::ROL_ASESOR_COMERCIAL ? 'Asesor Comercial' : 'Tele Asesor',
+                    'accion' => 'DELETE', 'usuario' => Auth::id(), 'comentario' => 'Actualización heredada de zona',
+                    'lote_id' => $loteId, 'fecha' => now(),
+                ]);
+            }
+
+            DB::table('cliente_zona_asignaciones')->where('cliente_id', $clienteId)->where('rol_id', $rolId)->delete();
+            foreach ($usuariosIds as $usuarioId) {
+                $existe = DB::table('cliente_usuario')->where('cliente_id', $clienteId)->where('usuario_id', $usuarioId)->where('rol_id', $rolId)->exists();
+                $asignacionPerteneceZona = $reiniciar || $heredadas->contains(fn($heredada) => (int) $heredada->usuario_id === $usuarioId);
+                if (!$existe) {
+                    DB::table('cliente_usuario')->insert([
+                        'cliente_id' => $clienteId, 'usuario_id' => $usuarioId, 'rol_id' => $rolId,
+                        'fecha_asignacion' => now(), 'asignado_por' => Auth::id(), 'created_at' => now(), 'updated_at' => now(),
+                    ]);
+                    DB::table('cliente_asesor_auditoria')->insert([
+                        'cliente_id' => $clienteId, 'asesor_id' => $usuarioId,
+                        'tipo' => $rolId === self::ROL_ASESOR_COMERCIAL ? 'Asesor Comercial' : 'Tele Asesor',
+                        'accion' => 'INSERT', 'usuario' => Auth::id(), 'comentario' => 'Asignación heredada de zona',
+                        'lote_id' => $loteId, 'fecha' => now(),
+                    ]);
+                    $asignacionPerteneceZona = true;
+                }
+                if ($asignacionPerteneceZona) {
+                    DB::table('cliente_zona_asignaciones')->insert([
+                        'zona_id' => $zona->id, 'cliente_id' => $clienteId, 'usuario_id' => $usuarioId,
+                        'rol_id' => $rolId, 'created_at' => now(), 'updated_at' => now(),
+                    ]);
+                }
+            }
+        }
+        $this->sincronizarVendedorPrincipal($clienteId);
+    }
+
+    private function marcarExcepcionesZona(int $clienteId, array $roles, string $detalle): void
+    {
+        $zonaId = DB::table('cliente_zona_miembros')->where('cliente_id', $clienteId)->value('zona_id');
+        if (!$zonaId) {
+            return;
+        }
+
+        foreach ($roles as $rolId) {
+            DB::table('cliente_zona_excepciones')->updateOrInsert(
+                ['cliente_id' => $clienteId, 'rol_id' => $rolId],
+                ['usuario_id' => Auth::id(), 'created_at' => now(), 'updated_at' => now()]
+            );
+            DB::table('cliente_zona_asignaciones')->where('cliente_id', $clienteId)->where('rol_id', $rolId)->delete();
+        }
+        $this->auditarZona((int) $zonaId, $clienteId, 'EXCEPCION_INDIVIDUAL', $detalle);
+    }
+
+    private function retirarClienteDeZona(int $zonaId, int $clienteId, string $detalle): void
+    {
+        $heredadas = DB::table('cliente_zona_asignaciones')->where('zona_id', $zonaId)->where('cliente_id', $clienteId)->get();
+        foreach ($heredadas as $heredada) {
+            DB::table('cliente_usuario')->where('cliente_id', $clienteId)->where('usuario_id', $heredada->usuario_id)->where('rol_id', $heredada->rol_id)->delete();
+        }
+        DB::table('cliente_zona_asignaciones')->where('zona_id', $zonaId)->where('cliente_id', $clienteId)->delete();
+        DB::table('cliente_zona_miembros')->where('zona_id', $zonaId)->where('cliente_id', $clienteId)->delete();
+        DB::table('cliente_zona_excepciones')->where('cliente_id', $clienteId)->delete();
+        $this->auditarZona($zonaId, $clienteId, 'QUITAR_CLIENTE', $detalle);
+    }
+
+    private function auditarZona(int $zonaId, ?int $clienteId, string $accion, ?string $detalle = null, $anterior = null, $nuevo = null): void
+    {
+        DB::table('cliente_zona_auditoria')->insert([
+            'zona_id' => $zonaId,
+            'cliente_id' => $clienteId,
+            'accion' => $accion,
+            'detalle' => $detalle,
+            'datos_anteriores' => $anterior ? json_encode($anterior, JSON_UNESCAPED_UNICODE) : null,
+            'datos_nuevos' => $nuevo ? json_encode($nuevo, JSON_UNESCAPED_UNICODE) : null,
+            'usuario_id' => Auth::id(),
+            'created_at' => now(),
+        ]);
+    }
+
+    private function responsablesDeZonas(array $zonaIds): array
+    {
+        if (empty($zonaIds)) {
+            return [];
+        }
+
+        $rows = DB::table('cliente_zona_responsables as r')
+            ->join('users as u', 'u.id', '=', 'r.usuario_id')
+            ->whereIn('r.zona_id', $zonaIds)
+            ->orderBy('u.name')
+            ->get(['r.zona_id', 'r.rol_id', 'u.id', 'u.name']);
+        $resultado = [];
+        foreach ($rows as $row) {
+            $resultado[$row->zona_id][$row->rol_id][] = ['id' => (int) $row->id, 'name' => $row->name];
+        }
+        return $resultado;
+    }
+
+    private function asignacionesDeClientes(array $clienteIds): array
+    {
+        if (empty($clienteIds)) {
+            return [];
+        }
+
+        $rows = DB::table('cliente_usuario as cu')
+            ->join('users as u', 'u.id', '=', 'cu.usuario_id')
+            ->whereIn('cu.cliente_id', $clienteIds)
+            ->whereIn('cu.rol_id', [self::ROL_ASESOR_COMERCIAL, self::ROL_TELE_ASESOR])
+            ->orderBy('u.name')
+            ->get(['cu.cliente_id', 'cu.rol_id', 'u.id', 'u.name']);
+        $resultado = [];
+        foreach ($rows as $row) {
+            $resultado[$row->cliente_id][$row->rol_id][] = ['id' => (int) $row->id, 'name' => $row->name];
+        }
+        return $resultado;
+    }
+
+    private function guardarResponsablesZona(int $zonaId, int $rolId, array $usuarioIds): void
+    {
+        DB::table('cliente_zona_responsables')->where('zona_id', $zonaId)->where('rol_id', $rolId)->delete();
+        foreach (array_unique(array_map('intval', $usuarioIds)) as $usuarioId) {
+            DB::table('cliente_zona_responsables')->insert([
+                'zona_id' => $zonaId,
+                'usuario_id' => $usuarioId,
+                'rol_id' => $rolId,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+    }
+
+    private function idsUsuarios(array $usuarios): array
+    {
+        $ids = array_map(fn($usuario) => (int) $usuario['id'], $usuarios);
+        sort($ids);
+        return $ids;
     }
 }

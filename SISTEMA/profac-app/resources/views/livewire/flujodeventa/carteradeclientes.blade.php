@@ -56,11 +56,57 @@
     .cdc-chip-remove-icon { cursor:pointer; opacity:.65; font-size:.7rem; padding:3px; }
     .cdc-chip-remove-icon:hover { opacity:1; }
     #tbl_cdc_historial thead th, #tbl_cdc_historial_masivo thead th { background:#fdf4e7; color:#7d3f00; font-size:.72rem; text-transform:uppercase; }
+    #tbl_cdc_zona_detalle thead th, #tbl_cdc_zona_historial thead th, #tbl_cdc_zona_cambios thead th { background:#fdf4e7; color:#7d3f00; font-size:.72rem; text-transform:uppercase; white-space:nowrap; }
+    .cdc-zona-toolbar { display:flex; align-items:center; gap:8px; justify-content:space-between; flex-wrap:wrap; margin-bottom:12px; }
+    .cdc-zona-toolbar .input-group { max-width:360px; }
+    .cdc-zona-resumen { display:flex; gap:6px; flex-wrap:wrap; }
+    .cdc-departamentos-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(360px,1fr)); gap:16px; align-items:start; }
+    .cdc-departamento-card { display:flex; align-items:center; gap:14px; width:100%; min-height:94px; padding:16px; border:1px solid #e2c7a6; border-radius:8px; background:#fdfaf6!important; color:inherit; text-align:left; box-shadow:0 2px 8px rgba(91,55,20,.08); cursor:pointer; transition:transform .16s,box-shadow .16s,border-color .16s; }
+    .cdc-departamento-card:hover { transform:translateY(-2px); border-color:#d79951; box-shadow:0 7px 16px rgba(91,55,20,.14); }
+    .cdc-departamento-card:focus { outline:2px solid #d7832f; outline-offset:2px; }
+    .cdc-departamento-folder { display:flex; align-items:center; justify-content:center; flex:0 0 48px; width:48px; height:48px; border-radius:7px; background:#f3dcc0; color:#c4690d; font-size:1.35rem; }
+    .cdc-departamento-info { flex:1; min-width:0; }
+    .cdc-departamento-info strong { display:block; color:#633300; font-size:1rem; overflow-wrap:anywhere; }
+    .cdc-departamento-info small { display:block; margin-top:4px; color:#806e5b; font-size:.75rem; font-weight:700; }
+    .cdc-departamento-enter { color:#a56a30; }
+    .cdc-departamento-zonas-head { display:none; align-items:center; gap:12px; margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid #ead9c8; }
+    .cdc-departamento-zonas-title { flex:1; min-width:0; }
+    .cdc-departamento-zonas-title strong { display:block; color:#633300; font-size:1.05rem; overflow-wrap:anywhere; }
+    .cdc-departamento-zonas-title small { color:#806e5b; font-weight:700; }
+    .cdc-zona-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:12px; }
+    .cdc-zona-card { border:1px solid #ead9c8; border-radius:8px; background:#fff; box-shadow:0 2px 7px rgba(91,55,20,.08); cursor:pointer; transition:transform .16s,box-shadow .16s,border-color .16s; overflow:hidden; }
+    .cdc-zona-card:hover { transform:translateY(-2px); box-shadow:0 7px 16px rgba(91,55,20,.14); border-color:#e6ad68; }
+    .cdc-zona-card-head { padding:13px 14px 10px; display:flex; align-items:flex-start; gap:8px; border-bottom:1px solid #f2e5d6; }
+    .cdc-zona-card-title { flex:1; min-width:0; }
+    .cdc-zona-card-title strong { display:block; color:#633300; font-size:1rem; overflow-wrap:anywhere; }
+    .cdc-zona-card-title small { color:#806e5b; }
+    .cdc-zona-card-actions { display:flex; flex:0 0 auto; }
+    .cdc-zona-card-body { padding:11px 14px 14px; }
+    .cdc-zona-clientes-count { display:inline-flex; align-items:center; gap:5px; margin-top:10px; color:#6b5a48; font-size:.74rem; font-weight:700; }
+    .cdc-zona-clientes-count strong { display:inline-flex; align-items:center; justify-content:center; min-width:24px; height:20px; padding:0 7px; border-radius:10px; background:#f3dcc0; color:#7d3f00; }
+    .cdc-zona-label { display:block; color:#8a6a49; font-size:.65rem; font-weight:700; text-transform:uppercase; margin:6px 0 3px; }
+    .cdc-zona-empty { grid-column:1/-1; text-align:center; color:#8b7a68; padding:38px 12px; border:1px dashed #dfc9ae; border-radius:8px; }
+    .cdc-zona-detalle-head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+    .cdc-zona-detalle-title { flex:1; min-width:210px; }
+    .cdc-zona-detalle-title h4 { margin:0; color:#633300; font-size:1.05rem; }
+    .cdc-zona-detalle-title small { color:#806e5b; }
+    .cdc-zona-detalle-filtro { max-width:310px; }
+    #tbl_cdc_zona_detalle td { vertical-align:middle; font-size:.82rem; }
+    .cdc-cambio-usuarios { min-width:150px; }
+    .cdc-zona-miembros { border:1px solid #ead9c8; border-radius:6px; max-height:240px; overflow:auto; }
+    .cdc-zona-miembro { display:grid; grid-template-columns:minmax(180px,1fr) 150px 32px; gap:8px; align-items:center; padding:7px 10px; border-bottom:1px solid #f3ecdf; font-size:.8rem; }
+    .cdc-zona-miembro:last-child { border-bottom:0; }
+    .cdc-zona-vacia { padding:18px; text-align:center; color:#8b7a68; font-size:.82rem; }
     .badge-cdc-insert { background:#d4edda; color:#155724; }
     .badge-cdc-delete { background:#f8d7da; color:#721c24; }
     .select2-container--open { z-index:99999!important; }
     .swal2-container { z-index:99999!important; }
     #modalAsignacionCdc .modal-body, #modalAsignacionMasivaCdc .modal-body { max-height:calc(100vh - 210px); overflow-y:auto; }
+    @media (max-width:575px) {
+        .cdc-departamentos-grid, .cdc-zona-grid { grid-template-columns:minmax(0,1fr); }
+        .cdc-zona-grid { padding:8px; }
+        .cdc-departamento-head { padding:10px; }
+    }
     </style>
     @endpush
 
@@ -97,7 +143,10 @@
                     <div class="cdc-card-header">
                         <h5><i class="fa fa-address-book"></i> Cartera de Clientes</h5>
                         <div class="d-flex" style="gap:6px">
-                            <button type="button" class="btn-cdc-action active" id="btn_vista_individual" onclick="cdcCambiarVista('individual')">
+                            <button type="button" class="btn-cdc-action active" id="btn_vista_zonificacion" onclick="cdcCambiarVista('zonificacion')">
+                                <i class="fa fa-map mr-1"></i>Zonificación de Clientes
+                            </button>
+                            <button type="button" class="btn-cdc-action" id="btn_vista_individual" onclick="cdcCambiarVista('individual')">
                                 <i class="fa fa-list mr-1"></i>Individual
                             </button>
                             <button type="button" class="btn-cdc-action" id="btn_vista_municipio" onclick="cdcCambiarVista('municipio')">
@@ -109,7 +158,7 @@
                         </div>
                     </div>
 
-                    <div class="cdc-filtros-bar">
+                    <div class="cdc-filtros-bar" id="cdc_filtros_clientes" style="display:none;">
                         <div class="form-group">
                             <label>Nombre del cliente</label>
                             <input type="text" id="cdc_fil_nombre" class="form-control form-control-sm" placeholder="Buscar por nombre...">
@@ -149,14 +198,54 @@
                     <div class="cdc-seleccion-bar" id="cdc_seleccion_bar">
                         <span class="cdc-seleccion-count"><i class="fa fa-check-square mr-1"></i><span id="cdc_seleccion_count">0</span> cliente(s) seleccionado(s)</span>
                         <button type="button" class="btn btn-cdc-primary btn-sm" onclick="cdcAbrirAsignacionMasiva()"><i class="fa fa-user-tag mr-1"></i>Asignar en lote</button>
+                        <button type="button" class="btn btn-outline-warning btn-sm" onclick="cdcAbrirAgregarZona()"><i class="fa fa-map-marker mr-1"></i>Agregar a Zona</button>
                         <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cdcAbrirHistorialMasivo()"><i class="fa fa-history mr-1"></i>Ver historial</button>
                         <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cdcLimpiarSeleccion()"><i class="fa fa-times mr-1"></i>Quitar selección</button>
                     </div>
 
                     <div class="cdc-card-body">
 
+                        {{-- Vista Zonificación --}}
+                        <div id="cdc_vista_zonificacion">
+                            <div id="cdc_zona_cards_wrap">
+                                <div class="cdc-zona-toolbar">
+                                    <div class="input-group input-group-sm">
+                                        <input type="text" id="cdc_zona_buscar" class="form-control" placeholder="Buscar zona o departamento...">
+                                        <div class="input-group-append">
+                                            <button class="btn btn-outline-secondary" type="button" onclick="cdcCargarZonas()"><i class="fa fa-search"></i></button>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn btn-cdc-primary btn-sm" onclick="cdcNuevaZona()"><i class="fa fa-plus mr-1"></i>Nueva Zona</button>
+                                </div>
+                                <div id="cdc_departamento_zonas_head" class="cdc-departamento-zonas-head">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cdcVolverDepartamentos()" title="Volver a departamentos"><i class="fa fa-arrow-left"></i></button>
+                                    <span class="cdc-departamento-folder"><i class="fa fa-folder-open"></i></span>
+                                    <div class="cdc-departamento-zonas-title"><strong id="cdc_departamento_zonas_nombre"></strong><small id="cdc_departamento_zonas_count"></small></div>
+                                </div>
+                                <div id="cdc_zona_grid" class="cdc-departamentos-grid"></div>
+                            </div>
+
+                            <div id="cdc_zona_detalle_wrap" style="display:none;">
+                                <div class="cdc-zona-detalle-head">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cdcCerrarDetalleZona()" title="Volver a zonas"><i class="fa fa-arrow-left"></i></button>
+                                    <div class="cdc-zona-detalle-title"><h4 id="cdc_zona_detalle_nombre"></h4><small id="cdc_zona_detalle_departamento"></small></div>
+                                    <div class="input-group input-group-sm cdc-zona-detalle-filtro">
+                                        <div class="input-group-prepend"><span class="input-group-text"><i class="fa fa-search"></i></span></div>
+                                        <input type="search" id="cdc_zona_detalle_filtro" class="form-control" placeholder="Buscar cliente...">
+                                    </div>
+                                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="cdcEditarZona(cdcZonaActivaId)"><i class="fa fa-user-plus mr-1"></i>Administrar zona</button>
+                                </div>
+                                <div style="overflow-x:auto;">
+                                    <table id="tbl_cdc_zona_detalle" class="table table-sm table-bordered table-hover mb-0" style="width:100%;">
+                                        <thead><tr><th style="width:30px"><input type="checkbox" id="cdc_zona_chk_all"></th><th>Cliente</th><th>Ubicación</th><th>Asesores Comerciales</th><th>Teleasesores</th><th>Estado</th><th>Acciones</th></tr></thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
                         {{-- Vista Individual --}}
-                        <div id="cdc_vista_individual">
+                        <div id="cdc_vista_individual" style="display:none;">
                             <div style="overflow-x:auto;">
                                 <table id="tbl_cdc" class="table table-hover table-bordered" style="width:100%;">
                                     <thead>
@@ -331,6 +420,84 @@
         </div>
     </div>
 
+    {{-- Modal Crear/Editar Zona --}}
+    <div class="modal fade" id="modalZonaCdc" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header modal-header-cdc">
+                    <h5 class="modal-title"><i class="fa fa-map mr-2"></i><span id="cdc_zona_modal_titulo">Nueva Zona</span></h5>
+                    <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="cdc_zona_id">
+                    <div class="form-row">
+                        <div class="form-group col-md-5"><label>Departamento *</label><select id="cdc_zona_departamento" class="form-control"></select></div>
+                        <div class="form-group col-md-5"><label>Nombre de la zona *</label><input id="cdc_zona_nombre" class="form-control" maxlength="120" placeholder="Ej. Zona Norte"></div>
+                        <div class="form-group col-md-2"><label>Estado</label><select id="cdc_zona_activo" class="form-control"><option value="1">Activo</option><option value="0">Inactivo</option></select></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-md-6"><label>Asesores Comerciales</label><select id="cdc_zona_asesor" class="form-control" multiple style="width:100%"></select></div>
+                        <div class="form-group col-md-6"><label>Teleasesores</label><select id="cdc_zona_teleasesor" class="form-control" multiple style="width:100%"></select></div>
+                    </div>
+                    <div class="form-group"><label>Observaciones</label><textarea id="cdc_zona_observaciones" class="form-control" rows="2" maxlength="1000"></textarea></div>
+
+                    <div id="cdc_zona_clientes_wrap" style="display:none;">
+                        <p class="cdc-modal-section"><i class="fa fa-users mr-1"></i>Clientes de la zona</p>
+                        <div class="cdc-buscar-agregar">
+                            <select id="cdc_zona_buscar_cliente" class="form-control" style="width:100%"></select>
+                            <button type="button" class="btn btn-cdc-primary btn-sm" onclick="cdcAgregarClienteDesdeZona()"><i class="fa fa-plus mr-1"></i>Agregar</button>
+                        </div>
+                        <div class="input-group input-group-sm mb-2">
+                            <div class="input-group-prepend"><span class="input-group-text"><i class="fa fa-search"></i></span></div>
+                            <input type="search" id="cdc_zona_miembros_filtro" class="form-control" placeholder="Filtrar clientes de la zona..." oninput="cdcRenderMiembrosZona()">
+                        </div>
+                        <div id="cdc_zona_miembros" class="cdc-zona-miembros"></div>
+                    </div>
+                </div>
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-dismiss="modal">Cerrar</button>
+                    <button type="button" class="btn btn-cdc-primary btn-sm" onclick="cdcGuardarZona()"><i class="fa fa-save mr-1"></i>Guardar Zona</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Modal Agregar selección a Zona --}}
+    <div class="modal fade" id="modalAgregarZonaCdc" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header modal-header-cdc"><h5 class="modal-title"><i class="fa fa-map-marker mr-2"></i>Agregar a Zona</h5><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button></div>
+                <div class="modal-body">
+                    <p class="text-muted small"><span id="cdc_agregar_zona_count">0</span> cliente(s) seleccionados heredarán los responsables configurados en la zona.</p>
+                    <div class="form-group mb-0"><label>Zona destino *</label><select id="cdc_agregar_zona_id" class="form-control"></select></div>
+                </div>
+                <div class="modal-footer py-2"><button class="btn btn-outline-secondary btn-sm" data-dismiss="modal">Cancelar</button><button class="btn btn-cdc-primary btn-sm" onclick="cdcConfirmarAgregarZona(false)">Confirmar</button></div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Modal Vista Previa de Cambios de Zona --}}
+    <div class="modal fade" id="modalCambiosZonaCdc" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header modal-header-cdc"><h5 class="modal-title"><i class="fa fa-exchange-alt mr-2"></i>Confirmar cambios de asignación</h5><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button></div>
+                <div class="modal-body">
+                    <p class="small text-muted">Al ingresar a <strong id="cdc_cambios_zona_nombre"></strong>, las asignaciones actuales se reemplazarán por los responsables de esa zona.</p>
+                    <div style="overflow:auto;max-height:58vh;"><table id="tbl_cdc_zona_cambios" class="table table-sm table-bordered mb-0"><thead><tr><th>Cliente</th><th>Asesores actuales</th><th>Nuevos asesores</th><th>Teleasesores actuales</th><th>Nuevos teleasesores</th></tr></thead><tbody></tbody></table></div>
+                </div>
+                <div class="modal-footer py-2"><button class="btn btn-outline-secondary btn-sm" data-dismiss="modal">Cancelar</button><button class="btn btn-cdc-primary btn-sm" id="cdc_confirmar_cambios_zona"><i class="fa fa-check mr-1"></i>Confirmar reemplazo</button></div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Modal Historial de Zona --}}
+    <div class="modal fade" id="modalHistorialZonaCdc" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered" role="document"><div class="modal-content">
+            <div class="modal-header modal-header-cdc"><h5 class="modal-title"><i class="fa fa-history mr-2"></i>Bitácora de Zona</h5><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button></div>
+            <div class="modal-body" style="max-height:65vh;overflow:auto;"><table id="tbl_cdc_zona_historial" class="table table-sm table-bordered"><thead><tr><th>Fecha</th><th>Acción</th><th>Cliente</th><th>Usuario</th><th>Detalle</th></tr></thead><tbody></tbody></table></div>
+        </div></div>
+    </div>
+
 </div>
 
 @push('scripts')
@@ -345,6 +512,14 @@
         historialMasivo: '{{ route('cartera_clientes.historial_masivo') }}',
         asignar: '{{ route('cartera_clientes.asignar') }}',
         asignarMasivo: '{{ route('cartera_clientes.asignar_masivo') }}',
+        zonas: '{{ route('cartera_clientes.zonas') }}',
+        zonasCatalogos: '{{ route('cartera_clientes.zonas_catalogos') }}',
+        zonaDatos: '{{ url('/flujo_de_venta/cartera_de_clientes/zona') }}',
+        zonaBuscarClientes: '{{ route('cartera_clientes.zona_clientes_buscar') }}',
+        zonaGuardar: '{{ route('cartera_clientes.zona_guardar') }}',
+        zonaAsignarClientes: '{{ route('cartera_clientes.zona_asignar_clientes') }}',
+        zonaQuitarCliente: '{{ route('cartera_clientes.zona_quitar_cliente') }}',
+        zonaHistorial: '{{ url('/flujo_de_venta/cartera_de_clientes/zona-historial') }}',
     };
     $(document).ready(function () {
         cdcInit();

@@ -1631,6 +1631,14 @@ Route::post('/reporte/ventas-cobros/actualizar-f01/{facturaId}',                
     Route::post('/flujo_de_venta/cartera_de_clientes/historial-masivo', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'historialMasivo'])->name('cartera_clientes.historial_masivo');
     Route::post('/flujo_de_venta/cartera_de_clientes/asignar', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'asignarIndividual'])->name('cartera_clientes.asignar');
     Route::post('/flujo_de_venta/cartera_de_clientes/asignar-masivo', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'asignarMasivo'])->name('cartera_clientes.asignar_masivo');
+    Route::get('/flujo_de_venta/cartera_de_clientes/zonas', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'listarZonas'])->name('cartera_clientes.zonas');
+    Route::get('/flujo_de_venta/cartera_de_clientes/zonas-catalogos', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'catalogosZonas'])->name('cartera_clientes.zonas_catalogos');
+    Route::get('/flujo_de_venta/cartera_de_clientes/zona/{id}', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'datosZona'])->name('cartera_clientes.zona_datos');
+    Route::get('/flujo_de_venta/cartera_de_clientes/zona-clientes-buscar', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'buscarClientesZona'])->name('cartera_clientes.zona_clientes_buscar');
+    Route::post('/flujo_de_venta/cartera_de_clientes/zona-guardar', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'guardarZona'])->name('cartera_clientes.zona_guardar');
+    Route::post('/flujo_de_venta/cartera_de_clientes/zona-asignar-clientes', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'asignarClientesZona'])->name('cartera_clientes.zona_asignar_clientes');
+    Route::post('/flujo_de_venta/cartera_de_clientes/zona-quitar-cliente', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'quitarClienteZona'])->name('cartera_clientes.zona_quitar_cliente');
+    Route::get('/flujo_de_venta/cartera_de_clientes/zona-historial/{id}', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'historialZona'])->name('cartera_clientes.zona_historial');
 
     // [auto-routes-anchor]
 });
