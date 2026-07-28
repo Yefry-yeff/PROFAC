@@ -613,6 +613,7 @@
                 '<tr id="VP' + n + '" class="cart-item-card">' +
                   '<td style="vertical-align:middle; text-align:center; padding:4px 6px;">' +
                     '<input id="idProductoVP' + n + '" name="idProductoVP' + n + '" type="hidden" value="' + producto.id + '">' +
+                                        '<input id="preciosProductoCargaIdVP' + n + '" name="preciosProductoCargaIdVP' + n + '" type="hidden" value="' + producto.precios_producto_carga_id + '">' +
                     '<input id="restaInventarioVP' + n + '" name="restaInventarioVP' + n + '" type="hidden">' +
                     '<input id="isvVP' + n + '" name="isvVP' + n + '" type="hidden" value="' + producto.isv + '">' +
                     '<input id="acumuladoDescuentoVP' + n + '" name="acumuladoDescuentoVP' + n + '" type="hidden">' +
