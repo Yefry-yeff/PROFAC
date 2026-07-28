@@ -355,6 +355,16 @@ function infoProducto(facturaId, productoId, seccionId) {
             document.getElementById('isvVenta').value = data.isVenta;
             document.getElementById('totalVenta').value = data.totalVenta;
 
+            let descuentoInfo = document.getElementById('descuentoInfo');
+            let porcDescuento = +data.porc_descuento;
+            if (porcDescuento > 0) {
+                let precioConDescuento = data.precio_unidad * (1 - (porcDescuento / 100));
+                document.getElementById('descuentoInfoPorcentaje').innerText = porcDescuento + '%';
+                document.getElementById('descuentoInfoPrecio').innerText = monedaLempiras(precioConDescuento);
+                descuentoInfo.style.display = 'block';
+            } else {
+                descuentoInfo.style.display = 'none';
+            }
 
             let htmlBodega =
                 `<option value="${data.bodegaId}" selected="" disabled="">${data.nombreBodega}</option>`;

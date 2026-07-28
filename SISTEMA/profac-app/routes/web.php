@@ -1565,5 +1565,6 @@ Route::post('/reporte/ventas-cobros/actualizar-f01/{facturaId}',                
     Route::get('/flujo_de_venta/modificar_actores_en_factura', \App\Http\Livewire\FlujoDeVenta\ModificarActoresEnFactura::class)
         ->name('flujo_de_venta.modificar_actores_en_factura');
 
+
     // [auto-routes-anchor]
 });

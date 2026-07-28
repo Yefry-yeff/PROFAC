@@ -1,289 +1,162 @@
-<div>
+<div class="reporteria-page">
+    @push('styles')
     <style>
-        tfoot input {
-            width: 100%;
-            padding: 3px;
-            box-sizing: border-box;
+        :root {
+            --rep-grad: linear-gradient(135deg, #f39c12 0%, #e05a00 100%);
+            --rep-orange: #e67e22;
+            --rep-border: #e8d5bf;
+            --rep-radius: 8px;
+            --rep-shadow: 0 2px 8px rgba(0, 0, 0, .10);
+        }
+        .rep-panel { background:#fff; border:1px solid var(--rep-border); border-radius:var(--rep-radius); box-shadow:var(--rep-shadow); overflow:hidden; margin-bottom:22px; }
+        .rep-panel-header { min-height:50px; padding:11px 18px; background:var(--rep-grad); display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+        .rep-panel-title { display:flex; align-items:center; gap:9px; color:#fff; font-size:13px; font-weight:700; text-transform:uppercase; margin:0; }
+        .rep-panel-title i { width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center; background:rgba(255,255,255,.18); border-radius:6px; }
+        .rep-panel-action { display:inline-flex; align-items:center; gap:6px; background:rgba(255,255,255,.18)!important; color:#fff!important; border:1px solid rgba(255,255,255,.55)!important; border-radius:5px!important; padding:6px 13px; font-size:12px; font-weight:700; cursor:pointer; white-space:nowrap; }
+        .rep-panel-action:hover, .rep-panel-action:focus { background:rgba(255,255,255,.30)!important; color:#fff!important; }
+        .rep-filter-bar { padding:14px 18px; background:#fdfaf5; border-bottom:1px solid var(--rep-border); }
+        .rep-filter-grid { display:grid; grid-template-columns:minmax(180px, 260px) minmax(180px, 260px) auto; align-items:end; gap:12px; }
+        .rep-field label { display:block; margin:0 0 5px; color:#555; font-size:12px; font-weight:700; }
+        .rep-field .form-control { height:34px; border:1px solid #d9d9d9; border-radius:5px; font-size:12px; }
+        .rep-field .form-control:focus { border-color:var(--rep-orange); box-shadow:0 0 0 .15rem rgba(230,126,34,.15); }
+        .rep-run-btn { height:34px; display:inline-flex; align-items:center; justify-content:center; gap:7px; padding:0 16px; background:var(--rep-grad)!important; color:#fff!important; border:0!important; border-radius:5px!important; font-size:12px; font-weight:700; cursor:pointer; }
+        .rep-run-btn:hover, .rep-run-btn:focus { filter:brightness(.96); color:#fff!important; }
+        .rep-table-body { padding:16px 18px; }
+        .rep-table-scroll { width:100%; overflow-x:auto; }
+        .rep-table { width:100%!important; margin:0!important; }
+        .rep-table thead th { background:#fdf4e7; color:#7d3f00; border-top:0!important; border-bottom:2px solid #f2d49a!important; padding:8px 10px!important; font-size:11px; font-weight:800; text-transform:uppercase; white-space:nowrap; vertical-align:middle; }
+        .rep-table tbody td { padding:8px 10px!important; font-size:12px; color:#374151; vertical-align:middle; white-space:nowrap; }
+        .rep-table tbody tr:nth-child(even) { background:#fcfcfd; }
+        .rep-table tbody tr:hover td { background:#fff8ec!important; }
+        .rep-table tfoot input, .rep-table thead input { width:100%; min-width:90px; height:27px; box-sizing:border-box; border:1px solid #e0c9ae; border-radius:4px; padding:3px 7px; font-size:10px; font-weight:400; color:#555; background:#fff; text-transform:none; }
+        .rep-table tfoot input:focus, .rep-table thead input:focus { border-color:var(--rep-orange); outline:none; box-shadow:0 0 0 2px rgba(230,126,34,.12); }
+        .reporteria-page .dataTables_wrapper { width:100%!important; padding-bottom:4px; }
+        .reporteria-page .dataTables_wrapper.form-inline { display:block!important; }
+        .reporteria-page .dataTables_length, .reporteria-page .dataTables_filter, .reporteria-page .dt-buttons { margin-bottom:9px; }
+        .reporteria-page .dataTables_filter input, .reporteria-page .dataTables_length select { border:1px solid #d9d9d9; border-radius:5px; font-size:12px; }
+        .reporteria-page .html5buttons .btn, .reporteria-page .dt-buttons .btn { border:1px solid #b7dfc5!important; background:#f0fdf4!important; color:#19733d!important; border-radius:5px!important; font-size:12px; font-weight:700; }
+        .reporteria-page .dataTables_processing { z-index:4; border:1px solid var(--rep-border); box-shadow:var(--rep-shadow); color:#7d3f00; }
+        #page-wrapper { padding-left:0!important; padding-right:0!important; }
+        .reporteria-page .wrapper-content { padding-left:0!important; padding-right:0!important; }
+        .reporteria-page .wrapper-content > .row { margin-left:0!important; margin-right:0!important; }
+        .reporteria-page .wrapper-content > .row > [class*="col-"] { padding-left:0!important; padding-right:0!important; }
+        @media (max-width:767px) {
+            .rep-filter-grid { grid-template-columns:1fr; }
+            .rep-run-btn { width:100%; }
+            .rep-panel-header { padding:10px 12px; }
+            .rep-table-body { padding:10px; }
         }
     </style>
+    @endpush
+
     <div class="row wrapper border-bottom white-bg page-heading d-flex align-items-center">
-        <div class="col-lg-12 col-xl-12 col-md-12 col-sm-12">
-            <h2>Reporteria </h2>
-
+        <div class="col-lg-12">
+            <h2><i class="fa fa-bar-chart mr-2" style="color:#e67e22"></i>Reportería General</h2>
             <ol class="breadcrumb">
-                <li class="breadcrumb-item">
-                    <a href="index.html">/ Reportes / Varios</a>
-                </li>
-
-
+                <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Inicio</a></li>
+                <li class="breadcrumb-item">Reportes</li>
+                <li class="breadcrumb-item active"><strong>Reportería General</strong></li>
             </ol>
         </div>
-
     </div>
 
-
-    <p> <b>Nota: </b> Se requiere de selección de un rango de fechas para mostrar la información.</p>
-
-    <h3>VENTAS TOTALES POR PRODUCTO SEGUN RANGO DE FECHAS </h3>
-    <div class="wrapper wrapper-content animated fadeInRight pb-0">
-        <div class="row">
-            <div class="col-lg-12">
-                <div class="ibox ">
-                    <div class="ibox-content">
-                        <div class="row">
-
-
-                            <div class="col-6 col-sm-6 col-md-6 ">
-                                <label for="fecha_inicio" class="col-form-label focus-label">Fecha de inicio:<span class="text-danger">*</span></label>
-                                <input class="form-group form-control" type="date" id="fecha_inicio" name="fecha_inicio" value="{{date('Y-m-01')}}">
-                            </div>
-
-                            <div class="col-6 col-sm-6 col-md-6">
-                                <label for="fecha_final" class="col-form-label focus-label">Fecha final:<span class="text-danger">*</span></label>
-                                <input class="form-group form-control" type="date" id="fecha_final" name="fecha_final" value="{{date('Y-m-t')}}">
-                            </div>
-
-                        </div>
-                        <button class="btn btn-primary" onclick="cargaConsulta()"><i class="fa-solid fa-paper-plane text-white"></i> Solicitar</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <label for="">RECUERDE QUE ENTRE MAS PROLONGADA LA FECHA, MAS TIEMPO TARDARA EN RESPONDER POR LA CARGA DE DATA</label>
     <div class="wrapper wrapper-content animated fadeInRight">
         <div class="row">
             <div class="col-lg-12">
-                <div class="ibox ">
-                    <div class="ibox-content">
-                        <div class="table-responsive">
-                            <table id="tbl_facdia" class="table table-striped table-bordered table-hover">
-                                <thead class="">
-                                    <tr>
-                                        <th>FECHA DE VENTA</th>
-                                        <th>FECHA DE VENCIMIENTO</th>
-                                        <th>VENDEDOR</th>
-                                        <th>FACTURA</th>
-                                        <th>CLIENTE</th>
-                                        <th>TIPO CLIENTE (AoB)</th>
-                                        <th>TIPO CRÉDITO/CONTADO</th>
-                                        <th>CODIGO PRODUCTO</th>
-                                        <th>PRODUCTO</th>
-                                        <th>MARCA</th>
-                                        <th>CATEGORIA</th>
-                                        <th>SUB CATEGORIA</th>
-                                        <th>UNIDAD DE MEDIDA</th>
-                                        <th>EXCENTO</th>
-                                        <th>BODEGA</th>
-                                        <th>SECCION</th>
-                                        <th>UNIDADES VENDIDAS</th>
-                                        <th>SUBTOTAL PRODUCTO</th>
-                                        <th>ISV PRODUCTO</th>
-                                        <th>TOTAL PRODUCTO</th>
-                                        <th>SUB TOTAL FACTURA</th>
-                                        <th>ISV FACTURA</th>
-                                        <th>TOTAL FACTURA</th>
-                                    </tr>
-                                </thead>
-                                <tbody>                                <tbody>
-                                    <tfoot>
-                                        <tr>
-                                            <th>FECHA DE VENTA</th>
-                                            <th>FECHA DE VENCIMIENTO</th>
-                                            <th>VENDEDOR</th>
-                                            <th>FACTURA</th>
-                                            <th>CLIENTE</th>
-                                            <th>TIPO CLIENTE (AoB)</th>
-                                            <th>TIPO CRÉDITO/CONTADO</th>
-                                            <th>CODIGO PRODUCTO</th>
-                                            <th>PRODUCTO</th>
-                                            <th>MARCA</th>
-                                            <th>CATEGORIA</th>
-                                            <th>SUB CATEGORIA</th>
-                                            <th>UNIDAD DE MEDIDA</th>
-                                            <th>EXCENTO</th>
-                                            <th>BODEGA</th>
-                                            <th>SECCION</th>
-                                            <th>UNIDADES VENDIDAS</th>
-                                            <th>SUBTOTAL PRODUCTO</th>
-                                            <th>ISV PRODUCTO</th>
-                                            <th>TOTAL PRODUCTO</th>
-                                            <th>SUB TOTAL FACTURA</th>
-                                            <th>ISV FACTURA</th>
-                                            <th>TOTAL FACTURA</th>
-                                        </tr>
-                                    </tfoot>
-
-                                </tbody>
-
-                                </tbody>
-                            </table>
-
-                        </div>
-
+                <section class="rep-panel">
+                    <div class="rep-panel-header">
+                        <h5 class="rep-panel-title"><i class="fa fa-line-chart"></i>Ventas por producto</h5>
                     </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-
-    <hr>
-    <hr>
-    <h3>CATÁLOGO DE PRODUCTOS EN EXISTENCIA</h3>
-    <div class="wrapper wrapper-content animated fadeInRight pb-0">
-        <div class="row">
-            <div class="col-lg-12">
-                <div class="ibox ">
-                    <div class="ibox-content">
-                        <div class="row">
-
-
-                            {{--  <div class="col-6 col-sm-6 col-md-6 ">
-                                <label for="fecha_inicio" class="col-form-label focus-label">Fecha de inicio:<span class="text-danger">*</span></label>
-                                <input class="form-group form-control" type="date" id="fecha_inicio" name="fecha_inicio" value="{{date('Y-m-01')}}">
+                    <div class="rep-filter-bar">
+                        <div class="rep-filter-grid">
+                            <div class="rep-field">
+                                <label for="fecha_inicio">Fecha de inicio <span class="text-danger">*</span></label>
+                                <input class="form-control" type="date" id="fecha_inicio" name="fecha_inicio" value="{{ date('Y-m-01') }}">
                             </div>
-
-                            <div class="col-6 col-sm-6 col-md-6">
-                                <label for="fecha_final" class="col-form-label focus-label">Fecha final:<span class="text-danger">*</span></label>
-                                <input class="form-group form-control" type="date" id="fecha_final" name="fecha_final" value="{{date('Y-m-t')}}">
-                            </div>  --}}
-
+                            <div class="rep-field">
+                                <label for="fecha_final">Fecha final <span class="text-danger">*</span></label>
+                                <input class="form-control" type="date" id="fecha_final" name="fecha_final" value="{{ date('Y-m-t') }}">
+                            </div>
+                            <button type="button" class="rep-run-btn" onclick="cargaConsulta()">
+                                <i class="fa fa-search"></i>Consultar ventas
+                            </button>
                         </div>
-                        <button class="btn btn-primary btn-block" onclick="cargaProductos()"><i class="fa-solid fa-paper-plane text-white"></i> Solicitar catálogo</button>
                     </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="wrapper wrapper-content animated fadeInRight">
-        <div class="row">
-            <div class="col-lg-12">
-                <div class="ibox ">
-                    <div class="ibox-content">
-                        <div class="table-responsive">
-                            <table id="tbl_productos" class="table table-striped table-bordered table-hover">
-                                <thead class="">
-                                    <tr>
-                                        <th>CODIGO</th>
-                                        <th>CODIGO DE BARRA</th>
-                                        <th>PRODUCTO</th>
-                                        <th>MARCA</th>
-                                        <th>ISV</th>
-                                        <th>CATEGORIA</th>
-                                        <th>SUB CATEGORIA</th>
-                                        <th>EXISTENCIA TOTAL</th>
-                                        <th>PRECIO BASE</th>
-                                    </tr>
-                                </thead>
-                                <tbody>                                <tbody>
-                                    <tfoot>
-                                        <tr>
-                                            <th>CODIGO</th>
-                                            <th>CODIGO DE BARRA</th>
-                                            <th>PRODUCTO</th>
-                                            <th>MARCA</th>
-                                            <th>ISV</th>
-                                            <th>CATEGORIA</th>
-                                            <th>SUB CATEGORIA</th>
-                                            <th>EXISTENCIA TOTAL</th>
-                                            <th>PRECIO BASE</th>
-                                        </tr>
-                                    </tfoot>
-
-                                </tbody>
-                                </tbody>
+                    <div class="rep-table-body">
+                        <div class="rep-table-scroll">
+                            <table id="tbl_facdia" class="table table-bordered table-hover rep-table">
+                                <thead><tr>
+                                    <th>Fecha de venta</th><th>Fecha de vencimiento</th><th>Vendedor</th><th>Factura</th><th>Cliente</th>
+                                    <th>Tipo cliente (A o B)</th><th>Crédito / contado</th><th>Código producto</th><th>Producto</th><th>Marca</th>
+                                    <th>Categoría</th><th>Subcategoría</th><th>Unidad de medida</th><th>Exento</th><th>Bodega</th><th>Sección</th>
+                                    <th>Unidades vendidas</th><th>Subtotal producto</th><th>ISV producto</th><th>Total producto</th>
+                                    <th>Subtotal factura</th><th>ISV factura</th><th>Total factura</th>
+                                </tr></thead>
+                                <tbody></tbody>
+                                <tfoot><tr>
+                                    <th>Fecha de venta</th><th>Fecha de vencimiento</th><th>Vendedor</th><th>Factura</th><th>Cliente</th>
+                                    <th>Tipo cliente</th><th>Crédito / contado</th><th>Código producto</th><th>Producto</th><th>Marca</th>
+                                    <th>Categoría</th><th>Subcategoría</th><th>Unidad de medida</th><th>Exento</th><th>Bodega</th><th>Sección</th>
+                                    <th>Unidades</th><th>Subtotal producto</th><th>ISV producto</th><th>Total producto</th>
+                                    <th>Subtotal factura</th><th>ISV factura</th><th>Total factura</th>
+                                </tr></tfoot>
                             </table>
-
                         </div>
-
                     </div>
-                </div>
-            </div>
-        </div>
-    </div>
+                </section>
 
-    <hr>
-    <hr>
-    <h3>CLIENTES ACTIVOS/INACTIVOS</h3>
-    <div class="wrapper wrapper-content animated fadeInRight pb-0">
-        <div class="row">
-            <div class="col-lg-12">
-                <div class="ibox ">
-                    <div class="ibox-content">
-                        <div class="row">
-
-                        </div>
-                        <button class="btn btn-primary btn-block" onclick="cargaClientes()"><i class="fa-solid fa-paper-plane text-white"></i> Solicitar catálogo</button>
+                <section class="rep-panel">
+                    <div class="rep-panel-header">
+                        <h5 class="rep-panel-title"><i class="fa fa-cubes"></i>Catálogo de productos en existencia</h5>
+                        <button type="button" class="rep-panel-action" onclick="cargaProductos()">
+                            <i class="fa fa-refresh"></i>Cargar catálogo
+                        </button>
                     </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="wrapper wrapper-content animated fadeInRight">
-        <div class="row">
-            <div class="col-lg-12">
-                <div class="ibox ">
-                    <div class="ibox-content">
-                        <div class="table-responsive">
-                            <table id="tbl_clientes" class="table table-striped table-bordered table-hover">
-                                <thead class="">
-                                    <tr>
-                                        <th>CODIGO</th>
-                                        <th>TIPO CLIENTE (AoB)</th>
-                                        <th>ESTADO</th>
-                                        <th>RTN</th>
-                                        <th>CLIENTE</th>
-                                        <th>DIRECCION</th>
-                                        <th>CORREO</th>
-                                        <th>TELEFONO</th>
-                                        <th>PAIS</th>
-                                        <th>DEPARTAMENTO</th>
-                                        <th>MUNICIPIO</th>
-                                        <th>NOMBRE CONTACTO 1</th>
-                                        <th>TELEFONO CONTACTO 1</th>
-                                        <th>NOMBRE CONTACTO 2</th>
-                                        <th>TELEFONO CONTACO 2</th>
-                                        <th>VENDEDOR</th>
-                                        <th>REGISTRO</th>
-                                    </tr>
-                                </thead>
-                                <tbody>                                <tbody>
-                                    <tfoot>
-                                        <tr>
-                                            <th>CODIGO</th>
-                                            <th>TIPO CLIENTE (AoB)</th>
-                                            <th>ESTADO</th>
-                                            <th>RTN</th>
-                                            <th>CLIENTE</th>
-                                            <th>DIRECCION</th>
-                                            <th>CORREO</th>
-                                            <th>TELEFONO</th>
-                                            <th>PAIS</th>
-                                            <th>DEPARTAMENTO</th>
-                                            <th>MUNICIPIO</th>
-                                            <th>NOMBRE CONTACTO 1</th>
-                                            <th>TELEFONO CONTACTO 1</th>
-                                            <th>NOMBRE CONTACTO 2</th>
-                                            <th>TELEFONO CONTACO 2</th>
-                                            <th>VENDEDOR</th>
-                                            <th>REGISTRO</th>
-                                        </tr>
-                                    </tfoot>
-
-                                </tbody>
-                                </tbody>
+                    <div class="rep-table-body">
+                        <div class="rep-table-scroll">
+                            <table id="tbl_productos" class="table table-bordered table-hover rep-table">
+                                <thead><tr>
+                                    <th>Código</th><th>Código de barra</th><th>Producto</th><th>Marca</th><th>ISV</th>
+                                    <th>Categoría</th><th>Subcategoría</th><th>Existencia total</th><th>Precio base</th>
+                                </tr></thead>
+                                <tbody></tbody>
+                                <tfoot><tr>
+                                    <th>Código</th><th>Código de barra</th><th>Producto</th><th>Marca</th><th>ISV</th>
+                                    <th>Categoría</th><th>Subcategoría</th><th>Existencia total</th><th>Precio base</th>
+                                </tr></tfoot>
                             </table>
-
                         </div>
-
                     </div>
-                </div>
+                </section>
+
+                <section class="rep-panel">
+                    <div class="rep-panel-header">
+                        <h5 class="rep-panel-title"><i class="fa fa-users"></i>Clientes activos e inactivos</h5>
+                        <button type="button" class="rep-panel-action" onclick="cargaClientes()">
+                            <i class="fa fa-refresh"></i>Cargar clientes
+                        </button>
+                    </div>
+                    <div class="rep-table-body">
+                        <div class="rep-table-scroll">
+                            <table id="tbl_clientes" class="table table-bordered table-hover rep-table">
+                                <thead><tr>
+                                    <th>Código</th><th>Tipo cliente (A o B)</th><th>Estado</th><th>RTN</th><th>Cliente</th><th>Dirección</th>
+                                    <th>Correo</th><th>Teléfono</th><th>País</th><th>Departamento</th><th>Municipio</th>
+                                    <th>Contacto 1</th><th>Teléfono contacto 1</th><th>Contacto 2</th><th>Teléfono contacto 2</th><th>Vendedor</th><th>Registro</th>
+                                </tr></thead>
+                                <tbody></tbody>
+                                <tfoot><tr>
+                                    <th>Código</th><th>Tipo cliente</th><th>Estado</th><th>RTN</th><th>Cliente</th><th>Dirección</th>
+                                    <th>Correo</th><th>Teléfono</th><th>País</th><th>Departamento</th><th>Municipio</th>
+                                    <th>Contacto 1</th><th>Teléfono 1</th><th>Contacto 2</th><th>Teléfono 2</th><th>Vendedor</th><th>Registro</th>
+                                </tr></tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </section>
             </div>
         </div>
     </div>
-
-
 </div>
 @push('scripts')
 
@@ -298,6 +171,9 @@
         $('#tbl_facdia').DataTable({
             "order": ['0', 'desc'],
             "paging": true,
+            "processing": true,
+            "serverSide": true,
+            "searchDelay": 500,
             "language": {
                 "url": "//cdn.datatables.net/1.13.5/css/jquery.dataTables.min.css"
             },
