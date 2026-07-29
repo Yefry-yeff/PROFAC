@@ -552,13 +552,14 @@ class CrearVale extends Component
             }
 
             $lotes = DB::table('vale_has_producto')
-                ->where('vale_id', $idVale)
+                ->join('vale', 'vale.id', '=', 'vale_has_producto.vale_id')
+                ->where('vale_has_producto.vale_id', $idVale)
                 ->get([
-                    'factura_id',
-                    'vale_id',
-                    'lote_id',
-                    'unidad_medida_venta_id',
-                    'resta_inventario_unidades',
+                    'vale.factura_id',
+                    'vale_has_producto.vale_id',
+                    'vale_has_producto.lote_id',
+                    'vale_has_producto.unidad_medida_venta_id',
+                    'vale_has_producto.resta_inventario_unidades',
                 ]);
 
             $vale->comentario_anular = $request->motivo;
