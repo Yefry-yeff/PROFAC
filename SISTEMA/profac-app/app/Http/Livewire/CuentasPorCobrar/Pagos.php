@@ -304,7 +304,8 @@ class Pagos extends Component
             ot.comentario,
             ot.estado as estadoMov,
             (select name from users where id = ot.usr_registro) as userRegistro,
-            ot.created_at as fechaRegistro,
+            DATE_FORMAT(ot.created_at, '%Y-%m-%d') as fechaCreacion,
+            DATE_FORMAT(ot.created_at, '%Y-%m-%d %H:%i:%s') as fechaRegistro,
             ot.factura_id
                 from otros_movimientos ot
                 inner join aplicacion_pagos ap on ap.id = ot.aplicacion_pagos_id
