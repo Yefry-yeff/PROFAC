@@ -9,6 +9,23 @@ $('#tbl_creditos_abonos_div').addClass('d-none');
 // lo limpie (hidden.bs.modal destruye selectBanco), para enviarlo al confirmar.
 var _pendingAbonoData = null;
 
+var dataTablesLanguageEs = {
+    "sProcessing":   "Procesando...",
+    "sLengthMenu":   "Mostrar _MENU_ registros",
+    "sZeroRecords":  "No se encontraron resultados",
+    "sEmptyTable":   "Ningún dato disponible en esta tabla",
+    "sInfo":         "Mostrando registros del _START_ al _END_ de un total de _TOTAL_ registros",
+    "sInfoEmpty":    "Mostrando registros del 0 al 0 de un total de 0 registros",
+    "sInfoFiltered": "(filtrado de un total de _MAX_ registros)",
+    "sSearch":       "Buscar:",
+    "oPaginate": {
+        "sFirst":    "Primero",
+        "sLast":     "Último",
+        "sNext":     "Siguiente",
+        "sPrevious": "Anterior"
+    }
+};
+
 // Fix: prevent aria-hidden focus warning when Bootstrap modals close
 $(document).on('hide.bs.modal', '.modal', function () {
     if (document.activeElement && $.contains(this, document.activeElement)) {
@@ -351,22 +368,7 @@ function listarCuentasPorCobrar() {
     var idCliente = document.getElementById('cliente').value;
     $('#tbl_cuentas_facturas_cliente').DataTable({
         "paging": true,
-        "language": {
-            "sProcessing":   "Procesando...",
-            "sLengthMenu":   "Mostrar _MENU_ registros",
-            "sZeroRecords":  "No se encontraron resultados",
-            "sEmptyTable":   "Ningún dato disponible en esta tabla",
-            "sInfo":         "Mostrando registros del _START_ al _END_ de un total de _TOTAL_ registros",
-            "sInfoEmpty":    "Mostrando registros del 0 al 0 de un total de 0 registros",
-            "sInfoFiltered": "(filtrado de un total de _MAX_ registros)",
-            "sSearch":       "Buscar:",
-            "oPaginate": {
-                "sFirst":    "Primero",
-                "sLast":     "Último",
-                "sNext":     "Siguiente",
-                "sPrevious": "Anterior"
-            }
-        },
+        "language": dataTablesLanguageEs,
         pageLength: 10,
         responsive: true,
         dom: '<"html5buttons"B>lTfgitp',
@@ -484,6 +486,7 @@ function listarCuentasPorCobrar() {
                             });
                         });
 
+                    var rows = this.api().data().toArray();
                     // ── Stats cards ──
                     updateStatsCards(rows);
                     // ── Badge pestaña Facturas ──
@@ -527,9 +530,7 @@ function listarMovimientos() {
     var idCliente = document.getElementById('cliente').value;
     $('#tbl_tipo_movimientos_cliente').DataTable({
         "paging": true,
-        "language": {
-            "url": "//cdn.datatables.net/1.13.5/css/jquery.dataTables.min.css"
-        },
+        "language": dataTablesLanguageEs,
         pageLength: 10,
         responsive: true,
         dom: '<"html5buttons"B>lTfgitp',
@@ -584,6 +585,9 @@ function listarMovimientos() {
                         data: 'userRegistro'
                     },
                     {
+                        data: 'fechaCreacion'
+                    },
+                    {
                         data: 'fechaRegistro'
                     },
                     {
@@ -627,9 +631,7 @@ function listarAbonos() {
     var idCliente = document.getElementById('cliente').value;
     $('#tbl_abonos_cliente').DataTable({
         "paging": true,
-        "language": {
-            "url": "//cdn.datatables.net/1.13.5/css/jquery.dataTables.min.css"
-        },
+        "language": dataTablesLanguageEs,
         pageLength: 10,
         responsive: true,
         dom: '<"html5buttons"B>lTfgitp',
@@ -718,9 +720,7 @@ function listarHistoricoRetenciones() {
     var idCliente = document.getElementById('cliente').value;
     $('#tbl_historico_retenciones_cliente').DataTable({
         "paging": true,
-        "language": {
-            "url": "//cdn.datatables.net/1.13.5/css/jquery.dataTables.min.css"
-        },
+        "language": dataTablesLanguageEs,
         pageLength: 10,
         responsive: true,
         dom: '<"html5buttons"B>lTfgitp',

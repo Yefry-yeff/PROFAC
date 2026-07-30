@@ -186,6 +186,7 @@ class RestarVale extends Component
                 B.sub_total,
                 B.isv,
                 B.total,
+                B.precios_producto_carga_id,
                 C.isv as ivsProducto,
                 D.unidad_venta,
                 E.id as idFactura,
@@ -245,7 +246,8 @@ class RestarVale extends Component
                     $producto->total,
                     $producto->ivsProducto,
                     $producto->unidad_venta,
-                    $tipoPrecio
+                    $tipoPrecio,
+                    $producto->precios_producto_carga_id
                 );
             }
 
@@ -297,7 +299,7 @@ class RestarVale extends Component
            }
     }
 
-    public function restarUnidadesInventario($unidadesRestarInv, $idProducto, $idFactura, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $tipoPrecio = '2')
+    public function restarUnidadesInventario($unidadesRestarInv, $idProducto, $idFactura, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $tipoPrecio = '2', $preciosProductoCargaId = null)
     {
 
 
@@ -392,6 +394,7 @@ class RestarVale extends Component
                     "isv_s" => $isvSecccionado,
                     "total_s" => $totalSecccionado,
                     "tipo_precio" => $tipoPrecio,
+                    "precios_producto_carga_id" => $preciosProductoCargaId,
                     "created_at" => now(),
                     "updated_at" => now(),
                 ]);

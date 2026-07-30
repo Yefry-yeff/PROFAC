@@ -327,6 +327,7 @@ class ValeListaEspera extends Component
             $keyunidad = 'idUnidadVentaVP' . $arrayInputs[$i];
             $keyidPrecioSeleccionado = 'idPrecioSeleccionado'.$arrayInputs[$i];
             $keyprecioSeleccionado = 'precios'.$arrayInputs[$i];
+            $keyPreciosProductoCargaId = 'preciosProductoCargaIdVP'.$arrayInputs[$i];
 
 
 
@@ -345,6 +346,7 @@ class ValeListaEspera extends Component
                 'resta_inventario_total'=>$request->$keyRestaInventario,
                 "precioSeleccionado" => $request->$keyprecioSeleccionado,
                 "idPrecioSeleccionado" => $request->$keyidPrecioSeleccionado,
+                "precios_producto_carga_id" => $request->$keyPreciosProductoCargaId,
                 'created_at'=>now(),
                 'updated_at'=>now()
 
@@ -374,6 +376,7 @@ class ValeListaEspera extends Component
                 "tipo_precio" => ($request->$keyIsv > 0) ? '2' : '1', // '1' = Excento (producto sin ISV, isv = 0) | '2' = Gravado (producto con ISV, isv > 0)
                 "precioSeleccionado" => $request->$keyprecioSeleccionado,
                 "idPrecioSeleccionado" => $request->$keyidPrecioSeleccionado,
+                "precios_producto_carga_id" => $request->$keyPreciosProductoCargaId,
                 "created_at" => now(),
                 "updated_at" => now(),
             ]);
