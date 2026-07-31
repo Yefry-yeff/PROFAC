@@ -576,7 +576,8 @@
                                     <label class="ofr-label">Fecha Emisión <span class="req">*</span></label>
                                     <input class="form-control form-control-sm" type="date" id="fecha_emision"
                                         onchange="sumarDiasCredito()" name="fecha_emision"
-                                        value="{{ date('Y-m-d') }}" data-parsley-required>
+                                        value="{{ date('Y-m-d') }}" data-parsley-required
+                                        @if(request()->query('modo') === 'editar_factura') readonly @endif>
                                 </div>
                                 {{-- Fecha vencimiento --}}
                                 <div class="col-12 col-md-4">
@@ -699,10 +700,12 @@
                                         <div class="input-group">
                                             <input type="text" id="codigoProductoBuscar" class="form-control form-control-sm"
                                                 placeholder="ID o nombre del producto…" autocomplete="off"
-                                                onkeydown="if(event.key==='Enter'){buscarPorCodigo(this.value);return false;}">
+                                                onfocus="manejarFocoBusquedaProducto()"
+                                                oninput="prepararNuevaBusquedaProducto(this.value)"
+                                                onkeydown="if(event.key==='Enter'){event.preventDefault();buscarPorCodigo(this.value);return false;}">
                                             <div class="input-group-append">
                                                 <button type="button" class="btn btn-primary btn-sm" title="Buscar producto"
-                                                    onclick="limpiarProducto(); window['abrirBuscador_buscadorProductoUnificado'](document.getElementById('codigoProductoBuscar').value||'')">
+                                                    onclick="abrirBusquedaProductoActual()">
                                                     <i class="fa fa-search"></i>
                                                 </button>
                                             </div>
@@ -1778,6 +1781,10 @@
     var arregloIdInputs = [];
     var retencionEstado = false;
     var diasCredito = 0;
+    var diasCreditoAprobadosFlujo = null;
+    var modoEditarFactura = new URLSearchParams(window.location.search).get('modo') === 'editar_factura';
+    var secuenciaBusquedaProducto = 0;
+    var omitirLimpiezaFocoProducto = false;
     var idAutorizacion = 0;
     var idFactura = 0;
     var public_path = "{{ asset('catalogo/') }}";
@@ -2042,6 +2049,9 @@
 
     window.addEventListener('pedido-seleccionado', function(e) {
         var d = e.detail;
+        diasCreditoAprobadosFlujo = (d.diasCreditoAprobados === null || typeof d.diasCreditoAprobados === 'undefined')
+            ? null
+            : Math.max(0, parseInt(d.diasCreditoAprobados, 10) || 0);
         // Re-habilitar Select2 de cliente (puede estar disabled en re-render)
         var selC = document.getElementById('seleccionarCliente');
         if (selC) selC.removeAttribute('disabled');
@@ -2065,6 +2075,7 @@
             var optV = new Option(d.vendedorNombre, d.vendedorId, true, true);
             $('#vendedor').append(optV).trigger('change');
         }
+        bloquearCamposEdicionFactura();
 
         aplicarDocumentosComercialesEnFormulario(d);
 
@@ -2074,6 +2085,8 @@
 
     window.addEventListener('pedido-desvinculado', function(e) {
         var d = e.detail;
+        diasCreditoAprobadosFlujo = null;
+        diasCredito = 0;
         // Habilitar cliente nuevamente
         $('#seleccionarCliente').prop('disabled', false);
         // Limpiar cliente
@@ -2171,33 +2184,87 @@
         document.getElementById('codigoProductoBuscar').value = '';
         var lbl = document.getElementById('productoSeleccionadoLabel');
         lbl.classList.add('d-none'); lbl.textContent = '';
+        $('#categoria_cliente_venta_id').empty()
+            .append('<option value="" selected disabled>--Seleccione primero un producto--</option>')
+            .prop('disabled', true);
+        $('#bodega').empty()
+            .append('<option value="" selected disabled>--Seleccione una categoría primero--</option>')
+            .prop('disabled', true);
+        document.getElementById('botonAdd').classList.add('d-none');
+        document.getElementById('bloqueImagenes').innerHTML = '';
         document.getElementById('historialPreciosPanel').querySelector('#historialPreciosCuerpo').innerHTML =
             '<p class="mb-0 text-muted small">Sin ventas previas de este producto a este cliente.</p>';
         document.getElementById('historialPreciosPanel').classList.remove('d-none');
     }
 
+    function prepararNuevaBusquedaProducto(valorActual) {
+        if (!document.getElementById('seleccionarProducto').value) return;
+        limpiarProducto();
+        document.getElementById('codigoProductoBuscar').value = valorActual || '';
+    }
+
+    function manejarFocoBusquedaProducto() {
+        if (!omitirLimpiezaFocoProducto) prepararNuevaBusquedaProducto('');
+    }
+
+    function enfocarBusquedaProducto() {
+        var campo = document.getElementById('codigoProductoBuscar');
+        omitirLimpiezaFocoProducto = true;
+        campo.focus();
+        omitirLimpiezaFocoProducto = false;
+    }
+
+    function reiniciarCapturaProducto() {
+        secuenciaBusquedaProducto++;
+        limpiarProducto();
+        enfocarBusquedaProducto();
+    }
+
+    function abrirBusquedaProductoActual() {
+        var campo = document.getElementById('codigoProductoBuscar');
+        var termino = campo.value.trim();
+        prepararNuevaBusquedaProducto(termino);
+        window['abrirBuscador_buscadorProductoUnificado'](termino);
+    }
+
     function alSeleccionarProducto(producto) {
         var select = document.getElementById('seleccionarProducto');
         select.innerHTML = '<option value="' + producto.id + '" selected>' + producto.nombre + '</option>';
-        document.getElementById('codigoProductoBuscar').value = producto.nombre;
+        var campoBusqueda = document.getElementById('codigoProductoBuscar');
+        campoBusqueda.value = '';
         var label = document.getElementById('productoSeleccionadoLabel');
         label.textContent = '✓ ' + producto.nombre + ' (ID: ' + producto.id + ')';
         label.classList.remove('d-none');
         cargarCategoriasProducto();
+        enfocarBusquedaProducto();
     }
 
     function buscarPorCodigo(cod) {
         cod = String(cod).trim();
         if (!cod) { window['abrirBuscador_buscadorProductoUnificado'](''); return; }
+        var secuenciaActual = ++secuenciaBusquedaProducto;
         axios.get('/productos/buscar', { params: { q: cod, page: 1 } })
             .then(function(r) {
-                var items = r.data.data;
-                var exact = items.find(function(p) { return String(p.id) === cod; });
+                if (secuenciaActual !== secuenciaBusquedaProducto) return;
+                var items = r.data.data || [];
+                var exact = items.find(function(p) {
+                    return String(p.id) === cod ||
+                        String(p.codigo_barra || '').trim() === cod ||
+                        String(p.codigo_estatal || '').trim() === cod;
+                });
                 if (exact) { alSeleccionarProducto(exact); }
                 else if (items.length === 1) { alSeleccionarProducto(items[0]); }
                 else { window['abrirBuscador_buscadorProductoUnificado'](cod); }
+            })
+            .catch(function() {
+                if (secuenciaActual !== secuenciaBusquedaProducto) return;
+                window['abrirBuscador_buscadorProductoUnificado'](cod);
             });
     }
+
+    $(document).on('hidden.bs.modal', '#buscadorProductoUnificado', function() {
+        enfocarBusquedaProducto();
+    });
 
     // ================================================================
     // CLIENTE
@@ -2211,6 +2278,10 @@
     // ================================================================
     function aplicarAsesorAsignado(idCliente) {
         if (codigoActual !== 'cotizacion_clientes_a' || !idCliente) return;
+        if (modoEditarFactura) {
+            bloquearCamposEdicionFactura();
+            return;
+        }
 
         axios.post('/cotizacion/asesor-asignado', { cliente_id: idCliente })
             .then(response => {
@@ -2223,6 +2294,7 @@
                 }
 
                 vendedorSelect.prop('disabled', !data.puede_editar);
+                bloquearCamposEdicionFactura();
             })
             .catch(err => {
                 console.log(err);
@@ -2344,7 +2416,16 @@
 
                 // Si es duplicado de oferta, pre-seleccionar el tipo de pago original;
                 // si no, auto-seleccionar "Contado" por defecto
-                if (_ofertaDuplicada && _ofertaDuplicada.tipo_pago_id) {
+                if (diasCreditoAprobadosFlujo !== null) {
+                    var tipoPagoAprobado = diasCreditoAprobadosFlujo > 0 ? 2 : 1;
+                    for (let i = 0; i < selPago.options.length; i++) {
+                        if (parseInt(selPago.options[i].value, 10) === tipoPagoAprobado) {
+                            selPago.selectedIndex = i;
+                            break;
+                        }
+                    }
+                    diasCredito = diasCreditoAprobadosFlujo;
+                } else if (_ofertaDuplicada && _ofertaDuplicada.tipo_pago_id) {
                     for (let i = 0; i < selPago.options.length; i++) {
                         if (selPago.options[i].value == _ofertaDuplicada.tipo_pago_id) {
                             selPago.selectedIndex = i;
@@ -2361,6 +2442,7 @@
                 }
 
                 validarFechaPago();
+                bloquearCamposEdicionFactura();
 
                 // Pre-llenar campos adicionales de la oferta duplicada
                 if (_ofertaDuplicada) {
@@ -2406,6 +2488,7 @@
             cliente_categoria_escala_id: categoriaEscalaId
         })
             .then(response => {
+                if (String($('#seleccionarProducto').val() || '') !== String(productoId)) return;
                 let categorias = response.data.categorias;
                 if (categorias.length > 0) {
                     categorias.sort((a, b) => (parseFloat(b.precio_a) || 0) - (parseFloat(a.precio_a) || 0));
@@ -2529,6 +2612,7 @@
         let htmlImagenes = '';
         axios.post('/producto/listar/imagenes', { id: id })
             .then(response => {
+                if (String(document.getElementById('seleccionarProducto').value || '') !== String(id)) return;
                 let imagenes = response.data.imagenes;
                 let detalleUrl = '/producto/detalle/' + id;
                 if (imagenes.length == 0) {
@@ -2692,6 +2776,7 @@
                 document.getElementById('carritoVacio').classList.add('d-none');
                 document.getElementById('carritoTablaWrapper').classList.remove('d-none');
                 actualizarContadorCarrito();
+                reiniciarCapturaProducto();
             })
             .catch(err => {
                 const mensaje = err.response?.data?.message || 'Error al agregar producto';
@@ -2940,7 +3025,7 @@
     function validarFechaPago() {
         let tipoPago = document.getElementById('tipoPagoVenta').value;
         if (tipoPago == 2) {
-            document.getElementById('fecha_vencimiento').readOnly = false;
+            document.getElementById('fecha_vencimiento').readOnly = modoEditarFactura;
             sumarDiasCredito();
         } else {
             document.getElementById('fecha_vencimiento').value = "{{ date('Y-m-d') }}";
@@ -2952,10 +3037,24 @@
         let tipoPago = document.getElementById('tipoPagoVenta').value;
         if (tipoPago == 2) {
             let fechaEmision = document.getElementById("fecha_emision").value;
-            let date = new Date(fechaEmision);
+            if (!fechaEmision) return;
+            let date = new Date(fechaEmision + 'T00:00:00');
             date.setDate(date.getDate() + diasCredito);
             document.getElementById("fecha_vencimiento").value = date.toISOString().split('T')[0];
         }
+    }
+
+    if (modoEditarFactura) {
+        document.getElementById('fecha_emision').readOnly = true;
+        document.getElementById('fecha_vencimiento').readOnly = true;
+    }
+
+    function bloquearCamposEdicionFactura() {
+        if (!modoEditarFactura) return;
+        $('#vendedor').prop('disabled', true);
+        $('#tipoPagoVenta').prop('disabled', true);
+        document.getElementById('fecha_emision').readOnly = true;
+        document.getElementById('fecha_vencimiento').readOnly = true;
     }
 
     function obtenerOrdenesCompra() {
@@ -3873,6 +3972,9 @@
         var vendedorVal = $('#vendedor').val();
         if (vendedorVal) data.set('vendedor', vendedorVal);
 
+        var tipoPagoVal = $('#tipoPagoVenta').val();
+        if (tipoPagoVal) data.set('tipoPagoVenta', tipoPagoVal);
+
         let longitudArreglo = arregloIdInputs.length;
         for (var i = 0; i < longitudArreglo; i++) {
             let name = "unidad" + arregloIdInputs[i];
@@ -4052,6 +4154,7 @@
                     vendedorId:    {!! (int)($vendedorDefault['id'] ?? 0) !!},
                     vendedorNombre:{!! json_encode($vendedorDefault['name'] ?? '') !!},
                     flujoId:       {!! json_encode($flujoVinculadoId ?? null) !!},
+                    diasCreditoAprobados: {!! json_encode($diasCreditoAprobados) !!},
                     numeroOrdenCompra: {!! json_encode($documentosComerciales['numero_orden_compra'] ?? null) !!},
                     archivoOrdenCompra: {!! json_encode($documentosComerciales['archivo_orden_compra'] ?? null) !!},
                     numeroFormaF01: {!! json_encode($documentosComerciales['numero_forma_f01'] ?? null) !!},
