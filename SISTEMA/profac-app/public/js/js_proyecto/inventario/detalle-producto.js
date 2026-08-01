@@ -3,6 +3,11 @@
 var idProducto_edit = document.getElementById('id_producto_edit').value;
 obtenerDatosProductoEditar(idProducto_edit);
 
+var tablaLotes = document.getElementById('tbl_lotes_listar');
+var codigoProducto = tablaLotes.dataset.productoCodigo || idProducto_edit;
+var nombreProducto = tablaLotes.dataset.productoNombre || 'Producto';
+var usuarioDescarga = tablaLotes.dataset.usuarioDescarga || 'Sistema';
+
 $('#tbl_lotes_listar').DataTable({
     "language": {
         "url": "/js/plugins/dataTables/i18n/Spanish.json"
@@ -11,8 +16,48 @@ $('#tbl_lotes_listar').DataTable({
     responsive: true,
     dom: '<"html5buttons"B>lTfgitp',
     buttons: [
-
-
+        {
+            extend: 'excelHtml5',
+            title: '',
+            filename: 'Distribuciones_Valencia_Disponibilidad_Producto_' + codigoProducto,
+            text: '<i class="fa-solid fa-file-excel"></i> Exportar a Excel',
+            className: 'btn btn-success btn-sm',
+            exportOptions: {
+                modifier: {
+                    search: 'applied',
+                    page: 'all'
+                },
+                format: {
+                    body: function(data, row, column) {
+                        var texto = $('<div>').html(data).text().trim();
+                        if ([0, 1, 8, 9, 10, 11].indexOf(column) >= 0) {
+                            var numero = parseFloat(texto.replace(/,/g, ''));
+                            return isNaN(numero) ? 0 : numero;
+                        }
+                        return texto;
+                    }
+                }
+            },
+            customizeData: function(data) {
+                var totales = [0, 0, 0];
+                data.body.forEach(function(fila) {
+                    totales[0] += parseFloat(fila[9]) || 0;
+                    totales[1] += parseFloat(fila[10]) || 0;
+                    totales[2] += parseFloat(fila[11]) || 0;
+                });
+                data.body.push([
+                    'TOTALES', '', '', '', '', '', '', '', '',
+                    totales[0], totales[1], totales[2]
+                ]);
+            },
+            customize: function(xlsx) {
+                personalizarExcelDisponibilidad(
+                    xlsx,
+                    'Disponibilidad de Producto - ' + codigoProducto + ' - ' + nombreProducto,
+                    usuarioDescarga
+                );
+            }
+        }
     ],
     drawCallback: function() {
         var api = $('#tbl_lotes_listar').DataTable();
@@ -59,6 +104,180 @@ $('#tbl_unidades_listar').DataTable({
 });
 
 });
+
+function personalizarExcelDisponibilidad(xlsx, tituloReporte, usuarioDescarga) {
+var sheet = xlsx.xl.worksheets['sheet1.xml'];
+var $sheet = $(sheet);
+var styles = xlsx.xl['styles.xml'];
+var $styles = $(styles);
+var sheetData = $sheet.find('sheetData');
+var fecha = new Date();
+var fechaDescarga = fecha.toLocaleDateString('es-HN', {
+    day: '2-digit', month: '2-digit', year: 'numeric'
+}) + ' ' + fecha.toLocaleTimeString('es-HN', {
+    hour: '2-digit', minute: '2-digit', second: '2-digit'
+});
+
+function escaparXml(texto) {
+    return String(texto || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&apos;');
+}
+
+function columnaDeReferencia(referencia) {
+    return String(referencia || '').replace(/[0-9]/g, '');
+}
+
+sheetData.find('row').each(function() {
+    var $row = $(this);
+    var nuevaFila = parseInt($row.attr('r') || '0', 10) + 4;
+    $row.attr('r', String(nuevaFila));
+    $row.find('c').each(function() {
+        var $cell = $(this);
+        var columna = columnaDeReferencia($cell.attr('r'));
+        if (columna) $cell.attr('r', columna + nuevaFila);
+    });
+});
+
+var encabezado = '' +
+    '<row r="1" ht="30" customHeight="1"><c r="A1" t="inlineStr"><is><t>DISTRIBUCIONES VALENCIA   |   RTN: 08011986138652</t></is></c></row>' +
+    '<row r="2" ht="20" customHeight="1"><c r="A2" t="inlineStr"><is><t>' + escaparXml(tituloReporte.toUpperCase()) + '</t></is></c></row>' +
+    '<row r="3"><c r="A3" t="inlineStr"><is><t>' +
+        escaparXml('Generado: ' + fechaDescarga + '  |  Descargado por: ' + usuarioDescarga) +
+    '</t></is></c></row>' +
+    '<row r="4"><c r="A4" t="inlineStr"><is><t></t></is></c></row>';
+sheetData.prepend(encabezado);
+
+var $dimension = $sheet.find('dimension');
+if ($dimension.length) {
+    var referencia = $dimension.attr('ref') || 'A1:L1';
+    var partes = referencia.split(':');
+    var columnaFinal = partes.length === 2 ? columnaDeReferencia(partes[1]) : 'L';
+    var filaFinal = partes.length === 2
+        ? parseInt(String(partes[1]).replace(/[^0-9]/g, '') || '1', 10) + 4
+        : 5;
+    $dimension.attr('ref', 'A1:' + (columnaFinal || 'L') + filaFinal);
+}
+
+var merges = $sheet.find('mergeCells');
+if (!merges.length) {
+    $sheet.find('worksheet').append('<mergeCells count="0"></mergeCells>');
+    merges = $sheet.find('mergeCells');
+}
+merges.append('<mergeCell ref="A1:L1"/><mergeCell ref="A2:L2"/><mergeCell ref="A3:L3"/>');
+merges.attr('count', parseInt(merges.attr('count') || '0', 10) + 3);
+
+var $fonts = $styles.find('fonts');
+var fontEmpresa = parseInt($fonts.attr('count') || '0', 10);
+$fonts.append('<font><sz val="12"/><name val="Calibri"/><b/><color rgb="FF1F3864"/></font>');
+var fontTitulo = fontEmpresa + 1;
+$fonts.append('<font><sz val="12"/><name val="Calibri"/><b/><color rgb="FFE07000"/></font>');
+var fontMeta = fontEmpresa + 2;
+$fonts.append('<font><sz val="9"/><name val="Calibri"/><i/></font>');
+var fontCabecera = fontEmpresa + 3;
+$fonts.append('<font><sz val="8"/><name val="Calibri"/><b/><color rgb="FFFFFFFF"/></font>');
+var fontTotal = fontEmpresa + 4;
+$fonts.append('<font><sz val="10"/><name val="Calibri"/><b/><color rgb="FF7D3F00"/></font>');
+$fonts.attr('count', fontEmpresa + 5);
+
+var $fills = $styles.find('fills');
+var fillNaranja = parseInt($fills.attr('count') || '0', 10);
+$fills.append('<fill><patternFill patternType="solid"><fgColor rgb="FFE07000"/><bgColor indexed="64"/></patternFill></fill>');
+var fillTotal = fillNaranja + 1;
+$fills.append('<fill><patternFill patternType="solid"><fgColor rgb="FFFFF3E0"/><bgColor indexed="64"/></patternFill></fill>');
+$fills.attr('count', fillNaranja + 2);
+
+var $borders = $styles.find('borders');
+var borderDatos = parseInt($borders.attr('count') || '0', 10);
+$borders.append('<border><left style="thin"><color rgb="FFE8D5BF"/></left><right style="thin"><color rgb="FFE8D5BF"/></right><top style="thin"><color rgb="FFE8D5BF"/></top><bottom style="thin"><color rgb="FFE8D5BF"/></bottom><diagonal/></border>');
+var borderTotal = borderDatos + 1;
+$borders.append('<border><left style="thin"><color rgb="FFE8D5BF"/></left><right style="thin"><color rgb="FFE8D5BF"/></right><top style="medium"><color rgb="FFE07000"/></top><bottom style="thin"><color rgb="FFE8D5BF"/></bottom><diagonal/></border>');
+$borders.attr('count', borderDatos + 2);
+
+var $cellXfs = $styles.find('cellXfs');
+var siguienteEstilo = parseInt($cellXfs.attr('count') || '0', 10);
+
+function agregarEstilo(fontId, fillId, borderId, numFmtId, alineacion) {
+    var estilo = siguienteEstilo++;
+    $cellXfs.append(
+        '<xf numFmtId="' + numFmtId + '" fontId="' + fontId + '" fillId="' + fillId +
+        '" borderId="' + borderId + '" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1" applyNumberFormat="1">' +
+        '<alignment ' + alineacion + '/></xf>'
+    );
+    return estilo;
+}
+
+var estiloEmpresa = agregarEstilo(fontEmpresa, 0, 0, 0, 'horizontal="center" vertical="center"');
+var estiloTitulo = agregarEstilo(fontTitulo, 0, 0, 0, 'horizontal="center" vertical="center"');
+var estiloMeta = agregarEstilo(fontMeta, 0, 0, 0, 'horizontal="center" vertical="center"');
+var estiloCabecera = agregarEstilo(fontCabecera, fillNaranja, borderDatos, 0, 'horizontal="center" vertical="center" wrapText="1"');
+var estiloDatoCentro = agregarEstilo(0, 0, borderDatos, 0, 'horizontal="center" vertical="center"');
+var estiloDatoIzquierda = agregarEstilo(0, 0, borderDatos, 0, 'horizontal="left" vertical="center"');
+var estiloCantidad = agregarEstilo(0, 0, borderDatos, 3, 'horizontal="right" vertical="center"');
+var estiloTotal = agregarEstilo(fontTotal, fillTotal, borderTotal, 0, 'horizontal="center" vertical="center"');
+var estiloTotalCantidad = agregarEstilo(fontTotal, fillTotal, borderTotal, 3, 'horizontal="right" vertical="center"');
+$cellXfs.attr('count', siguienteEstilo);
+
+function completarCeldasFila($row, numeroFila) {
+    var columnas = 'ABCDEFGHIJKL'.split('');
+    var celdas = {};
+    $row.find('c').each(function() {
+        celdas[columnaDeReferencia($(this).attr('r'))] = this;
+    });
+    $row.empty();
+    columnas.forEach(function(columna) {
+        if (celdas[columna]) {
+            $row.append(celdas[columna]);
+        } else {
+            $row.append('<c r="' + columna + numeroFila + '" t="inlineStr"><is><t></t></is></c>');
+        }
+    });
+}
+
+$sheet.find('c[r="A1"]').attr('s', estiloEmpresa);
+$sheet.find('c[r="A2"]').attr('s', estiloTitulo);
+$sheet.find('c[r="A3"]').attr('s', estiloMeta);
+$sheet.find('row[r="5"]').attr({ ht: '28', customHeight: '1' }).find('c').attr('s', estiloCabecera);
+
+sheetData.find('row').each(function() {
+    var $row = $(this);
+    var numeroFila = parseInt($row.attr('r') || '0', 10);
+    if (numeroFila < 6) return;
+
+    var etiqueta = $row.find('c[r="A' + numeroFila + '"] t').text();
+    completarCeldasFila($row, numeroFila);
+    if (etiqueta === 'TOTALES') {
+        $row.attr({ ht: '18', customHeight: '1' });
+        $row.find('c').attr('s', estiloTotal);
+        ['J', 'K', 'L'].forEach(function(columna) {
+            $row.find('c[r="' + columna + numeroFila + '"]').attr('s', estiloTotalCantidad);
+        });
+        return;
+    }
+
+    $row.attr({ ht: '18', customHeight: '1' });
+    $row.find('c').attr('s', estiloDatoCentro);
+    ['C', 'D', 'E', 'F', 'G', 'H'].forEach(function(columna) {
+        $row.find('c[r="' + columna + numeroFila + '"]').attr('s', estiloDatoIzquierda);
+    });
+    ['J', 'K', 'L'].forEach(function(columna) {
+        $row.find('c[r="' + columna + numeroFila + '"]').attr('s', estiloCantidad);
+    });
+});
+
+var anchos = [6, 14, 32, 18, 18, 24, 26, 14, 10, 12, 16, 16];
+$sheet.find('cols col').each(function(indice) {
+    if (anchos[indice]) $(this).attr({ width: anchos[indice], customWidth: '1' });
+});
+
+$sheet.find('worksheet').prepend(
+    '<sheetViews><sheetView workbookViewId="0"><pane ySplit="5" topLeftCell="A6" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>'
+);
+merges.before('<autoFilter ref="A5:L5"/>');
+}
 
 
 function obtenerDatosProductoEditar(id) {
