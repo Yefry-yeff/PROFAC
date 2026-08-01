@@ -147,7 +147,13 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label class="font-weight-bold small">Desde</label>
+                                <div class="d-flex align-items-center justify-content-between mb-1">
+                                    <label class="font-weight-bold small mb-0">Desde</label>
+                                    <div class="custom-control custom-checkbox">
+                                        <input type="checkbox" class="custom-control-input" id="cdxDesdeOrigen">
+                                        <label class="custom-control-label small" for="cdxDesdeOrigen">Desde origen</label>
+                                    </div>
+                                </div>
                                 <input type="date" class="form-control form-control-sm" id="cdxFiltroDesde" value="{{ date('Y-m-01') }}">
                             </div>
                         </div>
@@ -163,8 +169,20 @@
                     <div class="row">
                         <div class="col-md-12">
                             <div class="form-group">
-                                <label class="font-weight-bold small">Código o Nombre de Producto</label>
-                                <input type="text" class="form-control form-control-sm" id="cdxFiltroProducto" placeholder="Ej: 1250 o nombre del producto">
+                                <label class="font-weight-bold small">Producto</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control form-control-sm" id="cdxProductoBuscar"
+                                        placeholder="ID o nombre del producto..." autocomplete="off">
+                                    <div class="input-group-append">
+                                        <button type="button" class="btn btn-primary btn-sm" id="btnCdxBuscarProducto" title="Buscar producto">
+                                            <i class="fa fa-search"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <small id="cdxProductoSeleccionado" class="mt-1 text-success font-weight-bold d-block d-none"></small>
+                                <select id="cdxFiltroProducto" class="d-none">
+                                    <option value="" selected></option>
+                                </select>
                             </div>
                         </div>
                         <div class="col-md-12">
@@ -229,6 +247,8 @@
             </div>
         </div>
     </div>
+
+    <x-buscador-producto id-modal="buscadorProductoCardex" callback="cdxSeleccionarProducto" />
 
     <div class="wrapper wrapper-content animated fadeInRight">
         <div class="row">
@@ -295,7 +315,7 @@
                 var y = now.getFullYear();
                 var m = String(now.getMonth() + 1).padStart(2, '0');
                 var last = String(new Date(y, now.getMonth() + 1, 0).getDate()).padStart(2, '0');
-                var ids = ['cdxFiltroDesde', 'cdxFiltroHasta', 'cdxFiltroProducto', 'cdxFiltroCai', 'cdxTipoDocumento', 'cdxIdDocumento'];
+                var ids = ['cdxFiltroDesde', 'cdxFiltroHasta', 'cdxProductoBuscar', 'cdxFiltroCai', 'cdxTipoDocumento', 'cdxIdDocumento'];
                 ids.forEach(function(id) {
                     var el = document.getElementById(id);
                     if (el) {
@@ -308,6 +328,8 @@
                     var hasta = document.getElementById('cdxFiltroHasta');
                     if (desde) desde.value = y + '-' + m + '-01';
                     if (hasta) hasta.value = y + '-' + m + '-' + last;
+                    $('#cdxFiltroProducto').empty().append(new Option('', '', true, true));
+                    $('#cdxDesdeOrigen').prop('checked', false).trigger('change');
                     $('#cdxFiltroUsuario').val(null).trigger('change');
                     $('#cdxFiltroBodegaOrigen').val(null).trigger('change');
                     $('#cdxFiltroBodegaDestino').val(null).trigger('change');

@@ -2,6 +2,7 @@
 var cdxFiltros = {
     desde: '',
     hasta: '',
+    desdeOrigen: false,
     producto: '',
     cai: '',
     tipoDocumento: '',
@@ -10,6 +11,7 @@ var cdxFiltros = {
     bodegaOrigen: '',
     bodegaDestino: ''
 };
+var cdxReabrirFiltrosTrasProducto = false;
 
 function cdxGetDefaultDates() {
     var now = new Date();
@@ -80,6 +82,9 @@ function cdxRenderBadges() {
         if (key === 'usuario') {
             shown = $('#cdxFiltroUsuario option:selected').text() || shown;
         }
+        if (key === 'producto') {
+            shown = $('#cdxFiltroProducto option:selected').text() || shown;
+        }
         if (key === 'bodegaOrigen') {
             shown = $('#cdxFiltroBodegaOrigen option:selected').text() || shown;
         }
@@ -89,6 +94,11 @@ function cdxRenderBadges() {
         parts.push('<span class="filtro-badge">' + labels[key] + ': <strong>' + shown + '</strong>' +
             '<span class="filtro-remove" onclick="quitarFiltroCardex(\'' + key + '\')">✕</span></span>');
     });
+
+    if (cdxFiltros.desdeOrigen) {
+        parts.unshift('<span class="filtro-badge">Desde: <strong>Origen</strong>' +
+            '<span class="filtro-remove" onclick="quitarFiltroCardex(\'desdeOrigen\')">✕</span></span>');
+    }
 
     if (parts.length === 0) {
         bar.style.display = 'none';
@@ -101,10 +111,18 @@ function cdxRenderBadges() {
 }
 
 function quitarFiltroCardex(key) {
-    cdxFiltros[key] = '';
+    cdxFiltros[key] = key === 'desdeOrigen' ? false : '';
     if (key === 'desde') document.getElementById('cdxFiltroDesde').value = '';
     if (key === 'hasta') document.getElementById('cdxFiltroHasta').value = '';
-    if (key === 'producto') document.getElementById('cdxFiltroProducto').value = '';
+    if (key === 'desdeOrigen') {
+        $('#cdxDesdeOrigen').prop('checked', false).trigger('change');
+        cdxFiltros.desde = document.getElementById('cdxFiltroDesde').value || cdxGetDefaultDates().desde;
+    }
+    if (key === 'producto') {
+        $('#cdxFiltroProducto').empty().append(new Option('', '', true, true));
+        $('#cdxProductoBuscar').val('');
+        $('#cdxProductoSeleccionado').text('').addClass('d-none');
+    }
     if (key === 'cai') document.getElementById('cdxFiltroCai').value = '';
     if (key === 'tipoDocumento') document.getElementById('cdxTipoDocumento').value = '';
     if (key === 'idDocumento') document.getElementById('cdxIdDocumento').value = '';
@@ -159,6 +177,7 @@ function initDataTableCardex() {
             data: function(d) {
                 d.filtroDesde = cdxFiltros.desde;
                 d.filtroHasta = cdxFiltros.hasta;
+                d.desdeOrigen = cdxFiltros.desdeOrigen ? 1 : 0;
                 d.filtroProducto = cdxFiltros.producto;
                 d.filtroCai = cdxFiltros.cai;
                 d.tipoDocumento = cdxFiltros.tipoDocumento;
@@ -189,9 +208,10 @@ function initDataTableCardex() {
 }
 
 function aplicarFiltrosCardex() {
-    cdxFiltros.desde = document.getElementById('cdxFiltroDesde').value || '';
+    cdxFiltros.desdeOrigen = document.getElementById('cdxDesdeOrigen').checked;
+    cdxFiltros.desde = cdxFiltros.desdeOrigen ? '' : (document.getElementById('cdxFiltroDesde').value || '');
     cdxFiltros.hasta = document.getElementById('cdxFiltroHasta').value || '';
-    cdxFiltros.producto = document.getElementById('cdxFiltroProducto').value.trim();
+    cdxFiltros.producto = $('#cdxFiltroProducto').val() || '';
     cdxFiltros.cai = document.getElementById('cdxFiltroCai').value.trim();
     cdxFiltros.tipoDocumento = document.getElementById('cdxTipoDocumento').value || '';
     cdxFiltros.idDocumento = document.getElementById('cdxIdDocumento').value.trim();
@@ -217,7 +237,11 @@ function limpiarFiltrosCardex() {
     var defaults = cdxGetDefaultDates();
     document.getElementById('cdxFiltroDesde').value = defaults.desde;
     document.getElementById('cdxFiltroHasta').value = defaults.hasta;
-    document.getElementById('cdxFiltroProducto').value = '';
+    document.getElementById('cdxProductoBuscar').value = '';
+    document.getElementById('cdxProductoSeleccionado').textContent = '';
+    document.getElementById('cdxProductoSeleccionado').classList.add('d-none');
+    $('#cdxFiltroProducto').empty().append(new Option('', '', true, true));
+    $('#cdxDesdeOrigen').prop('checked', false).trigger('change');
     document.getElementById('cdxFiltroCai').value = '';
     document.getElementById('cdxTipoDocumento').value = '';
     document.getElementById('cdxIdDocumento').value = '';
@@ -228,6 +252,7 @@ function limpiarFiltrosCardex() {
     cdxFiltros = {
         desde: defaults.desde,
         hasta: defaults.hasta,
+        desdeOrigen: false,
         producto: '',
         cai: '',
         tipoDocumento: '',
@@ -248,10 +273,43 @@ function cargaCardex() {
     aplicarFiltrosCardex();
 }
 
+function cdxSeleccionarProducto(producto) {
+    $('#cdxFiltroProducto').empty().append(new Option(producto.nombre, producto.id, true, true));
+    $('#cdxProductoBuscar').val('');
+    $('#cdxProductoSeleccionado')
+        .text(producto.nombre + ' (ID: ' + producto.id + ')')
+        .removeClass('d-none');
+}
+
+function cdxAbrirBuscadorProducto() {
+    var termino = ($('#cdxProductoBuscar').val() || '').trim();
+    cdxReabrirFiltrosTrasProducto = true;
+    $('#modalFiltrosCardex').one('hidden.bs.modal', function() {
+        window['abrirBuscador_buscadorProductoCardex'](termino);
+    }).modal('hide');
+}
+
 $(document).ready(function() {
     $('#cdxFiltroUsuario').select2(s2opts('/filtros/facturas/usuarios', 'Buscar usuario...'));
     $('#cdxFiltroBodegaOrigen').select2(s2opts('/cardex/listar/bodega', 'Buscar bodega origen...'));
     $('#cdxFiltroBodegaDestino').select2(s2opts('/cardex/listar/bodega', 'Buscar bodega destino...'));
+
+    $('#cdxDesdeOrigen').on('change', function() {
+        $('#cdxFiltroDesde').prop('disabled', this.checked);
+    });
+    $('#btnCdxBuscarProducto').on('click', cdxAbrirBuscadorProducto);
+    $('#cdxProductoBuscar').on('keydown', function(event) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            cdxAbrirBuscadorProducto();
+        }
+    });
+    $('#buscadorProductoCardex').on('hidden.bs.modal', function() {
+        if (cdxReabrirFiltrosTrasProducto) {
+            cdxReabrirFiltrosTrasProducto = false;
+            $('#modalFiltrosCardex').modal('show');
+        }
+    });
 
     $(document).on('select2:open', function() {
         $(document).off('focusin.modal');
