@@ -2,6 +2,7 @@
 
 namespace App\Http\Livewire\Ventas;
 
+use App\Support\ClienteActoresAsignados;
 use Livewire\Component;
 
 
@@ -88,7 +89,15 @@ class FacturacionCorporativa extends Component
 
     private function resolveTeleAsesorId(Request $request): int
     {
-        return $request->tele_asesor ? (int) $request->tele_asesor : Auth::user()->id;
+        $teleAsesorId = $request->tele_asesor ? (int) $request->tele_asesor : Auth::id();
+        ClienteActoresAsignados::validar(
+            (int) $request->seleccionarCliente,
+            $teleAsesorId,
+            ClienteActoresAsignados::ROL_TELE_ASESOR,
+            'tele_asesor'
+        );
+
+        return $teleAsesorId;
     }
 
     // Nota: Este componente solo se usa como controlador API.

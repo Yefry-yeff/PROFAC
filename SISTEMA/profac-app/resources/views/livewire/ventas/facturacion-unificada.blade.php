@@ -2271,10 +2271,7 @@
     // ================================================================
     // ================================================================
     // ASESOR COMERCIAL ASIGNADO (solo modo "Nueva Oferta" / cotizacion_clientes_a)
-    // Autocompleta y bloquea el campo "Asesor Comercial" con el asesor asignado al
-    // cliente en Cartera de Clientes. Solo se deja editable si el usuario autenticado
-    // tiene el rol de Asesor Comercial (principal o adicional vía multi-rol — p.ej. un
-    // Tele Asesor que también es Asesor Comercial) y el cliente está dentro de su cartera.
+    // Carga únicamente los asesores comerciales asignados al cliente en la cartera.
     // ================================================================
     function aplicarAsesorAsignado(idCliente) {
         if (codigoActual !== 'cotizacion_clientes_a' || !idCliente) return;
@@ -2287,13 +2284,22 @@
             .then(response => {
                 var data = response.data;
                 var vendedorSelect = $('#vendedor');
+                var asesores = data.asesores || [];
+                vendedorSelect.empty();
 
-                if (data.asesor) {
-                    var opt = new Option(data.asesor.text, data.asesor.id, true, true);
-                    vendedorSelect.empty().append(opt).trigger('change');
+                if (asesores.length === 0) {
+                    vendedorSelect.append(new Option('Sin asesores asignados en cartera', '', true, false));
+                } else {
+                    if (asesores.length > 1) {
+                        vendedorSelect.append(new Option('-- Seleccionar asesor --', '', true, false));
+                    }
+                    asesores.forEach(function(asesor) {
+                        var seleccionado = asesores.length === 1;
+                        vendedorSelect.append(new Option(asesor.text, asesor.id, seleccionado, seleccionado));
+                    });
                 }
 
-                vendedorSelect.prop('disabled', !data.puede_editar);
+                vendedorSelect.prop('disabled', asesores.length <= 1).trigger('change');
                 bloquearCamposEdicionFactura();
             })
             .catch(err => {
@@ -3892,9 +3898,9 @@
 
     function mostrarModalGestorEntrega() {
         var urlVendedores = urls.vendedores;
+        var clienteId = $('#seleccionarCliente').val();
         var teleHidden = document.getElementById('tele_asesor_hidden');
         var teleIdActual = teleHidden && teleHidden.value ? teleHidden.value : '{{ Auth::id() }}';
-        var teleNombreActual = (teleHidden && teleHidden.getAttribute('data-name')) ? teleHidden.getAttribute('data-name') : {!! json_encode(Auth::user()->name ?? '') !!};
         // Inicializar select2 en el modal si aún no lo está
         if (!$('#gestor_entrega_modal').hasClass('select2-hidden-accessible')) {
             $('#gestor_entrega_modal').select2({
@@ -3914,22 +3920,31 @@
         if (!$('#tele_asesor_modal').hasClass('select2-hidden-accessible')) {
             $('#tele_asesor_modal').select2({
                 dropdownParent: $('#modal_gestor_entrega'),
-                ajax: {
-                    url: urlVendedores,
-                    data: function(params) {
-                        return { search: params.term, type: 'public', page: params.page || 1 };
-                    }
-                },
                 allowClear: false,
                 placeholder: '-- Seleccionar tele asesor --'
             });
         }
         $('#tele_asesor_modal').empty();
-        if (teleIdActual && teleNombreActual) {
-            $('#tele_asesor_modal').append(new Option(teleNombreActual, teleIdActual, true, true)).trigger('change');
-        } else {
-            $('#tele_asesor_modal').val(null).trigger('change');
-        }
+        $('#btn_confirmar_gestor').prop('disabled', true);
+        $.get('/cotizacion/actores-asignados', { cliente_id: clienteId, rol_id: 3 })
+            .done(function(data) {
+                var teleasesores = data.results || [];
+                var actualAsignado = teleasesores.some(function(usuario) {
+                    return Number(usuario.id) === Number(teleIdActual);
+                });
+                teleasesores.forEach(function(usuario) {
+                    var seleccionado = actualAsignado
+                        ? Number(usuario.id) === Number(teleIdActual)
+                        : teleasesores.length === 1;
+                    $('#tele_asesor_modal').append(
+                        new Option(usuario.text, usuario.id, seleccionado, seleccionado)
+                    );
+                });
+                $('#tele_asesor_modal').trigger('change');
+            })
+            .always(function() {
+                $('#btn_confirmar_gestor').prop('disabled', false);
+            });
         $('#modal_gestor_entrega').modal('show');
     }
 

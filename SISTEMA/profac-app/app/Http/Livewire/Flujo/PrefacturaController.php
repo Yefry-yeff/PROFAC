@@ -2,6 +2,7 @@
 
 namespace App\Http\Livewire\Flujo;
 
+use App\Support\ClienteActoresAsignados;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -929,7 +930,7 @@ class PrefacturaController
     {
         $validator = Validator::make($request->all(), [
             'gestor_entrega' => 'nullable|integer|exists:users,id',
-            'tele_asesor'    => 'nullable|integer|exists:users,id',
+            'tele_asesor'    => 'required|integer|exists:users,id',
         ]);
 
         if ($validator->fails()) {
@@ -953,6 +954,13 @@ class PrefacturaController
                 'error' => 'Esta prefactura ya fue facturada.',
             ], 409);
         }
+
+        ClienteActoresAsignados::validar(
+            (int) $pf->cliente_id,
+            (int) $request->tele_asesor,
+            ClienteActoresAsignados::ROL_TELE_ASESOR,
+            'tele_asesor'
+        );
 
         try {
             // Si la prefactura ya venció, su reserva se considera liberada y debe
