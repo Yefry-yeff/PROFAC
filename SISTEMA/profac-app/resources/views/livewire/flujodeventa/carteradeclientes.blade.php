@@ -185,7 +185,7 @@
                     <div class="cdc-filtros-bar" id="cdc_filtros_clientes" style="display:none;">
                         <div class="form-group">
                             <label>Nombre del cliente</label>
-                            <input type="text" id="cdc_fil_nombre" class="form-control form-control-sm" placeholder="Buscar por nombre...">
+                            <select id="cdc_fil_nombre" class="form-control form-control-sm" style="width:100%"></select>
                         </div>
                         <div class="form-group">
                             <label>Asesor Comercial</label>
@@ -571,6 +571,7 @@
         listarIds: '{{ route('cartera_clientes.listar_ids') }}',
         exportarExcel: '{{ route('cartera_clientes.exportar_excel') }}',
         agrupado: '{{ route('cartera_clientes.agrupado') }}',
+        clientes: '{{ route('cartera_clientes.clientes') }}',
         usuarios: '{{ route('cartera_clientes.usuarios') }}',
         datos: '{{ url('/flujo_de_venta/cartera_de_clientes/datos') }}',
         historial: '{{ url('/flujo_de_venta/cartera_de_clientes/historial') }}',

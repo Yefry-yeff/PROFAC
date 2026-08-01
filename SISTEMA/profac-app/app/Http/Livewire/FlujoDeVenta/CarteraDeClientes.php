@@ -45,6 +45,12 @@ class CarteraDeClientes extends Component
         $where = ['1=1'];
         $bindings = [];
 
+        $clienteId = $request->get('cliente_id');
+        if ($clienteId !== null && $clienteId !== '') {
+            $where[] = 'cliente.id = ?';
+            $bindings[] = (int) $clienteId;
+        }
+
         $nombre = trim((string) $request->get('nombre', ''));
         if ($nombre !== '') {
             $where[] = '(cliente.nombre LIKE ? OR SOUNDEX(cliente.nombre) = SOUNDEX(?))';
@@ -443,6 +449,29 @@ class CarteraDeClientes extends Component
 
         return response()->json([
             'results' => $usuarios->map(fn($u) => ['id' => (int) $u->id, 'text' => $u->name])->values(),
+        ]);
+    }
+
+    public function buscarClientes(Request $request)
+    {
+        $term = trim((string) $request->get('search', $request->get('q', '')));
+
+        $query = DB::table('cliente')->select('id', 'nombre', 'rtn');
+        if ($term !== '') {
+            $query->where(function ($q) use ($term) {
+                $q->where('id', 'like', "%{$term}%")
+                  ->orWhere('nombre', 'like', "%{$term}%")
+                  ->orWhere('rtn', 'like', "%{$term}%");
+            });
+        }
+
+        $clientes = $query->orderBy('nombre')->limit(20)->get();
+
+        return response()->json([
+            'results' => $clientes->map(fn($cliente) => [
+                'id' => (int) $cliente->id,
+                'text' => $cliente->id . ' - ' . $cliente->nombre,
+            ])->values(),
         ]);
     }
 

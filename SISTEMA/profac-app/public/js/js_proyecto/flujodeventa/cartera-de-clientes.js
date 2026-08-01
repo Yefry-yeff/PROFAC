@@ -6,7 +6,8 @@
 var cdcTable = null;
 var cdcVista = 'zonificacion';
 var cdcSeleccion = new Set();
-var cdcFiltros = { nombre: '', asesor: '', teleasesor: '', estado_cliente_id: '', sin_asignar: 0 };
+var cdcFiltros = { cliente_id: '', nombre: '', asesor: '', teleasesor: '', estado_cliente_id: '', sin_asignar: 0 };
+var cdcSuspenderAutoFiltros = false;
 var cdcZonaCatalogos = { departamentos: [], zonas: [] };
 var cdcZonaMiembros = [];
 var cdcZonaActivaId = null;
@@ -24,6 +25,22 @@ function cdcToken() {
 }
 
 function cdcInit() {
+    $('#cdc_fil_nombre').select2({
+        placeholder: 'Buscar cliente...',
+        allowClear: true,
+        minimumInputLength: 1,
+        ajax: {
+            url: window.CDC_ROUTES.clientes,
+            dataType: 'json',
+            delay: 250,
+            data: function (params) { return { search: params.term || '', page: params.page || 1 }; },
+            processResults: function (data) { return { results: data.results || [] }; },
+            cache: true
+        }
+    }).on('select2:select select2:clear', function () {
+        if (!cdcSuspenderAutoFiltros) { cdcAplicarFiltros(); }
+    });
+
     $('#cdc_fil_asesor').select2({
         placeholder: '— Todos —',
         allowClear: true,
@@ -61,10 +78,6 @@ function cdcInit() {
         var id = parseInt($(this).val(), 10);
         if (this.checked) { cdcSeleccion.add(id); } else { cdcSeleccion.delete(id); }
         cdcActualizarBarraSeleccion();
-    });
-
-    $('#cdc_fil_nombre').on('keypress', function (e) {
-        if (e.which === 13) { cdcAplicarFiltros(); }
     });
 
     $('#cdc_zona_buscar').on('keypress', function (e) {
@@ -108,7 +121,8 @@ function cdcLimpiarSeleccion() {
 }
 
 function cdcAplicarFiltros() {
-    cdcFiltros.nombre = $('#cdc_fil_nombre').val() || '';
+    cdcFiltros.cliente_id = $('#cdc_fil_nombre').val() || '';
+    cdcFiltros.nombre = '';
     cdcFiltros.asesor = $('#cdc_fil_asesor').val() ? $('#cdc_fil_asesor').select2('data')[0].text : '';
     cdcFiltros.teleasesor = $('#cdc_fil_teleasesor').val() ? $('#cdc_fil_teleasesor').select2('data')[0].text : '';
     cdcFiltros.estado_cliente_id = $('#cdc_fil_estado').val() || '';
@@ -123,12 +137,14 @@ function cdcAplicarFiltros() {
 }
 
 function cdcLimpiarFiltros() {
-    $('#cdc_fil_nombre').val('');
+    cdcSuspenderAutoFiltros = true;
+    $('#cdc_fil_nombre').val(null).trigger('change');
     $('#cdc_fil_asesor').val(null).trigger('change');
     $('#cdc_fil_teleasesor').val(null).trigger('change');
+    cdcSuspenderAutoFiltros = false;
     $('#cdc_fil_estado').val('');
     $('#cdc_fil_sin_asignar').prop('checked', false);
-    cdcFiltros = { nombre: '', asesor: '', teleasesor: '', estado_cliente_id: '', sin_asignar: 0 };
+    cdcFiltros = { cliente_id: '', nombre: '', asesor: '', teleasesor: '', estado_cliente_id: '', sin_asignar: 0 };
     cdcRestablecerBotonSeleccionFiltrada();
     if (cdcVista === 'individual') {
         cdcCargarTabla();
@@ -174,6 +190,7 @@ function cdcCargarTabla() {
             url: window.CDC_ROUTES.listar,
             type: 'GET',
             data: function (d) {
+                d.cliente_id = cdcFiltros.cliente_id;
                 d.nombre = cdcFiltros.nombre;
                 d.asesor = cdcFiltros.asesor;
                 d.teleasesor = cdcFiltros.teleasesor;
@@ -213,6 +230,7 @@ function cdcCargarAgrupado(tipo) {
     $('#cdc_agrupado_grid').show().html('<p class="text-muted text-center py-4"><i class="fa fa-spinner fa-spin mr-1"></i>Cargando...</p>');
     $.get(window.CDC_ROUTES.agrupado, {
         tipo: tipo,
+        cliente_id: cdcFiltros.cliente_id,
         nombre: cdcFiltros.nombre,
         asesor: cdcFiltros.asesor,
         teleasesor: cdcFiltros.teleasesor,
@@ -375,6 +393,7 @@ function cdcSeleccionarFiltroAgrupado(filtro, marcar, $checkbox) {
 
 function cdcParametrosSeleccion(extra) {
     return $.extend({
+        cliente_id: cdcFiltros.cliente_id,
         nombre: cdcFiltros.nombre,
         asesor: cdcFiltros.asesor,
         teleasesor: cdcFiltros.teleasesor,
