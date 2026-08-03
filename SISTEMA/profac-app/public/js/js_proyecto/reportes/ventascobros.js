@@ -118,21 +118,23 @@ function cargarTabla() {
             { data: 'numero_secuencia_cai', render: function(d) { return '<strong>' + escHtml(d) + '</strong>'; } },
             /* 2 – cliente */
             { data: 'cliente' },
-            /* 3 – vendedor */
-            { data: 'vendedor' },
-            /* 4 – fecha venta */
+            /* 3 – asesor comercial */
+            { data: 'asesor_comercial' },
+            /* 4 – teleasesor */
+            { data: 'teleasesor' },
+            /* 5 – fecha venta */
             { data: 'fecha_venta', render: function(d, type, row) { return esFacturaAnulada(row) ? '' : fmtFecha(d); } },
-            /* 5 – modo pago */
+            /* 6 – modo pago */
             { data: 'modo_pago' },
-            /* 6 – total */
+            /* 7 – total */
             { data: 'total', className: 'text-right', render: function(d, type, row) { return esFacturaAnulada(row) ? '' : fmtLps(d); } },
-            /* 7 – monto pagado */
+            /* 8 – monto pagado */
             { data: 'monto_pagado', className: 'text-right', render: function(d) { return fmtLps(d); } },
-            /* 8 – saldo */
+            /* 9 – saldo */
             { data: 'saldo_pendiente', className: 'text-right', render: function(d, type, row) { return esFacturaAnulada(row) ? '' : fmtLpsSaldo(d); } },
-            /* 9 – estado */
+            /* 10 – estado */
             { data: 'estado_cobro_v2', render: function(d) { return renderBadgeEstado(d); } },
-            /* 10 – dias vencidos */
+            /* 11 – dias vencidos */
             {
                 data: 'dias_vencidos', className: 'text-center',
                 render: function(d, type, row) {
@@ -242,7 +244,8 @@ function renderExpediente(resp) {
     html += '<h4><i class="fa fa-folder-open-o" style="margin-right:8px;"></i>Expediente Financiero — ' + escHtml(c.numero_secuencia_cai) + '</h4>';
     html += '<div class="rfd-exp-meta-grid">';
     html += metaItem('Cliente',        c.cliente);
-    html += metaItem('Vendedor',       c.vendedor);
+    html += metaItem('Asesor Comercial', c.asesor_comercial);
+    html += metaItem('Teleasesor',       c.teleasesor);
     html += metaItem('Fecha Emisión',  esAnulada ? '' : fmtFecha(c.fecha_venta));
     html += metaItem('Vencimiento',    esAnulada ? '' : fmtFecha(c.fecha_vencimiento));
     html += metaItem('Días Crédito',   c.credito == 0 ? 'Contado' : (c.dias_credito + ' días'));

@@ -201,7 +201,8 @@
                                         <th style="width:40px;"></th>
                                         <th>Factura / CAI</th>
                                         <th>Cliente</th>
-                                        <th>Vendedor</th>
+                                        <th>Asesor Comercial</th>
+                                        <th>Teleasesor</th>
                                         <th>Fecha Venta</th>
                                         <th>Modo Pago</th>
                                         <th>Total Facturado</th>
@@ -289,7 +290,7 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label>Vendedor</label>
+                                    <label>Asesor Comercial</label>
                                     <select id="fil_vendedor" class="form-control" style="width:100%">
                                         <option value=""></option>
                                         @foreach($vendedores as $v)

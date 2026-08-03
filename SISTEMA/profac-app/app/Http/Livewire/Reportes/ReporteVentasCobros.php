@@ -136,7 +136,8 @@ class ReporteVentasCobros extends Component
             YEAR(f.fecha_emision)                                       AS anio,
 
             /* ── Identificación ── */
-            COALESCE(u.name, '')                                        AS vendedor,
+            COALESCE(u.name, '')                                        AS asesor_comercial,
+            COALESCE(tele.name, '')                                     AS teleasesor,
             c.nombre                                                    AS cliente,
             f.numero_secuencia_cai,
             COALESCE(f.comentario, '')                                  AS observacion,
@@ -273,6 +274,7 @@ class ReporteVentasCobros extends Component
         FROM factura f
         INNER JOIN cliente c              ON c.id  = f.cliente_id
         LEFT  JOIN users u                ON u.id  = f.vendedor
+        LEFT  JOIN users tele             ON tele.id = f.users_id
         LEFT  JOIN estado_venta ev        ON ev.id = f.estado_venta_id
         LEFT  JOIN tipo_pago_venta tpv    ON tpv.id = f.tipo_pago_id
         LEFT  JOIN numero_orden_compra noc ON noc.id = f.numero_orden_compra_id
@@ -353,7 +355,8 @@ class ReporteVentasCobros extends Component
             f.credito,
             f.numero_secuencia_cai,
             c.nombre                                                    AS cliente,
-            COALESCE(u.name, '')                                        AS vendedor,
+            COALESCE(u.name, '')                                        AS asesor_comercial,
+            COALESCE(tele.name, '')                                     AS teleasesor,
             f.fecha_emision                                             AS fecha_venta,
             COALESCE(tpv.descripcion, '')                               AS modo_pago,
             UPPER(COALESCE(ev.descripcion, ''))                         AS estado_f01,
@@ -447,6 +450,7 @@ class ReporteVentasCobros extends Component
         FROM factura f
         INNER JOIN cliente c              ON c.id  = f.cliente_id
         LEFT  JOIN users u                ON u.id  = f.vendedor
+        LEFT  JOIN users tele             ON tele.id = f.users_id
         LEFT  JOIN estado_venta ev        ON ev.id = f.estado_venta_id
         LEFT  JOIN tipo_pago_venta tpv    ON tpv.id = f.tipo_pago_id
         LEFT  JOIN aplicacion_pagos apc   ON apc.id = (
@@ -562,14 +566,15 @@ class ReporteVentasCobros extends Component
             $dtColMap = [
                 1  => 'numero_secuencia_cai',
                 2  => 'cliente',
-                3  => 'vendedor',
-                4  => 'fecha_venta',
-                5  => 'modo_pago',
-                6  => 'total',
-                7  => 'monto_pagado',
-                8  => 'saldo_pendiente',
-                9  => 'estado_cobro_v2',
-                10 => 'dias_vencidos',
+                3  => 'asesor_comercial',
+                4  => 'teleasesor',
+                5  => 'fecha_venta',
+                6  => 'modo_pago',
+                7  => 'total',
+                8  => 'monto_pagado',
+                9  => 'saldo_pendiente',
+                10 => 'estado_cobro_v2',
+                11 => 'dias_vencidos',
             ];
             $dtOrder     = $request->query('order', []);
             $dtColIdx    = isset($dtOrder[0]['column']) ? (int) $dtOrder[0]['column'] : 1;
@@ -773,7 +778,8 @@ class ReporteVentasCobros extends Component
                     f.numero_secuencia_cai,
                     f.credito,
                     c.nombre                                                AS cliente,
-                    COALESCE(u.name, '')                                    AS vendedor,
+                    COALESCE(u.name, '')                                    AS asesor_comercial,
+                    COALESCE(tele.name, '')                                 AS teleasesor,
                     f.fecha_emision                                         AS fecha_venta,
                     COALESCE(noc.numero_orden, '')                          AS orden_compra,
                     COALESCE(f.comentario, '')                              AS observacion,
@@ -808,6 +814,7 @@ class ReporteVentasCobros extends Component
                 FROM factura f
                 INNER JOIN cliente c              ON c.id  = f.cliente_id
                 LEFT  JOIN users u                ON u.id  = f.vendedor
+                LEFT  JOIN users tele             ON tele.id = f.users_id
                 LEFT  JOIN estado_venta ev        ON ev.id = f.estado_venta_id
                 LEFT  JOIN tipo_pago_venta tpv    ON tpv.id = f.tipo_pago_id
                 LEFT  JOIN numero_orden_compra noc ON noc.id = f.numero_orden_compra_id
@@ -1507,7 +1514,8 @@ class ReporteVentasCobros extends Component
             END AS mes,
             MONTH(f.fecha_emision) AS mes_num,
             YEAR(f.fecha_emision) AS anio,
-            COALESCE(u.name, '') AS vendedor,
+            COALESCE(u.name, '') AS asesor_comercial,
+            COALESCE(tele.name, '') AS teleasesor,
             c.nombre AS cliente,
             f.numero_secuencia_cai,
             COALESCE(f.comentario, '') AS observacion,
@@ -1553,6 +1561,7 @@ class ReporteVentasCobros extends Component
         FROM factura f
         INNER JOIN cliente c ON c.id = f.cliente_id
         LEFT JOIN users u ON u.id = f.vendedor
+        LEFT JOIN users tele ON tele.id = f.users_id
         LEFT JOIN estado_venta ev ON ev.id = f.estado_venta_id
         LEFT JOIN tipo_pago_venta tpv ON tpv.id = f.tipo_pago_id
         LEFT JOIN numero_orden_compra noc ON noc.id = f.numero_orden_compra_id

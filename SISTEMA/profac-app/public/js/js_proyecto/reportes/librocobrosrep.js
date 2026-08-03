@@ -85,7 +85,8 @@ function cargarTablaLC() {
             { data: 'fecha_vencimiento', render: function(d) { return fmtFechaLC(d); } },
             { data: 'fecha_pago', render: function(d) { return fmtFechaLC(d); } },
             { data: 'cliente' },
-            { data: 'vendedor' },
+            { data: 'asesor_comercial' },
+            { data: 'teleasesor' },
             { data: 'factura', render: function(d) { return '<strong>' + escHtmlLC(d) + '</strong>'; } },
             { data: 'monto_cobrado', className: 'text-right', render: function(d) { return fmtLpsLC(d); } },
             { data: 'estado_factura', render: function(d) { return '<span class="badge ' + (d === 'PAGADA' ? 'badge-success' : 'badge-warning') + '">' + d + '</span>'; } },
@@ -123,7 +124,7 @@ function mostrarFiltrosActivosLC() {
         { key: 'fecha_desde', icon: 'fa-calendar', label: 'Desde:', fmt: function(v) { return v; } },
         { key: 'fecha_hasta', icon: 'fa-calendar', label: 'Hasta:', fmt: function(v) { return v; } },
         { key: 'cliente', icon: 'fa-user', label: 'Cliente:', fmt: function(v) { var t = $('#fil_lc_cliente option[value="' + v + '"]').text(); return t || v; } },
-        { key: 'vendedor', icon: 'fa-briefcase', label: 'Vendedor:', fmt: function(v) { var t = $('#fil_lc_vendedor option[value="' + v + '"]').text(); return t || v; } },
+        { key: 'vendedor', icon: 'fa-briefcase', label: 'Asesor Comercial:', fmt: function(v) { var t = $('#fil_lc_vendedor option[value="' + v + '"]').text(); return t || v; } },
         { key: 'banco', icon: 'fa-bank', label: 'Banco:', fmt: function(v) { var t = $('#fil_lc_banco option[value="' + v + '"]').text(); return t || v; } },
         { key: 'factura', icon: 'fa-file', label: 'Factura:', fmt: function(v) { return v; } }
     ];

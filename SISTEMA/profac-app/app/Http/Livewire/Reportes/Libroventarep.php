@@ -159,10 +159,12 @@ class Libroventarep extends Component
 
         $query = DB::table('factura')
             ->leftJoin('cliente', 'factura.cliente_id', '=', 'cliente.id')
-            ->leftJoin('users', 'factura.vendedor', '=', 'users.id')
+            ->leftJoin('users as asesor', 'factura.vendedor', '=', 'asesor.id')
+            ->leftJoin('users as teleasesor', 'factura.users_id', '=', 'teleasesor.id')
             ->leftJoin('tipo_pago_venta', 'factura.tipo_pago_id', '=', 'tipo_pago_venta.id')
             ->select(
-                'users.name as VENDEDOR',
+                'asesor.name as ASESOR_COMERCIAL',
+                'teleasesor.name as TELEASESOR',
                 'cliente.nombre as CLIENTE',
                 'factura.numero_secuencia_cai as FACTURA',
                 // Todos los montos se calculan desde venta_has_producto para garantizar

@@ -103,7 +103,7 @@
         <table style="margin-bottom:0;">
             <thead>
                 <tr>
-                    <th colspan="11" style="background:#1F3864;color:#fff;text-align:left;padding:4px 8px;font-size:8px;font-weight:bold;">
+                    <th colspan="14" style="background:#1F3864;color:#fff;text-align:left;padding:4px 8px;font-size:8px;font-weight:bold;">
                         BANCO: {{ strtoupper($group['banco']) }}   |   CUENTA: {{ strtoupper($group['cuenta']) }}
                     </th>
                 </tr>
@@ -112,7 +112,8 @@
                     <th>FECHA VCTO.</th>
                     <th>FECHA PAGO</th>
                     <th>CLIENTE</th>
-                    <th>VENDEDOR</th>
+                    <th>ASESOR COMERCIAL</th>
+                    <th>TELEASESOR</th>
                     <th>N° FACTURA</th>
                     <th>MONTO COBRADO</th>
                     <th>ESTADO</th>
@@ -137,7 +138,8 @@
                         <td>{{ $fmtF($row['fecha_vencimiento'] ?? '') }}</td>
                         <td>{{ $fmtF($row['fecha_pago'] ?? '') }}</td>
                         <td style="text-align:left;">{{ $row['cliente'] ?? '' }}</td>
-                        <td style="text-align:left;">{{ $row['vendedor'] ?? '' }}</td>
+                        <td style="text-align:left;">{{ $row['asesor_comercial'] ?? '' }}</td>
+                        <td style="text-align:left;">{{ $row['teleasesor'] ?? '' }}</td>
                         <td>{{ $row['factura'] ?? '' }}</td>
                         <td style="text-align:right;">{{ $fmtL($row['monto_cobrado'] ?? 0) }}</td>
                         <td>{{ $row['estado_factura'] ?? '' }}</td>
@@ -158,7 +160,7 @@
                     $grandIsv     += $gIsv;
                 @endphp
                 <tr style="background:#FFF3E0;font-weight:bold;">
-                    <td colspan="6" style="text-align:right;font-weight:bold;">Subtotal {{ strtoupper($group['banco']) }}:</td>
+                    <td colspan="7" style="text-align:right;font-weight:bold;">Subtotal {{ strtoupper($group['banco']) }}:</td>
                     <td style="text-align:right;">{{ $fmtL($gCobrado) }}</td>
                     <td></td>
                     <td style="text-align:right;">{{ $fmtL($gExon) }}</td>
@@ -175,7 +177,7 @@
     <table>
         <tfoot>
             <tr style="background:#c05000;color:#fff;font-weight:bold;">
-                <td colspan="6" style="text-align:right;font-weight:bold;">TOTAL GENERAL:</td>
+                <td colspan="7" style="text-align:right;font-weight:bold;">TOTAL GENERAL:</td>
                 <td style="text-align:right;">{{ $fmtL($grandCobrado) }}</td>
                 <td></td>
                 <td style="text-align:right;">{{ $fmtL($grandExon) }}</td>
@@ -192,7 +194,7 @@
     <table>
         <thead>
             <tr>
-                <th>VENDEDOR</th>
+                <th>ASESOR COMERCIAL</th>
                 <th>CLIENTE</th>
                 <th>FACTURA</th>
                 <th>EXONERADO</th>

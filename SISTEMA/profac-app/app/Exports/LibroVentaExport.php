@@ -19,9 +19,9 @@ use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 /**
  * Libro de Ventas — exportación optimizada con FromArray.
  *
- * Columnas (A–J, 10 cols):
- *  A Vendedor  B Cliente   C Factura   D Exonerado  E Gravado
- *  F Exento    G Subtotal  H ISV       I Total       J Fecha Compra
+ * Columnas (A–K, 11 cols):
+ *  A Asesor Comercial  B Teleasesor  C Cliente  D Factura  E Exonerado
+ *  F Gravado  G Exento  H Subtotal  I ISV  J Total  K Fecha Compra
  */
 class LibroVentaExport implements FromArray, WithStyles, WithEvents, WithStrictNullComparison, WithColumnWidths
 {
@@ -29,8 +29,8 @@ class LibroVentaExport implements FromArray, WithStyles, WithEvents, WithStrictN
     protected string $fechaInicio;
     protected string $fechaFinal;
 
-    const LAST_COL  = 'J';
-    const COL_COUNT = 10;
+    const LAST_COL  = 'K';
+    const COL_COUNT = 11;
 
     public function __construct($data, string $fechaInicio, string $fechaFinal)
     {
@@ -42,16 +42,17 @@ class LibroVentaExport implements FromArray, WithStyles, WithEvents, WithStrictN
     public function columnWidths(): array
     {
         return [
-            'A' => 22, // Vendedor
-            'B' => 35, // Cliente
-            'C' => 22, // Factura
-            'D' => 14, // Exonerado
-            'E' => 14, // Gravado
-            'F' => 14, // Exento
-            'G' => 14, // Subtotal
-            'H' => 12, // ISV
-            'I' => 14, // Total
-            'J' => 20, // Fecha Venta
+            'A' => 22, // Asesor Comercial
+            'B' => 22, // Teleasesor
+            'C' => 35, // Cliente
+            'D' => 22, // Factura
+            'E' => 14, // Exonerado
+            'F' => 14, // Gravado
+            'G' => 14, // Exento
+            'H' => 14, // Subtotal
+            'I' => 12, // ISV
+            'J' => 14, // Total
+            'K' => 20, // Fecha Venta
         ];
     }
 
@@ -77,7 +78,7 @@ class LibroVentaExport implements FromArray, WithStyles, WithEvents, WithStrictN
 
         // Fila 4 — cabeceras
         $out[] = [
-            'VENDEDOR', 'CLIENTE', 'FACTURA',
+            'ASESOR COMERCIAL', 'TELEASESOR', 'CLIENTE', 'FACTURA',
             'EXONERADO', 'GRAVADO', 'EXENTO',
             'SUBTOTAL', 'ISV', 'TOTAL', 'FECHA VENTA',
         ];
@@ -111,9 +112,10 @@ class LibroVentaExport implements FromArray, WithStyles, WithEvents, WithStrictN
             $totTotal += $total;
 
             $out[] = [
-                $r['VENDEDOR'] ?? '',
-                $r['CLIENTE']  ?? '',
-                $r['FACTURA']  ?? '',
+                $r['ASESOR_COMERCIAL'] ?? '',
+                $r['TELEASESOR']       ?? '',
+                $r['CLIENTE']          ?? '',
+                $r['FACTURA']          ?? '',
                 $exon, $grav, $exen, $sub, $isv, $total,
                 $fechaVal,
             ];
@@ -122,12 +124,12 @@ class LibroVentaExport implements FromArray, WithStyles, WithEvents, WithStrictN
         // Fila de totales
         $tot = array_fill(0, self::COL_COUNT, '');
         $tot[0] = 'TOTALES:';
-        $tot[3] = round($totExon,  2);
-        $tot[4] = round($totGrav,  2);
-        $tot[5] = round($totExen,  2);
-        $tot[6] = round($totSub,   2);
-        $tot[7] = round($totIsv,   2);
-        $tot[8] = round($totTotal, 2);
+        $tot[4] = round($totExon,  2);
+        $tot[5] = round($totGrav,  2);
+        $tot[6] = round($totExen,  2);
+        $tot[7] = round($totSub,   2);
+        $tot[8] = round($totIsv,   2);
+        $tot[9] = round($totTotal, 2);
         $out[] = $tot;
 
         return $out;
@@ -136,9 +138,9 @@ class LibroVentaExport implements FromArray, WithStyles, WithEvents, WithStrictN
     public function styles(Worksheet $sheet)
     {
         // Fusionar celdas de cabecera
-        $sheet->mergeCells('A1:J1');
-        $sheet->mergeCells('A2:J2');
-        $sheet->mergeCells('A3:J3');
+        $sheet->mergeCells('A1:K1');
+        $sheet->mergeCells('A2:K2');
+        $sheet->mergeCells('A3:K3');
 
         // Fila 1
         $sheet->getStyle('A1')->applyFromArray([
@@ -162,7 +164,7 @@ class LibroVentaExport implements FromArray, WithStyles, WithEvents, WithStrictN
         $sheet->getRowDimension(3)->setRowHeight(16);
 
         // Fila 4 — cabeceras
-        $sheet->getStyle('A4:J4')->applyFromArray([
+        $sheet->getStyle('A4:K4')->applyFromArray([
             'font' => ['bold' => true, 'size' => 10, 'color' => ['rgb' => 'FFFFFF']],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'E07000']],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER, 'wrapText' => true],
@@ -186,45 +188,46 @@ class LibroVentaExport implements FromArray, WithStyles, WithEvents, WithStrictN
 
                 // ── Formato numérico por columna (una sola llamada por columna) ──
                 $numFmt  = '#,##0.00';
-                $lpsCol  = ['E', 'F', 'G', 'H', 'I']; // con prefijo L
-                $exonCol = 'D'; // sin prefijo
+                $lpsCol  = ['F', 'G', 'H', 'I', 'J']; // con prefijo L
+                $exonCol = 'E'; // sin prefijo
 
                 if ($lastRow >= 5) {
-                    $sheet->getStyle("D5:D{$lastRow}")->getNumberFormat()->setFormatCode($numFmt);
+                    $sheet->getStyle("E5:E{$lastRow}")->getNumberFormat()->setFormatCode($numFmt);
                     foreach ($lpsCol as $col) {
                         $sheet->getStyle("{$col}5:{$col}{$lastRow}")->getNumberFormat()->setFormatCode($numFmt);
                     }
                     // Fecha por columna
-                    $sheet->getStyle("J5:J{$lastRow}")->getNumberFormat()
+                    $sheet->getStyle("K5:K{$lastRow}")->getNumberFormat()
                         ->setFormatCode(NumberFormat::FORMAT_DATE_DATETIME);
                 }
 
                 // ── Alineación de toda la tabla de datos en bloque ──
-                $sheet->getStyle("A5:J{$lastRow}")->getAlignment()
+                $sheet->getStyle("A5:K{$lastRow}")->getAlignment()
                     ->setHorizontal(Alignment::HORIZONTAL_CENTER)
                     ->setVertical(Alignment::VERTICAL_CENTER);
 
-                // Vendedor y Cliente — izquierda (por columna completa)
+                // Asesor, teleasesor y cliente — izquierda (por columna completa)
                 $sheet->getStyle("A5:A{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
                 $sheet->getStyle("B5:B{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+                $sheet->getStyle("C5:C{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
 
                 // ── Alto de filas por defecto (evita iterar fila por fila) ──
                 $sheet->getDefaultRowDimension()->setRowHeight(15);
 
                 // ── Fila de totales ──
-                $sheet->getStyle("A{$lastRow}:J{$lastRow}")->applyFromArray([
+                $sheet->getStyle("A{$lastRow}:K{$lastRow}")->applyFromArray([
                     'font' => ['bold' => true, 'size' => 10, 'color' => ['rgb' => '7D3F00']],
                     'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FFF3E0']],
                 ]);
                 $sheet->getRowDimension($lastRow)->setRowHeight(18);
 
                 // ── Bordes de toda la tabla en una sola llamada ──
-                $tableRange = "A4:J{$lastRow}";
+                $tableRange = "A4:K{$lastRow}";
                 $sheet->getStyle($tableRange)->getBorders()->applyFromArray([
                     'allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'E8D5BF']],
                     'outline'    => ['borderStyle' => Border::BORDER_MEDIUM, 'color' => ['rgb' => 'E07000']],
                 ]);
-                $sheet->getStyle("A4:J4")->getBorders()->getBottom()
+                $sheet->getStyle("A4:K4")->getBorders()->getBottom()
                     ->setBorderStyle(Border::BORDER_MEDIUM)
                     ->getColor()->setRGB('B05000');
             },

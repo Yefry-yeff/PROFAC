@@ -60,8 +60,8 @@
     #tbl_libro_cobros tbody tr.lc-row-pagada td:nth-child(n+10) { background:#f0fdf4!important; }
     #tbl_libro_cobros tbody tr.lc-row-parcial td:nth-child(n+10) { background:#fafafa; }
     /* Separador visual entre datos del cobro y detalle de factura */
-    #tbl_libro_cobros thead th:nth-child(12),
-    #tbl_libro_cobros tbody td:nth-child(12) { border-left:3px solid #f2d49a!important; }
+    #tbl_libro_cobros thead th:nth-child(13),
+    #tbl_libro_cobros tbody td:nth-child(13) { border-left:3px solid #f2d49a!important; }
     </style>
     @endpush
 
@@ -131,7 +131,8 @@
                                         <th>Fecha Vcto.</th>
                                         <th>Fecha Pago</th>
                                         <th>Cliente</th>
-                                        <th>Vendedor</th>
+                                        <th>Asesor Comercial</th>
+                                        <th>Teleasesor</th>
                                         <th>N&deg; Factura</th>
                                         <th>Monto Cobrado</th>
                                         <th>Estado</th>
@@ -208,7 +209,7 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label>Vendedor</label>
+                                    <label>Asesor Comercial</label>
                                     <select id="fil_lc_vendedor" class="form-control" style="width:100%;">
                                         <option value="">&mdash; Todos &mdash;</option>
                                         @foreach($vendedores as $v)
