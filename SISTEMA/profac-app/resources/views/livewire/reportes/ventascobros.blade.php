@@ -211,6 +211,7 @@
                                         <th>Total Facturado</th>
                                         <th>Total Pagado</th>
                                         <th>Saldo Pendiente</th>
+                                        <th>Fatal Retenci&#243;n</th>
                                         <th>Estado</th>
                                         <th>D&#237;as Venc.</th>
                                     </tr>

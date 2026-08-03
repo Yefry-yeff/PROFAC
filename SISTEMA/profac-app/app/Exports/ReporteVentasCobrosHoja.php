@@ -18,7 +18,7 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 /**
  * Hoja del reporte Ventas & Cobros (v6).
  *
- * 31 columnas (A..AE):
+ * 32 columnas (A..AF):
  *  A(0)   #               B(1)   MES             C(2)   FECHA
  *  D(3)   ASESOR COM.     E(4)   TELEASESOR      F(5)   CLIENTE
  *  G(6)   DOCUMENTO       H(7)   TIPO DOCUMENTO  I(8)   NRO DOCUMENTO
@@ -26,10 +26,10 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
  *  M(12)  ESTADO F01      N(13)  EXONERADO       O(14)  GRAVADO
  *  P(15)  EXENTO          Q(16)  SUBTOTAL        R(17)  ISV
  *  S(18)  TOTAL           T(19)  DISMINUCION     U(20)  AUMENTO
- *  V(21)  MONTO PAGADO    W(22)  SALDO PENDIENTE X(23)  ESTADO COBRO
- *  Y(24)  FECHA VENTA     Z(25)  FECHA VCTO.     AA(26) DIAS VCTOS.
- *  AB(27) FECHA PAGO      AC(28) FORMA DE PAGO   AD(29) BANCO
- *  AE(30) CUENTA
+ *  V(21)  MONTO PAGADO    W(22)  SALDO PENDIENTE X(23)  FALTA RETENCION
+ *  Y(24)  ESTADO COBRO    Z(25)  FECHA VENTA     AA(26) FECHA VCTO.
+ *  AB(27) DIAS VCTOS.     AC(28) FECHA PAGO      AD(29) FORMA DE PAGO
+ *  AE(30) BANCO           AF(31) CUENTA
  *
  * Reglas:
  *  - DEBITOS  (T): monto de movimientos que DISMINUYEN el saldo
@@ -50,8 +50,8 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
     protected $superFastMode;
     protected $rowMeta = [];
 
-    const LAST_COL  = 'AE';
-    const COL_COUNT = 31;
+    const LAST_COL  = 'AF';
+    const COL_COUNT = 32;
 
     const T_FACTURA   = 'FACTURA';
     const T_ENTREGA   = 'ENTREGA';
@@ -183,9 +183,9 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
             'DOCUMENTO','TIPO DOCUMENTO','NRO DOCUMENTO','OBSERVACION','ORDEN COMPRA',
             'CONDICION DE VENTA','ESTADO F01','EXONERADO','GRAVADO','EXENTO',
             'SUBTOTAL','ISV','TOTAL','DISMINUCION EN FACT.','AUMENTO EN FACT.',
-            'MONTO PAGADO','SALDO PENDIENTE','ESTADO COBRO','FECHA VENTA',
-            'FECHA VCTO.','DIAS VCTOS.','FECHA PAGO','FORMA DE PAGO','BANCO',
-            'CUENTA',
+            'MONTO PAGADO','SALDO PENDIENTE','FATAL RETENCION','ESTADO COBRO',
+            'FECHA VENTA','FECHA VCTO.','DIAS VCTOS.','FECHA PAGO','FORMA DE PAGO',
+            'BANCO','CUENTA',
         ];
 
         foreach ($this->rows as $r) {
@@ -267,14 +267,17 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
             $_pagosVal = $this->money($_pagosVal);
             $row[21] = $_pagosVal > 0 ? -$_pagosVal : '';
             $row[22] = $esAnulada ? '' : $finalSaldoPendiente;
-            $row[23] = $estadoCobro;
-            $row[24] = $esAnulada ? '' : $this->excelDate($r->fecha_venta);
-            $row[25] = $esAnulada ? '' : $this->excelDate($r->fecha_vencimiento);
-            $row[26] = $esAnulada ? '' : $dias;
-            $row[27] = '';
+            $isvFactura = $this->money($r->isv ?? 0);
+            $row[23] = !$esAnulada && $finalSaldoPendiente > 0 && $isvFactura > 0
+                && $finalSaldoPendiente === $isvFactura ? 'X' : '';
+            $row[24] = $estadoCobro;
+            $row[25] = $esAnulada ? '' : $this->excelDate($r->fecha_venta);
+            $row[26] = $esAnulada ? '' : $this->excelDate($r->fecha_vencimiento);
+            $row[27] = $esAnulada ? '' : $dias;
             $row[28] = '';
             $row[29] = '';
             $row[30] = '';
+            $row[31] = '';
             $out[] = $row;
 
             // Acumular totales de fila factura
@@ -340,11 +343,11 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
                 $movRow[21] = $esPago    ? -$monto : '';
                 $movRow[22] = $saldoPendiente;
                 $movRow[23] = '';
-                // cols 23-25: fechas venta/vcto/dias en blanco
-                $movRow[27] = $this->fmt($mov->fecha);
-                $movRow[28] = $mov->forma_pago ?? '';
-                $movRow[29] = $mov->banco_nombre ?? '';
-                $movRow[30] = $mov->banco_cuenta ?? '';
+                // Estado y fechas de factura quedan en blanco en sub-filas.
+                $movRow[28] = $this->fmt($mov->fecha);
+                $movRow[29] = $mov->forma_pago ?? '';
+                $movRow[30] = $mov->banco_nombre ?? '';
+                $movRow[31] = $mov->banco_cuenta ?? '';
                 $out[] = $movRow;
             }
 
@@ -469,9 +472,9 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
             'F' => 34, 'G' => 18, 'H' => 18, 'I' => 16, 'J' => 28,
             'K' => 16, 'L' => 16, 'M' => 12, 'N' => 12, 'O' => 12,
             'P' => 12, 'Q' => 12, 'R' => 12, 'S' => 12, 'T' => 14,
-            'U' => 14, 'V' => 14, 'W' => 14, 'X' => 18, 'Y' => 12,
-            'Z' => 12, 'AA' => 10, 'AB' => 12, 'AC' => 18, 'AD' => 18,
-            'AE' => 20,
+            'U' => 14, 'V' => 14, 'W' => 14, 'X' => 12, 'Y' => 18,
+            'Z' => 12, 'AA' => 12, 'AB' => 10, 'AC' => 12, 'AD' => 18,
+            'AE' => 18, 'AF' => 20,
         ];
         foreach ($fixedWidths as $col => $w) {
             $sheet->getColumnDimension($col)->setWidth($w);
@@ -502,7 +505,7 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
                     ->setVertical(Alignment::VERTICAL_CENTER);
 
                 // Texto alineado a la izquierda
-                foreach (['D','E','F','G','H','I','J','K','L','AC','AD','AE'] as $c) {
+                foreach (['D','E','F','G','H','I','J','K','L','AD','AE','AF'] as $c) {
                     $sheet->getStyle("{$c}5:{$c}{$lastRow}")
                         ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
                 }
@@ -520,12 +523,12 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
                         ->getNumberFormat()->setFormatCode($fmt);
                 }
 
-                // Dias vencidos (col AA): formato numerico simple
-                $sheet->getStyle("AA5:AA{$lastRow}")
+                // Dias vencidos (col AB): formato numerico simple
+                $sheet->getStyle("AB5:AB{$lastRow}")
                     ->getNumberFormat()->setFormatCode('0');
 
                 // Fechas (FECHA, FECHA VENTA, FECHA VCTO.): formato de fecha real dd/mm/yyyy
-                foreach (['C', 'Y', 'Z'] as $c) {
+                foreach (['C', 'Z', 'AA'] as $c) {
                     $sheet->getStyle("{$c}5:{$c}{$lastRow}")
                         ->getNumberFormat()->setFormatCode('dd/mm/yyyy');
                 }
@@ -610,21 +613,21 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
                                 ->setStrikethrough(true)->getColor()->setRGB('999999');
                         }
 
-                        // Dias vencidos (col AA): verde si <= 0, rojo si > 0
+                        // Dias vencidos (col AB): verde si <= 0, rojo si > 0
                         $dias = (int)($meta['dias_vencidos'] ?? 0);
                         if ($dias > 0) {
-                            $sheet->getStyle("AA{$row}")->getFill()
+                            $sheet->getStyle("AB{$row}")->getFill()
                                 ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FADBD8');
-                            $sheet->getStyle("AA{$row}")->getFont()
+                            $sheet->getStyle("AB{$row}")->getFont()
                                 ->setBold(true)->getColor()->setRGB('922B21');
                         } else {
-                            $sheet->getStyle("AA{$row}")->getFill()
+                            $sheet->getStyle("AB{$row}")->getFill()
                                 ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('D5F5E3');
-                            $sheet->getStyle("AA{$row}")->getFont()
+                            $sheet->getStyle("AB{$row}")->getFont()
                                 ->getColor()->setRGB('1E8449');
                         }
 
-                        // Estado cobro (col X, index 23)
+                        // Estado cobro (col Y, index 24)
                         $ec   = (string)($meta['estado_cobro'] ?? '');
                         $bgEc = match(true) {
                             $ec === 'Anuladas'                                            => 'EBEBEB',
@@ -636,7 +639,7 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
                             $ec === 'Pendiente'                                            => 'FDEBD0',
                             default                                                        => 'FDFEFE',
                         };
-                        $sheet->getStyle("X{$row}")->getFill()
+                        $sheet->getStyle("Y{$row}")->getFill()
                             ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB($bgEc);
                         $h = 16;
 

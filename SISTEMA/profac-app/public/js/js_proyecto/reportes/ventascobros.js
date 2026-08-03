@@ -132,9 +132,19 @@ function cargarTabla() {
             { data: 'monto_pagado', className: 'text-right', render: function(d) { return fmtLps(d); } },
             /* 9 – saldo */
             { data: 'saldo_pendiente', className: 'text-right', render: function(d, type, row) { return esFacturaAnulada(row) ? '' : fmtLpsSaldo(d); } },
-            /* 10 – estado */
+            /* 10 – falta retencion */
+            {
+                data: null, className: 'text-center', orderable: false, searchable: false,
+                render: function(d, type, row) {
+                    if (esFacturaAnulada(row)) return '';
+                    var saldo = Math.round((parseFloat(row.saldo_pendiente) || 0) * 100);
+                    var isv = Math.round((parseFloat(row.isv) || 0) * 100);
+                    return saldo > 0 && isv > 0 && saldo === isv ? '<strong>X</strong>' : '';
+                }
+            },
+            /* 11 – estado */
             { data: 'estado_cobro_v2', render: function(d) { return renderBadgeEstado(d); } },
-            /* 11 – dias vencidos */
+            /* 12 – dias vencidos */
             {
                 data: 'dias_vencidos', className: 'text-center',
                 render: function(d, type, row) {
