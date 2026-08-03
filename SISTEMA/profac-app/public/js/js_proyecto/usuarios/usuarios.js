@@ -378,13 +378,19 @@ function usrQuitarRolAdicional(rolId) {
         confirmButtonColor: '#3085d6',
         cancelButtonColor: '#d33',
         confirmButtonText: 'Sí, quitar',
-        cancelButtonText: 'Cancelar'
+        cancelButtonText: 'Cancelar',
+        customClass: { container: 'usr-swal-over-modal' }
     }).then(function (result) {
         if (!result.isConfirmed) return;
         axios.post('/usuario/' + idUsuario + '/roles-adicionales/quitar', { rol_id: rolId })
             .then(function () { usrCargarRolesAdicionales(idUsuario); })
             .catch(function (error) {
-                Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo quitar el rol.' });
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'No se pudo quitar el rol.',
+                    customClass: { container: 'usr-swal-over-modal' }
+                });
                 console.error(error);
             });
     });

@@ -105,6 +105,8 @@
 /* -- Roles adicionales (multi-rol) -- */
 .usr-roladd-buscar { display: flex; gap: 8px; align-items: flex-start; }
 .usr-roladd-buscar .select2-container { flex: 1 1 auto; }
+#modal_usuario_rol > .select2-container--open { z-index: 2201; }
+.usr-swal-over-modal { z-index: 2210 !important; }
 .btn-usr-roladd {
     background: var(--pf-grad) !important;
     color: #fff !important;
