@@ -8,6 +8,8 @@
  * ──────────────────────────────────────────────────────────────────── */
 var rfdTable = null;
 var rfdOpenRows = {};   // { facturaId: DataTable row object }
+var rfdActoresRequest = 0;
+var rfdActoresTimer = null;
 
 /* ────────────────────────────────────────────────────────────────────
  *  Lectura de filtros
@@ -17,6 +19,7 @@ function getFiltros() {
         cliente:          $('#fil_cliente').val()          || '',
         factura:          $('#fil_factura').val()          || '',
         vendedor:         $('#fil_vendedor').val()         || '',
+        teleasesor:       $('#fil_teleasesor').val()       || '',
         modo_pago:        $('#fil_modo_pago').val()        || '',
         estado_f01:       $('#fil_estado_f01').val()       || '',
         fecha_desde:      $('#fil_fecha_desde').val()      || '',
@@ -505,6 +508,7 @@ function _exportarForm(url) {
     var fields = {
         _token:            tok,
         vendedor:          f.vendedor          || '',
+        teleasesor:        f.teleasesor        || '',
         cliente:           f.cliente           || '',
         factura:           f.factura           || '',
         fecha_desde:       f.fecha_desde       || '',
@@ -534,7 +538,7 @@ function exportarPdf() {
     var form = $('<form method="POST"></form>').attr('action', '/reporte/ventas-cobros/exportar-pdf/null/null/null/null');
     var fields = {
         _token: tok, download_token: downloadToken,
-        vendedor: f.vendedor || '', cliente: f.cliente || '',
+        vendedor: f.vendedor || '', teleasesor: f.teleasesor || '', cliente: f.cliente || '',
         factura: f.factura || '', fecha_desde: f.fecha_desde || '',
         fecha_hasta: f.fecha_hasta || '', fecha_pago_desde: f.fecha_pago_desde || '',
         fecha_pago_hasta: f.fecha_pago_hasta || '', estado_cobro: f.estado_cobro || '',
@@ -612,6 +616,7 @@ function exportarExcel() {
         data: {
             _token: tok,
             vendedor:          f.vendedor          || '',
+            teleasesor:        f.teleasesor        || '',
             cliente:           f.cliente           || '',
             factura:           f.factura           || '',
             fecha_desde:       f.fecha_desde       || '',
@@ -734,6 +739,52 @@ function setDefaultDates() {
     $('#fil_fecha_hasta').val(fmt(new Date(y, m + 1, 0)));
 }
 
+function reemplazarActores(selector, actores, valorActual) {
+    var select = $(selector);
+    select.empty().append(new Option('', '', false, false));
+
+    $.each(actores || [], function(_, actor) {
+        select.append(new Option(actor.name, String(actor.id), false, false));
+    });
+
+    var conservar = valorActual && select.find('option[value="' + valorActual + '"]').length > 0;
+    select.val(conservar ? valorActual : '').trigger('change');
+}
+
+function cargarActoresPorFechas() {
+    var requestId = ++rfdActoresRequest;
+    var vendedorActual = $('#fil_vendedor').val() || '';
+    var teleasesorActual = $('#fil_teleasesor').val() || '';
+
+    $('#fil_vendedor, #fil_teleasesor').prop('disabled', true);
+
+    $.ajax({
+        url: '/reporte/ventas-cobros/actores',
+        type: 'GET',
+        data: {
+            fecha_desde: $('#fil_fecha_desde').val() || '',
+            fecha_hasta: $('#fil_fecha_hasta').val() || '',
+            fecha_pago_desde: $('#fil_fecha_pago_desde').val() || '',
+            fecha_pago_hasta: $('#fil_fecha_pago_hasta').val() || ''
+        },
+        success: function(resp) {
+            if (requestId !== rfdActoresRequest) return;
+            reemplazarActores('#fil_vendedor', resp.asesores, vendedorActual);
+            reemplazarActores('#fil_teleasesor', resp.teleasesores, teleasesorActual);
+        },
+        complete: function() {
+            if (requestId === rfdActoresRequest) {
+                $('#fil_vendedor, #fil_teleasesor').prop('disabled', false);
+            }
+        }
+    });
+}
+
+function programarCargaActores() {
+    clearTimeout(rfdActoresTimer);
+    rfdActoresTimer = setTimeout(cargarActoresPorFechas, 200);
+}
+
 /* ────────────────────────────────────────────────────────────────────
  *  Barra de filtros activos (badges)
  * ──────────────────────────────────────────────────────────────────── */
@@ -743,6 +794,7 @@ function actualizarBadges() {
         { key: 'cliente',          el: '#fil_cliente',          lbl: 'Cliente',      isSelect: true },
         { key: 'factura',          el: '#fil_factura',          lbl: 'Factura',      isSelect: false },
         { key: 'vendedor',         el: '#fil_vendedor',         lbl: 'Vendedor',     isSelect: true },
+        { key: 'teleasesor',       el: '#fil_teleasesor',       lbl: 'Teleasesor',   isSelect: true },
         { key: 'modo_pago',        el: '#fil_modo_pago',        lbl: 'Pago',         isSelect: true },
         { key: 'estado_f01',       el: '#fil_estado_f01',       lbl: 'F-01',         isSelect: true },
         { key: 'fecha_desde',      el: '#fil_fecha_desde',      lbl: 'Desde',        isSelect: false },
@@ -785,13 +837,14 @@ function aplicarFiltros() {
 
 function limpiarFiltros() {
     if ($.fn.select2) {
-        $('#fil_cliente, #fil_vendedor').val('').trigger('change');
+        $('#fil_cliente, #fil_vendedor, #fil_teleasesor').val('').trigger('change');
     } else {
-        $('#fil_cliente, #fil_vendedor').val('');
+        $('#fil_cliente, #fil_vendedor, #fil_teleasesor').val('');
     }
     $('#fil_modo_pago, #fil_estado_f01, #fil_estado_cobro, #fil_banco').val('');
     $('#fil_factura, #fil_cuenta, #fil_fecha_pago_desde, #fil_fecha_pago_hasta').val('');
     setDefaultDates();
+    cargarActoresPorFechas();
 }
 
 /* ────────────────────────────────────────────────────────────────────
@@ -808,10 +861,17 @@ $(document).ready(function() {
             placeholder: '— Todos —', allowClear: true,
             dropdownParent: $('#modalFiltrosRVC')
         });
+        $('#fil_teleasesor').select2({
+            placeholder: '— Todos —', allowClear: true,
+            dropdownParent: $('#modalFiltrosRVC')
+        });
     }
 
     /* Fechas por defecto = último mes */
     setDefaultDates();
+    cargarActoresPorFechas();
+
+    $(document).on('change', '#fil_fecha_desde, #fil_fecha_hasta, #fil_fecha_pago_desde, #fil_fecha_pago_hasta', programarCargaActores);
 
     /* Carga inicial con filtros por defecto */
     actualizarBadges();

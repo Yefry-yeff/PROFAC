@@ -51,6 +51,8 @@
     @keyframes rfd-pulse { 0%,100%{ box-shadow:0 0 0 0 rgba(220,38,38,.4); } 50%{ box-shadow:0 0 0 6px rgba(220,38,38,0); } }
     tr.rfd-row-anulado td { opacity:.55; text-decoration:line-through; }
     /* modal */
+    #modalFiltrosRVC { z-index:10050!important; }
+    body.modal-open > .modal-backdrop { z-index:10040!important; }
     .modal-header-rvc { background:var(--pf-grad); color:#fff; border-radius:var(--pf-radius) var(--pf-radius) 0 0; padding:14px 20px; }
     .modal-header-rvc .modal-title { color:#fff; font-size:.95rem; font-weight:700; }
     .modal-header-rvc .close { color:#fff; opacity:.8; text-shadow:none; font-size:1.4rem; }
@@ -299,6 +301,17 @@
                                         <option value=""></option>
                                         @foreach($vendedores as $v)
                                             <option value="{{ $v->id }}">{{ $v->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Teleasesor</label>
+                                    <select id="fil_teleasesor" class="form-control" style="width:100%">
+                                        <option value=""></option>
+                                        @foreach($teleasesores as $teleasesor)
+                                            <option value="{{ $teleasesor->id }}">{{ $teleasesor->name }}</option>
                                         @endforeach
                                     </select>
                                 </div>

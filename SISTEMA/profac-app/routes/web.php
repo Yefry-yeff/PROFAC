@@ -1474,6 +1474,7 @@ Route::get('/reporte/ventas-cobros/exportar-excel-estado/{token}',              
 Route::get('/reporte/ventas-cobros/exportar-excel-descargar/{token}',                                [ReporteVentasCobros::class, 'descargarExportExcel'])->name('reporte.ventas_cobros.excel.descargar');
 Route::get('/reporte/ventas-cobros/datos',                                                          [ReporteVentasCobros::class, 'consultaDatos']);
 Route::get('/reporte/ventas-cobros/kpis',                                                           [ReporteVentasCobros::class, 'kpis']);
+Route::get('/reporte/ventas-cobros/actores',                                                        [ReporteVentasCobros::class, 'actoresPorFechas']);
 Route::get('/reporte/ventas-cobros/expediente/{facturaId}',                                         [ReporteVentasCobros::class, 'expediente']);
 Route::post('/reporte/ventas-cobros/actualizar-f01/{facturaId}',                                    [ReporteVentasCobros::class, 'actualizarF01'])->name('reporte.ventas_cobros.actualizar_f01');
 
