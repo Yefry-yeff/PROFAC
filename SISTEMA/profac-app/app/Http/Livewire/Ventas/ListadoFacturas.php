@@ -90,6 +90,8 @@ class ListadoFacturas extends Component
 
             }else{
 
+                $userId = (int) Auth::id();
+
                 $listaFacturas = DB::SELECT("
                 select
                 factura.id as id,
@@ -123,7 +125,9 @@ class ListadoFacturas extends Component
                 inner join cai A
                 on factura.cai_id= A.id
                 cross join (select @i := 0) r
-            where ( YEAR(factura.created_at) >= (YEAR(NOW())-2) )and factura.estado_factura_id=1 and factura.estado_venta_id<>2 and (factura.tipo_venta_id = 1) and   factura.vendedor = ".Auth::user()->id."{$whereFilters} order by factura.created_at desc", $bindings);
+            where ( YEAR(factura.created_at) >= (YEAR(NOW())-2) )and factura.estado_factura_id=1 and factura.estado_venta_id<>2 and (factura.tipo_venta_id = 1)
+                and (factura.vendedor = {$userId} or factura.users_id = {$userId} or factura.gestor_entrega = {$userId})
+                {$whereFilters} order by factura.created_at desc", $bindings);
             }
 
 
@@ -265,7 +269,13 @@ class ListadoFacturas extends Component
                 ->where('f.estado_venta_id',  '<>', 2)
                 ->whereIn('f.tipo_venta_id', $tipoVentaIds);
 
-            if (!$esAdmin) { $query->where('f.vendedor', Auth::id()); }
+            if (!$esAdmin) {
+                $query->where(function ($actor) {
+                    $actor->where('f.vendedor', Auth::id())
+                        ->orWhere('f.users_id', Auth::id())
+                        ->orWhere('f.gestor_entrega', Auth::id());
+                });
+            }
             if ($filtroCai)     { $query->where('f.cai',           'LIKE', "%{$filtroCai}%"); }
             if ($filtroCliente) { $query->where('f.nombre_cliente','LIKE', "%{$filtroCliente}%"); }
             if ($filtroVendedor){ $query->where('u.name',          'LIKE', "%{$filtroVendedor}%"); }
@@ -347,7 +357,11 @@ class ListadoFacturas extends Component
                 ->whereIn('f.tipo_venta_id', [1, 2, 3]);
 
             if (!$esAdmin) {
-                $query->where('f.vendedor', Auth::id());
+                $query->where(function ($actor) {
+                    $actor->where('f.vendedor', Auth::id())
+                        ->orWhere('f.users_id', Auth::id())
+                        ->orWhere('f.gestor_entrega', Auth::id());
+                });
             }
 
             if ($filtroCai)     { $query->where('f.cai',           'LIKE', "%{$filtroCai}%"); }

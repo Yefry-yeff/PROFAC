@@ -57,10 +57,19 @@ class OfertaPedido extends Component
                       ->orWhere('nombre', 'LIKE', $like);
                 });
 
-            // Admin (1) y Tele asesor (3) ven todos; usuarios especiales 121/122 también; los demás solo sus asignados
+            // Admin (1), Tele asesor (3) y usuarios especiales ven todos.
             $specialUsers = [121, 122];
             if (!in_array($rolId, [1, 3], true) && !in_array(Auth::id(), $specialUsers, true)) {
-                $query->where('vendedor', Auth::id());
+                $query->where(function ($access) {
+                    $access->where('cliente.vendedor', Auth::id())
+                        ->orWhereExists(function ($assigned) {
+                            $assigned->select(DB::raw(1))
+                                ->from('cliente_usuario as cu')
+                                ->whereColumn('cu.cliente_id', 'cliente.id')
+                                ->where('cu.usuario_id', Auth::id())
+                                ->whereIn('cu.rol_id', [2, 3]);
+                        });
+                });
             }
 
             $listaClientes = $query->orderBy('nombre')->limit(15)->get();
@@ -96,6 +105,45 @@ class OfertaPedido extends Component
                     'text'    => 'Por favor, verifica que todos los campos estén completados.',
                     'errors'  => $validator->errors(),
                 ], 401);
+            }
+
+            $pedido = DB::table('pedido')
+                ->where('id', (int) $request->pedido_id)
+                ->where('cliente_id', (int) $request->seleccionarCliente)
+                ->first(['id', 'cliente_id']);
+
+            if (!$pedido) {
+                return response()->json([
+                    'icon'  => 'warning',
+                    'title' => 'Pedido no válido',
+                    'text'  => 'El cliente seleccionado no corresponde al pedido.',
+                ], 422);
+            }
+
+            $rolId = (int) (Auth::user()->rol_id ?? 0);
+            $specialUsers = [121, 122];
+            if (!in_array($rolId, [1, 3], true) && !in_array(Auth::id(), $specialUsers, true)) {
+                $puedeOfertar = DB::table('cliente')
+                    ->where('cliente.id', (int) $pedido->cliente_id)
+                    ->where(function ($access) {
+                        $access->where('cliente.vendedor', Auth::id())
+                            ->orWhereExists(function ($assigned) {
+                                $assigned->select(DB::raw(1))
+                                    ->from('cliente_usuario as cu')
+                                    ->whereColumn('cu.cliente_id', 'cliente.id')
+                                    ->where('cu.usuario_id', Auth::id())
+                                    ->whereIn('cu.rol_id', [2, 3]);
+                            });
+                    })
+                    ->exists();
+
+                if (!$puedeOfertar) {
+                    return response()->json([
+                        'icon'  => 'warning',
+                        'title' => 'Acceso denegado',
+                        'text'  => 'No estás asignado a este cliente para registrar ofertas.',
+                    ], 403);
+                }
             }
 
             // Verificar si ya existe una oferta ganadora para este pedido

@@ -91,10 +91,8 @@ class ListarHistorialPedidos extends Component
             );
 
         // ── Filtro por usuario ─────────────────────────────────────────────
-        // El administrador ve todo; los demás sólo ven los flujos que ellos
-        // crearon, donde están involucrados (asesor asignado al cliente vía
-        // el campo legacy cliente.vendedor), o donde en Cartera de Clientes
-        // están asignados como Tele Asesor (rol_id=3 en cliente_usuario).
+        // El administrador ve todo; los demás ven flujos propios, clientes
+        // asignados como asesor/teleasesor o facturas donde son actores.
         if (!$this->esAdmin) {
             $q->where(function ($sub) {
                 $sub->where('c.vendedor', Auth::id())
@@ -104,7 +102,19 @@ class ListarHistorialPedidos extends Component
                             ->from('cliente_usuario as cu')
                             ->whereColumn('cu.cliente_id', 'c.id')
                             ->where('cu.usuario_id', Auth::id())
-                            ->where('cu.rol_id', 3);
+                            ->whereIn('cu.rol_id', [2, 3]);
+                    })
+                    ->orWhereExists(function ($invoiceActor) {
+                        $invoiceActor->select(DB::raw(1))
+                            ->from('historico_flujo as hff')
+                            ->join('factura as fa', 'fa.id', '=', 'hff.tramite_id')
+                            ->whereColumn('hff.flujo_id', 'f.id')
+                            ->where('hff.tipo_tramite_id', 3)
+                            ->where(function ($actor) {
+                                $actor->where('fa.vendedor', Auth::id())
+                                    ->orWhere('fa.users_id', Auth::id())
+                                    ->orWhere('fa.gestor_entrega', Auth::id());
+                            });
                     });
             });
         }

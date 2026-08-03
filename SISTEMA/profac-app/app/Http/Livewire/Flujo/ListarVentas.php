@@ -211,7 +211,8 @@ class ListarVentas extends Component
                            ->where('hff.tipo_tramite_id', 3)
                            ->where(function ($sfa) {
                                $sfa->where('fa.vendedor', Auth::id())
-                                   ->orWhere('fa.users_id', Auth::id());
+                                   ->orWhere('fa.users_id', Auth::id())
+                                   ->orWhere('fa.gestor_entrega', Auth::id());
                            });
                     })
                     ->orWhereExists(function ($sq) {

@@ -85,6 +85,8 @@ class ListadoFacturasExonerads extends Component
 
             }else{
 
+                $userId = (int) Auth::id();
+
                 $listaFacturas = DB::SELECT("
                 select
                     factura.id as id,
@@ -115,7 +117,8 @@ class ListadoFacturasExonerads extends Component
                     on factura.vendedor = users.id
                     cross join (select @i := 0) r
                 where YEAR(factura.created_at) >= (YEAR(NOW())-2) and factura.estado_venta_id<>2 and factura.tipo_venta_id = 3
-                and factura.vendedor =".Auth::user()->id."{$whereFilters}
+                and (factura.vendedor = {$userId} or factura.users_id = {$userId} or factura.gestor_entrega = {$userId})
+                {$whereFilters}
                 order by factura.created_at desc
                 ", $bindings);
             }

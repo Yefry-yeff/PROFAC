@@ -149,6 +149,9 @@
                             <button type="button" class="btn-rvc-action" onclick="exportarExcel()">
                                 <i class="fa fa-file-excel-o mr-1"></i>Excel
                             </button>
+                            <button type="button" class="btn-rvc-action" onclick="exportarPdf()">
+                                <i class="fa fa-file-pdf-o mr-1"></i>PDF
+                            </button>
                             <button type="button" class="btn-rvc-action" data-toggle="modal" data-target="#modalFiltrosRVC">
                                 <i class="fa fa-filter mr-1"></i>Filtros
                             </button>

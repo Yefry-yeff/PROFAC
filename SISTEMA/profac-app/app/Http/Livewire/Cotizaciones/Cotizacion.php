@@ -226,23 +226,21 @@ class Cotizacion extends Component
                       ->orWhere('nombre', 'LIKE', $like);
                 });
 
-            // Los roles comerciales principales solo ven su cartera según el tipo de asignación.
+            // Los roles comerciales ven clientes asignados en cualquiera de sus funciones comerciales.
             $specialUsers = [121, 122];
-            if ($rolId === ClienteActoresAsignados::ROL_TELE_ASESOR) {
+            if (in_array((int) $rolId, [
+                ClienteActoresAsignados::ROL_ASESOR_COMERCIAL,
+                ClienteActoresAsignados::ROL_TELE_ASESOR,
+            ], true)) {
                 $query->whereExists(function ($subquery) {
                     $subquery->select(DB::raw(1))
                         ->from('cliente_usuario as cu')
                         ->whereColumn('cu.cliente_id', 'cliente.id')
                         ->where('cu.usuario_id', Auth::id())
-                        ->where('cu.rol_id', ClienteActoresAsignados::ROL_TELE_ASESOR);
-                });
-            } elseif ($rolId === ClienteActoresAsignados::ROL_ASESOR_COMERCIAL) {
-                $query->whereExists(function ($subquery) {
-                    $subquery->select(DB::raw(1))
-                        ->from('cliente_usuario as cu')
-                        ->whereColumn('cu.cliente_id', 'cliente.id')
-                        ->where('cu.usuario_id', Auth::id())
-                        ->where('cu.rol_id', ClienteActoresAsignados::ROL_ASESOR_COMERCIAL);
+                        ->whereIn('cu.rol_id', [
+                            ClienteActoresAsignados::ROL_ASESOR_COMERCIAL,
+                            ClienteActoresAsignados::ROL_TELE_ASESOR,
+                        ]);
                 });
             } elseif ($rolId !== 1 && !in_array(Auth::id(), $specialUsers, true)) {
                 $query->where('vendedor', Auth::id());

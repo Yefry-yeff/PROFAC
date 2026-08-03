@@ -91,6 +91,20 @@ class ListarOfertas extends Component
             ->orderByDesc('p.created_at')
             ->limit(10);
 
+        if (!$this->esAdmin) {
+            $q->where(function ($access) {
+                $access->where('p.users_id', Auth::id())
+                    ->orWhere('c.vendedor', Auth::id())
+                    ->orWhereExists(function ($assigned) {
+                        $assigned->select(DB::raw(1))
+                            ->from('cliente_usuario as cu')
+                            ->whereColumn('cu.cliente_id', 'c.id')
+                            ->where('cu.usuario_id', Auth::id())
+                            ->whereIn('cu.rol_id', [2, 3]);
+                    });
+            });
+        }
+
         if ($esNumero) {
             $q->where('p.id', (int) $term);
         } else {
@@ -164,6 +178,13 @@ class ListarOfertas extends Component
             $q->where(function ($sub) {
                 $sub->where('o.users_id', Auth::id())
                     ->orWhere('o.vendedor', Auth::id())
+                    ->orWhereExists(function ($assigned) {
+                        $assigned->select(DB::raw(1))
+                            ->from('cliente_usuario as cu')
+                            ->whereColumn('cu.cliente_id', 'o.cliente_id')
+                            ->where('cu.usuario_id', Auth::id())
+                            ->whereIn('cu.rol_id', [2, 3]);
+                    })
                     ->orWhereExists(function ($sq) {
                         // Creador del pedido relacionado
                         $sq->select(DB::raw(1))
@@ -182,7 +203,8 @@ class ListarOfertas extends Component
                            ->where('hff.tipo_tramite_id', 3)
                            ->where(function ($sfa) {
                                $sfa->where('fa.vendedor', Auth::id())
-                                   ->orWhere('fa.users_id', Auth::id());
+                                   ->orWhere('fa.users_id', Auth::id())
+                                   ->orWhere('fa.gestor_entrega', Auth::id());
                            });
                     });
             });

@@ -94,7 +94,8 @@
         <thead>
             <tr>
                 <th>#</th>
-                <th>VENDEDOR</th>
+                <th>ASESOR COMERCIAL</th>
+                <th>TELEASESOR</th>
                 <th>CLIENTE</th>
                 <th>FACTURA</th>
                 <th>OBSERVACIÓN</th>
@@ -128,7 +129,8 @@
             @foreach($facturas as $r)
             <tr>
                 <td>{{ $r->item }}</td>
-                <td class="text-left">{{ $r->vendedor }}</td>
+                <td class="text-left">{{ $r->asesor_comercial ?? '' }}</td>
+                <td class="text-left">{{ $r->teleasesor ?? '' }}</td>
                 <td class="text-left">{{ $r->cliente }}</td>
                 <td>{{ $r->numero_secuencia_cai }}</td>
                 <td class="text-left">{{ $r->observacion }}</td>
