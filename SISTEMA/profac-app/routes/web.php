@@ -620,6 +620,12 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::post('/usuario/actualizar', [ListarUsuarios::class, 'actualizarUsuarios']);
     Route::post('/usuario/cambiar-contrasena', [ListarUsuarios::class, 'cambiarContrasenaUsuario']);
 
+    /*------------------------------------------------ROLES ADICIONALES (multi-rol) del usuario */
+    Route::get('/usuario/{idUsuario}/roles-adicionales', [ListarUsuarios::class, 'obtenerRolesAdicionales']);
+    Route::get('/usuario/{idUsuario}/roles-adicionales/buscar', [ListarUsuarios::class, 'buscarRolesAdicionalesDisponibles']);
+    Route::post('/usuario/{idUsuario}/roles-adicionales/agregar', [ListarUsuarios::class, 'agregarRolAdicional']);
+    Route::post('/usuario/{idUsuario}/roles-adicionales/quitar', [ListarUsuarios::class, 'quitarRolAdicional']);
+
     //-----------------------------------------------Roles-------------------------------------------------------------------------------------------//
     Route::get('/usuarios/roles', App\Http\Livewire\Usuarios\Roles::class)->name('roles.gestion');
     Route::get('/roles/listar', [App\Http\Livewire\Usuarios\Roles::class, 'listarRoles']);
@@ -636,6 +642,12 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/usuarios/{id}/rol-anterior', [App\Http\Livewire\Usuarios\Roles::class, 'obtenerRolAnteriorUsuario']);
     Route::get('/roles/{id}/permisos', [App\Http\Livewire\Usuarios\Roles::class, 'obtenerPermisosDelRol']);
     Route::get('/submenus/todos', [App\Http\Livewire\Usuarios\Roles::class, 'listarTodosSubmenus']);
+
+    /*------------------------------------------------USUARIOS ADICIONALES (multi-rol) del rol */
+    Route::get('/roles/{id}/usuarios-adicionales', [App\Http\Livewire\Usuarios\Roles::class, 'obtenerUsuariosAdicionalesDelRol']);
+    Route::get('/roles/{id}/usuarios-adicionales/buscar', [App\Http\Livewire\Usuarios\Roles::class, 'buscarUsuariosAdicionalesDisponibles']);
+    Route::post('/roles/{id}/usuarios-adicionales/agregar', [App\Http\Livewire\Usuarios\Roles::class, 'agregarUsuarioAdicionalAlRol']);
+    Route::post('/roles/{id}/usuarios-adicionales/quitar', [App\Http\Livewire\Usuarios\Roles::class, 'quitarUsuarioAdicionalDelRol']);
     // Catálogos de jerarquía de roles
     Route::get('/roles/catalogos/niveles', [App\Http\Livewire\Usuarios\Roles::class, 'listarNiveles'])->name('roles.niveles');
     Route::get('/roles/catalogos/areas',   [App\Http\Livewire\Usuarios\Roles::class, 'listarAreas'])->name('roles.areas');
@@ -872,6 +884,9 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
 
     Route::get('/proforma/cotizacion/{id}', Cotizacion::class);
     Route::get('/cotizacion/clientes', [Cotizacion::class, 'listarClientes']);
+    Route::post('/cotizacion/asesor-asignado', [Cotizacion::class, 'obtenerAsesorAsignado']);
+    Route::get('/cotizacion/vendedores-asignados', [Cotizacion::class, 'listadoVendedoresAsignados']);
+    Route::get('/cotizacion/actores-asignados', [Cotizacion::class, 'listadoActoresAsignados']);
     Route::post('/guardar/cotizacion', [Cotizacion::class, 'guardarCotizacion']);
     Route::post('/cotizacion/adjunto/subir', [Cotizacion::class, 'subirAdjunto']);
 
@@ -1460,6 +1475,7 @@ Route::get('/reporte/ventas-cobros/exportar-excel-estado/{token}',              
 Route::get('/reporte/ventas-cobros/exportar-excel-descargar/{token}',                                [ReporteVentasCobros::class, 'descargarExportExcel'])->name('reporte.ventas_cobros.excel.descargar');
 Route::get('/reporte/ventas-cobros/datos',                                                          [ReporteVentasCobros::class, 'consultaDatos']);
 Route::get('/reporte/ventas-cobros/kpis',                                                           [ReporteVentasCobros::class, 'kpis']);
+Route::get('/reporte/ventas-cobros/actores',                                                        [ReporteVentasCobros::class, 'actoresPorFechas']);
 Route::get('/reporte/ventas-cobros/expediente/{facturaId}',                                         [ReporteVentasCobros::class, 'expediente']);
 Route::post('/reporte/ventas-cobros/actualizar-f01/{facturaId}',                                    [ReporteVentasCobros::class, 'actualizarF01'])->name('reporte.ventas_cobros.actualizar_f01');
 
@@ -1523,11 +1539,19 @@ Route::post('/reporte/ventas-cobros/actualizar-f01/{facturaId}',                
     Route::get('/logistica/reporte_logistica',        ReporteLogistica::class);
     Route::get('/logistica/reportes/filtros',         [ReporteLogistica::class, 'obtenerFiltros']);
     Route::get('/logistica/reportes/kpis',            [ReporteLogistica::class, 'obtenerKPIs']);
+    Route::get('/logistica/reportes/pendientes-reales', [ReporteLogistica::class, 'obtenerPendientesReales']);
     Route::get('/logistica/reportes/evolucion',       [ReporteLogistica::class, 'obtenerEvolucion']);
     Route::get('/logistica/reportes/por-equipo',      [ReporteLogistica::class, 'obtenerPorEquipo']);
     Route::get('/logistica/reportes/estados',         [ReporteLogistica::class, 'obtenerEstados']);
     Route::get('/logistica/reportes/tabla',           [ReporteLogistica::class, 'obtenerTabla']);
     Route::get('/logistica/reportes/tabla-facturas',  [ReporteLogistica::class, 'obtenerTablaFacturas']);
+    Route::get('/logistica/reportes/facturas-sin-asignar', [ReporteLogistica::class, 'obtenerFacturasSinAsignar']);
+    Route::get('/logistica/reportes/tabla-equipos',   [ReporteLogistica::class, 'obtenerTablaEquipos']);
+    Route::get('/logistica/reportes/detalle-equipo',  [ReporteLogistica::class, 'obtenerDetalleEquipo']);
+    Route::get('/logistica/reportes/exportar-excel-equipos', [ReporteLogistica::class, 'exportarExcelEquipos']);
+    Route::get('/logistica/reportes/exportar-excel-distribucion', [ReporteLogistica::class, 'exportarExcelDistribucion']);
+    Route::get('/logistica/reportes/exportar-excel-facturas', [ReporteLogistica::class, 'exportarExcelFacturas']);
+    Route::get('/logistica/reportes/exportar-excel-resumen-detalle', [ReporteLogistica::class, 'exportarExcelResumenDetalle']);
 
 
 
@@ -1566,6 +1590,61 @@ Route::post('/reporte/ventas-cobros/actualizar-f01/{facturaId}',                
     Route::get('/flujo_de_venta/modificar_actores_en_factura', \App\Http\Livewire\FlujoDeVenta\ModificarActoresEnFactura::class)
         ->name('flujo_de_venta.modificar_actores_en_factura');
 
+
+    // Ruta auto-generada para: LogisticaDeEntregas\AgrupacionesDeEntregas
+    Route::get('/logistica_de_entregas/agrupaciones_de_entregas', \App\Http\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class);
+
+    // Agrupación de Facturas por Zona Geográfica (Zonas)
+    Route::get('/logistica/zonas/listar', [\App\Http\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'listarZonas'])->name('logistica.zonas.listar');
+    Route::get('/logistica/zonas/departamentos', [\App\Http\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'obtenerDepartamentos'])->name('logistica.zonas.departamentos');
+    Route::get('/logistica/zonas/municipios/{departamentoId}', [\App\Http\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'obtenerMunicipios'])->name('logistica.zonas.municipios');
+    Route::get('/logistica/zonas/obtener/{id}', [\App\Http\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'obtenerZona'])->name('logistica.zonas.obtener');
+    Route::post('/logistica/zonas/guardar', [\App\Http\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'guardarZona'])->name('logistica.zonas.guardar');
+    Route::post('/logistica/zonas/actualizar', [\App\Http\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'actualizarZona'])->name('logistica.zonas.actualizar');
+    Route::post('/logistica/zonas/eliminar/{id}', [\App\Http\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'eliminarZona'])->name('logistica.zonas.eliminar');
+    Route::post('/logistica/zonas/reordenar', [\App\Http\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'reordenarZonas'])->name('logistica.zonas.reordenar');
+    Route::get('/logistica/zonas/resumen', [\App\Http\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'resumenZonas'])->name('logistica.zonas.resumen');
+    Route::get('/logistica/zonas/facturas', [\App\Http\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'facturasPorZona'])->name('logistica.zonas.facturas');
+
+
+    // Ruta auto-generada para: LogisticaDeEntregas\GestionDeFacturas
+    Route::get('/logistica_de_entregas/gestion_de_facturas', \App\Http\Livewire\LogisticaDeEntregas\GestionDeFacturas::class);
+
+    // Gestión de Distribución de Entregas (tratamiento y asignación por gestor)
+    Route::get('/logistica/gestion/sin-gestor', [\App\Http\Livewire\LogisticaDeEntregas\GestionDeFacturas::class, 'listarSinGestor'])->name('logistica.gestion.singestor');
+    Route::get('/logistica/gestion/sin-tratar', [\App\Http\Livewire\LogisticaDeEntregas\GestionDeFacturas::class, 'listarSinTratar'])->name('logistica.gestion.sintratar');
+    Route::get('/logistica/gestion/tratadas', [\App\Http\Livewire\LogisticaDeEntregas\GestionDeFacturas::class, 'listarTratadas'])->name('logistica.gestion.tratadas');
+    Route::get('/logistica/gestion/asignadas', [\App\Http\Livewire\LogisticaDeEntregas\GestionDeFacturas::class, 'listarAsignadas'])->name('logistica.gestion.asignadas');
+    Route::get('/logistica/gestion/completadas', [\App\Http\Livewire\LogisticaDeEntregas\GestionDeFacturas::class, 'listarCompletadas'])->name('logistica.gestion.completadas');
+    Route::get('/logistica/gestion/resumen', [\App\Http\Livewire\LogisticaDeEntregas\GestionDeFacturas::class, 'resumenEstados'])->name('logistica.gestion.resumen');
+    Route::post('/logistica/gestion/tratar', [\App\Http\Livewire\LogisticaDeEntregas\GestionDeFacturas::class, 'tratarFacturas'])->name('logistica.gestion.tratar');
+    Route::post('/logistica/gestion/asignar', [\App\Http\Livewire\LogisticaDeEntregas\GestionDeFacturas::class, 'asignarEquipo'])->name('logistica.gestion.asignar');
+    Route::get('/logistica/gestion/historial/{facturaId}', [\App\Http\Livewire\LogisticaDeEntregas\GestionDeFacturas::class, 'historialFactura'])->name('logistica.gestion.historial');
+
+
+    // Ruta auto-generada para: FlujoDeVenta\CarteraDeClientes
+    Route::get('/flujo_de_venta/cartera_de_clientes', \App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class);
+
+    // Cartera de Clientes - endpoints de listado, filtros, asignación e historial
+    Route::get('/flujo_de_venta/cartera_de_clientes/listar', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'listar'])->name('cartera_clientes.listar');
+    Route::get('/flujo_de_venta/cartera_de_clientes/listar-ids', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'listarIds'])->name('cartera_clientes.listar_ids');
+    Route::get('/flujo_de_venta/cartera_de_clientes/exportar-excel', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'exportarExcel'])->name('cartera_clientes.exportar_excel');
+    Route::get('/flujo_de_venta/cartera_de_clientes/agrupado', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'listarAgrupado'])->name('cartera_clientes.agrupado');
+    Route::get('/flujo_de_venta/cartera_de_clientes/clientes', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'buscarClientes'])->name('cartera_clientes.clientes');
+    Route::get('/flujo_de_venta/cartera_de_clientes/usuarios', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'buscarUsuarios'])->name('cartera_clientes.usuarios');
+    Route::get('/flujo_de_venta/cartera_de_clientes/datos/{id}', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'datosCliente'])->name('cartera_clientes.datos');
+    Route::get('/flujo_de_venta/cartera_de_clientes/historial/{id}', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'historialCliente'])->name('cartera_clientes.historial');
+    Route::post('/flujo_de_venta/cartera_de_clientes/historial-masivo', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'historialMasivo'])->name('cartera_clientes.historial_masivo');
+    Route::post('/flujo_de_venta/cartera_de_clientes/asignar', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'asignarIndividual'])->name('cartera_clientes.asignar');
+    Route::post('/flujo_de_venta/cartera_de_clientes/asignar-masivo', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'asignarMasivo'])->name('cartera_clientes.asignar_masivo');
+    Route::get('/flujo_de_venta/cartera_de_clientes/zonas', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'listarZonas'])->name('cartera_clientes.zonas');
+    Route::get('/flujo_de_venta/cartera_de_clientes/zonas-catalogos', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'catalogosZonas'])->name('cartera_clientes.zonas_catalogos');
+    Route::get('/flujo_de_venta/cartera_de_clientes/zona/{id}', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'datosZona'])->name('cartera_clientes.zona_datos');
+    Route::get('/flujo_de_venta/cartera_de_clientes/zona-clientes-buscar', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'buscarClientesZona'])->name('cartera_clientes.zona_clientes_buscar');
+    Route::post('/flujo_de_venta/cartera_de_clientes/zona-guardar', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'guardarZona'])->name('cartera_clientes.zona_guardar');
+    Route::post('/flujo_de_venta/cartera_de_clientes/zona-asignar-clientes', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'asignarClientesZona'])->name('cartera_clientes.zona_asignar_clientes');
+    Route::post('/flujo_de_venta/cartera_de_clientes/zona-quitar-cliente', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'quitarClienteZona'])->name('cartera_clientes.zona_quitar_cliente');
+    Route::get('/flujo_de_venta/cartera_de_clientes/zona-historial/{id}', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'historialZona'])->name('cartera_clientes.zona_historial');
 
     // [auto-routes-anchor]
 });

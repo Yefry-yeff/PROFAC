@@ -91,12 +91,31 @@ class ListarHistorialPedidos extends Component
             );
 
         // ── Filtro por usuario ─────────────────────────────────────────────
-        // El administrador ve todo; los vendedores sólo ven los flujos
-        // donde el cliente esté asignado al vendedor o el pedido lo creó el usuario.
+        // El administrador ve todo; los demás ven flujos propios, clientes
+        // asignados como asesor/teleasesor o facturas donde son actores.
         if (!$this->esAdmin) {
             $q->where(function ($sub) {
                 $sub->where('c.vendedor', Auth::id())
-                    ->orWhere('p.users_id', Auth::id());
+                    ->orWhere('p.users_id', Auth::id())
+                    ->orWhereExists(function ($existe) {
+                        $existe->select(DB::raw(1))
+                            ->from('cliente_usuario as cu')
+                            ->whereColumn('cu.cliente_id', 'c.id')
+                            ->where('cu.usuario_id', Auth::id())
+                            ->whereIn('cu.rol_id', [2, 3]);
+                    })
+                    ->orWhereExists(function ($invoiceActor) {
+                        $invoiceActor->select(DB::raw(1))
+                            ->from('historico_flujo as hff')
+                            ->join('factura as fa', 'fa.id', '=', 'hff.tramite_id')
+                            ->whereColumn('hff.flujo_id', 'f.id')
+                            ->where('hff.tipo_tramite_id', 3)
+                            ->where(function ($actor) {
+                                $actor->where('fa.vendedor', Auth::id())
+                                    ->orWhere('fa.users_id', Auth::id())
+                                    ->orWhere('fa.gestor_entrega', Auth::id());
+                            });
+                    });
             });
         }
 

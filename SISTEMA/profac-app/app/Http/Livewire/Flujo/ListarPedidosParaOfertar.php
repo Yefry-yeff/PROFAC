@@ -111,7 +111,14 @@ class ListarPedidosParaOfertar extends Component
             ->where('f.tipo_tramite_id', 1)
             ->where(function ($sub) {
                 $sub->where('p.users_id', Auth::id())
-                    ->orWhere('c.vendedor', Auth::id());
+                    ->orWhere('c.vendedor', Auth::id())
+                    ->orWhereExists(function ($assigned) {
+                        $assigned->select(DB::raw(1))
+                            ->from('cliente_usuario as cu')
+                            ->whereColumn('cu.cliente_id', 'c.id')
+                            ->where('cu.usuario_id', Auth::id())
+                            ->whereIn('cu.rol_id', [2, 3]);
+                    });
             })
             ->whereNotIn('p.estado', ['cancelado'])
             ->whereRaw('NOT EXISTS (SELECT 1 FROM historico_flujo hf WHERE hf.flujo_id = f.id AND hf.tipo_tramite_id = 2)')
@@ -171,7 +178,14 @@ class ListarPedidosParaOfertar extends Component
             ->where('f.tipo_flujo_id', 1)
             ->where(function ($sub) {
                 $sub->where('p.users_id', Auth::id())
-                    ->orWhere('c.vendedor', Auth::id());
+                    ->orWhere('c.vendedor', Auth::id())
+                    ->orWhereExists(function ($assigned) {
+                        $assigned->select(DB::raw(1))
+                            ->from('cliente_usuario as cu')
+                            ->whereColumn('cu.cliente_id', 'c.id')
+                            ->where('cu.usuario_id', Auth::id())
+                            ->whereIn('cu.rol_id', [2, 3]);
+                    });
             })
             ->whereExists(function ($q) {
                 $q->select(DB::raw(1))
@@ -196,7 +210,17 @@ class ListarPedidosParaOfertar extends Component
             ->join('tipos_tramites as tt', 'tt.id', '=', 'f.tipo_tramite_id')
             ->join('cotizacion as o', DB::raw('CAST(f.identificacion AS UNSIGNED)'), '=', 'o.id')
             ->where('f.tipo_flujo_id', 1)
-            ->where('o.users_id', Auth::id())
+            ->where(function ($sub) {
+                $sub->where('o.users_id', Auth::id())
+                    ->orWhere('o.vendedor', Auth::id())
+                    ->orWhereExists(function ($assigned) {
+                        $assigned->select(DB::raw(1))
+                            ->from('cliente_usuario as cu')
+                            ->whereColumn('cu.cliente_id', 'o.cliente_id')
+                            ->where('cu.usuario_id', Auth::id())
+                            ->whereIn('cu.rol_id', [2, 3]);
+                    });
+            })
             ->whereNotExists(function ($q) {
                 $q->select(DB::raw(1))
                   ->from('historico_flujo as hf')

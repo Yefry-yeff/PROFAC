@@ -4,6 +4,7 @@
 
 namespace App\Http\Livewire\Ventas;
 
+use App\Support\ClienteActoresAsignados;
 use Livewire\Component;
 
 
@@ -791,6 +792,12 @@ class FacturacionEstatal extends Component
         }
 
         $teleAsesorId = $request->tele_asesor ? (int) $request->tele_asesor : Auth::user()->id;
+        ClienteActoresAsignados::validar(
+            (int) $request->seleccionarCliente,
+            $teleAsesorId,
+            ClienteActoresAsignados::ROL_TELE_ASESOR,
+            'tele_asesor'
+        );
 
         if ($request->restriccion == 1) {
             $facturaVencida = $this->comprobarFacturaVencida($request->seleccionarCliente);

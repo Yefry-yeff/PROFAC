@@ -30,10 +30,10 @@
     #tbl_libro_venta thead th { background:#fdf4e7; color:#7d3f00; font-size:.72rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; border-bottom:2px solid #f2d49a; white-space:nowrap; padding:8px 10px; vertical-align:middle; }
     #tbl_libro_venta tbody td { font-size:.83rem; vertical-align:middle; padding:8px 10px; }
     #tbl_libro_venta tbody tr:hover>td { background:#fffcf5; }
-    #tbl_libro_venta thead th:nth-child(4) { background:#e8f7ee; color:#1a7a4e; }
-    #tbl_libro_venta tbody td:nth-child(4) { background:#f0fdf4; font-weight:700; color:#1a7a4e; }
-    #tbl_libro_venta thead th:nth-child(4),
-    #tbl_libro_venta tbody td:nth-child(4) { border-left:3px solid #f2d49a!important; }
+    #tbl_libro_venta thead th:nth-child(5) { background:#e8f7ee; color:#1a7a4e; }
+    #tbl_libro_venta tbody td:nth-child(5) { background:#f0fdf4; font-weight:700; color:#1a7a4e; }
+    #tbl_libro_venta thead th:nth-child(5),
+    #tbl_libro_venta tbody td:nth-child(5) { border-left:3px solid #f2d49a!important; }
     .modal-header-rvc { background:var(--pf-grad); color:#fff; border-radius:var(--pf-radius) var(--pf-radius) 0 0; padding:14px 20px; }
     .modal-header-rvc .modal-title { color:#fff; font-size:.95rem; font-weight:700; }
     .modal-header-rvc .close { color:#fff; opacity:.8; text-shadow:none; font-size:1.4rem; }
@@ -123,7 +123,8 @@
                             <table id="tbl_libro_venta" class="table table-hover table-bordered" style="width:100%;">
                                 <thead>
                                     <tr>
-                                        <th>Vendedor</th>
+                                        <th>Asesor Comercial</th>
+                                        <th>Teleasesor</th>
                                         <th>Cliente</th>
                                         <th>Factura</th>
                                         <th>Exonerado</th>
@@ -213,7 +214,7 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label>Vendedor</label>
+                                    <label>Asesor Comercial</label>
                                     <select id="fil_lv_vendedor" class="form-control form-control-sm" style="width:100%">
                                         <option value=""></option>
                                         @foreach($vendedores as $v)

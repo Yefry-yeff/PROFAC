@@ -543,7 +543,10 @@
             </div>
             <div class="table-wrap">
                 <div class="table-responsive">
-                    <table id="tbl_lotes_listar" class="table table-hover" style="width:100%">
+                    <table id="tbl_lotes_listar" class="table table-hover" style="width:100%"
+                           data-producto-codigo="{{ $producto->id }}"
+                           data-producto-nombre="{{ $producto->nombre }}"
+                           data-usuario-descarga="{{ optional(Auth::user())->name ?? 'Sistema' }}">
                         <thead>
                             <tr>
                                 <th>#</th>
@@ -944,6 +947,7 @@
     </div>
 
     @push('scripts')
+    <script src="//cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
     <script src="{{ asset('js/js_proyecto/inventario/modal-foto-producto.js') }}?v={{ filemtime(public_path('js/js_proyecto/inventario/modal-foto-producto.js')) }}"></script>
     <script src="{{ asset('js/js_proyecto/inventario/detalle-producto.js') }}?v={{ filemtime(public_path('js/js_proyecto/inventario/detalle-producto.js')) }}"></script>
     <script>

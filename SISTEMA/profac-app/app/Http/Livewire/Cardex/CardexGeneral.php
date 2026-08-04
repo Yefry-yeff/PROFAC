@@ -31,6 +31,11 @@ class CardexGeneral extends Component
             $idDocumento      = trim($request->input('idDocumento', ''));
             $filtroDesde      = trim($request->input('filtroDesde', $fecha_inicio));
             $filtroHasta      = trim($request->input('filtroHasta', $fecha_final));
+            $desdeOrigen      = $request->boolean('desdeOrigen');
+
+            if ($desdeOrigen) {
+                $filtroDesde = '';
+            }
 
             $pick = function (array $candidates) {
                 foreach ($candidates as $candidate) {
@@ -256,15 +261,9 @@ class CardexGeneral extends Component
             }
 
             if ($filtroProducto !== '') {
-                $query->where(function ($q) use ($filtroProducto, $colProductoId) {
-                    if ($colProductoId) {
-                        $q->where("c.$colProductoId", 'like', "%{$filtroProducto}%")
-                          ->orWhere('c.producto', 'like', "%{$filtroProducto}%")
-                          ->orWhere('p.nombre', 'like', "%{$filtroProducto}%");
-                    } else {
-                        $q->where('c.producto', 'like', "%{$filtroProducto}%");
-                    }
-                });
+                if ($colProductoId) {
+                    $query->where("c.$colProductoId", (int) $filtroProducto);
+                }
             }
 
             if ($filtroCai !== '') {

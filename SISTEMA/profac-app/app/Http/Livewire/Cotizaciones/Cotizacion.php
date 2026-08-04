@@ -2,6 +2,7 @@
 
 namespace App\Http\Livewire\Cotizaciones;
 
+use App\Support\ClienteActoresAsignados;
 use Livewire\Component;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\File;
@@ -225,9 +226,23 @@ class Cotizacion extends Component
                       ->orWhere('nombre', 'LIKE', $like);
                 });
 
-            // Admin (1) y Tele asesor (3) ven todos; usuarios especiales 121/122 también; los demás solo sus asignados
+            // Los roles comerciales ven clientes asignados en cualquiera de sus funciones comerciales.
             $specialUsers = [121, 122];
-            if (!in_array($rolId, [1, 3], true) && !in_array(Auth::id(), $specialUsers, true)) {
+            if (in_array((int) $rolId, [
+                ClienteActoresAsignados::ROL_ASESOR_COMERCIAL,
+                ClienteActoresAsignados::ROL_TELE_ASESOR,
+            ], true)) {
+                $query->whereExists(function ($subquery) {
+                    $subquery->select(DB::raw(1))
+                        ->from('cliente_usuario as cu')
+                        ->whereColumn('cu.cliente_id', 'cliente.id')
+                        ->where('cu.usuario_id', Auth::id())
+                        ->whereIn('cu.rol_id', [
+                            ClienteActoresAsignados::ROL_ASESOR_COMERCIAL,
+                            ClienteActoresAsignados::ROL_TELE_ASESOR,
+                        ]);
+                });
+            } elseif ($rolId !== 1 && !in_array(Auth::id(), $specialUsers, true)) {
                 $query->where('vendedor', Auth::id());
             }
 
@@ -241,6 +256,48 @@ class Cotizacion extends Component
                 'error' => $e
             ], 402);
         }
+    }
+
+    public function listadoActoresAsignados(Request $request)
+    {
+        $datos = $request->validate([
+            'cliente_id' => 'required|integer|exists:cliente,id',
+            'rol_id' => 'required|integer|in:2,3',
+            'search' => 'nullable|string|max:150',
+        ]);
+
+        $usuarios = ClienteActoresAsignados::usuarios((int) $datos['cliente_id'], (int) $datos['rol_id']);
+        $busqueda = trim((string) ($datos['search'] ?? ''));
+        if ($busqueda !== '') {
+            $usuarios = $usuarios->filter(function ($usuario) use ($busqueda) {
+                return stripos($usuario->text, $busqueda) !== false;
+            })->values();
+        }
+
+        return response()->json([
+            'results' => $usuarios,
+            'bloqueado' => $usuarios->count() === 1,
+        ]);
+    }
+
+    public function listadoVendedoresAsignados(Request $request)
+    {
+        $request->merge(['rol_id' => ClienteActoresAsignados::ROL_ASESOR_COMERCIAL]);
+        return $this->listadoActoresAsignados($request);
+    }
+
+    public function obtenerAsesorAsignado(Request $request)
+    {
+        $request->merge(['rol_id' => ClienteActoresAsignados::ROL_ASESOR_COMERCIAL]);
+        $response = $this->listadoActoresAsignados($request);
+        $datos = $response->getData(true);
+        $asesores = $datos['results'] ?? [];
+
+        return response()->json([
+            'asesor' => count($asesores) === 1 ? $asesores[0] : null,
+            'asesores' => $asesores,
+            'puede_editar' => count($asesores) > 1,
+        ]);
     }
 
     public function clientesCorporativo(Request $request)
@@ -355,6 +412,7 @@ class Cotizacion extends Component
             'numeroInputs' => 'required',
             'seleccionarCliente' => 'required',
             'nombre_cliente_ventas' => 'required',
+            'vendedor' => 'required|integer|exists:users,id',
             // bodega y seleccionarProducto son campos del buscador de productos,
             // no son datos a guardar — los productos reales vienen en bodega{idx}, idProducto{idx}, etc.
 
@@ -372,6 +430,13 @@ class Cotizacion extends Component
                 'errors' => $validator->errors()
             ], 401);
         }
+
+        ClienteActoresAsignados::validar(
+            (int) $request->seleccionarCliente,
+            (int) $request->vendedor,
+            ClienteActoresAsignados::ROL_ASESOR_COMERCIAL,
+            'vendedor'
+        );
 
 
         $arrayTemporal = $request->arregloIdInputs;

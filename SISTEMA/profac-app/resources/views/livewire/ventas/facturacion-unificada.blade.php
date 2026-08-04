@@ -576,7 +576,8 @@
                                     <label class="ofr-label">Fecha Emisión <span class="req">*</span></label>
                                     <input class="form-control form-control-sm" type="date" id="fecha_emision"
                                         onchange="sumarDiasCredito()" name="fecha_emision"
-                                        value="{{ date('Y-m-d') }}" data-parsley-required>
+                                        value="{{ date('Y-m-d') }}" data-parsley-required
+                                        @if(request()->query('modo') === 'editar_factura') readonly @endif>
                                 </div>
                                 {{-- Fecha vencimiento --}}
                                 <div class="col-12 col-md-4">
@@ -699,10 +700,12 @@
                                         <div class="input-group">
                                             <input type="text" id="codigoProductoBuscar" class="form-control form-control-sm"
                                                 placeholder="ID o nombre del producto…" autocomplete="off"
-                                                onkeydown="if(event.key==='Enter'){buscarPorCodigo(this.value);return false;}">
+                                                onfocus="manejarFocoBusquedaProducto()"
+                                                oninput="prepararNuevaBusquedaProducto(this.value)"
+                                                onkeydown="if(event.key==='Enter'){event.preventDefault();buscarPorCodigo(this.value);return false;}">
                                             <div class="input-group-append">
                                                 <button type="button" class="btn btn-primary btn-sm" title="Buscar producto"
-                                                    onclick="limpiarProducto(); window['abrirBuscador_buscadorProductoUnificado'](document.getElementById('codigoProductoBuscar').value||'')">
+                                                    onclick="abrirBusquedaProductoActual()">
                                                     <i class="fa fa-search"></i>
                                                 </button>
                                             </div>
@@ -1764,7 +1767,7 @@
             bodegas: '/estatal/listar/bodegas/{idProducto}',
             imprimir: '/cotizacion/imprimir/{id}',
             historial_precios: '/estatal/historial/precios',
-            vendedores: '/ventas/corporativo/vendedores',
+            vendedores: '/cotizacion/vendedores-asignados',
             orden_compra: null,
             codigos_exoneracion: null
         }
@@ -1778,6 +1781,10 @@
     var arregloIdInputs = [];
     var retencionEstado = false;
     var diasCredito = 0;
+    var diasCreditoAprobadosFlujo = null;
+    var modoEditarFactura = new URLSearchParams(window.location.search).get('modo') === 'editar_factura';
+    var secuenciaBusquedaProducto = 0;
+    var omitirLimpiezaFocoProducto = false;
     var idAutorizacion = 0;
     var idFactura = 0;
     var public_path = "{{ asset('catalogo/') }}";
@@ -1813,7 +1820,13 @@
             ajax: {
                 url: urlVendedores,
                 data: function(params) {
-                    return { search: params.term, type: 'public', page: params.page || 1 };
+                    var clienteSel = document.getElementById('seleccionarCliente');
+                    return {
+                        search: params.term,
+                        type: 'public',
+                        page: params.page || 1,
+                        cliente_id: clienteSel ? clienteSel.value : null
+                    };
                 }
             }
         });
@@ -2036,6 +2049,9 @@
 
     window.addEventListener('pedido-seleccionado', function(e) {
         var d = e.detail;
+        diasCreditoAprobadosFlujo = (d.diasCreditoAprobados === null || typeof d.diasCreditoAprobados === 'undefined')
+            ? null
+            : Math.max(0, parseInt(d.diasCreditoAprobados, 10) || 0);
         // Re-habilitar Select2 de cliente (puede estar disabled en re-render)
         var selC = document.getElementById('seleccionarCliente');
         if (selC) selC.removeAttribute('disabled');
@@ -2059,6 +2075,7 @@
             var optV = new Option(d.vendedorNombre, d.vendedorId, true, true);
             $('#vendedor').append(optV).trigger('change');
         }
+        bloquearCamposEdicionFactura();
 
         aplicarDocumentosComercialesEnFormulario(d);
 
@@ -2068,6 +2085,8 @@
 
     window.addEventListener('pedido-desvinculado', function(e) {
         var d = e.detail;
+        diasCreditoAprobadosFlujo = null;
+        diasCredito = 0;
         // Habilitar cliente nuevamente
         $('#seleccionarCliente').prop('disabled', false);
         // Limpiar cliente
@@ -2165,41 +2184,135 @@
         document.getElementById('codigoProductoBuscar').value = '';
         var lbl = document.getElementById('productoSeleccionadoLabel');
         lbl.classList.add('d-none'); lbl.textContent = '';
+        $('#categoria_cliente_venta_id').empty()
+            .append('<option value="" selected disabled>--Seleccione primero un producto--</option>')
+            .prop('disabled', true);
+        $('#bodega').empty()
+            .append('<option value="" selected disabled>--Seleccione una categoría primero--</option>')
+            .prop('disabled', true);
+        document.getElementById('botonAdd').classList.add('d-none');
+        document.getElementById('bloqueImagenes').innerHTML = '';
         document.getElementById('historialPreciosPanel').querySelector('#historialPreciosCuerpo').innerHTML =
             '<p class="mb-0 text-muted small">Sin ventas previas de este producto a este cliente.</p>';
         document.getElementById('historialPreciosPanel').classList.remove('d-none');
     }
 
+    function prepararNuevaBusquedaProducto(valorActual) {
+        if (!document.getElementById('seleccionarProducto').value) return;
+        limpiarProducto();
+        document.getElementById('codigoProductoBuscar').value = valorActual || '';
+    }
+
+    function manejarFocoBusquedaProducto() {
+        if (!omitirLimpiezaFocoProducto) prepararNuevaBusquedaProducto('');
+    }
+
+    function enfocarBusquedaProducto() {
+        var campo = document.getElementById('codigoProductoBuscar');
+        omitirLimpiezaFocoProducto = true;
+        campo.focus();
+        omitirLimpiezaFocoProducto = false;
+    }
+
+    function reiniciarCapturaProducto() {
+        secuenciaBusquedaProducto++;
+        limpiarProducto();
+        enfocarBusquedaProducto();
+    }
+
+    function abrirBusquedaProductoActual() {
+        var campo = document.getElementById('codigoProductoBuscar');
+        var termino = campo.value.trim();
+        prepararNuevaBusquedaProducto(termino);
+        window['abrirBuscador_buscadorProductoUnificado'](termino);
+    }
+
     function alSeleccionarProducto(producto) {
         var select = document.getElementById('seleccionarProducto');
         select.innerHTML = '<option value="' + producto.id + '" selected>' + producto.nombre + '</option>';
-        document.getElementById('codigoProductoBuscar').value = producto.nombre;
+        var campoBusqueda = document.getElementById('codigoProductoBuscar');
+        campoBusqueda.value = '';
         var label = document.getElementById('productoSeleccionadoLabel');
         label.textContent = '✓ ' + producto.nombre + ' (ID: ' + producto.id + ')';
         label.classList.remove('d-none');
         cargarCategoriasProducto();
+        enfocarBusquedaProducto();
     }
 
     function buscarPorCodigo(cod) {
         cod = String(cod).trim();
         if (!cod) { window['abrirBuscador_buscadorProductoUnificado'](''); return; }
+        var secuenciaActual = ++secuenciaBusquedaProducto;
         axios.get('/productos/buscar', { params: { q: cod, page: 1 } })
             .then(function(r) {
-                var items = r.data.data;
-                var exact = items.find(function(p) { return String(p.id) === cod; });
+                if (secuenciaActual !== secuenciaBusquedaProducto) return;
+                var items = r.data.data || [];
+                var exact = items.find(function(p) {
+                    return String(p.id) === cod ||
+                        String(p.codigo_barra || '').trim() === cod ||
+                        String(p.codigo_estatal || '').trim() === cod;
+                });
                 if (exact) { alSeleccionarProducto(exact); }
                 else if (items.length === 1) { alSeleccionarProducto(items[0]); }
                 else { window['abrirBuscador_buscadorProductoUnificado'](cod); }
+            })
+            .catch(function() {
+                if (secuenciaActual !== secuenciaBusquedaProducto) return;
+                window['abrirBuscador_buscadorProductoUnificado'](cod);
             });
     }
+
+    $(document).on('hidden.bs.modal', '#buscadorProductoUnificado', function() {
+        enfocarBusquedaProducto();
+    });
 
     // ================================================================
     // CLIENTE
     // ================================================================
+    // ================================================================
+    // ASESOR COMERCIAL ASIGNADO (solo modo "Nueva Oferta" / cotizacion_clientes_a)
+    // Carga únicamente los asesores comerciales asignados al cliente en la cartera.
+    // ================================================================
+    function aplicarAsesorAsignado(idCliente) {
+        if (codigoActual !== 'cotizacion_clientes_a' || !idCliente) return;
+        if (modoEditarFactura) {
+            bloquearCamposEdicionFactura();
+            return;
+        }
+
+        axios.post('/cotizacion/asesor-asignado', { cliente_id: idCliente })
+            .then(response => {
+                var data = response.data;
+                var vendedorSelect = $('#vendedor');
+                var asesores = data.asesores || [];
+                vendedorSelect.empty();
+
+                if (asesores.length === 0) {
+                    vendedorSelect.append(new Option('Sin asesores asignados en cartera', '', true, false));
+                } else {
+                    if (asesores.length > 1) {
+                        vendedorSelect.append(new Option('-- Seleccionar asesor --', '', true, false));
+                    }
+                    asesores.forEach(function(asesor) {
+                        var seleccionado = asesores.length === 1;
+                        vendedorSelect.append(new Option(asesor.text, asesor.id, seleccionado, seleccionado));
+                    });
+                }
+
+                vendedorSelect.prop('disabled', asesores.length <= 1).trigger('change');
+                bloquearCamposEdicionFactura();
+            })
+            .catch(err => {
+                console.log(err);
+            });
+    }
+
     function obtenerDatosCliente() {
         let idCliente = document.getElementById("seleccionarCliente").value;
         if (!idCliente) return; // Evitar error al desvincular pedido
         var urlDatosCliente = urls.datos_cliente;
+
+        aplicarAsesorAsignado(idCliente);
 
         axios.post(urlDatosCliente, { id: idCliente })
             .then(response => {
@@ -2309,7 +2422,16 @@
 
                 // Si es duplicado de oferta, pre-seleccionar el tipo de pago original;
                 // si no, auto-seleccionar "Contado" por defecto
-                if (_ofertaDuplicada && _ofertaDuplicada.tipo_pago_id) {
+                if (diasCreditoAprobadosFlujo !== null) {
+                    var tipoPagoAprobado = diasCreditoAprobadosFlujo > 0 ? 2 : 1;
+                    for (let i = 0; i < selPago.options.length; i++) {
+                        if (parseInt(selPago.options[i].value, 10) === tipoPagoAprobado) {
+                            selPago.selectedIndex = i;
+                            break;
+                        }
+                    }
+                    diasCredito = diasCreditoAprobadosFlujo;
+                } else if (_ofertaDuplicada && _ofertaDuplicada.tipo_pago_id) {
                     for (let i = 0; i < selPago.options.length; i++) {
                         if (selPago.options[i].value == _ofertaDuplicada.tipo_pago_id) {
                             selPago.selectedIndex = i;
@@ -2326,6 +2448,7 @@
                 }
 
                 validarFechaPago();
+                bloquearCamposEdicionFactura();
 
                 // Pre-llenar campos adicionales de la oferta duplicada
                 if (_ofertaDuplicada) {
@@ -2371,6 +2494,7 @@
             cliente_categoria_escala_id: categoriaEscalaId
         })
             .then(response => {
+                if (String($('#seleccionarProducto').val() || '') !== String(productoId)) return;
                 let categorias = response.data.categorias;
                 if (categorias.length > 0) {
                     categorias.sort((a, b) => (parseFloat(b.precio_a) || 0) - (parseFloat(a.precio_a) || 0));
@@ -2494,6 +2618,7 @@
         let htmlImagenes = '';
         axios.post('/producto/listar/imagenes', { id: id })
             .then(response => {
+                if (String(document.getElementById('seleccionarProducto').value || '') !== String(id)) return;
                 let imagenes = response.data.imagenes;
                 let detalleUrl = '/producto/detalle/' + id;
                 if (imagenes.length == 0) {
@@ -2583,8 +2708,10 @@
                     htmlprecios = '<option value="' + producto.precio1 + '" data-id="p1" selected>' + producto.precio1 + ' - A</option>';
                 }
 
-                // Determinar el min del precio
-                let minPrecio = (tipoFacturaConfig && tipoFacturaConfig.multiples_precios) ? '' : 'min="' + producto.precio1 + '"';
+                // Precio de referencia de la escala seleccionada. NO se usa para bloquear la escritura
+                // (una Oferta debe poder guardarse con un valor menor); se valida al enviar el formulario
+                // en las facturas con restricción — ver validarPrecioEscalaAntesDeGuardar().
+                let precioEscalaRef = producto.precio1;
 
                 let html = `
                 <tr id='${numeroInputs}'>
@@ -2622,7 +2749,7 @@
                     </td>
                     <td style="vertical-align:middle; padding:4px 6px;">
                         <input type="number" id="precio${numeroInputs}" name="precio${numeroInputs}" value="${producto.precio1}" class="form-control form-control-sm"
-                            ${minPrecio} data-parsley-required step="any" autocomplete="off" style="min-width:80px; font-size:11px;"
+                            data-precio-escala="${precioEscalaRef}" data-parsley-required step="any" autocomplete="off" style="min-width:80px; font-size:11px;"
                             onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
                     </td>
                     <td style="vertical-align:middle; padding:4px 6px;">
@@ -2655,6 +2782,7 @@
                 document.getElementById('carritoVacio').classList.add('d-none');
                 document.getElementById('carritoTablaWrapper').classList.remove('d-none');
                 actualizarContadorCarrito();
+                reiniciarCapturaProducto();
             })
             .catch(err => {
                 const mensaje = err.response?.data?.message || 'Error al agregar producto';
@@ -2847,11 +2975,54 @@
         var idprecioIngresado = idprecio.id;
 
         document.getElementById(idprecioIngresado).value = precioSeleccionado;
+        // Guarda el precio de la escala seleccionada como referencia. No bloquea la escritura;
+        // se valida al enviar el formulario — ver validarPrecioEscalaAntesDeGuardar().
+        document.getElementById(idprecioIngresado).setAttribute("data-precio-escala", precioSeleccionado);
+    }
 
-        // Solo aplicar mínimo si NO es sin restricción
-        if (tipoFacturaConfig && !tipoFacturaConfig.multiples_precios) {
-            document.getElementById(idprecioIngresado).setAttribute("min", precioSeleccionado);
+    // ================================================================
+    // VALIDACIÓN: precio ingresado vs. precio de la escala seleccionada
+    // Aplica solo a facturas con restricción (no Ofertas, no Facturas SR).
+    // Las Ofertas pueden guardarse con un valor menor; las Facturas SR ya
+    // manejan su propio flujo de autorización (mostrarModalSrAutorizacion).
+    // ================================================================
+    function obtenerProductosPorDebajoEscala() {
+        var items = [];
+        for (var i = 0; i < arregloIdInputs.length; i++) {
+            var idx = arregloIdInputs[i];
+            var precioInput = document.getElementById('precio' + idx);
+            if (!precioInput) continue;
+            var precioEscala = parseFloat(precioInput.getAttribute('data-precio-escala'));
+            var precioIngresado = parseFloat(precioInput.value);
+            if (!isNaN(precioEscala) && precioEscala > 0 && !isNaN(precioIngresado) && precioIngresado < precioEscala) {
+                var nombreEl = document.getElementById('nombre' + idx);
+                items.push({
+                    nombre: nombreEl ? nombreEl.value : ('Producto #' + idx),
+                    precioEscala: precioEscala,
+                    precioIngresado: precioIngresado
+                });
+            }
         }
+        return items;
+    }
+
+    function mostrarErrorPrecioBajoEscala(productos) {
+        var filas = productos.map(function (p) {
+            return '<tr>'
+                + '<td style="padding:4px 8px; text-align:left;">' + p.nombre + '</td>'
+                + '<td style="padding:4px 8px; text-align:right;">L. ' + p.precioEscala.toFixed(2) + '</td>'
+                + '<td style="padding:4px 8px; text-align:right; color:#c62828; font-weight:700;">L. ' + p.precioIngresado.toFixed(2) + '</td>'
+                + '</tr>';
+        }).join('');
+
+        Swal.fire({
+            icon: 'error',
+            title: 'No se puede facturar',
+            width: 560,
+            html: '<p class="text-left">El valor ingresado es <b>menor</b> al precio de la escala seleccionada para uno o más productos:</p>'
+                + '<table class="table table-sm" style="font-size:12px;"><thead><tr><th>Producto</th><th>Escala</th><th>Ingresado</th></tr></thead><tbody>' + filas + '</tbody></table>'
+                + '<p class="text-left mt-2" style="margin-top:10px;">Si necesita facturar con un valor menor al de la escala, debe realizar la factura desde <b>Editar Factura</b> seleccionando el tipo <b>Factura SR</b>.</p>'
+        });
     }
 
     // ================================================================
@@ -2860,7 +3031,7 @@
     function validarFechaPago() {
         let tipoPago = document.getElementById('tipoPagoVenta').value;
         if (tipoPago == 2) {
-            document.getElementById('fecha_vencimiento').readOnly = false;
+            document.getElementById('fecha_vencimiento').readOnly = modoEditarFactura;
             sumarDiasCredito();
         } else {
             document.getElementById('fecha_vencimiento').value = "{{ date('Y-m-d') }}";
@@ -2872,10 +3043,24 @@
         let tipoPago = document.getElementById('tipoPagoVenta').value;
         if (tipoPago == 2) {
             let fechaEmision = document.getElementById("fecha_emision").value;
-            let date = new Date(fechaEmision);
+            if (!fechaEmision) return;
+            let date = new Date(fechaEmision + 'T00:00:00');
             date.setDate(date.getDate() + diasCredito);
             document.getElementById("fecha_vencimiento").value = date.toISOString().split('T')[0];
         }
+    }
+
+    if (modoEditarFactura) {
+        document.getElementById('fecha_emision').readOnly = true;
+        document.getElementById('fecha_vencimiento').readOnly = true;
+    }
+
+    function bloquearCamposEdicionFactura() {
+        if (!modoEditarFactura) return;
+        $('#vendedor').prop('disabled', true);
+        $('#tipoPagoVenta').prop('disabled', true);
+        document.getElementById('fecha_emision').readOnly = true;
+        document.getElementById('fecha_vencimiento').readOnly = true;
     }
 
     function obtenerOrdenesCompra() {
@@ -3655,6 +3840,15 @@
 
     $(document).on('submit', '#crear_venta', function(event) {
         event.preventDefault();
+        // 0. Facturas con restricción (no Oferta, no Factura SR): bloquear si algún precio
+        //    ingresado quedó por debajo del precio de la escala seleccionada.
+        if (codigoActual !== 'cotizacion_clientes_a' && !(tipoFacturaConfig && tipoFacturaConfig.multiples_precios)) {
+            var productosBajoEscala = obtenerProductosPorDebajoEscala();
+            if (productosBajoEscala.length > 0) {
+                mostrarErrorPrecioBajoEscala(productosBajoEscala);
+                return;
+            }
+        }
         // 1. Para facturas (no cotizaciones): mostrar modal de gestor de entrega primero
         if (codigoActual !== 'cotizacion_clientes_a') {
             var gestorHidden = document.getElementById('gestor_entrega_hidden');
@@ -3704,9 +3898,9 @@
 
     function mostrarModalGestorEntrega() {
         var urlVendedores = urls.vendedores;
+        var clienteId = $('#seleccionarCliente').val();
         var teleHidden = document.getElementById('tele_asesor_hidden');
         var teleIdActual = teleHidden && teleHidden.value ? teleHidden.value : '{{ Auth::id() }}';
-        var teleNombreActual = (teleHidden && teleHidden.getAttribute('data-name')) ? teleHidden.getAttribute('data-name') : {!! json_encode(Auth::user()->name ?? '') !!};
         // Inicializar select2 en el modal si aún no lo está
         if (!$('#gestor_entrega_modal').hasClass('select2-hidden-accessible')) {
             $('#gestor_entrega_modal').select2({
@@ -3726,22 +3920,31 @@
         if (!$('#tele_asesor_modal').hasClass('select2-hidden-accessible')) {
             $('#tele_asesor_modal').select2({
                 dropdownParent: $('#modal_gestor_entrega'),
-                ajax: {
-                    url: urlVendedores,
-                    data: function(params) {
-                        return { search: params.term, type: 'public', page: params.page || 1 };
-                    }
-                },
                 allowClear: false,
                 placeholder: '-- Seleccionar tele asesor --'
             });
         }
         $('#tele_asesor_modal').empty();
-        if (teleIdActual && teleNombreActual) {
-            $('#tele_asesor_modal').append(new Option(teleNombreActual, teleIdActual, true, true)).trigger('change');
-        } else {
-            $('#tele_asesor_modal').val(null).trigger('change');
-        }
+        $('#btn_confirmar_gestor').prop('disabled', true);
+        $.get('/cotizacion/actores-asignados', { cliente_id: clienteId, rol_id: 3 })
+            .done(function(data) {
+                var teleasesores = data.results || [];
+                var actualAsignado = teleasesores.some(function(usuario) {
+                    return Number(usuario.id) === Number(teleIdActual);
+                });
+                teleasesores.forEach(function(usuario) {
+                    var seleccionado = actualAsignado
+                        ? Number(usuario.id) === Number(teleIdActual)
+                        : teleasesores.length === 1;
+                    $('#tele_asesor_modal').append(
+                        new Option(usuario.text, usuario.id, seleccionado, seleccionado)
+                    );
+                });
+                $('#tele_asesor_modal').trigger('change');
+            })
+            .always(function() {
+                $('#btn_confirmar_gestor').prop('disabled', false);
+            });
         $('#modal_gestor_entrega').modal('show');
     }
 
@@ -3778,6 +3981,14 @@
         // Forzar inclusión del cliente aunque el select esté deshabilitado (pedido vinculado)
         var clienteVal = $('#seleccionarCliente').val();
         if (clienteVal) data.set('seleccionarCliente', clienteVal);
+
+        // Forzar inclusión del Asesor Comercial aunque el select esté deshabilitado
+        // (bloqueado por el asesor asignado en Cartera de Clientes)
+        var vendedorVal = $('#vendedor').val();
+        if (vendedorVal) data.set('vendedor', vendedorVal);
+
+        var tipoPagoVal = $('#tipoPagoVenta').val();
+        if (tipoPagoVal) data.set('tipoPagoVenta', tipoPagoVal);
 
         let longitudArreglo = arregloIdInputs.length;
         for (var i = 0; i < longitudArreglo; i++) {
@@ -3958,6 +4169,7 @@
                     vendedorId:    {!! (int)($vendedorDefault['id'] ?? 0) !!},
                     vendedorNombre:{!! json_encode($vendedorDefault['name'] ?? '') !!},
                     flujoId:       {!! json_encode($flujoVinculadoId ?? null) !!},
+                    diasCreditoAprobados: {!! json_encode($diasCreditoAprobados) !!},
                     numeroOrdenCompra: {!! json_encode($documentosComerciales['numero_orden_compra'] ?? null) !!},
                     archivoOrdenCompra: {!! json_encode($documentosComerciales['archivo_orden_compra'] ?? null) !!},
                     numeroFormaF01: {!! json_encode($documentosComerciales['numero_forma_f01'] ?? null) !!},
@@ -4180,8 +4392,9 @@
                         htmlprecios = '<option value="' + precioOpcFmt + '" data-id="p1" selected>' + precioOpcFmt + ' - Escala</option>';
                     }
 
-                    // min = precio de escala actual (precio mínimo de referencia)
-                    var minPrecio = (tipoFacturaConfig && tipoFacturaConfig.multiples_precios) ? '' : 'min="' + precioOpcFmt + '"';
+                    // Precio de referencia de la escala actual. NO bloquea la escritura (ver nota arriba);
+                    // se valida al enviar el formulario en las facturas con restricción.
+                    var precioEscalaRef = precioOpcFmt;
                     var cantidadUsar = prod.cantidad || 1;
                     var esSinExistencia = !(parseFloat(prod.resta_inventario || 0) > 0);
                     var bodegaTexto = esSinExistencia ? 'SIN EXISTENCIA' : (prod.nombre_bodega || '');
@@ -4227,7 +4440,7 @@
                         </td>
                         <td style="vertical-align:middle; padding:4px 6px;">
                             <input type="number" id="precio${idx}" name="precio${idx}" value="${precioUnidFmt}" class="form-control form-control-sm"
-                                ${minPrecio} data-parsley-required step="any" autocomplete="off" style="min-width:80px; font-size:11px;"
+                                data-precio-escala="${precioEscalaRef}" data-parsley-required step="any" autocomplete="off" style="min-width:80px; font-size:11px;"
                                 onchange="calcularTotales(precio${idx},cantidad${idx},${producto.isv},unidad${idx},${idx},restaInventario${idx})">
                         </td>
                         <td style="vertical-align:middle; padding:4px 6px;">

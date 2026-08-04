@@ -2615,21 +2615,26 @@
                     $('#swal-tele-asesor-select').select2({
                         dropdownParent: $('.swal-gestor-popup'),
                         placeholder: '-- Seleccionar tele asesor --',
-                        allowClear: false,
-                        ajax: {
-                            url: '/ventas/corporativo/vendedores',
-                            data: function(params) {
-                                return { search: params.term || '', type: 'public', page: params.page || 1 };
-                            },
-                            processResults: function(data) {
-                                return { results: data.results || [] };
-                            }
-                        }
+                        allowClear: false
                     });
-                    if (detail.tele_asesor_id && detail.tele_asesor_nombre) {
-                        var teleOption = new Option(detail.tele_asesor_nombre, detail.tele_asesor_id, true, true);
-                        $('#swal-tele-asesor-select').append(teleOption).trigger('change');
-                    }
+                    $.get('/cotizacion/actores-asignados', {
+                        cliente_id: detail.cliente_id,
+                        rol_id: 3
+                    }).done(function(data) {
+                        var teleasesores = data.results || [];
+                        var actualAsignado = teleasesores.some(function(usuario) {
+                            return Number(usuario.id) === Number(detail.tele_asesor_id);
+                        });
+                        teleasesores.forEach(function(usuario) {
+                            var seleccionado = actualAsignado
+                                ? Number(usuario.id) === Number(detail.tele_asesor_id)
+                                : teleasesores.length === 1;
+                            $('#swal-tele-asesor-select').append(
+                                new Option(usuario.text, usuario.id, seleccionado, seleccionado)
+                            );
+                        });
+                        $('#swal-tele-asesor-select').trigger('change');
+                    });
                     // Evitar que el clic en el dropdown de Select2 cierre el SweetAlert
                     $(document).on('mousedown.swal2gestorfix', '.select2-container', function(e) {
                         e.stopPropagation();

@@ -94,7 +94,8 @@
         <thead>
             <tr>
                 <th>#</th>
-                <th>VENDEDOR</th>
+                <th>ASESOR COMERCIAL</th>
+                <th>TELEASESOR</th>
                 <th>CLIENTE</th>
                 <th>FACTURA</th>
                 <th>OBSERVACIÓN</th>
@@ -110,6 +111,7 @@
                 <th>ISV</th>
                 <th>TOTAL</th>
                 <th class="readonly">SALDO PEND.</th>
+                <th>FATAL RET.</th>
                 <th>MONTO PAG.</th>
                 <th>MONTO RET.</th>
                 <th>NRO RET.</th>
@@ -128,7 +130,8 @@
             @foreach($facturas as $r)
             <tr>
                 <td>{{ $r->item }}</td>
-                <td class="text-left">{{ $r->vendedor }}</td>
+                <td class="text-left">{{ $r->asesor_comercial ?? '' }}</td>
+                <td class="text-left">{{ $r->teleasesor ?? '' }}</td>
                 <td class="text-left">{{ $r->cliente }}</td>
                 <td>{{ $r->numero_secuencia_cai }}</td>
                 <td class="text-left">{{ $r->observacion }}</td>
@@ -144,6 +147,7 @@
                 <td class="text-right">{{ lps($r->isv) }}</td>
                 <td class="text-right">{{ lps($r->total) }}</td>
                 <td class="text-right readonly">{{ lps($r->saldo_pendiente) }}</td>
+                <td>{{ round((float) $r->saldo_pendiente, 2) > 0 && round((float) $r->isv, 2) > 0 && round((float) $r->saldo_pendiente, 2) === round((float) $r->isv, 2) ? 'X' : '' }}</td>
                 <td class="text-right">{{ $r->monto_pagado > 0 ? lps($r->monto_pagado) : '-' }}</td>
                 <td class="text-right">{{ lps($r->monto_retencion ?? 0) }}</td>
                 <td class="text-left">{{ $r->numero_retencion ?? 'No aplica' }}</td>

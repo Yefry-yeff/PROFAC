@@ -79,7 +79,8 @@ function cargarTablaLV() {
             }
         },
         columns: [
-            { data: 'VENDEDOR' },
+            { data: 'ASESOR_COMERCIAL' },
+            { data: 'TELEASESOR' },
             { data: 'CLIENTE' },
             { data: 'FACTURA', render: function(d) { return '<strong>' + escHtmlLV(d) + '</strong>'; } },
             { data: 'EXONERADO', className: 'text-right', render: function(d) { return fmtLpsLV(d); } },
@@ -88,15 +89,14 @@ function cargarTablaLV() {
             { data: 'SUBTOTAL', className: 'text-right', render: function(d) { return fmtLpsLV(d); } },
             { data: 'ISV', className: 'text-right', render: function(d) { return fmtLpsLV(d); } },
             { data: 'TOTAL', className: 'text-right', render: function(d) { return '<strong>' + fmtLpsLV(d) + '</strong>'; } },
-            { data: 'FECHA VENTA', render: function(d) { return fmtFechaLV(d); } },
-            { data: 'ESTADO', visible: false }
+            { data: 'FECHA VENTA', render: function(d) { return fmtFechaLV(d); } }
         ],
         rowCallback: function(row, data) {
             if (parseInt(data.ESTADO) === 2) {
                 $(row).css({ 'color': '#999', 'text-decoration': 'line-through', 'font-style': 'italic' });
             }
         },
-        order: [[2, 'asc']],
+        order: [[3, 'asc']],
         pageLength: 25,
         dom: '<"row"<"col-sm-6"l><"col-sm-6"f>>rt<"row"<"col-sm-5"i><"col-sm-7"p>>',
         initComplete: function() {
@@ -123,7 +123,7 @@ function mostrarFiltrosActivosLV() {
     var defs = [
         { key: 'cliente',     el: '#fil_lv_cliente',     lbl: 'Cliente',      isSelect: true },
         { key: 'factura',     el: '#fil_lv_factura',     lbl: 'Factura',      isSelect: false },
-        { key: 'vendedor',    el: '#fil_lv_vendedor',    lbl: 'Vendedor',     isSelect: true },
+        { key: 'vendedor',    el: '#fil_lv_vendedor',    lbl: 'Asesor Comercial', isSelect: true },
         { key: 'modo_pago',   el: '#fil_lv_modo_pago',   lbl: 'Pago',         isSelect: true },
         { key: 'fecha_desde', el: '#fil_lv_fecha_desde', lbl: 'Desde',        isSelect: false },
         { key: 'fecha_hasta', el: '#fil_lv_fecha_hasta', lbl: 'Hasta',        isSelect: false }
@@ -193,7 +193,18 @@ function setDefaultDatesLV() {
  *  Aplicar filtros
  * ──────────────────────────────────────────────────────────────────── */
 function aplicarFiltrosLV() {
-    $('#modalFiltrosLV').modal('hide');
+    var $modal = $('#modalFiltrosLV');
+    var modalAbierto = $modal.hasClass('show') || $modal.hasClass('in');
+
+    if (modalAbierto) {
+        if (document.activeElement && $.contains($modal[0], document.activeElement)) {
+            document.activeElement.blur();
+        }
+        $modal.one('hidden.bs.modal', cargarTablaLV);
+        $modal.modal('hide');
+        return;
+    }
+
     cargarTablaLV();
 }
 

@@ -17,6 +17,7 @@ class DistribucionEntrega extends Model
         'users_id_creador',
         'hora_salida',
         'observaciones_salida',
+        'hora_llegada',
     ];
 
     protected $casts = [

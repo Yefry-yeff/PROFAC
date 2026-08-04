@@ -84,6 +84,25 @@ $('#cliente').select2({
     }
 });
 
+// La factura se puede buscar directamente por su número (cai/numero_factura) sin necesidad
+// de seleccionar un cliente primero. Si hay un cliente seleccionado, la búsqueda se acota a él.
+$('#factura').select2({
+    ajax: {
+        url: '/nota/credito/facturas',
+        data: function(params) {
+            var query = {
+                idCliente: document.getElementById('cliente').value || '',
+                search: params.term,
+                type: 'public',
+                page: params.page || 1
+            }
+
+            return query;
+        }
+
+    }
+});
+
 $('#motivo_nota').select2({
     ajax: {
         url: '/nota/credito/motivos',
@@ -206,27 +225,9 @@ function obtenerFacturasDeCliente() {
     document.getElementById('factura').innerHTML =
         ' <option value="" selected disabled>--Seleccionar una factura--</option>';
 
+    $('#factura').val(null).trigger('change');
+
     this.limpiarTablas();
-
-    let idCliente = document.getElementById('cliente').value
-
-    $('#factura').select2({
-        ajax: {
-            url: '/nota/credito/facturas',
-            data: function(params) {
-                var query = {
-                    idCliente: idCliente,
-                    search: params.term,
-                    type: 'public',
-                    page: params.page || 1
-                }
-
-                // Query parameters will be ?search=[term]&type=public
-                return query;
-            }
-
-        }
-    });
 }
 
 function datosFactura() {

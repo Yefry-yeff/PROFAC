@@ -443,7 +443,8 @@ class RevicionInventario extends Component
                 ->where('php.resta_inventario', 1)
                 ->select('php.producto_id', 'php.seccion_id', 'pf.id as prefactura_id',
                          'pf.flujo_id', 'pf.nombre_cliente', 'php.cantidad',
-                         'pf.fecha_emision', 'pf.fecha_vencimiento', 'sg.bodega_id')
+                         'pf.fecha_emision', 'sg.bodega_id')
+                ->selectRaw("DATE(TIMESTAMPADD(DAY, COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7), COALESCE(pf.created_at, CONCAT(COALESCE(pf.fecha_emision, CURDATE()), ' 00:00:00')))) as fecha_vencimiento_reserva")
                 ->get();
 
             $cacheReservaCompleta = [];
@@ -1020,9 +1021,9 @@ class RevicionInventario extends Component
                 'pf.flujo_id',
                 'pf.nombre_cliente',
                 'php.cantidad',
-                'pf.fecha_emision',
-                'pf.fecha_vencimiento'
+                'pf.fecha_emision'
             )
+            ->selectRaw("DATE(TIMESTAMPADD(DAY, COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7), COALESCE(pf.created_at, CONCAT(COALESCE(pf.fecha_emision, CURDATE()), ' 00:00:00')))) as fecha_vencimiento_reserva")
             ->get()
             ->filter(function ($r) {
                 static $cache = [];

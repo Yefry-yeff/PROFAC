@@ -975,7 +975,7 @@
                                         <th style="padding:8px 12px; color:#555; font-weight:700;">Cliente</th>
                                         <th style="padding:8px 12px; text-align:center; color:#e65100; font-weight:700;">Cant. Reservada</th>
                                         <th style="padding:8px 12px; color:#555; font-weight:700;">Emisión</th>
-                                        <th style="padding:8px 12px; color:#555; font-weight:700;">Vence</th>
+                                        <th style="padding:8px 12px; color:#555; font-weight:700;">Vence reserva</th>
                                     </tr>
                                 </thead>
                                 <tbody id="invres_tbody"></tbody>
@@ -1047,7 +1047,7 @@
                             (r.fecha_emision ? r.fecha_emision.substring(0,10).split('-').reverse().join('/') : '—') +
                         '</td>' +
                         '<td style="padding:8px 12px;font-size:12px;color:#555;">' +
-                            (r.fecha_vencimiento ? r.fecha_vencimiento.substring(0,10).split('-').reverse().join('/') : '—') +
+                            (r.fecha_vencimiento_reserva ? r.fecha_vencimiento_reserva.substring(0,10).split('-').reverse().join('/') : '—') +
                         '</td>';
                     tbody.appendChild(tr);
                 });

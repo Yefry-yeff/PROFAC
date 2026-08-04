@@ -418,7 +418,7 @@
                     <label>Nombre / ID / Cód. Barra</label>
                     <input type="text" id="fprod_q" class="form-control"
                            placeholder="Ej: bolsa concept…"
-                           onkeydown="if(event.key==='Enter') aplicarFiltros()">
+                              autocomplete="off">
                 </div>
                 <div class="col-12 col-sm-6 col-md-4 col-lg-3">
                     <label>Descripción</label>
@@ -456,7 +456,7 @@
                 </div>
             </div>
             <div class="prod-filter-actions">
-                <button class="btn-filter-apply" onclick="aplicarFiltros()">
+                <button type="button" id="btn_fprod_buscar" class="btn-filter-apply" onclick="aplicarFiltros()">
                     <i class="fa fa-search mr-1"></i> Buscar
                 </button>
                 <button class="btn-filter-clear" onclick="limpiarFiltros()">

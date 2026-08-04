@@ -25,6 +25,8 @@ class LitsadoFacturasVendedor extends Component
 
         try {
 
+            $userId = (int) Auth::id();
+
             $listaFacturas = DB::SELECT("
             select
             factura.id as id,
@@ -55,7 +57,8 @@ class LitsadoFacturasVendedor extends Component
             inner join users
             on factura.vendedor = users.id
             cross join (select @i := 0) r
-        where ( YEAR(factura.created_at) >= (YEAR(NOW())-2) ) and factura.estado_venta_id<>2 and (factura.tipo_venta_id = 1) and factura.vendedor = ".Auth::user()->id."
+        where ( YEAR(factura.created_at) >= (YEAR(NOW())-2) ) and factura.estado_venta_id<>2 and (factura.tipo_venta_id = 1)
+            and (factura.vendedor = {$userId} or factura.users_id = {$userId} or factura.gestor_entrega = {$userId})
         order by factura.created_at desc
             ");
 

@@ -296,6 +296,107 @@ class ListarUsuarios extends Component
         return $roles;
     }
 
+    // ==================================================================
+    // ROLES ADICIONALES (multi-rol) — NO afecta el rol principal (rol_id)
+    // ==================================================================
+
+    /**
+     * Lista los roles adicionales (no el principal) ya asignados a un usuario.
+     */
+    public function obtenerRolesAdicionales($idUsuario)
+    {
+        $roles = DB::table('usuario_rol as ur')
+            ->join('rol as r', 'r.id', '=', 'ur.rol_id')
+            ->where('ur.usuario_id', $idUsuario)
+            ->select('r.id', 'r.nombre')
+            ->orderBy('r.nombre')
+            ->get();
+
+        return response()->json(['data' => $roles]);
+    }
+
+    /**
+     * Búsqueda (select2 ajax) de roles que se puedan agregar como
+     * adicionales a un usuario: excluye su rol principal y los que ya
+     * tiene asignados como adicionales.
+     */
+    public function buscarRolesAdicionalesDisponibles(Request $request, $idUsuario)
+    {
+        $texto = trim((string) $request->get('q', ''));
+
+        $usuario = usuario::find($idUsuario);
+        if (!$usuario) {
+            return response()->json(['results' => []]);
+        }
+
+        $yaAsignados = DB::table('usuario_rol')
+            ->where('usuario_id', $idUsuario)
+            ->pluck('rol_id')
+            ->toArray();
+
+        $excluir = array_merge($yaAsignados, [$usuario->rol_id]);
+
+        $query = DB::table('rol')->where('estado_id', 1);
+        if (!empty($excluir)) {
+            $query->whereNotIn('id', $excluir);
+        }
+        if ($texto !== '') {
+            $query->where('nombre', 'like', '%' . $texto . '%');
+        }
+
+        $roles = $query->orderBy('nombre')->limit(20)->get(['id', 'nombre']);
+
+        return response()->json([
+            'results' => $roles->map(function ($r) {
+                return ['id' => $r->id, 'text' => $r->nombre];
+            }),
+        ]);
+    }
+
+    /**
+     * Agrega un rol adicional a un usuario (no modifica su rol principal).
+     */
+    public function agregarRolAdicional(Request $request, $idUsuario)
+    {
+        $request->validate(['rol_id' => 'required|integer']);
+
+        $usuario = usuario::find($idUsuario);
+        if (!$usuario) {
+            return response()->json(['icon' => 'error', 'title' => 'Error', 'text' => 'Usuario no encontrado.'], 404);
+        }
+
+        if ((int) $usuario->rol_id === (int) $request->rol_id) {
+            return response()->json([
+                'icon' => 'error', 'title' => 'Error',
+                'text' => 'Ese rol ya es el rol principal del usuario.',
+            ], 422);
+        }
+
+        DB::table('usuario_rol')->insertOrIgnore([
+            'usuario_id' => $idUsuario,
+            'rol_id'     => $request->rol_id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return response()->json(['icon' => 'success', 'title' => 'Éxito!', 'text' => 'Rol adicional agregado correctamente.']);
+    }
+
+    /**
+     * Quita un rol adicional de un usuario (no modifica su rol principal).
+     */
+    public function quitarRolAdicional(Request $request, $idUsuario)
+    {
+        $request->validate(['rol_id' => 'required|integer']);
+
+        DB::table('usuario_rol')
+            ->where('usuario_id', $idUsuario)
+            ->where('rol_id', $request->rol_id)
+            ->delete();
+
+        return response()->json(['icon' => 'success', 'title' => 'Éxito!', 'text' => 'Rol adicional removido correctamente.']);
+    }
+
     public function forzarCambioContrasena(Request $request)
     {
         $request->validate([

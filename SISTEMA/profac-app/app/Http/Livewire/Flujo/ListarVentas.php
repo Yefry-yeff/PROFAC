@@ -58,9 +58,9 @@ class ListarVentas extends Component
     // ── Ciclo de vida ──────────────────────────────────────────────────────
     public function mount()
     {
-        $rolId = (int) (Auth::user()->rol_id ?? 0);
-        $this->esAdmin = $rolId === 1;
-        $this->puedeVerTodoHistorial = in_array($rolId, [1, 16], true);
+        $roles = Auth::user()->rolesIds();
+        $this->esAdmin = in_array(1, $roles, true);
+        $this->puedeVerTodoHistorial = count(array_intersect($roles, [1, 16])) > 0;
         $this->cargarRegistros();
 
         // Si viene desde una notificación (?flujo_id=X), resolver pedido_id en PHP.
@@ -196,6 +196,13 @@ class ListarVentas extends Component
                     ->orWhere('co.vendedor', Auth::id())
                     ->orWhere('f.created_by', Auth::id())
                     ->orWhereExists(function ($sq) {
+                        $sq->select(DB::raw(1))
+                           ->from('cliente_usuario as cu')
+                           ->whereRaw('cu.cliente_id = COALESCE(p.cliente_id, co.cliente_id)')
+                           ->where('cu.usuario_id', Auth::id())
+                           ->whereIn('cu.rol_id', [2, 3]);
+                    })
+                    ->orWhereExists(function ($sq) {
                         // Actor en factura del flujo
                         $sq->select(DB::raw(1))
                            ->from('historico_flujo as hff')
@@ -204,8 +211,19 @@ class ListarVentas extends Component
                            ->where('hff.tipo_tramite_id', 3)
                            ->where(function ($sfa) {
                                $sfa->where('fa.vendedor', Auth::id())
-                                   ->orWhere('fa.users_id', Auth::id());
+                                   ->orWhere('fa.users_id', Auth::id())
+                                   ->orWhere('fa.gestor_entrega', Auth::id());
                            });
+                    })
+                    ->orWhereExists(function ($sq) {
+                        $sq->select(DB::raw(1))
+                           ->from('historico_flujo as hfc')
+                           ->join('factura as fac', 'fac.id', '=', 'hfc.tramite_id')
+                           ->join('cliente_usuario as cu', 'cu.cliente_id', '=', 'fac.cliente_id')
+                           ->whereColumn('hfc.flujo_id', 'f.id')
+                           ->where('hfc.tipo_tramite_id', 3)
+                           ->where('cu.usuario_id', Auth::id())
+                           ->whereIn('cu.rol_id', [2, 3]);
                     })
                     ->orWhereExists(function ($sq) {
                         // Actor en oferta del pedido vinculado al flujo

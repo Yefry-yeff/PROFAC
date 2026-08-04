@@ -28,6 +28,7 @@ use App\Exports\ClientesExport;
 use App\Exports\Escalas\ClientesCategoriaPlantillaExport;
 use App\Imports\Escalas\ClientesCategoriaMasivaImport;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use ZipArchive;
 use Illuminate\Support\Facades\Log;
 
@@ -257,6 +258,8 @@ class Cliente extends Component
 
         }
 
+        $this->registrarAsesorComercialEnCartera($cliente, $request->vendedor_cliente);
+
         DB::commit();
         return response()->json([
             "icon" => "success",
@@ -281,6 +284,45 @@ class Cliente extends Component
             "error" => $e
         ],402);
        }
+    }
+
+    private function registrarAsesorComercialEnCartera(ModelCliente $cliente, $asesorId): void
+    {
+        $asesorId = (int) $asesorId;
+        if ($asesorId <= 0) {
+            return;
+        }
+
+        $asignacionExiste = DB::table('cliente_usuario')
+            ->where('cliente_id', $cliente->id)
+            ->where('usuario_id', $asesorId)
+            ->where('rol_id', 2)
+            ->exists();
+
+        if ($asignacionExiste) {
+            return;
+        }
+
+        DB::table('cliente_usuario')->insert([
+            'cliente_id' => $cliente->id,
+            'usuario_id' => $asesorId,
+            'rol_id' => 2,
+            'fecha_asignacion' => now(),
+            'asignado_por' => Auth::id(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('cliente_asesor_auditoria')->insert([
+            'cliente_id' => $cliente->id,
+            'asesor_id' => $asesorId,
+            'tipo' => 'Asesor Comercial',
+            'accion' => 'INSERT',
+            'usuario' => Auth::id(),
+            'comentario' => 'Asignación al crear cliente',
+            'lote_id' => (string) Str::uuid(),
+            'fecha' => now(),
+        ]);
     }
 
     public function listarClientes(){
@@ -1209,6 +1251,10 @@ class Cliente extends Component
             if ($nombreImagen) $cliente->url_imagen = $nombreImagen;
             $cliente->save();
 
+            // El vendedor seleccionado es también el Asesor Comercial inicial
+            // del cliente dentro del módulo Cartera de Clientes.
+            $this->registrarAsesorComercialEnCartera($cliente, $cliente->vendedor);
+
             // ---- contactos ----
             foreach ([
                 ['nombre' => 'nombre_contacto1', 'telefono' => 'telefono_contacto1'],
@@ -1296,6 +1342,10 @@ class Cliente extends Component
             $logDesc = count($changed) > 0 ? 'Campos: ' . implode(', ', $changed) : 'Sin cambios en datos principales';
 
             $cliente->save();
+
+            // Si se seleccionó un nuevo vendedor, incorporarlo a la cartera sin
+            // eliminar otros asesores comerciales asignados al mismo cliente.
+            $this->registrarAsesorComercialEnCartera($cliente, $cliente->vendedor);
 
             // ---- contactos ----
             ModelContacto::where('cliente_id', $id)->update(['estado_id' => 2]);

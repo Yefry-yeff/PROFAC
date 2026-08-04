@@ -92,6 +92,7 @@ var filtroEstado      = '';
 
 $(document).ready(function() {
     cargarFiltros();
+    inicializarBusquedaCodigoBarra();
     $('#tbl_productosListar').DataTable({
         "processing": true,
         "serverSide": true,
@@ -140,6 +141,33 @@ $(document).ready(function() {
         ]
     });
 })
+
+function inicializarBusquedaCodigoBarra() {
+    var campoBusqueda = document.getElementById('fprod_q');
+    var botonBuscar = document.getElementById('btn_fprod_buscar');
+    var temporizadorBusqueda = null;
+
+    if (!campoBusqueda || !botonBuscar) return;
+
+    campoBusqueda.addEventListener('keydown', function(event) {
+        if (event.key !== 'Enter') return;
+
+        event.preventDefault();
+        clearTimeout(temporizadorBusqueda);
+        botonBuscar.click();
+    });
+
+    campoBusqueda.addEventListener('input', function() {
+        clearTimeout(temporizadorBusqueda);
+        var codigo = campoBusqueda.value.trim();
+
+        if (!/^\d{4,}$/.test(codigo)) return;
+
+        temporizadorBusqueda = setTimeout(function() {
+            botonBuscar.click();
+        }, 250);
+    });
+}
 
 function cargarFiltros() {
     axios.get('/productos/buscar/categorias').then(function(r) {

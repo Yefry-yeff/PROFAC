@@ -8,6 +8,8 @@
  * ──────────────────────────────────────────────────────────────────── */
 var rfdTable = null;
 var rfdOpenRows = {};   // { facturaId: DataTable row object }
+var rfdActoresRequest = 0;
+var rfdActoresTimer = null;
 
 /* ────────────────────────────────────────────────────────────────────
  *  Lectura de filtros
@@ -17,6 +19,7 @@ function getFiltros() {
         cliente:          $('#fil_cliente').val()          || '',
         factura:          $('#fil_factura').val()          || '',
         vendedor:         $('#fil_vendedor').val()         || '',
+        teleasesor:       $('#fil_teleasesor').val()       || '',
         modo_pago:        $('#fil_modo_pago').val()        || '',
         estado_f01:       $('#fil_estado_f01').val()       || '',
         fecha_desde:      $('#fil_fecha_desde').val()      || '',
@@ -118,21 +121,33 @@ function cargarTabla() {
             { data: 'numero_secuencia_cai', render: function(d) { return '<strong>' + escHtml(d) + '</strong>'; } },
             /* 2 – cliente */
             { data: 'cliente' },
-            /* 3 – vendedor */
-            { data: 'vendedor' },
-            /* 4 – fecha venta */
+            /* 3 – asesor comercial */
+            { data: 'asesor_comercial' },
+            /* 4 – teleasesor */
+            { data: 'teleasesor' },
+            /* 5 – fecha venta */
             { data: 'fecha_venta', render: function(d, type, row) { return esFacturaAnulada(row) ? '' : fmtFecha(d); } },
-            /* 5 – modo pago */
+            /* 6 – modo pago */
             { data: 'modo_pago' },
-            /* 6 – total */
+            /* 7 – total */
             { data: 'total', className: 'text-right', render: function(d, type, row) { return esFacturaAnulada(row) ? '' : fmtLps(d); } },
-            /* 7 – monto pagado */
+            /* 8 – monto pagado */
             { data: 'monto_pagado', className: 'text-right', render: function(d) { return fmtLps(d); } },
-            /* 8 – saldo */
+            /* 9 – saldo */
             { data: 'saldo_pendiente', className: 'text-right', render: function(d, type, row) { return esFacturaAnulada(row) ? '' : fmtLpsSaldo(d); } },
-            /* 9 – estado */
+            /* 10 – falta retencion */
+            {
+                data: null, className: 'text-center', orderable: false, searchable: false,
+                render: function(d, type, row) {
+                    if (esFacturaAnulada(row)) return '';
+                    var saldo = Math.round((parseFloat(row.saldo_pendiente) || 0) * 100);
+                    var isv = Math.round((parseFloat(row.isv) || 0) * 100);
+                    return saldo > 0 && isv > 0 && saldo === isv ? '<strong>X</strong>' : '';
+                }
+            },
+            /* 11 – estado */
             { data: 'estado_cobro_v2', render: function(d) { return renderBadgeEstado(d); } },
-            /* 10 – dias vencidos */
+            /* 12 – dias vencidos */
             {
                 data: 'dias_vencidos', className: 'text-center',
                 render: function(d, type, row) {
@@ -242,7 +257,8 @@ function renderExpediente(resp) {
     html += '<h4><i class="fa fa-folder-open-o" style="margin-right:8px;"></i>Expediente Financiero — ' + escHtml(c.numero_secuencia_cai) + '</h4>';
     html += '<div class="rfd-exp-meta-grid">';
     html += metaItem('Cliente',        c.cliente);
-    html += metaItem('Vendedor',       c.vendedor);
+    html += metaItem('Asesor Comercial', c.asesor_comercial);
+    html += metaItem('Teleasesor',       c.teleasesor);
     html += metaItem('Fecha Emisión',  esAnulada ? '' : fmtFecha(c.fecha_venta));
     html += metaItem('Vencimiento',    esAnulada ? '' : fmtFecha(c.fecha_vencimiento));
     html += metaItem('Días Crédito',   c.credito == 0 ? 'Contado' : (c.dias_credito + ' días'));
@@ -492,6 +508,7 @@ function _exportarForm(url) {
     var fields = {
         _token:            tok,
         vendedor:          f.vendedor          || '',
+        teleasesor:        f.teleasesor        || '',
         cliente:           f.cliente           || '',
         factura:           f.factura           || '',
         fecha_desde:       f.fecha_desde       || '',
@@ -521,7 +538,7 @@ function exportarPdf() {
     var form = $('<form method="POST"></form>').attr('action', '/reporte/ventas-cobros/exportar-pdf/null/null/null/null');
     var fields = {
         _token: tok, download_token: downloadToken,
-        vendedor: f.vendedor || '', cliente: f.cliente || '',
+        vendedor: f.vendedor || '', teleasesor: f.teleasesor || '', cliente: f.cliente || '',
         factura: f.factura || '', fecha_desde: f.fecha_desde || '',
         fecha_hasta: f.fecha_hasta || '', fecha_pago_desde: f.fecha_pago_desde || '',
         fecha_pago_hasta: f.fecha_pago_hasta || '', estado_cobro: f.estado_cobro || '',
@@ -599,6 +616,7 @@ function exportarExcel() {
         data: {
             _token: tok,
             vendedor:          f.vendedor          || '',
+            teleasesor:        f.teleasesor        || '',
             cliente:           f.cliente           || '',
             factura:           f.factura           || '',
             fecha_desde:       f.fecha_desde       || '',
@@ -630,6 +648,9 @@ function exportarExcel() {
 function _pollExportExcel(token) {
     var startedAt = Date.now();
     var lastPct   = 3;
+    var warnedSlow = false;
+    var SOFT_WARN_MS = 15 * 60 * 1000;   // aviso informativo (no detiene)
+    var HARD_STOP_MS = 2 * 60 * 60 * 1000; // tope de seguridad: 2 horas
     var pollId = setInterval(function() {
         $.ajax({
             url: '/reporte/ventas-cobros/exportar-excel-estado/' + encodeURIComponent(token),
@@ -682,13 +703,21 @@ function _pollExportExcel(token) {
             }
         });
 
-        // Timeout de polling en cliente (15 min)
-        if (Date.now() - startedAt > 15 * 60 * 1000) {
+        var elapsed = Date.now() - startedAt;
+
+        // Aviso suave: sigue esperando y no corta la descarga automatica.
+        if (!warnedSlow && elapsed > SOFT_WARN_MS) {
+            warnedSlow = true;
+            _vcProgressUpdate(Math.max(lastPct, 90), 'Tomando mas de lo normal. Seguimos procesando...');
+        }
+
+        // Tope de seguridad para evitar polling infinito en cliente.
+        if (elapsed > HARD_STOP_MS) {
             clearInterval(pollId);
             Swal.fire({
                 icon: 'warning',
-                title: 'Demora en exportación',
-                text: 'La generación sigue en proceso. Intenta nuevamente en unos minutos.'
+                title: 'Exportacion muy demorada',
+                text: 'El archivo sigue en proceso. Puedes intentar descargar nuevamente en unos minutos.'
             });
         }
     }, 2500);
@@ -710,6 +739,52 @@ function setDefaultDates() {
     $('#fil_fecha_hasta').val(fmt(new Date(y, m + 1, 0)));
 }
 
+function reemplazarActores(selector, actores, valorActual) {
+    var select = $(selector);
+    select.empty().append(new Option('', '', false, false));
+
+    $.each(actores || [], function(_, actor) {
+        select.append(new Option(actor.name, String(actor.id), false, false));
+    });
+
+    var conservar = valorActual && select.find('option[value="' + valorActual + '"]').length > 0;
+    select.val(conservar ? valorActual : '').trigger('change');
+}
+
+function cargarActoresPorFechas() {
+    var requestId = ++rfdActoresRequest;
+    var vendedorActual = $('#fil_vendedor').val() || '';
+    var teleasesorActual = $('#fil_teleasesor').val() || '';
+
+    $('#fil_vendedor, #fil_teleasesor').prop('disabled', true);
+
+    $.ajax({
+        url: '/reporte/ventas-cobros/actores',
+        type: 'GET',
+        data: {
+            fecha_desde: $('#fil_fecha_desde').val() || '',
+            fecha_hasta: $('#fil_fecha_hasta').val() || '',
+            fecha_pago_desde: $('#fil_fecha_pago_desde').val() || '',
+            fecha_pago_hasta: $('#fil_fecha_pago_hasta').val() || ''
+        },
+        success: function(resp) {
+            if (requestId !== rfdActoresRequest) return;
+            reemplazarActores('#fil_vendedor', resp.asesores, vendedorActual);
+            reemplazarActores('#fil_teleasesor', resp.teleasesores, teleasesorActual);
+        },
+        complete: function() {
+            if (requestId === rfdActoresRequest) {
+                $('#fil_vendedor, #fil_teleasesor').prop('disabled', false);
+            }
+        }
+    });
+}
+
+function programarCargaActores() {
+    clearTimeout(rfdActoresTimer);
+    rfdActoresTimer = setTimeout(cargarActoresPorFechas, 200);
+}
+
 /* ────────────────────────────────────────────────────────────────────
  *  Barra de filtros activos (badges)
  * ──────────────────────────────────────────────────────────────────── */
@@ -719,6 +794,7 @@ function actualizarBadges() {
         { key: 'cliente',          el: '#fil_cliente',          lbl: 'Cliente',      isSelect: true },
         { key: 'factura',          el: '#fil_factura',          lbl: 'Factura',      isSelect: false },
         { key: 'vendedor',         el: '#fil_vendedor',         lbl: 'Vendedor',     isSelect: true },
+        { key: 'teleasesor',       el: '#fil_teleasesor',       lbl: 'Teleasesor',   isSelect: true },
         { key: 'modo_pago',        el: '#fil_modo_pago',        lbl: 'Pago',         isSelect: true },
         { key: 'estado_f01',       el: '#fil_estado_f01',       lbl: 'F-01',         isSelect: true },
         { key: 'fecha_desde',      el: '#fil_fecha_desde',      lbl: 'Desde',        isSelect: false },
@@ -761,13 +837,14 @@ function aplicarFiltros() {
 
 function limpiarFiltros() {
     if ($.fn.select2) {
-        $('#fil_cliente, #fil_vendedor').val('').trigger('change');
+        $('#fil_cliente, #fil_vendedor, #fil_teleasesor').val('').trigger('change');
     } else {
-        $('#fil_cliente, #fil_vendedor').val('');
+        $('#fil_cliente, #fil_vendedor, #fil_teleasesor').val('');
     }
     $('#fil_modo_pago, #fil_estado_f01, #fil_estado_cobro, #fil_banco').val('');
     $('#fil_factura, #fil_cuenta, #fil_fecha_pago_desde, #fil_fecha_pago_hasta').val('');
     setDefaultDates();
+    cargarActoresPorFechas();
 }
 
 /* ────────────────────────────────────────────────────────────────────
@@ -784,10 +861,17 @@ $(document).ready(function() {
             placeholder: '— Todos —', allowClear: true,
             dropdownParent: $('#modalFiltrosRVC')
         });
+        $('#fil_teleasesor').select2({
+            placeholder: '— Todos —', allowClear: true,
+            dropdownParent: $('#modalFiltrosRVC')
+        });
     }
 
     /* Fechas por defecto = último mes */
     setDefaultDates();
+    cargarActoresPorFechas();
+
+    $(document).on('change', '#fil_fecha_desde, #fil_fecha_hasta, #fil_fecha_pago_desde, #fil_fecha_pago_hasta', programarCargaActores);
 
     /* Carga inicial con filtros por defecto */
     actualizarBadges();

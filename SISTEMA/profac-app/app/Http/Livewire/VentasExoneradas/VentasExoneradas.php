@@ -2,6 +2,7 @@
 
 namespace App\Http\Livewire\VentasExoneradas;
 
+use App\Support\ClienteActoresAsignados;
 use Livewire\Component;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\File;
@@ -183,6 +184,12 @@ class VentasExoneradas extends Component
         }
 
         $teleAsesorId = $request->tele_asesor ? (int) $request->tele_asesor : Auth::user()->id;
+        ClienteActoresAsignados::validar(
+            (int) $request->seleccionarCliente,
+            $teleAsesorId,
+            ClienteActoresAsignados::ROL_TELE_ASESOR,
+            'tele_asesor'
+        );
 
         /* if ($request->restriccion == 1) {
             $facturaVencida = $this->comprobarFacturaVencida($request->seleccionarCliente);

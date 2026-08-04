@@ -23,6 +23,28 @@ class EstadoCuentaVendedor extends Component
         return in_array((int) Auth::user()->rol_id, self::ADMIN_ROLES, true);
     }
 
+    private function sincronizarTotalesFacturasCliente(int $clienteId): void
+    {
+        DB::update("
+            UPDATE aplicacion_pagos ap
+            INNER JOIN factura f ON f.id = ap.factura_id
+            SET ap.saldo = ROUND(ap.saldo + (
+                    CASE WHEN f.tipo_venta_id = 3 THEN f.sub_total ELSE f.total END
+                    - ap.total_factura_cargo
+                ), 2),
+                ap.total_factura_cargo = CASE WHEN f.tipo_venta_id = 3 THEN f.sub_total ELSE f.total END,
+                ap.retencion_isv_factura = CASE WHEN f.tipo_venta_id = 3 THEN 0 ELSE f.isv END,
+                ap.ultimo_usr_actualizo = ?,
+                ap.updated_at = NOW()
+            WHERE ap.cliente_id = ?
+              AND ap.estado = 1
+              AND (
+                  ABS((CASE WHEN f.tipo_venta_id = 3 THEN f.sub_total ELSE f.total END) - ap.total_factura_cargo) >= 0.005
+                  OR ABS((CASE WHEN f.tipo_venta_id = 3 THEN 0 ELSE f.isv END) - ap.retencion_isv_factura) >= 0.005
+              )
+        ", [Auth::id() ?? 0, $clienteId]);
+    }
+
     // ─── Buscar clientes (Select2) ────────────────────────────────────────────
     public function listarClientes(Request $request)
     {
@@ -96,6 +118,8 @@ class EstadoCuentaVendedor extends Component
                 [$id, Auth::user()->id]
             );
         }
+
+        $this->sincronizarTotalesFacturasCliente((int) $id);
 
         $cuentas = DB::select("
             SELECT

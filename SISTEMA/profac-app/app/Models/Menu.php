@@ -48,10 +48,21 @@ class Menu extends Model
      */
     public static function getMenusParaRol($rolId)
     {
+        return self::getMenusParaRoles([$rolId]);
+    }
+
+    /**
+     * Obtener menús con submenus para VARIOS roles a la vez (union de
+     * permisos). Usado por MenuHelper para soportar multi-rol: un usuario
+     * ve el submenu si CUALQUIERA de sus roles (principal o adicional)
+     * tiene acceso a el.
+     */
+    public static function getMenusParaRoles(array $rolIds)
+    {
         return self::activos()
-            ->with(['submenus' => function ($query) use ($rolId) {
-                $query->whereHas('roles', function ($q) use ($rolId) {
-                    $q->where('rol_id', $rolId);
+            ->with(['submenus' => function ($query) use ($rolIds) {
+                $query->whereHas('roles', function ($q) use ($rolIds) {
+                    $q->whereIn('rol_id', $rolIds);
                 })
                 ->where('estado_id', 1)
                 ->orderBy('orden');

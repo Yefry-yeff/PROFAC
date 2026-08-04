@@ -58,7 +58,8 @@ class Librocobrosrep extends Component
                                 DATE_FORMAT(f.fecha_vencimiento, '%Y-%m-%d')     AS fecha_vencimiento,
                                 DATE_FORMAT(ac.fecha_pago, '%Y-%m-%d')          AS fecha_pago,
                                 f.nombre_cliente                                 AS cliente,
-                                u.name                                           AS vendedor,
+                                COALESCE(u.name, '')                              AS asesor_comercial,
+                                COALESCE(tele.name, '')                           AS teleasesor,
                                 f.numero_secuencia_cai                          AS factura,
                                 ROUND(ac.monto_abonado, 2)                      AS monto_cobrado,
                                 GREATEST(
@@ -188,6 +189,7 @@ class Librocobrosrep extends Component
                             FROM abonos_creditos ac
                             INNER JOIN factura f  ON f.id  = ac.factura_id
                             INNER JOIN users u    ON u.id  = f.vendedor
+                            LEFT JOIN users tele  ON tele.id = f.users_id
                             INNER JOIN banco b    ON b.id  = ac.banco_id
                                                         LEFT JOIN (
                                                                 SELECT
@@ -417,7 +419,8 @@ class Librocobrosrep extends Component
                         DATE_FORMAT(f.fecha_vencimiento, '%Y-%m-%d')     AS fecha_vencimiento,
                         DATE_FORMAT(ac.fecha_pago, '%Y-%m-%d')          AS fecha_pago,
                         f.nombre_cliente                                 AS cliente,
-                        u.name                                           AS vendedor,
+                        COALESCE(u.name, '')                              AS asesor_comercial,
+                        COALESCE(tele.name, '')                           AS teleasesor,
                         f.numero_secuencia_cai                          AS factura,
                         ROUND(ac.monto_abonado, 2)                      AS monto_cobrado,
                         GREATEST(
@@ -547,6 +550,7 @@ class Librocobrosrep extends Component
                     FROM abonos_creditos ac
                     INNER JOIN factura f  ON f.id  = ac.factura_id
                     INNER JOIN users u    ON u.id  = f.vendedor
+                    LEFT JOIN users tele  ON tele.id = f.users_id
                     INNER JOIN banco b    ON b.id  = ac.banco_id
                                         LEFT JOIN (
                                                 SELECT

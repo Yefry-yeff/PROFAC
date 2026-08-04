@@ -137,14 +137,20 @@ class Pagos extends Component
         DB::update("
             UPDATE aplicacion_pagos ap
             INNER JOIN factura f ON f.id = ap.factura_id
-            SET ap.saldo = ROUND(ap.saldo + (f.total - ap.total_factura_cargo), 2),
-                ap.total_factura_cargo = f.total,
-                ap.retencion_isv_factura = f.isv,
+            SET ap.saldo = ROUND(ap.saldo + (
+                    CASE WHEN f.tipo_venta_id = 3 THEN f.sub_total ELSE f.total END
+                    - ap.total_factura_cargo
+                ), 2),
+                ap.total_factura_cargo = CASE WHEN f.tipo_venta_id = 3 THEN f.sub_total ELSE f.total END,
+                ap.retencion_isv_factura = CASE WHEN f.tipo_venta_id = 3 THEN 0 ELSE f.isv END,
                 ap.ultimo_usr_actualizo = ?,
                 ap.updated_at = NOW()
             WHERE ap.cliente_id = ?
               AND ap.estado = 1
-              AND ABS(f.total - ap.total_factura_cargo) >= 0.005
+              AND (
+                  ABS((CASE WHEN f.tipo_venta_id = 3 THEN f.sub_total ELSE f.total END) - ap.total_factura_cargo) >= 0.005
+                  OR ABS((CASE WHEN f.tipo_venta_id = 3 THEN 0 ELSE f.isv END) - ap.retencion_isv_factura) >= 0.005
+              )
         ", [Auth::id() ?? 0, $clienteId]);
     }
 

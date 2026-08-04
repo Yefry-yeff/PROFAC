@@ -20,11 +20,12 @@ class ReporteVentasCobros extends Component
     public function render()
     {
         $vendedores  = DB::select("SELECT id, name FROM users WHERE rol_id = 2 ORDER BY name ASC");
+        $teleasesores = DB::select("SELECT DISTINCT u.id, u.name FROM users u INNER JOIN factura f ON f.users_id = u.id ORDER BY u.name ASC");
         $clientes    = DB::select("SELECT id, nombre FROM cliente ORDER BY nombre ASC");
         $bancos      = DB::select("SELECT id, nombre, cuenta FROM banco ORDER BY nombre ASC");
         $estadosF01  = DB::select("SELECT id, descripcion FROM estado_venta ORDER BY id ASC");
         $modosPago   = DB::select("SELECT id, descripcion FROM tipo_pago_venta ORDER BY descripcion ASC");
-        return view('livewire.reportes.ventascobros', compact('vendedores', 'clientes', 'bancos', 'estadosF01', 'modosPago'));
+        return view('livewire.reportes.ventascobros', compact('vendedores', 'teleasesores', 'clientes', 'bancos', 'estadosF01', 'modosPago'));
     }
 
     /* ─────────────────────────────────────────────────────────────────
@@ -44,7 +45,8 @@ class ReporteVentasCobros extends Component
         $bancoId         = null,
         $cuenta          = null,
         $fechaPagoDesde  = null,
-        $fechaPagoHasta  = null
+        $fechaPagoHasta  = null,
+        $teleasesorId    = null
     ) {
         $where  = "1=1";
         $params = [];
@@ -52,6 +54,10 @@ class ReporteVentasCobros extends Component
         if ($vendedorId) {
             $where .= " AND f.vendedor = ?";
             $params[] = $vendedorId;
+        }
+        if ($teleasesorId) {
+            $where .= " AND f.users_id = ?";
+            $params[] = $teleasesorId;
         }
         if ($clienteId) {
             $where .= " AND f.cliente_id = ?";
@@ -136,7 +142,8 @@ class ReporteVentasCobros extends Component
             YEAR(f.fecha_emision)                                       AS anio,
 
             /* ── Identificación ── */
-            COALESCE(u.name, '')                                        AS vendedor,
+            COALESCE(u.name, '')                                        AS asesor_comercial,
+            COALESCE(tele.name, '')                                     AS teleasesor,
             c.nombre                                                    AS cliente,
             f.numero_secuencia_cai,
             COALESCE(f.comentario, '')                                  AS observacion,
@@ -273,6 +280,7 @@ class ReporteVentasCobros extends Component
         FROM factura f
         INNER JOIN cliente c              ON c.id  = f.cliente_id
         LEFT  JOIN users u                ON u.id  = f.vendedor
+        LEFT  JOIN users tele             ON tele.id = f.users_id
         LEFT  JOIN estado_venta ev        ON ev.id = f.estado_venta_id
         LEFT  JOIN tipo_pago_venta tpv    ON tpv.id = f.tipo_pago_id
         LEFT  JOIN numero_orden_compra noc ON noc.id = f.numero_orden_compra_id
@@ -288,7 +296,7 @@ class ReporteVentasCobros extends Component
             ORDER BY apx.id DESC LIMIT 1
         )
         WHERE {$where}
-        ORDER BY f.numero_secuencia_cai DESC
+        ORDER BY f.fecha_emision ASC, f.id ASC
         ";
 
         $rows = DB::select($innerSql, $params);
@@ -353,7 +361,8 @@ class ReporteVentasCobros extends Component
             f.credito,
             f.numero_secuencia_cai,
             c.nombre                                                    AS cliente,
-            COALESCE(u.name, '')                                        AS vendedor,
+            COALESCE(u.name, '')                                        AS asesor_comercial,
+            COALESCE(tele.name, '')                                     AS teleasesor,
             f.fecha_emision                                             AS fecha_venta,
             COALESCE(tpv.descripcion, '')                               AS modo_pago,
             UPPER(COALESCE(ev.descripcion, ''))                         AS estado_f01,
@@ -447,6 +456,7 @@ class ReporteVentasCobros extends Component
         FROM factura f
         INNER JOIN cliente c              ON c.id  = f.cliente_id
         LEFT  JOIN users u                ON u.id  = f.vendedor
+        LEFT  JOIN users tele             ON tele.id = f.users_id
         LEFT  JOIN estado_venta ev        ON ev.id = f.estado_venta_id
         LEFT  JOIN tipo_pago_venta tpv    ON tpv.id = f.tipo_pago_id
         LEFT  JOIN aplicacion_pagos apc   ON apc.id = (
@@ -463,6 +473,61 @@ class ReporteVentasCobros extends Component
      * ───────────────────────────────────────────────────────────────── */
     private function norm($v) { return (!$v || $v === 'null') ? null : $v; }
 
+    public function actoresPorFechas(Request $request)
+    {
+        $datos = $request->validate([
+            'fecha_desde' => 'nullable|date',
+            'fecha_hasta' => 'nullable|date',
+            'fecha_pago_desde' => 'nullable|date',
+            'fecha_pago_hasta' => 'nullable|date',
+        ]);
+
+        $aplicarFechas = function ($query) use ($datos) {
+            if (!empty($datos['fecha_desde'])) {
+                $query->whereDate('f.fecha_emision', '>=', $datos['fecha_desde']);
+            }
+            if (!empty($datos['fecha_hasta'])) {
+                $query->whereDate('f.fecha_emision', '<=', $datos['fecha_hasta']);
+            }
+
+            if (!empty($datos['fecha_pago_desde']) || !empty($datos['fecha_pago_hasta'])) {
+                $query->whereExists(function ($abonos) use ($datos) {
+                    $abonos->select(DB::raw(1))
+                        ->from('abonos_creditos as acf')
+                        ->join('aplicacion_pagos as apf', 'apf.id', '=', 'acf.aplicacion_pagos_id')
+                        ->whereColumn('apf.factura_id', 'f.id')
+                        ->where('acf.estado_abono', 1);
+
+                    if (!empty($datos['fecha_pago_desde'])) {
+                        $abonos->whereDate('acf.fecha_pago', '>=', $datos['fecha_pago_desde']);
+                    }
+                    if (!empty($datos['fecha_pago_hasta'])) {
+                        $abonos->whereDate('acf.fecha_pago', '<=', $datos['fecha_pago_hasta']);
+                    }
+                });
+            }
+        };
+
+        $asesores = DB::table('factura as f')
+            ->join('users as u', 'u.id', '=', 'f.vendedor')
+            ->tap($aplicarFechas)
+            ->distinct()
+            ->orderBy('u.name')
+            ->get(['u.id', 'u.name']);
+
+        $teleasesores = DB::table('factura as f')
+            ->join('users as u', 'u.id', '=', 'f.users_id')
+            ->tap($aplicarFechas)
+            ->distinct()
+            ->orderBy('u.name')
+            ->get(['u.id', 'u.name']);
+
+        return response()->json([
+            'asesores' => $asesores,
+            'teleasesores' => $teleasesores,
+        ]);
+    }
+
     /* ─────────────────────────────────────────────────────────────────
      *  DataTable AJAX — ruta legacy (segmentos URL)
      * ───────────────────────────────────────────────────────────────── */
@@ -474,7 +539,9 @@ class ReporteVentasCobros extends Component
                 $this->norm($clienteId),
                 $this->norm($mes),
                 $this->norm($anio),
-                $this->norm($request->query('factura'))
+                $this->norm($request->query('factura')),
+                null, null, null, null, null, null, null, null, null,
+                $this->norm($request->query('teleasesor'))
             );
             $item = 0;
             foreach ($rows as &$r) { $r->item = ++$item; }
@@ -501,6 +568,9 @@ class ReporteVentasCobros extends Component
 
             $p = $this->norm($request->query('vendedor'));
             if ($p) { $where .= ' AND f.vendedor = ?';   $params[] = $p; }
+
+            $p = $this->norm($request->query('teleasesor'));
+            if ($p) { $where .= ' AND f.users_id = ?';   $params[] = $p; }
 
             $p = $this->norm($request->query('cliente'));
             if ($p) { $where .= ' AND f.cliente_id = ?'; $params[] = $p; }
@@ -562,14 +632,15 @@ class ReporteVentasCobros extends Component
             $dtColMap = [
                 1  => 'numero_secuencia_cai',
                 2  => 'cliente',
-                3  => 'vendedor',
-                4  => 'fecha_venta',
-                5  => 'modo_pago',
-                6  => 'total',
-                7  => 'monto_pagado',
-                8  => 'saldo_pendiente',
-                9  => 'estado_cobro_v2',
-                10 => 'dias_vencidos',
+                3  => 'asesor_comercial',
+                4  => 'teleasesor',
+                5  => 'fecha_venta',
+                6  => 'modo_pago',
+                7  => 'total',
+                8  => 'monto_pagado',
+                9  => 'saldo_pendiente',
+                11 => 'estado_cobro_v2',
+                12 => 'dias_vencidos',
             ];
             $dtOrder     = $request->query('order', []);
             $dtColIdx    = isset($dtOrder[0]['column']) ? (int) $dtOrder[0]['column'] : 1;
@@ -614,6 +685,9 @@ class ReporteVentasCobros extends Component
 
             $p = $this->norm($request->query('vendedor'));
             if ($p) { $where .= ' AND f.vendedor = ?';   $params[] = $p; }
+
+            $p = $this->norm($request->query('teleasesor'));
+            if ($p) { $where .= ' AND f.users_id = ?';   $params[] = $p; }
 
             $p = $this->norm($request->query('cliente'));
             if ($p) { $where .= ' AND f.cliente_id = ?'; $params[] = $p; }
@@ -773,7 +847,8 @@ class ReporteVentasCobros extends Component
                     f.numero_secuencia_cai,
                     f.credito,
                     c.nombre                                                AS cliente,
-                    COALESCE(u.name, '')                                    AS vendedor,
+                    COALESCE(u.name, '')                                    AS asesor_comercial,
+                    COALESCE(tele.name, '')                                 AS teleasesor,
                     f.fecha_emision                                         AS fecha_venta,
                     COALESCE(noc.numero_orden, '')                          AS orden_compra,
                     COALESCE(f.comentario, '')                              AS observacion,
@@ -808,6 +883,7 @@ class ReporteVentasCobros extends Component
                 FROM factura f
                 INNER JOIN cliente c              ON c.id  = f.cliente_id
                 LEFT  JOIN users u                ON u.id  = f.vendedor
+                LEFT  JOIN users tele             ON tele.id = f.users_id
                 LEFT  JOIN estado_venta ev        ON ev.id = f.estado_venta_id
                 LEFT  JOIN tipo_pago_venta tpv    ON tpv.id = f.tipo_pago_id
                 LEFT  JOIN numero_orden_compra noc ON noc.id = f.numero_orden_compra_id
@@ -975,7 +1051,8 @@ class ReporteVentasCobros extends Component
                 $this->norm($request->input('banco')),
                 $this->norm($request->input('cuenta')),
                 $this->norm($request->input('fecha_pago_desde')),
-                $this->norm($request->input('fecha_pago_hasta'))
+                $this->norm($request->input('fecha_pago_hasta')),
+                $this->norm($request->input('teleasesor'))
             );
             $item = 0;
             foreach ($rows as &$r) { $r->item = ++$item; }
@@ -1019,7 +1096,8 @@ class ReporteVentasCobros extends Component
                 $this->norm($request->input('banco')),
                 $this->norm($request->input('cuenta')),
                 $this->norm($request->input('fecha_pago_desde')),
-                $this->norm($request->input('fecha_pago_hasta'))
+                $this->norm($request->input('fecha_pago_hasta')),
+                $this->norm($request->input('teleasesor'))
             );
 
             $usuario = Auth::user() ? Auth::user()->name : 'Sistema';
@@ -1051,6 +1129,7 @@ class ReporteVentasCobros extends Component
 
             $payload = [
                 'vendedor'         => $this->norm($request->input('vendedor',    $vendedorId)),
+                'teleasesor'       => $this->norm($request->input('teleasesor')),
                 'cliente'          => $this->norm($request->input('cliente',     $clienteId)),
                 'mes'              => $this->norm($mes),
                 'anio'             => $this->norm($anio),
@@ -1148,7 +1227,8 @@ class ReporteVentasCobros extends Component
             $payload['banco'] ?? null,
             $payload['cuenta'] ?? null,
             $payload['fecha_pago_desde'] ?? null,
-            $payload['fecha_pago_hasta'] ?? null
+            $payload['fecha_pago_hasta'] ?? null,
+            $payload['teleasesor'] ?? null
         );
     }
 
@@ -1166,6 +1246,7 @@ class ReporteVentasCobros extends Component
         $fechaDesde = $payload['fecha_desde'] ?? null;
         $fechaHasta = $payload['fecha_hasta'] ?? null;
         $vendedorId = $payload['vendedor']    ?? null;
+        $teleasesorId = $payload['teleasesor'] ?? null;
         $clienteId  = $payload['cliente']     ?? null;
 
         // Condiciones base para filtrar las facturas en el JOIN
@@ -1175,6 +1256,7 @@ class ReporteVentasCobros extends Component
         if ($fechaDesde) { $whereF .= ' AND f.fecha_emision >= ?'; $params[] = $fechaDesde; }
         if ($fechaHasta) { $whereF .= ' AND f.fecha_emision <= ?'; $params[] = $fechaHasta; }
         if ($vendedorId) { $whereF .= ' AND f.vendedor = ?';       $params[] = $vendedorId; }
+        if ($teleasesorId) { $whereF .= ' AND f.users_id = ?';     $params[] = $teleasesorId; }
         if ($clienteId)  { $whereF .= ' AND f.cliente_id = ?';     $params[] = $clienteId;  }
 
         $sql = "
@@ -1400,7 +1482,8 @@ class ReporteVentasCobros extends Component
         $bancoId         = null,
         $cuenta          = null,
         $fechaPagoDesde  = null,
-        $fechaPagoHasta  = null
+        $fechaPagoHasta  = null,
+        $teleasesorId    = null
     ) {
         $where  = '1=1';
         $params = [];
@@ -1408,6 +1491,10 @@ class ReporteVentasCobros extends Component
         if ($vendedorId) {
             $where .= ' AND f.vendedor = ?';
             $params[] = $vendedorId;
+        }
+        if ($teleasesorId) {
+            $where .= ' AND f.users_id = ?';
+            $params[] = $teleasesorId;
         }
         if ($clienteId) {
             $where .= ' AND f.cliente_id = ?';
@@ -1507,7 +1594,8 @@ class ReporteVentasCobros extends Component
             END AS mes,
             MONTH(f.fecha_emision) AS mes_num,
             YEAR(f.fecha_emision) AS anio,
-            COALESCE(u.name, '') AS vendedor,
+            COALESCE(u.name, '') AS asesor_comercial,
+            COALESCE(tele.name, '') AS teleasesor,
             c.nombre AS cliente,
             f.numero_secuencia_cai,
             COALESCE(f.comentario, '') AS observacion,
@@ -1553,6 +1641,7 @@ class ReporteVentasCobros extends Component
         FROM factura f
         INNER JOIN cliente c ON c.id = f.cliente_id
         LEFT JOIN users u ON u.id = f.vendedor
+        LEFT JOIN users tele ON tele.id = f.users_id
         LEFT JOIN estado_venta ev ON ev.id = f.estado_venta_id
         LEFT JOIN tipo_pago_venta tpv ON tpv.id = f.tipo_pago_id
         LEFT JOIN numero_orden_compra noc ON noc.id = f.numero_orden_compra_id

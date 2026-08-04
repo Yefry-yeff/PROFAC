@@ -1277,7 +1277,7 @@
                                 <th>Comentario</th>
                                 <th>Estado</th>
                                 <th>Registrado por</th>
-                                <th>Fecha pago</th>
+                                <th>Fecha creación</th>
                                 <th>Fecha registro</th>
                                 <th></th>
                             </tr>
@@ -1293,7 +1293,7 @@
                                 <th>Comentario</th>
                                 <th>Estado</th>
                                 <th>Registrado por</th>
-                                <th>Fecha pago</th>
+                                <th>Fecha creación</th>
                                 <th>Fecha registro</th>
                                 <th></th>
                             </tr>

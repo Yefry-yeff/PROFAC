@@ -233,6 +233,24 @@ class DetalleProducto extends Component
             $lote->reservas_detalle    = $sid !== null ? ($detalleReservasAgrupado[$sid] ?? []) : [];
         }
 
+        $lotes = collect($lotes)
+            ->groupBy('seccion_id')
+            ->map(function ($filas) {
+                $lote = $filas->first();
+                $lote->rawStock = (float) $filas->sum('rawStock');
+                $lote->cantidad_disponible = $lote->rawStock;
+                $lote->reservado_fila = (float) $filas->sum('reservado_fila');
+                $lote->disponible_fila = (float) $filas->sum('disponible_fila');
+
+                return $lote;
+            })
+            ->sortBy('idRecibido')
+            ->values();
+
+        foreach ($lotes as $indice => $lote) {
+            $lote->contador = $indice + 1;
+        }
+
         $esAdmin = Auth::user()->rol_id == 1;
 
         return view('livewire.inventario.detalle-producto',  compact('producto', 'precios', 'imagenes', 'lotes', 'categorias', 'unidades', 'marcas', 'esAdmin'));

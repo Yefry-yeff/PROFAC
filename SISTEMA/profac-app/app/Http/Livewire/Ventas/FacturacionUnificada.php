@@ -20,6 +20,7 @@ class FacturacionUnificada extends Component
     public $prefacturasEncontradas = [];
     public $prefacturaVinculada    = null;
     public $prefacturaVinculadaId  = null;
+    public $diasCreditoAprobados   = null;
 
 // ── Buscador de flujo ─────────────────────────────────────────────────
     public $busquedaFlujo      = '';
@@ -77,6 +78,34 @@ class FacturacionUnificada extends Component
                 'archivo_forma_f01'    => $doc->archivo_forma_f01 ?? null,
             ];
         }
+    }
+
+    private function obtenerDiasCreditoAprobados(?int $flujoId): ?int
+    {
+        if (!$flujoId) {
+            return null;
+        }
+
+        $credito = DB::table('credito_revision')
+            ->where('flujo_id', $flujoId)
+            ->where('estado', 'aprobado')
+            ->latest('id')
+            ->first(['dias_credito_aprobados', 'fecha_aprobacion', 'fecha_vencimiento_credito']);
+
+        if (!$credito) {
+            return null;
+        }
+
+        if (!is_null($credito->dias_credito_aprobados)) {
+            return max(0, (int) $credito->dias_credito_aprobados);
+        }
+
+        if ($credito->fecha_aprobacion && $credito->fecha_vencimiento_credito) {
+            return max(0, (int) \Carbon\Carbon::parse($credito->fecha_aprobacion)
+                ->diffInDays(\Carbon\Carbon::parse($credito->fecha_vencimiento_credito), false));
+        }
+
+        return null;
     }
 
     public function mount($codigo = null)
@@ -520,6 +549,7 @@ class FacturacionUnificada extends Component
 
         // Ligado de flujo (solo prefacturas)
         $this->flujoVinculadoId = $pref->flujo_id ? (int) $pref->flujo_id : null;
+        $this->diasCreditoAprobados = $this->obtenerDiasCreditoAprobados($this->flujoVinculadoId);
         $this->cargarDocumentosComercialesDesdeFlujo($this->flujoVinculadoId);
         $this->flujoVinculado   = $pref->flujo_id ? [
             'flujo_id'  => (int) $pref->flujo_id,
@@ -590,6 +620,7 @@ class FacturacionUnificada extends Component
             'vendedorId'     => $vendedorId,
             'vendedorNombre' => $vendedorNombre,
             'flujoId'        => $this->flujoVinculadoId,
+            'diasCreditoAprobados' => $this->diasCreditoAprobados,
             'numeroOrdenCompra' => $this->documentosComerciales['numero_orden_compra'] ?? null,
             'archivoOrdenCompra' => $this->documentosComerciales['archivo_orden_compra'] ?? null,
             'numeroFormaF01' => $this->documentosComerciales['numero_forma_f01'] ?? null,
@@ -696,6 +727,7 @@ class FacturacionUnificada extends Component
     {
         $this->prefacturaVinculadaId  = null;
         $this->prefacturaVinculada    = null;
+        $this->diasCreditoAprobados   = null;
         $this->busquedaPrefactura     = '';
         $this->prefacturasEncontradas = [];
         $this->flujoVinculadoId       = null;

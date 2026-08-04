@@ -51,6 +51,8 @@
     @keyframes rfd-pulse { 0%,100%{ box-shadow:0 0 0 0 rgba(220,38,38,.4); } 50%{ box-shadow:0 0 0 6px rgba(220,38,38,0); } }
     tr.rfd-row-anulado td { opacity:.55; text-decoration:line-through; }
     /* modal */
+    #modalFiltrosRVC { z-index:10050!important; }
+    body.modal-open > .modal-backdrop { z-index:10040!important; }
     .modal-header-rvc { background:var(--pf-grad); color:#fff; border-radius:var(--pf-radius) var(--pf-radius) 0 0; padding:14px 20px; }
     .modal-header-rvc .modal-title { color:#fff; font-size:.95rem; font-weight:700; }
     .modal-header-rvc .close { color:#fff; opacity:.8; text-shadow:none; font-size:1.4rem; }
@@ -149,6 +151,9 @@
                             <button type="button" class="btn-rvc-action" onclick="exportarExcel()">
                                 <i class="fa fa-file-excel-o mr-1"></i>Excel
                             </button>
+                            <button type="button" class="btn-rvc-action" onclick="exportarPdf()">
+                                <i class="fa fa-file-pdf-o mr-1"></i>PDF
+                            </button>
                             <button type="button" class="btn-rvc-action" data-toggle="modal" data-target="#modalFiltrosRVC">
                                 <i class="fa fa-filter mr-1"></i>Filtros
                             </button>
@@ -201,12 +206,14 @@
                                         <th style="width:40px;"></th>
                                         <th>Factura / CAI</th>
                                         <th>Cliente</th>
-                                        <th>Vendedor</th>
+                                        <th>Asesor Comercial</th>
+                                        <th>Teleasesor</th>
                                         <th>Fecha Venta</th>
                                         <th>Modo Pago</th>
                                         <th>Total Facturado</th>
                                         <th>Total Pagado</th>
                                         <th>Saldo Pendiente</th>
+                                        <th>Fatal Retenci&#243;n</th>
                                         <th>Estado</th>
                                         <th>D&#237;as Venc.</th>
                                     </tr>
@@ -289,11 +296,22 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label>Vendedor</label>
+                                    <label>Asesor Comercial</label>
                                     <select id="fil_vendedor" class="form-control" style="width:100%">
                                         <option value=""></option>
                                         @foreach($vendedores as $v)
                                             <option value="{{ $v->id }}">{{ $v->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Teleasesor</label>
+                                    <select id="fil_teleasesor" class="form-control" style="width:100%">
+                                        <option value=""></option>
+                                        @foreach($teleasesores as $teleasesor)
+                                            <option value="{{ $teleasesor->id }}">{{ $teleasesor->name }}</option>
                                         @endforeach
                                     </select>
                                 </div>

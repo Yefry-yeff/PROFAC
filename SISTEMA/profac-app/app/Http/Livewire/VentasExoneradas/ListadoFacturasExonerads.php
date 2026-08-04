@@ -63,8 +63,8 @@ class ListadoFacturasExonerads extends Component
                     FORMAT(CASE WHEN factura.tipo_venta_id = 3 THEN COALESCE(factura.sub_total,0) ELSE 0 END,2) as exonerado,
                     fecha_vencimiento,
                     format(sub_total,2) as sub_total,
-                    format(isv,2) as isv,
-                    format(total,2) as total,
+                    FORMAT(0,2) as isv,
+                    FORMAT(sub_total,2) as total,
                     factura.credito,
                     users.name as vendedor,
                     (select name from users where id = factura.users_id) as facturador,
@@ -85,6 +85,8 @@ class ListadoFacturasExonerads extends Component
 
             }else{
 
+                $userId = (int) Auth::id();
+
                 $listaFacturas = DB::SELECT("
                 select
                     factura.id as id,
@@ -99,8 +101,8 @@ class ListadoFacturasExonerads extends Component
                     FORMAT(CASE WHEN factura.tipo_venta_id = 3 THEN COALESCE(factura.sub_total,0) ELSE 0 END,2) as exonerado,
                     fecha_vencimiento,
                     FORMAT(sub_total,2) as sub_total,
-                    FORMAT(isv,2) as isv,
-                    FORMAT(total,2) as total,
+                    FORMAT(0,2) as isv,
+                    FORMAT(sub_total,2) as total,
                     factura.credito,
                     users.name as creado_por,
                     (select if(sum(monto) is null,0,sum(monto)) from pago_venta where estado_venta_id = 1   and factura_id = factura.id ) as monto_pagado,
@@ -115,7 +117,8 @@ class ListadoFacturasExonerads extends Component
                     on factura.vendedor = users.id
                     cross join (select @i := 0) r
                 where YEAR(factura.created_at) >= (YEAR(NOW())-2) and factura.estado_venta_id<>2 and factura.tipo_venta_id = 3
-                and factura.vendedor =".Auth::user()->id."{$whereFilters}
+                and (factura.vendedor = {$userId} or factura.users_id = {$userId} or factura.gestor_entrega = {$userId})
+                {$whereFilters}
                 order by factura.created_at desc
                 ", $bindings);
             }

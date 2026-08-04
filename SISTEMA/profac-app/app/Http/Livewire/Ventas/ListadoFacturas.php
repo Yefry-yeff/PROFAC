@@ -90,6 +90,8 @@ class ListadoFacturas extends Component
 
             }else{
 
+                $userId = (int) Auth::id();
+
                 $listaFacturas = DB::SELECT("
                 select
                 factura.id as id,
@@ -123,7 +125,9 @@ class ListadoFacturas extends Component
                 inner join cai A
                 on factura.cai_id= A.id
                 cross join (select @i := 0) r
-            where ( YEAR(factura.created_at) >= (YEAR(NOW())-2) )and factura.estado_factura_id=1 and factura.estado_venta_id<>2 and (factura.tipo_venta_id = 1) and   factura.vendedor = ".Auth::user()->id."{$whereFilters} order by factura.created_at desc", $bindings);
+            where ( YEAR(factura.created_at) >= (YEAR(NOW())-2) )and factura.estado_factura_id=1 and factura.estado_venta_id<>2 and (factura.tipo_venta_id = 1)
+                and (factura.vendedor = {$userId} or factura.users_id = {$userId} or factura.gestor_entrega = {$userId})
+                {$whereFilters} order by factura.created_at desc", $bindings);
             }
 
 
@@ -255,8 +259,8 @@ class ListadoFacturas extends Component
                     DB::raw('FORMAT(COALESCE(f.sub_total_excento,0),2)                          AS exento'),
                     DB::raw('FORMAT(CASE WHEN f.tipo_venta_id=3 THEN COALESCE(f.sub_total,0) ELSE 0 END,2) AS exonerado'),
                     DB::raw('FORMAT(f.sub_total,2)                                              AS sub_total'),
-                    DB::raw('FORMAT(f.isv,2)                                                    AS isv'),
-                    DB::raw('FORMAT(f.total,2)                                                  AS total'),
+                    DB::raw('FORMAT(CASE WHEN f.tipo_venta_id=3 THEN 0 ELSE f.isv END,2)        AS isv'),
+                    DB::raw('FORMAT(CASE WHEN f.tipo_venta_id=3 THEN f.sub_total ELSE f.total END,2) AS total'),
                     'f.credito',
                     DB::raw('u.name                                                             AS vendedor'),
                     DB::raw('COALESCE((SELECT ap.saldo FROM aplicacion_pagos ap WHERE ap.estado=1 AND ap.factura_id=f.id LIMIT 1), -1) AS saldo_cobro'),
@@ -265,7 +269,13 @@ class ListadoFacturas extends Component
                 ->where('f.estado_venta_id',  '<>', 2)
                 ->whereIn('f.tipo_venta_id', $tipoVentaIds);
 
-            if (!$esAdmin) { $query->where('f.vendedor', Auth::id()); }
+            if (!$esAdmin) {
+                $query->where(function ($actor) {
+                    $actor->where('f.vendedor', Auth::id())
+                        ->orWhere('f.users_id', Auth::id())
+                        ->orWhere('f.gestor_entrega', Auth::id());
+                });
+            }
             if ($filtroCai)     { $query->where('f.cai',           'LIKE', "%{$filtroCai}%"); }
             if ($filtroCliente) { $query->where('f.nombre_cliente','LIKE', "%{$filtroCliente}%"); }
             if ($filtroVendedor){ $query->where('u.name',          'LIKE', "%{$filtroVendedor}%"); }
@@ -332,8 +342,8 @@ class ListadoFacturas extends Component
                     DB::raw('FORMAT(COALESCE(f.sub_total_excento,0),2)                               AS exento'),
                     DB::raw('FORMAT(CASE WHEN f.tipo_venta_id=3 THEN COALESCE(f.sub_total,0) ELSE 0 END,2) AS exonerado'),
                     DB::raw('FORMAT(f.sub_total,2)                                                   AS sub_total'),
-                    DB::raw('FORMAT(f.isv,2)                                                         AS isv'),
-                    DB::raw('FORMAT(f.total,2)                                                       AS total'),
+                    DB::raw('FORMAT(CASE WHEN f.tipo_venta_id=3 THEN 0 ELSE f.isv END,2)             AS isv'),
+                    DB::raw('FORMAT(CASE WHEN f.tipo_venta_id=3 THEN f.sub_total ELSE f.total END,2) AS total'),
                     'f.credito',
                     DB::raw('u.name                                                                  AS vendedor'),
                     DB::raw('(SELECT name FROM users u2 WHERE u2.id = f.users_id LIMIT 1)            AS facturador'),
@@ -347,7 +357,11 @@ class ListadoFacturas extends Component
                 ->whereIn('f.tipo_venta_id', [1, 2, 3]);
 
             if (!$esAdmin) {
-                $query->where('f.vendedor', Auth::id());
+                $query->where(function ($actor) {
+                    $actor->where('f.vendedor', Auth::id())
+                        ->orWhere('f.users_id', Auth::id())
+                        ->orWhere('f.gestor_entrega', Auth::id());
+                });
             }
 
             if ($filtroCai)     { $query->where('f.cai',           'LIKE', "%{$filtroCai}%"); }
