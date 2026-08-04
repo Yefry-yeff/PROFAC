@@ -4,6 +4,7 @@ namespace App\Http\Livewire\Inventario;
 
 use Livewire\Component;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 
@@ -263,6 +264,21 @@ class Ajustes extends Component
      }
 
     public function realizarAjuste(Request $request){
+        // Blindaje anti-duplicado: solo permite un guardado en curso por usuario.
+        // Si llega una segunda petición (doble clic, doble submit, reintento) mientras
+        // la primera sigue procesándose, se rechaza sin tocar la BD.
+        $lockKey = 'ajuste_guardar_user_' . Auth::id();
+        $lock = Cache::lock($lockKey, 20);
+
+        if (!$lock->get()) {
+            return response()->json([
+                'icon' => 'warning',
+                'title' => 'Ajuste en proceso',
+                'text' => 'Ya hay un ajuste en proceso para su usuario. Espere a que finalice antes de reintentar.',
+                'message' => 'Solicitud duplicada evitada',
+            ], 409);
+        }
+
         try
         {
                 // dd($request->all());
@@ -435,6 +451,8 @@ class Ajustes extends Component
             'message' => 'Ha ocurrido un error',
             'error' => $e,
         ],402);
+        } finally {
+            $lock->release();
         }
         }
 
