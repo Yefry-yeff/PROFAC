@@ -4,6 +4,7 @@
 
 namespace App\Http\Livewire\Ventas;
 
+use App\Support\ExpoConfig;
 use App\Support\ClienteActoresAsignados;
 use Livewire\Component;
 
@@ -570,6 +571,16 @@ class FacturacionEstatal extends Component
                 $row->esSinExistencia = 0;
                 return $row;
             }, $results);
+
+            $expoId = (int) $request->input('expo_id', 0);
+            if ($expoId > 0) {
+                $expo = ExpoConfig::detalleActiva($expoId);
+                if (!$expo) {
+                    return response()->json(['message' => 'La Expo no está activa o está fuera de vigencia.'], 422);
+                }
+                $bodegas = $expo['bodegas'];
+                $results = array_values(array_filter($results, fn ($row) => in_array((int) $row->idBodega, $bodegas, true)));
+            }
 
             $permitirSinExistencia = (int) ($request->permitir_sin_existencia ?? 0) === 1;
             if ($permitirSinExistencia) {

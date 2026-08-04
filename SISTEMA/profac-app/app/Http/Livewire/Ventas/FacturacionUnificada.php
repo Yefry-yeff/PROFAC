@@ -2,6 +2,7 @@
 
 namespace App\Http\Livewire\Ventas;
 
+use App\Support\ExpoConfig;
 use Livewire\Component;
 use App\Models\TipoFactura;
 use Illuminate\Support\Facades\DB;
@@ -14,6 +15,7 @@ class FacturacionUnificada extends Component
     public $tiposFactura;
     public $fromFlujo = false;
     public $fromPrefactura = false;
+    public $expoConfig = null;
 
     // ── Buscador de prefactura ───────────────────────────────────────────
     public $busquedaPrefactura     = '';
@@ -124,6 +126,17 @@ class FacturacionUnificada extends Component
         }
 
         $this->tipoFacturaId = $this->tipoFactura->id ?? null;
+
+        $expoId = (int) request()->get('expo', 0);
+        if ($expoId > 0) {
+            abort_unless(($this->tipoFactura->codigo ?? '') === 'cotizacion_clientes_a', 404);
+            $this->expoConfig = ExpoConfig::detalleActiva($expoId);
+            abort_unless($this->expoConfig, 404, 'La Expo no está activa o está fuera de vigencia.');
+
+            $tipoVentaExpo = ExpoConfig::tipoVentaId();
+            abort_unless($tipoVentaExpo, 500, 'No existe el tipo de venta Expo. Ejecute las migraciones.');
+            $this->tipoFactura->tipo_venta_id = $tipoVentaExpo;
+        }
 
         // Vendedor = usuario autenticado por defecto
         if (Auth::check()) {
@@ -746,6 +759,7 @@ class FacturacionUnificada extends Component
         return view('livewire.ventas.facturacion-unificada', [
             'tiposFactura' => $this->tiposFactura,
             'config'       => $this->tipoFactura,
+            'expoConfig'   => $this->expoConfig,
         ]);
     }
 }

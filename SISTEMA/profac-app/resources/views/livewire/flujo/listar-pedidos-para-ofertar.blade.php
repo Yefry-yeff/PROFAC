@@ -68,11 +68,20 @@
         <h5 class="m-0" style="font-weight:800; color:#37474f;">
             <i class="fa fa-file-text-o mr-2" style="color:#e65100;"></i> Pedidos y Ofertas
         </h5>
-        <button wire:click="nuevaOfertaSinPedido"
-                class="btn btn-sm btn-warning font-weight-bold"
-                style="border-radius:8px; font-size:12px;">
-            <i class="fa fa-plus mr-1"></i> Nueva Oferta
-        </button>
+        <div class="d-flex" style="gap:8px;">
+            @if($expoActiva)
+                <button wire:click="nuevaOfertaExpo"
+                        class="btn btn-sm btn-success font-weight-bold"
+                        style="border-radius:8px; font-size:12px;">
+                    <i class="fa fa-plus mr-1"></i> Oferta de Expo
+                </button>
+            @endif
+            <button wire:click="nuevaOfertaSinPedido"
+                    class="btn btn-sm btn-warning font-weight-bold"
+                    style="border-radius:8px; font-size:12px;">
+                <i class="fa fa-plus mr-1"></i> Nueva Oferta
+            </button>
+        </div>
     </div>
 
     {{-- ── Pestanas ─────────────────────────────────────────────────── --}}

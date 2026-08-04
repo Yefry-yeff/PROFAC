@@ -1646,5 +1646,9 @@ Route::post('/reporte/ventas-cobros/actualizar-f01/{facturaId}',                
     Route::post('/flujo_de_venta/cartera_de_clientes/zona-quitar-cliente', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'quitarClienteZona'])->name('cartera_clientes.zona_quitar_cliente');
     Route::get('/flujo_de_venta/cartera_de_clientes/zona-historial/{id}', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'historialZona'])->name('cartera_clientes.zona_historial');
 
+
+    // Ruta auto-generada para: FlujoDeVenta\Expo
+    Route::get('/flujo_de_venta/expo', \App\Http\Livewire\FlujoDeVenta\Expo::class);
+
     // [auto-routes-anchor]
 });

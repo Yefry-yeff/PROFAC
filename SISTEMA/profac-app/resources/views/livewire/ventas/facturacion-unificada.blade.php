@@ -186,12 +186,12 @@
     @if($fromFlujo && ($config->codigo ?? '') === 'cotizacion_clientes_a')
     <div class="row wrapper border-bottom white-bg page-heading">
         <div class="col-lg-10">
-            <h2><i class="fa fa-file-text-o" style="color:#00897b;"></i> Nueva Oferta</h2>
+            <h2><i class="fa fa-file-text-o" style="color:#00897b;"></i> {{ $expoConfig ? 'Oferta de Expo' : 'Nueva Oferta' }}</h2>
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Inicio</a></li>
                 <li class="breadcrumb-item"><a href="{{ route('flujo.ventas') }}">Ventas</a></li>
                 <li class="breadcrumb-item"><a href="{{ route('flujo.ofertas') }}">Ofertas</a></li>
-                <li class="breadcrumb-item active"><strong>Nueva Oferta</strong></li>
+                <li class="breadcrumb-item active"><strong>{{ $expoConfig ? 'Oferta de Expo' : 'Nueva Oferta' }}</strong></li>
             </ol>
         </div>
         <div class="col-lg-2 d-flex align-items-center justify-content-end">
@@ -483,7 +483,7 @@
                             <h3>
                                 <i class="mr-2 fa fa-file-text-o"></i>
                                 @if($fromFlujo && ($config->codigo ?? '') === 'cotizacion_clientes_a')
-                                    Nueva Oferta
+                                    {{ $expoConfig ? 'Oferta de Expo - '.$expoConfig['nombre'] : 'Nueva Oferta' }}
                                 @else
                                     <span id="titulo_factura">{{ $config->nombre ?? 'Venta' }}</span>
                                 @endif
@@ -503,6 +503,7 @@
                             <input type="hidden" id="restriccion"        name="restriccion"        value="{{ $config->restriccion ?? 1 }}">
                             <input type="hidden" id="tipo_venta_id"      name="tipo_venta_id"      value="{{ $config->tipo_venta_id ?? 2 }}">
                             <input type="hidden" id="tipo_factura_id"    name="tipo_factura_id"    value="{{ $config->id ?? '' }}">
+                            <input type="hidden" id="expo_id"            name="expo_id"            value="{{ $expoConfig['id'] ?? '' }}">
                             <input type="hidden" id="idComprobante"      name="idComprobante"      value="">
                             <input type="hidden" id="codigo_autorizacion" name="codigo_autorizacion" value="">
                             <input type="hidden" id="pedido_vinculado_id" name="pedido_id"          value="{{ $pedidoId ?? '' }}"> {{-- vinculación a pedido --}}
@@ -569,6 +570,7 @@
                                     <input class="form-control form-control-sm" type="number" min="0"
                                         max="{{ $config->max_descuento ?? 50 }}"
                                         value="0" id="porDescuento" name="porDescuento"
+                                        @if($expoConfig) readonly @endif
                                         onchange="calcularTotalesInicioPagina()">
                                 </div>
                                 {{-- Fecha emisión --}}
@@ -1690,6 +1692,7 @@
     // CONFIGURACIÓN DEL TIPO DE FACTURA (desde PHP)
     // ================================================================
     var tipoFacturaConfig = @json($config);
+    var expoConfig = @json($expoConfig ?? null);
 
     // Mapa de URLs por código de tipo de factura
     var urlsPorTipo = {
@@ -2491,7 +2494,8 @@
 
         axios.post('/producto/categorias-disponibles', {
             producto_id: productoId,
-            cliente_categoria_escala_id: categoriaEscalaId
+            cliente_categoria_escala_id: categoriaEscalaId,
+            expo_id: expoConfig ? expoConfig.id : null
         })
             .then(response => {
                 if (String($('#seleccionarProducto').val() || '') !== String(productoId)) return;
@@ -2524,6 +2528,11 @@
                         $('#categoria_cliente_venta_id option:nth-child(2)').prop('selected', true);
                     }
                     $('#categoria_cliente_venta_id').prop('disabled', false);
+
+                    if (expoConfig && expoConfig.escalas.length === 1 && expoConfig.bodegas.length === 1 && categorias.length === 1) {
+                        $('#categoria_cliente_venta_id').val(String(categorias[0].id)).trigger('change');
+                        seleccionarBodegaExpoUnica(productoId);
+                    }
                 } else {
                     $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>No hay categorías disponibles</option>');
                     Swal.fire({ icon: 'warning', title: 'Advertencia', text: 'Este producto no tiene escalas de precio.' });
@@ -2604,9 +2613,34 @@
                     // prefactura_id: necesario para excluir su reserva del cálculo de stock
                     var _prefacturaId = _urlParams.get('prefactura_id') || document.getElementById('prefactura_vinculada_id')?.value || '';
                     var _permitirSinExistencia = (codigoActual === 'cotizacion_clientes_a') ? 1 : 0;
-                    return { search: params.term, type: 'public', page: params.page || 1, idProducto: id, flujo_id: _flujoId, modo: _modo, prefactura_id: _prefacturaId, permitir_sin_existencia: _permitirSinExistencia };
+                    return { search: params.term, type: 'public', page: params.page || 1, idProducto: id, flujo_id: _flujoId, modo: _modo, prefactura_id: _prefacturaId, permitir_sin_existencia: _permitirSinExistencia, expo_id: expoConfig ? expoConfig.id : null };
                 }
             }
+        });
+    }
+
+    function seleccionarBodegaExpoUnica(productoId) {
+        obtenerBodegas(productoId);
+        var url = urls.bodegas.replace('{idProducto}', productoId);
+        axios.get(url, {
+            params: {
+                idProducto: productoId,
+                permitir_sin_existencia: 1,
+                expo_id: expoConfig.id
+            }
+        }).then(function(response) {
+            if (String($('#seleccionarProducto').val() || '') !== String(productoId)) return;
+            var opciones = response.data.results || [];
+            var bodega = opciones.find(function(item) { return !item.esSinExistencia; })
+                || opciones.find(function(item) { return item.esSinExistencia; });
+            if (!bodega) return;
+
+            var option = new Option(bodega.text, bodega.id, true, true);
+            $('#bodega').append(option).trigger('change');
+            agregarProductoCarrito(bodega);
+        }).catch(function(error) {
+            var mensaje = error.response?.data?.message || 'No se pudo consultar la bodega configurada para la Expo.';
+            Swal.fire({ icon: 'error', title: 'Error', text: mensaje });
         });
     }
 
@@ -2648,10 +2682,14 @@
     // ================================================================
     // AGREGAR PRODUCTO AL CARRITO
     // ================================================================
-    function agregarProductoCarrito() {
+    function agregarProductoCarrito(bodegaExpo) {
         let idProducto = document.getElementById('seleccionarProducto').value;
         let categoria_cliente_venta_id = document.getElementById('categoria_cliente_venta_id').value;
-        let data = $("#bodega").select2('data')[0];
+        let data = bodegaExpo || $("#bodega").select2('data')[0];
+        if (!data) {
+            Swal.fire({ icon: 'warning', title: 'Advertencia', text: 'Seleccione una bodega.' });
+            return;
+        }
         let esSinExistencia = !!(data && (data.esSinExistencia || data.id === 'sin_existencia'));
         let bodega = esSinExistencia ? 'SIN EXISTENCIA' : data.bodegaSeccion;
         let idBodega = esSinExistencia ? '' : data.idBodega;
@@ -2850,6 +2888,19 @@
             isvProducto = 0;
         }
 
+        if (esSinExistencia) {
+            idRestaInventario.value = 0;
+        } else {
+            idRestaInventario.value = valorInputCantidad * valorSelectUnidad;
+        }
+
+        if (actualizarDescuentoExpo()) {
+            calcularTotalesInicioPagina();
+            idPrecio.value = valorInputPrecio;
+            actualizarContadorCarrito();
+            return;
+        }
+
         if (valorInputPrecio && valorInputCantidad) {
             let descuento = document.getElementById('porDescuento').value;
             let subTotal = 0, isv = 0, total = 0, descuentoCalculado = 0;
@@ -2875,11 +2926,6 @@
             document.getElementById('isvProducto' + id).value = isv.toFixed(2);
             document.getElementById('isvProductoMostrar' + id).value = formatoMoneda(isv);
 
-            if (esSinExistencia) {
-                idRestaInventario.value = 0;
-            } else {
-                idRestaInventario.value = valorInputCantidad * valorSelectUnidad;
-            }
             this.totalesGenerales();
         }
 
@@ -2921,6 +2967,11 @@
     function totalesGenerales() {
         if (numeroInputs == 0) return;
 
+        if (actualizarDescuentoExpo()) {
+            calcularTotalesInicioPagina();
+            return;
+        }
+
         let totalGeneralValor = 0, totalISV = 0, subTotalGeneralGrabadoValor = 0;
         let subTotalGeneralExcentoValor = 0, subTotalGeneral = 0, acumularDescuento = 0;
 
@@ -2952,6 +3003,30 @@
         document.getElementById('isvGeneralMostrar').value = formatoMoneda(totalISV);
         document.getElementById('totalGeneral').value = totalGeneralValor.toFixed(2);
         document.getElementById('totalGeneralMostrar').value = formatoMoneda(totalGeneralValor);
+    }
+
+    function actualizarDescuentoExpo() {
+        if (!expoConfig || !Array.isArray(expoConfig.descuentos)) return false;
+
+        var ventaBruta = 0;
+        arregloIdInputs.forEach(function(id) {
+            var precio = parseFloat(document.getElementById('precio' + id)?.value) || 0;
+            var cantidad = parseFloat(document.getElementById('cantidad' + id)?.value) || 0;
+            var unidad = parseFloat(document.getElementById('unidad' + id)?.value) || 0;
+            ventaBruta += precio * cantidad * unidad;
+        });
+
+        var porcentaje = 0;
+        expoConfig.descuentos.forEach(function(regla) {
+            if (ventaBruta >= parseFloat(regla.venta_minima || 0)) {
+                porcentaje = parseFloat(regla.porcentaje_descuento || 0);
+            }
+        });
+
+        var input = document.getElementById('porDescuento');
+        var anterior = parseFloat(input.value) || 0;
+        input.value = porcentaje;
+        return Math.abs(anterior - porcentaje) > 0.0001;
     }
 
     function eliminarInput(id) {
