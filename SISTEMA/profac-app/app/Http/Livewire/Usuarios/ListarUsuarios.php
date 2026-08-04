@@ -97,7 +97,7 @@ class ListarUsuarios extends Component
         try {
             $validator = Validator::make($request->all(), [
                 'nombre_usuario' => 'required',
-                'email_user'     => 'required|email',
+                'email_user'     => 'required|email|unique:users,email',
                 'pass_user'      => 'required|min:8',
                 'confirmar_pass' => 'required|same:pass_user',
                 'rol_user'       => 'required',
@@ -105,6 +105,7 @@ class ListarUsuarios extends Component
                 'nombre_usuario.required' => 'El nombre es requerido',
                 'email_user.required'     => 'El correo es requerido',
                 'email_user.email'        => 'Ingrese un correo válido',
+                'email_user.unique'       => 'Ya existe un usuario con este correo. Si está inactivo, use la opción de activarlo en lugar de crear uno nuevo.',
                 'pass_user.required'      => 'La contraseña es requerida',
                 'pass_user.min'           => 'La contraseña debe tener al menos 8 caracteres',
                 'confirmar_pass.required' => 'Debe confirmar la contraseña',
