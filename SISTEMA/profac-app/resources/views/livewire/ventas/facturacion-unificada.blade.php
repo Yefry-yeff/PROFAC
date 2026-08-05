@@ -1782,6 +1782,13 @@
 
     var numeroInputs = 0;
     var arregloIdInputs = [];
+    var ventaTemporalId = new URLSearchParams(window.location.search).get('temporal_id');
+    var ventaTemporalTipo = codigoActual === 'cotizacion_clientes_a' ? 'oferta' : 'factura';
+    var ventaTemporalRestaurando = false;
+    var ventaTemporalFinalizada = false;
+    var ventaTemporalTimer = null;
+    var ventaTemporalObserver = null;
+    var ventaTemporalAutosaveActivo = false;
     var retencionEstado = false;
     var diasCredito = 0;
     var diasCreditoAprobadosFlujo = null;
@@ -1802,8 +1809,227 @@
     };
 
     function inicializarFormulario() {
-        obtenerTipoPago();
         inicializarSelect2();
+        Promise.resolve(obtenerTipoPago()).finally(function() {
+            inicializarVentaTemporal();
+        });
+    }
+
+    function urlReanudacionTemporal() {
+        var url = new URL(window.location.href);
+        url.searchParams.delete('temporal_id');
+        return url.pathname + url.search;
+    }
+
+    function obtenerControlesTemporal() {
+        var controles = [];
+        document.querySelectorAll('#crear_venta input, #crear_venta select, #crear_venta textarea, #numero_venta').forEach(function(control) {
+            if (!control.id || control.type === 'file' || control.type === 'submit' || control.type === 'button') return;
+            controles.push({
+                id: control.id,
+                value: control.value,
+                checked: !!control.checked,
+                options: control.tagName === 'SELECT'
+                    ? Array.from(control.selectedOptions).map(function(option) { return { value: option.value, text: option.text }; })
+                    : []
+            });
+        });
+        return controles;
+    }
+
+    function crearInstantaneaTemporal() {
+        var carrito = document.getElementById('carritoTbody');
+        return {
+            version: 1,
+            controles: obtenerControlesTemporal(),
+            carrito_html: carrito ? carrito.innerHTML : '',
+            numero_inputs: numeroInputs,
+            arreglo_id_inputs: arregloIdInputs.slice()
+        };
+    }
+
+    function tituloVentaTemporal() {
+        var cliente = $('#seleccionarCliente option:selected').text();
+        var numero = document.getElementById('numero_venta');
+        var prefijo = ventaTemporalTipo === 'oferta' ? 'Oferta' : 'Factura';
+        return prefijo + (cliente && cliente.indexOf('--') !== 0 ? ' - ' + cliente : '') + (numero && numero.value ? ' #' + numero.value : '');
+    }
+
+    function programarGuardadoTemporal() {
+        if (ventaTemporalRestaurando || ventaTemporalFinalizada) return;
+        clearTimeout(ventaTemporalTimer);
+        ventaTemporalTimer = setTimeout(guardarVentaTemporal, 600);
+    }
+
+    function guardarVentaTemporal() {
+        if (ventaTemporalRestaurando || ventaTemporalFinalizada) return;
+        var instantanea = crearInstantaneaTemporal();
+
+        axios.post('/ventas/temporales', {
+            id: ventaTemporalId || null,
+            tipo: ventaTemporalTipo,
+            codigo_tipo: codigoActual,
+            titulo: tituloVentaTemporal(),
+            url_reanudacion: urlReanudacionTemporal(),
+            contenido: instantanea
+        }).then(function(response) {
+            ventaTemporalId = response.data.id;
+            var url = new URL(window.location.href);
+            url.searchParams.set('temporal_id', ventaTemporalId);
+            window.history.replaceState({}, '', url.toString());
+        }).catch(function(error) {
+            console.warn('No se pudo guardar el registro temporal:', error);
+        });
+    }
+
+    function eliminarVentaTemporal() {
+        ventaTemporalFinalizada = true;
+        clearTimeout(ventaTemporalTimer);
+        if (!ventaTemporalId) return Promise.resolve();
+        return axios.delete('/ventas/temporales/' + ventaTemporalId).catch(function(error) {
+            console.warn('No se pudo eliminar el registro temporal:', error);
+        });
+    }
+
+    function aplicarControlTemporal(controlGuardado) {
+        var control = document.getElementById(controlGuardado.id);
+        if (!control) return;
+        if (control.tagName === 'SELECT') {
+            (controlGuardado.options || []).forEach(function(optionGuardada) {
+                if (!Array.from(control.options).some(function(option) { return option.value == optionGuardada.value; })) {
+                    control.add(new Option(optionGuardada.text, optionGuardada.value));
+                }
+            });
+        }
+        control.value = controlGuardado.value;
+        if (control.type === 'checkbox' || control.type === 'radio') control.checked = controlGuardado.checked;
+        if ($(control).hasClass('select2-hidden-accessible')) {
+            var manejadorChange = control.onchange;
+            control.onchange = null;
+            $(control).trigger('change.select2');
+            control.onchange = manejadorChange;
+        }
+    }
+
+    function restaurarVentaTemporal(instantanea) {
+        ventaTemporalRestaurando = true;
+        var carrito = document.getElementById('carritoTbody');
+        if (carrito) carrito.innerHTML = instantanea.carrito_html || '';
+        numeroInputs = parseInt(instantanea.numero_inputs, 10) || 0;
+        arregloIdInputs = Array.isArray(instantanea.arreglo_id_inputs)
+            ? instantanea.arreglo_id_inputs.map(function(id) { return parseInt(id, 10); })
+            : [];
+        (instantanea.controles || []).forEach(aplicarControlTemporal);
+
+        var tieneProductos = arregloIdInputs.length > 0;
+        var tabla = document.getElementById('carritoTablaWrapper');
+        var vacio = document.getElementById('carritoVacio');
+        if (tabla) tabla.classList.toggle('d-none', !tieneProductos);
+        if (vacio) vacio.classList.toggle('d-none', tieneProductos);
+        actualizarContadorCarrito();
+        ventaTemporalRestaurando = false;
+    }
+
+    function escaparHtmlTemporal(texto) {
+        var elemento = document.createElement('div');
+        elemento.textContent = texto || '';
+        return elemento.innerHTML;
+    }
+
+    function iniciarNuevaVentaTemporal() {
+        ventaTemporalId = null;
+        var url = new URL(window.location.href);
+        url.searchParams.delete('temporal_id');
+        window.history.replaceState({}, '', url.toString());
+        activarAutosaveTemporal();
+    }
+
+    function continuarVentaTemporal(temporal) {
+        var separador = temporal.url_reanudacion.indexOf('?') >= 0 ? '&' : '?';
+        if (temporal.url_reanudacion !== urlReanudacionTemporal()) {
+            window.location.href = temporal.url_reanudacion + separador + 'temporal_id=' + temporal.id;
+            return;
+        }
+
+        ventaTemporalId = temporal.id;
+        axios.get('/ventas/temporales/' + temporal.id).then(function(response) {
+            restaurarVentaTemporal(response.data.data.contenido || {});
+            var url = new URL(window.location.href);
+            url.searchParams.set('temporal_id', temporal.id);
+            window.history.replaceState({}, '', url.toString());
+            activarAutosaveTemporal();
+        });
+    }
+
+    function ofrecerSeleccionTemporales(temporales) {
+        var etiquetaDocumento = ventaTemporalTipo === 'oferta' ? 'oferta' : 'factura';
+        var seleccionado = temporales.some(function(temporal) { return String(temporal.id) === String(ventaTemporalId); })
+            ? String(ventaTemporalId)
+            : String(temporales[0].id);
+        var registrosHtml = temporales.map(function(temporal) {
+            var fecha = new Date(temporal.updated_at);
+            var actualizado = isNaN(fecha.getTime()) ? '' : fecha.toLocaleString('es-HN', { dateStyle: 'short', timeStyle: 'short' });
+            return '<label style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;margin:0 0 7px;border:1px solid #dfe5eb;border-radius:7px;cursor:pointer;text-align:left;">'
+                + '<input type="radio" name="temporal_seleccionado" value="' + temporal.id + '" ' + (String(temporal.id) === seleccionado ? 'checked' : '') + ' style="margin-top:3px;accent-color:#00897b;">'
+                + '<span style="min-width:0;"><strong style="display:block;color:#37474f;font-size:13px;">' + escaparHtmlTemporal(temporal.titulo || 'Registro temporal') + '</strong>'
+                + '<small style="color:#78909c;">Actualizado ' + escaparHtmlTemporal(actualizado) + '</small></span></label>';
+        }).join('');
+
+        Swal.fire({
+            title: 'Registros temporales',
+            html: '<p style="color:#607d8b;font-size:13px;text-align:left;">Seleccione la ' + etiquetaDocumento + ' que desea continuar.</p>' + registrosHtml,
+            showDenyButton: true,
+            confirmButtonText: '<i class="fa fa-play mr-1"></i>Continuar ' + etiquetaDocumento,
+            denyButtonText: '<i class="fa fa-plus mr-1"></i>Realizar una nueva ' + etiquetaDocumento,
+            confirmButtonColor: '#00897b',
+            denyButtonColor: '#e65100',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            preConfirm: function() {
+                var opcion = document.querySelector('input[name="temporal_seleccionado"]:checked');
+                if (!opcion) {
+                    Swal.showValidationMessage('Seleccione un registro temporal.');
+                    return false;
+                }
+                return opcion.value;
+            }
+        }).then(function(result) {
+            if (result.isConfirmed) {
+                var temporal = temporales.find(function(item) { return String(item.id) === String(result.value); });
+                if (temporal) continuarVentaTemporal(temporal);
+            } else if (result.isDenied) {
+                iniciarNuevaVentaTemporal();
+            }
+        });
+    }
+
+    function activarAutosaveTemporal() {
+        if (ventaTemporalAutosaveActivo) return;
+        var formulario = document.getElementById('crear_venta');
+        if (!formulario) return;
+        ventaTemporalAutosaveActivo = true;
+        formulario.addEventListener('input', programarGuardadoTemporal);
+        formulario.addEventListener('change', programarGuardadoTemporal);
+        var carrito = document.getElementById('carritoTbody');
+        if (carrito) {
+            ventaTemporalObserver = new MutationObserver(programarGuardadoTemporal);
+            ventaTemporalObserver.observe(carrito, { childList: true, subtree: true });
+        }
+    }
+
+    function inicializarVentaTemporal() {
+        axios.get('/ventas/temporales', { params: { tipo: ventaTemporalTipo } }).then(function(response) {
+            var temporales = (response.data.data || []).filter(function(item) {
+                return item.tipo === ventaTemporalTipo;
+            });
+            if (temporales.length > 0) {
+                ofrecerSeleccionTemporales(temporales);
+            } else {
+                iniciarNuevaVentaTemporal();
+            }
+        }).catch(function() {
+            iniciarNuevaVentaTemporal();
+        });
     }
 
     function inicializarSelect2() {
@@ -2821,6 +3047,7 @@
                 document.getElementById('carritoTablaWrapper').classList.remove('d-none');
                 actualizarContadorCarrito();
                 reiniciarCapturaProducto();
+                programarGuardadoTemporal();
             })
             .catch(err => {
                 const mensaje = err.response?.data?.message || 'Error al agregar producto';
@@ -3042,6 +3269,7 @@
             document.getElementById('carritoVacio').classList.remove('d-none');
         }
         actualizarContadorCarrito();
+        programarGuardadoTemporal();
     }
 
     function validacionPrecio(idPrecios, idprecio) {
@@ -4142,6 +4370,7 @@
                     _ofertaFlujoId    = data.flujoId   || null;
                     var msgEl = document.getElementById('msgNumOferta');
                     if (msgEl) msgEl.textContent = 'Oferta #' + data.idFactura + ' registrada exitosamente.';
+                    eliminarVentaTemporal();
                     limpiarFormularioVenta(data);
                     $('#modalExitoOferta').modal('show');
                     return;
@@ -4175,6 +4404,7 @@
                 _facturaFlujoId    = flujoIdVal ? parseInt(flujoIdVal, 10) : null;
                 var msgFacturaEl = document.getElementById('msgNumFactura');
                 if (msgFacturaEl) msgFacturaEl.textContent = 'Factura #' + data.idFactura + ' registrada exitosamente.';
+                eliminarVentaTemporal();
                 limpiarFormularioVenta(data);
                 $('#modalExitoFactura').modal('show');
 
@@ -4402,6 +4632,7 @@
                 document.getElementById('carritoTablaWrapper').classList.remove('d-none');
                 totalesGenerales();
                 actualizarContadorCarrito();
+                programarGuardadoTemporal();
                 resolve();
             });
         }
@@ -4557,6 +4788,7 @@
                         idx,
                         document.getElementById('restaInventario' + idx)
                     );
+                    programarGuardadoTemporal();
                     resolve();
                 }).catch(function () { resolve(); });
             });

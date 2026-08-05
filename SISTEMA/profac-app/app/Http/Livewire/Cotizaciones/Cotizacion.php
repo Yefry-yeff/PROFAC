@@ -457,7 +457,7 @@ class Cotizacion extends Component
         }
 
         if ($expoId > 0) {
-            $expoConfig = ExpoConfig::detalleActiva($expoId);
+            $expoConfig = ExpoConfig::detalleActivaParaUsuario($expoId, Auth::id());
             if (!$expoConfig || !$tipoVentaExpoId) {
                 return response()->json([
                     'icon' => 'error',

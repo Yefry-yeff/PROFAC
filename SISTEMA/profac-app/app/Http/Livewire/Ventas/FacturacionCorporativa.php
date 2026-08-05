@@ -530,7 +530,7 @@ class FacturacionCorporativa extends Component
             $productoId          = $request->producto_id;
             $categoriaEscalaId   = $request->cliente_categoria_escala_id;
             $expoId = (int) $request->input('expo_id', 0);
-            $expo = $expoId > 0 ? ExpoConfig::detalleActiva($expoId) : null;
+            $expo = $expoId > 0 ? ExpoConfig::detalleActivaParaUsuario($expoId, Auth::id()) : null;
 
             if ($expoId > 0 && !$expo) {
                 return response()->json(['message' => 'La Expo no está activa o está fuera de vigencia.'], 422);

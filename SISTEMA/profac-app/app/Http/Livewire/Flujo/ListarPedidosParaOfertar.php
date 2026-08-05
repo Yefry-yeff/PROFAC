@@ -48,7 +48,7 @@ class ListarPedidosParaOfertar extends Component
 
     public function mount(): void
     {
-        $this->expoActiva = ExpoConfig::detalleActiva();
+        $this->expoActiva = ExpoConfig::detalleActivaParaUsuario(null, Auth::id());
         $this->cargar();
     }
 
@@ -370,9 +370,9 @@ class ListarPedidosParaOfertar extends Component
 
     public function nuevaOfertaExpo(): void
     {
-        $expo = ExpoConfig::detalleActiva();
+        $expo = ExpoConfig::detalleActivaParaUsuario(null, Auth::id());
         if (!$expo) {
-            $this->mensajeError = 'No existe una Expo activa y vigente.';
+            $this->mensajeError = 'No existe una Expo activa y vigente autorizada para su usuario.';
             $this->expoActiva = null;
             return;
         }

@@ -130,8 +130,8 @@ class FacturacionUnificada extends Component
         $expoId = (int) request()->get('expo', 0);
         if ($expoId > 0) {
             abort_unless(($this->tipoFactura->codigo ?? '') === 'cotizacion_clientes_a', 404);
-            $this->expoConfig = ExpoConfig::detalleActiva($expoId);
-            abort_unless($this->expoConfig, 404, 'La Expo no está activa o está fuera de vigencia.');
+            $this->expoConfig = ExpoConfig::detalleActivaParaUsuario($expoId, Auth::id());
+            abort_unless($this->expoConfig, 403, 'No tiene autorización para acceder a esta Expo.');
 
             $tipoVentaExpo = ExpoConfig::tipoVentaId();
             abort_unless($tipoVentaExpo, 500, 'No existe el tipo de venta Expo. Ejecute las migraciones.');
@@ -410,6 +410,9 @@ class FacturacionUnificada extends Component
             $qB->where(fn ($s) => $s->where('c.nombre', 'LIKE', $like)->orWhere('c.rtn', 'LIKE', $like));
         }
 
+        $this->aplicarAlcanceUsuarioFlujo($qA);
+        $this->aplicarAlcanceUsuarioFlujo($qB);
+
         $this->flujoEncontrados = array_slice(
             array_merge($qA->get()->toArray(), $qB->get()->toArray()),
             0, 8
@@ -459,6 +462,7 @@ class FacturacionUnificada extends Component
 
     public function seleccionarFlujo(int $flujoId)
     {
+        abort_unless($this->usuarioPuedeAccederFlujo($flujoId), 403, 'No tiene acceso a este flujo de venta.');
         $hasPedido = DB::table('historico_flujo')
             ->where('flujo_id', $flujoId)
             ->where('tipo_tramite_id', 1)
@@ -752,6 +756,71 @@ class FacturacionUnificada extends Component
             'vendedorId'     => $this->vendedorDefault['id'] ?? null,
             'vendedorNombre' => $this->vendedorDefault['name'] ?? null,
         ]);
+    }
+
+    private function aplicarAlcanceUsuarioFlujo($query): void
+    {
+        $usuarioId = (int) Auth::id();
+
+        $query->where(function ($alcance) use ($usuarioId) {
+            $alcance->whereExists(function ($pedido) use ($usuarioId) {
+                $pedido->select(DB::raw(1))
+                    ->from('historico_flujo as hf_perm_p')
+                    ->join('pedido as p_perm', 'p_perm.id', '=', 'hf_perm_p.tramite_id')
+                    ->join('cliente as c_perm_p', 'c_perm_p.id', '=', 'p_perm.cliente_id')
+                    ->whereColumn('hf_perm_p.flujo_id', 'f.id')
+                    ->where('hf_perm_p.tipo_tramite_id', 1)
+                    ->where(function ($actor) use ($usuarioId) {
+                        $actor->where('p_perm.users_id', $usuarioId)
+                            ->orWhere('c_perm_p.vendedor', $usuarioId)
+                            ->orWhereExists(function ($asignado) use ($usuarioId) {
+                                $asignado->select(DB::raw(1))
+                                    ->from('cliente_usuario as cu_perm_p')
+                                    ->whereColumn('cu_perm_p.cliente_id', 'c_perm_p.id')
+                                    ->where('cu_perm_p.usuario_id', $usuarioId)
+                                    ->whereIn('cu_perm_p.rol_id', [2, 3]);
+                            });
+                    });
+            })->orWhereExists(function ($oferta) use ($usuarioId) {
+                $oferta->select(DB::raw(1))
+                    ->from('historico_flujo as hf_perm_o')
+                    ->join('cotizacion as co_perm', 'co_perm.id', '=', 'hf_perm_o.tramite_id')
+                    ->join('cliente as c_perm_o', 'c_perm_o.id', '=', 'co_perm.cliente_id')
+                    ->whereColumn('hf_perm_o.flujo_id', 'f.id')
+                    ->where('hf_perm_o.tipo_tramite_id', 2)
+                    ->where(function ($actor) use ($usuarioId) {
+                        $actor->where('co_perm.users_id', $usuarioId)
+                            ->orWhere('co_perm.vendedor', $usuarioId)
+                            ->orWhere('c_perm_o.vendedor', $usuarioId)
+                            ->orWhereExists(function ($asignado) use ($usuarioId) {
+                                $asignado->select(DB::raw(1))
+                                    ->from('cliente_usuario as cu_perm_o')
+                                    ->whereColumn('cu_perm_o.cliente_id', 'c_perm_o.id')
+                                    ->where('cu_perm_o.usuario_id', $usuarioId)
+                                    ->whereIn('cu_perm_o.rol_id', [2, 3]);
+                            });
+                    });
+            })->orWhereExists(function ($factura) use ($usuarioId) {
+                $factura->select(DB::raw(1))
+                    ->from('historico_flujo as hf_perm_f')
+                    ->join('factura as fa_perm', 'fa_perm.id', '=', 'hf_perm_f.tramite_id')
+                    ->whereColumn('hf_perm_f.flujo_id', 'f.id')
+                    ->where('hf_perm_f.tipo_tramite_id', 3)
+                    ->where(function ($actor) use ($usuarioId) {
+                        $actor->where('fa_perm.vendedor', $usuarioId)
+                            ->orWhere('fa_perm.users_id', $usuarioId)
+                            ->orWhere('fa_perm.gestor_entrega', $usuarioId);
+                    });
+            });
+        });
+    }
+
+    private function usuarioPuedeAccederFlujo(int $flujoId): bool
+    {
+        $query = DB::table('flujo as f')->where('f.id', $flujoId);
+        $this->aplicarAlcanceUsuarioFlujo($query);
+
+        return $query->exists();
     }
 
     public function render()

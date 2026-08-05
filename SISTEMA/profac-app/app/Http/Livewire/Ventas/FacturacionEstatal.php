@@ -574,7 +574,7 @@ class FacturacionEstatal extends Component
 
             $expoId = (int) $request->input('expo_id', 0);
             if ($expoId > 0) {
-                $expo = ExpoConfig::detalleActiva($expoId);
+                $expo = ExpoConfig::detalleActivaParaUsuario($expoId, Auth::id());
                 if (!$expo) {
                     return response()->json(['message' => 'La Expo no está activa o está fuera de vigencia.'], 422);
                 }

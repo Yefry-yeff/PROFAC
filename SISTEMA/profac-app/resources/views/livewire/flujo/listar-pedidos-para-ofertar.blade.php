@@ -43,6 +43,7 @@
         .ofp-tab-btn:hover { color: #1565c0; }
         .ofp-tab-btn.active-ped { color: #1565c0; border-bottom-color: #1565c0; }
         .ofp-tab-btn.active-ofr { color: #e65100; border-bottom-color: #e65100; }
+        .ofp-tab-btn.active-temp { color: #00897b; border-bottom-color: #00897b; }
         .ofp-tab-btn .ofp-count {
             display: inline-block; border-radius: 20px;
             padding: 1px 8px; font-size: 10px; margin-left: 5px; font-weight: 700;
@@ -101,6 +102,10 @@
             <span class="ofp-count" style="{{ $tab === 'ofertas' ? 'background:#e65100; color:#fff;' : 'background:#fff3e0; color:#e65100;' }}">
                 {{ count($ofertas) }}
             </span>
+        </button>
+        <button wire:click="$set('tab','temporales')"
+                class="ofp-tab-btn {{ $tab === 'temporales' ? 'active-temp' : '' }}">
+            <i class="fa fa-clock-o mr-1"></i>Temporales
         </button>
 
     </div>
@@ -384,6 +389,8 @@
         </div>
         @endif
         @endif
+    @elseif($tab === 'temporales')
+        <livewire:flujo.temporales-venta tipo="oferta" />
     @endif
 
 </div>

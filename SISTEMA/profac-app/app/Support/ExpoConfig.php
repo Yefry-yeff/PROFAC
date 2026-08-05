@@ -45,6 +45,25 @@ class ExpoConfig
         ];
     }
 
+    public static function detalleActivaParaUsuario(?int $expoId, ?int $usuarioId): ?array
+    {
+        if (!$usuarioId) {
+            return null;
+        }
+
+        $detalle = self::detalleActiva($expoId);
+        if (!$detalle) {
+            return null;
+        }
+
+        $autorizado = DB::table('expo_usuario')
+            ->where('expo_id', $detalle['id'])
+            ->where('usuario_id', $usuarioId)
+            ->exists();
+
+        return $autorizado ? $detalle : null;
+    }
+
     public static function tipoVentaId(): ?int
     {
         $id = DB::table('tipo_venta')

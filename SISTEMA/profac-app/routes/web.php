@@ -200,6 +200,10 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/flujo/prefactura', \App\Http\Livewire\Flujo\Prefactura::class)->name('flujo.prefactura');
     Route::get('/flujo/oferta', \App\Http\Livewire\Flujo\OfertaPedido::class)->name('flujo.oferta');
     Route::get('/flujo/ofertas', \App\Http\Livewire\Flujo\ListarOfertas::class)->name('flujo.ofertas');
+    Route::get('/ventas/temporales', [\App\Http\Controllers\VentaTemporalController::class, 'index'])->name('ventas.temporales.index');
+    Route::post('/ventas/temporales', [\App\Http\Controllers\VentaTemporalController::class, 'store'])->name('ventas.temporales.store');
+    Route::get('/ventas/temporales/{id}', [\App\Http\Controllers\VentaTemporalController::class, 'show'])->name('ventas.temporales.show');
+    Route::delete('/ventas/temporales/{id}', [\App\Http\Controllers\VentaTemporalController::class, 'destroy'])->name('ventas.temporales.destroy');
     Route::get('/flujo/pedido/editar/{id}', \App\Http\Livewire\Flujo\EditarPedido::class)->name('flujo.pedido.editar');
     Route::get('/flujo/pedido/imprimir/{id}', [\App\Http\Livewire\Flujo\PedidoController::class, 'imprimir']);
 

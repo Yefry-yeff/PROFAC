@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Auth;
 class Ventas extends Component
 {
     public $titulo = 'Ventas';
-    public $step = 'select'; // 'select' | 'pedido_options' | 'historial_pedidos' | 'oferta' | 'prefactura' | 'factura_options'
+    public $step = 'select'; // 'select' | 'pedido_options' | 'historial_pedidos' | 'oferta' | 'prefactura' | 'factura_options' | 'factura_temporales'
 
     public function render()
     {
@@ -49,6 +49,11 @@ class Ventas extends Component
     public function selectFactura()
     {
         $this->step = 'factura_options';
+    }
+
+    public function selectFacturaTemporales()
+    {
+        $this->step = 'factura_temporales';
     }
 
     public function selectFacturaSubtype($subtype)
