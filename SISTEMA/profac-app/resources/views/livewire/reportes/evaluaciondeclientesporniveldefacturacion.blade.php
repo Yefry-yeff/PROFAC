@@ -132,10 +132,10 @@
 
         {{-- Gráficas fila 2 --}}
         <div class="row">
-            <div class="col-md-6">
+            <div class="col-md-4">
                 <div class="ecf-chart-card">
                     <div class="ecf-chart-header">
-                        <span><i class="fa fa-chart-pie mr-1"></i> Por Vendedor</span>
+                        <span><i class="fa fa-chart-pie mr-1"></i> Por Asesor Comercial</span>
                         @if($filtVendedor !== '')
                             <span class="ecf-filter-active">activo</span>
                         @endif
@@ -143,7 +143,18 @@
                     <div class="ecf-chart-body ecf-chart-clickable"><div id="chartVendedores"></div></div>
                 </div>
             </div>
-            <div class="col-md-6">
+            <div class="col-md-4">
+                <div class="ecf-chart-card">
+                    <div class="ecf-chart-header">
+                        <span><i class="fa fa-headset mr-1"></i> Por Teleasesor</span>
+                        @if($filtTeleasesor !== '')
+                            <span class="ecf-filter-active">activo</span>
+                        @endif
+                    </div>
+                    <div class="ecf-chart-body ecf-chart-clickable"><div id="chartTeleasesores"></div></div>
+                </div>
+            </div>
+            <div class="col-md-4">
                 <div class="ecf-chart-card">
                     <div class="ecf-chart-header">
                         <span><i class="fa fa-chart-pie mr-1"></i> Historial de Facturación</span>
@@ -156,12 +167,12 @@
             </div>
         </div>
 
-        {{-- Gráfica fila 3: Top vendedores --}}
+        {{-- Gráfica fila 3: Top asesores comerciales --}}
         <div class="row">
             <div class="col-12">
                 <div class="ecf-chart-card">
                     <div class="ecf-chart-header">
-                        <span><i class="fa fa-trophy mr-1"></i> Top Vendedores con Más Clientes sin Atención</span>
+                        <span><i class="fa fa-trophy mr-1"></i> Top Asesores Comerciales con Más Clientes sin Atención</span>
                         <small class="text-muted font-weight-normal" style="text-transform:none;letter-spacing:0;">Haz clic en una barra para filtrar</small>
                     </div>
                     <div class="ecf-chart-body ecf-chart-clickable" style="min-height:260px;"><div id="chartTopVend"></div></div>
@@ -231,7 +242,7 @@
                                                    class="form-control form-control-sm" placeholder="ID">
                                         </div>
                                     </div>
-                                    <div class="col-md-3 col-sm-5">
+                                    <div class="col-md-2 col-sm-5">
                                         <div class="form-group">
                                             <label>Nombre</label>
                                             <input type="text" wire:model.debounce.400ms="filtNombre"
@@ -251,11 +262,24 @@
                                     </div>
                                     <div class="col-md-2 col-sm-4">
                                         <div class="form-group">
-                                            <label>Vendedor</label>
+                                            <label>Asesor Comercial</label>
                                             <select wire:model="filtVendedor" class="form-control form-control-sm">
                                                 <option value="">Todos</option>
+                                                <option value="sin_asignar">Sin Asignar</option>
                                                 @foreach ($vendedores as $v)
                                                     <option value="{{ $v->id }}">{{ $v->name }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2 col-sm-4">
+                                        <div class="form-group">
+                                            <label>Teleasesor</label>
+                                            <select wire:model="filtTeleasesor" class="form-control form-control-sm">
+                                                <option value="">Todos</option>
+                                                <option value="sin_asignar">Sin Asignar</option>
+                                                @foreach ($teleasesores as $teleasesor)
+                                                    <option value="{{ $teleasesor->id }}">{{ $teleasesor->name }}</option>
                                                 @endforeach
                                             </select>
                                         </div>
@@ -302,14 +326,14 @@
                         </div>
 
                         {{-- Loading --}}
-                        <div wire:loading wire:target="filtCodigo,filtNombre,filtEstado,filtVendedor,filtRequiereAt,filtFechaDesde,filtFechaHasta,filtSinHistorial,paginaAnterior,paginaSiguiente,limpiarFiltros,porPagina,filtrarPorGrafica"
+                        <div wire:loading wire:target="filtCodigo,filtNombre,filtEstado,filtVendedor,filtTeleasesor,filtRequiereAt,filtFechaDesde,filtFechaHasta,filtSinHistorial,paginaAnterior,paginaSiguiente,limpiarFiltros,porPagina,filtrarPorGrafica"
                              class="text-center py-4">
                             <i class="fa fa-spinner fa-spin fa-2x" style="color:var(--ecf-blue)"></i>
                             <p class="mt-2 text-muted small">Cargando datos…</p>
                         </div>
 
                         {{-- Tabla --}}
-                        <div wire:loading.remove wire:target="filtCodigo,filtNombre,filtEstado,filtVendedor,filtRequiereAt,filtFechaDesde,filtFechaHasta,filtSinHistorial,paginaAnterior,paginaSiguiente,limpiarFiltros,porPagina,filtrarPorGrafica">
+                        <div wire:loading.remove wire:target="filtCodigo,filtNombre,filtEstado,filtVendedor,filtTeleasesor,filtRequiereAt,filtFechaDesde,filtFechaHasta,filtSinHistorial,paginaAnterior,paginaSiguiente,limpiarFiltros,porPagina,filtrarPorGrafica">
 
                             @if ($total === 0)
                                 <div class="text-center py-5">
@@ -327,7 +351,8 @@
                                                 <th style="width:130px;">Teléfono</th>
                                                 <th style="min-width:220px;">Dirección</th>
                                                 <th class="text-center" style="width:100px;">Estado</th>
-                                                <th style="width:150px;">Vendedor</th>
+                                                <th style="width:170px;">Asesor Comercial</th>
+                                                <th style="width:170px;">Teleasesores</th>
                                                 <th>N° Última Factura</th>
                                                 <th class="text-center" style="width:120px;">Fecha Últ. Factura</th>
                                                 <th class="text-right" style="width:140px;">Monto Últ. Factura</th>
@@ -347,6 +372,7 @@
                                                         <span class="badge-estado">{{ $row->estado }}</span>
                                                     </td>
                                                     <td>{{ $row->vendedor }}</td>
+                                                    <td>{{ $row->teleasesores }}</td>
                                                     <td>
                                                         @if ($row->numero_ultima_factura)
                                                             <span class="factura-code">{{ $row->numero_ultima_factura }}</span>
@@ -450,12 +476,22 @@
     var C_ATENCION   = ['#e74c3c','#27ae60'];
     var C_ESTADOS    = ['#1565C0','#27ae60','#e67e22','#8e44ad','#1abc9c','#e74c3c','#f39c12','#2980b9'];
     var C_VENDEDORES = ['#2980b9','#16a085','#8e44ad','#d35400','#27ae60','#c0392b','#2c3e50','#f39c12'];
+    var C_TELEASESORES = ['#16a085','#d35400','#2980b9','#8e44ad','#27ae60','#c0392b','#f39c12','#2c3e50'];
     var C_HISTORIAL  = ['#27ae60','#bdc3c7'];
     var C_TOPVEND    = ['#e74c3c','#e67e22','#f39c12','#27ae60','#1565C0','#8e44ad','#2980b9','#16a085','#c0392b','#2c3e50'];
 
     function getLivewireComponent() {
         var el = document.querySelector('[data-ecf-root]');
-        return (el && window.livewire) ? window.livewire.find(el.getAttribute('wire:id')) : null;
+        if (!el) return null;
+
+        var componentId = el.getAttribute('wire:id');
+        if (window.Livewire && typeof window.Livewire.find === 'function') {
+            return window.Livewire.find(componentId);
+        }
+        if (window.livewire && typeof window.livewire.find === 'function') {
+            return window.livewire.find(componentId);
+        }
+        return null;
     }
 
     function callLivewire(method) {
@@ -553,6 +589,7 @@
         renderPie('atencion',   'chartAtencion',   data.atencion.series,         data.atencion.labels,         C_ATENCION,   'atencion');
         renderPie('estados',    'chartEstados',    data.estados.series,           data.estados.labels,           C_ESTADOS,    'estado');
         renderPie('vendedores', 'chartVendedores', data.vendedores.series,        data.vendedores.labels,        C_VENDEDORES, 'vendedor');
+        renderPie('teleasesores', 'chartTeleasesores', data.teleasesores.series,   data.teleasesores.labels,       C_TELEASESORES, 'teleasesor');
         renderPie('historial',  'chartHistorial',  data.historial.series,         data.historial.labels,         C_HISTORIAL,  'historial');
         renderBar('topVend',    'chartTopVend',    data.topVendedoresAt.series,   data.topVendedoresAt.labels,   C_TOPVEND);
     }
@@ -566,7 +603,10 @@
     document.addEventListener('DOMContentLoaded', function() { initCharts(getChartData()); });
 
     document.addEventListener('livewire:load', function() {
-        Livewire.hook('message.processed', function() { initCharts(getChartData()); });
+        var livewireApi = window.Livewire || window.livewire;
+        if (livewireApi && typeof livewireApi.hook === 'function') {
+            livewireApi.hook('message.processed', function() { initCharts(getChartData()); });
+        }
     });
 })();
 </script>
