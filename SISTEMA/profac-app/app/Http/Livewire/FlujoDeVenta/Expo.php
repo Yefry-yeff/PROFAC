@@ -148,6 +148,11 @@ class Expo extends Component
             : null;
         abort_if($this->expoEditandoId && !$expoExistente, 404);
 
+        foreach ($this->descuentos as &$regla) {
+            $regla['venta_minima'] = str_replace(',', '', (string) ($regla['venta_minima'] ?? ''));
+        }
+        unset($regla);
+
         if ($expoExistente) {
             if ($this->estaFinalizada($expoExistente)) {
                 $this->resetForm();

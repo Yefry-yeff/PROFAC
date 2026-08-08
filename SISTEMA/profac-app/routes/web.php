@@ -974,6 +974,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
 
     Route::get('/ventas/anulado/{id}', ListadoFacturasAnuladas::class);
     Route::post('/ventas/anulado/listado', [ListadoFacturasAnuladas::class, 'listarFacturas']);
+    Route::post('/ventas/anulado/exportar-pdf', [ListadoFacturasAnuladas::class, 'exportarPdf']);
     Route::post('/ventas/anulado/detalle', [ListadoFacturasAnuladas::class, 'detalleFacturaAnulada']);
 
 

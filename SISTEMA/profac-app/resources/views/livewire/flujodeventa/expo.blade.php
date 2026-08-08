@@ -486,7 +486,15 @@
                                         @forelse ($descuentos as $indice => $regla)
                                             <tr wire:key="expo-descuento-{{ $indice }}">
                                                 <td>
-                                                    <input type="number" step="0.01" min="0" wire:model.defer="descuentos.{{ $indice }}.venta_minima" class="form-control form-control-sm">
+                                                    <input type="text" inputmode="decimal"
+                                                           wire:model.defer="descuentos.{{ $indice }}.venta_minima"
+                                                           class="form-control form-control-sm expo-money-input"
+                                                           placeholder="0.00" autocomplete="off"
+                                                           x-data="{}"
+                                                           x-init="$nextTick(() => { const amount = Number($el.value.replace(/,/g, '')); if (Number.isFinite(amount)) $el.value = amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); })"
+                                                           x-on:focus="$el.value = $el.value.replace(/,/g, '')"
+                                                           x-on:input="$el.value = $el.value.replace(/,/g, '').replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1')"
+                                                           x-on:blur="const amount = Number($el.value.replace(/,/g, '')); $el.value = Number.isFinite(amount) ? amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''">
                                                     @error('descuentos.'.$indice.'.venta_minima') <small class="text-danger">{{ $message }}</small> @enderror
                                                 </td>
                                                 <td>
@@ -506,6 +514,7 @@
                                 </table>
                             </div>
                             </div>
+
 
                             <div class="expo-actions">
                                 <button type="button" wire:click="cancelar" class="btn btn-default" style="border-radius:8px; font-weight:700;">
