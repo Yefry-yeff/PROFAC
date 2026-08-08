@@ -86,7 +86,7 @@ class EvaluacionDeClientesPorNivelDeFacturacion extends Component
             $params[] = $this->filtEstado;
         }
         if ($this->filtVendedor === 'sin_asignar') {
-            $where .= ' AND c.vendedor IS NULL';
+            $where .= ' AND asesor.id IS NULL';
         } elseif ($this->filtVendedor !== '') {
             $where   .= ' AND c.vendedor = ?';
             $params[] = (int) $this->filtVendedor;
@@ -298,9 +298,20 @@ class EvaluacionDeClientesPorNivelDeFacturacion extends Component
         ];
 
         // Selects para filtros
-        $estados      = DB::select('SELECT DISTINCT descripcion FROM estado_cliente ORDER BY descripcion ASC');
-        $vendedores   = DB::select('SELECT id, name FROM users WHERE rol_id = 2 ORDER BY name ASC');
-        $teleasesores = DB::select('SELECT id, name FROM users WHERE rol_id = 3 ORDER BY name ASC');
+        $estados = DB::select('SELECT DISTINCT descripcion FROM estado_cliente ORDER BY descripcion ASC');
+        $vendedores = DB::select('
+            SELECT DISTINCT u.id, u.name
+            FROM cliente c
+            INNER JOIN users u ON u.id = c.vendedor
+            ORDER BY u.name ASC
+        ');
+        $teleasesores = DB::select('
+            SELECT DISTINCT u.id, u.name
+            FROM cliente_usuario cu
+            INNER JOIN users u ON u.id = cu.usuario_id
+            WHERE cu.rol_id = 3
+            ORDER BY u.name ASC
+        ');
 
         return view('livewire.reportes.evaluaciondeclientesporniveldefacturacion', [
             'datosPagina'  => $datosPagina,
@@ -330,7 +341,11 @@ class EvaluacionDeClientesPorNivelDeFacturacion extends Component
                 $id = 'sin_asignar';
                 if ($valor !== 'Sin Asignar') {
                     $rows = DB::select(
-                        'SELECT id FROM users WHERE name = ? AND rol_id = 2 LIMIT 1',
+                        'SELECT DISTINCT u.id
+                         FROM cliente c
+                         INNER JOIN users u ON u.id = c.vendedor
+                         WHERE u.name = ?
+                         LIMIT 1',
                         [$valor]
                     );
                     $id = $rows ? (string) $rows[0]->id : '';
@@ -341,7 +356,11 @@ class EvaluacionDeClientesPorNivelDeFacturacion extends Component
                 $id = 'sin_asignar';
                 if ($valor !== 'Sin Asignar') {
                     $rows = DB::select(
-                        'SELECT id FROM users WHERE name = ? AND rol_id = 3 LIMIT 1',
+                        'SELECT DISTINCT u.id
+                         FROM cliente_usuario cu
+                         INNER JOIN users u ON u.id = cu.usuario_id
+                         WHERE cu.rol_id = 3 AND u.name = ?
+                         LIMIT 1',
                         [$valor]
                     );
                     $id = $rows ? (string) $rows[0]->id : '';
