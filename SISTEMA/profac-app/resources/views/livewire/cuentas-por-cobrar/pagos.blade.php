@@ -814,18 +814,69 @@
                         </div>
                         <div class="col-md-6">
                             <div class="ap-form-group">
-                                <label><i class="fa fa-dollar mr-1"></i> Monto de Nota de Crédito</label>
+                                <label><i class="fa fa-dollar mr-1"></i> Crédito disponible</label>
                                 <input required type="text" readonly class="form-control" id="totalNotaCredito" name="totalNotaCredito">
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="ap-form-group">
-                                <label><i class="fa fa-toggle-on mr-1"></i> Acción</label>
-                                <select required id="selectAplicado" name="selectAplicado" class="form-control">
+                                <label><i class="fa fa-balance-scale mr-1"></i> Saldos pendientes del cliente</label>
+                                <input type="text" readonly class="form-control" id="saldoPendienteClienteNC">
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="ap-form-group">
+                                <label><i class="fa fa-random mr-1"></i> ¿Qué desea hacer con el crédito?</label>
+                                <select required id="destinoCredito" name="destinoCredito" class="form-control" onchange="actualizarDestinoCredito()">
                                     <option value="">— Seleccione —</option>
-                                    <option value="1">SE APLICA</option>
-                                    <option value="2">NO SE APLICA</option>
+                                    <option value="saldos">Aplicar automáticamente a saldos pendientes</option>
+                                    <option value="reembolso">Reembolsar todo el crédito disponible</option>
+                                    <option value="mixto">Mixto automático: aplicar saldos y reembolsar el sobrante</option>
                                 </select>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div id="resumenDestinoCredito" class="alert alert-info" style="display:none; font-size:12px;"></div>
+                        </div>
+                        <div class="col-12" id="panelReembolsoNC" style="display:none;">
+                            <div class="row" style="background:#f8fafc; border:1px solid #dbe4ee; border-radius:8px; padding:10px 4px; margin:0 0 12px;">
+                                <div class="col-md-6">
+                                    <div class="ap-form-group">
+                                        <label><i class="fa fa-bank mr-1"></i> Cuenta de salida</label>
+                                        <select id="bancoReembolso" name="bancoReembolso" class="form-control"></select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="ap-form-group">
+                                        <label><i class="fa fa-credit-card mr-1"></i> Método</label>
+                                        <select id="metodoReembolso" name="metodoReembolso" class="form-control">
+                                            <option value="">— Seleccione —</option>
+                                            <option value="1">Efectivo</option>
+                                            <option value="2">Transferencia bancaria</option>
+                                            <option value="3">Cheque</option>
+                                            <option value="4">Link de pago</option>
+                                            <option value="5">POS</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="ap-form-group">
+                                        <label><i class="fa fa-calendar mr-1"></i> Fecha del reembolso</label>
+                                        <input type="date" id="fechaReembolso" name="fechaReembolso" class="form-control" value="{{ date('Y-m-d') }}">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="ap-form-group">
+                                        <label><i class="fa fa-hashtag mr-1"></i> Referencia</label>
+                                        <input type="text" id="referenciaReembolso" name="referenciaReembolso" maxlength="100" class="form-control" placeholder="Transferencia, cheque o recibo">
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <div class="ap-form-group">
+                                        <label><i class="fa fa-paperclip mr-1"></i> Comprobante</label>
+                                        <input type="file" id="comprobanteReembolso" name="comprobanteReembolso" class="form-control" accept=".pdf,.jpg,.jpeg,.png">
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         <div class="col-12">
@@ -836,8 +887,8 @@
                         </div>
                         <div class="col-12">
                             <div class="ap-form-group">
-                                <label><i class="fa fa-comment mr-1"></i> Nota de Aplicación <span class="text-danger">*</span></label>
-                                <textarea required class="form-control" maxlength="500" id="comentarioRebaja" name="comentarioRebaja" rows="3" placeholder="Ingrese su nota..."></textarea>
+                                <label><i class="fa fa-comment mr-1"></i> Observación</label>
+                                <textarea class="form-control" maxlength="500" id="comentarioRebaja" name="comentarioRebaja" rows="2" placeholder="Detalle opcional de la gestión"></textarea>
                             </div>
                         </div>
                     </div>
@@ -1528,7 +1579,7 @@ function initNCSelects() {
     // Re-lanzar datosNotaCredito al cambiar selección vía Select2
     $nc.off('change.nc').on('change.nc', function() { datosNotaCredito(); });
 
-    var $accion = $('#selectAplicado');
+    var $accion = $('#destinoCredito');
     try { if ($accion.data('select2')) $accion.select2('destroy'); } catch(e) {}
     $accion.select2({
         dropdownParent: $('#modalNC'),
@@ -1539,7 +1590,7 @@ function initNCSelects() {
     });
 }
 function destroyNCSelects() {
-    ['#selectNotaCredito','#selectAplicado'].forEach(function(id) {
+    ['#selectNotaCredito','#destinoCredito'].forEach(function(id) {
         var $el = $(id);
         try { if ($el.data('select2')) { $el.off('change.nc'); $el.select2('destroy'); } } catch(e) {}
     });

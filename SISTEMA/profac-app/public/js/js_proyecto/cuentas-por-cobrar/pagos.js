@@ -138,16 +138,20 @@ function modalNotaCredito(codigoPagoA, caiFactura, idFactura, tieneNC ){
 
 
 
-    //llamando todas las notas de credito de la factura en cuestion
-
-    if(tieneNC == 1){
-        //Tiene notas de credito esa factura
-        axios.get("/listar/nc/aplicacion/"+idFactura)
+    axios.get("/listar/nc/aplicacion/"+idFactura)
         .then(response => {
 
             let notas = response.data.results;
-            console.log(response);
-            let htmlnotas = '  <option value="" selected disabled >--Seleccione la nota a aplicar--</option>';
+            if (!notas.length) {
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Sin crédito disponible',
+                    text: 'El cliente no tiene notas de crédito con saldo disponible.'
+                });
+                return;
+            }
+
+            let htmlnotas = '<option value="" selected disabled>--Seleccione la nota--</option>';
 
             notas.forEach(element => {
 
@@ -157,6 +161,10 @@ function modalNotaCredito(codigoPagoA, caiFactura, idFactura, tieneNC ){
             });
 
             document.getElementById('selectNotaCredito').innerHTML = htmlnotas;
+            $('#destinoCredito').val('').trigger('change');
+            $('#totalNotaCredito, #saldoPendienteClienteNC, #motivoNotacredito').val('');
+            actualizarDestinoCredito();
+            cargarBancosReembolso();
             $('#modalNC').modal('show');
 
         })
@@ -169,17 +177,6 @@ function modalNotaCredito(codigoPagoA, caiFactura, idFactura, tieneNC ){
             })
             console.error(err);
         });
-    }else{
-        //No tiene Tiene notas de credito esa factura
-        Swal.fire({
-            icon: 'Info',
-            text: "Esta factura no cuenta con notas de crédito para aplicar."
-        });
-
-    }
-
-
-
 }
 
 function datosNotaCredito(){
@@ -189,19 +186,12 @@ function datosNotaCredito(){
 
         let nota = response.data.result;
 
-        console.log(nota[0].estado_rebajado);
-        /*LLENANDO EL SELECT DE LA APLICACION DEL PAGO*/
-        /*if(nota[0].estado_rebajado == 1){
-            document.getElementById("selectAplicado").innerHTML += '<option selected class="form-control" value="1">SE APLICA REBAJA DE NOTA DE CRÉDITO - <span class="badge badge-success">ACTUÁL</span></option>';
-            document.getElementById("selectAplicado").innerHTML += '<option class="form-control" value="2">NO SE APLICA REBAJA DE NOTA DE CRÉDITO</option>';
-        }else{
-            document.getElementById("selectAplicado").innerHTML += '<option  class="form-control" value="1">SE APLICA REBAJA DE NOTA DE CRÉDITO</option>';
-            document.getElementById("selectAplicado").innerHTML += '<option selected class="form-control" value="2">NO SE APLICA REBAJA DE NOTA DE CRÉDITO - <span class="badge badge-success">ACTUÁL</span></option>';
-        }*/
-
-
-        $('#totalNotaCredito').val(nota[0].total);
+        $('#totalNotaCredito').val(Number(nota[0].saldo_disponible).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+        $('#totalNotaCredito').data('valor', Number(nota[0].saldo_disponible));
+        $('#saldoPendienteClienteNC').val(Number(response.data.saldo_pendiente_cliente).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+        $('#saldoPendienteClienteNC').data('valor', Number(response.data.saldo_pendiente_cliente));
         $('#motivoNotacredito').val(nota[0].comentario);
+        actualizarDestinoCredito();
     })
     .catch(err => {
         let data = err.response.data;
@@ -212,6 +202,42 @@ function datosNotaCredito(){
         })
         console.error(err);
     });
+}
+
+function cargarBancosReembolso() {
+    axios.get('/listar/aplicacion/bancos').then(function(response) {
+        var html = '<option value="">— Seleccione —</option>';
+        (response.data.result || []).forEach(function(banco) {
+            html += '<option value="' + banco.idBanco + '">' + banco.banco + '</option>';
+        });
+        $('#bancoReembolso').html(html);
+    });
+}
+
+function actualizarDestinoCredito() {
+    var destino = $('#destinoCredito').val();
+    var credito = Number($('#totalNotaCredito').data('valor') || 0);
+    var deuda = Number($('#saldoPendienteClienteNC').data('valor') || 0);
+    var aplicado = destino === 'reembolso' ? 0 : Math.min(credito, deuda);
+    var reembolso = destino === 'reembolso' ? credito : (destino === 'mixto' ? Math.max(credito - aplicado, 0) : 0);
+    var saldo = Math.max(credito - aplicado - reembolso, 0);
+    var requiereReembolso = destino === 'reembolso' || (destino === 'mixto' && reembolso > 0.005);
+
+    $('#panelReembolsoNC').toggle(requiereReembolso);
+    $('#bancoReembolso, #metodoReembolso, #fechaReembolso').prop('required', requiereReembolso);
+
+    if (!destino || !credito) {
+        $('#resumenDestinoCredito').hide().text('');
+        return;
+    }
+
+    var formato = function(valor) {
+        return 'L ' + Number(valor).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    };
+    var texto = 'El sistema aplicará ' + formato(aplicado) + ' a las facturas más antiguas.';
+    if (reembolso > 0) texto += ' Reembolsará ' + formato(reembolso) + '.';
+    if (saldo > 0) texto += ' Quedarán ' + formato(saldo) + ' disponibles para una gestión posterior.';
+    $('#resumenDestinoCredito').html('<i class="fa fa-info-circle mr-1"></i>' + texto).show();
 }
 
 function modalNotaDebito(codigoPagoA, caiFactura, idFactura, tieneND ){
@@ -891,13 +917,10 @@ function guardarRetencions(){
 
 $(document).on('submit', '#formNotaCredito', function(event) {
 
+    event.preventDefault();
+
     $('#btn_notacredito').css('display','none');
     $('#btn_notacredito').hide();
-
-
-    $('#modalNC').modal('hide');
-
-    event.preventDefault();
     guardargNC();
 });
 
@@ -914,19 +937,33 @@ function guardargNC(){
 
             // Resetear el formulario, lo que también reseteará el valor del TextArea
             formulario.reset();
+            $('#modalNC').modal('hide');
 
             $('#btn_notacredito').css('display','block');
             $('#btn_notacredito').show();
 
+            var resultado = response.data.resultado || {};
+            var formato = function(valor) {
+                return 'L ' + Number(valor || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            };
+            var facturasAplicadas = (resultado.aplicaciones || []).map(function(aplicacion) {
+                return '<li><strong>' + aplicacion.factura + '</strong>: ' + formato(aplicacion.monto) + '</li>';
+            }).join('');
             Swal.fire({
                 icon: 'success',
-                title: 'Exito!',
-                text: "Ha realizado la gestion."
+                title: 'Nota gestionada',
+                html: '<div style="text-align:left;font-size:14px;">' +
+                    '<p>Aplicado a saldos: <strong>' + formato(resultado.monto_aplicado) + '</strong></p>' +
+                    (facturasAplicadas ? '<p class="mb-1"><strong>Facturas aplicadas:</strong></p><ul>' + facturasAplicadas + '</ul>' : '') +
+                    '<p>Reembolsado: <strong>' + formato(resultado.monto_reembolsado) + '</strong></p>' +
+                    '<p>Crédito disponible: <strong>' + formato(resultado.saldo_disponible) + '</strong></p>' +
+                    '</div>'
             });
 
     })
     .catch(err => {
-        let data = err.response.data;
+        let data = err.response && err.response.data ? err.response.data : { icon:'error', title:'Error', text:'No se pudo gestionar la nota.' };
+        $('#btn_notacredito').css('display','block').show();
         Swal.fire({
             icon: data.icon,
             title: data.title,

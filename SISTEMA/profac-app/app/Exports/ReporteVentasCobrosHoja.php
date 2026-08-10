@@ -65,8 +65,8 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
     // DEBITO  = ajuste que disminuye el saldo (Nota Credito, Vale, Retencion) → col T
     // PAGO    = cobro que disminuye el saldo (Abono, Pago Contado) → col V (MONTO PAGADO)
     // CREDITO = ajuste que aumenta el saldo (Nota Debito) → col U
-    private static $TIPOS_DEBITO  = ['NOTA_CREDITO', 'VALE', 'RETENCION'];
-    private static $TIPOS_CREDITO = ['NOTA_DEBITO'];
+    private static $TIPOS_DEBITO  = ['NOTA_CREDITO', 'NOTA_CREDITO_EMISION', 'VALE', 'RETENCION'];
+    private static $TIPOS_CREDITO = ['NOTA_DEBITO', 'NOTA_CREDITO_APLICACION', 'NOTA_CREDITO_REEMBOLSO'];
     private static $TIPOS_PAGO    = ['ABONO', 'PAGO'];
 
     private static $TIPO_LABEL = [
@@ -76,6 +76,9 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
         'ABONO'        => 'Abono',
         'PAGO'         => 'Pago Contado',
         'NOTA_CREDITO' => 'Nota de Credito',
+        'NOTA_CREDITO_EMISION' => 'Nota de Credito Emitida',
+        'NOTA_CREDITO_APLICACION' => 'Aplicacion de Nota de Credito',
+        'NOTA_CREDITO_REEMBOLSO' => 'Reembolso de Nota de Credito',
         'NOTA_DEBITO'  => 'Nota de Debito',
         'VALE'         => 'Vale',
         'RETENCION'    => 'Retencion ISV',

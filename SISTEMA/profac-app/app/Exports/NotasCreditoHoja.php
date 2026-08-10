@@ -16,11 +16,12 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 /**
  * Hoja del reporte Notas de Crédito.
  *
- * Columnas (A..K):
+ * Columnas (A..P):
  *  A(0) #   B(1) FECHA   C(2) CÓDIGO NC   D(3) REGISTRO N°
  *  E(4) CLIENTE   F(5) N° FACTURA   G(6) MOTIVO
- *  H(7) COMENTARIO   I(8) SUB TOTAL   J(9) ISV   K(10) TOTAL
- *  L(11) REGISTRADO POR
+ *  H(7) COMENTARIO   I(8) SUB TOTAL   J(9) ISV   K(10) TOTAL FISCAL
+ *  L(11) APLICADO   M(12) REEMBOLSADO   N(13) DISPONIBLE
+ *  O(14) ESTADO DEL CRÉDITO   P(15) REGISTRADO POR
  */
 class NotasCreditoHoja implements FromArray, WithTitle, WithStyles, WithEvents, WithStrictNullComparison
 {
@@ -28,8 +29,8 @@ class NotasCreditoHoja implements FromArray, WithTitle, WithStyles, WithEvents, 
     protected $usuario;
     protected $titulo;
 
-    const LAST_COL  = 'L';
-    const COL_COUNT = 12;
+    const LAST_COL  = 'P';
+    const COL_COUNT = 16;
 
     public function __construct($rows, $usuario = 'Sistema', $titulo = 'Notas de Crédito')
     {
@@ -70,12 +71,16 @@ class NotasCreditoHoja implements FromArray, WithTitle, WithStyles, WithEvents, 
         $out[] = [
             '#', 'FECHA', 'CÓDIGO NC', 'REGISTRO N°', 'CLIENTE',
             'N° FACTURA', 'MOTIVO', 'COMENTARIO',
-            'SUB TOTAL', 'ISV', 'TOTAL', 'REGISTRADO POR',
+            'SUB TOTAL', 'ISV', 'TOTAL FISCAL', 'APLICADO', 'REEMBOLSADO',
+            'DISPONIBLE', 'ESTADO DEL CRÉDITO', 'REGISTRADO POR',
         ];
 
         $totSubTotal   = 0.0;
         $totIsv        = 0.0;
         $totTotal      = 0.0;
+        $totAplicado   = 0.0;
+        $totReembolsado = 0.0;
+        $totDisponible = 0.0;
         $item          = 0;
 
         foreach ($this->rows as $r) {
@@ -83,10 +88,16 @@ class NotasCreditoHoja implements FromArray, WithTitle, WithStyles, WithEvents, 
             $sub   = (float)($r->sub_total ?? 0);
             $isv   = (float)($r->isv       ?? 0);
             $total = (float)($r->total      ?? 0);
+            $aplicado = (float)($r->monto_aplicado ?? 0);
+            $reembolsado = (float)($r->monto_reembolsado ?? 0);
+            $disponible = (float)($r->saldo_disponible ?? 0);
 
             $totSubTotal += $sub;
             $totIsv      += $isv;
             $totTotal    += $total;
+            $totAplicado += $aplicado;
+            $totReembolsado += $reembolsado;
+            $totDisponible += $disponible;
 
             $out[] = [
                 $item,
@@ -100,6 +111,10 @@ class NotasCreditoHoja implements FromArray, WithTitle, WithStyles, WithEvents, 
                 $sub,
                 $isv,
                 $total,
+                $aplicado,
+                $reembolsado,
+                $disponible,
+                $r->estado_credito ?? '',
                 $r->registrado_por  ?? '',
             ];
         }
@@ -110,6 +125,9 @@ class NotasCreditoHoja implements FromArray, WithTitle, WithStyles, WithEvents, 
         $tot[8]  = $totSubTotal;
         $tot[9]  = $totIsv;
         $tot[10] = $totTotal;
+        $tot[11] = $totAplicado;
+        $tot[12] = $totReembolsado;
+        $tot[13] = $totDisponible;
         $out[]   = $tot;
 
         return $out;
@@ -177,8 +195,8 @@ class NotasCreditoHoja implements FromArray, WithTitle, WithStyles, WithEvents, 
                         ]);
                     }
 
-                    // columnas numéricas (I, J, K) → formato L #,##0.00
-                    foreach (['I', 'J', 'K'] as $col) {
+                    // columnas numéricas (I..N) → formato L #,##0.00
+                    foreach (['I', 'J', 'K', 'L', 'M', 'N'] as $col) {
                         $sheet->getStyle($col . '5:' . $col . $dataEnd)
                               ->getNumberFormat()->setFormatCode('"L " #,##0.00');
                         $sheet->getStyle($col . '4:' . $col . $dataEnd)
@@ -192,7 +210,7 @@ class NotasCreditoHoja implements FromArray, WithTitle, WithStyles, WithEvents, 
                         'alignment' => ['horizontal' => Alignment::HORIZONTAL_RIGHT],
                         'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_MEDIUM, 'color' => ['rgb' => '8B0000']]],
                     ]);
-                    foreach (['I', 'J', 'K'] as $col) {
+                    foreach (['I', 'J', 'K', 'L', 'M', 'N'] as $col) {
                         $sheet->getStyle($col . $lastRow)->getNumberFormat()->setFormatCode('"L " #,##0.00');
                     }
                     $sheet->getStyle('A' . $lastRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
@@ -201,7 +219,8 @@ class NotasCreditoHoja implements FromArray, WithTitle, WithStyles, WithEvents, 
 
                 // ── Anchos de columna ─────────────────────────────────────────
                 $widths = ['A' => 5, 'B' => 14, 'C' => 10, 'D' => 26, 'E' => 30,
-                           'F' => 26, 'G' => 24, 'H' => 30, 'I' => 14, 'J' => 12, 'K' => 14, 'L' => 22];
+                           'F' => 26, 'G' => 24, 'H' => 30, 'I' => 14, 'J' => 12, 'K' => 14,
+                           'L' => 14, 'M' => 14, 'N' => 14, 'O' => 22, 'P' => 22];
                 foreach ($widths as $col => $w) {
                     $sheet->getColumnDimension($col)->setWidth($w);
                 }

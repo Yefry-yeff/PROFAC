@@ -103,7 +103,7 @@
         <table style="margin-bottom:0;">
             <thead>
                 <tr>
-                    <th colspan="14" style="background:#1F3864;color:#fff;text-align:left;padding:4px 8px;font-size:8px;font-weight:bold;">
+                    <th colspan="15" style="background:#1F3864;color:#fff;text-align:left;padding:4px 8px;font-size:8px;font-weight:bold;">
                         BANCO: {{ strtoupper($group['banco']) }}   |   CUENTA: {{ strtoupper($group['cuenta']) }}
                     </th>
                 </tr>
@@ -115,8 +115,9 @@
                     <th>ASESOR COMERCIAL</th>
                     <th>TELEASESOR</th>
                     <th>N° FACTURA</th>
-                    <th>MONTO COBRADO</th>
+                    <th>MONTO MOVIMIENTO</th>
                     <th>ESTADO</th>
+                    <th>DETALLE DEL MOVIMIENTO</th>
                     <th>EXONERADO</th>
                     <th>GRAVADO</th>
                     <th>EXENTO</th>
@@ -143,6 +144,7 @@
                         <td>{{ $row['factura'] ?? '' }}</td>
                         <td style="text-align:right;">{{ $fmtL($row['monto_cobrado'] ?? 0) }}</td>
                         <td>{{ $row['estado_factura'] ?? '' }}</td>
+                        <td style="text-align:left;">{{ $row['observaciones'] ?? '' }}</td>
                         <td style="text-align:right;">{{ $fmtL($row['exonerado'] ?? 0) }}</td>
                         <td style="text-align:right;">{{ $fmtL($row['gravado'] ?? 0) }}</td>
                         <td style="text-align:right;">{{ $fmtL($row['excento'] ?? 0) }}</td>
@@ -163,6 +165,7 @@
                     <td colspan="7" style="text-align:right;font-weight:bold;">Subtotal {{ strtoupper($group['banco']) }}:</td>
                     <td style="text-align:right;">{{ $fmtL($gCobrado) }}</td>
                     <td></td>
+                    <td></td>
                     <td style="text-align:right;">{{ $fmtL($gExon) }}</td>
                     <td style="text-align:right;">{{ $fmtL($gGrav) }}</td>
                     <td style="text-align:right;">{{ $fmtL($gExen) }}</td>
@@ -179,6 +182,7 @@
             <tr style="background:#c05000;color:#fff;font-weight:bold;">
                 <td colspan="7" style="text-align:right;font-weight:bold;">TOTAL GENERAL:</td>
                 <td style="text-align:right;">{{ $fmtL($grandCobrado) }}</td>
+                <td></td>
                 <td></td>
                 <td style="text-align:right;">{{ $fmtL($grandExon) }}</td>
                 <td style="text-align:right;">{{ $fmtL($grandGrav) }}</td>

@@ -20,6 +20,8 @@
     .nc-totales .form-group { margin-bottom:10px; }
     .nc-totales label { font-size:.78rem; font-weight:600; color:#7d3f00; }
     .nc-section-title { font-size:.72rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:#e67e22; border-bottom:2px solid #fdebd0; padding-bottom:6px; margin-bottom:14px; display:flex; align-items:center; gap:6px; }
+    .nc-destino { background:#f8fafc; border:1px solid #dbe4ee; border-radius:7px; padding:16px; margin-top:18px; }
+    .nc-destino-resumen { display:none; margin-top:12px; margin-bottom:0; font-size:.84rem; }
     .modal-header-nc { background:var(--nc-grad); color:#fff; border-radius:calc(var(--nc-radius) - 1px) calc(var(--nc-radius) - 1px) 0 0; padding:14px 20px; }
     .modal-header-nc h4, .modal-header-nc .modal-title { color:#fff; font-size:.95rem; font-weight:700; margin:0; }
     .modal-header-nc .close { color:#fff; opacity:.85; text-shadow:none; font-size:1.4rem; }
@@ -580,6 +582,97 @@
                                 </div>
                             </div>
                         </div>{{-- fin nc-totales --}}
+
+                        <div class="nc-destino">
+                            <p class="nc-section-title"><i class="fa fa-random"></i> Aplicación de la nota de crédito</p>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="destinoCreditoCrear">¿Qué desea hacer con el crédito? <span class="text-danger">*</span></label>
+                                        <select id="destinoCreditoCrear" name="destinoCredito" class="form-control" required
+                                            form="guardar_devolucion" onchange="actualizarDestinoCreditoCrear()">
+                                            <option value="">— Seleccione —</option>
+                                            <option value="saldos">Aplicar automáticamente a saldos pendientes</option>
+                                            <option value="reembolso">Reembolsar todo el crédito</option>
+                                            <option value="mixto">Mixto: aplicar saldos y reembolsar el excedente</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label>Crédito de esta nota</label>
+                                        <input id="creditoPrevistoCrear" type="text" class="form-control" readonly value="L 0.00">
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label>Saldos pendientes</label>
+                                        <input id="saldoPendienteCrear" type="text" class="form-control" readonly value="L 0.00" data-valor="0">
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="resumenDestinoCreditoCrear" class="alert alert-info nc-destino-resumen"></div>
+                            <div id="detalleAplicacionCreditoCrear" class="table-responsive" style="display:none;">
+                                <table class="table table-sm table-bordered mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Factura destino</th>
+                                            <th class="text-right">Saldo actual</th>
+                                            <th class="text-right">Se aplicará</th>
+                                            <th class="text-right">Saldo restante</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="detalleAplicacionCreditoCrearBody"></tbody>
+                                </table>
+                            </div>
+
+                            <div id="panelReembolsoCrear" style="display:none;">
+                                <div class="row mt-3">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label for="bancoReembolsoCrear">Cuenta de salida <span class="text-danger">*</span></label>
+                                            <select id="bancoReembolsoCrear" name="bancoReembolso" class="form-control" form="guardar_devolucion">
+                                                <option value="">— Seleccione —</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label for="metodoReembolsoCrear">Método <span class="text-danger">*</span></label>
+                                            <select id="metodoReembolsoCrear" name="metodoReembolso" class="form-control" form="guardar_devolucion">
+                                                <option value="">— Seleccione —</option>
+                                                <option value="1">Efectivo</option>
+                                                <option value="2">Transferencia bancaria</option>
+                                                <option value="3">Cheque</option>
+                                                <option value="4">Link de pago</option>
+                                                <option value="5">POS</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label for="fechaReembolsoCrear">Fecha <span class="text-danger">*</span></label>
+                                            <input id="fechaReembolsoCrear" name="fechaReembolso" type="date" class="form-control"
+                                                value="{{ date('Y-m-d') }}" form="guardar_devolucion">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label for="referenciaReembolsoCrear">Referencia</label>
+                                            <input id="referenciaReembolsoCrear" name="referenciaReembolso" type="text" maxlength="100"
+                                                class="form-control" form="guardar_devolucion">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label for="comprobanteReembolsoCrear">Comprobante</label>
+                                            <input id="comprobanteReembolsoCrear" name="comprobanteReembolso" type="file"
+                                                accept=".pdf,.jpg,.jpeg,.png" class="form-control" form="guardar_devolucion">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
                         <br>
 

@@ -184,6 +184,21 @@
                     <p class="card-text" style="position:absolute;left:10px;  top:2px; font-size:14px;"><b>Vendedor: </b>
                         {{$cai->name}} </p>
 
+                    @if(!empty($movimientosCredito))
+                        <div style="position:absolute;left:10px;top:28px;width:390px;font-size:10px;line-height:1.35;">
+                            <b>Aplicación del crédito:</b>
+                            @foreach($movimientosCredito as $movimiento)
+                                <div>
+                                    @if($movimiento->tipo === 'aplicacion')
+                                        Aplicado a factura {{ $movimiento->factura }}: L. {{ number_format((float) $movimiento->monto, 2) }}
+                                    @else
+                                        Reembolso {{ strtolower($movimiento->metodo_reembolso ?: 'registrado') }}: L. {{ number_format((float) $movimiento->monto, 2) }}
+                                    @endif
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
+
 
          {{--                 @if($cai->factura == 1)
                         <p class="letra" style="position:absolute; right:10px;  top:2px; font-size:10px;">1</p>
