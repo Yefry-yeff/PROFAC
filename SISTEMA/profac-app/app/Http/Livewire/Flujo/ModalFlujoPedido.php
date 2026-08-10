@@ -1269,9 +1269,18 @@ class ModalFlujoPedido extends Component
                   ->orWhere('nombre', 'LIKE', $like);
             });
 
-        // Solo Admin (1) ve todos los clientes; los dem\u00e1s solo sus asignados
+        // Solo Admin (1) ve todos los clientes; los demás solo sus asignados.
         if ($rolId !== 1) {
-            $query->where('vendedor', Auth::id());
+            $query->where(function ($access) {
+                $access->where('cliente.vendedor', Auth::id())
+                    ->orWhereExists(function ($assigned) {
+                        $assigned->select(DB::raw(1))
+                            ->from('cliente_usuario as cu')
+                            ->whereColumn('cu.cliente_id', 'cliente.id')
+                            ->where('cu.usuario_id', Auth::id())
+                            ->whereIn('cu.rol_id', [2, 3]);
+                    });
+            });
         }
 
         $this->resultadosClienteDuplicar = $query
@@ -1298,6 +1307,31 @@ class ModalFlujoPedido extends Component
     {
         if (!$this->clienteDuplicarId) {
             $this->clienteDuplicarError = 'Debe seleccionar un cliente.';
+            return;
+        }
+
+        $clientePermitido = DB::table('cliente')
+            ->where('cliente.id', $this->clienteDuplicarId)
+            ->where('cliente.estado_cliente_id', 1)
+            ->where('cliente.id', '!=', 1);
+
+        if ((int) Auth::user()->rol_id !== 1) {
+            $clientePermitido->where(function ($access) {
+                $access->where('cliente.vendedor', Auth::id())
+                    ->orWhereExists(function ($assigned) {
+                        $assigned->select(DB::raw(1))
+                            ->from('cliente_usuario as cu')
+                            ->whereColumn('cu.cliente_id', 'cliente.id')
+                            ->where('cu.usuario_id', Auth::id())
+                            ->whereIn('cu.rol_id', [2, 3]);
+                    });
+            });
+        }
+
+        if (!$clientePermitido->exists()) {
+            $this->clienteDuplicarId = null;
+            $this->clienteDuplicarNombre = '';
+            $this->clienteDuplicarError = 'El cliente seleccionado no está asignado a su usuario.';
             return;
         }
 

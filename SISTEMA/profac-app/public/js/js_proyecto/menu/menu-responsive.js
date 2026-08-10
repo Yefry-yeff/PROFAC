@@ -28,31 +28,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Manejar el clic en el botón de minimizar
-    const minimizeBtn = document.querySelector('.navbar-minimalize');
-    if (minimizeBtn) {
-        minimizeBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            
-            if (isMobile()) {
-                // En móvil, toggle entre minimizado y expandido
-                document.body.classList.toggle('mini-navbar');
-                
-                // Si se está minimizando, cerrar todos los menús
-                if (!document.body.classList.contains('mini-navbar')) {
-                    const menuItems = document.querySelectorAll('#side-menu > li.active');
-                    menuItems.forEach(function(item) {
-                        if (!item.classList.contains('nav-header') && 
-                            !item.classList.contains('search-sidebar') && 
-                            !item.classList.contains('dashboard-btn')) {
-                            item.classList.remove('active');
-                        }
-                    });
-                }
-            }
-        });
-    }
-    
     // Manejar el posicionamiento de submenús en hover y clic (modo minimizado)
     const menuItems = document.querySelectorAll('#side-menu > li:not(.nav-header):not(.search-sidebar):not(.dashboard-btn)');
     
@@ -237,26 +212,4 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Cerrar menú al hacer clic fuera en móvil expandido
-    document.addEventListener('click', function(e) {
-        if (isMobile() && document.body.classList.contains('mini-navbar')) {
-            const sidebar = document.querySelector('.navbar-static-side');
-            const toggleBtn = document.querySelector('.navbar-minimalize');
-            
-            if (sidebar && !sidebar.contains(e.target) && !toggleBtn.contains(e.target)) {
-                // Clic fuera del sidebar, minimizar
-                document.body.classList.remove('mini-navbar');
-                
-                // Cerrar menús
-                const menuItems = document.querySelectorAll('#side-menu > li.active');
-                menuItems.forEach(function(item) {
-                    if (!item.classList.contains('nav-header') && 
-                        !item.classList.contains('search-sidebar') && 
-                        !item.classList.contains('dashboard-btn')) {
-                        item.classList.remove('active');
-                    }
-                });
-            }
-        }
-    });
 });
