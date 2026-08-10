@@ -40,11 +40,58 @@ document.addEventListener('DOMContentLoaded', function() {
     // Variable para rastrear el submenu activo y su item padre
     let activeSubmenu = null;
     let activeMenuItem = null;
+
+    const minimizeBtn = document.querySelector('.navbar-minimalize');
+    if (minimizeBtn) {
+        minimizeBtn.addEventListener('click', function() {
+            if (window.innerWidth <= 992) {
+                return;
+            }
+
+            window.setTimeout(function() {
+                document.querySelectorAll('#side-menu > li').forEach(function(item) {
+                    const link = item.querySelector(':scope > a');
+                    const submenu = item.querySelector(':scope > .nav-second-level');
+
+                    if (!submenu || (!item.classList.contains('active')
+                        && link?.getAttribute('aria-expanded') !== 'true'
+                        && !submenu.classList.contains('in')
+                        && !submenu.classList.contains('collapsing'))) {
+                        return;
+                    }
+
+                    item.classList.remove('active');
+                    if (link) {
+                        link.setAttribute('aria-expanded', 'false');
+                    }
+                    if (submenu) {
+                        if (window.jQuery) {
+                            window.jQuery(submenu).stop(true, true);
+                        }
+                        submenu.classList.remove('in', 'collapsing');
+                        submenu.classList.add('collapse');
+                        submenu.style.setProperty('display', 'none');
+                        submenu.style.removeProperty('top');
+                    }
+                });
+
+                activeSubmenu = null;
+                activeMenuItem = null;
+            }, 0);
+        });
+    }
     
     menuItems.forEach(function(menuItem) {
         const submenu = menuItem.querySelector('.nav-second-level');
         
         if (submenu) {
+            const menuLink = menuItem.querySelector(':scope > a');
+            if (menuLink) {
+                menuLink.addEventListener('click', function() {
+                    submenu.style.removeProperty('display');
+                }, true);
+            }
+
             // Al hacer hover, posicionar el submenu
             menuItem.addEventListener('mouseenter', function() {
                 // Verificar si está en modo minimizado (escritorio con mini-navbar O móvil sin mini-navbar)
