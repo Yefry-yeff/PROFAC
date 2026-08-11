@@ -4,6 +4,7 @@ namespace Tests\Feature\Comisiones;
 
 use App\Http\Livewire\Comisiones\Escalado\ReportesComisionesGenerales;
 use App\Services\Comisiones\AplicadorRetencionesMora;
+use App\Services\Comisiones\AjustadorComisionNotaCredito;
 use App\Services\Comisiones\GeneradorFacturasComision;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
@@ -130,6 +131,53 @@ class ComisionesRulesTest extends TestCase
         $this->assertSame(2, $resultado[0]['rol_id']);
         $this->assertEquals(2.0, $resultado[0]['monto_rol']);
         $this->assertEquals(2.0, (float) DB::table('producto_comision')->value('monto_comision'));
+    }
+
+    public function test_nota_credito_reduces_pending_commission_in_original_period(): void
+    {
+        $this->seedCreditNoteCommissionScenario();
+
+        $resultado = app(AjustadorComisionNotaCredito::class)->aplicar(1);
+
+        $this->assertCount(1, $resultado);
+        $this->assertDatabaseHas('nota_credito_ajustes_comision', [
+            'nota_credito_id' => 1,
+            'facturas_comision_id' => 1,
+            'periodo_aplicado' => '2026-07-01',
+            'monto' => 1.10,
+            'comision_pagada' => 0,
+        ]);
+        $this->assertEquals(98.90, (float) DB::table('comision_empleado')->value('comision_acumulada'));
+    }
+
+    public function test_nota_credito_reduces_paid_commission_in_next_open_month(): void
+    {
+        $this->seedCreditNoteCommissionScenario();
+        DB::table('comision_periodo')->insert([
+            'periodo' => '2026-07-01',
+            'estado' => 1,
+        ]);
+
+        app(AjustadorComisionNotaCredito::class)->aplicar(1);
+
+        $this->assertDatabaseHas('nota_credito_ajustes_comision', [
+            'nota_credito_id' => 1,
+            'facturas_comision_id' => 1,
+            'periodo_original' => '2026-07-01',
+            'periodo_aplicado' => '2026-08-01',
+            'monto' => 1.10,
+            'comision_pagada' => 1,
+        ]);
+        $this->assertDatabaseHas('comision_empleado', [
+            'users_comision' => 2,
+            'rol_id' => 2,
+            'mes_comision' => '2026-08-01',
+            'comision_acumulada' => -1.10,
+        ]);
+        $this->assertDatabaseHas('comision_empleado', [
+            'mes_comision' => '2026-07-01',
+            'comision_acumulada' => 100.00,
+        ]);
     }
 
     public function test_generador_sr_uses_lowest_price_category_for_client_scale(): void
@@ -821,6 +869,58 @@ class ComisionesRulesTest extends TestCase
             $table->timestamps();
         });
 
+        Schema::create('nota_credito', function (Blueprint $table) {
+            $table->increments('id');
+            $table->date('fecha');
+            $table->decimal('sub_total', 12, 4);
+            $table->integer('factura_id');
+            $table->integer('estado_nota_id')->default(1);
+        });
+
+        Schema::create('nota_credito_has_producto', function (Blueprint $table) {
+            $table->integer('nota_credito_id');
+            $table->integer('producto_id');
+            $table->integer('seccion_id');
+            $table->decimal('cantidad', 12, 4);
+            $table->decimal('precio_unidad', 12, 4);
+            $table->integer('unidad_medida_venta_id');
+            $table->integer('precios_producto_carga_id')->nullable();
+        });
+
+        Schema::create('comision_periodo', function (Blueprint $table) {
+            $table->increments('id');
+            $table->date('periodo')->unique();
+            $table->integer('estado')->default(0);
+        });
+
+        Schema::create('comision_empleado', function (Blueprint $table) {
+            $table->increments('id');
+            $table->decimal('comision_acumulada', 12, 2);
+            $table->dateTime('fecha_ult_modificacion')->nullable();
+            $table->date('mes_comision');
+            $table->string('nombre_empleado');
+            $table->integer('users_comision');
+            $table->integer('rol_id');
+            $table->integer('estado_id')->default(1);
+            $table->timestamps();
+        });
+
+        Schema::create('nota_credito_ajustes_comision', function (Blueprint $table) {
+            $table->increments('id');
+            $table->integer('nota_credito_id');
+            $table->integer('facturas_comision_id');
+            $table->integer('factura_id');
+            $table->integer('user_id');
+            $table->integer('rol_id');
+            $table->date('periodo_original');
+            $table->date('periodo_aplicado');
+            $table->decimal('monto', 12, 2);
+            $table->boolean('comision_pagada');
+            $table->json('detalle_calculo')->nullable();
+            $table->timestamps();
+            $table->unique(['nota_credito_id', 'facturas_comision_id'], 'uk_nc_ajuste_comision');
+        });
+
         Schema::create('dias_gracia_comision', function (Blueprint $table) {
             $table->increments('id');
             $table->integer('rol_id');
@@ -869,6 +969,65 @@ class ComisionesRulesTest extends TestCase
         DB::table('cliente_categoria_escala')->insert([
             ['id' => 10, 'nombre_categoria' => 'Co-Distribuidor'],
             ['id' => 20, 'nombre_categoria' => 'Minorista'],
+        ]);
+    }
+
+    private function seedCreditNoteCommissionScenario(): void
+    {
+        DB::table('users')->insert([
+            ['id' => 1, 'rol_id' => 3, 'name' => 'Facturador'],
+            ['id' => 2, 'rol_id' => 2, 'name' => 'Vendedor'],
+        ]);
+        DB::table('factura')->insert([
+            'id' => 1,
+            'users_id' => 1,
+            'vendedor' => 2,
+            'sub_total' => 30000,
+            'total' => 34500,
+        ]);
+        DB::table('facturas_comision')->insert([
+            'id' => 1,
+            'fecha_cierre_factura' => '2026-07-29',
+            'monto_rol' => 100,
+            'factura_id' => 1,
+            'rol_id' => 2,
+            'tipo_comision' => 3,
+            'estado_id' => 1,
+        ]);
+        DB::table('producto_comision')->insert([
+            'cantidad' => 500,
+            'precio_venta' => 60,
+            'monto_comision' => 54.81,
+            'precios_producto_carga_id' => 700,
+            'factura_id' => 1,
+            'producto_id' => 10,
+            'rol_id' => 2,
+            'estado_id' => 1,
+            'facturas_comision_id' => 1,
+        ]);
+        DB::table('nota_credito')->insert([
+            'id' => 1,
+            'fecha' => '2026-08-10',
+            'sub_total' => 600,
+            'factura_id' => 1,
+            'estado_nota_id' => 1,
+        ]);
+        DB::table('nota_credito_has_producto')->insert([
+            'nota_credito_id' => 1,
+            'producto_id' => 10,
+            'seccion_id' => 1,
+            'cantidad' => 10,
+            'precio_unidad' => 60,
+            'unidad_medida_venta_id' => 1,
+            'precios_producto_carga_id' => 700,
+        ]);
+        DB::table('comision_empleado')->insert([
+            'comision_acumulada' => 100,
+            'mes_comision' => '2026-07-01',
+            'nombre_empleado' => 'Vendedor',
+            'users_comision' => 2,
+            'rol_id' => 2,
+            'estado_id' => 1,
         ]);
     }
 }

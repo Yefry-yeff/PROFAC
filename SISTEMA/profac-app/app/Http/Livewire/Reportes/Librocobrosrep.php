@@ -45,6 +45,27 @@ class Librocobrosrep extends Component
                      && !empty($fechaFinal)   && $fechaFinal   !== 'todos';
 
             if ($tipo == 3) {
+                $consulta = $this->queryTipo3Data($fechaInicio, $fechaFinal, $cliente, $vendedor, $banco, $factura);
+                $kpiTotalCobrado = array_sum(array_map(
+                    fn($row) => (int) ($row->impacta_kpi ?? 0) === 1 ? (float) $row->monto_cobrado : 0,
+                    $consulta
+                ));
+                $facturasPagadas = [];
+                foreach ($consulta as $row) {
+                    if ($row->estado_factura === 'PAGADA') {
+                        $facturasPagadas[$row->factura] = true;
+                    }
+                }
+
+                return Datatables::of($consulta)
+                    ->with([
+                        'kpi_cobros' => count($consulta),
+                        'kpi_total_cobrado' => round($kpiTotalCobrado, 2),
+                        'kpi_completas' => count($facturasPagadas),
+                    ])
+                    ->rawColumns([])
+                    ->make(true);
+
                 $sql = "
                     SELECT *
                     FROM (
@@ -194,10 +215,9 @@ class Librocobrosrep extends Component
                                                         LEFT JOIN (
                                                                 SELECT
                                                                         factura_id,
-                                                                        SUM(total) AS total_notas_credito
-                                                                FROM nota_credito
-                                                                WHERE estado_nota_id = 1
-                                                                    AND estado_rebajado = 2
+                                                                SUM(monto) AS total_notas_credito
+                                                            FROM nota_credito_movimientos
+                                                            WHERE tipo = 'aplicacion'
                                                                 GROUP BY factura_id
                                                         ) nc ON nc.factura_id = f.id
                             WHERE ac.estado_abono = 1
@@ -407,6 +427,208 @@ class Librocobrosrep extends Component
         ?string $factura  = null
     ): array {
         $sql = "
+            WITH movimientos AS (
+                SELECT
+                    ac.id AS movimiento_id,
+                    1 AS orden_tipo,
+                    ac.factura_id,
+                    DATE(ac.fecha_pago) AS fecha_pago,
+                    ac.fecha_pago AS fecha_orden,
+                    ROUND(ac.monto_abonado, 2) AS monto_cobrado,
+                    ROUND(ac.monto_abonado, 2) AS monto_saldo,
+                    1 AS impacta_kpi,
+                    b.nombre AS banco,
+                    b.cuenta AS cuenta_banco,
+                    ac.comentario AS observaciones,
+                    ac.banco_id AS _banco_id
+                FROM abonos_creditos ac
+                INNER JOIN banco b ON b.id = ac.banco_id
+                WHERE ac.estado_abono = 1
+                  AND ac.banco_id NOT IN (12, 13)
+                                    AND DATE(ac.fecha_pago) <= ?
+
+                UNION ALL
+
+                                SELECT
+                                        nc.id AS movimiento_id,
+                                        2 AS orden_tipo,
+                                        nc.factura_id,
+                                        DATE(nc.fecha) AS fecha_pago,
+                                        nc.created_at AS fecha_orden,
+                                        -ROUND(nc.total, 2) AS monto_cobrado,
+                                        0 AS monto_saldo,
+                                        0 AS impacta_kpi,
+                                        'NOTA DE CRÉDITO' AS banco,
+                                        'EMISIÓN' AS cuenta_banco,
+                                        CONCAT('Emisión de nota de crédito ', nc.cai, ' en esta factura') AS observaciones,
+                                        NULL AS _banco_id
+                                FROM nota_credito nc
+                                INNER JOIN nota_credito_creditos cc ON cc.nota_credito_id = nc.id
+                                WHERE nc.estado_nota_id = 1
+                                    AND EXISTS (
+                                            SELECT 1 FROM nota_credito_movimientos me
+                                            WHERE me.credito_id = cc.id AND me.tipo IN ('aplicacion', 'reembolso')
+                                    )
+                                    AND DATE(nc.fecha) <= ?
+
+                                UNION ALL
+
+                SELECT
+                    m.id AS movimiento_id,
+                                        4 AS orden_tipo,
+                    m.factura_id,
+                    m.fecha_movimiento AS fecha_pago,
+                                        m.created_at AS fecha_orden,
+                    ROUND(m.monto, 2) AS monto_cobrado,
+                                        ROUND(m.monto, 2) AS monto_saldo,
+                                        1 AS impacta_kpi,
+                    'NOTA DE CRÉDITO' AS banco,
+                    'APLICACIÓN A SALDO' AS cuenta_banco,
+                                        CONCAT('Recibido de nota de crédito ', nc.cai, ' originada en factura ', fo.cai) AS observaciones,
+                    NULL AS _banco_id
+                FROM nota_credito_movimientos m
+                INNER JOIN nota_credito_creditos cc ON cc.id = m.credito_id
+                INNER JOIN nota_credito nc ON nc.id = cc.nota_credito_id
+                                INNER JOIN factura fo ON fo.id = nc.factura_id
+                WHERE m.tipo = 'aplicacion'
+                                    AND DATE(m.fecha_movimiento) <= ?
+
+                                UNION ALL
+
+                                SELECT
+                                        m.id AS movimiento_id,
+                                    3 AS orden_tipo,
+                                        nc.factura_id,
+                                        m.fecha_movimiento AS fecha_pago,
+                                        m.created_at AS fecha_orden,
+                                        -ROUND(m.monto, 2) AS monto_cobrado,
+                                        0 AS monto_saldo,
+                                    0 AS impacta_kpi,
+                                        'NOTA DE CRÉDITO' AS banco,
+                                    'DETALLE DE APLICACIÓN' AS cuenta_banco,
+                                    CONCAT('De la nota ', nc.cai, ' se aplicaron L ', FORMAT(m.monto, 2), ' a factura ', fd.cai) AS observaciones,
+                                        NULL AS _banco_id
+                                FROM nota_credito_movimientos m
+                                INNER JOIN nota_credito_creditos cc ON cc.id = m.credito_id
+                                INNER JOIN nota_credito nc ON nc.id = cc.nota_credito_id
+                                INNER JOIN factura fd ON fd.id = m.factura_id
+                                WHERE m.tipo = 'aplicacion'
+                                    AND nc.factura_id <> m.factura_id
+                                    AND DATE(m.fecha_movimiento) <= ?
+
+                                UNION ALL
+
+                                SELECT
+                                        m.id AS movimiento_id,
+                                        4 AS orden_tipo,
+                                        nc.factura_id,
+                                        m.fecha_movimiento AS fecha_pago,
+                                        m.created_at AS fecha_orden,
+                                        -ROUND(m.monto, 2) AS monto_cobrado,
+                                        0 AS monto_saldo,
+                                        0 AS impacta_kpi,
+                                        b.nombre AS banco,
+                                        COALESCE(m.cuenta_reembolso, b.cuenta) AS cuenta_banco,
+                                        CONCAT('Reembolso de nota de crédito ', nc.cai, ' - ', COALESCE(tpc.descripcion, 'Método no indicado')) AS observaciones,
+                                        m.banco_id AS _banco_id
+                                FROM nota_credito_movimientos m
+                                INNER JOIN nota_credito_creditos cc ON cc.id = m.credito_id
+                                INNER JOIN nota_credito nc ON nc.id = cc.nota_credito_id
+                                LEFT JOIN banco b ON b.id = m.banco_id
+                                LEFT JOIN tipo_pago_cobro tpc ON tpc.id = m.tipo_pago_cobro_id
+                                WHERE m.tipo = 'reembolso'
+                                    AND DATE(m.fecha_movimiento) <= ?
+            ), calculados AS (
+                SELECT
+                    mov.*,
+                    f.fecha_emision,
+                    f.fecha_vencimiento,
+                    f.nombre_cliente,
+                    f.numero_secuencia_cai,
+                    f.cliente_id,
+                    f.vendedor,
+                    f.users_id,
+                    f.total,
+                    f.sub_total,
+                    f.sub_total_grabado,
+                    f.sub_total_excento,
+                    f.tipo_venta_id,
+                    GREATEST(ROUND(
+                        f.total - SUM(mov.monto_saldo) OVER (
+                            PARTITION BY mov.factura_id
+                            ORDER BY mov.fecha_pago, mov.orden_tipo, mov.movimiento_id
+                            ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+                        ), 2
+                    ), 0) AS saldo_pendiente
+                FROM movimientos mov
+                INNER JOIN factura f ON f.id = mov.factura_id
+            )
+            SELECT
+                DATE_FORMAT(c.fecha_emision, '%Y-%m-%d') AS fecha_venta,
+                DATE_FORMAT(c.fecha_vencimiento, '%Y-%m-%d') AS fecha_vencimiento,
+                DATE_FORMAT(c.fecha_pago, '%Y-%m-%d') AS fecha_pago,
+                c.nombre_cliente AS cliente,
+                COALESCE(u.name, '') AS asesor_comercial,
+                COALESCE(tele.name, '') AS teleasesor,
+                c.numero_secuencia_cai AS factura,
+                c.monto_cobrado,
+                c.impacta_kpi,
+                c.saldo_pendiente,
+                CASE WHEN c.saldo_pendiente <= 0.01 THEN 'PAGADA' ELSE 'PARCIAL' END AS estado_factura,
+                c.banco,
+                c.cuenta_banco,
+                c.observaciones,
+                ROUND(CASE
+                    WHEN COALESCE(c.sub_total, 0) <= 0 THEN 0
+                    WHEN c.tipo_venta_id = 3 THEN c.monto_cobrado * c.sub_total / NULLIF(c.total, 0)
+                    ELSE c.monto_cobrado * GREATEST(c.sub_total - COALESCE(c.sub_total_grabado, 0) - COALESCE(c.sub_total_excento, 0), 0) / NULLIF(c.total, 0)
+                END, 2) AS exonerado,
+                ROUND(CASE WHEN COALESCE(c.total, 0) > 0 THEN c.monto_cobrado * COALESCE(c.sub_total_grabado, 0) / c.total ELSE 0 END, 2) AS gravado,
+                ROUND(CASE WHEN COALESCE(c.total, 0) > 0 THEN c.monto_cobrado * COALESCE(c.sub_total_excento, 0) / c.total ELSE 0 END, 2) AS excento,
+                ROUND(CASE WHEN COALESCE(c.total, 0) > 0 THEN c.monto_cobrado * COALESCE(c.sub_total, 0) / c.total ELSE c.monto_cobrado END, 2) AS subtotal,
+                ROUND(CASE WHEN c.tipo_venta_id = 3 OR COALESCE(c.total, 0) <= 0 THEN 0 ELSE c.monto_cobrado - (c.monto_cobrado * COALESCE(c.sub_total, 0) / c.total) END, 2) AS isv,
+                c.monto_cobrado AS total_factura,
+                c.cliente_id AS _cliente_id,
+                c.vendedor AS _vendedor_id,
+                c._banco_id
+            FROM calculados c
+            LEFT JOIN users u ON u.id = c.vendedor
+            LEFT JOIN users tele ON tele.id = c.users_id
+            WHERE c.fecha_pago BETWEEN ? AND ?
+        ";
+
+        $bindings = [$fechaFinal, $fechaFinal, $fechaFinal, $fechaFinal, $fechaFinal, $fechaInicio, $fechaFinal];
+        if (!empty($cliente)) {
+            $sql .= ' AND c.cliente_id = ?';
+            $bindings[] = $cliente;
+        }
+        if (!empty($vendedor)) {
+            $sql .= ' AND c.vendedor = ?';
+            $bindings[] = $vendedor;
+        }
+        if (!empty($banco)) {
+            $sql .= ' AND c._banco_id = ?';
+            $bindings[] = $banco;
+        }
+        if (!empty($factura)) {
+            $sql .= ' AND c.numero_secuencia_cai LIKE ?';
+            $bindings[] = '%' . $factura . '%';
+        }
+
+        $sql .= ' ORDER BY c.fecha_orden ASC, c.orden_tipo ASC, c.movimiento_id ASC';
+
+        return DB::select($sql, $bindings);
+    }
+
+    private function queryTipo3DataAnterior(
+        string $fechaInicio,
+        string $fechaFinal,
+        ?string $cliente  = null,
+        ?string $vendedor = null,
+        ?string $banco    = null,
+        ?string $factura  = null
+    ): array {
+        $sql = "
             SELECT *
             FROM (
                 SELECT
@@ -555,10 +777,9 @@ class Librocobrosrep extends Component
                                         LEFT JOIN (
                                                 SELECT
                                                         factura_id,
-                                                        SUM(total) AS total_notas_credito
-                                                FROM nota_credito
-                                                WHERE estado_nota_id = 1
-                                                    AND estado_rebajado = 2
+                                                SUM(monto) AS total_notas_credito
+                                            FROM nota_credito_movimientos
+                                            WHERE tipo = 'aplicacion'
                                                 GROUP BY factura_id
                                         ) nc ON nc.factura_id = f.id
                     WHERE ac.estado_abono = 1

@@ -117,7 +117,11 @@
                                         <th>Comentario</th>
                                         <th class="text-right">Sub Total</th>
                                         <th class="text-right">ISV</th>
-                                        <th class="text-right">Total</th>
+                                        <th class="text-right">Total fiscal</th>
+                                        <th class="text-right">Aplicado</th>
+                                        <th class="text-right">Reembolsado</th>
+                                        <th class="text-right">Disponible</th>
+                                        <th>Estado del crédito</th>
                                         <th>Fecha</th>
                                         <th>Registrado por</th>
                                         <th>Opciones</th>
@@ -268,6 +272,10 @@
                 { data: 'sub_total',    className: 'text-right' },
                 { data: 'isv',          className: 'text-right' },
                 { data: 'total',        className: 'text-right' },
+                { data: 'monto_aplicado', className: 'text-right' },
+                { data: 'monto_reembolsado', className: 'text-right' },
+                { data: 'saldo_disponible', className: 'text-right' },
+                { data: 'estado_credito' },
                 { data: 'fecha_registro' },
                 { data: 'registrado_por' },
                 { data: 'opciones', orderable: false, searchable: false }

@@ -134,7 +134,7 @@
                                         <th>Asesor Comercial</th>
                                         <th>Teleasesor</th>
                                         <th>N&deg; Factura</th>
-                                        <th>Monto Cobrado</th>
+                                        <th>Monto Movimiento</th>
                                         <th>Estado</th>
                                         <th>Banco</th>
                                         <th>Cuenta</th>

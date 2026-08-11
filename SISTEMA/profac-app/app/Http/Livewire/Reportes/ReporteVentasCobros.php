@@ -770,9 +770,9 @@ class ReporteVentasCobros extends Component
                     GROUP BY ap.factura_id
                 ) AS ab ON ab.factura_id = f.id
                 LEFT JOIN (
-                    SELECT factura_id, SUM(total) AS total_notas_credito
-                    FROM nota_credito
-                    WHERE estado_nota_id = 1
+                    SELECT factura_id, SUM(monto) AS total_notas_credito
+                    FROM nota_credito_movimientos
+                    WHERE tipo = 'aplicacion'
                     GROUP BY factura_id
                 ) AS nc ON nc.factura_id = f.id
                 LEFT JOIN (
@@ -948,13 +948,63 @@ class ReporteVentasCobros extends Component
 
                     UNION ALL
 
-                    /* Nota de crédito */
-                    SELECT 'NOTA_CREDITO', nc.fecha, nc.numero_secuencia_cai,
-                           nc.total, NULL, NULL, NULL,
-                           COALESCE(nc.comentario,''), COALESCE(u_nc.name,''), NULL, 5
-                    FROM nota_credito nc
-                    LEFT JOIN users u_nc ON u_nc.id = nc.users_id
-                    WHERE nc.factura_id = ? AND nc.estado_nota_id = 1
+                          /* Nota de crédito recibida por la factura destino */
+                          SELECT 'NOTA_CREDITO', m.created_at, nc.cai,
+                              m.monto, NULL, NULL, NULL,
+                              CONCAT('Recibida de factura origen ', fo.cai),
+                              COALESCE(u_nc.name,''), 'Aplicación automática', 5
+                          FROM nota_credito_movimientos m
+                          INNER JOIN nota_credito_creditos cc ON cc.id = m.credito_id
+                          INNER JOIN nota_credito nc ON nc.id = cc.nota_credito_id
+                          INNER JOIN factura fo ON fo.id = nc.factura_id
+                          LEFT JOIN users u_nc ON u_nc.id = m.users_id
+                          WHERE m.factura_id = ? AND m.tipo = 'aplicacion'
+
+                          UNION ALL
+
+                          /* Emisión fiscal en la factura origen */
+                          SELECT 'NOTA_CREDITO_EMISION', nc.created_at, nc.cai,
+                              nc.total, NULL, NULL, NULL,
+                              'Nota de crédito generada sobre esta factura',
+                              COALESCE(u_nc.name,''), 'Emisión', 4
+                          FROM nota_credito nc
+                          INNER JOIN nota_credito_creditos cc ON cc.nota_credito_id = nc.id
+                          LEFT JOIN users u_nc ON u_nc.id = nc.users_id
+                          WHERE nc.factura_id = ? AND nc.estado_nota_id = 1
+                         AND EXISTS (
+                             SELECT 1 FROM nota_credito_movimientos me
+                             WHERE me.credito_id = cc.id AND me.tipo IN ('aplicacion', 'reembolso')
+                         )
+
+                          UNION ALL
+
+                          /* Contrapartida aplicada desde la factura origen */
+                          SELECT 'NOTA_CREDITO_APLICACION', m.created_at, nc.cai,
+                              m.monto, NULL, NULL, NULL,
+                              CONCAT('Aplicada automáticamente a factura ', fd.cai),
+                              COALESCE(u_nc.name,''), 'Aplicación automática', 6
+                          FROM nota_credito_movimientos m
+                          INNER JOIN nota_credito_creditos cc ON cc.id = m.credito_id
+                          INNER JOIN nota_credito nc ON nc.id = cc.nota_credito_id
+                          INNER JOIN factura fd ON fd.id = m.factura_id
+                          LEFT JOIN users u_nc ON u_nc.id = m.users_id
+                          WHERE nc.factura_id = ? AND m.tipo = 'aplicacion'
+
+                          UNION ALL
+
+                          /* Contrapartida reembolsada desde la factura origen */
+                          SELECT 'NOTA_CREDITO_REEMBOLSO', m.created_at, nc.cai,
+                              m.monto, COALESCE(b.nombre,''), COALESCE(m.cuenta_reembolso, b.cuenta),
+                              COALESCE(m.referencia,''),
+                              CONCAT('Reembolso de nota de crédito - ', COALESCE(tpc.descripcion,'Método no indicado')),
+                              COALESCE(u_nc.name,''), COALESCE(tpc.descripcion,''), 6
+                          FROM nota_credito_movimientos m
+                          INNER JOIN nota_credito_creditos cc ON cc.id = m.credito_id
+                          INNER JOIN nota_credito nc ON nc.id = cc.nota_credito_id
+                          LEFT JOIN banco b ON b.id = m.banco_id
+                          LEFT JOIN tipo_pago_cobro tpc ON tpc.id = m.tipo_pago_cobro_id
+                          LEFT JOIN users u_nc ON u_nc.id = m.users_id
+                          WHERE nc.factura_id = ? AND m.tipo = 'reembolso'
 
                     UNION ALL
 
@@ -993,7 +1043,7 @@ class ReporteVentasCobros extends Component
                     WHERE om.factura_id = ? AND om.estado = 1
                 ) AS _movs
                 ORDER BY fecha ASC, orden_tipo ASC
-            ", [$facturaId, $facturaId, $facturaId, $facturaId, $facturaId, $facturaId]);
+            ", [$facturaId, $facturaId, $facturaId, $facturaId, $facturaId, $facturaId, $facturaId, $facturaId, $facturaId]);
 
             /* ── Calcular saldo progresivo ── */
             $saldo = (float) $cab->total_factura;
@@ -1004,11 +1054,17 @@ class ReporteVentasCobros extends Component
                 } elseif (in_array($mov->tipo, ['ABONO', 'NOTA_CREDITO', 'RETENCION'])) {
                     $saldo -= $monto;
                     $mov->saldo_resultante = max($saldo, 0);
+                } elseif ($mov->tipo === 'NOTA_CREDITO_EMISION') {
+                    $saldo -= $monto;
+                    $mov->saldo_resultante = $saldo;
                 } elseif ($mov->tipo === 'NOTA_DEBITO') {
                     $saldo += $monto;
                     $mov->saldo_resultante = max($saldo, 0);
+                } elseif (in_array($mov->tipo, ['NOTA_CREDITO_APLICACION', 'NOTA_CREDITO_REEMBOLSO'])) {
+                    $saldo += $monto;
+                    $mov->saldo_resultante = abs($saldo) < 0.005 ? 0 : $saldo;
                 } else {
-                    $mov->saldo_resultante = null; // ENTREGA no cambia saldo
+                    $mov->saldo_resultante = null;
                 }
             }
 
@@ -1287,21 +1343,71 @@ class ReporteVentasCobros extends Component
                 UNION ALL
 
                 SELECT 'NOTA_CREDITO' AS tipo,
-                       nc.factura_id AS factura_id,
-                       nc.fecha AS fecha,
-                       nc.numero_secuencia_cai AS documento,
-                       nc.total AS monto,
+                      m.factura_id AS factura_id,
+                     m.created_at AS fecha,
+                      nc.cai AS documento,
+                      m.monto AS monto,
                        NULL AS banco_nombre, NULL AS banco_cuenta, NULL AS recibo,
-                       COALESCE(nc.comentario,'') AS descripcion,
+                     CONCAT('Recibida de factura origen ', fo.cai) AS descripcion,
                        COALESCE(u_nc.name,'') AS responsable,
-                       NULL AS forma_pago,
+                      'Aplicación automática' AS forma_pago,
                        5 AS orden_tipo
-                FROM nota_credito nc
-                INNER JOIN factura f ON f.id = nc.factura_id
-                LEFT JOIN users u_nc ON u_nc.id = nc.users_id
-                WHERE nc.estado_nota_id = 1 AND {$whereF}
+                  FROM nota_credito_movimientos m
+                  INNER JOIN nota_credito_creditos cc ON cc.id = m.credito_id
+                  INNER JOIN nota_credito nc ON nc.id = cc.nota_credito_id
+                    INNER JOIN factura fo ON fo.id = nc.factura_id
+                  INNER JOIN factura f ON f.id = m.factura_id
+                  LEFT JOIN users u_nc ON u_nc.id = m.users_id
+                  WHERE m.tipo = 'aplicacion' AND {$whereF}
 
                 UNION ALL
+
+                  SELECT 'NOTA_CREDITO_EMISION' AS tipo,
+                      nc.factura_id, nc.created_at, nc.cai, nc.total,
+                      NULL, NULL, NULL, 'Nota de crédito generada sobre esta factura',
+                      COALESCE(u_nc.name,''), 'Emisión', 4
+                  FROM nota_credito nc
+                  INNER JOIN nota_credito_creditos cc ON cc.nota_credito_id = nc.id
+                  INNER JOIN factura f ON f.id = nc.factura_id
+                  LEFT JOIN users u_nc ON u_nc.id = nc.users_id
+                  WHERE nc.estado_nota_id = 1 AND {$whereF}
+                    AND EXISTS (
+                     SELECT 1 FROM nota_credito_movimientos me
+                     WHERE me.credito_id = cc.id AND me.tipo IN ('aplicacion', 'reembolso')
+                    )
+
+                  UNION ALL
+
+                  SELECT 'NOTA_CREDITO_APLICACION' AS tipo,
+                      nc.factura_id, m.created_at, nc.cai, m.monto,
+                      NULL, NULL, NULL, CONCAT('Aplicada automáticamente a factura ', fd.cai),
+                      COALESCE(u_nc.name,''), 'Aplicación automática', 6
+                  FROM nota_credito_movimientos m
+                  INNER JOIN nota_credito_creditos cc ON cc.id = m.credito_id
+                  INNER JOIN nota_credito nc ON nc.id = cc.nota_credito_id
+                  INNER JOIN factura fd ON fd.id = m.factura_id
+                  INNER JOIN factura f ON f.id = nc.factura_id
+                  LEFT JOIN users u_nc ON u_nc.id = m.users_id
+                  WHERE m.tipo = 'aplicacion' AND {$whereF}
+
+                  UNION ALL
+
+                  SELECT 'NOTA_CREDITO_REEMBOLSO' AS tipo,
+                      nc.factura_id, m.created_at, nc.cai, m.monto,
+                      COALESCE(b.nombre,''), COALESCE(m.cuenta_reembolso, b.cuenta),
+                      COALESCE(m.referencia,''),
+                      CONCAT('Reembolso de nota de crédito - ', COALESCE(tpc.descripcion,'Método no indicado')),
+                      COALESCE(u_nc.name,''), COALESCE(tpc.descripcion,''), 6
+                  FROM nota_credito_movimientos m
+                  INNER JOIN nota_credito_creditos cc ON cc.id = m.credito_id
+                  INNER JOIN nota_credito nc ON nc.id = cc.nota_credito_id
+                  INNER JOIN factura f ON f.id = nc.factura_id
+                  LEFT JOIN banco b ON b.id = m.banco_id
+                  LEFT JOIN tipo_pago_cobro tpc ON tpc.id = m.tipo_pago_cobro_id
+                  LEFT JOIN users u_nc ON u_nc.id = m.users_id
+                  WHERE m.tipo = 'reembolso' AND {$whereF}
+
+                  UNION ALL
 
                 SELECT 'NOTA_DEBITO' AS tipo,
                        nd.factura_id AS factura_id,
@@ -1339,7 +1445,7 @@ class ReporteVentasCobros extends Component
         ";
 
         // Cada UNION branch usa los mismos parámetros de filtro
-        $allParams = array_merge($params, $params, $params, $params);
+        $allParams = array_merge($params, $params, $params, $params, $params, $params, $params);
         $movs      = DB::select($sql, $allParams);
 
         $grouped = [];
@@ -1419,15 +1525,59 @@ class ReporteVentasCobros extends Component
 
                 UNION ALL
 
-                  SELECT 'NOTA_CREDITO' AS tipo, nc.factura_id AS factura_id, nc.fecha AS fecha,
-                      nc.numero_secuencia_cai AS documento, nc.total AS monto,
+                                                                        SELECT 'NOTA_CREDITO' AS tipo, m.factura_id AS factura_id, m.created_at AS fecha,
+                                                                                        nc.cai AS documento, m.monto AS monto,
                       NULL AS banco_nombre, NULL AS banco_cuenta, NULL AS recibo,
-                      COALESCE(nc.comentario,'') AS descripcion, COALESCE(u_nc.name,'') AS responsable, NULL AS forma_pago, 5 AS orden_tipo
-                FROM nota_credito nc
-                LEFT JOIN users u_nc ON u_nc.id = nc.users_id
-                WHERE nc.factura_id IN ({$ph}) AND nc.estado_nota_id = 1
+                                                                                        CONCAT('Recibida de factura origen ', fo.cai) AS descripcion,
+                                                                                        COALESCE(u_nc.name,'') AS responsable, 'Aplicación automática' AS forma_pago, 5 AS orden_tipo
+                                FROM nota_credito_movimientos m
+                                INNER JOIN nota_credito_creditos cc ON cc.id = m.credito_id
+                                INNER JOIN nota_credito nc ON nc.id = cc.nota_credito_id
+                                                                INNER JOIN factura fo ON fo.id = nc.factura_id
+                                LEFT JOIN users u_nc ON u_nc.id = m.users_id
+                                WHERE m.factura_id IN ({$ph}) AND m.tipo = 'aplicacion'
 
                 UNION ALL
+
+                                    SELECT 'NOTA_CREDITO_EMISION', nc.factura_id, nc.created_at, nc.cai, nc.total,
+                                            NULL, NULL, NULL, 'Nota de crédito generada sobre esta factura',
+                                            COALESCE(u_nc.name,''), 'Emisión', 4
+                                FROM nota_credito nc
+                                INNER JOIN nota_credito_creditos cc ON cc.nota_credito_id = nc.id
+                                LEFT JOIN users u_nc ON u_nc.id = nc.users_id
+                                WHERE nc.factura_id IN ({$ph}) AND nc.estado_nota_id = 1
+                                    AND EXISTS (
+                                            SELECT 1 FROM nota_credito_movimientos me
+                                            WHERE me.credito_id = cc.id AND me.tipo IN ('aplicacion', 'reembolso')
+                                    )
+
+                                UNION ALL
+
+                                    SELECT 'NOTA_CREDITO_APLICACION', nc.factura_id, m.created_at, nc.cai, m.monto,
+                                            NULL, NULL, NULL, CONCAT('Aplicada automáticamente a factura ', fd.cai),
+                                            COALESCE(u_nc.name,''), 'Aplicación automática', 6
+                                FROM nota_credito_movimientos m
+                                INNER JOIN nota_credito_creditos cc ON cc.id = m.credito_id
+                                INNER JOIN nota_credito nc ON nc.id = cc.nota_credito_id
+                                INNER JOIN factura fd ON fd.id = m.factura_id
+                                LEFT JOIN users u_nc ON u_nc.id = m.users_id
+                                WHERE nc.factura_id IN ({$ph}) AND m.tipo = 'aplicacion'
+
+                                UNION ALL
+
+                                    SELECT 'NOTA_CREDITO_REEMBOLSO', nc.factura_id, m.created_at, nc.cai, m.monto,
+                                            COALESCE(b.nombre,''), COALESCE(m.cuenta_reembolso, b.cuenta), COALESCE(m.referencia,''),
+                                            CONCAT('Reembolso de nota de crédito - ', COALESCE(tpc.descripcion,'Método no indicado')),
+                                            COALESCE(u_nc.name,''), COALESCE(tpc.descripcion,''), 6
+                                FROM nota_credito_movimientos m
+                                INNER JOIN nota_credito_creditos cc ON cc.id = m.credito_id
+                                INNER JOIN nota_credito nc ON nc.id = cc.nota_credito_id
+                                LEFT JOIN banco b ON b.id = m.banco_id
+                                LEFT JOIN tipo_pago_cobro tpc ON tpc.id = m.tipo_pago_cobro_id
+                                LEFT JOIN users u_nc ON u_nc.id = m.users_id
+                                WHERE nc.factura_id IN ({$ph}) AND m.tipo = 'reembolso'
+
+                                UNION ALL
 
                   SELECT 'NOTA_DEBITO' AS tipo, nd.factura_id AS factura_id, nd.fechaEmision AS fecha,
                       nd.correlativoND AS documento, nd.monto_asignado AS monto,

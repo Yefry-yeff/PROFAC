@@ -20,6 +20,7 @@ use App\Models\ModelLogTranslados;
 use App\Models\ModelRecibirBodega;
 use App\Models\ModelCAI;
 use App\Http\Controllers\CAI\Notificaciones;
+use App\Services\NotaCredito\GestorCreditoNota;
 
 class CrearNotaCredito extends Component
 {
@@ -81,10 +82,35 @@ class CrearNotaCredito extends Component
         where factura.id = ".$request->idFactura
         );
 
+        if ($datosFactura) {
+            $datosFactura->saldo_pendiente_cliente = round((float) DB::table('aplicacion_pagos')
+                ->where('cliente_id', $datosFactura->idCliente)
+                ->where('estado', 1)
+                ->where('estado_cerrado', '<>', 2)
+                ->where('saldo', '>', 0.005)
+                ->sum('saldo'), 2);
+        }
+
         return response()->json([
             'datosFactura'=>$datosFactura
         ],200);
 
+    }
+
+    public function previsualizarAplicacion(Request $request, GestorCreditoNota $gestor)
+    {
+        $datos = $request->validate([
+            'idFactura' => 'required|integer|exists:factura,id',
+            'monto' => 'required|numeric|min:0',
+            'destino' => 'required|in:saldos,reembolso,mixto',
+        ]);
+
+        $factura = DB::table('factura')->where('id', $datos['idFactura'])->first(['cliente_id']);
+        $prevision = $datos['destino'] === 'reembolso'
+            ? ['aplicaciones' => [], 'monto_aplicado' => 0, 'saldo_sin_aplicar' => (float) $datos['monto']]
+            : $gestor->previsualizarAplicacion((int) $factura->cliente_id, (float) $datos['monto']);
+
+        return response()->json($prevision);
     }
 
     public function obtenerProductos(Request $request){
@@ -221,22 +247,17 @@ class CrearNotaCredito extends Component
     }
 
     public function guardarNotaCredito(Request $request){
+       $comprobante = null;
        try {
-
-        $estadoCuenta = DB::selectone('select estado_cerrado from aplicacion_pagos where estado = 1 and factura_id = '.$request->idFactura);
-            // dd($saldoActual->saldo);
-            if($estadoCuenta != null){
-                if($estadoCuenta->estado_cerrado == 2){
-                    return response()->json([
-                        'icon' => 'warning',
-                        'text'=>'Esta factura esta cerrada, no se puede crear nota.',
-                        'title'=>'Advertencia!'
-
-                    ],203);
-
-                }
-
-             }
+        $request->validate([
+            'idFactura' => 'required|integer',
+            'destinoCredito' => 'required|in:saldos,reembolso,mixto',
+            'bancoReembolso' => 'nullable|integer',
+            'metodoReembolso' => 'nullable|integer',
+            'fechaReembolso' => 'nullable|date',
+            'referenciaReembolso' => 'nullable|string|max:100',
+            'comprobanteReembolso' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+        ]);
 
         $flagError = false;
         $text1 ="<p>Los siguientes productos exceden la cantidad disponible para realizar la nota de credito: <p><ul>";
@@ -421,6 +442,8 @@ class CrearNotaCredito extends Component
 
         $notaCredito->save();
 
+        app(GestorCreditoNota::class)->asegurarCredito((int) $notaCredito->id);
+
 
 
         //GUARDA LOS PRODUCTOS DE LA NOTA DE CREDITO
@@ -459,6 +482,13 @@ class CrearNotaCredito extends Component
                 $productoNota->isv =  $isv;
                 $productoNota->total = $total;
                 $productoNota->unidad_medida_venta_id = $idUnidadMedida;
+                $productoNota->precios_producto_carga_id = DB::table('venta_has_producto')
+                    ->where('factura_id', $request->idFactura)
+                    ->where('producto_id', $idProducto)
+                    ->where('seccion_id', $idSeccion)
+                    ->where('unidad_medida_venta_id', $idUnidadMedida)
+                    ->orderByRaw('ABS(precio_unidad - ?) ASC', [(float) $precio])
+                    ->value('precios_producto_carga_id');
                 $productoNota->save();
 
             }
@@ -512,22 +542,62 @@ class CrearNotaCredito extends Component
             $caiUpdated->save();
         }
 
+        if ($request->hasFile('comprobanteReembolso')) {
+            $folderPath = public_path('documentos_reembolsos_notas_credito');
+            if (!File::exists($folderPath)) {
+                File::makeDirectory($folderPath, 0755, true);
+            }
+            $file = $request->file('comprobanteReembolso');
+            $fileName = 'reembolso_nc_' . time() . '_' . $notaCredito->id . '.' . $file->getClientOriginalExtension();
+            $file->move($folderPath, $fileName);
+            $comprobante = '/documentos_reembolsos_notas_credito/' . $fileName;
+        }
 
+        $resultado = app(GestorCreditoNota::class)->procesar(
+            (int) $notaCredito->id,
+            (string) $request->destinoCredito,
+            [
+                'banco_id' => $request->bancoReembolso,
+                'tipo_pago_cobro_id' => $request->metodoReembolso,
+                'fecha' => $request->fechaReembolso,
+                'referencia' => $request->referenciaReembolso,
+                'comprobante' => $comprobante,
+                'comentario' => $request->comentario,
+            ],
+            (int) Auth::id()
+        );
 
-
+        $ajustesComision = app(\App\Services\Comisiones\AjustadorComisionNotaCredito::class)
+            ->aplicar((int) $notaCredito->id);
 
         DB::commit();
        return response()->json([
         'icon' => 'success',
-        'text' => 'Nota de credito creada correctamente.',
+        'text' => 'Nota de crédito creada y gestionada automáticamente.',
         'title' => 'Exito!',
-        'idNota'=> $notaCredito->id
+        'idNota'=> $notaCredito->id,
+        'resultado' => $resultado,
+        'ajustes_comision' => $ajustesComision,
        ],200);
-       } catch (QueryException $e) {
-        DB::rollback();
+       } catch (\Illuminate\Validation\ValidationException $e) {
+        if (DB::transactionLevel() > 0) {
+            DB::rollBack();
+        }
+        return response()->json([
+            'icon' => 'warning',
+            'title' => 'Datos incompletos',
+            'text' => collect($e->errors())->flatten()->first(),
+        ], 422);
+       } catch (\Throwable $e) {
+        if (DB::transactionLevel() > 0) {
+            DB::rollBack();
+        }
+        if ($comprobante && File::exists(public_path($comprobante))) {
+            File::delete(public_path($comprobante));
+        }
        return response()->json([
         'icon' => 'error',
-        'text' => 'Ha ocurrido un error al guardar la nota de credito',
+        'text' => $e->getMessage(),
         'title' => 'Error',
         'message' => 'Ha ocurrido un error',
         'error' => $e,
@@ -768,9 +838,22 @@ class CrearNotaCredito extends Component
         try {
         DB::beginTransaction();
 
-         $estadoVenta = DB::SELECTONE("select estado_nota_id from nota_credito where id =".$request->idNotaCredito );
+         $notaCredito = DB::table('nota_credito')
+             ->where('id', (int) $request->idNotaCredito)
+             ->lockForUpdate()
+             ->first();
 
-         if($estadoVenta->estado_nota_id == 2 ){
+         if (!$notaCredito) {
+            DB::rollBack();
+            return response()->json([
+                "text" => "La nota de crédito no existe.",
+                "icon" => "warning",
+                "title" => "Advertencia!",
+            ], 404);
+         }
+
+         if($notaCredito->estado_nota_id == 2 ){
+            DB::rollBack();
             return response()->json([
                 "text" =>"<p  class='text-left'>Esta nota de credito no puede ser anulada, dado que ha sido anulada anteriormente.</p>",
                 "icon" => "warning",
@@ -778,9 +861,36 @@ class CrearNotaCredito extends Component
             ],402);
          }
 
+         $credito = DB::table('nota_credito_creditos')
+             ->where('nota_credito_id', (int) $request->idNotaCredito)
+             ->lockForUpdate()
+             ->first();
+         $tieneMovimientos = $credito && DB::table('nota_credito_movimientos')
+             ->where('credito_id', $credito->id)
+             ->exists();
+
+         if ($tieneMovimientos) {
+            DB::rollBack();
+            return response()->json([
+                "text" => "La nota de crédito ya tiene aplicaciones o reembolsos. Debe revertir esos movimientos antes de anularla.",
+                "icon" => "warning",
+                "title" => "No se puede anular",
+            ], 422);
+         }
+
          $compra = ModelNotaCredito::find($request->idNotaCredito);
          $compra->estado_nota_id = 2;
          $compra->save();
+
+         if ($credito) {
+            DB::table('nota_credito_creditos')
+                ->where('id', $credito->id)
+                ->update([
+                    'saldo_disponible' => 0,
+                    'estado' => 'anulado',
+                    'updated_at' => now(),
+                ]);
+         }
 
 
 
@@ -826,7 +936,7 @@ class CrearNotaCredito extends Component
             "icon" => "success",
             "title" => "Exito",
         ],200);
-        } catch (QueryException $e) {
+        } catch (\Throwable $e) {
 
         DB::rollback();
         return response()->json([

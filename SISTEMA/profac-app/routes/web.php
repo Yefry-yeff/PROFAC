@@ -1040,6 +1040,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/nota/credito/facturas', [CrearNotaCredito::class, 'obtenerFactura']);
     Route::get('/nota/credito/motivos', [CrearNotaCredito::class, 'obtenerMotivos']);
     Route::post('/nota/credito/datos/factura', [CrearNotaCredito::class, 'obtenerDetalleFactura']);
+    Route::post('/nota/credito/previsualizar-aplicacion', [CrearNotaCredito::class, 'previsualizarAplicacion']);
     Route::post('/nota/credito/obtener/productos', [CrearNotaCredito::class, 'obtenerProductos']);
     Route::post('/nota/credito/datos/producto', [CrearNotaCredito::class, 'datosProducto']);
     Route::post('/nota/credito/guardar', [CrearNotaCredito::class, 'guardarNotaCredito']);
@@ -1056,6 +1057,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::post('/nota/credito/listar', [ListadoNotaCredito::class, 'listadoNotaCredito']);
     Route::post('/nota/credito/kpis', [ListadoNotaCredito::class, 'kpis']);
     Route::post('/nota/credito/exportar-excel', [ListadoNotaCredito::class, 'exportarExcel']);
+    Route::get('/nota/credito/asientos/{idNotaCredito}', [ListadoNotaCredito::class, 'asientos']);
     Route::post('/nota/credito/gobierno/exportar-excel', [ListadoNotasND::class, 'exportarExcel']);
     Route::get('/nota/credito/imprimir/{idNota}', [ListadoNotaCredito::class, 'imprimirnotaCreditoOriginal']);
     Route::get('/nota/credito/imprimir/copia/{idNota}', [ListadoNotaCredito::class, 'imprimirnotaCreditoCopia']);

@@ -65,7 +65,7 @@ class LibroCobrosExport implements FromArray, WithStyles, WithEvents, WithStrict
         $out[] = [
             'FECHA VENTA', 'FECHA VCTO.', 'FECHA PAGO',
             'CLIENTE', 'ASESOR COMERCIAL', 'TELEASESOR', 'N° FACTURA',
-            'MONTO COBRADO', 'ESTADO',
+            'MONTO MOVIMIENTO', 'ESTADO',
             'BANCO', 'CUENTA', 'OBSERVACIONES',
             'EXONERADO', 'GRAVADO', 'EXENTO',
             'SUB TOTAL', 'ISV', 'TOTAL FACTURA',

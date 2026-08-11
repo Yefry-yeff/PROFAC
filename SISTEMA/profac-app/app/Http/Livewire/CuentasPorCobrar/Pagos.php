@@ -31,6 +31,7 @@ use App\Models\Comisiones\Escalado\modelcomision_escala;
 use App\Services\Comisiones\ProcesadorComisiones;
 use App\Services\Comisiones\GeneradorFacturasComision;
 use App\Services\Comisiones\AplicadorRetencionesMora;
+use App\Services\NotaCredito\GestorCreditoNota;
 
 
 
@@ -400,12 +401,23 @@ class Pagos extends Component
     public function listarNotasCredito($idFactura){
 
         try {
-                $notasCredito = DB::select("
-                    select
-                    id as 'idNotaCredito',
-                    cai as 'correlativo'
-                    from nota_credito where estado_rebajado = 2 and estado_nota_id = 1 and factura_id =
-                ".$idFactura);
+                $clienteId = DB::table('factura')->where('id', (int) $idFactura)->value('cliente_id');
+                if (!$clienteId) {
+                    return response()->json(['results' => []], 200);
+                }
+
+                $notasCredito = DB::table('nota_credito_creditos as cc')
+                    ->join('nota_credito as nc', 'nc.id', '=', 'cc.nota_credito_id')
+                    ->where('cc.cliente_id', $clienteId)
+                    ->where('nc.estado_nota_id', 1)
+                    ->where('cc.saldo_disponible', '>', 0.005)
+                    ->orderBy('nc.fecha')
+                    ->orderBy('nc.id')
+                    ->select(
+                        'nc.id as idNotaCredito',
+                        DB::raw("CONCAT(nc.cai, ' · Disponible L ', FORMAT(cc.saldo_disponible, 2)) as correlativo")
+                    )
+                    ->get();
             return response()->json([
                 'results'=>$notasCredito,
             ],200);
@@ -422,15 +434,32 @@ class Pagos extends Component
     public function datosNotasCredito($idNotaCredito){
 
         try {
-                $notaCredito = DB::select("
-                    select
-                    comentario,
-                    total AS total,
-                    estado_rebajado
-                    from nota_credito where id =
-                ".$idNotaCredito);
+                $notaCredito = DB::table('nota_credito as nc')
+                    ->join('nota_credito_creditos as cc', 'cc.nota_credito_id', '=', 'nc.id')
+                    ->where('nc.id', (int) $idNotaCredito)
+                    ->select(
+                        'nc.comentario',
+                        'nc.total',
+                        'nc.estado_rebajado',
+                        'cc.saldo_disponible',
+                        'cc.monto_aplicado',
+                        'cc.monto_reembolsado',
+                        'cc.cliente_id'
+                    )
+                    ->get();
+
+                $saldoPendiente = 0;
+                if ($notaCredito->isNotEmpty()) {
+                    $saldoPendiente = DB::table('aplicacion_pagos')
+                        ->where('cliente_id', $notaCredito->first()->cliente_id)
+                        ->where('estado', 1)
+                        ->where('estado_cerrado', '<>', 2)
+                        ->where('saldo', '>', 0.005)
+                        ->sum('saldo');
+                }
             return response()->json([
                 'result'=>$notaCredito,
+                'saldo_pendiente_cliente' => round((float) $saldoPendiente, 2),
             ],200);
 
         } catch (QueryException $e) {
@@ -701,46 +730,91 @@ class Pagos extends Component
 
    ///////////////////////////////GESTIONES DE notas nde credito
 
-    public function gestionNC( Request $request){
-
-        //dd($request);
-
+    public function gestionNC(Request $request, GestorCreditoNota $gestor)
+    {
+        $comprobante = null;
         try {
+            $request->validate([
+                'selectNotaCredito' => 'required|integer',
+                'destinoCredito' => 'required|in:saldos,reembolso,mixto',
+                'bancoReembolso' => 'nullable|integer',
+                'metodoReembolso' => 'nullable|integer',
+                'fechaReembolso' => 'nullable|date',
+                'referenciaReembolso' => 'nullable|string|max:100',
+                'comprobanteReembolso' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+                'comentarioRebaja' => 'nullable|string|max:500',
+            ]);
 
+            $credito = DB::table('nota_credito_creditos')
+                ->where('nota_credito_id', (int) $request->selectNotaCredito)
+                ->first();
+            $saldoPendiente = $credito
+                ? (float) DB::table('aplicacion_pagos')
+                    ->where('cliente_id', $credito->cliente_id)
+                    ->where('estado', 1)
+                    ->where('estado_cerrado', '<>', 2)
+                    ->where('saldo', '>', 0.005)
+                    ->sum('saldo')
+                : 0;
+            $requiereReembolso = $request->destinoCredito === 'reembolso'
+                || ($request->destinoCredito === 'mixto'
+                    && (float) ($credito->saldo_disponible ?? 0) > $saldoPendiente + 0.005);
 
-                        $cuentas2 = DB::select("
+            if ($requiereReembolso) {
+                $request->validate([
+                    'bancoReembolso' => 'required|integer',
+                    'metodoReembolso' => 'required|integer',
+                    'fechaReembolso' => 'required|date',
+                ]);
+            }
 
-                        CALL sp_aplicacion_pagos(
-                            '5',
-                            '".$request->selectNotaCredito."',
-                            '".Auth::user()->id."',
-                            '".$request->idFacturaNC."',
-                            '".$request->comentarioRebaja."',
-                            '".$request->codAplicPagonc."',
-                            '".$request->selectAplicado."',
-                            '".$request->totalNotaCredito."',
-                            @estado, @msjResultado);");
+            if ($request->hasFile('comprobanteReembolso')) {
+                $folderPath = public_path('documentos_reembolsos_notas_credito');
+                if (!File::exists($folderPath)) {
+                    File::makeDirectory($folderPath, 0755, true);
+                }
+                $file = $request->file('comprobanteReembolso');
+                $fileName = 'reembolso_nc_' . time() . '_' . $request->selectNotaCredito . '.' . $file->getClientOriginalExtension();
+                $file->move($folderPath, $fileName);
+                $comprobante = '/documentos_reembolsos_notas_credito/' . $fileName;
+            }
 
+            $resultado = $gestor->procesar(
+                (int) $request->selectNotaCredito,
+                (string) $request->destinoCredito,
+                [
+                    'banco_id' => $request->bancoReembolso,
+                    'tipo_pago_cobro_id' => $request->metodoReembolso,
+                    'fecha' => $request->fechaReembolso,
+                    'referencia' => $request->referenciaReembolso,
+                    'comprobante' => $comprobante,
+                    'comentario' => $request->comentarioRebaja,
+                ],
+                (int) Auth::id()
+            );
 
-                        //dd($cuentas2[0]->estado);
-
-                        if ($cuentas2[0]->estado == -1) {
-                            return response()->json([
-                                "text" => "Ha ocurrido un error.",
-                                "icon" => "error",
-                                "title"=>"Error!"
-                            ],402);
-                        }
-
-            }catch (QueryException $e) {
             return response()->json([
-                "icon" => "error",
-                "text" => "Ha ocurrido un error: ".$e,
-                "title"=>"Error!",
-                "error" => $e
-            ],402);
+                'icon' => 'success',
+                'title' => 'Nota gestionada',
+                'text' => 'La nota de crédito fue distribuida automáticamente.',
+                'resultado' => $resultado,
+            ], 200);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'icon' => 'warning',
+                'title' => 'Datos incompletos',
+                'text' => collect($e->errors())->flatten()->first(),
+            ], 422);
+        } catch (\Throwable $e) {
+            if ($comprobante && File::exists(public_path($comprobante))) {
+                File::delete(public_path($comprobante));
+            }
+            return response()->json([
+                'icon' => 'error',
+                'title' => 'No se pudo gestionar la nota',
+                'text' => $e->getMessage(),
+            ], 422);
         }
-
     }
 
 
