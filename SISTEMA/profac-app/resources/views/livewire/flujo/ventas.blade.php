@@ -449,17 +449,6 @@
                 </div>
             </div>
 
-        @elseif($step == 'factura_temporales')
-            <div class="ibox" style="border-radius:16px; overflow:hidden; box-shadow:0 4px 20px rgba(0,0,0,.07);">
-                <div class="ibox-title d-flex align-items-center justify-content-between" style="background:linear-gradient(135deg,#00897b,#26a69a); border:none; padding:14px 22px;">
-                    <h5 style="color:#fff; margin:0; font-weight:700;"><i class="fa fa-clock-o mr-2"></i>Facturas temporales</h5>
-                    <button type="button" wire:click="selectFactura" class="btn btn-outline-light btn-sm flujo-back-btn"><i class="fa fa-arrow-left mr-1"></i>Volver</button>
-                </div>
-                <div class="ibox-content" style="padding:20px 24px;">
-                    <livewire:flujo.temporales-venta tipo="factura" />
-                </div>
-            </div>
-
         @elseif($step == 'factura_options')
 
             {{-- Banner superior --}}
@@ -507,12 +496,9 @@
                     <h5 style="color:#fff; margin:0; font-weight:700;">
                         <i class="mr-2 fa fa-plus-circle"></i> Facturar
                     </h5>
-                    <div class="d-flex align-items-center" style="gap:8px;">
-                        <span style="background:rgba(255,255,255,.18); color:#fff; border-radius:20px; padding:4px 12px; font-size:11px; font-weight:700;">Crear factura desde cero</span>
-                        <button type="button" wire:click="selectFacturaTemporales" class="btn btn-sm btn-outline-light" style="border-radius:7px; font-weight:700;">
-                            <i class="fa fa-clock-o mr-1"></i>Temporales
-                        </button>
-                    </div>
+                    <span style="background:rgba(255,255,255,.18); color:#fff; border-radius:20px; padding:4px 12px; font-size:11px; font-weight:700;">
+                        Crear factura desde cero
+                    </span>
                 </div>
                 <div class="ibox-content" style="padding:20px 24px;">
                     <div class="fv-card-note">

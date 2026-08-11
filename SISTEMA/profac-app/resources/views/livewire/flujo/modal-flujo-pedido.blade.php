@@ -1401,15 +1401,6 @@
                                     </li>
                                     @endforeach
                                 </ul>
-                                @elseif (mb_strlen(trim($busquedaClienteDuplicar)) >= 2 && !$clienteDuplicarId)
-                                <div style="position:absolute; top:100%; left:0; right:0; z-index:9999;
-                                            background:#fff; border:1px solid #ccc; border-top:none;
-                                            border-radius:0 0 6px 6px; padding:9px 12px;
-                                            box-shadow:0 4px 12px rgba(0,0,0,.12);
-                                            color:#777; font-size:12px;">
-                                    <i class="mr-1 fa fa-info-circle"></i>
-                                    No hay clientes asignados que coincidan con la búsqueda.
-                                </div>
                                 @endif
                             </div>
 

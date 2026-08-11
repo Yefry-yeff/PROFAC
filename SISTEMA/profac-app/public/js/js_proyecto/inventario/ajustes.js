@@ -4,7 +4,6 @@ var arrayInputs = [];
 var idRecibidoArray = [];
 var idProductoArray = [];
 var idRecibido = null;
-var guardandoAjuste = false;
 
 
 $(document).ready(function() {
@@ -312,16 +311,9 @@ function agregarProductoLista() {
 
 function realizarAjuste() {
 
-    // Blindaje anti-duplicado: si ya hay una petición en curso, se ignora el nuevo intento.
-    if (guardandoAjuste) {
-        return;
-    }
-    guardandoAjuste = true;
-
-    let btnGuardar = document.getElementById('btn_realizar_ajuste');
-    let textoOriginalBtn = btnGuardar.innerHTML;
-    btnGuardar.disabled = true;
-    btnGuardar.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Guardando...';
+    document.getElementById('btn_realizar_ajuste').disabled = false;
+    document.getElementById('btn_realizar_ajuste').style.display = 'none';
+    //document.getElementById('btn_realizar_ajuste').disabled = true;
 
     let dataForm = new FormData($('#ajustar_producto_form').get(0));
 
@@ -349,26 +341,22 @@ function realizarAjuste() {
 
             $('#modal_transladar_producto').modal('hide')
             let data = response.data;
+            Swal.fire({
+                icon: data.icon,
+                title: data.title,
+                html: data.text,
+
+            })
 
             document.getElementById("ajustar_producto_form").reset();
             $('#ajustar_producto_form').parsley().reset();
 
             $('#tbl_translados').DataTable().ajax.reload();
 
-            Swal.fire({
-                icon: data.icon,
-                title: data.title,
-                html: data.text,
-            }).then(() => {
-                window.location.href = "/listado/ajustes";
-            });
+            window.location.href = "/listado/ajustes";
         })
         .catch(err => {
-            let data = (err.response && err.response.data) ? err.response.data : {
-                icon: 'error',
-                title: 'Error!',
-                text: 'Ha ocurrido un error inesperado al realizar el ajuste.'
-            };
+            let data = err.response.data;
             $('#modal_transladar_producto').modal('hide')
             Swal.fire({
                 icon: data.icon,
@@ -376,13 +364,8 @@ function realizarAjuste() {
                 html: data.text,
 
             })
-        })
-        .finally(() => {
-            // El botón solo permanece inactivo mientras la petición está en curso.
-            // Al finalizar (éxito o error/alerta) siempre vuelve a estar disponible.
-            guardandoAjuste = false;
-            btnGuardar.disabled = false;
-            btnGuardar.innerHTML = textoOriginalBtn;
+            document.getElementById('btn_realizar_ajuste').disabled = false;
+
         })
 }
 

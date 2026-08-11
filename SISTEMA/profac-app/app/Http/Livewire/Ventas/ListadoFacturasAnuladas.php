@@ -11,7 +11,6 @@ use Validator;
 use Illuminate\Database\QueryException;
 use Throwable;
 use DataTables;
-use Barryvdh\DomPDF\Facade\Pdf;
 
 
 class ListadoFacturasAnuladas extends Component
@@ -51,103 +50,9 @@ class ListadoFacturasAnuladas extends Component
         return view('livewire.ventas.listado-facturas-anuladas',compact('nombreTipo','idTipoVenta'));
     }
 
-    public function listarFacturas(Request $request)
-    {
+    public function listarFacturas(Request $request){
+
         try {
-            return Datatables::of($this->obtenerFacturas($request))
-                ->addColumn('opciones', function ($listaFacturas) {
-
-                    if($listaFacturas->tipo_venta_id==3){
-                        return
-
-                        '<div class="btn-group">
-                            <button data-toggle="dropdown" class="btn btn-warning dropdown-toggle" aria-expanded="false">Ver
-                                más</button>
-                            <ul class="dropdown-menu" x-placement="bottom-start" style="position: absolute; top: 33px; left: 0px; will-change: top, left;">
-
-                                <li>
-                                    <a class="dropdown-item" href="/detalle/venta/'.$listaFacturas->id.'" > <i class="fa-solid fa-arrows-to-eye text-info"></i> Detalle de venta </a>
-                                </li>
-
-
-
-                                <li>
-                                <a class="dropdown-item" target="_blank"  href="/exonerado/factura/'.$listaFacturas->id.'"> <i class="fa-solid fa-print text-success"></i> Imprimir Factura </a>
-                                </li>
-                                <li>
-                                <a class="dropdown-item" target="_blank"  onclick="detallesDeAnulacion('.$listaFacturas->id.')"> <i class="fa-solid fa-magnifying-glass-plus text-warning"></i> Detalle de Anulación </a>
-                                </li>
-
-
-                            </ul>
-                        </div>';
-                    }else{
-                        return
-
-                        '<div class="btn-group">
-                            <button data-toggle="dropdown" class="btn btn-warning dropdown-toggle" aria-expanded="false">Ver
-                                más</button>
-                            <ul class="dropdown-menu" x-placement="bottom-start" style="position: absolute; top: 33px; left: 0px; will-change: top, left;">
-
-                                <li>
-                                    <a class="dropdown-item" href="/detalle/venta/'.$listaFacturas->id.'" > <i class="fa-solid fa-arrows-to-eye text-info"></i> Detalle de venta </a>
-                                </li>
-
-
-
-                                <li>
-                                <a class="dropdown-item" target="_blank"  href="/factura/cooporativo/'.$listaFacturas->id.'"> <i class="fa-solid fa-print text-success"></i> Imprimir Factura </a>
-                                </li>
-                                <li>
-                                <a class="dropdown-item" target="_blank"  onclick="detallesDeAnulacion('.$listaFacturas->id.')"> <i class="fa-solid fa-magnifying-glass-plus text-warning"></i> Detalle de Anulación </a>
-                                </li>
-
-
-                            </ul>
-                        </div>';
-                    }
-                })
-                ->addColumn('estado_cobro', function () {
-                    return '<p class="text-center"><span class="badge badge-danger p-2" style="font-size:0.75rem">Anulado</span></p>';
-                })
-                ->rawColumns(['opciones','estado_cobro'])
-                ->make(true);
-
-        } catch (QueryException $e) {
-            return response()->json([
-                'message' => 'Ha ocurrido un error al listar las compras.',
-                'errorTh' => $e,
-            ], 402);
-        }
-    }
-
-    public function exportarPdf(Request $request)
-    {
-        $request->validate([
-            'idTipo' => 'required|integer|in:1,2,3',
-            'filtroDesde' => 'nullable|date',
-            'filtroHasta' => 'nullable|date|after_or_equal:filtroDesde',
-        ]);
-
-        $facturas = $this->obtenerFacturas($request);
-        $nombresTipo = [1 => 'Clientes B', 2 => 'Clientes A', 3 => 'Exoneradas'];
-        $nombreTipo = $nombresTipo[(int) $request->idTipo] ?? 'Facturas';
-        $filtros = [
-            'desde' => $request->input('filtroDesde'),
-            'hasta' => $request->input('filtroHasta'),
-            'cai' => trim($request->input('filtroCai', '')),
-            'cliente' => trim($request->input('filtroCliente', '')),
-            'vendedor' => trim($request->input('filtroVendedor', '')),
-            'facturador' => trim($request->input('filtroFacturador', '')),
-        ];
-
-        return Pdf::loadView('pdf.facturas-anuladas', compact('facturas', 'nombreTipo', 'filtros'))
-            ->setPaper('legal', 'landscape')
-            ->download('Facturas_Anuladas_' . now()->format('Y-m-d_H-i') . '.pdf');
-    }
-
-    private function obtenerFacturas(Request $request): array
-    {
 
             $filtroCai        = trim($request->input('filtroCai', ''));
             $filtroCliente    = trim($request->input('filtroCliente', ''));
@@ -185,7 +90,7 @@ class ListadoFacturasAnuladas extends Component
                 $bindings[] = $filtroHasta;
             }
 
-            return DB::select("
+            $listaFacturas = DB::SELECT("
             select
                 factura.id as id,
                 @i := @i + 1 as contador,
@@ -217,6 +122,85 @@ class ListadoFacturasAnuladas extends Component
               and (factura.tipo_venta_id = ?) {$whereExtra}
             order by factura.created_at desc
             ", $bindings);
+
+            return Datatables::of($listaFacturas)
+            ->addColumn('opciones', function ($listaFacturas) {
+
+                if($listaFacturas->tipo_venta_id==3){
+                    return
+
+                    '<div class="btn-group">
+                        <button data-toggle="dropdown" class="btn btn-warning dropdown-toggle" aria-expanded="false">Ver
+                            más</button>
+                        <ul class="dropdown-menu" x-placement="bottom-start" style="position: absolute; top: 33px; left: 0px; will-change: top, left;">
+
+                            <li>
+                                <a class="dropdown-item" href="/detalle/venta/'.$listaFacturas->id.'" > <i class="fa-solid fa-arrows-to-eye text-info"></i> Detalle de venta </a>
+                            </li>
+
+
+
+                            <li>
+                            <a class="dropdown-item" target="_blank"  href="/exonerado/factura/'.$listaFacturas->id.'"> <i class="fa-solid fa-print text-success"></i> Imprimir Factura </a>
+                            </li>
+                            <li>
+                            <a class="dropdown-item" target="_blank"  onclick="detallesDeAnulacion('.$listaFacturas->id.')"> <i class="fa-solid fa-magnifying-glass-plus text-warning"></i> Detalle de Anulación </a>
+                            </li>
+
+
+                        </ul>
+                    </div>';
+                }else{
+                    return
+
+                    '<div class="btn-group">
+                        <button data-toggle="dropdown" class="btn btn-warning dropdown-toggle" aria-expanded="false">Ver
+                            más</button>
+                        <ul class="dropdown-menu" x-placement="bottom-start" style="position: absolute; top: 33px; left: 0px; will-change: top, left;">
+
+                            <li>
+                                <a class="dropdown-item" href="/detalle/venta/'.$listaFacturas->id.'" > <i class="fa-solid fa-arrows-to-eye text-info"></i> Detalle de venta </a>
+                            </li>
+
+
+
+                            <li>
+                            <a class="dropdown-item" target="_blank"  href="/factura/cooporativo/'.$listaFacturas->id.'"> <i class="fa-solid fa-print text-success"></i> Imprimir Factura </a>
+                            </li>
+                            <li>
+                            <a class="dropdown-item" target="_blank"  onclick="detallesDeAnulacion('.$listaFacturas->id.')"> <i class="fa-solid fa-magnifying-glass-plus text-warning"></i> Detalle de Anulación </a>
+                            </li>
+
+
+                        </ul>
+                    </div>';
+                }
+
+
+
+            })
+            ->addColumn('estado_cobro', function ($listaFacturas) {
+
+
+                    return
+                    '
+                    <p class="text-center"><span class="badge badge-danger p-2" style="font-size:0.75rem">Anulado</span></p>
+                    ';
+
+
+
+           })
+            ->rawColumns(['opciones','estado_cobro'])
+            ->make(true);
+
+        } catch (QueryException $e) {
+            return response()->json([
+                'message' => 'Ha ocurrido un error al listar las compras.',
+                'errorTh' => $e,
+            ], 402);
+
+        }
+
     }
 
     public function detalleFacturaAnulada(Request $request){

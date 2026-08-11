@@ -109,19 +109,13 @@ class ListadoAjustes extends Component
     public function anularAjuste(Request $request)
     {
         try {
-            $idAjuste = (int) $request->idAjuste;
+            $idAjuste = $request->idAjuste;
             $motivo   = trim($request->motivo ?? '');
 
-            DB::beginTransaction();
-
             // Verificar que el ajuste exista y no esté ya anulado
-            $ajuste = DB::table('ajuste')
-                ->where('id', $idAjuste)
-                ->lockForUpdate()
-                ->first(['id', 'numero_ajuste', 'anulado']);
+            $ajuste = DB::SELECTONE("select id, numero_ajuste, anulado from ajuste where id = " . intval($idAjuste));
 
             if (!$ajuste) {
-                DB::rollBack();
                 return response()->json([
                     'icon'  => 'warning',
                     'text'  => 'El ajuste no existe.',
@@ -130,7 +124,6 @@ class ListadoAjustes extends Component
             }
 
             if ($ajuste->anulado == 1) {
-                DB::rollBack();
                 return response()->json([
                     'icon'  => 'warning',
                     'text'  => 'Este ajuste ya fue anulado anteriormente.',
@@ -163,7 +156,6 @@ class ListadoAjustes extends Component
             );
 
             if (empty($productos)) {
-                DB::rollBack();
                 return response()->json([
                     'icon'  => 'warning',
                     'text'  => 'No se encontraron productos asociados a este ajuste.',
@@ -171,30 +163,16 @@ class ListadoAjustes extends Component
                 ], 200);
             }
 
+            DB::beginTransaction();
+
             $usuario = Auth::user();
             $now = now();
 
             foreach ($productos as $prod) {
-                $lote = DB::table('recibido_bodega')
-                    ->where('id', $prod->recibido_bodega_id)
-                    ->lockForUpdate()
-                    ->first(['cantidad_disponible']);
+                $lote = DB::SELECTONE("select cantidad_disponible from recibido_bodega where id = " . intval($prod->recibido_bodega_id));
 
                 // Operacion inversa: si fue suma (1) → restar; si fue resta (2) → sumar
                 if ($prod->tipo_aritmetica == 1) {
-                    if ((float) $lote->cantidad_disponible < (float) $prod->cantidad_total) {
-                        DB::rollBack();
-
-                        return response()->json([
-                            'icon' => 'warning',
-                            'text' => 'No se puede anular el ajuste ya que en bodega solo hay ('
-                                . $this->formatearCantidad($lote->cantidad_disponible)
-                                . ') y la cantidad del ajuste es por ('
-                                . $this->formatearCantidad($prod->cantidad_total) . ')',
-                            'title' => 'Existencia insuficiente',
-                        ], 200);
-                    }
-
                     $nuevaCantidad = $lote->cantidad_disponible - $prod->cantidad_total;
                     $descripcionAnulacionCardex = 'Anulación de ajuste - Ajuste de tipo suma de unidades (-)';
                     $descripcionAnulacionLog = 'Anulación ajuste suma (-)';
@@ -235,7 +213,6 @@ class ListadoAjustes extends Component
                     'unidad_medida_venta_id' => $prod->unidad_medida_venta_id,
                     'users_id'             => $usuario->id,
                     'descripcion'          => $descripcionAnulacionLog,
-                    'comentario'           => $motivo,
                     'ajuste_id'            => $ajuste->id,
                     'created_at'           => $now,
                     'updated_at'           => $now,
@@ -256,10 +233,8 @@ class ListadoAjustes extends Component
                 'title' => 'Éxito!',
             ], 200);
 
-        } catch (\Throwable $e) {
-            if (DB::transactionLevel() > 0) {
-                DB::rollBack();
-            }
+        } catch (QueryException $e) {
+            DB::rollBack();
             return response()->json([
                 'icon'    => 'error',
                 'text'    => 'Ha ocurrido un error al anular el ajuste.',
@@ -268,13 +243,6 @@ class ListadoAjustes extends Component
                 'error'   => $e,
             ], 402);
         }
-    }
-
-    private function formatearCantidad($cantidad): string
-    {
-        $cantidad = (float) $cantidad;
-
-        return number_format($cantidad, floor($cantidad) == $cantidad ? 0 : 2, '.', ',');
     }
 }
 
