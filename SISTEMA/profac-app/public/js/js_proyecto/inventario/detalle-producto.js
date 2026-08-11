@@ -294,22 +294,26 @@ axios.get("/producto/datos/" + idProducto)
         if (isvEl) isvEl.value = datos.datosProducto.isv;
         document.getElementById("cod_barra_producto_edit").value = datos.datosProducto.codigo_barra;
         document.getElementById("cod_estatal_producto_edit").value = datos.datosProducto.codigo_estatal;
-        document.getElementById("precioBase_edit").value = datos.datosProducto.precio_base;
-        document.getElementById("costo_promedio_editar").value = datos.datosProducto.costo_promedio;
+        var precioBaseEl = document.getElementById("precioBase_edit");
+        var costoPromedioEl = document.getElementById("costo_promedio_editar");
+        var ultimoCostoEl = document.getElementById("ultimo_costo_compra_editar");
+        if (precioBaseEl) precioBaseEl.value = datos.datosProducto.precio_base;
+        if (costoPromedioEl) costoPromedioEl.value = datos.datosProducto.costo_promedio;
         document.getElementById("unidades_editar").value = datos.datosProducto.unidadad_compra;
-        document.getElementById("ultimo_costo_compra_editar").value = datos.datosProducto.ultimo_costo_compra;
+        if (ultimoCostoEl) ultimoCostoEl.value = datos.datosProducto.ultimo_costo_compra;
 
-
-        document.getElementById("precio1").value = datos.datosProducto.precio1;
-        document.getElementById("precio2").value = datos.datosProducto.precio2;
-        document.getElementById("precio3").value = datos.datosProducto.precio3;
-        document.getElementById("precio4").value = datos.datosProducto.precio4;
+        ['precio1', 'precio2', 'precio3', 'precio4'].forEach(function(id, index) {
+            var precioEl = document.getElementById(id);
+            if (precioEl) precioEl.value = datos.datosProducto['precio' + (index + 1)];
+        });
 
 
 
         if (datos.preciosProducto.length != 0) {
-            document.getElementById("precio2_edit").value = datos.preciosProducto[1].precio;
-            document.getElementById("precio3_edit").value = datos.preciosProducto[2].precio;
+            var precio2EditEl = document.getElementById("precio2_edit");
+            var precio3EditEl = document.getElementById("precio3_edit");
+            if (precio2EditEl && datos.preciosProducto[1]) precio2EditEl.value = datos.preciosProducto[1].precio;
+            if (precio3EditEl && datos.preciosProducto[2]) precio3EditEl.value = datos.preciosProducto[2].precio;
         }
 
 
@@ -447,14 +451,10 @@ $('#modalSpinnerLoading').modal('show');
 
 var data = new FormData($('#editarProductoForm').get(0));
 
-let precio1 = document.getElementById('precio1').value;
-let precio2 =  document.getElementById('precio2').value
-let precio3 =  document.getElementById('precio3').value
-let precio4 = document.getElementById('precio4').value
-data.append('precio1', precio1);
-data.append('precio2', precio2);
-data.append('precio3', precio3);
-data.append('precio4', precio4);
+['precio1', 'precio2', 'precio3', 'precio4'].forEach(function(id) {
+    var precioEl = document.getElementById(id);
+    if (precioEl) data.append(id, precioEl.value);
+});
 axios.post("/producto/editar", data)
     .then(response => {
         $('#modalSpinnerLoading').modal('hide');
@@ -476,7 +476,7 @@ axios.post("/producto/editar", data)
         $('#modal_producto_editar').modal('hide');
 
         console.error(err);
-        let data = err.response.data;
+    let data = err.response && err.response.data ? err.response.data : {};
         if (data.icon) {
             Swal.fire({
                 icon: data.icon,
