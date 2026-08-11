@@ -16,10 +16,10 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 /**
  * Comisión Política Anterior — Detalle de líneas comisionadas
  *
- * Columnas (A–K, 11 cols):
- *  A Factura      B ID Factura   C Fecha Factura   D ID Producto
- *  E Producto     F Tipo Pago    G Subtotal Línea
- *  H Clasificación  I % Aplicado  J Com. Total Línea  K Motivo
+ * Columnas (A-M, 13 cols):
+ *  A Factura      B ID Factura   C Fecha Factura   D Fecha Pago
+ *  E Cliente      F ID Producto  G Producto         H Tipo Pago
+ *  I Subtotal Línea  J Clasificación  K % Aplicado  L Com. Total Línea  M Motivo
  */
 class ComisionPoliticaAnteriorExport implements FromArray, WithStyles, WithEvents, WithStrictNullComparison, WithColumnWidths
 {
@@ -27,8 +27,8 @@ class ComisionPoliticaAnteriorExport implements FromArray, WithStyles, WithEvent
     protected string $titulo;
     protected string $periodo;
 
-    const LAST_COL  = 'K';
-    const COL_COUNT = 11;
+    const LAST_COL  = 'M';
+    const COL_COUNT = 13;
 
     public function __construct(array $data, string $titulo = 'DETALLE COMISIÓN POLÍTICA ANTERIOR', string $periodo = '')
     {
@@ -58,9 +58,9 @@ class ComisionPoliticaAnteriorExport implements FromArray, WithStyles, WithEvent
 
         // Fila 4 — cabeceras
         $out[] = [
-            'FACTURA', 'ID FACTURA', 'FECHA FACTURA', 'ID PRODUCTO',
-            'PRODUCTO', 'TIPO PAGO', 'SUBTOTAL LÍNEA',
-            'CLASIFICACIÓN', '% APLICADO', 'COM. TOTAL LÍNEA', 'MOTIVO',
+            'FACTURA', 'ID FACTURA', 'FECHA FACTURA', 'FECHA PAGO',
+            'CLIENTE', 'ID PRODUCTO', 'PRODUCTO', 'TIPO PAGO',
+            'SUBTOTAL LÍNEA', 'CLASIFICACIÓN', '% APLICADO', 'COM. TOTAL LÍNEA', 'MOTIVO',
         ];
 
         $totSub = $totCom = 0.0;
@@ -78,6 +78,8 @@ class ComisionPoliticaAnteriorExport implements FromArray, WithStyles, WithEvent
                 $r['factura']           ?? '',
                 $r['factura_id']        ?? '',
                 $r['fecha_factura']     ?? '',
+                $r['fecha_pago_cierre'] ?? '',
+                $r['cliente']           ?? '',
                 $r['producto_id']       ?? '',
                 $r['producto']          ?? '',
                 $r['tipo_pago']         ?? '',
@@ -92,8 +94,8 @@ class ComisionPoliticaAnteriorExport implements FromArray, WithStyles, WithEvent
         // Fila totales
         $tot    = array_fill(0, self::COL_COUNT, '');
         $tot[0] = 'TOTALES';
-        $tot[6] = $totSub;
-        $tot[9] = $totCom;
+        $tot[8] = $totSub;
+        $tot[11] = $totCom;
         $out[]  = $tot;
 
         return $out;
@@ -105,14 +107,16 @@ class ComisionPoliticaAnteriorExport implements FromArray, WithStyles, WithEvent
             'A' => 22, // Factura
             'B' => 12, // ID Factura
             'C' => 18, // Fecha Factura
-            'D' => 12, // ID Producto
-            'E' => 40, // Producto
-            'F' => 12, // Tipo Pago
-            'G' => 16, // Subtotal Línea
-            'H' => 20, // Clasificación
-            'I' => 12, // % Aplicado
-            'J' => 18, // Com. Total Línea
-            'K' => 36, // Motivo
+            'D' => 14, // Fecha Pago
+            'E' => 32, // Cliente
+            'F' => 12, // ID Producto
+            'G' => 40, // Producto
+            'H' => 12, // Tipo Pago
+            'I' => 16, // Subtotal Línea
+            'J' => 20, // Clasificación
+            'K' => 12, // % Aplicado
+            'L' => 18, // Com. Total Línea
+            'M' => 36, // Motivo
         ];
     }
 
@@ -178,7 +182,7 @@ class ComisionPoliticaAnteriorExport implements FromArray, WithStyles, WithEvent
                             ->setHorizontal(Alignment::HORIZONTAL_CENTER);
                         $sheet->getStyle("A{$row}:{$lc}{$row}")->getBorders()->getTop()
                             ->setBorderStyle(Border::BORDER_MEDIUM)->getColor()->setRGB('e07000');
-                        foreach (['G', 'J'] as $c) {
+                        foreach (['I', 'L'] as $c) {
                             $sheet->getStyle("{$c}{$row}")->getNumberFormat()->setFormatCode($currency);
                             $sheet->getStyle("{$c}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
                         }
@@ -195,21 +199,21 @@ class ComisionPoliticaAnteriorExport implements FromArray, WithStyles, WithEvent
                         ->setVertical(Alignment::VERTICAL_CENTER);
 
                     // Columnas de texto alineadas a la izquierda
-                    foreach (['A', 'C', 'E', 'F', 'H', 'K'] as $c) {
+                    foreach (['A', 'C', 'D', 'E', 'G', 'H', 'J', 'M'] as $c) {
                         $sheet->getStyle("{$c}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
                     }
                     // Columnas numéricas
-                    foreach (['B', 'D'] as $c) {
+                    foreach (['B', 'F'] as $c) {
                         $sheet->getStyle("{$c}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
                     }
-                    $sheet->getStyle("G{$row}")->getNumberFormat()->setFormatCode($currency);
-                    $sheet->getStyle("G{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-                    $sheet->getStyle("I{$row}")->getNumberFormat()->setFormatCode($percent);
+                    $sheet->getStyle("I{$row}")->getNumberFormat()->setFormatCode($currency);
                     $sheet->getStyle("I{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-                    $sheet->getStyle("J{$row}")->getNumberFormat()->setFormatCode($currency);
-                    $sheet->getStyle("J{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+                    $sheet->getStyle("K{$row}")->getNumberFormat()->setFormatCode($percent);
+                    $sheet->getStyle("K{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+                    $sheet->getStyle("L{$row}")->getNumberFormat()->setFormatCode($currency);
+                    $sheet->getStyle("L{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
                     // Comisión 0 o vacía = fila con motivo → gris
-                    $comVal = (float) ($sheet->getCell("J{$row}")->getValue() ?? 0);
+                    $comVal = (float) ($sheet->getCell("L{$row}")->getValue() ?? 0);
                     if ($comVal == 0) {
                         $sheet->getStyle("A{$row}:{$lc}{$row}")->getFont()->getColor()->setRGB('9CA3AF');
                     }

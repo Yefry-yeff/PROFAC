@@ -1077,6 +1077,7 @@ class ComisionPoliticaAnterior extends Component
             ->join('venta_has_producto as vhp', 'vhp.factura_id', '=', 'f.id')
             ->join('producto as p', 'p.id', '=', 'vhp.producto_id')
             ->join('tipo_pago_venta as tpv', 'tpv.id', '=', 'f.tipo_pago_id')
+            ->leftJoin('cliente as cl', 'cl.id', '=', 'f.cliente_id')
             ->leftJoin('comision_producto_no_miselaneo as cpnm', function ($join) {
                 $join->on('cpnm.producto_id', '=', 'p.id')
                     ->where('cpnm.estado_id', '=', 1);
@@ -1085,6 +1086,7 @@ class ComisionPoliticaAnterior extends Component
             ->where('f.estado_venta_id', 1)
             ->selectRaw('f.id as factura_id,
                          RIGHT(f.cai, 5) as factura,
+                         COALESCE(cl.nombre, f.nombre_cliente) as cliente,
                          DATE_FORMAT(f.created_at, "%Y-%m-%d %H:%i:%s") as fecha_factura,
                          DATE_FORMAT(f.fecha_emision, "%Y-%m-%d") as fecha_emision,
                          DATE_FORMAT(f.fecha_vencimiento, "%Y-%m-%d") as fecha_vencimiento,
@@ -1255,6 +1257,7 @@ class ComisionPoliticaAnterior extends Component
             $linea = [
                 'factura_id' => (int) $row->factura_id,
                 'factura' => (string) ($row->factura ?? ''),
+                'cliente' => (string) ($contexto['cliente'] ?? $row->cliente ?? ''),
                 'fecha_factura' => (string) ($row->fecha_factura ?? ''),
                 'fecha_pago_cierre' => $fechaPagoCierre !== '' ? $fechaPagoCierre : null,
                 'fecha_emision' => (string) ($row->fecha_emision ?? ''),
