@@ -175,40 +175,77 @@ class ListadoAjustes extends Component
             $now = now();
 
             foreach ($productos as $prod) {
-                $lote = DB::table('recibido_bodega')
-                    ->where('id', $prod->recibido_bodega_id)
-                    ->lockForUpdate()
-                    ->first(['cantidad_disponible']);
+                $movimientosAnulacion = [];
 
                 // Operacion inversa: si fue suma (1) → restar; si fue resta (2) → sumar
                 if ($prod->tipo_aritmetica == 1) {
-                    if ((float) $lote->cantidad_disponible < (float) $prod->cantidad_total) {
+                    $lotesDisponibles = DB::table('recibido_bodega')
+                        ->where('producto_id', $prod->producto_id)
+                        ->where('seccion_id', $prod->seccion_id)
+                        ->where('cantidad_disponible', '>', 0)
+                        ->orderByRaw('id = ? DESC', [$prod->recibido_bodega_id])
+                        ->orderBy('id')
+                        ->lockForUpdate()
+                        ->get(['id', 'cantidad_disponible']);
+
+                    $existenciaTotal = (float) $lotesDisponibles->sum('cantidad_disponible');
+                    $cantidadARevertir = (float) $prod->cantidad_total;
+
+                    if ($existenciaTotal + 0.00001 < $cantidadARevertir) {
                         DB::rollBack();
 
                         return response()->json([
                             'icon' => 'warning',
-                            'text' => 'No se puede anular el ajuste ya que en bodega solo hay ('
-                                . $this->formatearCantidad($lote->cantidad_disponible)
-                                . ') y la cantidad del ajuste es por ('
-                                . $this->formatearCantidad($prod->cantidad_total) . ')',
+                            'text' => 'No se puede anular el ajuste. En '
+                                . $prod->bodega_nombre . ' / ' . $prod->seccion_nombre
+                                . ' hay ' . $this->formatearCantidad($existenciaTotal)
+                                . ' unidades de ' . $prod->nombre_producto
+                                . ', el ajuste requiere ' . $this->formatearCantidad($cantidadARevertir)
+                                . ' y faltan ' . $this->formatearCantidad($cantidadARevertir - $existenciaTotal) . '.',
                             'title' => 'Existencia insuficiente',
                         ], 200);
                     }
 
-                    $nuevaCantidad = $lote->cantidad_disponible - $prod->cantidad_total;
+                    $cantidadPendiente = $cantidadARevertir;
+                    foreach ($lotesDisponibles as $loteDisponible) {
+                        if ($cantidadPendiente <= 0.00001) {
+                            break;
+                        }
+
+                        $cantidadLote = (float) $loteDisponible->cantidad_disponible;
+                        $cantidadDescontada = min($cantidadLote, $cantidadPendiente);
+
+                        DB::table('recibido_bodega')
+                            ->where('id', $loteDisponible->id)
+                            ->update(['cantidad_disponible' => max(0, $cantidadLote - $cantidadDescontada)]);
+
+                        $movimientosAnulacion[] = [
+                            'origen' => $loteDisponible->id,
+                            'cantidad' => $cantidadDescontada,
+                        ];
+                        $cantidadPendiente -= $cantidadDescontada;
+                    }
+
                     $descripcionAnulacionCardex = 'Anulación de ajuste - Ajuste de tipo suma de unidades (-)';
                     $descripcionAnulacionLog = 'Anulación ajuste suma (-)';
                 } else {
-                    $nuevaCantidad = $lote->cantidad_disponible + $prod->cantidad_total;
+                    $lote = DB::table('recibido_bodega')
+                        ->where('id', $prod->recibido_bodega_id)
+                        ->lockForUpdate()
+                        ->first(['cantidad_disponible']);
+                    $nuevaCantidad = (float) $lote->cantidad_disponible + (float) $prod->cantidad_total;
+
+                    DB::table('recibido_bodega')
+                        ->where('id', $prod->recibido_bodega_id)
+                        ->update(['cantidad_disponible' => $nuevaCantidad]);
+
+                    $movimientosAnulacion[] = [
+                        'origen' => $prod->recibido_bodega_id,
+                        'cantidad' => $prod->cantidad_total,
+                    ];
                     $descripcionAnulacionCardex = 'Anulación de ajuste - Ajuste de tipo resta de unidades (+)';
                     $descripcionAnulacionLog = 'Anulación ajuste resta (+)';
                 }
-
-                // Actualizar stock en recibido_bodega
-                DB::statement(
-                    "UPDATE recibido_bodega SET cantidad_disponible = ? WHERE id = ?",
-                    [$nuevaCantidad, $prod->recibido_bodega_id]
-                );
 
                 // Insertar registro en cardex
                 DB::table('cardex')->insert([
@@ -229,17 +266,19 @@ class ListadoAjustes extends Component
                 ]);
 
                 // Insertar en el log real de movimientos de inventario
-                DB::table('log_translado')->insert([
-                    'origen'               => $prod->recibido_bodega_id,
-                    'cantidad'             => $prod->cantidad_total,
-                    'unidad_medida_venta_id' => $prod->unidad_medida_venta_id,
-                    'users_id'             => $usuario->id,
-                    'descripcion'          => $descripcionAnulacionLog,
-                    'comentario'           => $motivo,
-                    'ajuste_id'            => $ajuste->id,
-                    'created_at'           => $now,
-                    'updated_at'           => $now,
-                ]);
+                foreach ($movimientosAnulacion as $movimiento) {
+                    DB::table('log_translado')->insert([
+                        'origen'               => $movimiento['origen'],
+                        'cantidad'             => $movimiento['cantidad'],
+                        'unidad_medida_venta_id' => $prod->unidad_medida_venta_id,
+                        'users_id'             => $usuario->id,
+                        'descripcion'          => $descripcionAnulacionLog,
+                        'comentario'           => $motivo,
+                        'ajuste_id'            => $ajuste->id,
+                        'created_at'           => $now,
+                        'updated_at'           => $now,
+                    ]);
+                }
             }
 
             // Marcar ajuste como anulado
