@@ -301,7 +301,7 @@
                             <i class="fa fa-circle mr-1" style="font-size:.65rem"></i>Exoneradas
                         </button>
                     </div>
-                    <p class="modal-section-label"><i class="fa fa-calendar mr-1"></i>Rango por fecha de creación de la factura</p>
+                    <p class="modal-section-label"><i class="fa fa-calendar mr-1"></i>Rango de fechas</p>
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group">
@@ -453,46 +453,6 @@
                     .trim();
                 var n = parseFloat(limpio);
                 return isNaN(n) ? 0 : n;
-            }
-
-            async function descargarPdfAnuladas() {
-                var campos = {
-                    _token: @json(csrf_token()),
-                    idTipo: anulFiltros.idTipo,
-                    filtroCai: anulFiltros.cai,
-                    filtroCliente: anulFiltros.cliente,
-                    filtroVendedor: anulFiltros.vendedor,
-                    filtroFacturador: anulFiltros.facturador,
-                    filtroDesde: anulFiltros.desde,
-                    filtroHasta: anulFiltros.hasta
-                };
-
-                try {
-                    var response = await fetch('/ventas/anulado/exportar-pdf', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
-                            'X-CSRF-TOKEN': campos._token,
-                            'Accept': 'application/pdf'
-                        },
-                        body: new URLSearchParams(campos).toString()
-                    });
-                    if (!response.ok) throw new Error('No se pudo generar el PDF.');
-
-                    var blob = await response.blob();
-                    var disposition = response.headers.get('Content-Disposition') || '';
-                    var match = disposition.match(/filename="?([^";]+)"?/i);
-                    var link = document.createElement('a');
-                    var objectUrl = URL.createObjectURL(blob);
-                    link.href = objectUrl;
-                    link.download = match ? match[1] : 'Facturas_Anuladas.pdf';
-                    document.body.appendChild(link);
-                    link.click();
-                    link.remove();
-                    window.setTimeout(function() { URL.revokeObjectURL(objectUrl); }, 1000);
-                } catch (error) {
-                    Swal.fire('Error', error.message, 'error');
-                }
             }
 
             function buildExcelButton(config) {
@@ -720,19 +680,12 @@
                     pageLength: 10,
                     responsive: true,
                     dom: '<"html5buttons"B>lTfgitp',
-                    buttons: [
-                        buildExcelButton({
-                            fileName: 'Facturas_Anuladas',
-                            reportTitle: 'Reporte de facturas anuladas',
-                            numberColumns: [6, 7, 8],
-                            moneyColumns: ['G', 'H', 'I']
-                        }),
-                        {
-                            text: '<i class="fa fa-file-pdf-o mr-1"></i>PDF',
-                            className: 'btn btn-danger btn-sm btn-anul-pdf',
-                            action: function () {}
-                        }
-                    ],
+                    buttons: [buildExcelButton({
+                        fileName: 'Facturas_Anuladas',
+                        reportTitle: 'Reporte de facturas anuladas',
+                        numberColumns: [6, 7, 8],
+                        moneyColumns: ['G', 'H', 'I']
+                    })],
                     "ajax": {
                         'url':  '/ventas/anulado/listado',
                         'type': 'post',
@@ -773,10 +726,6 @@
                     ],
                     "initComplete": function() {
                         document.getElementById('tbl_loading_overlay').style.display = 'none';
-                        $('.dt-buttons .btn-anul-pdf').off('click.anulPdf').on('click.anulPdf', function(event) {
-                            event.preventDefault();
-                            descargarPdfAnuladas();
-                        });
                     }
                 });
             }

@@ -13,7 +13,7 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 
 /**
  * Pestaña "Política Anterior" en la nómina proyectada.
- * Columnas: FACTURA, ID FACTURA, FECHA FACTURA, ID PRODUCTO, PRODUCTO,
+ * Columnas: FACTURA, ID FACTURA, FECHA FACTURA, FECHA PAGO, CLIENTE, ID PRODUCTO, PRODUCTO,
  *           TIPO PAGO, SUBTOTAL LÍNEA, CLASIFICACIÓN, % APLICADO,
  *           COM. TOTAL LÍNEA, MOTIVO
  */
@@ -25,12 +25,12 @@ class PoliticaAnteriorDetalleSheet implements FromArray, WithTitle, WithEvents, 
     protected string $generadoPor;
 
     const HEADERS = [
-        'FACTURA', 'ID FACTURA', 'FECHA FACTURA', 'ID PRODUCTO', 'PRODUCTO',
+        'FACTURA', 'ID FACTURA', 'FECHA FACTURA', 'FECHA PAGO', 'CLIENTE', 'ID PRODUCTO', 'PRODUCTO',
         'TIPO PAGO', 'SUBTOTAL LÍNEA', 'CLASIFICACIÓN', '% APLICADO',
         'COM. TOTAL LÍNEA', 'MOTIVO',
     ];
-    const LAST_COL  = 'K';
-    const COL_COUNT = 11;
+    const LAST_COL  = 'M';
+    const COL_COUNT = 13;
 
     public function __construct(array $rows, string $empresa, string $periodo, string $generadoPor)
     {
@@ -75,6 +75,8 @@ class PoliticaAnteriorDetalleSheet implements FromArray, WithTitle, WithEvents, 
                 $r['factura']            ?? '',
                 $r['factura_id']         ?? '',
                 $r['fecha_factura']      ?? '',
+                $r['fecha_pago_cierre']  ?? '',
+                $r['cliente']            ?? '',
                 $r['producto_id']        ?? '',
                 $r['producto']           ?? '',
                 $r['tipo_pago']          ?? '',
@@ -145,18 +147,18 @@ class PoliticaAnteriorDetalleSheet implements FromArray, WithTitle, WithEvents, 
                         $sheet->getStyle('A' . $row . ':' . $lc . $row)->getBorders()->getAllBorders()
                             ->setBorderStyle(Border::BORDER_THIN)->getColor()->setRGB('FFD580');
 
-                        // Columna G (subtotal), I (%), J (comisión) — formato y alineación derecha
-                        $sheet->getStyle('G' . $row)->getNumberFormat()->setFormatCode($moneyFmt);
-                        $sheet->getStyle('G' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-                        $sheet->getStyle('I' . $row)->getNumberFormat()->setFormatCode($pctFmt);
+                        // Columna I (subtotal), K (%), L (comisión) — formato y alineación derecha
+                        $sheet->getStyle('I' . $row)->getNumberFormat()->setFormatCode($moneyFmt);
                         $sheet->getStyle('I' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-                        $sheet->getStyle('J' . $row)->getNumberFormat()->setFormatCode($moneyFmt);
-                        $sheet->getStyle('J' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+                        $sheet->getStyle('K' . $row)->getNumberFormat()->setFormatCode($pctFmt);
+                        $sheet->getStyle('K' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+                        $sheet->getStyle('L' . $row)->getNumberFormat()->setFormatCode($moneyFmt);
+                        $sheet->getStyle('L' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
                     }
                 }
 
                 // Anchos de columna
-                $widths = ['A'=>16,'B'=>10,'C'=>20,'D'=>10,'E'=>42,'F'=>12,'G'=>14,'H'=>16,'I'=>12,'J'=>14,'K'=>40];
+                $widths = ['A'=>16,'B'=>10,'C'=>20,'D'=>14,'E'=>32,'F'=>10,'G'=>42,'H'=>12,'I'=>14,'J'=>16,'K'=>12,'L'=>14,'M'=>40];
                 foreach ($widths as $col => $w) {
                     $sheet->getColumnDimension($col)->setWidth($w);
                 }

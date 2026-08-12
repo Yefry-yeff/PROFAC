@@ -41,14 +41,6 @@
         border-color: transparent !important;
     }
     .tipo-filter-btn:hover:not(.active) { background: rgba(255,255,255,.30); }
-    .origen-filter-btn {
-        font-size: .76rem; font-weight: 600; padding: 5px 12px;
-        border: 1px solid rgba(255,255,255,.5); background: rgba(255,255,255,.15);
-        color: #fff; cursor: pointer;
-    }
-    .origen-filter-btn:first-child { border-radius: 5px 0 0 5px; }
-    .origen-filter-btn:last-child { border-radius: 0 5px 5px 0; }
-    .origen-filter-btn.active { background: #fff; color: #1b5e20; }
     #tbl_listar_cotizaciones { width: 100% !important; }
     #tbl_listar_cotizaciones thead th {
         background: #fdf4e7; color: #7d3f00;
@@ -175,11 +167,6 @@
                                     <i class="fa fa-circle" style="font-size:.6rem;vertical-align:middle;"></i> Exoneradas
                                 </button>
                             </div>
-                            <div class="btn-group" aria-label="Tipo de venta">
-                                <button type="button" class="origen-filter-btn active" data-origen="todas" onclick="cambiarOrigenCotizacion('todas', this)">Todas</button>
-                                <button type="button" class="origen-filter-btn" data-origen="normales" onclick="cambiarOrigenCotizacion('normales', this)">Ventas normales</button>
-                                <button type="button" class="origen-filter-btn" data-origen="expo" onclick="cambiarOrigenCotizacion('expo', this)">Ventas Expo</button>
-                            </div>
                             <button class="btn-fact-filter" data-toggle="modal" data-target="#modalFiltrosCot">
                                 <i class="fa fa-filter mr-1"></i>Filtros
                             </button>
@@ -246,12 +233,6 @@
                             <i class="fa fa-circle mr-1" style="font-size:.65rem"></i>Exoneradas
                         </button>
                     </div>
-                    <p class="modal-section-label"><i class="fa fa-shopping-cart mr-1"></i>Origen de la venta</p>
-                    <div class="mb-3 btn-group" id="modalOrigenCot" style="display:flex;">
-                        <button type="button" class="btn btn-outline-success btn-sm active" data-origen="todas">Todas</button>
-                        <button type="button" class="btn btn-outline-success btn-sm" data-origen="normales">Ventas normales</button>
-                        <button type="button" class="btn btn-outline-success btn-sm" data-origen="expo">Ventas Expo</button>
-                    </div>
                     <p class="modal-section-label"><i class="fa fa-search mr-1"></i>Criterios de b&uacute;squeda</p>
                     <div class="row">
                         <div class="col-md-12">
@@ -292,7 +273,6 @@
             var urlHistoryCotiz  = { 1: '/cotizacion/listado/corporativo', 2: '/cotizacion/listado/estatal', 3: '/cotizacion/listado/exonerado' };
             var cotFiltros = {
                 idTipo:   {{ $idTipoVenta }},
-                origen:   'todas',
                 cliente:  '',
                 vendedor: ''
             };
@@ -443,17 +423,10 @@
                 $(this).addClass('active');
             });
 
-            $(document).on('click', '#modalOrigenCot [data-origen]', function() {
-                $('#modalOrigenCot [data-origen]').removeClass('active');
-                $(this).addClass('active');
-            });
-
             // ── Aplicar filtros ──────────────────────────────────────────────
             function aplicarFiltrosCot() {
                 var activeBtn = document.querySelector('#modalFiltrosCot .tipo-filter-btn.active');
                 if (activeBtn) cotFiltros.idTipo = parseInt(activeBtn.dataset.idtipo);
-                var activeOrigen = document.querySelector('#modalOrigenCot [data-origen].active');
-                if (activeOrigen) cotFiltros.origen = activeOrigen.dataset.origen;
                 cotFiltros.cliente  = $('#cotFiltroCliente').val()  || '';
                 cotFiltros.vendedor = $('#cotFiltroVendedor').val() || '';
 
@@ -471,7 +444,6 @@
                 document.querySelectorAll('.cot-card-header .tipo-filter-btn').forEach(function(b) { b.classList.remove('active'); });
                 var hdrBtn = document.querySelector('.cot-card-header .tipo-filter-btn[data-idtipo="' + cotFiltros.idTipo + '"]');
                 if (hdrBtn) hdrBtn.classList.add('active');
-                document.querySelectorAll('.cot-card-header .origen-filter-btn').forEach(function(b) { b.classList.toggle('active', b.dataset.origen === cotFiltros.origen); });
 
                 renderBadgesCot();
 
@@ -490,19 +462,14 @@
                 $('#cotFiltroVendedor').val(null).trigger('change');
                 cotFiltros.cliente  = '';
                 cotFiltros.vendedor = '';
-                cotFiltros.origen = 'todas';
                 $('#modalFiltrosCot .tipo-filter-btn').removeClass('active');
                 $('#modalFiltrosCot .tipo-filter-btn[data-idtipo="{{ $idTipoVenta }}"]').addClass('active');
-                $('#modalOrigenCot [data-origen]').removeClass('active');
-                $('#modalOrigenCot [data-origen="todas"]').addClass('active');
             }
 
             // ── Badges de filtros activos ────────────────────────────────────
             function renderBadgesCot() {
                 var bar  = document.getElementById('filtrosBarCot');
-                var origenNombre = { todas: 'Todas', normales: 'Ventas normales', expo: 'Ventas Expo' };
                 var html = '<span class="filtro-badge"><i class="fa fa-tag mr-1"></i>Tipo: ' + (nombresTipoCotiz[cotFiltros.idTipo] || '') + '</span>';
-                html += '<span class="filtro-badge"><i class="fa fa-shopping-cart mr-1"></i>' + origenNombre[cotFiltros.origen] + '</span>';
                 if (cotFiltros.cliente)
                     html += '<span class="filtro-badge">Cliente: ' + ($('#cotFiltroCliente option:selected').text() || cotFiltros.cliente) + ' <span class="filtro-remove" onclick="quitarFiltroCot(\'cliente\')">×</span></span>';
                 if (cotFiltros.vendedor)
@@ -539,7 +506,6 @@
                         'headers': { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
                         'data': function(d) {
                             d.id             = cotFiltros.idTipo;
-                            d.filtroOrigen   = cotFiltros.origen;
                             d.filtroCliente  = cotFiltros.cliente;
                             d.filtroVendedor = cotFiltros.vendedor;
                         }
@@ -572,23 +538,6 @@
                 var bcEl = document.querySelector('.breadcrumb-item.active a');
                 if (bcEl) bcEl.textContent = nombresTipoCotiz[nuevoIdTipo];
                 history.pushState({ tipo: nuevoIdTipo }, '', urlHistoryCotiz[nuevoIdTipo]);
-                if (document.getElementById('cot-table-wrapper').style.display !== 'none') {
-                    document.getElementById('tbl_loading_overlay').style.display = '';
-                    renderBadgesCot();
-                    if ($.fn.DataTable.isDataTable('#tbl_listar_cotizaciones')) {
-                        $('#tbl_listar_cotizaciones').DataTable().ajax.reload(function() {
-                            document.getElementById('tbl_loading_overlay').style.display = 'none';
-                        });
-                    }
-                }
-            }
-
-            function cambiarOrigenCotizacion(origen, btnElement) {
-                cotFiltros.origen = origen;
-                document.querySelectorAll('.cot-card-header .origen-filter-btn').forEach(function(b) { b.classList.remove('active'); });
-                btnElement.classList.add('active');
-                $('#modalOrigenCot [data-origen]').removeClass('active');
-                $('#modalOrigenCot [data-origen="' + origen + '"]').addClass('active');
                 if (document.getElementById('cot-table-wrapper').style.display !== 'none') {
                     document.getElementById('tbl_loading_overlay').style.display = '';
                     renderBadgesCot();

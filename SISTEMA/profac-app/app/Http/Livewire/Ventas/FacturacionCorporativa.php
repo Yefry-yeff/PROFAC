@@ -2,7 +2,6 @@
 
 namespace App\Http\Livewire\Ventas;
 
-use App\Support\ExpoConfig;
 use App\Support\ClienteActoresAsignados;
 use Livewire\Component;
 
@@ -529,27 +528,8 @@ class FacturacionCorporativa extends Component
         try {
             $productoId          = $request->producto_id;
             $categoriaEscalaId   = $request->cliente_categoria_escala_id;
-            $expoId = (int) $request->input('expo_id', 0);
-            $expo = $expoId > 0 ? ExpoConfig::detalleActivaParaUsuario($expoId, Auth::id()) : null;
 
-            if ($expoId > 0 && !$expo) {
-                return response()->json(['message' => 'La Expo no está activa o está fuera de vigencia.'], 422);
-            }
-
-            if ($expo) {
-                $categorias = DB::table('categoria_precios as cp')
-                    ->join('cliente_categoria_escala as cce', 'cce.id', '=', 'cp.cliente_categoria_escala_id')
-                    ->join('precios_producto_carga as ppc', function ($join) use ($productoId) {
-                        $join->on('ppc.categoria_precios_id', '=', 'cp.id')
-                            ->where('ppc.producto_id', '=', $productoId)
-                            ->where('ppc.estado_id', '=', 1);
-                    })
-                    ->whereIn('cp.id', $expo['escalas'])
-                    ->where('cp.estado_id', 1)
-                    ->orderByDesc('ppc.precio_a')
-                    ->get(['cp.id', DB::raw("CONCAT(cce.nombre_categoria, ' - ', cp.nombre) as nombre_categoria"), 'ppc.precio_a'])
-                    ->all();
-            } elseif ($categoriaEscalaId) {
+            if ($categoriaEscalaId) {
                 // Filtrado: solo las categorías de precio ligadas al cce del cliente
                 // Si incluir_cp_inactivos=true, muestra también cp con estado_id=2 (p.ej. escalas archivadas)
                 $incluirInactivos = $request->boolean('incluir_cp_inactivos', false);

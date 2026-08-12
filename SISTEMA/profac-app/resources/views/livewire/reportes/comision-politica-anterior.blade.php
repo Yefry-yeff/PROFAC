@@ -331,6 +331,7 @@
                                             <th>FACTURA</th>
                                             <th>ID FACTURA</th>
                                             <th>FECHA FACTURA</th>
+                                            <th>FECHA PAGO</th>
                                             <th>ID PRODUCTO</th>
                                             <th>PRODUCTO</th>
                                             <th>TIPO PAGO</th>
@@ -635,6 +636,7 @@
                     { data: 'factura' },
                     { data: 'factura_id' },
                     { data: 'fecha_factura' },
+                    { data: 'fecha_pago_cierre', defaultContent: '—', render: function(d){ return d ? html(d) : '—'; } },
                     { data: 'producto_id' },
                     { data: 'producto', render: function(d){ return html(d); } },
                     { data: 'tipo_pago' },

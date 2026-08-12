@@ -2,7 +2,6 @@
 
 namespace App\Http\Livewire\Flujo;
 
-use App\Support\ExpoConfig;
 use Livewire\Component;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -35,7 +34,6 @@ class ListarPedidosParaOfertar extends Component
     // Datos
     public $pedidos = [];
     public $ofertas = [];
-    public $expoActiva = null;
 
     // Mensajes flash
     public $mensajeExito = '';
@@ -48,7 +46,6 @@ class ListarPedidosParaOfertar extends Component
 
     public function mount(): void
     {
-        $this->expoActiva = ExpoConfig::detalleActivaParaUsuario(null, Auth::id());
         $this->cargar();
     }
 
@@ -366,18 +363,6 @@ class ListarPedidosParaOfertar extends Component
     public function nuevaOfertaSinPedido(): void
     {
         $this->redirect('/proforma/cotizacion/2?from=flujo');
-    }
-
-    public function nuevaOfertaExpo(): void
-    {
-        $expo = ExpoConfig::detalleActivaParaUsuario(null, Auth::id());
-        if (!$expo) {
-            $this->mensajeError = 'No existe una Expo activa y vigente autorizada para su usuario.';
-            $this->expoActiva = null;
-            return;
-        }
-
-        $this->redirect('/proforma/cotizacion/2?from=flujo&expo=' . $expo['id']);
     }
 
     // RENDER

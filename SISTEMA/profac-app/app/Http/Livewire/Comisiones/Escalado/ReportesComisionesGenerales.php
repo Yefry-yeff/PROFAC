@@ -11,7 +11,6 @@ use DataTables;
 use Auth;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\ProyeccionComisionesExport;
-use App\Exports\ProyeccionComisiones15Export;
 use App\Exports\Comisiones\ProyeccionNominaSheet;
 use App\Exports\Comisiones\PoliticaAnteriorDetalleSheet;
 use App\Models\Comisiones\ModelComisionPeriodo;
@@ -2522,44 +2521,6 @@ class ReportesComisionesGenerales extends Component
         $response = Excel::download(
             new ProyeccionComisionesExport($rows, $empresa, $periodo, $generadoPor),
             'proyeccion_comisiones_' . now()->format('Ymd_His') . '.xlsx'
-        );
-
-        $token = (string) $request->input('download_token', '');
-        if ($token !== '') {
-            setcookie('proy_excel_token', $token, time() + 300, '/', '', false, false);
-        }
-
-        return $response;
-    }
-
-    /**
-     * Variante "Fijo 15%" del Excel de Proyecciones: misma estructura y estilo,
-     * pero recalcula la comisión de cada línea al 15% fijo sobre la base
-     * comisionable, sin usar la escala parametrizada.
-     *
-     * Acceso restringido exclusivamente al usuario Yefry Ortiz (id=2).
-     */
-    public function exportarProyeccionesExcel15(Request $request)
-    {
-        if ((int) Auth::id() !== 2) {
-            abort(403, 'No autorizado.');
-        }
-
-        @set_time_limit(0);
-        @ini_set('memory_limit', '512M');
-
-        $rows = $request->input('rows', []);
-        if (!is_array($rows)) {
-            $rows = json_decode($rows, true) ?? [];
-        }
-
-        $periodo     = $request->input('periodo', now()->format('d/m/Y'));
-        $generadoPor = Auth::user()->name ?? 'Sistema';
-        $empresa     = 'DISTRIBUCIONES VALENCIA   |   RTN: 08011986138652';
-
-        $response = Excel::download(
-            new ProyeccionComisiones15Export($rows, $empresa, $periodo, $generadoPor),
-            'proyeccion_comisiones_fijo15_' . now()->format('Ymd_His') . '.xlsx'
         );
 
         $token = (string) $request->input('download_token', '');
