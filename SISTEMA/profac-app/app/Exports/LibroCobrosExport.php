@@ -7,6 +7,8 @@ use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithStrictNullComparison;
 use Maatwebsite\Excel\Concerns\WithColumnWidths;
+use Maatwebsite\Excel\Concerns\WithMultipleSheets;
+use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
@@ -24,21 +26,103 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
  *  M  Exonerado       N  Gravado         O  Exento
  *  P  Sub Total       Q  ISV             R  Total Factura
  */
-class LibroCobrosExport implements FromArray, WithStyles, WithEvents, WithStrictNullComparison, WithColumnWidths
+class LibroCobrosExport implements WithMultipleSheets
 {
     protected array $data;
     protected string $fechaInicio;
     protected string $fechaFinal;
 
+    public function __construct($data, string $fechaInicio, string $fechaFinal)
+    {
+        $this->data = is_array($data) ? $data : json_decode(json_encode($data), true);
+        $this->fechaInicio = $fechaInicio;
+        $this->fechaFinal = $fechaFinal;
+    }
+
+    public function sheets(): array
+    {
+        $sheets = [
+            new LibroCobrosSheet($this->data, $this->fechaInicio, $this->fechaFinal, 'Todos', 'Todos'),
+        ];
+        $groups = [];
+
+        foreach ($this->data as $item) {
+            $row = (array) $item;
+            $bank = trim((string) ($row['banco'] ?? '')) ?: 'SIN BANCO';
+            $account = trim((string) ($row['cuenta_banco'] ?? '')) ?: 'SIN CUENTA';
+            $key = $bank . "\x00" . $account;
+            $groups[$key]['bank'] = $bank;
+            $groups[$key]['account'] = $account;
+            $groups[$key]['rows'][] = $row;
+        }
+
+        $usedTitles = ['todos' => true];
+        foreach ($groups as $group) {
+            $label = $group['bank'] . ' - ' . $group['account'];
+            $title = $this->uniqueSheetTitle($label, $usedTitles);
+            $sheets[] = new LibroCobrosSheet(
+                $group['rows'],
+                $this->fechaInicio,
+                $this->fechaFinal,
+                $title,
+                $label
+            );
+        }
+
+        return $sheets;
+    }
+
+    private function uniqueSheetTitle(string $label, array &$usedTitles): string
+    {
+        $clean = trim((string) preg_replace('/[\\\\\/\?\*\[\]:]/', '-', $label));
+        $clean = $clean !== '' ? $clean : 'Banco - Cuenta';
+        $truncate = static fn(string $value, int $length): string => function_exists('mb_substr')
+            ? mb_substr($value, 0, $length)
+            : substr($value, 0, $length);
+        $title = $truncate($clean, 31);
+        $candidate = $title;
+        $suffix = 2;
+
+        while (isset($usedTitles[strtolower($candidate)])) {
+            $ending = ' (' . $suffix++ . ')';
+            $candidate = $truncate($clean, 31 - strlen($ending)) . $ending;
+        }
+
+        $usedTitles[strtolower($candidate)] = true;
+
+        return $candidate;
+    }
+}
+
+class LibroCobrosSheet implements FromArray, WithStyles, WithEvents, WithStrictNullComparison, WithColumnWidths, WithTitle
+{
+    protected array $data;
+    protected string $fechaInicio;
+    protected string $fechaFinal;
+    protected string $sheetTitle;
+    protected string $label;
+
     const LAST_COL  = 'R';
     const COL_COUNT = 18;
 
-    public function __construct($data, string $fechaInicio, string $fechaFinal)
+    public function __construct(
+        $data,
+        string $fechaInicio,
+        string $fechaFinal,
+        string $sheetTitle,
+        string $label
+    )
     {
-        // accept both array and collection of stdClass
         $this->data       = is_array($data) ? $data : json_decode(json_encode($data), true);
         $this->fechaInicio = $fechaInicio;
         $this->fechaFinal  = $fechaFinal;
+        $this->sheetTitle = $sheetTitle;
+        $this->label = $label;
+    }
+
+    public function title(): string
+    {
+        return $this->sheetTitle;
     }
 
     public function array(): array
@@ -52,7 +136,7 @@ class LibroCobrosExport implements FromArray, WithStyles, WithEvents, WithStrict
 
         /* ── Fila 2 — título ── */
         $r2 = array_fill(0, self::COL_COUNT, '');
-        $r2[0] = 'LIBRO DE COBROS — CONCILIACIÓN BANCARIA';
+        $r2[0] = 'LIBRO DE COBROS — CONCILIACIÓN BANCARIA' . ($this->label === 'Todos' ? '' : ' | ' . $this->label);
         $out[] = $r2;
 
         /* ── Fila 3 — rango ── */
@@ -71,88 +155,46 @@ class LibroCobrosExport implements FromArray, WithStyles, WithEvents, WithStrict
             'SUB TOTAL', 'ISV', 'TOTAL FACTURA',
         ];
 
-        /* ── Agrupar por banco + cuenta ── */
-        $groups = [];
-        foreach ($this->data as $item) {
-            $r   = (array) $item;
-            $key = ($r['banco'] ?? '') . "\x00" . ($r['cuenta_banco'] ?? '');
-            $groups[$key][] = $r;
-        }
-
         $grandCobrado = $grandExon = $grandGrav = $grandExen = $grandSub = $grandIsv = $grandFact = 0.0;
 
-        foreach ($groups as $key => $rows) {
-            [$bancoNombre, $cuentaNombre] = array_pad(explode("\x00", $key, 2), 2, '');
+        foreach ($this->data as $item) {
+            $r = (array) $item;
+            $cobrado = (float)($r['monto_cobrado'] ?? 0);
+            $exon    = (float)($r['exonerado']     ?? 0);
+            $grav    = (float)($r['gravado']       ?? 0);
+            $exen    = (float)($r['excento']       ?? 0);
+            $sub     = (float)($r['subtotal']      ?? 0);
+            $isv     = (float)($r['isv']           ?? 0);
+            $fact    = (float)($r['total_factura'] ?? 0);
 
-            /* ── Cabecera de grupo ── */
-            $gh    = array_fill(0, self::COL_COUNT, '');
-            $gh[0] = 'BANCO: ' . strtoupper($bancoNombre) . '   |   CUENTA: ' . strtoupper($cuentaNombre);
-            $out[] = $gh;
+            $grandCobrado += $cobrado;
+            $grandExon    += $exon;
+            $grandGrav    += $grav;
+            $grandExen    += $exen;
+            $grandSub     += $sub;
+            $grandIsv     += $isv;
+            $grandFact    += $fact;
 
-            $gCobrado = $gExon = $gGrav = $gExen = $gSub = $gIsv = $gFact = 0.0;
-
-            foreach ($rows as $r) {
-                $cobrado = (float)($r['monto_cobrado'] ?? 0);
-                $exon    = (float)($r['exonerado']     ?? 0);
-                $grav    = (float)($r['gravado']       ?? 0);
-                $exen    = (float)($r['excento']       ?? 0);
-                $sub     = (float)($r['subtotal']      ?? 0);
-                $isv     = (float)($r['isv']           ?? 0);
-                $fact    = (float)($r['total_factura'] ?? 0);
-                $estado  = $r['estado_factura']        ?? '';
-
-                $gCobrado += $cobrado;
-                $gExon    += $exon;
-                $gGrav    += $grav;
-                $gExen    += $exen;
-                $gSub     += $sub;
-                $gIsv     += $isv;
-                $gFact    += $fact;
-
-                $out[] = [
-                    $r['fecha_venta']       ?? '',
-                    $r['fecha_vencimiento'] ?? '',
-                    $r['fecha_pago']        ?? '',
-                    $r['cliente']           ?? '',
-                    $r['asesor_comercial']  ?? '',
-                    $r['teleasesor']        ?? '',
-                    $r['factura']           ?? '',
-                    $cobrado,
-                    $estado,
-                    $r['banco']             ?? '',
-                    $r['cuenta_banco']      ?? '',
-                    $r['observaciones']     ?? '',
-                    $exon,
-                    $grav,
-                    $exen,
-                    $sub,
-                    $isv,
-                    $fact,
-                ];
-            }
-
-            /* ── Subtotal del grupo ── */
-            $st     = array_fill(0, self::COL_COUNT, '');
-            $st[0]  = 'SUBTOTAL: ' . strtoupper($bancoNombre);
-            $st[7]  = $gCobrado;
-            $st[12] = $gExon;
-            $st[13] = $gGrav;
-            $st[14] = $gExen;
-            $st[15] = $gSub;
-            $st[16] = $gIsv;
-            $st[17] = $gFact;
-            $out[]  = $st;
-
-            /* ── Separador vacío ── */
-            $out[] = array_fill(0, self::COL_COUNT, '');
-
-            $grandCobrado += $gCobrado;
-            $grandExon    += $gExon;
-            $grandGrav    += $gGrav;
-            $grandExen    += $gExen;
-            $grandSub     += $gSub;
-            $grandIsv     += $gIsv;
-            $grandFact    += $gFact;
+            $out[] = [
+                $r['fecha_venta']       ?? '',
+                $r['fecha_vencimiento'] ?? '',
+                $r['fecha_pago']        ?? '',
+                $r['cliente']           ?? '',
+                $r['asesor_comercial']  ?? '',
+                $r['teleasesor']        ?? '',
+                $r['factura']           ?? '',
+                $cobrado,
+                $r['estado_factura']    ?? '',
+                $r['banco']             ?? '',
+                $r['cuenta_banco']      ?? '',
+                $r['observaciones']     ?? '',
+                $exon,
+                $grav,
+                $exen,
+                $sub,
+                $isv,
+                $fact,
+            ];
         }
 
         /* ── Fila totales generales ── */
