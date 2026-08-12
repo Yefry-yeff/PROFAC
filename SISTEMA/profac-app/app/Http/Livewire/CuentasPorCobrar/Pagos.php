@@ -410,7 +410,15 @@ class Pagos extends Component
                     ->join('nota_credito as nc', 'nc.id', '=', 'cc.nota_credito_id')
                     ->where('cc.cliente_id', $clienteId)
                     ->where('nc.estado_nota_id', 1)
+                    ->where('cc.estado', 'disponible')
+                    ->where('cc.monto_aplicado', '<=', 0.005)
+                    ->where('cc.monto_reembolsado', '<=', 0.005)
                     ->where('cc.saldo_disponible', '>', 0.005)
+                    ->whereNotExists(function ($query) {
+                        $query->select(DB::raw(1))
+                            ->from('nota_credito_movimientos as ncm')
+                            ->whereColumn('ncm.credito_id', 'cc.id');
+                    })
                     ->orderBy('nc.fecha')
                     ->orderBy('nc.id')
                     ->select(
@@ -437,6 +445,16 @@ class Pagos extends Component
                 $notaCredito = DB::table('nota_credito as nc')
                     ->join('nota_credito_creditos as cc', 'cc.nota_credito_id', '=', 'nc.id')
                     ->where('nc.id', (int) $idNotaCredito)
+                    ->where('nc.estado_nota_id', 1)
+                    ->where('cc.estado', 'disponible')
+                    ->where('cc.monto_aplicado', '<=', 0.005)
+                    ->where('cc.monto_reembolsado', '<=', 0.005)
+                    ->where('cc.saldo_disponible', '>', 0.005)
+                    ->whereNotExists(function ($query) {
+                        $query->select(DB::raw(1))
+                            ->from('nota_credito_movimientos as ncm')
+                            ->whereColumn('ncm.credito_id', 'cc.id');
+                    })
                     ->select(
                         'nc.comentario',
                         'nc.total',
@@ -456,6 +474,14 @@ class Pagos extends Component
                         ->where('estado_cerrado', '<>', 2)
                         ->where('saldo', '>', 0.005)
                         ->sum('saldo');
+                }
+
+                if ($notaCredito->isEmpty()) {
+                    return response()->json([
+                        'icon' => 'warning',
+                        'title' => 'Nota no disponible',
+                        'text' => 'La nota de crédito ya fue aplicada o reembolsada automáticamente y no puede utilizarse en Aplicación de Pagos.',
+                    ], 422);
                 }
             return response()->json([
                 'result'=>$notaCredito,
@@ -745,9 +771,29 @@ class Pagos extends Component
                 'comentarioRebaja' => 'nullable|string|max:500',
             ]);
 
-            $credito = DB::table('nota_credito_creditos')
-                ->where('nota_credito_id', (int) $request->selectNotaCredito)
+            $credito = DB::table('nota_credito_creditos as cc')
+                ->join('nota_credito as nc', 'nc.id', '=', 'cc.nota_credito_id')
+                ->where('cc.nota_credito_id', (int) $request->selectNotaCredito)
+                ->where('nc.estado_nota_id', 1)
+                ->where('cc.estado', 'disponible')
+                ->where('cc.monto_aplicado', '<=', 0.005)
+                ->where('cc.monto_reembolsado', '<=', 0.005)
+                ->where('cc.saldo_disponible', '>', 0.005)
+                ->whereNotExists(function ($query) {
+                    $query->select(DB::raw(1))
+                        ->from('nota_credito_movimientos as ncm')
+                        ->whereColumn('ncm.credito_id', 'cc.id');
+                })
+                ->select('cc.*')
                 ->first();
+
+            if (!$credito) {
+                return response()->json([
+                    'icon' => 'warning',
+                    'title' => 'Nota no disponible',
+                    'text' => 'La nota de crédito ya fue aplicada o reembolsada automáticamente y no puede volver a utilizarse.',
+                ], 422);
+            }
             $saldoPendiente = $credito
                 ? (float) DB::table('aplicacion_pagos')
                     ->where('cliente_id', $credito->cliente_id)
