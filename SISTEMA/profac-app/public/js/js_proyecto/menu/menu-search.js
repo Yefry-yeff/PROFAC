@@ -9,8 +9,16 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if (!searchInput) return;
 
+    function normalizeSearchText(value) {
+        return String(value || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .trim();
+    }
+
     searchInput.addEventListener('keyup', function() {
-        const searchTerm = this.value.toLowerCase().trim();
+        const searchTerm = normalizeSearchText(this.value);
         const menuItems = document.querySelectorAll('#side-menu > li:not(.nav-header):not(.search-sidebar):not(.dashboard-btn)');
         
         let totalMatches = 0;
@@ -48,7 +56,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const subMenuLink = subMenuItem.querySelector('a');
                 if (!subMenuLink) return;
                 
-                const subMenuText = subMenuLink.textContent.toLowerCase().trim();
+                const subMenuText = normalizeSearchText(subMenuLink.textContent);
                 
                 if (subMenuText.includes(searchTerm)) {
                     subMenuItem.style.display = '';

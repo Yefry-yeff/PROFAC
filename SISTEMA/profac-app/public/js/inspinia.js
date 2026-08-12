@@ -118,6 +118,10 @@ $(document).ready(function () {
 
     // Minimalize menu
     $('.navbar-minimalize').on('click', function (event) {
+        if ($(window).width() <= 992) {
+            return;
+        }
+
         event.preventDefault();
         $("body").toggleClass("mini-navbar");
         SmoothlyMenu();
@@ -229,11 +233,11 @@ $(document).ready(function () {
 
         if (collapse == 'on') {
             if (body.hasClass('fixed-sidebar')) {
-                if (!body.hasClass('body-small')) {
+                if (!body.hasClass('body-small') && $(window).width() > 992) {
                     body.addClass('mini-navbar');
                 }
             } else {
-                if (!body.hasClass('body-small')) {
+                if (!body.hasClass('body-small') && $(window).width() > 992) {
                     body.addClass('mini-navbar');
                 }
 
