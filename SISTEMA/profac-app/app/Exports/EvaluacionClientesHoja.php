@@ -17,9 +17,9 @@ class EvaluacionClientesHoja implements FromArray, WithTitle, WithStyles, WithEv
     protected $rows;
     protected $usuario;
 
-    // 12 columnas: A..L
-    const LAST_COL  = 'L';
-    const COL_COUNT = 12;
+    // 13 columnas: A..M
+    const LAST_COL  = 'M';
+    const COL_COUNT = 13;
 
     public function __construct($rows, $usuario = 'Sistema')
     {
@@ -59,7 +59,8 @@ class EvaluacionClientesHoja implements FromArray, WithTitle, WithStyles, WithEv
             'TELÉFONO',
             'DIRECCIÓN',
             'ESTADO',
-            'VENDEDOR',
+            'ASESOR COMERCIAL',
+            'TELEASESORES',
             'N° CAI ÚLTIMA FACTURA',
             'FECHA ÚLTIMA FACTURA',
             'MONTO ÚLTIMA FACTURA',
@@ -77,6 +78,7 @@ class EvaluacionClientesHoja implements FromArray, WithTitle, WithStyles, WithEv
                 $r->direccion ?? '',
                 $r->estado,
                 $r->vendedor,
+                $r->teleasesores,
                 $r->numero_ultima_factura ?? 'Sin historial de facturación',
                 $r->fecha_ultima_factura
                     ? date('d/m/Y', strtotime($r->fecha_ultima_factura))
@@ -133,11 +135,12 @@ class EvaluacionClientesHoja implements FromArray, WithTitle, WithStyles, WithEv
                 $sheet->getColumnDimension('E')->setWidth(40);
                 $sheet->getColumnDimension('F')->setWidth(18);
                 $sheet->getColumnDimension('G')->setWidth(26);
-                $sheet->getColumnDimension('H')->setWidth(30);
-                $sheet->getColumnDimension('I')->setWidth(22);
+                $sheet->getColumnDimension('H')->setWidth(26);
+                $sheet->getColumnDimension('I')->setWidth(30);
                 $sheet->getColumnDimension('J')->setWidth(22);
-                $sheet->getColumnDimension('K')->setWidth(20);
-                $sheet->getColumnDimension('L')->setWidth(18);
+                $sheet->getColumnDimension('K')->setWidth(22);
+                $sheet->getColumnDimension('L')->setWidth(20);
+                $sheet->getColumnDimension('M')->setWidth(18);
 
                 // Row heights
                 $sheet->getRowDimension(1)->setRowHeight(32);
@@ -178,14 +181,14 @@ class EvaluacionClientesHoja implements FromArray, WithTitle, WithStyles, WithEv
                     }
                 }
 
-                // Highlight "Requiere Atención = Sí" rows (col L)
+                // Highlight "Requiere Atención = Sí" rows (col M)
                 for ($row = 5; $row <= $lastRow; $row++) {
-                    if ($sheet->getCell("L{$row}")->getValue() === 'Sí') {
-                        $sheet->getStyle("L{$row}")
+                    if ($sheet->getCell("M{$row}")->getValue() === 'Sí') {
+                        $sheet->getStyle("M{$row}")
                               ->getFont()
                               ->setBold(true)
                               ->getColor()->setRGB('C0392B');
-                        $sheet->getStyle("A{$row}:L{$row}")
+                        $sheet->getStyle("A{$row}:M{$row}")
                               ->getFill()
                               ->setFillType(Fill::FILL_SOLID)
                               ->getStartColor()->setRGB('FDECEA');

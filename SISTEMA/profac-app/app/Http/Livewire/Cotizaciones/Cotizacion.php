@@ -3,6 +3,7 @@
 namespace App\Http\Livewire\Cotizaciones;
 
 use App\Support\ClienteActoresAsignados;
+use App\Support\ExpoConfig;
 use Livewire\Component;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\File;
@@ -443,7 +444,79 @@ class Cotizacion extends Component
         $arrayInputs = explode(',', $arrayTemporal);
         $arrayProductos = [];
 
+        $expoId = (int) $request->input('expo_id', 0);
+        $tipoVentaExpoId = ExpoConfig::tipoVentaId();
+        $expoConfig = null;
+
+        if ($expoId <= 0 && $tipoVentaExpoId && (int) $request->tipo_venta_id === $tipoVentaExpoId) {
+            return response()->json([
+                'icon' => 'error',
+                'title' => 'Expo no válida',
+                'text' => 'Toda Oferta de Expo debe estar vinculada a una configuración vigente.',
+            ], 422);
+        }
+
+        if ($expoId > 0) {
+            $expoConfig = ExpoConfig::detalleActivaParaUsuario($expoId, Auth::id());
+            if (!$expoConfig || !$tipoVentaExpoId) {
+                return response()->json([
+                    'icon' => 'error',
+                    'title' => 'Expo no disponible',
+                    'text' => 'La Expo ya no está activa o está fuera de vigencia.',
+                ], 422);
+            }
+
+            $ventaBruta = 0.0;
+            foreach ($arrayInputs as $indice) {
+                $precioCargaId = (int) $request->input('precios_producto_carga_id' . $indice, 0);
+                $escalaId = (int) (DB::table('precios_producto_carga')->where('id', $precioCargaId)->value('categoria_precios_id') ?? 0);
+                if (!in_array($escalaId, $expoConfig['escalas'], true)) {
+                    return response()->json([
+                        'icon' => 'error', 'title' => 'Escala no permitida',
+                        'text' => 'Uno de los productos utiliza una escala que no pertenece a la Expo.',
+                    ], 422);
+                }
+
+                $restaInventario = (float) $request->input('restaInventario' . $indice, 0);
+                $bodegaId = (int) $request->input('idBodega' . $indice, 0);
+                if ($restaInventario > 0 && !in_array($bodegaId, $expoConfig['bodegas'], true)) {
+                    return response()->json([
+                        'icon' => 'error', 'title' => 'Bodega no permitida',
+                        'text' => 'Uno de los productos utiliza una bodega que no pertenece a la Expo.',
+                    ], 422);
+                }
+
+                $ventaBruta += (float) $request->input('precio' . $indice, 0)
+                    * (float) $request->input('cantidad' . $indice, 0)
+                    * (float) $request->input('unidad' . $indice, 0);
+            }
+
+            $porcentajeExpo = 0.0;
+            foreach ($expoConfig['descuentos'] as $regla) {
+                if ($ventaBruta >= $regla['venta_minima']) {
+                    $porcentajeExpo = $regla['porcentaje_descuento'];
+                }
+            }
+
+            $request->merge([
+                'tipo_venta_id' => $tipoVentaExpoId,
+                'porDescuento' => $porcentajeExpo,
+            ]);
+        }
+
         DB::beginTransaction();
+
+            if ($expoConfig && !DB::table('expo')->where('id', $expoId)->where('estado', 'Activo')
+                ->where('fecha_inicio', '<=', now())
+                ->where(function ($query) {
+                    $query->whereNull('fecha_fin')->orWhere('fecha_fin', '>=', now());
+                })->lockForUpdate()->exists()) {
+                DB::rollBack();
+                return response()->json([
+                    'icon' => 'error', 'title' => 'Expo no disponible',
+                    'text' => 'La Expo dejó de estar vigente antes de guardar la oferta.',
+                ], 422);
+            }
 
             $cotizacion = new ModelCotizacion();
             $cotizacion->nombre_cliente = $request->nombre_cliente_ventas;
@@ -468,6 +541,15 @@ class Cotizacion extends Component
             $cotizacion->estado_id  = 1;
             $cotizacion->created_by = Auth::id();
             $cotizacion->save();
+
+            if ($expoConfig) {
+                DB::table('expo_cotizacion')->insert([
+                    'expo_id' => $expoId,
+                    'cotizacion_id' => $cotizacion->id,
+                    'created_by' => Auth::id(),
+                    'created_at' => now(),
+                ]);
+            }
 
             $numeroOrdenCompra = $request->numero_orden_compra ?: null;
             $archivoOrdenCompra = $request->archivo_orden_compra ?: null;

@@ -200,6 +200,10 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/flujo/prefactura', \App\Http\Livewire\Flujo\Prefactura::class)->name('flujo.prefactura');
     Route::get('/flujo/oferta', \App\Http\Livewire\Flujo\OfertaPedido::class)->name('flujo.oferta');
     Route::get('/flujo/ofertas', \App\Http\Livewire\Flujo\ListarOfertas::class)->name('flujo.ofertas');
+    Route::get('/ventas/temporales', [\App\Http\Controllers\VentaTemporalController::class, 'index'])->name('ventas.temporales.index');
+    Route::post('/ventas/temporales', [\App\Http\Controllers\VentaTemporalController::class, 'store'])->name('ventas.temporales.store');
+    Route::get('/ventas/temporales/{id}', [\App\Http\Controllers\VentaTemporalController::class, 'show'])->name('ventas.temporales.show');
+    Route::delete('/ventas/temporales/{id}', [\App\Http\Controllers\VentaTemporalController::class, 'destroy'])->name('ventas.temporales.destroy');
     Route::get('/flujo/pedido/editar/{id}', \App\Http\Livewire\Flujo\EditarPedido::class)->name('flujo.pedido.editar');
     Route::get('/flujo/pedido/imprimir/{id}', [\App\Http\Livewire\Flujo\PedidoController::class, 'imprimir']);
 
@@ -291,6 +295,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/comision/reporte/nomina/detalle', [ReportesComisionesGenerales::class, 'detalleNomina']);
     Route::get('/comision/reporte/proyecciones', [ReportesComisionesGenerales::class, 'reporteProyecciones']);
     Route::post('/comision/reporte/proyecciones/exportar-excel', [ReportesComisionesGenerales::class, 'exportarProyeccionesExcel']);
+    Route::post('/comision/reporte/proyecciones/exportar-excel-15', [ReportesComisionesGenerales::class, 'exportarProyeccionesExcel15']);
     Route::post('/comision/reporte/proyecciones/exportar-nomina', [ReportesComisionesGenerales::class, 'exportarProyeccionesNomina']);
     Route::get('/comision/reporte/factura-por-actor', [ReportesComisionesGenerales::class, 'facturasPorActor']);
     Route::get('/comision/reporte/empleados-por-rol', [ReportesComisionesGenerales::class, 'listarEmpleadosPorRol']);
@@ -969,6 +974,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
 
     Route::get('/ventas/anulado/{id}', ListadoFacturasAnuladas::class);
     Route::post('/ventas/anulado/listado', [ListadoFacturasAnuladas::class, 'listarFacturas']);
+    Route::post('/ventas/anulado/exportar-pdf', [ListadoFacturasAnuladas::class, 'exportarPdf']);
     Route::post('/ventas/anulado/detalle', [ListadoFacturasAnuladas::class, 'detalleFacturaAnulada']);
 
 
@@ -1646,6 +1652,10 @@ Route::post('/reporte/ventas-cobros/actualizar-f01/{facturaId}',                
     Route::post('/flujo_de_venta/cartera_de_clientes/zona-asignar-clientes', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'asignarClientesZona'])->name('cartera_clientes.zona_asignar_clientes');
     Route::post('/flujo_de_venta/cartera_de_clientes/zona-quitar-cliente', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'quitarClienteZona'])->name('cartera_clientes.zona_quitar_cliente');
     Route::get('/flujo_de_venta/cartera_de_clientes/zona-historial/{id}', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'historialZona'])->name('cartera_clientes.zona_historial');
+
+
+    // Ruta auto-generada para: FlujoDeVenta\Expo
+    Route::get('/flujo_de_venta/expo', \App\Http\Livewire\FlujoDeVenta\Expo::class);
 
     // [auto-routes-anchor]
 });

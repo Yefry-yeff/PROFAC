@@ -251,18 +251,7 @@ class RestarVale extends Component
                 );
             }
 
-            // Eliminar registros existentes con la misma clave primaria (factura_id, producto_id, lote)
-            // para evitar error de entrada duplicada, independientemente del seccion_id
-            foreach($this->arrayProductos as $item){
-                DB::table('venta_has_producto')
-                    ->where('factura_id', '=', $item['factura_id'])
-                    ->where('producto_id', '=', $item['producto_id'])
-                    ->where('lote', '=', $item['lote'])
-                    ->delete();
-            }
-
-            //dd($this->arrayProductos);
-            ModelVentaProducto::insert($this->arrayProductos);
+            $this->guardarProductosValeSinSobrescribir();
 
             ModelLogTranslados::insert($this->arrayLogs);
 
@@ -297,6 +286,34 @@ class RestarVale extends Component
             'error' => $e,
            ],402);
            }
+    }
+
+    protected function guardarProductosValeSinSobrescribir(): void
+    {
+        foreach ($this->arrayProductos as $item) {
+            $query = DB::table('venta_has_producto')
+                ->where('factura_id', $item['factura_id'])
+                ->where('producto_id', $item['producto_id'])
+                ->where('lote', $item['lote']);
+
+            $existente = $query->lockForUpdate()->first();
+
+            if (!$existente) {
+                DB::table('venta_has_producto')->insert($item);
+                continue;
+            }
+
+            $query->update([
+                'numero_unidades_resta_inventario' => (int) $existente->numero_unidades_resta_inventario + (int) $item['numero_unidades_resta_inventario'],
+                'unidades_nota_credito_resta_inventario' => (int) $existente->unidades_nota_credito_resta_inventario + (int) $item['numero_unidades_resta_inventario'],
+                'cantidad_s' => (float) $existente->cantidad_s + (float) $item['cantidad_s'],
+                'cantidad_para_entregar' => (float) $existente->cantidad_para_entregar + (float) $item['cantidad_para_entregar'],
+                'sub_total_s' => (float) $existente->sub_total_s + (float) $item['sub_total_s'],
+                'isv_s' => (float) $existente->isv_s + (float) $item['isv_s'],
+                'total_s' => (float) $existente->total_s + (float) $item['total_s'],
+                'updated_at' => now(),
+            ]);
+        }
     }
 
     public function restarUnidadesInventario($unidadesRestarInv, $idProducto, $idFactura, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $tipoPrecio = '2', $preciosProductoCargaId = null)

@@ -105,6 +105,10 @@ class GestorCreditoNota
                     ->lockForUpdate()
                     ->get();
 
+                if ($cuentas->isEmpty()) {
+                    throw new RuntimeException('El cliente no tiene saldos pendientes. Seleccione reembolso como destino.');
+                }
+
                 foreach ($cuentas as $cuenta) {
                     if ($disponible <= 0.005) {
                         break;

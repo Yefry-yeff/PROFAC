@@ -2,6 +2,7 @@
 
 namespace App\Http\Livewire\Cotizaciones;
 
+use App\Support\ExpoConfig;
 use Livewire\Component;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -50,8 +51,22 @@ class ListarCotizaciones extends Component
     public function listarCotizaciones(Request $request){
         $filtroCliente  = trim($request->input('filtroCliente', ''));
         $filtroVendedor = trim($request->input('filtroVendedor', ''));
+        $filtroOrigen = $request->input('filtroOrigen', 'todas');
+        $tipoNormalId = (int) $request->input('id', 0);
+        $tipoExpoId = ExpoConfig::tipoVentaId();
+
+        if ($filtroOrigen === 'expo') {
+            $tipoWhere = 'A.tipo_venta_id = ?';
+            $bindings = [$tipoExpoId ?: 0];
+        } elseif ($filtroOrigen === 'normales' || !$tipoExpoId) {
+            $tipoWhere = 'A.tipo_venta_id = ?';
+            $bindings = [$tipoNormalId];
+        } else {
+            $tipoWhere = 'A.tipo_venta_id IN (?, ?)';
+            $bindings = [$tipoNormalId, $tipoExpoId];
+        }
+
         $whereExtra = '';
-        $bindings   = [];
         if ($filtroCliente !== '') {
             $whereExtra .= ' AND A.nombre_cliente LIKE ? ';
             $bindings[] = "%{$filtroCliente}%";
@@ -77,7 +92,7 @@ class ListarCotizaciones extends Component
                 from cotizacion A
                 inner join users B
                 on A.users_id = B.id
-                where A.tipo_venta_id = ".$request->id."
+                where {$tipoWhere}
                 and A.vendedor =  ".Auth::user()->id."
                 {$whereExtra}
                 order by A.created_at desc
@@ -99,7 +114,7 @@ class ListarCotizaciones extends Component
                 from cotizacion A
                 inner join users B
                 on A.users_id = B.id
-                where A.tipo_venta_id = ".$request->id." AND A.id NOT IN (
+                where {$tipoWhere} AND A.id NOT IN (
                     24558,
                     24557,
                     24556,

@@ -813,13 +813,13 @@
     <div class="modal fade" id="modal_imprimir_nota_credito" tabindex="-1" role="dialog"
         aria-labelledby="modal_imprimir_nota_credito" aria-hidden="true">
         <div class="modal-dialog modal-lg" role="document">
-            <div class="modal-content">
-                <div class="modal-header bg-success text-white border-bottom-0">
+            <div class="modal-content nc-print-modal-content">
+                <div class="modal-header nc-print-modal-header">
                     <div>
                         <h4 class="modal-title mb-0">
                             <i class="fa fa-check-circle"></i> Nota de Crédito Registrada
                         </h4>
-                        <p class="modal-text-small text-light mb-0 mt-1" style="font-size: 0.9rem;">
+                        <p class="modal-text-small mb-0 mt-1">
                             La nota de crédito ha sido creada exitosamente en el sistema
                         </p>
                     </div>
@@ -827,11 +827,11 @@
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
-                <div class="modal-body" style="background-color: #f8f9fa;">
+                <div class="modal-body">
                     <div class="row mb-4">
                         <div class="col-12">
                             <h5 class="text-dark mb-3">
-                                <i class="fa fa-print text-primary"></i> 
+                                <i class="fa fa-print nc-print-accent"></i>
                                 <strong>Seleccione las opciones de impresión</strong>
                             </h5>
                             <p class="text-muted small">
@@ -847,7 +847,7 @@
 
                     <div class="row">
                         <div class="col-12 col-sm-6 mb-3">
-                            <button type="button" class="btn btn-primary btn-block py-3" onclick="imprimirNotaCredito('original')">
+                            <button type="button" class="btn nc-print-btn nc-print-btn-original btn-block py-3" onclick="imprimirNotaCredito('original')">
                                 <div>
                                     <i class="fa fa-print fa-lg"></i>
                                 </div>
@@ -859,7 +859,7 @@
                             </button>
                         </div>
                         <div class="col-12 col-sm-6 mb-3">
-                            <button type="button" class="btn btn-info btn-block py-3" onclick="imprimirNotaCredito('copia')">
+                            <button type="button" class="btn nc-print-btn nc-print-btn-copy btn-block py-3" onclick="imprimirNotaCredito('copia')">
                                 <div>
                                     <i class="fa fa-copy fa-lg"></i>
                                 </div>
@@ -874,7 +874,7 @@
 
                     <div class="row mt-3">
                         <div class="col-12">
-                            <div class="alert alert-info border-left-4" style="border-left: 4px solid #17a2b8;">
+                            <div class="alert nc-print-alert">
                                 <i class="fa fa-info-circle"></i> 
                                 <strong>Información:</strong> 
                                 Seleccione qué copia desea imprimir. Se abrirá en una nueva ventana del navegador.
@@ -882,11 +882,11 @@
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer bg-light border-top">
+                <div class="modal-footer nc-print-modal-footer">
                     <button type="button" class="btn btn-secondary" onclick="finalizarYContinuar()">
                         <i class="fa fa-times"></i> Cerrar
                     </button>
-                    <button type="button" class="btn btn-success" onclick="finalizarYContinuar()">
+                    <button type="button" class="btn btn-nc-primary" onclick="finalizarYContinuar()">
                         <i class="fa fa-check"></i> Finalizar
                     </button>
                 </div>
@@ -911,51 +911,132 @@
             position: relative;
         }
 
-        /* Estilos para modal de impresión */
+        /* Modal de impresión: por encima del header fijo y con scroll interno. */
+        #modal_imprimir_nota_credito {
+            z-index: 10050 !important;
+            padding: 80px 16px 16px !important;
+            overflow: hidden !important;
+        }
+
+        body.nc-print-modal-open > .modal-backdrop {
+            z-index: 10040 !important;
+        }
+
+        #modal_imprimir_nota_credito .modal-dialog {
+            width: min(900px, 100%);
+            max-width: 900px;
+            margin: 0 auto !important;
+        }
+
+        #modal_imprimir_nota_credito .nc-print-modal-content {
+            max-height: calc(100vh - 96px);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border: 1px solid #e8d5bf;
+            border-radius: var(--nc-radius);
+            box-shadow: 0 18px 50px rgba(69, 26, 3, .28);
+        }
+
         #modal_imprimir_nota_credito .modal-header {
-            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-            border-radius: 0.5rem 0.5rem 0 0;
-            padding: 1.5rem;
+            flex: 0 0 auto;
+            background: var(--nc-grad) !important;
+            color: #fff;
+            border: 0;
+            border-radius: calc(var(--nc-radius) - 1px) calc(var(--nc-radius) - 1px) 0 0;
+            padding: 18px 22px;
+        }
+
+        #modal_imprimir_nota_credito .modal-title,
+        #modal_imprimir_nota_credito .modal-text-small {
+            color: #fff;
+        }
+
+        #modal_imprimir_nota_credito .modal-text-small {
+            font-size: .82rem;
+            opacity: .9;
+        }
+
+        #modal_imprimir_nota_credito .close {
+            color: #fff;
+            opacity: .9;
+            text-shadow: none;
         }
 
         #modal_imprimir_nota_credito .modal-body {
-            background-color: #f8f9fa;
-            padding: 2rem;
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-y: auto;
+            background: #fffaf5;
+            padding: 24px;
         }
 
         #modal_imprimir_nota_credito .btn {
-            border-radius: 0.5rem;
-            font-weight: 500;
-            transition: all 0.3s ease;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border-radius: 6px;
+            font-weight: 600;
+            transition: box-shadow .2s ease, filter .2s ease;
+            box-shadow: 0 2px 6px rgba(69,26,3,.14);
         }
 
         #modal_imprimir_nota_credito .btn:hover {
-            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(69,26,3,.2);
+            filter: brightness(1.04);
         }
 
-        #modal_imprimir_nota_credito .btn-primary {
-            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
-            border: none;
+        #modal_imprimir_nota_credito .nc-print-btn {
+            min-height: 92px;
+            color: #fff;
+            border: 0;
         }
 
-        #modal_imprimir_nota_credito .btn-primary:hover {
-            background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
+        #modal_imprimir_nota_credito .nc-print-btn-original {
+            background: linear-gradient(135deg, #f39c12 0%, #e05a00 100%);
         }
 
-        #modal_imprimir_nota_credito .btn-info {
-            background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%);
-            border: none;
+        #modal_imprimir_nota_credito .nc-print-btn-copy {
+            background: linear-gradient(135deg, #e05a00 0%, #b92b13 100%);
         }
 
-        #modal_imprimir_nota_credito .btn-info:hover {
-            background: linear-gradient(135deg, #117a8b 0%, #0c5460 100%);
+        #modal_imprimir_nota_credito .nc-print-btn small {
+            color: rgba(255,255,255,.82) !important;
+        }
+
+        #modal_imprimir_nota_credito .nc-print-accent {
+            color: #e05a00;
+        }
+
+        #modal_imprimir_nota_credito .nc-print-alert {
+            margin-bottom: 0;
+            color: #7d3f00;
+            background: #fff1df;
+            border: 1px solid #f4c487;
+            border-left: 4px solid #e05a00;
+        }
+
+        #modal_imprimir_nota_credito .nc-print-modal-footer {
+            flex: 0 0 auto;
+            background: #fff;
+            border-top: 1px solid #ead8c4;
         }
 
         #modal_imprimir_nota_credito .btn i {
             display: block;
             margin-bottom: 0.5rem;
+        }
+
+        @media (max-width: 575.98px) {
+            #modal_imprimir_nota_credito {
+                padding: 74px 8px 8px !important;
+            }
+
+            #modal_imprimir_nota_credito .nc-print-modal-content {
+                max-height: calc(100vh - 82px);
+            }
+
+            #modal_imprimir_nota_credito .modal-header,
+            #modal_imprimir_nota_credito .modal-body {
+                padding: 16px;
+            }
         }
 
         /* Estilos para SweetAlert2 */

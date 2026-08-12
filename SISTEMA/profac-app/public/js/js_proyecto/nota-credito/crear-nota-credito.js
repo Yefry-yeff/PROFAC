@@ -4,10 +4,15 @@ var arrayInputs = [];
 var productoSeccion = [];
 var temporizadorPrevisionCredito = null;
 var solicitudPrevisionCredito = 0;
+var solicitudDatosFactura = 0;
 
 // ========== FUNCIONES AUXILIARES PARA MODALES ==========
 function abrirModal(modalId) {
     try {
+        if (modalId === 'modal_imprimir_nota_credito') {
+            document.body.classList.add('nc-print-modal-open');
+        }
+
         if (typeof jQuery !== 'undefined' && jQuery.fn.modal) {
             $('#' + modalId).modal('show');
         } else {
@@ -58,6 +63,10 @@ function cerrarModal(modalId) {
                 document.body.style.overflow = '';
             }
         }
+
+        if (modalId === 'modal_imprimir_nota_credito') {
+            document.body.classList.remove('nc-print-modal-open');
+        }
     } catch (e) {
         console.error('Error al cerrar modal ' + modalId + ':', e);
         const modalElement = document.getElementById(modalId);
@@ -65,8 +74,13 @@ function cerrarModal(modalId) {
             modalElement.classList.remove('show');
             modalElement.style.display = 'none';
         }
+        document.body.classList.remove('nc-print-modal-open');
     }
 }
+
+$(document).on('hidden.bs.modal', '#modal_imprimir_nota_credito', function () {
+    document.body.classList.remove('nc-print-modal-open');
+});
 // ===================================================
 
 $('#cliente').select2({
@@ -235,12 +249,16 @@ function obtenerFacturasDeCliente() {
 
 function datosFactura() {
     let idFactura = document.getElementById('factura').value;
+    let numeroSolicitud = ++solicitudDatosFactura;
 
 
     axios.post('/nota/credito/datos/factura', {
             idFactura: idFactura
         })
         .then(response => {
+            if (numeroSolicitud !== solicitudDatosFactura || document.getElementById('factura').value !== idFactura) {
+                return;
+            }
 
             let data = response.data.datosFactura;
 
@@ -949,7 +967,16 @@ function formatoLempirasCredito(valor) {
 function actualizarDestinoCreditoCrear() {
     var destino = $('#destinoCreditoCrear').val();
     var credito = Number($('#totalGeneralCredito').val() || 0);
-    var deuda = Number($('#saldoPendienteCrear').data('valor') || $('#saldoPendienteCrear').attr('data-valor') || 0);
+    var deuda = Number($('#saldoPendienteCrear').attr('data-valor') || 0);
+    var tieneSaldosPendientes = deuda > 0.005;
+    var opcionesAplicacion = $('#destinoCreditoCrear option[value="saldos"], #destinoCreditoCrear option[value="mixto"]');
+
+    opcionesAplicacion.prop('hidden', !tieneSaldosPendientes).prop('disabled', !tieneSaldosPendientes);
+    if (!tieneSaldosPendientes && (destino === 'saldos' || destino === 'mixto')) {
+        $('#destinoCreditoCrear').val('');
+        destino = '';
+    }
+
     var aplicado = destino === 'reembolso' ? 0 : Math.min(credito, deuda);
     var reembolso = destino === 'reembolso' ? credito : (destino === 'mixto' ? Math.max(credito - aplicado, 0) : 0);
     var saldo = Math.max(credito - aplicado - reembolso, 0);
@@ -960,6 +987,8 @@ function actualizarDestinoCreditoCrear() {
     $('#bancoReembolsoCrear, #metodoReembolsoCrear, #fechaReembolsoCrear').prop('required', requiereReembolso);
 
     if (!destino || credito <= 0) {
+        clearTimeout(temporizadorPrevisionCredito);
+        solicitudPrevisionCredito++;
         $('#resumenDestinoCreditoCrear').hide().empty();
         $('#detalleAplicacionCreditoCrear').hide();
         $('#detalleAplicacionCreditoCrearBody').empty();
@@ -979,6 +1008,7 @@ function cargarPrevisionAplicacionCredito(destino, credito) {
     var cuerpo = $('#detalleAplicacionCreditoCrearBody');
 
     if (!idFactura || destino === 'reembolso') {
+        solicitudPrevisionCredito++;
         cuerpo.empty();
         $('#detalleAplicacionCreditoCrear').hide();
         return;

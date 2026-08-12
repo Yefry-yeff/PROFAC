@@ -17,6 +17,7 @@ class EvaluacionDeClientesPorNivelDeFacturacion extends Component
     public $filtNombre       = '';
     public $filtEstado       = '';
     public $filtVendedor     = '';
+    public $filtTeleasesor   = '';
     public $filtRequiereAt   = '';
     public $filtFechaDesde   = '';
     public $filtFechaHasta   = '';
@@ -31,6 +32,7 @@ class EvaluacionDeClientesPorNivelDeFacturacion extends Component
     public function updatedFiltNombre()       { $this->paginaActual = 1; }
     public function updatedFiltEstado()       { $this->paginaActual = 1; }
     public function updatedFiltVendedor()     { $this->paginaActual = 1; }
+    public function updatedFiltTeleasesor()   { $this->paginaActual = 1; }
     public function updatedFiltRequiereAt()   { $this->paginaActual = 1; }
     public function updatedFiltFechaDesde()   { $this->paginaActual = 1; }
     public function updatedFiltFechaHasta()   { $this->paginaActual = 1; }
@@ -57,6 +59,7 @@ class EvaluacionDeClientesPorNivelDeFacturacion extends Component
         $this->filtNombre       = '';
         $this->filtEstado       = '';
         $this->filtVendedor     = '';
+        $this->filtTeleasesor   = '';
         $this->filtRequiereAt   = '';
         $this->filtFechaDesde   = '';
         $this->filtFechaHasta   = '';
@@ -82,9 +85,28 @@ class EvaluacionDeClientesPorNivelDeFacturacion extends Component
             $where   .= ' AND ec.descripcion = ?';
             $params[] = $this->filtEstado;
         }
-        if ($this->filtVendedor !== '') {
+        if ($this->filtVendedor === 'sin_asignar') {
+            $where .= ' AND asesor.id IS NULL';
+        } elseif ($this->filtVendedor !== '') {
             $where   .= ' AND c.vendedor = ?';
             $params[] = (int) $this->filtVendedor;
+        }
+        if ($this->filtTeleasesor === 'sin_asignar') {
+            $where .= ' AND NOT EXISTS (
+                SELECT 1
+                FROM cliente_usuario cu_filtro
+                WHERE cu_filtro.cliente_id = c.id
+                  AND cu_filtro.rol_id = 3
+            )';
+        } elseif ($this->filtTeleasesor !== '') {
+            $where .= ' AND EXISTS (
+                SELECT 1
+                FROM cliente_usuario cu_filtro
+                WHERE cu_filtro.cliente_id = c.id
+                  AND cu_filtro.usuario_id = ?
+                  AND cu_filtro.rol_id = 3
+            )';
+            $params[] = (int) $this->filtTeleasesor;
         }
         if ($this->filtFechaDesde !== '') {
             $where   .= ' AND uf.fecha_emision >= ?';
@@ -108,17 +130,12 @@ class EvaluacionDeClientesPorNivelDeFacturacion extends Component
                 COALESCE(c.telefono_empresa, '')                                                  AS telefono,
                 COALESCE(c.direccion, '')                                                         AS direccion,
                 COALESCE(ec.descripcion, 'Sin Estado')                                           AS estado,
-                COALESCE((SELECT name FROM users WHERE id = c.vendedor LIMIT 1), 'Sin Vendedor') AS vendedor,
+                COALESCE(asesor.name, 'Sin Asignar')                                             AS vendedor,
+                COALESCE(tele.teleasesores, 'Sin Asignar')                                       AS teleasesores,
                 uf.cai                                                                           AS numero_ultima_factura,
                 uf.fecha_emision                                                                  AS fecha_ultima_factura,
                 COALESCE(uf.total, 0)                                                            AS monto_ultima_factura,
-                COALESCE(
-                    (SELECT SUM(ap2.saldo)
-                     FROM aplicacion_pagos ap2
-                     WHERE ap2.cliente_id = c.id
-                       AND ap2.estado = 1),
-                    0
-                )                                                                                AS saldo_pendiente,
+                COALESCE(saldos.saldo_pendiente, 0)                                              AS saldo_pendiente,
                 CASE
                     WHEN uf.fecha_emision IS NULL                              THEN 'Sí'
                     WHEN uf.fecha_emision < DATE_SUB(NOW(), INTERVAL 3 MONTH) THEN 'Sí'
@@ -126,6 +143,22 @@ class EvaluacionDeClientesPorNivelDeFacturacion extends Component
                 END                                                                              AS requiere_atencion
             FROM cliente c
             LEFT JOIN estado_cliente ec ON ec.id = c.estado_cliente_id
+            LEFT JOIN users asesor ON asesor.id = c.vendedor
+            LEFT JOIN (
+                SELECT
+                    cu.cliente_id,
+                    GROUP_CONCAT(DISTINCT u.name ORDER BY u.name SEPARATOR ', ') AS teleasesores
+                FROM cliente_usuario cu
+                INNER JOIN users u ON u.id = cu.usuario_id
+                WHERE cu.rol_id = 3
+                GROUP BY cu.cliente_id
+            ) tele ON tele.cliente_id = c.id
+            LEFT JOIN (
+                SELECT cliente_id, SUM(saldo) AS saldo_pendiente
+                FROM aplicacion_pagos
+                WHERE estado = 1
+                GROUP BY cliente_id
+            ) saldos ON saldos.cliente_id = c.id
             LEFT JOIN factura uf
                 ON uf.id = (
                     SELECT f2.id
@@ -193,18 +226,40 @@ class EvaluacionDeClientesPorNivelDeFacturacion extends Component
             $estadosCounts[$k] = ($estadosCounts[$k] ?? 0) + 1;
         }
 
-        // ── Chart 3: Distribución por vendedor ────────────────────────────────
+        // ── Chart 3: Distribución por asesor comercial ───────────────────────
         $vendedoresCounts = [];
         foreach ($datos as $r) {
             $k = $r->vendedor;
             $vendedoresCounts[$k] = ($vendedoresCounts[$k] ?? 0) + 1;
         }
 
-        // ── Chart 4: Con facturación vs Sin historial ─────────────────────────
+        // ── Chart 4: Distribución por teleasesor ─────────────────────────────
+        $teleasesoresCounts = [];
+        $clienteIds = array_map(fn ($r) => $r->codigo_cliente, $datos);
+        if ($clienteIds) {
+            $conteosTeleasesores = DB::table('cliente_usuario as cu')
+                ->join('users as u', 'u.id', '=', 'cu.usuario_id')
+                ->where('cu.rol_id', 3)
+                ->whereIn('cu.cliente_id', $clienteIds)
+                ->groupBy('u.id', 'u.name')
+                ->orderBy('u.name')
+                ->select('u.name', DB::raw('COUNT(DISTINCT cu.cliente_id) AS total'))
+                ->get();
+
+            foreach ($conteosTeleasesores as $conteo) {
+                $teleasesoresCounts[$conteo->name] = (int) $conteo->total;
+            }
+        }
+        $sinTeleasesor = count(array_filter($datos, fn ($r) => $r->teleasesores === 'Sin Asignar'));
+        if ($sinTeleasesor > 0) {
+            $teleasesoresCounts['Sin Asignar'] = $sinTeleasesor;
+        }
+
+        // ── Chart 5: Con facturación vs Sin historial ────────────────────────
         $conFact = count(array_filter($datos, fn ($r) => $r->fecha_ultima_factura !== null));
         $sinHist = $total - $conFact;
 
-        // ── Chart 5: Top vendedores con más clientes sin atención ─────────────
+        // ── Chart 6: Top asesores con más clientes sin atención ──────────────
         $vendAtCounts = [];
         foreach ($datos as $r) {
             if ($r->requiere_atencion === 'Sí') {
@@ -228,6 +283,10 @@ class EvaluacionDeClientesPorNivelDeFacturacion extends Component
                 'series' => array_values($vendedoresCounts),
                 'labels' => array_keys($vendedoresCounts),
             ],
+            'teleasesores'  => [
+                'series' => array_values($teleasesoresCounts),
+                'labels' => array_keys($teleasesoresCounts),
+            ],
             'historial'     => [
                 'series' => [$conFact, $sinHist],
                 'labels' => ['Con Facturación', 'Sin Historial'],
@@ -239,8 +298,20 @@ class EvaluacionDeClientesPorNivelDeFacturacion extends Component
         ];
 
         // Selects para filtros
-        $estados    = DB::select('SELECT DISTINCT descripcion FROM estado_cliente ORDER BY descripcion ASC');
-        $vendedores = DB::select('SELECT id, name FROM users WHERE rol_id = 2 ORDER BY name ASC');
+        $estados = DB::select('SELECT DISTINCT descripcion FROM estado_cliente ORDER BY descripcion ASC');
+        $vendedores = DB::select('
+            SELECT DISTINCT u.id, u.name
+            FROM cliente c
+            INNER JOIN users u ON u.id = c.vendedor
+            ORDER BY u.name ASC
+        ');
+        $teleasesores = DB::select('
+            SELECT DISTINCT u.id, u.name
+            FROM cliente_usuario cu
+            INNER JOIN users u ON u.id = cu.usuario_id
+            WHERE cu.rol_id = 3
+            ORDER BY u.name ASC
+        ');
 
         return view('livewire.reportes.evaluaciondeclientesporniveldefacturacion', [
             'datosPagina'  => $datosPagina,
@@ -249,6 +320,7 @@ class EvaluacionDeClientesPorNivelDeFacturacion extends Component
             'chartData'    => $chartData,
             'estados'      => $estados,
             'vendedores'   => $vendedores,
+            'teleasesores' => $teleasesores,
         ]);
     }
 
@@ -266,12 +338,34 @@ class EvaluacionDeClientesPorNivelDeFacturacion extends Component
                 $this->filtEstado = ($this->filtEstado === $valor) ? '' : $valor;
                 break;
             case 'vendedor':
-                $rows = DB::select(
-                    'SELECT id FROM users WHERE name = ? AND rol_id = 2 LIMIT 1',
-                    [$valor]
-                );
-                $id = $rows ? (string) $rows[0]->id : '';
+                $id = 'sin_asignar';
+                if ($valor !== 'Sin Asignar') {
+                    $rows = DB::select(
+                        'SELECT DISTINCT u.id
+                         FROM cliente c
+                         INNER JOIN users u ON u.id = c.vendedor
+                         WHERE u.name = ?
+                         LIMIT 1',
+                        [$valor]
+                    );
+                    $id = $rows ? (string) $rows[0]->id : '';
+                }
                 $this->filtVendedor = ($this->filtVendedor === $id) ? '' : $id;
+                break;
+            case 'teleasesor':
+                $id = 'sin_asignar';
+                if ($valor !== 'Sin Asignar') {
+                    $rows = DB::select(
+                        'SELECT DISTINCT u.id
+                         FROM cliente_usuario cu
+                         INNER JOIN users u ON u.id = cu.usuario_id
+                         WHERE cu.rol_id = 3 AND u.name = ?
+                         LIMIT 1',
+                        [$valor]
+                    );
+                    $id = $rows ? (string) $rows[0]->id : '';
+                }
+                $this->filtTeleasesor = ($this->filtTeleasesor === $id) ? '' : $id;
                 break;
             case 'historial':
                 $mapa  = ['Con Facturación' => 'con', 'Sin Historial' => 'sin'];

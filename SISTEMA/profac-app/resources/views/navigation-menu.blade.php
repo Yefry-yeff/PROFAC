@@ -1218,13 +1218,21 @@ document.addEventListener('DOMContentLoaded', function () {
     function toggleMobileSidebar(e) {
         if (!toggleBtn) return;
         if (isNonDesktop()) {
-            if (e) e.preventDefault();
+            if (e) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+            }
+            document.body.classList.remove('mini-navbar');
             document.body.classList.toggle('mobile-sidebar-open');
         }
     }
 
     if (toggleBtn) {
-        toggleBtn.addEventListener('click', toggleMobileSidebar);
+        toggleBtn.addEventListener('click', toggleMobileSidebar, true);
+    }
+
+    if (isNonDesktop()) {
+        document.body.classList.remove('mini-navbar');
     }
 
     // Cerrar tocando overlay
@@ -1249,6 +1257,8 @@ document.addEventListener('DOMContentLoaded', function () {
     window.addEventListener('resize', () => {
         if (!isNonDesktop()) {
             document.body.classList.remove('mobile-sidebar-open');
+        } else {
+            document.body.classList.remove('mini-navbar');
         }
     });
 });
