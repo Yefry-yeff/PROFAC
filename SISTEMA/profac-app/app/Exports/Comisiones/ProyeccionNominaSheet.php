@@ -262,54 +262,9 @@ class ProyeccionNominaSheet implements FromArray, WithTitle, WithEvents, WithStr
                 $sheet->getRowDimension(15)->setRowHeight(26);
                 $sheet->getRowDimension(17)->setRowHeight(24);
                 $sheet->getRowDimension(18)->setRowHeight(22);
-                $sheet->freezePane('A19');
-
-                $sheet->getStyle('A1:E5')->applyFromArray([
-                    'font' => ['bold' => true, 'size' => 13, 'color' => ['rgb' => '0F172A']],
-                    'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'F8FAFC']],
-                    'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
-                    'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_HAIR, 'color' => ['rgb' => 'E2E8F0']]],
-                ]);
-
-                $sheet->getStyle('A3:E5')->getFont()->setSize(10);
-                $sheet->getStyle('A1:E2')->getFont()->setSize(14);
-                $sheet->getStyle('A5:E5')->getBorders()->getBottom()->setBorderStyle(Border::BORDER_MEDIUM);
-                $sheet->getStyle('A5:E5')->getBorders()->getBottom()->getColor()->setRGB('CBD5E1');
-
-                // Fila TOTAL COBROS
-                $sheet->getStyle("A{$lastRow}:E{$lastRow}")->applyFromArray([
-                    'font'    => ['bold' => true, 'size' => 11, 'color' => ['rgb' => 'FFFFFF']],
-                    'fill'    => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1E293B']],
-                    'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_MEDIUM, 'color' => ['rgb' => '1E293B']]],
-                ]);
-                $sheet->getStyle("C{$lastRow}:E{$lastRow}")->getNumberFormat()->setFormatCode('"L "#,##0.00');
-                $sheet->getStyle("C{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-                // Logo arriba-izquierda
-                if (file_exists($logoPath)) {
-                    $drawing = new Drawing();
-                    $drawing->setName('Logo');
-                    $drawing->setDescription('Valencia');
-                    $drawing->setPath($logoPath);
-                    $drawing->setHeight(110);
-                    $drawing->setCoordinates('A1');
-                    $drawing->setWorksheet($sheet);
-                }
-                // Anchos y alturas
-                foreach (['A' => 46, 'B' => 22, 'C' => 28, 'D' => 14, 'E' => 14] as $col => $w) {
-                    $sheet->getColumnDimension($col)->setWidth($w);
-                }
-                $sheet->getRowDimension(1)->setRowHeight(30);
-                $sheet->getRowDimension(2)->setRowHeight(26);
-                $sheet->getRowDimension(3)->setRowHeight(20);
-                $sheet->getRowDimension(4)->setRowHeight(19);
-                $sheet->getRowDimension(5)->setRowHeight(19);
-                $sheet->getRowDimension(7)->setRowHeight(28);
-                $sheet->getRowDimension(8)->setRowHeight(24);
-                $sheet->getRowDimension(9)->setRowHeight(20);
-                $sheet->getRowDimension(13)->setRowHeight(26);
-                $sheet->getRowDimension(15)->setRowHeight(24);
-                $sheet->getRowDimension(16)->setRowHeight(22);
-                $sheet->freezePane('A17');
+                $sheet->unfreezePane();
+                $sheet->setSelectedCell('A1');
+                $sheet->getSheetView()->setZoomScale(80);
             },
         ];
     }
