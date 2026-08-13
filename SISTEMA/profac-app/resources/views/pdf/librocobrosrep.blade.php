@@ -143,7 +143,7 @@
                         <td style="text-align:left;">{{ $row['teleasesor'] ?? '' }}</td>
                         <td>{{ $row['factura'] ?? '' }}</td>
                         <td style="text-align:right;">{{ $fmtL($row['monto_cobrado'] ?? 0) }}</td>
-                        <td>{{ $row['estado_factura'] ?? '' }}</td>
+                        <td>{{ ($row['estado_factura'] ?? '') === 'PAGADA' ? 'COMPLETO' : ($row['estado_factura'] ?? '') }}</td>
                         <td style="text-align:left;">{{ $row['observaciones'] ?? '' }}</td>
                         <td style="text-align:right;">{{ $fmtL($row['exonerado'] ?? 0) }}</td>
                         <td style="text-align:right;">{{ $fmtL($row['gravado'] ?? 0) }}</td>

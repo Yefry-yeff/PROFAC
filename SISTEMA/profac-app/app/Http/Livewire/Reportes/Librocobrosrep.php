@@ -453,6 +453,34 @@ class Librocobrosrep extends Component
                                         nc.id AS movimiento_id,
                                         2 AS orden_tipo,
                                         nc.factura_id,
+                                        COALESCE(nc.fecha_rebajado, DATE(nc.fecha)) AS fecha_pago,
+                                        COALESCE(nc.fecha_rebajado, nc.created_at) AS fecha_orden,
+                                        -ROUND(nc.total, 2) AS monto_cobrado,
+                                        ROUND(nc.total, 2) AS monto_saldo,
+                                        0 AS impacta_kpi,
+                                        'NOTA DE CRÉDITO' AS banco,
+                                        'APLICACIÓN LEGADA' AS cuenta_banco,
+                                        COALESCE(NULLIF(TRIM(nc.comentario), ''), CONCAT('Nota de crédito ', nc.cai)) AS observaciones,
+                                        NULL AS _banco_id
+                                FROM nota_credito nc
+                                WHERE nc.estado_nota_id = 1
+                                    AND nc.estado_rebajado = 1
+                                    AND NOT EXISTS (
+                                            SELECT 1
+                                            FROM nota_credito_creditos cc_legacy
+                                            INNER JOIN nota_credito_movimientos m_legacy
+                                                ON m_legacy.credito_id = cc_legacy.id
+                                                AND m_legacy.tipo = 'aplicacion'
+                                            WHERE cc_legacy.nota_credito_id = nc.id
+                                    )
+                                    AND DATE(COALESCE(nc.fecha_rebajado, nc.fecha)) <= ?
+
+                                UNION ALL
+
+                                SELECT
+                                        nc.id AS movimiento_id,
+                                        2 AS orden_tipo,
+                                        nc.factura_id,
                                         DATE(nc.fecha) AS fecha_pago,
                                         nc.created_at AS fecha_orden,
                                         -ROUND(nc.total, 2) AS monto_cobrado,
@@ -595,9 +623,10 @@ class Librocobrosrep extends Component
             LEFT JOIN users u ON u.id = c.vendedor
             LEFT JOIN users tele ON tele.id = c.users_id
             WHERE c.fecha_pago BETWEEN ? AND ?
+                            AND c.orden_tipo = 1
         ";
 
-        $bindings = [$fechaFinal, $fechaFinal, $fechaFinal, $fechaFinal, $fechaFinal, $fechaInicio, $fechaFinal];
+        $bindings = [$fechaFinal, $fechaFinal, $fechaFinal, $fechaFinal, $fechaFinal, $fechaFinal, $fechaInicio, $fechaFinal];
         if (!empty($cliente)) {
             $sql .= ' AND c.cliente_id = ?';
             $bindings[] = $cliente;
