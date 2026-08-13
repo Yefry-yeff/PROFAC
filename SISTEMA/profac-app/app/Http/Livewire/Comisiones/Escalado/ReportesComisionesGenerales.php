@@ -2693,7 +2693,7 @@ class ReportesComisionesGenerales extends Component
                 ->leftJoin('cliente as cl', 'cl.id', '=', 'f.cliente_id')
                 ->whereIn('f.id', $facturaIds)
                 ->selectRaw('f.id as factura_id,
-                             f.numero_factura,
+                             DATE(f.fecha_emision) as fecha_emision,
                              COALESCE(f.sub_total, 0) as subtotal,
                              COALESCE(f.isv, 0) as isv,
                              COALESCE(f.total, 0) as total,
@@ -2710,8 +2710,9 @@ class ReportesComisionesGenerales extends Component
 
                     return [
                         'factura_id' => $facturaId,
-                        'numero_factura' => (string) ($factura->numero_factura ?? ''),
+                        'fecha_emision' => (string) ($factura->fecha_emision ?? ''),
                         'fecha_cierre' => $fechaCierrePorFactura->get($facturaId, ''),
+                        'correlativo' => str_pad(substr(preg_replace('/[^0-9]/', '', (string) $factura->cai), -5), 5, '0', STR_PAD_LEFT),
                         'politica_comision' => $origenPorFactura[$facturaId] ?? '',
                         'estado_comision' => $estadoPoliticaPorFactura[$facturaId] ?? 'COMISIONA',
                         'subtotal' => (float) $factura->subtotal,
