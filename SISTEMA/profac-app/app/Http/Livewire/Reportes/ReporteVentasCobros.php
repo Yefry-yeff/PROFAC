@@ -771,8 +771,15 @@ class ReporteVentasCobros extends Component
                 ) AS ab ON ab.factura_id = f.id
                 LEFT JOIN (
                     SELECT factura_id, SUM(monto) AS total_notas_credito
-                    FROM nota_credito_movimientos
-                    WHERE tipo = 'aplicacion'
+                    FROM (
+                        SELECT factura_id, monto
+                        FROM nota_credito_movimientos
+                        WHERE tipo = 'aplicacion'
+                        UNION ALL
+                        SELECT factura_id, total AS monto
+                        FROM nota_credito
+                        WHERE estado_nota_id = 1
+                    ) AS notas_credito_factura
                     GROUP BY factura_id
                 ) AS nc ON nc.factura_id = f.id
                 LEFT JOIN (
@@ -968,13 +975,8 @@ class ReporteVentasCobros extends Component
                               'Nota de crédito generada sobre esta factura',
                               COALESCE(u_nc.name,''), 'Emisión', 4
                           FROM nota_credito nc
-                          INNER JOIN nota_credito_creditos cc ON cc.nota_credito_id = nc.id
                           LEFT JOIN users u_nc ON u_nc.id = nc.users_id
                           WHERE nc.factura_id = ? AND nc.estado_nota_id = 1
-                         AND EXISTS (
-                             SELECT 1 FROM nota_credito_movimientos me
-                             WHERE me.credito_id = cc.id AND me.tipo IN ('aplicacion', 'reembolso')
-                         )
 
                           UNION ALL
 
@@ -1367,14 +1369,9 @@ class ReporteVentasCobros extends Component
                       NULL, NULL, NULL, 'Nota de crédito generada sobre esta factura',
                       COALESCE(u_nc.name,''), 'Emisión', 4
                   FROM nota_credito nc
-                  INNER JOIN nota_credito_creditos cc ON cc.nota_credito_id = nc.id
                   INNER JOIN factura f ON f.id = nc.factura_id
                   LEFT JOIN users u_nc ON u_nc.id = nc.users_id
                   WHERE nc.estado_nota_id = 1 AND {$whereF}
-                    AND EXISTS (
-                     SELECT 1 FROM nota_credito_movimientos me
-                     WHERE me.credito_id = cc.id AND me.tipo IN ('aplicacion', 'reembolso')
-                    )
 
                   UNION ALL
 
@@ -1543,13 +1540,8 @@ class ReporteVentasCobros extends Component
                                             NULL, NULL, NULL, 'Nota de crédito generada sobre esta factura',
                                             COALESCE(u_nc.name,''), 'Emisión', 4
                                 FROM nota_credito nc
-                                INNER JOIN nota_credito_creditos cc ON cc.nota_credito_id = nc.id
                                 LEFT JOIN users u_nc ON u_nc.id = nc.users_id
                                 WHERE nc.factura_id IN ({$ph}) AND nc.estado_nota_id = 1
-                                    AND EXISTS (
-                                            SELECT 1 FROM nota_credito_movimientos me
-                                            WHERE me.credito_id = cc.id AND me.tipo IN ('aplicacion', 'reembolso')
-                                    )
 
                                 UNION ALL
 

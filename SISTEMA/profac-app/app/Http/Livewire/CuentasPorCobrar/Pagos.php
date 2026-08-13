@@ -301,27 +301,104 @@ class Pagos extends Component
         try{
 
             $consulta = DB::select("
+                SELECT movimientos.*
+                FROM (
+                    SELECT
+                        CAST(ot.id AS CHAR) AS codigoMovimiento,
+                        ot.aplicacion_pagos_id AS codigoPago,
+                        f.cai AS correlativo,
+                        FORMAT(ot.monto, 2) AS monto,
+                        ot.tipo_movimiento,
+                        ot.comentario,
+                        ot.estado AS estadoMov,
+                        u.name AS userRegistro,
+                        DATE_FORMAT(ot.created_at, '%Y-%m-%d') AS fechaCreacion,
+                        DATE_FORMAT(ot.created_at, '%Y-%m-%d %H:%i:%s') AS fechaRegistro,
+                        ot.factura_id,
+                        NULL AS comentarioNotaCredito
+                    FROM otros_movimientos ot
+                    INNER JOIN aplicacion_pagos ap ON ap.id = ot.aplicacion_pagos_id
+                    INNER JOIN factura f ON f.id = ot.factura_id
+                    LEFT JOIN users u ON u.id = ot.usr_registro
+                    WHERE ap.cliente_id = ?
+                        AND ap.estado = 1
+                        AND ot.estado = 1
 
-            select
-            ot.id as 'codigoMovimiento',
-            ot.aplicacion_pagos_id as 'codigoPago',
-            (select cai from factura where id = ot.factura_id) as correlativo,
-            FORMAT(ot.monto, 2) as monto,
-            ot.tipo_movimiento,
-            ot.comentario,
-            ot.estado as estadoMov,
-            (select name from users where id = ot.usr_registro) as userRegistro,
-            DATE_FORMAT(ot.created_at, '%Y-%m-%d') as fechaCreacion,
-            DATE_FORMAT(ot.created_at, '%Y-%m-%d %H:%i:%s') as fechaRegistro,
-            ot.factura_id
-                from otros_movimientos ot
-                inner join aplicacion_pagos ap on ap.id = ot.aplicacion_pagos_id
-                where
-                ap.cliente_id = ".$id."
-                and ap.estado = 1
-                and ot.estado = 1
-                ;"
-            );
+                    UNION ALL
+
+                    SELECT
+                        CONCAT('NC-LEG-', nc.id) AS codigoMovimiento,
+                        ap.id AS codigoPago,
+                        f.cai AS correlativo,
+                        FORMAT(nc.total, 2) AS monto,
+                        2 AS tipo_movimiento,
+                        nc.comentario,
+                        1 AS estadoMov,
+                        u.name AS userRegistro,
+                        DATE_FORMAT(COALESCE(nc.fecha_rebajado, nc.updated_at), '%Y-%m-%d') AS fechaCreacion,
+                        DATE_FORMAT(COALESCE(nc.fecha_rebajado, nc.updated_at), '%Y-%m-%d %H:%i:%s') AS fechaRegistro,
+                        nc.factura_id,
+                        nc.comentario AS comentarioNotaCredito
+                    FROM nota_credito nc
+                    INNER JOIN factura f ON f.id = nc.factura_id
+                    INNER JOIN aplicacion_pagos ap ON ap.factura_id = nc.factura_id
+                    LEFT JOIN users u ON u.id = nc.user_registra_rebaja
+                    WHERE ap.cliente_id = ?
+                        AND ap.estado = 1
+                        AND nc.estado_nota_id = 1
+                        AND nc.estado_rebajado = 1
+                        AND NOT EXISTS (
+                            SELECT 1
+                            FROM nota_credito_creditos ncc_legacy
+                            INNER JOIN nota_credito_movimientos ncm_legacy
+                                ON ncm_legacy.credito_id = ncc_legacy.id
+                                AND ncm_legacy.tipo = 'aplicacion'
+                            WHERE ncc_legacy.nota_credito_id = nc.id
+                        )
+
+                    UNION ALL
+
+                    SELECT
+                        CONCAT('NC-', ncm.id) AS codigoMovimiento,
+                        ncm.aplicacion_pagos_id AS codigoPago,
+                        fd.cai AS correlativo,
+                        FORMAT(ncm.monto, 2) AS monto,
+                        2 AS tipo_movimiento,
+                        CONCAT(
+                            'Nota de crédito ', nc.cai,
+                            ' aplicada a factura ', fd.cai,
+                            CASE
+                                WHEN NULLIF(TRIM(ncm.comentario), '') IS NULL THEN ''
+                                ELSE CONCAT(' - ', ncm.comentario)
+                            END
+                        ) AS comentario,
+                        1 AS estadoMov,
+                        u.name AS userRegistro,
+                        DATE_FORMAT(ncm.fecha_movimiento, '%Y-%m-%d') AS fechaCreacion,
+                        DATE_FORMAT(ncm.created_at, '%Y-%m-%d %H:%i:%s') AS fechaRegistro,
+                        ncm.factura_id,
+                        nc.comentario AS comentarioNotaCredito
+                    FROM nota_credito_movimientos ncm
+                    INNER JOIN nota_credito_creditos ncc ON ncc.id = ncm.credito_id
+                    INNER JOIN nota_credito nc ON nc.id = ncc.nota_credito_id
+                    INNER JOIN aplicacion_pagos ap ON ap.id = ncm.aplicacion_pagos_id
+                    INNER JOIN factura fd ON fd.id = ncm.factura_id
+                    LEFT JOIN users u ON u.id = ncm.users_id
+                    WHERE ap.cliente_id = ?
+                        AND ap.estado = 1
+                        AND ncm.tipo = 'aplicacion'
+                ) AS movimientos
+                ORDER BY movimientos.fechaRegistro DESC
+            ", [(int) $id, (int) $id, (int) $id]);
+
+            foreach ($consulta as $movimiento) {
+                if ($movimiento->comentarioNotaCredito !== null) {
+                    $movimiento->comentario = $this->formatearComentarioNotaCredito(
+                        $movimiento->comentarioNotaCredito
+                    );
+                }
+                unset($movimiento->comentarioNotaCredito);
+            }
 
 
 
@@ -346,6 +423,26 @@ class Pagos extends Component
                 'errorTh' => $e,
             ], 402);
         }
+    }
+
+    private function formatearComentarioNotaCredito(?string $comentario): string
+    {
+        $comentario = trim((string) $comentario);
+        if ($comentario === '') {
+            return 'Sin comentario';
+        }
+
+        $datos = json_decode($comentario, true);
+        if (!is_array($datos)) {
+            return $comentario;
+        }
+
+        $partes = array_values(array_unique(array_filter([
+            trim((string) ($datos['descripcion'] ?? '')),
+            trim((string) ($datos['notas'] ?? '')),
+        ])));
+
+        return $partes ? implode(' - ', $partes) : 'Sin comentario';
     }
 
     public function listarAbonos($id){
