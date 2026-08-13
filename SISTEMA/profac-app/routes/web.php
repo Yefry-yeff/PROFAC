@@ -295,6 +295,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/comision/reporte/nomina/detalle', [ReportesComisionesGenerales::class, 'detalleNomina']);
     Route::get('/comision/reporte/proyecciones', [ReportesComisionesGenerales::class, 'reporteProyecciones']);
     Route::post('/comision/reporte/proyecciones/exportar-excel', [ReportesComisionesGenerales::class, 'exportarProyeccionesExcel']);
+    Route::post('/comision/reporte/proyecciones/exportar-facturas', [ReportesComisionesGenerales::class, 'exportarFacturasProyectadasExcel']);
     Route::post('/comision/reporte/proyecciones/exportar-excel-15', [ReportesComisionesGenerales::class, 'exportarProyeccionesExcel15']);
     Route::post('/comision/reporte/proyecciones/exportar-nomina', [ReportesComisionesGenerales::class, 'exportarProyeccionesNomina']);
     Route::get('/comision/reporte/factura-por-actor', [ReportesComisionesGenerales::class, 'facturasPorActor']);

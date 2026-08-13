@@ -725,6 +725,9 @@ table.dataTable tbody td { font-size: 13px; vertical-align: middle; }
                             </span>
                         </div>
                         <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                            <button class="btn-export" type="button" style="background:#ecfdf5;color:#065f46;border-color:#6ee7b7;" onclick="exportarFacturasProyectadasExcel()">
+                                <i class="fa fa-file-excel-o"></i> Excel Todas las Facturas
+                            </button>
                             <button class="btn-export" type="button" style="background:#fff;color:#1e293b;" onclick="exportarProyeccionesExcel('proyectadas')">
                                 <i class="fa fa-file-excel-o"></i> Excel Proyectadas
                             </button>

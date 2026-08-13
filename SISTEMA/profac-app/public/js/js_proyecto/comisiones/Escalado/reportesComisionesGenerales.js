@@ -8,6 +8,7 @@ var dtRevFacturas=null;
 var dtRevProductos=null;
 var proyeccionesDataActual=[];
 var proyeccionesExcluidasActual=[];
+var proyeccionesFiltrosActuales=null;
 var proyBrechaDataActual=[];
 var revisionFacturasDataActual=[];
 var revisionProductosDataActual=[];
@@ -464,6 +465,7 @@ function generarProyecciones(){
     }
 
     $.getJSON('/comision/reporte/proyecciones', f, function(resp){
+        proyeccionesFiltrosActuales = Object.assign({}, f);
         renderProyecciones(resp || {});
         // Auto-calcular política anterior con las mismas facturas excluidas
         autoCalcularPoliticaAnterior();
@@ -893,7 +895,8 @@ function autoCalcularPoliticaAnterior() {
                 facturas_elegibles:         nFacturas
             };
             window._comisionPolAnteriorActual     = parseFloat(tot.total_comision || 0);
-            window._politicaAnteriorFacturaIds    = facturaIds; // IDs para el export
+            window._politicaAnteriorFacturaIds    = Array.isArray(res.factura_ids_elegibles)
+                ? res.factura_ids_elegibles : [];
             window._politicaAnteriorDetalleRows   = Array.isArray(res.detalle) ? res.detalle : []; // detalle líneas
 
             // Poblar fila de política anterior en el resumen
@@ -1101,6 +1104,42 @@ function exportarProyeccionesExcel(tipo){
     addInput('rows', JSON.stringify(proyeccionesDataActual));
     addInput('periodo', periodoTexto);
     addInput('download_token', token);
+
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
+}
+
+function exportarFacturasProyectadasExcel(){
+    if(!proyeccionesDataActual || !proyeccionesDataActual.length){
+        Swal.fire({icon:'info',title:'Sin datos',text:'Genere primero la proyección para descargar sus facturas.'});
+        return;
+    }
+
+    var filtros = proyeccionesFiltrosActuales;
+    if(!filtros || !filtros.fechaInicio || !filtros.fechaFin || !filtros.usuario_id){
+        Swal.fire({icon:'warning',title:'Filtros requeridos',text:'Seleccione rango y usuario, y genere nuevamente la proyección.'});
+        return;
+    }
+
+    var form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/comision/reporte/proyecciones/exportar-facturas';
+    form.style.display = 'none';
+
+    function addInput(name, value) {
+        var input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = name;
+        input.value = value;
+        form.appendChild(input);
+    }
+
+    addInput('_token', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
+    addInput('fechaInicio', filtros.fechaInicio);
+    addInput('fechaFin', filtros.fechaFin);
+    addInput('usuario_id', filtros.usuario_id);
+    if(filtros.rol_id) addInput('rol_id', filtros.rol_id);
 
     document.body.appendChild(form);
     form.submit();
