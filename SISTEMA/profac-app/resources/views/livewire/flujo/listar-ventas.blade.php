@@ -77,7 +77,7 @@
     </div>
 
     <div class="row mb-3">
-        <div class="col-md-4 mb-2">
+        <div class="col-md-3 mb-2">
             <div class="input-group">
                 <div class="input-group-prepend">
                     <span class="input-group-text"
@@ -100,7 +100,7 @@
                    placeholder="# Documento"
                    style="border-radius:8px;">
         </div>
-        <div class="col-md-3 mb-2">
+        <div class="col-md-2 mb-2">
             <select wire:model="filtroEstado" class="form-control" style="border-radius:8px;">
                 <option value="">Todos los estados</option>
                 <option value="pedido">Pedido</option>
@@ -109,6 +109,15 @@
                 <option value="factura">Factura</option>
                 <option value="Entrega Cobro">Entrega / Cobro</option>
                 <option value="sin_flujo">Sin flujo</option>
+            </select>
+        </div>
+        <div class="col-md-3 mb-2">
+            <select wire:model="filtroTipoVenta" class="form-control" style="border-radius:8px;">
+                <option value="">Todos los tipos</option>
+                <option value="expo">Expo</option>
+                @foreach($tiposVenta as $tipoVenta)
+                    <option value="{{ data_get($tipoVenta, 'id') }}">{{ ucfirst(data_get($tipoVenta, 'descripcion')) }}</option>
+                @endforeach
             </select>
         </div>
         <div class="col-md-3 mb-2">
@@ -170,6 +179,7 @@
                         <i class="fa {{ $sortColOfr==='cliente' ? ($sortDirOfr==='asc' ? 'fa-sort-asc' : 'fa-sort-desc') : 'fa-sort' }} sort-icon {{ $sortColOfr==='cliente' ? 'active' : '' }}"></i>
                     </th>
                     <th class="ofp-th static" style="width:140px;">RTN</th>
+                    <th class="ofp-th static" style="width:150px; text-align:center;">Tipo de venta</th>
                     <th class="ofp-th" wire:click="sortByOfr('estado_flujo')" style="width:145px; text-align:center;">
                         Estado
                         <i class="fa {{ $sortColOfr==='estado_flujo' ? ($sortDirOfr==='asc' ? 'fa-sort-asc' : 'fa-sort-desc') : 'fa-sort' }} sort-icon {{ $sortColOfr==='estado_flujo' ? 'active' : '' }}"></i>
@@ -214,6 +224,15 @@
                     </td>
                     <td class="align-middle" style="color:#546e7a; padding:8px 12px; font-size:12px;">
                         {{ $o['rtn'] ?: '—' }}
+                    </td>
+                    <td class="text-center align-middle" style="padding:8px 6px;">
+                        @forelse(array_filter(array_map('trim', explode(',', $o['tipos_venta'] ?? ''))) as $tipoVenta)
+                            <span class="hist-badge" style="margin:1px; background:{{ $tipoVenta === 'Expo' ? '#e8f5e9' : '#e3f2fd' }}; color:{{ $tipoVenta === 'Expo' ? '#2e7d32' : '#1565c0' }};">
+                                <i class="fa {{ $tipoVenta === 'Expo' ? 'fa-star' : 'fa-file-text-o' }} mr-1"></i>{{ ucfirst($tipoVenta) }}
+                            </span>
+                        @empty
+                            <span style="color:#b0bec5;">Sin oferta</span>
+                        @endforelse
                     </td>
                     <td class="text-center align-middle" style="padding:8px 6px;">
                         <span class="hist-badge {{ $estadoClass }}">

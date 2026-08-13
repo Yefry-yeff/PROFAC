@@ -13,6 +13,7 @@ class ListarVentas extends Component
     public $filtroEstado = '';
     public $filtroFecha  = '';
     public $filtroNumero = '';
+    public $filtroTipoVenta = '';
     public $sortColOfr   = 'created_at';
     public $sortDirOfr   = 'desc';
 
@@ -24,6 +25,7 @@ class ListarVentas extends Component
     public int $paginaOfr = 1;
     public int $perPage   = 5;
     public $registros     = [];
+    public $tiposVenta    = [];
 
     // ── Confirmación de cancelación ──────────────────────────────────────────
     public $pedidoAnularId   = null;
@@ -61,6 +63,11 @@ class ListarVentas extends Component
         $roles = Auth::user()->rolesIds();
         $this->esAdmin = in_array(1, $roles, true);
         $this->puedeVerTodoHistorial = count(array_intersect($roles, [1, 16])) > 0;
+        $this->tiposVenta = DB::table('tipo_venta')
+            ->where('id', '!=', 5)
+            ->orderBy('descripcion')
+            ->get(['id', 'descripcion'])
+            ->toArray();
         $this->cargarRegistros();
 
         // Si viene desde una notificación (?flujo_id=X), resolver pedido_id en PHP.
@@ -82,6 +89,7 @@ class ListarVentas extends Component
     public function updatedFiltroEstado() { $this->paginaOfr = 1; $this->cargarRegistros(); }
     public function updatedFiltroFecha() { $this->paginaOfr = 1; $this->cargarRegistros(); }
     public function updatedFiltroNumero() { $this->paginaOfr = 1; $this->cargarRegistros(); }
+    public function updatedFiltroTipoVenta() { $this->paginaOfr = 1; $this->cargarRegistros(); }
 
     public function sortByOfr(string $column): void
     {
@@ -185,6 +193,15 @@ class ListarVentas extends Component
                     END
                 ) as documento_display"),
                 DB::raw('COALESCE((SELECT COUNT(*) FROM historico_flujo hf2 WHERE hf2.flujo_id = f.id AND hf2.tipo_tramite_id = 2), 0) as total_ofertas'),
+                DB::raw("(SELECT GROUP_CONCAT(DISTINCT CASE
+                            WHEN ec.cotizacion_id IS NOT NULL THEN 'Expo'
+                            ELSE COALESCE(tv.descripcion, 'Sin tipo')
+                         END ORDER BY 1 SEPARATOR ', ')
+                         FROM historico_flujo hft
+                         INNER JOIN cotizacion ct ON ct.id = hft.tramite_id
+                         LEFT JOIN tipo_venta tv ON tv.id = ct.tipo_venta_id
+                         LEFT JOIN expo_cotizacion ec ON ec.cotizacion_id = ct.id
+                         WHERE hft.flujo_id = f.id AND hft.tipo_tramite_id = 2) as tipos_venta"),
                 DB::raw("CASE WHEN p.id IS NULL THEN 'cotizacion' ELSE 'pedido' END as origen")
             );
 
@@ -314,6 +331,23 @@ class ListarVentas extends Component
             $q->whereDate('f.created_at', $this->filtroFecha);
         }
 
+        if ($this->filtroTipoVenta !== '') {
+            $q->whereExists(function ($sub) {
+                $sub->select(DB::raw(1))
+                    ->from('historico_flujo as hft')
+                    ->join('cotizacion as ct', 'ct.id', '=', 'hft.tramite_id')
+                    ->leftJoin('expo_cotizacion as ec', 'ec.cotizacion_id', '=', 'ct.id')
+                    ->whereColumn('hft.flujo_id', 'f.id')
+                    ->where('hft.tipo_tramite_id', 2)
+                    ->when($this->filtroTipoVenta === 'expo', function ($expo) {
+                        $expo->whereNotNull('ec.cotizacion_id');
+                    }, function ($tipo) {
+                        $tipo->whereNull('ec.cotizacion_id')
+                            ->where('ct.tipo_venta_id', (int) $this->filtroTipoVenta);
+                    });
+            });
+        }
+
         $dir = strtolower($this->sortDirOfr) === 'asc' ? 'asc' : 'desc';
         switch ($this->sortColOfr) {
             case 'flujo_id':
@@ -347,6 +381,7 @@ class ListarVentas extends Component
         $this->filtroEstado    = '';
         $this->filtroFecha     = '';
         $this->filtroNumero    = '';
+        $this->filtroTipoVenta = '';
         $this->paginaOfr       = 1;
         $this->cargarRegistros();
     }

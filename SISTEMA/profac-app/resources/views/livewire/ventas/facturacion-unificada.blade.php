@@ -820,6 +820,13 @@
                                         <i class="fa fa-shopping-cart text-warning"></i> Carrito de productos
                                     </span>
                                     <span id="cart-count-badge">0 producto(s)</span>
+                                    @if(!empty($expoConfig))
+                                    <button type="button" class="btn btn-sm btn-outline-success ml-auto"
+                                        onclick="event.stopPropagation(); abrirResumenMarcasCarritoExpo();"
+                                        title="Ver resumen del carrito por marca">
+                                        <i class="fa fa-tags mr-1"></i> Resumen por marca
+                                    </button>
+                                    @endif
                                     <i class="ml-2 fa fa-chevron-down of-chevron" style="margin-left:8px;"></i>
                                 </div>
 
@@ -879,6 +886,9 @@
                                                 <input type="text" id="descuentoMostrar" name="descuentoMostrar" class="val" placeholder="L. 0.00" data-parsley-required autocomplete="off" readonly>
                                                 <input type="hidden" value="0" id="porDescuentoCalculado" name="porDescuentoCalculado">
                                             </div>
+                                            @if(!empty($expoConfig))
+                                            <div id="descuentoExpoResumenMarcas" style="padding:0 14px 8px; font-size:11px;"></div>
+                                            @endif
                                             <div class="of-total-row">
                                                 <span class="lbl"><i class="mr-1 fa fa-list text-muted"></i> Sub Total</span>
                                                 <input type="text" id="subTotalGeneralMostrar" class="val" placeholder="L. 0.00" readonly autocomplete="off">
@@ -1798,6 +1808,23 @@
                     <div id="cotizadorExpoResultado">
                         <div class="text-center text-muted py-4"><i class="fa fa-tags fa-2x mb-2 d-block"></i>Seleccione un producto para consultar sus descuentos.</div>
                     </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalResumenMarcasCarritoExpo" tabindex="-1" role="dialog" aria-labelledby="tituloResumenMarcasCarritoExpo" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+            <div class="modal-content" style="border:0; border-radius:8px; overflow:hidden;">
+                <div class="modal-header" style="background:#1f6f50; color:#fff; border:0;">
+                    <h5 class="modal-title" id="tituloResumenMarcasCarritoExpo"><i class="fa fa-tags mr-2"></i>Resumen del carrito por marca</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar" style="color:#fff; opacity:.9; text-shadow:none;"><span aria-hidden="true">&times;</span></button>
+                </div>
+                <div class="modal-body" style="background:#f7faf8;">
+                    <div id="resumenMarcasCarritoExpoContenido"></div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cerrar</button>
@@ -3125,6 +3152,7 @@
                     <td style="vertical-align:middle; text-align:center; padding:4px 6px;">
                         <input id="idProducto${numeroInputs}" name="idProducto${numeroInputs}" type="hidden" value="${producto.id}">
                         <input id="marcaExpoId${numeroInputs}" type="hidden" value="${producto.marca_id || 0}">
+                        <input id="marcaExpoNombre${numeroInputs}" type="hidden" value="${producto.marca || 'SIN MARCA'}">
                         <input id="precios_producto_carga_id${numeroInputs}" name="precios_producto_carga_id${numeroInputs}" type="hidden" value="${producto.precios_producto_carga_id || ''}">
                         <input id="isv${numeroInputs}" name="isv${numeroInputs}" type="hidden" value="${producto.isv}">
                         <input id="idBodega${numeroInputs}" name="idBodega${numeroInputs}" type="hidden" value="${idBodega}">
@@ -3210,6 +3238,7 @@
     // ================================================================
     function calcularTotalesInicioPagina() {
         let arrayInputs = this.arregloIdInputs;
+        let calculoExpo = calcularDescuentosCarritoExpo();
         arrayInputs.forEach(id => {
             let valorInputPrecio = document.getElementById('precio' + id).value;
             let valorInputCantidad = document.getElementById('cantidad' + id).value;
@@ -3225,7 +3254,12 @@
                 let descuento = document.getElementById("porDescuento").value;
                 let subTotal = 0, isv = 0, total = 0, descuentoCalculado = 0;
 
-                if (descuento > 0) {
+                if (calculoExpo?.lineas[id]) {
+                    subTotal = calculoExpo.lineas[id].subtotalNeto;
+                    descuentoCalculado = calculoExpo.lineas[id].descuentoTotal;
+                    isv = calculoExpo.lineas[id].isv;
+                    total = calculoExpo.lineas[id].total;
+                } else if (descuento > 0) {
                     subTotal = valorInputPrecio * (valorInputCantidad * valorSelectUnidad);
                     descuentoCalculado = subTotal * (descuento / 100);
                     subTotal = subTotal - descuentoCalculado;
@@ -3267,7 +3301,7 @@
             idRestaInventario.value = valorInputCantidad * valorSelectUnidad;
         }
 
-        if (actualizarDescuentoExpo()) {
+        if (expoConfig) {
             calcularTotalesInicioPagina();
             idPrecio.value = valorInputPrecio;
             actualizarContadorCarrito();
@@ -3360,6 +3394,7 @@
             }
 
             var marca = document.getElementById('marcaExpoId' + id);
+            var marcaNombre = document.getElementById('marcaExpoNombre' + id);
             if (!marca) {
                 marca = document.createElement('input');
                 marca.type = 'hidden';
@@ -3368,6 +3403,12 @@
                 var producto = document.getElementById('idProducto' + id);
                 if (producto?.parentNode) producto.parentNode.insertBefore(marca, producto.nextSibling);
 
+                marcaNombre = document.createElement('input');
+                marcaNombre.type = 'hidden';
+                marcaNombre.id = 'marcaExpoNombre' + id;
+                marcaNombre.value = 'SIN MARCA';
+                if (marca.parentNode) marca.parentNode.insertBefore(marcaNombre, marca.nextSibling);
+
                 var precioCargaId = document.getElementById('precios_producto_carga_id' + id)?.value || null;
                 consultasMarca.push(axios.post(urls.datos_producto, {
                     idProducto: producto?.value,
@@ -3375,15 +3416,16 @@
                     precios_producto_carga_id: precioCargaId
                 }).then(function(response) {
                     marca.value = response.data.producto?.marca_id || 0;
+                    marcaNombre.value = response.data.producto?.marca || 'SIN MARCA';
                 }).catch(function() {
                     marca.value = 0;
                 }));
             }
         });
 
-        actualizarDescuentosProductosExpo();
+        calcularTotalesInicioPagina();
         if (consultasMarca.length > 0) {
-            Promise.allSettled(consultasMarca).then(actualizarDescuentosProductosExpo);
+            Promise.allSettled(consultasMarca).then(calcularTotalesInicioPagina);
         }
     }
 
@@ -3481,13 +3523,15 @@
                 var cantidad = Math.max(1, Math.ceil((umbral - 0.005) / precio));
                 return '<tr data-cotizador-fila="' + indice + '"><td style="min-width:105px;">'
                     + '<input type="number" min="1" step="1" inputmode="numeric" value="' + cantidad + '" class="form-control form-control-sm text-center cotizador-expo-cantidad" oninput="recalcularFilaCotizadorExpo(this)"></td>'
-                    + '<td class="text-right" data-campo="compra"></td>'
                     + '<td class="text-right" data-campo="precio"></td>'
+                    + '<td class="text-right" data-campo="compra"></td>'
                     + '<td class="text-center" data-campo="marca"></td>'
                     + '<td class="text-center" data-campo="general"></td>'
+                    + '<td class="text-right" data-campo="final-sin-isv"></td>'
                     + '<td class="text-right" data-campo="isv"></td>'
                     + '<td class="text-right" data-campo="final"></td>'
-                    + '<td class="text-right" data-campo="ahorro"></td></tr>';
+                    + '<td class="text-right" data-campo="ahorro"></td>'
+                    + '<td class="text-right" data-campo="ahorro-total"></td></tr>';
             }).join('');
 
                 var nombreEscala = selectorEscala.options[selectorEscala.selectedIndex]?.text || ('Escala ' + categoriaId);
@@ -3496,7 +3540,7 @@
                     + ' &nbsp; <i class="fa fa-list-alt mr-1 text-success"></i>Escala: <strong>' + $('<div>').text(nombreEscala).html() + '</strong>'
                     + ' &nbsp; Precio unitario base: <strong>' + formatoMoneda(precio) + '</strong></small></div>'
                     + '<div class="table-responsive"><table class="table table-sm table-bordered cotizador-expo-tabla mb-2">'
-                        + '<thead><tr><th class="text-center">Desde cantidad</th><th class="text-right">Compra estimada</th><th class="text-right">Precio unitario</th><th class="text-center">Desc. marca</th><th class="text-center">Desc. general</th><th class="text-right">ISV unitario</th><th class="text-right">Precio unitario final</th><th class="text-right">Ahorro por unidad</th></tr></thead>'
+                        + '<thead><tr><th class="text-center">Desde cantidad</th><th class="text-right">Precio unitario</th><th class="text-right">Subtotal de la compra</th><th class="text-center">Desc. marca</th><th class="text-center">Desc. general</th><th class="text-right">Precio unitario final</th><th class="text-right">ISV</th><th class="text-right">Precio U.F. + ISV</th><th class="text-right">Ahorro por unidad</th><th class="text-right">Ahorro total</th></tr></thead>'
                     + '<tbody>' + filas + '</tbody></table></div>'
                     + '<small class="text-muted">Estimación basada en las reglas vigentes de esta Expo. Marca primero y descuento general después.</small>';
                     resultado.querySelectorAll('.cotizador-expo-cantidad').forEach(recalcularFilaCotizadorExpo);
@@ -3536,9 +3580,11 @@
         fila.querySelector('[data-campo="precio"]').textContent = formatoMoneda(precio);
         fila.querySelector('[data-campo="marca"]').textContent = porcentajeMarca.toFixed(2) + '%';
         fila.querySelector('[data-campo="general"]').textContent = porcentajeGeneral.toFixed(2) + '%';
+        fila.querySelector('[data-campo="final-sin-isv"]').innerHTML = '<strong class="text-success">' + formatoMoneda(precioConDescuento) + '</strong>';
         fila.querySelector('[data-campo="isv"]').innerHTML = formatoMoneda(isvUnitario) + '<small class="d-block text-muted">' + datosCalculoCotizadorExpo.porcentajeIsv.toFixed(2) + '%</small>';
         fila.querySelector('[data-campo="final"]').innerHTML = '<strong class="text-success">' + formatoMoneda(precioFinal) + '</strong>';
         fila.querySelector('[data-campo="ahorro"]').textContent = formatoMoneda(precio - precioConDescuento);
+        fila.querySelector('[data-campo="ahorro-total"]').textContent = formatoMoneda((precio - precioConDescuento) * cantidad);
     }
 
     function actualizarContadorCarrito() {
@@ -3569,11 +3615,6 @@
     function totalesGenerales() {
         if (numeroInputs == 0) {
             actualizarSimulacionDescuentoMarcaExpo();
-            return;
-        }
-
-        if (!esOfertaExpo && actualizarDescuentoExpo()) {
-            calcularTotalesInicioPagina();
             return;
         }
 
@@ -3608,6 +3649,7 @@
         document.getElementById('isvGeneralMostrar').value = formatoMoneda(totalISV);
         document.getElementById('totalGeneral').value = totalGeneralValor.toFixed(2);
         document.getElementById('totalGeneralMostrar').value = formatoMoneda(totalGeneralValor);
+        renderizarResumenDescuentoExpo(calcularDescuentosCarritoExpo());
         actualizarSimulacionDescuentoMarcaExpo();
     }
 
@@ -3617,57 +3659,57 @@
         var panel = document.getElementById('simulacionDescuentoMarcaExpo');
         var detalle = document.getElementById('simulacionDescuentoMarcaExpoDetalle');
         if (!panel || !detalle) return;
-
-        var subtotales = {};
-        arregloIdInputs.forEach(function(id) {
-            var marcaId = Number(document.getElementById('marcaExpoId' + id)?.value || 0);
-            if (marcaId <= 0) return;
-            subtotales[marcaId] = (subtotales[marcaId] || 0) + Number(document.getElementById('subTotal' + id)?.value || 0);
-        });
-
-        var reglas = Array.isArray(reglasExpoOferta.marcas) ? reglasExpoOferta.marcas : [];
-        var filas = reglas.filter(function(regla) {
-            return Number(subtotales[Number(regla.marca_id)] || 0) > 0;
-        }).map(function(regla) {
-            var subtotal = Number(subtotales[Number(regla.marca_id)] || 0);
-            var minimo = Number(regla.venta_minima || 0);
-            var cumple = subtotal + 0.005 >= minimo;
-            var descuento = cumple ? subtotal * Number(regla.porcentaje_descuento || 0) / 100 : 0;
-            return '<tr><td>' + $('<div>').text(regla.marca || 'Marca').html() + '</td>'
-                + '<td class="text-right">' + formatoMoneda(subtotal) + '</td>'
-                + '<td class="text-right">' + formatoMoneda(minimo) + '</td>'
-                + '<td class="text-center"><strong class="' + (cumple ? 'text-success' : 'text-muted') + '">' + (cumple ? 'Cumple descuento' : 'No cumple descuento') + '</strong></td>'
-                + '<td class="text-right">' + formatoMoneda(descuento) + '</td></tr>';
+        var calculo = calcularDescuentosCarritoExpo();
+        var filas = Object.values(calculo?.marcas || {}).filter(function(marca) {
+            return marca.subtotal > 0;
+        }).map(function(marca) {
+            return '<tr><td>' + $('<div>').text(marca.nombre).html() + '</td>'
+                + '<td class="text-right">' + formatoMoneda(marca.subtotal) + '</td>'
+                + '<td class="text-right">' + formatoMoneda(marca.descuentoMarca) + '</td>'
+                + '<td class="text-right">' + formatoMoneda(marca.descuentoGeneral) + '</td>'
+                + '<td class="text-right"><strong>' + formatoMoneda(marca.descuentoTotal) + '</strong></td></tr>';
         }).join('');
 
         panel.style.display = filas ? 'block' : 'none';
         detalle.innerHTML = filas
-            ? '<div class="table-responsive"><table class="table table-sm table-bordered mb-2"><thead><tr><th>Marca</th><th class="text-right">Subtotal seleccionado</th><th class="text-right">Mínimo</th><th class="text-center">Estado</th><th class="text-right">Descuento estimado</th></tr></thead><tbody>' + filas + '</tbody></table></div>'
+            ? '<div class="table-responsive"><table class="table table-sm table-bordered mb-2"><thead><tr><th>Marca</th><th class="text-right">Subtotal</th><th class="text-right">Desc. marca</th><th class="text-right">Desc. general</th><th class="text-right">Descuento total</th></tr></thead><tbody>' + filas + '</tbody></table></div>'
             : '';
     }
 
     function actualizarDescuentosProductosExpo() {
-        var configuracion = esOfertaExpo ? reglasExpoOferta : (expoConfig || {});
+        var calculo = calcularDescuentosCarritoExpo();
+        if (!calculo) return;
+        arregloIdInputs.forEach(function(id) {
+            var indicador = document.getElementById('descuentoExpoProducto' + id);
+            if (!indicador) return;
+            var linea = calculo.lineas[id];
+            indicador.style.display = 'block';
+            indicador.innerHTML = '<strong style="color:#1b5e20;">' + formatoMoneda(linea?.descuentoTotal || 0) + '</strong>';
+        });
+    }
+
+    function calcularDescuentosCarritoExpo() {
+        if (!expoConfig) return null;
+        var configuracion = esOfertaExpo ? reglasExpoOferta : expoConfig;
         var reglasMarca = esOfertaExpo
             ? (Array.isArray(configuracion.marcas) ? configuracion.marcas : [])
             : (Array.isArray(configuracion.descuentos_marca) ? configuracion.descuentos_marca : []);
         var reglasGenerales = esOfertaExpo
             ? (Array.isArray(configuracion.generales) ? configuracion.generales : [])
             : (Array.isArray(configuracion.descuentos) ? configuracion.descuentos : []);
-        if (!esOfertaExpo && !expoConfig) return;
-
         var totalBruto = 0;
+        var importes = {};
         var subtotalesMarca = {};
-        var importesLinea = {};
+
         arregloIdInputs.forEach(function(id) {
             var precio = Number(document.getElementById('precio' + id)?.value || 0);
             var cantidad = Number(document.getElementById('cantidad' + id)?.value || 0);
             var unidad = Number(document.getElementById('unidad' + id)?.value || 0);
-            var importe = precio * cantidad * unidad;
             var marcaId = Number(document.getElementById('marcaExpoId' + id)?.value || 0);
-            importesLinea[id] = importe;
+            var importe = precio * cantidad * unidad;
+            importes[id] = { precio: precio, cantidad: cantidad, unidad: unidad, marcaId: marcaId, importe: importe };
             totalBruto += importe;
-            if (marcaId > 0) subtotalesMarca[marcaId] = (subtotalesMarca[marcaId] || 0) + importe;
+            subtotalesMarca[marcaId] = (subtotalesMarca[marcaId] || 0) + importe;
         });
 
         var porcentajeGeneral = 0;
@@ -3680,25 +3722,84 @@
             }
         });
 
-        arregloIdInputs.forEach(function(id) {
-            var indicador = document.getElementById('descuentoExpoProducto' + id);
-            if (!indicador) return;
-            var importe = Number(importesLinea[id] || 0);
-            var marcaId = Number(document.getElementById('marcaExpoId' + id)?.value || 0);
-            var reglaMarca = reglasMarca.find(function(regla) { return Number(regla.marca_id) === marcaId; });
-            var porcentajeMarca = reglaMarca && Number(subtotalesMarca[marcaId] || 0) + 0.005 >= Number(reglaMarca.venta_minima || 0)
+        var resultado = { lineas: {}, marcas: {}, totalDescuento: 0, totalBruto: totalBruto, porcentajeGeneral: porcentajeGeneral };
+        Object.keys(importes).forEach(function(id) {
+            var datos = importes[id];
+            var redondearMoneda = function(valor) { return Math.round((valor + Number.EPSILON) * 100) / 100; };
+            var reglaMarca = reglasMarca.find(function(regla) { return Number(regla.marca_id) === datos.marcaId; });
+            var porcentajeMarca = reglaMarca && Number(subtotalesMarca[datos.marcaId] || 0) + 0.005 >= Number(reglaMarca.venta_minima || 0)
                 ? Number(reglaMarca.porcentaje_descuento || 0)
                 : 0;
-            var descuentoMarca = importe * porcentajeMarca / 100;
-            var descuentoGeneral = (importe - descuentoMarca) * porcentajeGeneral / 100;
-            var descuentoTotal = descuentoMarca + descuentoGeneral;
-            var porcentajeEfectivo = importe > 0 ? descuentoTotal / importe * 100 : 0;
+            var descuentoMarca = redondearMoneda(datos.importe * porcentajeMarca / 100);
+            var descuentoGeneral = redondearMoneda((datos.importe - descuentoMarca) * porcentajeGeneral / 100);
+            var descuentoTotal = redondearMoneda(descuentoMarca + descuentoGeneral);
+            var subtotalNeto = redondearMoneda(datos.importe - descuentoTotal);
+            var porcentajeIsv = tipoFacturaConfig && !tipoFacturaConfig.aplica_isv
+                ? 0
+                : Number(document.getElementById('isv' + id)?.value || 0);
+            var isv = redondearMoneda(subtotalNeto * porcentajeIsv / 100);
+            var nombreMarca = document.getElementById('marcaExpoNombre' + id)?.value
+                || reglaMarca?.marca || reglaMarca?.marca_nombre || (datos.marcaId ? 'Marca ' + datos.marcaId : 'SIN MARCA');
 
-            indicador.style.display = 'block';
-            indicador.innerHTML = '<span style="display:inline-block; background:#e8f5e9; color:#1b5e20; border-radius:5px; padding:2px 5px; font-weight:700;">'
-                + 'Descuento estimado: ' + porcentajeEfectivo.toFixed(2) + '% · ' + formatoMoneda(descuentoTotal) + '</span>'
-                + '<span style="display:block; color:#78909c; margin-top:2px;">Marca ' + porcentajeMarca.toFixed(2) + '% + general ' + porcentajeGeneral.toFixed(2) + '%</span>';
+            resultado.lineas[id] = {
+                descuentoMarca: descuentoMarca,
+                descuentoGeneral: descuentoGeneral,
+                descuentoTotal: descuentoTotal,
+                subtotalNeto: subtotalNeto,
+                isv: isv,
+                total: redondearMoneda(subtotalNeto + isv)
+            };
+            if (!resultado.marcas[datos.marcaId]) {
+                resultado.marcas[datos.marcaId] = { nombre: nombreMarca, porcentajeMarca: porcentajeMarca, cantidad: 0, subtotal: 0, descuentoMarca: 0, descuentoGeneral: 0, descuentoTotal: 0 };
+            }
+            var marca = resultado.marcas[datos.marcaId];
+            marca.cantidad += datos.cantidad * datos.unidad;
+            marca.subtotal += datos.importe;
+            marca.descuentoMarca += descuentoMarca;
+            marca.descuentoGeneral += descuentoGeneral;
+            marca.descuentoTotal += descuentoTotal;
+            resultado.totalDescuento += descuentoTotal;
         });
+        return resultado;
+    }
+
+    function renderizarResumenDescuentoExpo(calculo) {
+        var contenedor = document.getElementById('descuentoExpoResumenMarcas');
+        if (!contenedor || !calculo) return;
+        var marcas = Object.values(calculo.marcas).filter(function(marca) { return marca.subtotal > 0; });
+        var filasMarca = marcas.map(function(marca) {
+            return '<div class="d-flex justify-content-between" style="gap:12px; color:#546e7a;">'
+                + '<span>' + $('<div>').text(marca.nombre).html() + ' <strong>(' + Number(marca.porcentajeMarca || 0).toFixed(2) + '%)</strong></span>'
+                + '<strong>' + formatoMoneda(marca.descuentoMarca) + '</strong></div>';
+        }).join('');
+        var totalGeneral = marcas.reduce(function(total, marca) { return total + marca.descuentoGeneral; }, 0);
+        var filaGeneral = '<div class="d-flex justify-content-between" style="gap:12px; color:#546e7a;">'
+            + '<span>Descuento general <strong>(' + Number(calculo.porcentajeGeneral || 0).toFixed(2) + '%)</strong></span>'
+            + '<strong>' + formatoMoneda(totalGeneral) + '</strong></div>';
+        contenedor.innerHTML = filasMarca + filaGeneral;
+    }
+
+    function abrirResumenMarcasCarritoExpo() {
+        var calculo = calcularDescuentosCarritoExpo();
+        var contenido = document.getElementById('resumenMarcasCarritoExpoContenido');
+        if (!contenido || !calculo) return;
+        var marcas = Object.values(calculo.marcas).filter(function(marca) { return marca.subtotal > 0; });
+        if (marcas.length === 0) {
+            contenido.innerHTML = '<div class="text-center text-muted py-4">No hay productos en el carrito.</div>';
+        } else {
+            var filas = marcas.map(function(marca) {
+                return '<tr><td>' + $('<div>').text(marca.nombre).html() + '</td>'
+                    + '<td class="text-right">' + Number(marca.cantidad).toLocaleString('es-HN', { maximumFractionDigits: 2 }) + '</td>'
+                    + '<td class="text-right">' + formatoMoneda(marca.subtotal) + '</td>'
+                    + '<td class="text-right">' + formatoMoneda(marca.descuentoMarca) + '</td>'
+                    + '<td class="text-right">' + formatoMoneda(marca.descuentoGeneral) + '</td>'
+                    + '<td class="text-right"><strong class="text-success">' + formatoMoneda(marca.descuentoTotal) + '</strong></td></tr>';
+            }).join('');
+            contenido.innerHTML = '<div class="table-responsive"><table class="table table-sm table-bordered mb-0" style="background:#fff; font-size:12px;">'
+                + '<thead style="background:#e6f1eb; color:#245c46;"><tr><th>Marca</th><th class="text-right">Cantidad</th><th class="text-right">Subtotal</th><th class="text-right">Desc. marca</th><th class="text-right">Desc. general</th><th class="text-right">Descuento total</th></tr></thead>'
+                + '<tbody>' + filas + '</tbody></table></div>';
+        }
+        $('#modalResumenMarcasCarritoExpo').modal('show');
     }
 
     function actualizarDescuentoExpo() {
@@ -5124,6 +5225,7 @@
                         <input id="idProducto${idx}" name="idProducto${idx}" type="hidden" value="${prod.producto_id || ''}">
                         <input id="cotizacionLineaId${idx}" name="cotizacionLineaId${idx}" type="hidden" value="${prod.cotizacion_has_producto_id || ''}">
                         <input id="marcaExpoId${idx}" type="hidden" value="${prod.marca_id || 0}">
+                        <input id="marcaExpoNombre${idx}" type="hidden" value="${prod.marca_nombre || 'SIN MARCA'}">
                         <input id="precios_producto_carga_id${idx}" name="precios_producto_carga_id${idx}" type="hidden" value="${prod.precios_producto_carga_id || ''}">
                         <input id="isv${idx}" name="isv${idx}" type="hidden" value="${isvPct}">
                         <input id="idBodega${idx}" name="idBodega${idx}" type="hidden" value="${idBodega}">
@@ -5275,6 +5377,7 @@
                             <input id="idProducto${idx}" name="idProducto${idx}" type="hidden" value="${producto.id}">
                             <input id="cotizacionLineaId${idx}" name="cotizacionLineaId${idx}" type="hidden" value="${prod.cotizacion_has_producto_id || ''}">
                             <input id="marcaExpoId${idx}" type="hidden" value="${prod.marca_id || 0}">
+                            <input id="marcaExpoNombre${idx}" type="hidden" value="${prod.marca_nombre || producto.marca || 'SIN MARCA'}">
                             <input id="precios_producto_carga_id${idx}" name="precios_producto_carga_id${idx}" type="hidden" value="${producto.precios_producto_carga_id || ''}">
                             <input id="isv${idx}" name="isv${idx}" type="hidden" value="${producto.isv}">
                             <input id="idBodega${idx}" name="idBodega${idx}" type="hidden" value="${idBodega}">

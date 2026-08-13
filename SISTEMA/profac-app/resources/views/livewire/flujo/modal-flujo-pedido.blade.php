@@ -165,7 +165,7 @@
     class="fmp-overlay"
      style="position:fixed; inset:0; z-index:99999;
           display:flex;
-            pointer-events:none;
+                        pointer-events:auto;
             background:rgba(15,15,35,.62); backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);">
 
     <div class="fmp-dlg" role="document">
@@ -1116,7 +1116,9 @@
 
                     {{-- Confirmación: Ganadora --}}
                     @if (!$facturaCompletada && $confirmAccionOferta === 'ganadora')
-                    <div style="margin-top:12px; background:#fff8e1; border:1px solid #ffe082;
+                    <div x-data="{}"
+                        x-init="$nextTick(() => setTimeout(() => { $refs.comentarioGanadoraTA.scrollIntoView({ block: 'center' }); $refs.comentarioGanadoraTA.focus(); }, 100))"
+                        style="margin-top:12px; background:#fff8e1; border:1px solid #ffe082;
                                 border-radius:12px; padding:14px;">
 
                         {{-- Errores de inventario (si los hay) --}}
@@ -1167,6 +1169,7 @@
                                 Comentario para Créditos (opcional)
                             </label>
                             <textarea wire:model.defer="comentarioCreditoGanadora"
+                                      x-ref="comentarioGanadoraTA"
                                       rows="2"
                                       placeholder="Escribe una observación para el área de créditos..."
                                       style="width:100%; border:1px solid #ddd; border-radius:8px; padding:8px 10px; font-size:12px; resize:vertical;"></textarea>
