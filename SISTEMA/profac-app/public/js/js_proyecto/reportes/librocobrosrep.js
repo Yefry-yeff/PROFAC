@@ -89,7 +89,10 @@ function cargarTablaLC() {
             { data: 'teleasesor' },
             { data: 'factura', render: function(d) { return '<strong>' + escHtmlLC(d) + '</strong>'; } },
             { data: 'monto_cobrado', className: 'text-right', render: function(d) { return fmtLpsLC(d); } },
-            { data: 'estado_factura', render: function(d) { return '<span class="badge ' + (d === 'PAGADA' ? 'badge-success' : 'badge-warning') + '">' + d + '</span>'; } },
+            { data: 'estado_factura', render: function(d) {
+                var completa = d === 'PAGADA';
+                return '<span class="badge ' + (completa ? 'badge-success' : 'badge-warning') + '">' + (completa ? 'COMPLETO' : d) + '</span>';
+            } },
             { data: 'banco' },
             { data: 'cuenta_banco' },
             { data: 'observaciones' },
