@@ -6,6 +6,8 @@ namespace App\Http\Livewire\Ventas;
 
 use App\Support\ExpoConfig;
 use App\Support\ClienteActoresAsignados;
+use App\Services\Expo\LiquidacionOfertaExpo;
+use App\Services\Expo\SaldoLineasOferta;
 use Livewire\Component;
 
 
@@ -13,6 +15,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use DataTables;
 use Auth;
 use Validator;
@@ -692,6 +695,8 @@ class FacturacionEstatal extends Component
                 SELECT
                     p.id,
                     CONCAT(p.id,' - ',p.nombre) AS nombre,
+                    p.marca_id,
+                    COALESCE(m.nombre, 'SIN MARCA') AS marca,
                     p.isv,
                     p.ultimo_costo_compra AS ultimo_costo_compra,
                     ppc.precio_base_venta AS precio_base,
@@ -701,6 +706,7 @@ class FacturacionEstatal extends Component
                     ppc.precio_d AS precio4,
                     ppc.id AS precios_producto_carga_id
                 FROM producto p
+                LEFT JOIN marca m ON m.id = p.marca_id
                 JOIN precios_producto_carga ppc
                     ON ppc.producto_id = p.id
                     AND ppc.categoria_precios_id = :categoria_cliente_venta_id
@@ -721,6 +727,8 @@ class FacturacionEstatal extends Component
                     SELECT
                         p.id,
                         CONCAT(p.id,' - ',p.nombre) AS nombre,
+                        p.marca_id,
+                        COALESCE(m.nombre, 'SIN MARCA') AS marca,
                         p.isv,
                         p.ultimo_costo_compra AS ultimo_costo_compra,
                         ppc.precio_base_venta AS precio_base,
@@ -730,6 +738,7 @@ class FacturacionEstatal extends Component
                         ppc.precio_d AS precio4,
                         ppc.id AS precios_producto_carga_id
                     FROM producto p
+                    LEFT JOIN marca m ON m.id = p.marca_id
                     JOIN precios_producto_carga ppc ON ppc.producto_id = p.id AND ppc.id = :ppc_id
                     WHERE p.id = :idProducto
                     LIMIT 1;
@@ -945,6 +954,9 @@ class FacturacionEstatal extends Component
 
             DB::beginTransaction();
 
+            $lineasExpoPorIndice = app(SaldoLineasOferta::class)
+                ->validarSolicitudFactura($request, $arrayInputs);
+
             $cai = DB::SELECTONE("select
                     id,
                     numero_inicial,
@@ -1113,7 +1125,7 @@ class FacturacionEstatal extends Component
                 $total = $request->$keyTotal;
                 $tipoPrecio = ($ivsProducto > 0) ? '2' : '1'; // '1' = Excento (producto sin ISV, isv = 0) | '2' = Gravado (producto con ISV, isv > 0)
 
-                $this->restarUnidadesInventario($precios_producto_carga_id, $idPrecioSeleccionado,$precioSeleccionado ,$restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $arrayInputs[$i], $tipoPrecio);
+                $this->restarUnidadesInventario($precios_producto_carga_id, $idPrecioSeleccionado,$precioSeleccionado ,$restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $arrayInputs[$i], $tipoPrecio, $lineasExpoPorIndice[(string) $arrayInputs[$i]] ?? null);
             };
 
 
@@ -1144,6 +1156,20 @@ class FacturacionEstatal extends Component
                 }
             }
 
+            $liquidacionExpo = null;
+            $cotizacionId = (int) ($request->cotizacion_id ?? 0);
+            $flujoId = (int) ($request->flujo_id ?? 0);
+            if ($cotizacionId > 0 && $flujoId > 0 && DB::table('expo_cotizacion')->where('cotizacion_id', $cotizacionId)->exists()) {
+                $liquidacionExpo = app(LiquidacionOfertaExpo::class)->procesar(
+                    $cotizacionId,
+                    $flujoId,
+                    (int) $factura->id,
+                    $request->boolean('ultima_factura'),
+                    $request->motivo_cierre,
+                    Auth::id()
+                );
+            }
+
             DB::commit();
 
             if (($request->modo ?? null) === 'editar_factura' && !empty($request->prefactura_id) && !empty($request->autorizacion_id)) {
@@ -1169,11 +1195,25 @@ class FacturacionEstatal extends Component
                 </div>',
                 'title' => 'Exito!',
                 'idFactura' => $factura->id,
-                'numeroVenta' => $numeroVenta->numero
+                'numeroVenta' => $numeroVenta->numero,
+                'liquidacionExpo' => $liquidacionExpo,
 
             ], 200);
+        } catch (ValidationException $e) {
+            if (DB::transactionLevel()) {
+                DB::rollBack();
+            }
+
+            return response()->json([
+                'icon' => 'warning',
+                'title' => 'Cantidad Expo no disponible',
+                'text' => collect($e->errors())->flatten()->first(),
+                'errors' => $e->errors(),
+            ], 422);
         } catch (QueryException $e) {
-            DB::rollback();
+            if (DB::transactionLevel()) {
+                DB::rollBack();
+            }
             return response()->json([
                 'error' => 'Ha ocurrido un error al realizar la factura.',
                 'icon' => "error",
@@ -1182,11 +1222,21 @@ class FacturacionEstatal extends Component
                 'idFactura' => "",
                 'mensajeError'=>$e
             ], 402);
+        } catch (\Throwable $e) {
+            if (DB::transactionLevel()) {
+                DB::rollBack();
+            }
+            report($e);
 
+            return response()->json([
+                'icon' => 'error',
+                'title' => 'Error al guardar la factura',
+                'text' => 'No se completó la factura ni su liquidación Expo.',
+            ], 500);
         }
     }
 
-    public function restarUnidadesInventario($precios_producto_carga_id,$idPrecioSeleccionado,$precioSeleccionado ,$unidadesRestarInv, $idProducto, $idSeccion, $idFactura, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $indice, $tipoPrecio = '2')
+    public function restarUnidadesInventario($precios_producto_carga_id,$idPrecioSeleccionado,$precioSeleccionado ,$unidadesRestarInv, $idProducto, $idSeccion, $idFactura, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $indice, $tipoPrecio = '2', $cotizacionLineaId = null)
     {
         //dd("Categoria Cliente primer producto : ".$categoriaClientePrecio);
         try {
@@ -1265,6 +1315,7 @@ class FacturacionEstatal extends Component
 
                 array_push($this->arrayProductos, [
                     "factura_id" => $idFactura,
+                    "cotizacion_has_producto_id" => $cotizacionLineaId,
                     "producto_id" => $idProducto,
                     "lote" => $unidadesDisponibles->id,
                     "indice" => $indice,

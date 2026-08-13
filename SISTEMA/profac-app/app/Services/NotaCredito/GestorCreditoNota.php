@@ -247,6 +247,140 @@ class GestorCreditoNota
         }, 3);
     }
 
+    /**
+     * Aplica una nota únicamente a las facturas indicadas, en orden de vencimiento/emisión.
+     * La llamada puede participar en una transacción exterior para que emisión y aplicación
+     * constituyan una sola unidad atómica.
+     *
+     * @param array<int, int> $facturaIds
+     */
+    public function procesarFacturas(int $notaCreditoId, array $facturaIds, int $usuarioId): array
+    {
+        $operacion = function () use ($notaCreditoId, $facturaIds, $usuarioId) {
+            $facturaIds = collect($facturaIds)->map(fn($id) => (int) $id)->filter()->unique()->values();
+            if ($facturaIds->isEmpty()) {
+                throw new RuntimeException('La liquidación no tiene facturas activas asociadas al flujo.');
+            }
+
+            $this->asegurarCredito($notaCreditoId);
+            $credito = DB::table('nota_credito_creditos')
+                ->where('nota_credito_id', $notaCreditoId)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$credito || $credito->estado === 'anulado') {
+                throw new RuntimeException('La nota de crédito no está disponible.');
+            }
+
+            $disponible = round((float) $credito->saldo_disponible, 2);
+            $this->registrarAsientoEmision($notaCreditoId, $usuarioId);
+
+            $cuentas = DB::table('aplicacion_pagos as ap')
+                ->join('factura as f', 'f.id', '=', 'ap.factura_id')
+                ->whereIn('ap.factura_id', $facturaIds)
+                ->where('f.estado_venta_id', 1)
+                ->where('ap.estado', 1)
+                ->where('ap.estado_cerrado', '<>', 2)
+                ->where('ap.saldo', '>', 0.005)
+                ->orderByRaw('CASE WHEN f.fecha_vencimiento IS NULL THEN 1 ELSE 0 END')
+                ->orderBy('f.fecha_vencimiento')
+                ->orderBy('f.fecha_emision')
+                ->orderBy('ap.id')
+                ->lockForUpdate()
+                ->get(['ap.id', 'ap.factura_id', 'ap.saldo', 'f.cai']);
+
+            $aplicaciones = [];
+            $totalAplicado = 0.0;
+            foreach ($cuentas as $cuenta) {
+                if ($disponible <= 0.005) {
+                    break;
+                }
+
+                $monto = round(min($disponible, (float) $cuenta->saldo), 2);
+                if ($monto <= 0) {
+                    continue;
+                }
+
+                $nuevoSaldo = round((float) $cuenta->saldo - $monto, 2);
+                $actualizacion = [
+                    'total_notas_credito' => DB::raw('COALESCE(total_notas_credito, 0) + ' . $monto),
+                    'saldo' => max($nuevoSaldo, 0),
+                    'ultimo_usr_actualizo' => $usuarioId,
+                    'updated_at' => now(),
+                ];
+                if ($nuevoSaldo <= 0.005) {
+                    $actualizacion = array_merge($actualizacion, [
+                        'saldo' => 0,
+                        'estado_cerrado' => 2,
+                        'usr_cerro' => $usuarioId,
+                        'fecha_cierre_factura' => now(),
+                        'comentario' => 'CIERRE AUTOMÁTICO POR LIQUIDACIÓN EXPO',
+                    ]);
+                }
+                DB::table('aplicacion_pagos')->where('id', $cuenta->id)->update($actualizacion);
+
+                $movimientoId = DB::table('nota_credito_movimientos')->insertGetId([
+                    'credito_id' => $credito->id,
+                    'tipo' => 'aplicacion',
+                    'monto' => $monto,
+                    'factura_id' => $cuenta->factura_id,
+                    'aplicacion_pagos_id' => $cuenta->id,
+                    'comentario' => 'Liquidación consolidada de Oferta Expo',
+                    'users_id' => $usuarioId,
+                    'fecha_movimiento' => now()->toDateString(),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+
+                $this->registrarAsiento(
+                    $notaCreditoId,
+                    $movimientoId,
+                    'aplicacion',
+                    'Liquidación Expo aplicada a ' . $cuenta->cai,
+                    $usuarioId,
+                    [
+                        ['CREDITO_CLIENTE', 'Crédito a favor del cliente', $monto, 0],
+                        ['CUENTAS_POR_COBRAR', 'Cuentas por cobrar clientes', 0, $monto],
+                    ]
+                );
+
+                $aplicaciones[] = [
+                    'factura_id' => (int) $cuenta->factura_id,
+                    'factura' => $cuenta->cai,
+                    'monto' => $monto,
+                ];
+                $totalAplicado = round($totalAplicado + $monto, 2);
+                $disponible = round($disponible - $monto, 2);
+            }
+
+            $montoAplicado = round((float) $credito->monto_aplicado + $totalAplicado, 2);
+            $estado = $disponible <= 0.005 ? 'consumido' : ($montoAplicado > 0 ? 'parcial' : 'disponible');
+            DB::table('nota_credito_creditos')->where('id', $credito->id)->update([
+                'monto_aplicado' => $montoAplicado,
+                'saldo_disponible' => max($disponible, 0),
+                'estado' => $estado,
+                'updated_at' => now(),
+            ]);
+            DB::table('nota_credito')->where('id', $notaCreditoId)->update([
+                'estado_rebajado' => $estado === 'consumido' ? 1 : ($estado === 'parcial' ? 3 : 2),
+                'user_registra_rebaja' => $usuarioId,
+                'fecha_rebajado' => now()->toDateString(),
+                'comentario_rebajado' => 'Liquidación automática de Oferta Expo',
+                'updated_at' => now(),
+            ]);
+
+            return [
+                'nota_credito_id' => $notaCreditoId,
+                'aplicaciones' => $aplicaciones,
+                'monto_aplicado' => $totalAplicado,
+                'saldo_disponible' => max($disponible, 0),
+                'estado' => $estado,
+            ];
+        };
+
+        return DB::transactionLevel() ? $operacion() : DB::transaction($operacion, 3);
+    }
+
     private function cuentasPendientesCliente(int $clienteId)
     {
         return DB::table('aplicacion_pagos as ap')

@@ -34,6 +34,15 @@ class ExpoConfig
             'nombre' => $expo->nombre,
             'bodegas' => DB::table('expo_bodega')->where('expo_id', $expo->id)->pluck('bodega_id')->map(fn ($id) => (int) $id)->all(),
             'escalas' => DB::table('expo_escala')->where('expo_id', $expo->id)->pluck('escala_id')->map(fn ($id) => (int) $id)->all(),
+            'escalas_detalle' => DB::table('expo_escala as ee')
+                ->join('categoria_precios as cp', 'cp.id', '=', 'ee.escala_id')
+                ->where('ee.expo_id', $expo->id)
+                ->orderBy('cp.nombre')
+                ->get(['cp.id', 'cp.nombre'])
+                ->map(fn ($escala) => [
+                    'id' => (int) $escala->id,
+                    'nombre' => $escala->nombre,
+                ])->all(),
             'descuentos' => DB::table('expo_descuento')
                 ->where('expo_id', $expo->id)
                 ->orderBy('venta_minima')
@@ -41,6 +50,18 @@ class ExpoConfig
                 ->map(fn ($regla) => [
                     'venta_minima' => (float) $regla->venta_minima,
                     'porcentaje_descuento' => (float) $regla->porcentaje_descuento,
+                ])->all(),
+            'descuentos_marca' => DB::table('expo_descuento_marca as edm')
+                ->join('marca as m', 'm.id', '=', 'edm.marca_id')
+                ->where('edm.expo_id', $expo->id)
+                ->orderBy('edm.orden')
+                ->get(['edm.marca_id', 'm.nombre as marca', 'edm.venta_minima', 'edm.porcentaje_descuento', 'edm.orden'])
+                ->map(fn ($regla) => [
+                    'marca_id' => (int) $regla->marca_id,
+                    'marca' => $regla->marca,
+                    'venta_minima' => (float) $regla->venta_minima,
+                    'porcentaje_descuento' => (float) $regla->porcentaje_descuento,
+                    'orden' => (int) $regla->orden,
                 ])->all(),
         ];
     }

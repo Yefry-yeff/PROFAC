@@ -547,6 +547,12 @@ class Cotizacion extends Component
                     'expo_id' => $expoId,
                     'cotizacion_id' => $cotizacion->id,
                     'created_by' => Auth::id(),
+                    'estado' => 'PENDIENTE_FACTURACION',
+                    'reglas_descuento_snapshot' => json_encode([
+                        'version' => 2,
+                        'generales' => $expoConfig['descuentos'],
+                        'marcas' => $expoConfig['descuentos_marca'],
+                    ]),
                     'created_at' => now(),
                 ]);
             }
@@ -814,6 +820,30 @@ class Cotizacion extends Component
 
             //dd($arrayProductos);
         ModelCotizacionProducto::insert($arrayProductos);
+
+        if ($expoConfig) {
+            $lineasSnapshot = DB::table('cotizacion_has_producto as chp')
+                ->join('producto as p', 'p.id', '=', 'chp.producto_id')
+                ->join('marca as m', 'm.id', '=', 'p.marca_id')
+                ->where('chp.cotizacion_id', $cotizacion->id)
+                ->orderBy('chp.indice')
+                ->get(['chp.id as linea_id', 'chp.producto_id', 'p.marca_id', 'm.nombre as marca'])
+                ->map(fn ($linea) => [
+                    'linea_id' => (int) $linea->linea_id,
+                    'producto_id' => (int) $linea->producto_id,
+                    'marca_id' => (int) $linea->marca_id,
+                    'marca' => $linea->marca,
+                ])->all();
+
+            DB::table('expo_cotizacion')->where('cotizacion_id', $cotizacion->id)->update([
+                'reglas_descuento_snapshot' => json_encode([
+                    'version' => 2,
+                    'generales' => $expoConfig['descuentos'],
+                    'marcas' => $expoConfig['descuentos_marca'],
+                    'lineas' => $lineasSnapshot,
+                ]),
+            ]);
+        }
 
 
 

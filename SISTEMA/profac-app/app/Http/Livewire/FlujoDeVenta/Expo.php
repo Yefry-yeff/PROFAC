@@ -23,6 +23,7 @@ class Expo extends Component
     public $usuariosSeleccionados = [];
     public $busquedaUsuario = '';
     public $descuentos = [];
+    public $descuentosMarca = [];
     public $mostrarFormulario = false;
     public $expoDetalle = [];
     public $mostrarDetalle = false;
@@ -62,6 +63,7 @@ class Expo extends Component
                 'venta_minima' => (string) $regla->venta_minima,
                 'porcentaje_descuento' => (string) $regla->porcentaje_descuento,
             ])->all();
+        $this->descuentosMarca = $this->cargarDescuentosMarca($id);
         $this->mostrarFormulario = true;
     }
 
@@ -86,6 +88,7 @@ class Expo extends Component
                 'venta_minima' => (string) $regla->venta_minima,
                 'porcentaje_descuento' => (string) $regla->porcentaje_descuento,
             ])->all();
+        $this->descuentosMarca = $this->cargarDescuentosMarca($id);
         $this->mostrarFormulario = true;
     }
 
@@ -141,6 +144,19 @@ class Expo extends Component
         }
     }
 
+    public function agregarDescuentoMarca(): void
+    {
+        $this->descuentosMarca[] = ['marca_id' => '', 'venta_minima' => '', 'porcentaje_descuento' => ''];
+    }
+
+    public function eliminarDescuentoMarca(int $indice): void
+    {
+        if (isset($this->descuentosMarca[$indice])) {
+            unset($this->descuentosMarca[$indice]);
+            $this->descuentosMarca = array_values($this->descuentosMarca);
+        }
+    }
+
     public function guardar(): void
     {
         $expoExistente = $this->expoEditandoId
@@ -149,6 +165,10 @@ class Expo extends Component
         abort_if($this->expoEditandoId && !$expoExistente, 404);
 
         foreach ($this->descuentos as &$regla) {
+            $regla['venta_minima'] = str_replace(',', '', (string) ($regla['venta_minima'] ?? ''));
+        }
+        unset($regla);
+        foreach ($this->descuentosMarca as &$regla) {
             $regla['venta_minima'] = str_replace(',', '', (string) ($regla['venta_minima'] ?? ''));
         }
         unset($regla);
@@ -178,6 +198,10 @@ class Expo extends Component
             'descuentos' => 'array',
             'descuentos.*.venta_minima' => 'required|numeric|min:0|distinct',
             'descuentos.*.porcentaje_descuento' => 'required|numeric|min:0|max:100',
+            'descuentosMarca' => 'array',
+            'descuentosMarca.*.marca_id' => 'required|integer|distinct|exists:marca,id',
+            'descuentosMarca.*.venta_minima' => 'required|numeric|min:0',
+            'descuentosMarca.*.porcentaje_descuento' => 'required|numeric|min:0|max:100',
         ], [
             'bodegasSeleccionadas.required' => 'Seleccione al menos una bodega.',
             'escalasSeleccionadas.required' => 'Seleccione al menos una escala.',
@@ -220,6 +244,7 @@ class Expo extends Component
                 DB::table('expo_escala')->where('expo_id', $expoId)->delete();
                 DB::table('expo_usuario')->where('expo_id', $expoId)->delete();
                 DB::table('expo_descuento')->where('expo_id', $expoId)->delete();
+                DB::table('expo_descuento_marca')->where('expo_id', $expoId)->delete();
             } else {
                 $expoId = DB::table('expo')->insertGetId([
                     'nombre' => $this->nombre,
@@ -250,6 +275,18 @@ class Expo extends Component
             foreach (array_values($this->descuentos) as $orden => $regla) {
                 DB::table('expo_descuento')->insert([
                     'expo_id' => $expoId,
+                    'venta_minima' => $regla['venta_minima'],
+                    'porcentaje_descuento' => $regla['porcentaje_descuento'],
+                    'orden' => $orden + 1,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+
+            foreach (array_values($this->descuentosMarca) as $orden => $regla) {
+                DB::table('expo_descuento_marca')->insert([
+                    'expo_id' => $expoId,
+                    'marca_id' => (int) $regla['marca_id'],
                     'venta_minima' => $regla['venta_minima'],
                     'porcentaje_descuento' => $regla['porcentaje_descuento'],
                     'orden' => $orden + 1,
@@ -296,6 +333,12 @@ class Expo extends Component
                 ->where('eu.expo_id', $id)->orderBy('u.name')->get(['u.name', 'u.email'])->map(fn ($usuario) => (array) $usuario)->all(),
             'descuentos' => DB::table('expo_descuento')->where('expo_id', $id)->orderBy('orden')
                 ->get(['venta_minima', 'porcentaje_descuento'])->map(fn ($regla) => (array) $regla)->all(),
+            'descuentos_marca' => DB::table('expo_descuento_marca as edm')
+                ->join('marca as m', 'm.id', '=', 'edm.marca_id')
+                ->where('edm.expo_id', $id)
+                ->orderBy('edm.orden')
+                ->get(['m.nombre as marca', 'edm.venta_minima', 'edm.porcentaje_descuento'])
+                ->map(fn ($regla) => (array) $regla)->all(),
         ];
         $this->mostrarDetalle = true;
     }
@@ -311,7 +354,7 @@ class Expo extends Component
         $this->reset([
             'expoEditandoId', 'expoDuplicandoId', 'nombre', 'descripcion', 'fechaInicio', 'fechaFin',
             'bodegasSeleccionadas', 'escalasSeleccionadas', 'usuariosSeleccionados',
-            'busquedaUsuario', 'descuentos', 'mostrarFormulario',
+            'busquedaUsuario', 'descuentos', 'descuentosMarca', 'mostrarFormulario',
         ]);
         $this->estado = 'Inactivo';
         $this->resetValidation();
@@ -337,6 +380,7 @@ class Expo extends Component
             ->where('cce.estado_id', 1)
             ->orderBy('cce.nombre_categoria')->orderBy('cp.nombre')
             ->get(['cp.id', DB::raw("CONCAT(cce.nombre_categoria, ' - ', cp.nombre) as nombre")]);
+        $marcas = DB::table('marca')->orderBy('nombre')->get(['id', 'nombre']);
 
         $usuariosAgregados = DB::table('users')
             ->whereIn('id', array_map('intval', $this->usuariosSeleccionados))
@@ -359,8 +403,21 @@ class Expo extends Component
         }
 
         return view('livewire.flujodeventa.expo', compact(
-            'expos', 'bodegas', 'escalas', 'usuariosAgregados', 'usuariosEncontrados'
+            'expos', 'bodegas', 'escalas', 'marcas', 'usuariosAgregados', 'usuariosEncontrados'
         ));
+    }
+
+    private function cargarDescuentosMarca(int $expoId): array
+    {
+        return DB::table('expo_descuento_marca')
+            ->where('expo_id', $expoId)
+            ->orderBy('orden')
+            ->get(['marca_id', 'venta_minima', 'porcentaje_descuento'])
+            ->map(fn ($regla) => [
+                'marca_id' => (string) $regla->marca_id,
+                'venta_minima' => (string) $regla->venta_minima,
+                'porcentaje_descuento' => (string) $regla->porcentaje_descuento,
+            ])->all();
     }
 
     private function idsBodegasDisponibles(): array

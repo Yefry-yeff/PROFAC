@@ -5,6 +5,7 @@ namespace App\Http\Livewire\Ventas;
 use App\Support\ExpoConfig;
 use Livewire\Component;
 use App\Models\TipoFactura;
+use App\Services\Expo\SaldoLineasOferta;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 
@@ -16,6 +17,8 @@ class FacturacionUnificada extends Component
     public $fromFlujo = false;
     public $fromPrefactura = false;
     public $expoConfig = null;
+    public $esOfertaExpo = false;
+    public array $reglasExpoOferta = [];
 
     // ── Buscador de prefactura ───────────────────────────────────────────
     public $busquedaPrefactura     = '';
@@ -184,10 +187,33 @@ class FacturacionUnificada extends Component
         // Cargar productos del duplicado para auto-agregar al carrito (cotizacionId)
         $cotizId = request()->get('cotizacionId');
         if ($cotizId) {
-            $prods = DB::table('cotizacion_has_producto')
+            $expoCotizacion = DB::table('expo_cotizacion')
                 ->where('cotizacion_id', (int) $cotizId)
-                ->orderBy('indice')
-                ->get([
+                ->first(['expo_id', 'reglas_descuento_snapshot']);
+            $expoCotizacionId = $expoCotizacion?->expo_id;
+            $esExpo = !empty($expoCotizacionId);
+            $this->esOfertaExpo = $esExpo;
+            if ($esExpo) {
+                $this->expoConfig = ExpoConfig::detalleActivaParaUsuario((int) $expoCotizacionId, Auth::id());
+                abort_unless($this->expoConfig, 403, 'No tiene autorización para facturar esta Oferta Expo.');
+                $snapshot = json_decode((string) ($expoCotizacion->reglas_descuento_snapshot ?? ''), true) ?: [];
+                $this->reglasExpoOferta = array_key_exists('generales', $snapshot)
+                    ? $snapshot
+                    : ['version' => 1, 'generales' => $snapshot, 'marcas' => [], 'lineas' => []];
+            }
+            $prods = $esExpo
+                ? app(SaldoLineasOferta::class)->pendientes((int) $cotizId)
+                    ->filter(fn($linea) => (float) $linea->cantidad_pendiente > 0)
+                    ->map(function ($linea) {
+                        $linea->cotizacion_has_producto_id = $linea->id;
+                        $linea->cantidad = $linea->cantidad_pendiente;
+                        return $linea;
+                    })->values()->all()
+                : DB::table('cotizacion_has_producto')
+                    ->where('cotizacion_id', (int) $cotizId)
+                    ->orderBy('indice')
+                    ->get([
+                    'cotizacion_has_producto.id as cotizacion_has_producto_id',
                     'cotizacion_has_producto.producto_id',
                     'nombre_producto',
                     'nombre_bodega',
@@ -201,15 +227,24 @@ class FacturacionUnificada extends Component
                     'seccion_id',
                     'resta_inventario',
                     'precios_producto_carga_id',
-                ])
-                ->toArray();
+                    ])->all();
 
             $productosResueltos = [];
             $productosSugeridos = [];
             $productosSinEscala = [];
+            $marcasPorProducto = DB::table('producto as p')
+                ->leftJoin('marca as m', 'm.id', '=', 'p.marca_id')
+                ->whereIn('p.id', collect($prods)->pluck('producto_id')->filter()->unique()->all())
+                ->get(['p.id', 'p.marca_id', 'm.nombre as marca_nombre'])
+                ->keyBy('id');
+            $marcasSnapshot = collect($this->reglasExpoOferta['lineas'] ?? [])->keyBy('linea_id');
 
             foreach ($prods as $p) {
                 $prod = (array) $p;
+                $marca = $marcasPorProducto[(int) ($prod['producto_id'] ?? 0)] ?? null;
+                $marcaCongelada = $marcasSnapshot[(int) ($prod['cotizacion_has_producto_id'] ?? 0)] ?? [];
+                $prod['marca_id'] = (int) ($marcaCongelada['marca_id'] ?? $marca->marca_id ?? 0);
+                $prod['marca_nombre'] = $marcaCongelada['marca'] ?? $marca->marca_nombre ?? 'SIN MARCA';
 
                 $ppcActivo = null;
                 $precioCargaId = isset($prod['precios_producto_carga_id']) ? (int) $prod['precios_producto_carga_id'] : 0;
@@ -292,7 +327,7 @@ class FacturacionUnificada extends Component
                     'fecha_vencimiento'        => $cotizOrig->fecha_vencimiento
                         ? \Carbon\Carbon::parse($cotizOrig->fecha_vencimiento)->format('Y-m-d')
                         : null,
-                    'porc_descuento'           => (float) ($cotizOrig->porc_descuento ?? 0),
+                    'porc_descuento'           => $esExpo ? 0.0 : (float) ($cotizOrig->porc_descuento ?? 0),
                     'nota'                     => $cotizOrig->nota ?? '',
                     'vendedor_id'              => $cotizOrig->vendedor,
                     'vendedor_nombre'          => $cotizOrig->vendedor_nombre ?? '',
@@ -581,11 +616,27 @@ class FacturacionUnificada extends Component
             'rtn'    => $pref->RTN,
         ];
 
+        $expoCotizacion = $pref->cotizacion_id
+            ? DB::table('expo_cotizacion')->where('cotizacion_id', (int) $pref->cotizacion_id)
+                ->first(['expo_id', 'reglas_descuento_snapshot'])
+            : null;
+        $this->esOfertaExpo = !empty($expoCotizacion);
+        if ($expoCotizacion) {
+            $this->expoConfig = ExpoConfig::detalleActivaParaUsuario((int) $expoCotizacion->expo_id, Auth::id());
+            abort_unless($this->expoConfig, 403, 'No tiene autorización para facturar esta Oferta Expo.');
+            $snapshot = json_decode((string) ($expoCotizacion->reglas_descuento_snapshot ?? ''), true) ?: [];
+            $this->reglasExpoOferta = array_key_exists('generales', $snapshot)
+                ? $snapshot
+                : ['version' => 1, 'generales' => $snapshot, 'marcas' => [], 'lineas' => []];
+        }
+        $marcasSnapshot = collect($this->reglasExpoOferta['lineas'] ?? [])->keyBy('linea_id');
+
         // Carrito exacto desde prefactura (sin recalcular valores)
         $this->productosParaCarrito = DB::table('prefactura_has_producto')
             ->where('prefactura_id', $prefacturaId)
             ->orderBy('indice')
             ->get([
+                'cotizacion_has_producto_id',
                 'producto_id',
                 'nombre_producto',
                 'nombre_bodega',
@@ -601,7 +652,13 @@ class FacturacionUnificada extends Component
                 'resta_inventario',
                 'precios_producto_carga_id',
             ])
-            ->map(fn($r) => (array) $r)
+            ->map(function ($r) use ($marcasSnapshot) {
+                $producto = (array) $r;
+                $marca = $marcasSnapshot[(int) ($r->cotizacion_has_producto_id ?? 0)] ?? [];
+                $producto['marca_id'] = (int) ($marca['marca_id'] ?? 0);
+                $producto['marca_nombre'] = $marca['marca'] ?? 'SIN MARCA';
+                return $producto;
+            })
             ->toArray();
 
         $this->busquedaPrefactura     = '';

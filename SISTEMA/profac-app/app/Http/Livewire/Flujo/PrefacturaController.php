@@ -13,6 +13,7 @@ use App\Models\PrefacturaAuditoria;
 use App\Models\CreditoRevision;
 use App\Http\Livewire\Ventas\FacturacionCorporativa;
 use App\Events\FlujoAvanzadoEvent;
+use App\Services\Expo\SaldoLineasOferta;
 use Carbon\Carbon;
 
 /**
@@ -532,9 +533,39 @@ class PrefacturaController
             }
         }
 
-        $productos = DB::table('cotizacion_has_producto')
-            ->where('cotizacion_id', $cotizacionId)
-            ->get();
+        $esExpo = DB::table('expo_cotizacion')->where('cotizacion_id', $cotizacionId)->exists();
+        $productos = $esExpo
+            ? app(SaldoLineasOferta::class)->pendientes($cotizacionId)
+                ->filter(fn($linea) => (float) $linea->cantidad_pendiente > 0)
+                ->map(function ($linea) {
+                    $cantidadOriginal = (float) $linea->cantidad;
+                    $factor = $cantidadOriginal > 0 ? (float) $linea->cantidad_pendiente / $cantidadOriginal : 0;
+                    $linea->cantidad = $linea->cantidad_pendiente;
+                    $linea->sub_total = round((float) $linea->sub_total * $factor, 4);
+                    $linea->isv = round((float) $linea->isv * $factor, 4);
+                    $linea->total = round((float) $linea->total * $factor, 4);
+                    return $linea;
+                })->values()
+            : DB::table('cotizacion_has_producto')->where('cotizacion_id', $cotizacionId)->get();
+
+        if ($esExpo && $productos->isEmpty()) {
+            return response()->json([
+                'icon' => 'info',
+                'title' => 'Oferta completada',
+                'text' => 'La Oferta Expo ya no tiene cantidades pendientes por facturar.',
+            ], 409);
+        }
+
+        $subTotalPrefactura = (float) $productos->sum('sub_total');
+        $subTotalGrabadoPrefactura = (float) $productos
+            ->filter(fn($linea) => (float) ($linea->isv_producto ?? 0) > 0)
+            ->sum('sub_total');
+        $subTotalExentoPrefactura = $subTotalPrefactura - $subTotalGrabadoPrefactura;
+        $isvPrefactura = (float) $productos->sum('isv');
+        $totalPrefactura = (float) $productos->sum('total');
+        $factorPrefactura = (float) $cotizacion->total > 0
+            ? min(1, $totalPrefactura / (float) $cotizacion->total)
+            : 0;
 
         // Regla de negocio: si la oferta contiene lineas "sin existencia",
         // no puede avanzar a prefactura hasta que se ajusten en la cotizacion.
@@ -615,7 +646,7 @@ class PrefacturaController
             if ($flujoId) {
                 $yaExiste = DB::table('prefactura')
                     ->where('flujo_id', $flujoId)
-                    ->whereIn('estado', ['activo', 'convertida'])
+                    ->whereIn('estado', $esExpo ? ['activo'] : ['activo', 'convertida'])
                     ->lockForUpdate()
                     ->exists();
                 if ($yaExiste) {
@@ -637,13 +668,15 @@ class PrefacturaController
                 'RTN'                 => $cotizacion->RTN,
                 'fecha_emision'       => $fechaEmision,
                 'fecha_vencimiento'   => $fechaVencimiento,
-                'sub_total'           => $cotizacion->sub_total,
-                'sub_total_grabado'   => $cotizacion->sub_total_grabado,
-                'sub_total_excento'   => $cotizacion->sub_total_excento,
-                'isv'                 => $cotizacion->isv,
-                'total'               => $cotizacion->total,
+                'sub_total'           => $esExpo ? $subTotalPrefactura : $cotizacion->sub_total,
+                'sub_total_grabado'   => $esExpo ? $subTotalGrabadoPrefactura : $cotizacion->sub_total_grabado,
+                'sub_total_excento'   => $esExpo ? $subTotalExentoPrefactura : $cotizacion->sub_total_excento,
+                'isv'                 => $esExpo ? $isvPrefactura : $cotizacion->isv,
+                'total'               => $esExpo ? $totalPrefactura : $cotizacion->total,
                 'porc_descuento'      => $cotizacion->porc_descuento ?? 0,
-                'monto_descuento'     => $cotizacion->monto_descuento ?? 0,
+                'monto_descuento'     => $esExpo
+                    ? round((float) ($cotizacion->monto_descuento ?? 0) * $factorPrefactura, 4)
+                    : ($cotizacion->monto_descuento ?? 0),
                 'tipo_venta_id'       => $cotizacion->tipo_venta_id,
                 'vendedor'            => $cotizacion->vendedor,
                 'nota'                => $cotizacion->nota,
@@ -660,6 +693,7 @@ class PrefacturaController
             foreach ($productos as $prod) {
                 $prefProds[] = [
                     'prefactura_id'           => $prefacturaId,
+                    'cotizacion_has_producto_id' => $prod->id,
                     'producto_id'             => $prod->producto_id,
                     'indice'                  => $prod->indice,
                     'nombre_producto'         => $prod->nombre_producto,

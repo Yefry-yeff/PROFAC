@@ -4,6 +4,8 @@ namespace App\Http\Livewire\Ventas;
 
 use App\Support\ExpoConfig;
 use App\Support\ClienteActoresAsignados;
+use App\Services\Expo\LiquidacionOfertaExpo;
+use App\Services\Expo\SaldoLineasOferta;
 use Livewire\Component;
 
 
@@ -11,6 +13,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use DataTables;
 use Auth;
 use Validator;
@@ -474,6 +477,8 @@ class FacturacionCorporativa extends Component
                 SELECT
                     p.id,
                     CONCAT(p.id,' - ',p.nombre) AS nombre,
+                    p.marca_id,
+                    COALESCE(m.nombre, 'SIN MARCA') AS marca,
                     p.isv,
                     p.ultimo_costo_compra AS ultimo_costo_compra,
                     ppc.precio_base_venta AS precio_base,
@@ -483,6 +488,7 @@ class FacturacionCorporativa extends Component
                     ppc.precio_d AS precio4,
                     ppc.id AS precios_producto_carga_id
                 FROM producto p
+                LEFT JOIN marca m ON m.id = p.marca_id
                 JOIN precios_producto_carga ppc
                     ON ppc.producto_id = p.id
                     AND ppc.categoria_precios_id = :categoria_cliente_venta_id
@@ -716,22 +722,11 @@ class FacturacionCorporativa extends Component
             $existingFacturaRec = DB::table('historico_flujo')
                 ->where('flujo_id', $flujoId)
                 ->where('tipo_tramite_id', $TIPO_FACTURA)
+                ->where('tramite_id', $facturaId)
                 ->where('estado_id', '!=', 7)
-                ->orderByDesc('id')
-                ->first(['id', 'tramite_id']);
+                ->first(['id']);
 
-            if ($existingFacturaRec) {
-                if ((int) $existingFacturaRec->tramite_id !== $facturaId) {
-                    DB::table('historico_flujo')
-                        ->where('id', $existingFacturaRec->id)
-                        ->update([
-                            'tramite_id'    => $facturaId,
-                            'observaciones' => 'Factura #' . $facturaId . ' confirmada. Paso actual: Entregas y Cobros',
-                            'updated_by'    => Auth::id(),
-                            'updated_at'    => now(),
-                        ]);
-                }
-            } else {
+            if (!$existingFacturaRec) {
                 DB::table('historico_flujo')->insert([
                     'flujo_id'        => $flujoId,
                     'tipo_tramite_id' => $TIPO_FACTURA,
@@ -808,9 +803,10 @@ class FacturacionCorporativa extends Component
             // 5. Cerrar prefactura activa vinculada al flujo (si existe).
             // Cuando la factura se genera manualmente (guardarVenta + confirmarFacturaFlujo),
             // la prefactura queda en 'activo' y sigue descontando stock disponible.
-            if ($flujoId) {
+            if ($flujoId && $request->filled('prefactura_id')) {
                 DB::table('prefactura')
                     ->where('flujo_id', $flujoId)
+                    ->where('id', (int) $request->input('prefactura_id'))
                     ->where('estado', 'activo')
                     ->update(['estado' => 'convertida', 'updated_at' => now()]);
             }
@@ -842,6 +838,53 @@ class FacturacionCorporativa extends Component
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['ok' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function confirmarLiquidacionExpo(Request $request)
+    {
+        $datos = $request->validate([
+            'cotizacion_id' => 'required|integer|min:1',
+            'flujo_id' => 'required|integer|min:1',
+        ]);
+
+        $cotizacionId = (int) $datos['cotizacion_id'];
+        $flujoId = (int) $datos['flujo_id'];
+        $pertenece = DB::table('expo_cotizacion as ec')
+            ->join('historico_flujo as hf', 'hf.tramite_id', '=', 'ec.cotizacion_id')
+            ->where('ec.cotizacion_id', $cotizacionId)
+            ->where('ec.flujo_id', $flujoId)
+            ->where('hf.flujo_id', $flujoId)
+            ->where('hf.tipo_tramite_id', 2)
+            ->exists();
+
+        if (!$pertenece) {
+            return response()->json([
+                'icon' => 'warning',
+                'title' => 'Liquidación no disponible',
+                'text' => 'La Oferta Expo no pertenece al flujo indicado.',
+            ], 422);
+        }
+
+        try {
+            $resumen = app(LiquidacionOfertaExpo::class)->confirmar($cotizacionId, $flujoId, Auth::id());
+
+            return response()->json(['ok' => true, 'liquidacionExpo' => $resumen]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'icon' => 'warning',
+                'title' => 'No se pudo liquidar la oferta',
+                'text' => collect($e->errors())->flatten()->first(),
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'icon' => 'error',
+                'title' => 'Error de liquidación',
+                'text' => 'No se generó la nota de crédito.',
+            ], 500);
         }
     }
 
@@ -904,27 +947,14 @@ class FacturacionCorporativa extends Component
 
 
             if ($request->tipoPagoVenta == 2) {
-                // Si la factura proviene de un flujo con crédito aprobado formalmente
-                // (credito_revision.estado = 'aprobado'), omitir la verificación del
-                // límite global del cliente — la aprobación explícita ya lo cubre.
-                $flujoIdReq = (int) ($request->flujo_id ?? 0);
-                $creditoAprobadoPorFlujo = $flujoIdReq
-                    ? \Illuminate\Support\Facades\DB::table('credito_revision')
-                        ->where('flujo_id', $flujoIdReq)
-                        ->where('estado', 'aprobado')
-                        ->exists()
-                    : false;
+                $comprobarCredito = $this->comprobarCreditoCliente($request->seleccionarCliente, $request->totalGeneral);
 
-                if (!$creditoAprobadoPorFlujo) {
-                    $comprobarCredito = $this->comprobarCreditoCliente($request->seleccionarCliente, $request->totalGeneral);
-
-                    if ($comprobarCredito) {
-                        return response()->json([
-                            'icon' => 'warning',
-                            'title' => 'Advertencia!',
-                            'text' => 'El cliente ' . $request->nombre_cliente_ventas . ', no cuenta con crédito suficiente . Por el momento no se puede emitir factura a este cliente.',
-                        ], 401);
-                    }
+                if ($comprobarCredito) {
+                    return response()->json([
+                        'icon' => 'warning',
+                        'title' => 'Advertencia!',
+                        'text' => 'El cliente ' . $request->nombre_cliente_ventas . ', no cuenta con crédito suficiente para esta factura parcial.',
+                    ], 401);
                 }
             }
 
@@ -1049,6 +1079,8 @@ class FacturacionCorporativa extends Component
 
             DB::beginTransaction();
 
+            $lineasExpoPorIndice = app(SaldoLineasOferta::class)
+                ->validarSolicitudFactura($request, $arrayInputs);
 
 
 
@@ -1258,7 +1290,7 @@ class FacturacionCorporativa extends Component
 
                 // dd($factura);
 
-                $this->restarUnidadesInventario($precios_producto_carga_id, $idPrecioSeleccionado, $precioSeleccionado, $restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $arrayInputs[$i], $tipoPrecio);
+                $this->restarUnidadesInventario($precios_producto_carga_id, $idPrecioSeleccionado, $precioSeleccionado, $restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $arrayInputs[$i], $tipoPrecio, $lineasExpoPorIndice[(string) $arrayInputs[$i]] ?? null);
             };
 
             if ($request->tipoPagoVenta == 2) { //si el tipo de pago es credito
@@ -1297,6 +1329,20 @@ class FacturacionCorporativa extends Component
                 }
             }
 
+            $liquidacionExpo = null;
+            $cotizacionId = (int) ($request->cotizacion_id ?? 0);
+            $flujoId = (int) ($request->flujo_id ?? 0);
+            if ($cotizacionId > 0 && $flujoId > 0 && DB::table('expo_cotizacion')->where('cotizacion_id', $cotizacionId)->exists()) {
+                $liquidacionExpo = app(LiquidacionOfertaExpo::class)->procesar(
+                    $cotizacionId,
+                    $flujoId,
+                    (int) $factura->id,
+                    $request->boolean('ultima_factura'),
+                    $request->motivo_cierre,
+                    Auth::id()
+                );
+            }
+
             DB::commit();
 
             if (($request->modo ?? null) === 'editar_factura' && !empty($request->prefactura_id) && !empty($request->autorizacion_id)) {
@@ -1324,11 +1370,25 @@ class FacturacionCorporativa extends Component
                 </div>',
                 'title' => 'Exito!',
                 'idFactura' => $factura->id,
-                'numeroVenta' => $numeroVenta->numero
+                'numeroVenta' => $numeroVenta->numero,
+                'liquidacionExpo' => $liquidacionExpo,
 
             ], 200);
+        } catch (ValidationException $e) {
+            if (DB::transactionLevel()) {
+                DB::rollBack();
+            }
+
+            return response()->json([
+                'icon' => 'warning',
+                'title' => 'Cantidad Expo no disponible',
+                'text' => collect($e->errors())->flatten()->first(),
+                'errors' => $e->errors(),
+            ], 422);
         } catch (QueryException $e) {
-            DB::rollback();
+            if (DB::transactionLevel()) {
+                DB::rollBack();
+            }
 
             return response()->json([
                 'error' => 'Ha ocurrido un error al realizar la factura.',
@@ -1338,6 +1398,17 @@ class FacturacionCorporativa extends Component
                 'idFactura' => $factura->id ?? null,
                 'mensajeError' => $e
             ], 402);
+        } catch (\Throwable $e) {
+            if (DB::transactionLevel()) {
+                DB::rollBack();
+            }
+            report($e);
+
+            return response()->json([
+                'icon' => 'error',
+                'title' => 'Error al guardar la factura',
+                'text' => 'No se completó la factura ni su liquidación Expo.',
+            ], 500);
         }
     }
 
@@ -1813,7 +1884,7 @@ class FacturacionCorporativa extends Component
         }
     }
 
-    public function restarUnidadesInventario($precios_producto_carga_id,$idPrecioSeleccionado,$precioSeleccionado , $unidadesRestarInv, $idProducto, $idSeccion, $idFactura, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $indice, $tipoPrecio = '2')
+    public function restarUnidadesInventario($precios_producto_carga_id,$idPrecioSeleccionado,$precioSeleccionado , $unidadesRestarInv, $idProducto, $idSeccion, $idFactura, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $indice, $tipoPrecio = '2', $cotizacionLineaId = null)
     {
         try {
 
@@ -1892,6 +1963,7 @@ class FacturacionCorporativa extends Component
 
                 array_push($this->arrayProductos, [
                     "factura_id" => $idFactura,
+                    "cotizacion_has_producto_id" => $cotizacionLineaId,
                     "producto_id" => $idProducto,
                     "lote" => $unidadesDisponibles->id,
                     "indice" => $indice,
