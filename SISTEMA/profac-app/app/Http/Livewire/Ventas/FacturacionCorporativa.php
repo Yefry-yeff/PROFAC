@@ -746,6 +746,7 @@ class FacturacionCorporativa extends Component
                 ->where('tipo_tramite_id', $TIPO_ENTREGA)
                 ->whereNull('tramite_id')
                 ->where('estado_id', $ESTADO_PENDIENTE)
+                ->where('observaciones', 'Entrega pendiente — Factura #' . $facturaId)
                 ->exists();
 
             if (!$entregaExiste) {
@@ -772,7 +773,13 @@ class FacturacionCorporativa extends Component
                 ->where('flujo_id', $flujoId)
                 ->where('tipo_tramite_id', $TIPO_COBRO)
                 ->where('estado_id', $ESTADO_PENDIENTE)
-                ->orderByDesc('id')
+                ->where(function ($query) use ($aplicacionPagoId, $facturaId) {
+                    if ($aplicacionPagoId) {
+                        $query->where('tramite_id', $aplicacionPagoId);
+                    } else {
+                        $query->where('observaciones', 'Cobro pendiente — Factura #' . $facturaId);
+                    }
+                })
                 ->first(['id', 'tramite_id']);
 
             if ($cobroPendiente) {
@@ -803,7 +810,7 @@ class FacturacionCorporativa extends Component
             // 5. Cerrar prefactura activa vinculada al flujo (si existe).
             // Cuando la factura se genera manualmente (guardarVenta + confirmarFacturaFlujo),
             // la prefactura queda en 'activo' y sigue descontando stock disponible.
-            if ($flujoId && $request->filled('prefactura_id')) {
+            if ($flujoId && $request->filled('prefactura_id') && !$request->boolean('expo_parcial')) {
                 DB::table('prefactura')
                     ->where('flujo_id', $flujoId)
                     ->where('id', (int) $request->input('prefactura_id'))

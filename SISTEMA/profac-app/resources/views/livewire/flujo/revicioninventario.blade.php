@@ -240,7 +240,37 @@
                                                     {{ $prod['nombre_producto'] }}
                                                 </td>
                                                 <td style="padding:8px 14px; color:#607d8b; font-size:12px;">
-                                                    {{ $prod['nombre_bodega'] ?? '—' }}
+                                                    @if($esOfertaExpo && !$devuelto && !$soloVisualizacion)
+                                                        <div class="input-group input-group-sm" style="min-width:260px;">
+                                                                <select wire:model="bodegaExpoSeleccionada.{{ $prod['idx'] }}"
+                                                                    wire:change="guardarBodegaExpo({{ $prod['idx'] }})"
+                                                                    wire:loading.attr="disabled"
+                                                                    wire:target="guardarBodegaExpo({{ $prod['idx'] }})"
+                                                                    class="form-control"
+                                                                    title="Bodegas y secciones donde existe el producto">
+                                                                @forelse($prod['destinos_bodega'] as $destino)
+                                                                    <option value="{{ $destino['value'] }}">{{ $destino['text'] }}</option>
+                                                                @empty
+                                                                    <option value="">Sin existencia en bodegas</option>
+                                                                @endforelse
+                                                            </select>
+                                                            <div class="input-group-append">
+                                                                <span class="btn btn-primary"
+                                                                      title="La reasignación se guarda automáticamente al cambiar"
+                                                                      style="cursor:default; min-width:34px;">
+                                                                    <span wire:loading.remove wire:target="guardarBodegaExpo({{ $prod['idx'] }})">
+                                                                        <i class="fa fa-check"></i>
+                                                                    </span>
+                                                                    <span wire:loading wire:target="guardarBodegaExpo({{ $prod['idx'] }})" style="display:none;">
+                                                                        <i class="fa fa-spinner fa-spin"></i>
+                                                                    </span>
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        <small style="color:#78909c;">Actual: {{ $prod['nombre_bodega'] ?? '—' }}</small>
+                                                    @else
+                                                        {{ $prod['nombre_bodega'] ?? '—' }}
+                                                    @endif
                                                 </td>
                                                 <td style="padding:8px 10px; color:#607d8b; font-size:12px; white-space:nowrap;">
                                                     <span style="background:#f1f5f9; color:#334155; border-radius:999px; padding:1px 8px; font-weight:600; display:inline-block; font-size:11px; line-height:1.2;">

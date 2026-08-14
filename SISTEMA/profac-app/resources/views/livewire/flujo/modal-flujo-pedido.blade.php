@@ -2498,6 +2498,20 @@
             {{-- ── Footer ─────────────────────────────────────────────── --}}
             <div class="modal-footer fmp-foot" style="border:none; background:#f8f9fc;">
 
+                @if ($facturaCompletada && $expoConSaldoPendiente && $prefacturaPuedeFacturar)
+                <button id="btn-facturar-expo-pendiente" type="button" wire:click="facturarPrefacturaDirecta"
+                        wire:loading.attr="disabled" wire:target="facturarPrefacturaDirecta"
+                        style="border-radius:20px; padding:6px 20px; background:linear-gradient(135deg,#1b5e20,#2e7d32);
+                               color:#fff; border:none; font-size:13px; font-weight:700; cursor:pointer;">
+                    <span wire:loading.remove wire:target="facturarPrefacturaDirecta">
+                        <i class="mr-1 fa fa-file-text"></i> Facturar
+                    </span>
+                    <span wire:loading wire:target="facturarPrefacturaDirecta">
+                        <i class="fa fa-spinner fa-spin mr-1"></i> Procesando...
+                    </span>
+                </button>
+                @endif
+
                 <button type="button" wire:click="cerrar"
                         style="border-radius:20px; padding:6px 20px; background:#f0f0f0;
                                border:none; color:#555; font-size:13px; cursor:pointer;">
@@ -2735,6 +2749,28 @@
             if (e.detail && e.detail.url) {
                 window.location.href = e.detail.url;
             }
+        });
+        window.addEventListener('fmp-facturar-expo', function(e) {
+            if (!e.detail) return;
+
+            Swal.fire({
+                icon: 'question',
+                title: 'Facturar Oferta Expo',
+                text: 'Seleccione cómo desea facturar esta prefactura.',
+                showDenyButton: true,
+                showCancelButton: true,
+                confirmButtonText: '<i class="fa fa-file-text-o mr-1"></i> Factura completa',
+                denyButtonText: '<i class="fa fa-files-o mr-1"></i> Factura parcial',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#1b5e20',
+                denyButtonColor: '#e65100'
+            }).then(function(result) {
+                if (result.isConfirmed && e.detail.url_completa) {
+                    window.location.href = e.detail.url_completa;
+                } else if (result.isDenied && e.detail.url_parcial) {
+                    window.location.href = e.detail.url_parcial;
+                }
+            });
         });
         window.addEventListener('fmp-facturar-directo', function(e) {
             if (!e.detail || !e.detail.url) return;

@@ -16,6 +16,7 @@ use App\Models\ModelRecibirBodega;
 use App\Models\ModelCliente;
 use App\Models\ModelLogTranslados;
 use App\Services\Expo\LiquidacionOfertaExpo;
+use App\Services\Expo\SaldoLineasOferta;
 
 /**
  * Modal reutilizable "Flujo del Pedido".
@@ -89,6 +90,7 @@ class ModalFlujoPedido extends Component
     public array $prefacturaStockFaltante = [];
     public bool $prefacturaReservaCompleta = true;
     public array $prefacturaReservaFaltante = [];
+    public bool $expoConSaldoPendiente = false;
     public $mostrarAutorizacionPrefactura = false;
     public $accionAutorizacionPrefactura  = null;
     public $codigoAutorizacion            = '';
@@ -2184,6 +2186,7 @@ class ModalFlujoPedido extends Component
     {
         if (!$this->flujoId) {
             $this->prefacturaData = null;
+            $this->expoConSaldoPendiente = false;
             $this->prefacturaVencida = false;
             $this->prefacturaPuedeFacturar = true;
             $this->prefacturaStockFaltante = [];
@@ -2205,6 +2208,7 @@ class ModalFlujoPedido extends Component
 
         if (!$pref) {
             $this->prefacturaData = null;
+            $this->expoConSaldoPendiente = false;
             $this->prefacturaVencida = false;
             $this->prefacturaPuedeFacturar = true;
             $this->prefacturaStockFaltante = [];
@@ -2224,6 +2228,11 @@ class ModalFlujoPedido extends Component
             ->toArray();
 
         $this->prefacturaData = array_merge((array) $pref, ['productos' => $productos]);
+        $cotizacionId = (int) ($pref->cotizacion_id ?? 0);
+        $this->expoConSaldoPendiente = $cotizacionId > 0
+            && DB::table('expo_cotizacion')->where('cotizacion_id', $cotizacionId)->exists()
+            && app(SaldoLineasOferta::class)->pendientes($cotizacionId)
+                ->contains(fn($linea) => (float) $linea->cantidad_pendiente > 0);
 
         // Regla todo-o-nada de reserva: si no cubre cantidades completas, no debe apartar.
         $this->prefacturaReservaFaltante = $this->obtenerFaltantesInventarioPrefactura((int) $pref->id, true);
@@ -2384,6 +2393,43 @@ class ModalFlujoPedido extends Component
     public function facturarPrefacturaDirecta(): void
     {
         if (!$this->prefacturaData || !$this->flujoId) return;
+        $this->mensajeError = '';
+
+        $cotizacionId = (int) ($this->prefacturaData['cotizacion_id'] ?? 0);
+        $esOfertaExpo = $cotizacionId > 0 && DB::table('expo_cotizacion')
+            ->where('cotizacion_id', $cotizacionId)
+            ->exists();
+
+        if ($esOfertaExpo) {
+            $tipoVentaFiscal = (int) DB::table('cotizacion as c')
+                ->join('cliente as cl', 'cl.id', '=', 'c.cliente_id')
+                ->where('c.id', $cotizacionId)
+                ->value('cl.tipo_cliente_id');
+
+            $tipoFactura = DB::table('tipo_factura')
+                ->where('estado', 1)
+                ->where('codigo', '!=', 'cotizacion_clientes_a')
+                ->where('tipo_venta_id', $tipoVentaFiscal)
+                ->orderBy('orden')
+                ->first(['ruta_menu']);
+
+            if (!$tipoFactura) {
+                $this->mensajeError = 'No hay un tipo de facturación disponible para esta Oferta Expo.';
+                return;
+            }
+
+            $urlBase = '/' . ltrim($tipoFactura->ruta_menu, '/')
+                . '?from=prefactura'
+                . '&prefactura_id=' . (int) $this->prefacturaData['id']
+                . '&flujoId=' . (int) $this->flujoId
+                . '&cotizacionId=' . $cotizacionId;
+
+            $this->dispatchBrowserEvent('fmp-facturar-expo', [
+                'url_completa' => $urlBase,
+                'url_parcial' => $urlBase . '&expo_parcial=1',
+            ]);
+            return;
+        }
 
         if ($this->prefacturaVencida) {
             $faltantes = $this->obtenerFaltantesInventarioPrefactura((int) $this->prefacturaData['id'], true);

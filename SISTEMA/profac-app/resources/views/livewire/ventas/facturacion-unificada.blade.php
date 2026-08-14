@@ -780,7 +780,7 @@
                             </div>{{-- /body_producto --}}
                             </div>{{-- /of-card producto --}}
 
-                            @if($esOfertaExpo && !$fromPrefactura && count($productosParaCarrito) > 0)
+                            @if($esOfertaExpo && (!$fromPrefactura || request()->boolean('expo_parcial')) && count($productosParaCarrito) > 0)
                             <div class="of-card" style="padding:16px 20px;">
                                 <div class="d-flex flex-wrap justify-content-between align-items-center mb-2" style="gap:8px;">
                                     <span class="of-card-title mb-0"><i class="fa fa-tags text-warning"></i> Líneas pendientes de la Oferta Expo</span>
@@ -860,14 +860,6 @@
                                 </div>
                                 </div>{{-- /body_carrito --}}
                             </div>{{-- /of-card carrito --}}
-
-                            @if($esOfertaExpo)
-                            <div id="simulacionDescuentoMarcaExpo" class="of-card" style="padding:14px 20px; display:none;">
-                                <span class="of-card-title mb-2 d-block"><i class="fa fa-percent text-info"></i> Simulación de descuento por marca para esta factura</span>
-                                <div id="simulacionDescuentoMarcaExpoDetalle" style="font-size:11px;"></div>
-                                <small class="text-muted">Vista previa con las reglas congeladas. El cálculo definitivo se realiza en el servidor al cerrar la oferta.</small>
-                            </div>
-                            @endif
 
                             {{-- ── SECCIÓN 3: Totales ───────────────────────────────────── --}}
                             <span id="ico_sec_totales" style="display:none;"></span>
@@ -4722,8 +4714,10 @@
                 return;
             }
         }
-        // 1. Para facturas (no cotizaciones): mostrar modal de gestor de entrega primero
-        if (codigoActual !== 'cotizacion_clientes_a') {
+        // 1. Para facturas normales: mostrar modal de actores antes de guardar.
+        // Las facturas Expo conservan los actores del flujo y no requieren selección manual.
+        var esFacturaExpo = {!! $esOfertaExpo ? 'true' : 'false' !!};
+        if (codigoActual !== 'cotizacion_clientes_a' && !esFacturaExpo) {
             var gestorHidden = document.getElementById('gestor_entrega_hidden');
             if (!gestorHidden || !gestorHidden.getAttribute('data-confirmed')) {
                 mostrarModalGestorEntrega();
@@ -4969,6 +4963,7 @@
                     factura_id:      data.idFactura,
                     pedido_id:       pedidoIdVal,
                     prefactura_id:   prefacturaIdVal,
+                    expo_parcial:    urlParams.get('expo_parcial') === '1' ? 1 : 0,
                     tipo_factura_id: (tipoFacturaConfig ? tipoFacturaConfig.id : '')
                 }).then(function(res) {
                     if (res.data && res.data.flujoId) {
@@ -5159,8 +5154,8 @@
     <script>
     (function () {
         var _productosAutoAgregados = false;
-        var _modoPrefactura = {!! $fromPrefactura ? 'true' : 'false' !!};
-        var _seleccionExpo = {!! ($esOfertaExpo && !$fromPrefactura) ? 'true' : 'false' !!};
+        var _modoPrefactura = {!! ($fromPrefactura && !$esOfertaExpo) ? 'true' : 'false' !!};
+        var _seleccionExpo = {!! ($esOfertaExpo && (!$fromPrefactura || request()->boolean('expo_parcial'))) ? 'true' : 'false' !!};
         var _productosDisponibles = @json($productosParaCarrito);
 
         function cargarProductosIniciales() {
