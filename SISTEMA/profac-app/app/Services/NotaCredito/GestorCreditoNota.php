@@ -7,12 +7,12 @@ use RuntimeException;
 
 class GestorCreditoNota
 {
-    public function previsualizarAplicacion(int $clienteId, float $monto): array
+    public function previsualizarAplicacion(int $clienteId, float $monto, int $facturaOrigenId): array
     {
         $disponible = round(max($monto, 0), 2);
         $aplicaciones = [];
 
-        foreach ($this->cuentasPendientesCliente($clienteId)->get() as $cuenta) {
+        foreach ($this->cuentasPendientesCliente($clienteId, $facturaOrigenId)->get() as $cuenta) {
             if ($disponible <= 0.005) {
                 break;
             }
@@ -101,7 +101,10 @@ class GestorCreditoNota
             $aplicaciones = [];
             $totalAplicado = 0.0;
             if (in_array($destino, ['saldos', 'mixto'], true)) {
-                $cuentas = $this->cuentasPendientesCliente((int) $credito->cliente_id)
+                $facturaOrigenId = (int) DB::table('nota_credito')
+                    ->where('id', $notaCreditoId)
+                    ->value('factura_id');
+                $cuentas = $this->cuentasPendientesCliente((int) $credito->cliente_id, $facturaOrigenId)
                     ->lockForUpdate()
                     ->get();
 
@@ -381,7 +384,7 @@ class GestorCreditoNota
         return DB::transactionLevel() ? $operacion() : DB::transaction($operacion, 3);
     }
 
-    private function cuentasPendientesCliente(int $clienteId)
+    private function cuentasPendientesCliente(int $clienteId, int $facturaOrigenId)
     {
         return DB::table('aplicacion_pagos as ap')
             ->join('factura as f', 'f.id', '=', 'ap.factura_id')
@@ -389,6 +392,14 @@ class GestorCreditoNota
             ->where('ap.estado', 1)
             ->where('ap.estado_cerrado', '<>', 2)
             ->where('ap.saldo', '>', 0.005)
+            ->where(function ($query) use ($facturaOrigenId) {
+                $query->where('ap.factura_id', $facturaOrigenId)
+                    ->orWhere(function ($vencidas) use ($facturaOrigenId) {
+                        $vencidas->where('ap.factura_id', '<>', $facturaOrigenId)
+                            ->whereDate('f.fecha_vencimiento', '<', now()->toDateString());
+                    });
+            })
+            ->orderByRaw('CASE WHEN ap.factura_id = ? THEN 0 ELSE 1 END', [$facturaOrigenId])
             ->orderByRaw('CASE WHEN f.fecha_vencimiento IS NULL THEN 1 ELSE 0 END')
             ->orderBy('f.fecha_vencimiento')
             ->orderBy('f.fecha_emision')

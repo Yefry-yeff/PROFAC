@@ -79,6 +79,26 @@ class NotaDebito extends Component
             $caiDisponible = $this->caiDebitoDisponible();
 
             return Datatables::of($listaFacturas)
+            ->filter(function ($query) use ($request) {
+                $buscar = trim((string) $request->input('search.value', ''));
+                if ($buscar === '') {
+                    return;
+                }
+
+                $termino = "%{$buscar}%";
+                $query->where(function ($filtro) use ($termino) {
+                    $filtro->where('f.cai', 'like', $termino)
+                        ->orWhere('f.numero_factura', 'like', $termino)
+                        ->orWhere('f.fecha_emision', 'like', $termino)
+                        ->orWhere('c.nombre', 'like', $termino)
+                        ->orWhere('tp.descripcion', 'like', $termino)
+                        ->orWhere('f.fecha_vencimiento', 'like', $termino)
+                        ->orWhere('f.sub_total', 'like', $termino)
+                        ->orWhere('f.isv', 'like', $termino)
+                        ->orWhere('f.total', 'like', $termino)
+                        ->orWhere('u.name', 'like', $termino);
+                });
+            })
             ->addColumn('opciones', function ($factura) use ($montoDebito, $caiDisponible) {
                 if ((int) $factura->notas_activas === 0) {
                     if (!$caiDisponible) {

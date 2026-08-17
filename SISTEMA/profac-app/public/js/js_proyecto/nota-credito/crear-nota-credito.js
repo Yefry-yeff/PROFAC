@@ -995,7 +995,7 @@ function actualizarDestinoCreditoCrear() {
         return;
     }
 
-    var texto = 'Se aplicarán <strong>' + formatoLempirasCredito(aplicado) + '</strong> a los saldos más antiguos.';
+    var texto = 'Se aplicarán <strong>' + formatoLempirasCredito(aplicado) + '</strong> primero a la factura seleccionada y luego a los saldos vencidos más antiguos.';
     if (reembolso > 0) texto += ' Se reembolsarán <strong>' + formatoLempirasCredito(reembolso) + '</strong>.';
     if (saldo > 0) texto += ' Quedarán <strong>' + formatoLempirasCredito(saldo) + '</strong> disponibles.';
     $('#resumenDestinoCreditoCrear').html('<i class="fa fa-info-circle mr-1"></i>' + texto).show();

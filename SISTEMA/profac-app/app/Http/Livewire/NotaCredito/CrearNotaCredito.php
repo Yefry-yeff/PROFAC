@@ -84,11 +84,19 @@ class CrearNotaCredito extends Component
 
         if ($datosFactura) {
             $datosFactura->saldo_pendiente_cliente = round((float) DB::table('aplicacion_pagos')
-                ->where('cliente_id', $datosFactura->idCliente)
-                ->where('estado', 1)
-                ->where('estado_cerrado', '<>', 2)
-                ->where('saldo', '>', 0.005)
-                ->sum('saldo'), 2);
+                ->join('factura as f_saldo', 'f_saldo.id', '=', 'aplicacion_pagos.factura_id')
+                ->where('aplicacion_pagos.cliente_id', $datosFactura->idCliente)
+                ->where('aplicacion_pagos.estado', 1)
+                ->where('aplicacion_pagos.estado_cerrado', '<>', 2)
+                ->where('aplicacion_pagos.saldo', '>', 0.005)
+                ->where(function ($query) use ($datosFactura) {
+                    $query->where('aplicacion_pagos.factura_id', $datosFactura->id)
+                        ->orWhere(function ($vencidas) use ($datosFactura) {
+                            $vencidas->where('aplicacion_pagos.factura_id', '<>', $datosFactura->id)
+                                ->whereDate('f_saldo.fecha_vencimiento', '<', now()->toDateString());
+                        });
+                })
+                ->sum('aplicacion_pagos.saldo'), 2);
         }
 
         return response()->json([
@@ -108,7 +116,11 @@ class CrearNotaCredito extends Component
         $factura = DB::table('factura')->where('id', $datos['idFactura'])->first(['cliente_id']);
         $prevision = $datos['destino'] === 'reembolso'
             ? ['aplicaciones' => [], 'monto_aplicado' => 0, 'saldo_sin_aplicar' => (float) $datos['monto']]
-            : $gestor->previsualizarAplicacion((int) $factura->cliente_id, (float) $datos['monto']);
+            : $gestor->previsualizarAplicacion(
+                (int) $factura->cliente_id,
+                (float) $datos['monto'],
+                (int) $datos['idFactura']
+            );
 
         return response()->json($prevision);
     }
