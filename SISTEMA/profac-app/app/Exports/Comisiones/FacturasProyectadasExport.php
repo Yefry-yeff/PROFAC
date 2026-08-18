@@ -29,7 +29,7 @@ class FacturasProyectadasExport implements FromArray, WithColumnWidths, WithEven
     {
         $rows = [
             ['DISTRIBUCIONES VALENCIA | RTN: 08011986138652', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
-            ['FACTURAS PROYECTADAS - DETALLE FISCAL', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+            ['FACTURAS PROYECTADAS Y EXCLUIDAS - DETALLE FISCAL', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
             ['Periodo: ' . $this->periodo . ' | Generado por: ' . $this->generadoPor, '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
             ['ID FACTURA', 'FECHA EMISIÓN', 'TIPO DE FACTURA', 'CANTIDAD DE ABONOS', 'FECHA PRIMER ABONO', 'FECHA CIERRE (ULTIMO PAGO)', 'CORRELATIVO', 'POLITICA COMISION', 'ESTADO COMISIÓN', 'SUBTOTAL', 'ISV', 'TOTAL', 'DESCUENTO', 'CLIENTE', 'CAI', 'BANCO COBRO CIERRE'],
         ];
@@ -74,7 +74,7 @@ class FacturasProyectadasExport implements FromArray, WithColumnWidths, WithEven
     {
         return [
             'A' => 13, 'B' => 16, 'C' => 18, 'D' => 20, 'E' => 20, 'F' => 25,
-            'G' => 13, 'H' => 26, 'I' => 22, 'J' => 16, 'K' => 16, 'L' => 16,
+            'G' => 13, 'H' => 26, 'I' => 55, 'J' => 16, 'K' => 16, 'L' => 16,
             'M' => 16, 'N' => 38, 'O' => 24, 'P' => 34,
         ];
     }

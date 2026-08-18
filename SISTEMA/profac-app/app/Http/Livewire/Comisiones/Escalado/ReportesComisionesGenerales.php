@@ -2592,7 +2592,8 @@ class ReportesComisionesGenerales extends Component
         }
 
         $usuarioId = (int) $request->input('usuario_id');
-        $filasPolitica = collect($payload['excluidas'] ?? [])
+        $filasExcluidas = collect($payload['excluidas'] ?? []);
+        $filasPolitica = $filasExcluidas
             ->filter(function ($row) use ($usuarioId) {
                 $capacidad = mb_strtoupper(trim((string) ($row['capacidad'] ?? '')), 'UTF-8');
 
@@ -2638,7 +2639,58 @@ class ReportesComisionesGenerales extends Component
                 ->all();
         }
 
-        $facturaIds = array_values(array_unique(array_merge($facturaIdsEscala, $facturaIdsPolitica)));
+        $motivosExclusionPorFactura = $filasExcluidas
+            ->filter(fn($row) => (int) ($row['factura_id'] ?? 0) > 0)
+            ->groupBy(fn($row) => (int) $row['factura_id'])
+            ->map(function ($lineas) {
+                $motivos = $lineas
+                    ->flatMap(function ($linea) {
+                        $motivos = $linea['motivos'] ?? [];
+                        if (!is_array($motivos) || empty($motivos)) {
+                            $motivos = [(string) ($linea['razon_no_comisionable'] ?? 'Sin motivo registrado')];
+                        }
+
+                        return $motivos;
+                    })
+                    ->map(fn($motivo) => trim((string) $motivo))
+                    ->filter()
+                    ->unique();
+
+                $capacidades = $lineas
+                    ->pluck('capacidad')
+                    ->map(fn($capacidad) => mb_strtoupper(trim((string) $capacidad), 'UTF-8'))
+                    ->unique();
+                $rolesSinPoliticaAnterior = collect();
+
+                if ($capacidades->contains('TELEASESOR')) {
+                    $rolesSinPoliticaAnterior->push('Teleasesor');
+                }
+                if ($capacidades->contains(fn($capacidad) => in_array($capacidad, ['GESTOR_ENTREGA', 'GESTOR DE ENTREGA'], true))) {
+                    $rolesSinPoliticaAnterior->push('Gestor de Entrega');
+                }
+
+                if ($rolesSinPoliticaAnterior->isNotEmpty()) {
+                    $descripcionRoles = $rolesSinPoliticaAnterior->count() === 1
+                        ? 'el rol ' . $rolesSinPoliticaAnterior->first()
+                        : 'los roles ' . $rolesSinPoliticaAnterior->implode(' y ');
+                    $motivos->push('No entra en Política Anterior porque no existen parámetros para ' . $descripcionRoles);
+                }
+
+                return $motivos->unique()->implode(' | ');
+            })
+            ->all();
+
+        $facturaIdsExcluidas = array_values(array_diff(
+            array_map('intval', array_keys($motivosExclusionPorFactura)),
+            $facturaIdsEscala,
+            $facturaIdsPolitica
+        ));
+
+        $facturaIds = array_values(array_unique(array_merge(
+            $facturaIdsEscala,
+            $facturaIdsPolitica,
+            $facturaIdsExcluidas
+        )));
         $cantidadEsperada = count($facturaIds);
         $origenPorFactura = [];
         foreach ($facturaIdsEscala as $facturaId) {
@@ -2649,6 +2701,9 @@ class ReportesComisionesGenerales extends Component
                 ? 'ESCALA / POLITICA ANTERIOR'
                 : 'POLITICA ANTERIOR';
         }
+            foreach ($facturaIdsExcluidas as $facturaId) {
+                $origenPorFactura[$facturaId] = 'EXCLUIDA';
+            }
 
         $pagosPorFactura = empty($facturaIds)
             ? collect()
@@ -2706,12 +2761,13 @@ class ReportesComisionesGenerales extends Component
                              COALESCE(f.cai, "") as cai')
                 ->orderBy('f.id')
                 ->get()
-                ->map(function ($factura) use ($pagosPorFactura, $bancosCierre, $origenPorFactura, $estadoPoliticaPorFactura) {
+                ->map(function ($factura) use ($pagosPorFactura, $bancosCierre, $origenPorFactura, $estadoPoliticaPorFactura, $motivosExclusionPorFactura, $facturaIdsExcluidas) {
                     $bancoCierre = $bancosCierre->get((int) $factura->factura_id);
                     $banco = trim((string) ($bancoCierre->nombre ?? ''));
                     $cuenta = trim((string) ($bancoCierre->cuenta ?? ''));
                     $facturaId = (int) $factura->factura_id;
                     $pagos = $pagosPorFactura->get($facturaId);
+                    $esExcluida = in_array($facturaId, $facturaIdsExcluidas, true);
 
                     return [
                         'factura_id' => $facturaId,
@@ -2726,7 +2782,9 @@ class ReportesComisionesGenerales extends Component
                         'fecha_cierre' => (string) ($pagos->fecha_cierre ?? ''),
                         'correlativo' => str_pad(substr(preg_replace('/[^0-9]/', '', (string) $factura->cai), -5), 5, '0', STR_PAD_LEFT),
                         'politica_comision' => $origenPorFactura[$facturaId] ?? '',
-                        'estado_comision' => $estadoPoliticaPorFactura[$facturaId] ?? 'COMISIONA',
+                        'estado_comision' => $esExcluida
+                            ? 'EXCLUIDA - ' . ($motivosExclusionPorFactura[$facturaId] ?? 'Sin motivo registrado')
+                            : ($estadoPoliticaPorFactura[$facturaId] ?? 'COMISIONA'),
                         'subtotal' => (float) $factura->subtotal,
                         'isv' => (float) $factura->isv,
                         'total' => (float) $factura->total,

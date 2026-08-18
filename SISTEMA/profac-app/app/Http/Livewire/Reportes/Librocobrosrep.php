@@ -38,6 +38,8 @@ class Librocobrosrep extends Component
 
             $cliente = $request->input('cliente');
             $vendedor = $request->input('vendedor');
+            $teleasesor = $request->input('teleasesor');
+            $gestor = $request->input('gestor');
             $banco   = $request->input('banco');
             $factura = $request->input('factura');
 
@@ -45,7 +47,7 @@ class Librocobrosrep extends Component
                      && !empty($fechaFinal)   && $fechaFinal   !== 'todos';
 
             if ($tipo == 3) {
-                $consulta = $this->queryTipo3Data($fechaInicio, $fechaFinal, $cliente, $vendedor, $banco, $factura);
+                $consulta = $this->queryTipo3Data($fechaInicio, $fechaFinal, $cliente, $vendedor, $teleasesor, $gestor, $banco, $factura);
                 $kpiTotalCobrado = array_sum(array_map(
                     fn($row) => (int) ($row->impacta_kpi ?? 0) === 1 ? (float) $row->monto_cobrado : 0,
                     $consulta
@@ -323,10 +325,12 @@ class Librocobrosrep extends Component
             if ($tipo == 3) {
                 $clienteFiltro  = $request->input('cliente_id',  $request->input('cliente'));
                 $vendedorFiltro = $request->input('vendedor_id', $request->input('vendedor'));
+                $teleasesorFiltro = $request->input('teleasesor_id', $request->input('teleasesor'));
+                $gestorFiltro = $request->input('gestor_id', $request->input('gestor'));
                 $bancoFiltro    = $request->input('banco_id',    $request->input('banco'));
                 $facturaFiltro  = $request->filled('factura') ? $request->input('factura') : null;
 
-                $rows = $this->queryTipo3Data($fechaInicio, $fechaFinal, $clienteFiltro, $vendedorFiltro, $bancoFiltro, $facturaFiltro);
+                $rows = $this->queryTipo3Data($fechaInicio, $fechaFinal, $clienteFiltro, $vendedorFiltro, $teleasesorFiltro, $gestorFiltro, $bancoFiltro, $facturaFiltro);
                 $data = array_map(fn($r) => (array) $r, $rows);
 
                 $grouped = [];
@@ -391,6 +395,8 @@ class Librocobrosrep extends Component
                     $fechaFinal,
                     $request->input('cliente_id', $request->input('cliente')),
                     $request->input('vendedor_id', $request->input('vendedor')),
+                    $request->input('teleasesor_id', $request->input('teleasesor')),
+                    $request->input('gestor_id',     $request->input('gestor')),
                     $request->input('banco_id',    $request->input('banco')),
                     $request->filled('factura') ? $request->input('factura') : null
                 );
@@ -423,6 +429,8 @@ class Librocobrosrep extends Component
         string $fechaFinal,
         ?string $cliente  = null,
         ?string $vendedor = null,
+        ?string $teleasesor = null,
+        ?string $gestor = null,
         ?string $banco    = null,
         ?string $factura  = null
     ): array {
@@ -572,10 +580,12 @@ class Librocobrosrep extends Component
                     f.fecha_emision,
                     f.fecha_vencimiento,
                     f.nombre_cliente,
+                    f.cai,
                     f.numero_secuencia_cai,
                     f.cliente_id,
                     f.vendedor,
                     f.users_id,
+                    f.gestor_entrega,
                     f.total,
                     f.sub_total,
                     f.sub_total_grabado,
@@ -598,7 +608,7 @@ class Librocobrosrep extends Component
                 c.nombre_cliente AS cliente,
                 COALESCE(u.name, '') AS asesor_comercial,
                 COALESCE(tele.name, '') AS teleasesor,
-                c.numero_secuencia_cai AS factura,
+                COALESCE(NULLIF(TRIM(c.cai), ''), c.numero_secuencia_cai) AS factura,
                 c.monto_cobrado,
                 c.impacta_kpi,
                 c.saldo_pendiente,
@@ -635,12 +645,21 @@ class Librocobrosrep extends Component
             $sql .= ' AND c.vendedor = ?';
             $bindings[] = $vendedor;
         }
+        if (!empty($teleasesor)) {
+            $sql .= ' AND c.users_id = ?';
+            $bindings[] = $teleasesor;
+        }
+        if (!empty($gestor)) {
+            $sql .= ' AND c.gestor_entrega = ?';
+            $bindings[] = $gestor;
+        }
         if (!empty($banco)) {
             $sql .= ' AND c._banco_id = ?';
             $bindings[] = $banco;
         }
         if (!empty($factura)) {
-            $sql .= ' AND c.numero_secuencia_cai LIKE ?';
+            $sql .= ' AND (c.cai LIKE ? OR c.numero_secuencia_cai LIKE ?)';
+            $bindings[] = '%' . $factura . '%';
             $bindings[] = '%' . $factura . '%';
         }
 
