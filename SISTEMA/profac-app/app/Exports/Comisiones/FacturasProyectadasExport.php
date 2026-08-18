@@ -28,10 +28,10 @@ class FacturasProyectadasExport implements FromArray, WithColumnWidths, WithEven
     public function array(): array
     {
         $rows = [
-            ['DISTRIBUCIONES VALENCIA | RTN: 08011986138652', '', '', '', '', '', '', '', '', '', '', '', ''],
-            ['FACTURAS PROYECTADAS - DETALLE FISCAL', '', '', '', '', '', '', '', '', '', '', '', ''],
-            ['Periodo: ' . $this->periodo . ' | Generado por: ' . $this->generadoPor, '', '', '', '', '', '', '', '', '', '', '', ''],
-            ['ID FACTURA', 'FECHA EMISIÓN', 'FECHA CIERRE (ULTIMO PAGO)', 'CORRELATIVO', 'POLITICA COMISION', 'ESTADO COMISIÓN', 'SUBTOTAL', 'ISV', 'TOTAL', 'DESCUENTO', 'CLIENTE', 'CAI', 'BANCO COBRO CIERRE'],
+            ['DISTRIBUCIONES VALENCIA | RTN: 08011986138652', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+            ['FACTURAS PROYECTADAS - DETALLE FISCAL', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+            ['Periodo: ' . $this->periodo . ' | Generado por: ' . $this->generadoPor, '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+            ['ID FACTURA', 'FECHA EMISIÓN', 'TIPO DE FACTURA', 'CANTIDAD DE ABONOS', 'FECHA PRIMER ABONO', 'FECHA CIERRE (ULTIMO PAGO)', 'CORRELATIVO', 'POLITICA COMISION', 'ESTADO COMISIÓN', 'SUBTOTAL', 'ISV', 'TOTAL', 'DESCUENTO', 'CLIENTE', 'CAI', 'BANCO COBRO CIERRE'],
         ];
 
         $subtotal = 0.0;
@@ -48,6 +48,9 @@ class FacturasProyectadasExport implements FromArray, WithColumnWidths, WithEven
             $rows[] = [
                 (int) $factura['factura_id'],
                 $factura['fecha_emision'],
+                $factura['tipo_factura'],
+                (int) $factura['cantidad_abonos'],
+                $factura['fecha_primer_abono'],
                 $factura['fecha_cierre'],
                 (int) $factura['correlativo'],
                 $factura['politica_comision'],
@@ -62,7 +65,7 @@ class FacturasProyectadasExport implements FromArray, WithColumnWidths, WithEven
             ];
         }
 
-        $rows[] = ['TOTALES', '', '', '', '', '', $subtotal, $isv, $total, $descuento, '', '', ''];
+        $rows[] = ['TOTALES', '', '', '', '', '', '', '', '', $subtotal, $isv, $total, $descuento, '', '', ''];
 
         return $rows;
     }
@@ -70,23 +73,24 @@ class FacturasProyectadasExport implements FromArray, WithColumnWidths, WithEven
     public function columnWidths(): array
     {
         return [
-            'A' => 13, 'B' => 16, 'C' => 25, 'D' => 13, 'E' => 26, 'F' => 22,
-            'G' => 16, 'H' => 16, 'I' => 16, 'J' => 16, 'K' => 38, 'L' => 24, 'M' => 34,
+            'A' => 13, 'B' => 16, 'C' => 18, 'D' => 20, 'E' => 20, 'F' => 25,
+            'G' => 13, 'H' => 26, 'I' => 22, 'J' => 16, 'K' => 16, 'L' => 16,
+            'M' => 16, 'N' => 38, 'O' => 24, 'P' => 34,
         ];
     }
 
     public function styles(Worksheet $sheet)
     {
-        $sheet->mergeCells('A1:M1');
-        $sheet->mergeCells('A2:M2');
-        $sheet->mergeCells('A3:M3');
+        $sheet->mergeCells('A1:P1');
+        $sheet->mergeCells('A2:P2');
+        $sheet->mergeCells('A3:P3');
         $sheet->getStyle('A1:A3')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(12)->getColor()->setRGB('1F3864');
         $sheet->getStyle('A2')->getFont()->setBold(true)->setSize(12)->getColor()->setRGB('047857');
         $sheet->getStyle('A3')->getFont()->setItalic(true)->setSize(9);
-        $sheet->getStyle('A4:M4')->getFont()->setBold(true)->getColor()->setRGB('FFFFFF');
-        $sheet->getStyle('A4:M4')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('047857');
-        $sheet->getStyle('A4:M4')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setWrapText(true);
+        $sheet->getStyle('A4:P4')->getFont()->setBold(true)->getColor()->setRGB('FFFFFF');
+        $sheet->getStyle('A4:P4')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('047857');
+        $sheet->getStyle('A4:P4')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setWrapText(true);
 
         return [];
     }
@@ -98,17 +102,17 @@ class FacturasProyectadasExport implements FromArray, WithColumnWidths, WithEven
                 $sheet = $event->sheet->getDelegate();
                 $lastRow = $sheet->getHighestRow();
 
-                $sheet->setAutoFilter('A4:M4');
+                $sheet->setAutoFilter('A4:P4');
                 $sheet->freezePane('A5');
-                $sheet->getStyle("D5:D{$lastRow}")->getNumberFormat()->setFormatCode('00000');
-                $sheet->getStyle("G5:J{$lastRow}")->getNumberFormat()->setFormatCode('"L." #,##0.00');
+                $sheet->getStyle("G5:G{$lastRow}")->getNumberFormat()->setFormatCode('00000');
+                $sheet->getStyle("J5:M{$lastRow}")->getNumberFormat()->setFormatCode('"L." #,##0.00');
                 for ($row = 5; $row < $lastRow; $row++) {
-                    $estado = (string) ($sheet->getCell("F{$row}")->getValue() ?? '');
-                    $sheet->getStyle("F{$row}")->getFont()->setBold(true)->getColor()
+                    $estado = (string) ($sheet->getCell("I{$row}")->getValue() ?? '');
+                    $sheet->getStyle("I{$row}")->getFont()->setBold(true)->getColor()
                         ->setRGB($estado === 'COMISIONA' ? '047857' : 'B91C1C');
                 }
-                $sheet->getStyle("A{$lastRow}:M{$lastRow}")->getFont()->setBold(true);
-                $sheet->getStyle("A{$lastRow}:M{$lastRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('D1FAE5');
+                $sheet->getStyle("A{$lastRow}:P{$lastRow}")->getFont()->setBold(true);
+                $sheet->getStyle("A{$lastRow}:P{$lastRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('D1FAE5');
             },
         ];
     }

@@ -2650,7 +2650,7 @@ class ReportesComisionesGenerales extends Component
                 : 'POLITICA ANTERIOR';
         }
 
-        $fechaCierrePorFactura = empty($facturaIds)
+        $pagosPorFactura = empty($facturaIds)
             ? collect()
             : DB::table('aplicacion_pagos as ap')
                 ->leftJoin('abonos_creditos as ac', function ($join) {
@@ -2662,9 +2662,12 @@ class ReportesComisionesGenerales extends Component
                 ->where('ap.estado_cerrado', 2)
                 ->where('ap.saldo', '<=', 0.0001)
                 ->groupBy('ap.factura_id')
-                ->selectRaw('ap.factura_id, COALESCE(MAX(DATE(ac.fecha_pago)), MAX(DATE(ap.fecha_cierre_factura))) as fecha_cierre')
+                ->selectRaw('ap.factura_id,
+                             COUNT(DISTINCT ac.id) as cantidad_abonos,
+                             MIN(DATE(ac.fecha_pago)) as fecha_primer_abono,
+                             COALESCE(MAX(DATE(ac.fecha_pago)), MAX(DATE(ap.fecha_cierre_factura))) as fecha_cierre')
                 ->get()
-                ->mapWithKeys(fn($row) => [(int) $row->factura_id => (string) $row->fecha_cierre]);
+                ->keyBy(fn($row) => (int) $row->factura_id);
 
         $bancosCierre = empty($facturaIds)
             ? collect()
@@ -2694,6 +2697,7 @@ class ReportesComisionesGenerales extends Component
                 ->whereIn('f.id', $facturaIds)
                 ->selectRaw('f.id as factura_id,
                              DATE(f.fecha_emision) as fecha_emision,
+                             f.tipo_pago_id,
                              COALESCE(f.sub_total, 0) as subtotal,
                              COALESCE(f.isv, 0) as isv,
                              COALESCE(f.total, 0) as total,
@@ -2702,16 +2706,24 @@ class ReportesComisionesGenerales extends Component
                              COALESCE(f.cai, "") as cai')
                 ->orderBy('f.id')
                 ->get()
-                ->map(function ($factura) use ($fechaCierrePorFactura, $bancosCierre, $origenPorFactura, $estadoPoliticaPorFactura) {
+                ->map(function ($factura) use ($pagosPorFactura, $bancosCierre, $origenPorFactura, $estadoPoliticaPorFactura) {
                     $bancoCierre = $bancosCierre->get((int) $factura->factura_id);
                     $banco = trim((string) ($bancoCierre->nombre ?? ''));
                     $cuenta = trim((string) ($bancoCierre->cuenta ?? ''));
                     $facturaId = (int) $factura->factura_id;
+                    $pagos = $pagosPorFactura->get($facturaId);
 
                     return [
                         'factura_id' => $facturaId,
                         'fecha_emision' => (string) ($factura->fecha_emision ?? ''),
-                        'fecha_cierre' => $fechaCierrePorFactura->get($facturaId, ''),
+                        'tipo_factura' => match ((int) ($factura->tipo_pago_id ?? 0)) {
+                            1 => 'CONTADO',
+                            2 => 'CRÉDITO',
+                            default => 'SIN DEFINIR',
+                        },
+                        'cantidad_abonos' => (int) ($pagos->cantidad_abonos ?? 0),
+                        'fecha_primer_abono' => (string) ($pagos->fecha_primer_abono ?? ''),
+                        'fecha_cierre' => (string) ($pagos->fecha_cierre ?? ''),
                         'correlativo' => str_pad(substr(preg_replace('/[^0-9]/', '', (string) $factura->cai), -5), 5, '0', STR_PAD_LEFT),
                         'politica_comision' => $origenPorFactura[$facturaId] ?? '',
                         'estado_comision' => $estadoPoliticaPorFactura[$facturaId] ?? 'COMISIONA',
