@@ -7,12 +7,12 @@ use Illuminate\Support\Facades\DB;
 
 class AjustadorComisionNotaCredito
 {
-    public function aplicar(int $notaCreditoId): array
+    public function aplicar(int $notaCreditoId, array $facturasComisionBaseNeta = []): array
     {
-        return DB::transaction(fn() => $this->aplicarEnTransaccion($notaCreditoId));
+        return DB::transaction(fn() => $this->aplicarEnTransaccion($notaCreditoId, $facturasComisionBaseNeta));
     }
 
-    private function aplicarEnTransaccion(int $notaCreditoId): array
+    private function aplicarEnTransaccion(int $notaCreditoId, array $facturasComisionBaseNeta): array
     {
         $nota = DB::table('nota_credito')->where('id', $notaCreditoId)->lockForUpdate()->first();
         if (!$nota || (int) $nota->estado_nota_id !== 1) {
@@ -22,6 +22,9 @@ class AjustadorComisionNotaCredito
         $comisiones = DB::table('facturas_comision')
             ->where('factura_id', $nota->factura_id)
             ->where('estado_id', 1)
+            ->when(!empty($facturasComisionBaseNeta), function ($query) use ($facturasComisionBaseNeta) {
+                $query->whereNotIn('id', array_map('intval', $facturasComisionBaseNeta));
+            })
             ->lockForUpdate()
             ->get();
 

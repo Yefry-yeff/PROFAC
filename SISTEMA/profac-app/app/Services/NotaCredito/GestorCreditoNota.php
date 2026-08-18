@@ -2,6 +2,9 @@
 
 namespace App\Services\NotaCredito;
 
+use App\Services\Comisiones\AplicadorRetencionesMora;
+use App\Services\Comisiones\GeneradorFacturasComision;
+use App\Services\Comisiones\ProcesadorComisiones;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -99,6 +102,8 @@ class GestorCreditoNota
             $this->registrarAsientoEmision($notaCreditoId, $usuarioId);
 
             $aplicaciones = [];
+            $comisionesGeneradas = [];
+            $comisionesBaseNeta = [];
             $totalAplicado = 0.0;
             if (in_array($destino, ['saldos', 'mixto'], true)) {
                 $facturaOrigenId = (int) DB::table('nota_credito')
@@ -164,6 +169,20 @@ class GestorCreditoNota
                             ['CUENTAS_POR_COBRAR', 'Cuentas por cobrar clientes', 0, $monto],
                         ]
                     );
+
+                    if ($nuevoSaldo <= 0.005) {
+                        $generadas = $this->generarComisionesPorCierre(
+                            (int) $cuenta->factura_id,
+                            (int) $cuenta->id,
+                            now()->toDateString()
+                        );
+                        $comisionesGeneradas = array_merge($comisionesGeneradas, $generadas);
+
+                        if ((int) $cuenta->factura_id === $facturaOrigenId
+                            && DB::table('nota_credito_has_producto')->where('nota_credito_id', $notaCreditoId)->exists()) {
+                            $comisionesBaseNeta = array_merge($comisionesBaseNeta, $generadas);
+                        }
+                    }
 
                     $aplicaciones[] = [
                         'factura_id' => (int) $cuenta->factura_id,
@@ -246,6 +265,8 @@ class GestorCreditoNota
                 'monto_reembolsado' => $totalReembolsado,
                 'saldo_disponible' => max($disponible, 0),
                 'estado' => $estado,
+                'facturas_comision_generadas' => array_values(array_unique($comisionesGeneradas)),
+                'facturas_comision_base_neta' => array_values(array_unique($comisionesBaseNeta)),
             ];
         }, 3);
     }
@@ -293,6 +314,7 @@ class GestorCreditoNota
                 ->get(['ap.id', 'ap.factura_id', 'ap.saldo', 'f.cai']);
 
             $aplicaciones = [];
+            $comisionesGeneradas = [];
             $totalAplicado = 0.0;
             foreach ($cuentas as $cuenta) {
                 if ($disponible <= 0.005) {
@@ -347,6 +369,17 @@ class GestorCreditoNota
                     ]
                 );
 
+                if ($nuevoSaldo <= 0.005) {
+                    $comisionesGeneradas = array_merge(
+                        $comisionesGeneradas,
+                        $this->generarComisionesPorCierre(
+                            (int) $cuenta->factura_id,
+                            (int) $cuenta->id,
+                            now()->toDateString()
+                        )
+                    );
+                }
+
                 $aplicaciones[] = [
                     'factura_id' => (int) $cuenta->factura_id,
                     'factura' => $cuenta->cai,
@@ -378,10 +411,37 @@ class GestorCreditoNota
                 'monto_aplicado' => $totalAplicado,
                 'saldo_disponible' => max($disponible, 0),
                 'estado' => $estado,
+                'facturas_comision_generadas' => array_values(array_unique($comisionesGeneradas)),
+                'facturas_comision_base_neta' => [],
             ];
         };
 
         return DB::transactionLevel() ? $operacion() : DB::transaction($operacion, 3);
+    }
+
+    private function generarComisionesPorCierre(int $facturaId, int $aplicacionPagoId, string $fechaCierre): array
+    {
+        $comisiones = app(GeneradorFacturasComision::class)
+            ->generar($facturaId, $aplicacionPagoId, $fechaCierre);
+
+        if (empty($comisiones)) {
+            return [];
+        }
+
+        $comisiones = app(AplicadorRetencionesMora::class)
+            ->aplicar($comisiones, $facturaId, $fechaCierre);
+        $procesador = app(ProcesadorComisiones::class);
+
+        foreach ($comisiones as $comision) {
+            $procesador->procesar($comision);
+        }
+
+        return collect($comisiones)
+            ->pluck('facturas_comision_id')
+            ->map(fn($id) => (int) $id)
+            ->filter()
+            ->values()
+            ->all();
     }
 
     private function cuentasPendientesCliente(int $clienteId, int $facturaOrigenId)

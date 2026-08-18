@@ -1101,6 +1101,48 @@ class ReportesComisionesGenerales extends Component
      * - Base comisionable: cantidad * COALESCE(precioSeleccionado, precio_unidad).
      * - Excluir y reportar facturas no aplicables por faltantes de escala o líneas inválidas.
      */
+    private function indexarCantidadesDevueltas($lineas): array
+    {
+        $cantidades = ['exactas' => [], 'por_precio' => []];
+
+        foreach ($lineas as $linea) {
+            $base = $linea->producto_id . '|' . $linea->seccion_id . '|' . $linea->unidad_medida_venta_id;
+            if (!empty($linea->precios_producto_carga_id)) {
+                $clave = $base . '|' . $linea->precios_producto_carga_id;
+                $cantidades['exactas'][$clave] = ($cantidades['exactas'][$clave] ?? 0) + (float) $linea->cantidad;
+                continue;
+            }
+
+            $clave = $base . '|' . number_format((float) $linea->precio_unidad, 4, '.', '');
+            $cantidades['por_precio'][$clave] = ($cantidades['por_precio'][$clave] ?? 0) + (float) $linea->cantidad;
+        }
+
+        return $cantidades;
+    }
+
+    private function cantidadComisionableTrasDevoluciones(object $linea, array &$cantidades): float
+    {
+        $cantidadVendida = max((float) ($linea->cantidad ?? 0), 0);
+        $base = $linea->producto_id . '|' . $linea->seccion_id . '|' . $linea->unidad_medida_venta_id;
+        $claveExacta = $base . '|' . $linea->precios_producto_carga_id;
+        $clavePrecio = $base . '|' . number_format((float) $linea->precio_unidad, 4, '.', '');
+
+        $devueltaExacta = min($cantidadVendida, (float) ($cantidades['exactas'][$claveExacta] ?? 0));
+        $cantidades['exactas'][$claveExacta] = max(
+            0,
+            (float) ($cantidades['exactas'][$claveExacta] ?? 0) - $devueltaExacta
+        );
+
+        $pendiente = $cantidadVendida - $devueltaExacta;
+        $devueltaPorPrecio = min($pendiente, (float) ($cantidades['por_precio'][$clavePrecio] ?? 0));
+        $cantidades['por_precio'][$clavePrecio] = max(
+            0,
+            (float) ($cantidades['por_precio'][$clavePrecio] ?? 0) - $devueltaPorPrecio
+        );
+
+        return max($cantidadVendida - $devueltaExacta - $devueltaPorPrecio, 0);
+    }
+
     public function reporteProyecciones(Request $request)
     {
         [$fi, $ff] = $this->resolveDateRange($request);
@@ -1118,7 +1160,20 @@ class ReportesComisionesGenerales extends Component
             ->where('ap.saldo', '<=', 0.0001)
             ->groupBy('ap.factura_id')
             ->selectRaw("ap.factura_id,
-                         COALESCE(MAX(DATE(ac.fecha_pago)), MAX(DATE(ap.fecha_cierre_factura))) as fecha_pago_cierre")
+                         CASE
+                             WHEN DATE(MAX(ap.fecha_cierre_factura)) > COALESCE(MAX(DATE(ac.fecha_pago)), '1000-01-01')
+                              AND COALESCE(MAX(ap.total_notas_credito), 0) > 0
+                              AND EXISTS (
+                                  SELECT 1
+                                  FROM nota_credito nc_cierre
+                                  WHERE nc_cierre.factura_id = ap.factura_id
+                                    AND nc_cierre.estado_nota_id = 1
+                                    AND nc_cierre.estado_rebajado IN (1, 3)
+                                    AND DATE(nc_cierre.fecha_rebajado) = DATE(MAX(ap.fecha_cierre_factura))
+                              )
+                                 THEN DATE(MAX(ap.fecha_cierre_factura))
+                             ELSE COALESCE(MAX(DATE(ac.fecha_pago)), DATE(MAX(ap.fecha_cierre_factura)))
+                         END as fecha_pago_cierre")
             ->havingRaw('fecha_pago_cierre IS NOT NULL')
             ->havingBetween('fecha_pago_cierre', [$fi, $ff])
             ->get();
@@ -1192,9 +1247,11 @@ class ReportesComisionesGenerales extends Component
             ->leftJoin('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')
             ->leftJoin('producto as p', 'p.id', '=', 'vhp.producto_id')
             ->whereIn('vhp.factura_id', $facturaIds)
-            ->groupBy('vhp.factura_id', 'vhp.producto_id', 'vhp.precios_producto_carga_id', 'vhp.precio_unidad', 'vhp.precioSeleccionado', 'ppc.categoria_precios_id', 'p.nombre', 'cp.nombre')
+            ->groupBy('vhp.factura_id', 'vhp.producto_id', 'vhp.seccion_id', 'vhp.unidad_medida_venta_id', 'vhp.precios_producto_carga_id', 'vhp.precio_unidad', 'vhp.precioSeleccionado', 'ppc.categoria_precios_id', 'p.nombre', 'cp.nombre')
             ->selectRaw("vhp.factura_id,
                          vhp.producto_id,
+                         vhp.seccion_id,
+                         vhp.unidad_medida_venta_id,
                          p.nombre as producto,
                          COALESCE(SUM(vhp.cantidad_s), SUM(vhp.cantidad)) as cantidad,
                          vhp.precio_unidad,
@@ -1202,6 +1259,21 @@ class ReportesComisionesGenerales extends Component
                          vhp.precios_producto_carga_id,
                          ppc.categoria_precios_id,
                          cp.nombre as categoria_precio")
+            ->get()
+            ->groupBy('factura_id');
+
+        $cantidadesDevueltas = DB::table('nota_credito_has_producto as ncp')
+            ->join('nota_credito as nc', 'nc.id', '=', 'ncp.nota_credito_id')
+            ->whereIn('nc.factura_id', $facturaIds)
+            ->where('nc.estado_nota_id', 1)
+            ->groupBy('nc.factura_id', 'ncp.producto_id', 'ncp.seccion_id', 'ncp.unidad_medida_venta_id', 'ncp.precios_producto_carga_id', 'ncp.precio_unidad')
+            ->selectRaw('nc.factura_id,
+                         ncp.producto_id,
+                         ncp.seccion_id,
+                         ncp.unidad_medida_venta_id,
+                         ncp.precios_producto_carga_id,
+                         ncp.precio_unidad,
+                         SUM(ncp.cantidad) as cantidad')
             ->get()
             ->groupBy('factura_id');
 
@@ -1322,6 +1394,16 @@ class ReportesComisionesGenerales extends Component
             $facturaId = (int) $factura->id;
             $cierre = $cierresPorFactura->get($facturaId);
             $lineas = collect($lineasFactura->get($facturaId, collect([])))->values();
+            $devueltasFactura = $this->indexarCantidadesDevueltas(
+                collect($cantidadesDevueltas->get($facturaId, collect([])))
+            );
+            $lineas = $lineas
+                ->map(function ($linea) use (&$devueltasFactura) {
+                    $linea->cantidad = $this->cantidadComisionableTrasDevoluciones($linea, $devueltasFactura);
+                    return $linea;
+                })
+                ->filter(fn($linea) => (float) $linea->cantidad > 0.005)
+                ->values();
 
             $targets = [
                 [
@@ -2720,7 +2802,20 @@ class ReportesComisionesGenerales extends Component
                 ->selectRaw('ap.factura_id,
                              COUNT(DISTINCT ac.id) as cantidad_abonos,
                              MIN(DATE(ac.fecha_pago)) as fecha_primer_abono,
-                             COALESCE(MAX(DATE(ac.fecha_pago)), MAX(DATE(ap.fecha_cierre_factura))) as fecha_cierre')
+                             CASE
+                                 WHEN DATE(MAX(ap.fecha_cierre_factura)) > COALESCE(MAX(DATE(ac.fecha_pago)), "1000-01-01")
+                                  AND COALESCE(MAX(ap.total_notas_credito), 0) > 0
+                                  AND EXISTS (
+                                      SELECT 1
+                                      FROM nota_credito nc_cierre
+                                      WHERE nc_cierre.factura_id = ap.factura_id
+                                        AND nc_cierre.estado_nota_id = 1
+                                        AND nc_cierre.estado_rebajado IN (1, 3)
+                                        AND DATE(nc_cierre.fecha_rebajado) = DATE(MAX(ap.fecha_cierre_factura))
+                                  )
+                                     THEN DATE(MAX(ap.fecha_cierre_factura))
+                                 ELSE COALESCE(MAX(DATE(ac.fecha_pago)), DATE(MAX(ap.fecha_cierre_factura)))
+                             END as fecha_cierre')
                 ->get()
                 ->keyBy(fn($row) => (int) $row->factura_id);
 

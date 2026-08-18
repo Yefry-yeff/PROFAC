@@ -580,7 +580,10 @@ class CrearNotaCredito extends Component
         );
 
         $ajustesComision = app(\App\Services\Comisiones\AjustadorComisionNotaCredito::class)
-            ->aplicar((int) $notaCredito->id);
+            ->aplicar(
+                (int) $notaCredito->id,
+                $resultado['facturas_comision_base_neta'] ?? []
+            );
 
         DB::commit();
        return response()->json([

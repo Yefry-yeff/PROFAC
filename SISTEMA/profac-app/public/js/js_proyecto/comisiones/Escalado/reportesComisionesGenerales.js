@@ -512,8 +512,7 @@ function cargarBrechaApFc(filtrosBase){
 function renderProyecciones(resp){
     var data = Array.isArray(resp.data) ? resp.data : [];
     var excluidasRaw = Array.isArray(resp.excluidas) ? resp.excluidas : [];
-    var usuarioFiltro = parseInt($('#proyUsuario').val() || 0, 10);
-    var excluidas = filtrarExcluidasPoliticaAnterior(excluidasRaw, usuarioFiltro);
+    var excluidas = excluidasRaw;
     var totales = resp.totales || {};
     proyeccionesDataActual = data;
     proyeccionesExcluidasActual = excluidas;
@@ -532,7 +531,7 @@ function renderProyecciones(resp){
     $('#resumenComisionEscala').text(fmtMoney(window._comisionEscalaActual));
     $('#resumenComisionTotal').text(fmtMoney(window._comisionEscalaActual)); // se actualizará al cargar pol. anterior
     $('#proyRetencionMora').text(fmtMoney(totales.retencion_mora_total || 0));
-    $('#proyExcluidas').text(excluidas.length);
+    $('#proyExcluidas').text(totales.facturas_excluidas || 0);
 
     $('#proyTableWrap').show();
 
