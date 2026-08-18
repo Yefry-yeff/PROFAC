@@ -569,6 +569,41 @@
 .ap-ctx-icon.ci-orange { background:#fff7ed; color:#ea580c; }
 .ap-ctx-icon.ci-gray   { background:#f8fafc; color:#64748b; }
 .ap-ctx-icon.ci-teal   { background:#f0fdfa; color:#0d9488; }
+.ap-ret-flag {
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    margin-top:4px;
+    padding:3px 8px;
+    border-radius:999px;
+    font-size:10px;
+    font-weight:800;
+    letter-spacing:.2px;
+}
+.ap-ret-flag.pending { background:#fff7ed; color:#c2410c; border:1px solid #fdba74; }
+.ap-ret-flag.applied { background:#ecfdf5; color:#047857; border:1px solid #86efac; }
+.ap-ret-flag.dismissed { background:#f8fafc; color:#475569; border:1px solid #cbd5e1; }
+.ap-ret-track-box {
+    background:#fff7ed;
+    border:1px solid #fed7aa;
+    border-radius:12px;
+    padding:12px 14px;
+}
+.ap-ret-track-box .custom-control-label {
+    font-weight:700;
+    color:#9a3412;
+}
+.ap-ret-track-note {
+    font-size:12px;
+    color:#7c2d12;
+    line-height:1.55;
+    margin-top:6px;
+}
+.ap-ret-track-status {
+    margin-top:8px;
+    font-size:12px;
+    font-weight:700;
+}
 .ap-ctx-divider { height: 1px; background: #f1f5f9; margin: 4px 6px; }
 /* Botón Acciones */
 .ap-actions-toggle {
@@ -656,6 +691,10 @@
         <div class="ap-stat-value" id="apStatCargo">—</div>
     </div>
     <div class="ap-stat-card red">
+        <div class="ap-stat-label"><i class="fa fa-exclamation-circle mr-1"></i> Total Vencido</div>
+        <div class="ap-stat-value red" id="apStatVencido">—</div>
+    </div>
+    <div class="ap-stat-card red">
         <div class="ap-stat-label"><i class="fa-solid fa-scale-unbalanced-flip mr-1"></i> Saldo Total</div>
         <div class="ap-stat-value red" id="apStatSaldo">—</div>
     </div>
@@ -712,7 +751,19 @@
                         </div>
                         <div class="col-12">
                             <div class="ap-form-group">
-                                <label><i class="fa fa-pencil mr-1"></i> Nota <span class="text-danger">*</span></label>
+                                <label><i class="fa fa-hashtag mr-1"></i> No. Retención</label>
+                                <input type="text" class="form-control" id="numero_retencion" name="numero_retencion" maxlength="100" placeholder="Ingrese el número de retención">
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="ap-form-group">
+                                <label><i class="fa fa-paperclip mr-1"></i> Adjuntar Retención (PDF/Imagen, máx. 5 MB)</label>
+                                <input class="form-control" id="doc_retencion" name="doc_retencion" type="file" accept="image/png, image/jpeg, image/jpg, application/pdf">
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="ap-form-group">
+                                <label><i class="fa fa-pencil mr-1"></i> Nota de Retención <span class="text-danger">*</span></label>
                                 <textarea required class="form-control" id="comentario_retencion" name="comentario_retencion" rows="3" placeholder="Ingrese una nota obligatoria..."></textarea>
                             </div>
                         </div>
@@ -763,18 +814,69 @@
                         </div>
                         <div class="col-md-6">
                             <div class="ap-form-group">
-                                <label><i class="fa fa-dollar mr-1"></i> Monto de Nota de Crédito</label>
+                                <label><i class="fa fa-dollar mr-1"></i> Crédito disponible</label>
                                 <input required type="text" readonly class="form-control" id="totalNotaCredito" name="totalNotaCredito">
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="ap-form-group">
-                                <label><i class="fa fa-toggle-on mr-1"></i> Acción</label>
-                                <select required id="selectAplicado" name="selectAplicado" class="form-control">
+                                <label><i class="fa fa-balance-scale mr-1"></i> Saldos pendientes del cliente</label>
+                                <input type="text" readonly class="form-control" id="saldoPendienteClienteNC">
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="ap-form-group">
+                                <label><i class="fa fa-random mr-1"></i> ¿Qué desea hacer con el crédito?</label>
+                                <select required id="destinoCredito" name="destinoCredito" class="form-control" onchange="actualizarDestinoCredito()">
                                     <option value="">— Seleccione —</option>
-                                    <option value="1">SE APLICA</option>
-                                    <option value="2">NO SE APLICA</option>
+                                    <option value="saldos">Aplicar automáticamente a saldos pendientes</option>
+                                    <option value="reembolso">Reembolsar todo el crédito disponible</option>
+                                    <option value="mixto">Mixto automático: aplicar saldos y reembolsar el sobrante</option>
                                 </select>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div id="resumenDestinoCredito" class="alert alert-info" style="display:none; font-size:12px;"></div>
+                        </div>
+                        <div class="col-12" id="panelReembolsoNC" style="display:none;">
+                            <div class="row" style="background:#f8fafc; border:1px solid #dbe4ee; border-radius:8px; padding:10px 4px; margin:0 0 12px;">
+                                <div class="col-md-6">
+                                    <div class="ap-form-group">
+                                        <label><i class="fa fa-bank mr-1"></i> Cuenta de salida</label>
+                                        <select id="bancoReembolso" name="bancoReembolso" class="form-control"></select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="ap-form-group">
+                                        <label><i class="fa fa-credit-card mr-1"></i> Método</label>
+                                        <select id="metodoReembolso" name="metodoReembolso" class="form-control">
+                                            <option value="">— Seleccione —</option>
+                                            <option value="1">Efectivo</option>
+                                            <option value="2">Transferencia bancaria</option>
+                                            <option value="3">Cheque</option>
+                                            <option value="4">Link de pago</option>
+                                            <option value="5">POS</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="ap-form-group">
+                                        <label><i class="fa fa-calendar mr-1"></i> Fecha del reembolso</label>
+                                        <input type="date" id="fechaReembolso" name="fechaReembolso" class="form-control" value="{{ date('Y-m-d') }}">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="ap-form-group">
+                                        <label><i class="fa fa-hashtag mr-1"></i> Referencia</label>
+                                        <input type="text" id="referenciaReembolso" name="referenciaReembolso" maxlength="100" class="form-control" placeholder="Transferencia, cheque o recibo">
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <div class="ap-form-group">
+                                        <label><i class="fa fa-paperclip mr-1"></i> Comprobante</label>
+                                        <input type="file" id="comprobanteReembolso" name="comprobanteReembolso" class="form-control" accept=".pdf,.jpg,.jpeg,.png">
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         <div class="col-12">
@@ -785,8 +887,8 @@
                         </div>
                         <div class="col-12">
                             <div class="ap-form-group">
-                                <label><i class="fa fa-comment mr-1"></i> Nota de Aplicación <span class="text-danger">*</span></label>
-                                <textarea required class="form-control" maxlength="500" id="comentarioRebaja" name="comentarioRebaja" rows="3" placeholder="Ingrese su nota..."></textarea>
+                                <label><i class="fa fa-comment mr-1"></i> Observación</label>
+                                <textarea class="form-control" maxlength="500" id="comentarioRebaja" name="comentarioRebaja" rows="2" placeholder="Detalle opcional de la gestión"></textarea>
                             </div>
                         </div>
                     </div>
@@ -1008,6 +1110,18 @@
                             </div>
                         </div>
                         <div class="col-12">
+                            <div class="ap-ret-track-box">
+                                <div class="custom-control custom-switch">
+                                    <input type="checkbox" class="custom-control-input" id="requiereRetencionFutura" name="requiereRetencionFutura" value="1">
+                                    <label class="custom-control-label" for="requiereRetencionFutura">Marcar esta factura para retención futura</label>
+                                </div>
+                                <div class="ap-ret-track-note">
+                                    Use esta bandera cuando registrará hoy un abono, pero la retención se gestionará después. La factura quedará identificada como pendiente hasta que la retención se aplique o se descarte.
+                                </div>
+                                <div class="ap-ret-track-status" id="retencionFuturaEstadoActual" style="display:none;"></div>
+                            </div>
+                        </div>
+                        <div class="col-12">
                             <div class="ap-form-group">
                                 <label><i class="fa fa-comment mr-1"></i> Nota del Pago <span class="text-danger">*</span></label>
                                 <textarea required class="form-control" id="comentarioAbono" name="comentarioAbono" rows="3" placeholder="Ingrese la nota del pago realizado..."></textarea>
@@ -1131,6 +1245,11 @@
                 Créditos y Abonos
                 <span class="ap-tab-badge" id="badge-abonos">—</span>
             </button>
+            <button class="ap-tab-btn" onclick="switchTab('tab-historico-retenciones', this)">
+                <i class="fa fa-history"></i>
+                Histórico Retenciones
+                <span class="ap-tab-badge" id="badge-historico-retenciones">—</span>
+            </button>
         </div>
 
         {{-- Tab: Saldos por Factura --}}
@@ -1156,6 +1275,7 @@
                             <th>Deducciones</th>
                             <th>ISV</th>
                             <th>Retención</th>
+                            <th>Seguimiento</th>
                             <th>Saldo</th>
                             <th>Registro</th>
                             <th>Actualización</th>
@@ -1176,6 +1296,7 @@
                             <th>Deducciones</th>
                             <th>ISV</th>
                             <th>Retención</th>
+                            <th>Seguimiento</th>
                             <th>Saldo</th>
                             <th>Registro</th>
                             <th>Actualización</th>
@@ -1207,7 +1328,8 @@
                                 <th>Comentario</th>
                                 <th>Estado</th>
                                 <th>Registrado por</th>
-                                <th>Fecha</th>
+                                <th>Fecha creación</th>
+                                <th>Fecha registro</th>
                                 <th></th>
                             </tr>
                         </thead>
@@ -1222,7 +1344,8 @@
                                 <th>Comentario</th>
                                 <th>Estado</th>
                                 <th>Registrado por</th>
-                                <th>Fecha</th>
+                                <th>Fecha creación</th>
+                                <th>Fecha registro</th>
                                 <th></th>
                             </tr>
                         </tfoot>
@@ -1251,7 +1374,8 @@
                                 <th>Comentario</th>
                                 <th>Estado</th>
                                 <th>Registrado por</th>
-                                <th>Fecha</th>
+                                <th>Fecha pago</th>
+                                <th>Fecha registro</th>
                                 <th></th>
                             </tr>
                         </thead>
@@ -1265,8 +1389,56 @@
                                 <th>Comentario</th>
                                 <th>Estado</th>
                                 <th>Registrado por</th>
-                                <th>Fecha</th>
+                                <th>Fecha pago</th>
+                                <th>Fecha registro</th>
                                 <th></th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        {{-- Tab: Histórico Retenciones --}}
+        <div id="tab-historico-retenciones" class="ap-panel d-none">
+            <div class="ap-panel-title">
+                <div class="ap-panel-icon blue"><i class="fa fa-history"></i></div>
+                Histórico de Retenciones por Cliente
+            </div>
+            <div id="tbl_historico_retenciones_div">
+                <div class="table-responsive">
+                    <table id="tbl_historico_retenciones_cliente"
+                           class="table table-sm table-hover w-100"
+                           style="border-collapse:collapse;">
+                        <thead>
+                            <tr>
+                                <th>#Seg</th>
+                                <th>#Pago</th>
+                                <th>Factura</th>
+                                <th>Cliente</th>
+                                <th>Estado</th>
+                                <th>Marcado</th>
+                                <th>Resuelto</th>
+                                <th>Obs. marcado</th>
+                                <th>Obs. resolución</th>
+                                <th>N. retención</th>
+                                <th>Archivo</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                        <tfoot>
+                            <tr>
+                                <th>#Seg</th>
+                                <th>#Pago</th>
+                                <th>Factura</th>
+                                <th>Cliente</th>
+                                <th>Estado</th>
+                                <th>Marcado</th>
+                                <th>Resuelto</th>
+                                <th>Obs. marcado</th>
+                                <th>Obs. resolución</th>
+                                <th>N. retención</th>
+                                <th>Archivo</th>
                             </tr>
                         </tfoot>
                     </table>
@@ -1281,7 +1453,7 @@
 <script src="{{ asset('js/js_proyecto/cuentas-por-cobrar/pagos.js') }}?v={{ filemtime(public_path('js/js_proyecto/cuentas-por-cobrar/pagos.js')) }}"></script>
 <script>
 function switchTab(tabId, btn) {
-    ['tab-facturas','tab-movimientos','tab-abonos'].forEach(function(id) {
+    ['tab-facturas','tab-movimientos','tab-abonos','tab-historico-retenciones'].forEach(function(id) {
         document.getElementById(id).classList.add('d-none');
     });
     document.querySelectorAll('.ap-tab-btn').forEach(function(b){ b.classList.remove('active'); });
@@ -1339,6 +1511,8 @@ $('#modalAbonos').on('shown.bs.modal', function() {
 $('#modalAbonos').on('hidden.bs.modal', function() {
     destroyAbonosSelects();
     document.getElementById('selectBanco').innerHTML = '';
+    $('#requiereRetencionFutura').prop('checked', false).prop('disabled', false);
+    $('#retencionFuturaEstadoActual').hide().text('');
 });
 
 // ── Select2 en modal Otros Movimientos ──
@@ -1405,7 +1579,7 @@ function initNCSelects() {
     // Re-lanzar datosNotaCredito al cambiar selección vía Select2
     $nc.off('change.nc').on('change.nc', function() { datosNotaCredito(); });
 
-    var $accion = $('#selectAplicado');
+    var $accion = $('#destinoCredito');
     try { if ($accion.data('select2')) $accion.select2('destroy'); } catch(e) {}
     $accion.select2({
         dropdownParent: $('#modalNC'),
@@ -1416,7 +1590,7 @@ function initNCSelects() {
     });
 }
 function destroyNCSelects() {
-    ['#selectNotaCredito','#selectAplicado'].forEach(function(id) {
+    ['#selectNotaCredito','#destinoCredito'].forEach(function(id) {
         var $el = $(id);
         try { if ($el.data('select2')) { $el.off('change.nc'); $el.select2('destroy'); } } catch(e) {}
     });

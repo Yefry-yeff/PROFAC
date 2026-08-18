@@ -17,16 +17,18 @@ class MenuHelper
         }
 
         $usuario = Auth::user();
-        
-        if (!$usuario->rol_id) {
+        $rolIds  = $usuario->rolesIds();
+
+        if (empty($rolIds)) {
             return collect();
         }
 
-        return Menu::getMenusParaRol($usuario->rol_id);
+        return Menu::getMenusParaRoles($rolIds);
     }
 
     /**
      * Verificar si el usuario tiene acceso a una URL específica
+     * (considerando TODOS sus roles: principal + adicionales)
      */
     public static function tieneAcceso($url)
     {
@@ -35,15 +37,16 @@ class MenuHelper
         }
 
         $usuario = Auth::user();
-        
-        if (!$usuario->rol_id) {
+        $rolIds  = $usuario->rolesIds();
+
+        if (empty($rolIds)) {
             return false;
         }
 
         return \App\Models\SubMenu::activos()
             ->where('url', $url)
-            ->whereHas('roles', function ($query) use ($usuario) {
-                $query->where('rol_id', $usuario->rol_id);
+            ->whereHas('roles', function ($query) use ($rolIds) {
+                $query->whereIn('rol_id', $rolIds);
             })
             ->exists();
     }

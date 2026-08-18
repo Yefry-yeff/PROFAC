@@ -543,7 +543,10 @@
             </div>
             <div class="table-wrap">
                 <div class="table-responsive">
-                    <table id="tbl_lotes_listar" class="table table-hover" style="width:100%">
+                    <table id="tbl_lotes_listar" class="table table-hover" style="width:100%"
+                           data-producto-codigo="{{ $producto->id }}"
+                           data-producto-nombre="{{ $producto->nombre }}"
+                           data-usuario-descarga="{{ optional(Auth::user())->name ?? 'Sistema' }}">
                         <thead>
                             <tr>
                                 <th>#</th>
@@ -849,40 +852,7 @@
     </div>
 
     {{-- ══ MODAL: SUBIR FOTO ════════════════════════════════════════ --}}
-    <div class="modal fade modal-modern" id="modal_foto_producto" tabindex="-1" role="dialog" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered" role="document">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title"><i class="fa fa-camera mr-2"></i> Subir Fotografía</h5>
-                    <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
-                </div>
-                <div class="modal-body">
-                    <form id="foto_productoForm" name="foto_productoForm" >
-                        <input type="hidden" id="id_producto_edit_foto" name="id_producto_edit_foto" value="{{ $producto->id }}">
-                        <label for="foto_producto_edit" class="foto-drop-area w-100" style="cursor:pointer; margin:0;">
-                            <i class="fa fa-cloud-upload"></i>
-                            <span>Haz clic para seleccionar imágenes (máx. 10)<br><small style="color:#aaa;">PNG, JPG, GIF</small></span>
-                            <input type="file" id="foto_producto_edit" name="foto_producto_edit"
-                                accept="image/png,image/gif,image/jpeg" multiple style="display:none;">
-                        </label>
-                        <div id="previewContainer" style="display:none; margin-top:16px;">
-                            <p style="font-size:.78rem; color:#888; margin-bottom:10px;">
-                                <i class="fa fa-check-circle" style="color:#1abc9c;"></i>&nbsp;
-                                <span id="previewCount">0</span> imagen(es) seleccionada(s)
-                            </p>
-                            <div id="previewGrid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(90px,1fr)); gap:8px;"></div>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer" style="gap:8px;">
-                    <button type="button" class="btn btn-default" data-dismiss="modal" style="border-radius:8px;">Cancelar</button>
-                    <button type="submit" form="foto_productoForm" class="btn btn-primary" style="border-radius:8px; font-weight:600;">
-                        <i class="fa fa-save mr-1"></i> Guardar Imagen
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
+    @include('components.producto.modal-subir-fotografia', ['productoId' => $producto->id])
 
     {{-- ══ MODAL: EDITAR UNIDADES ══════════════════════════════════ --}}
     <div class="modal fade modal-modern" id="modal_editar_unidades" tabindex="-1" role="dialog" aria-hidden="true">
@@ -977,6 +947,8 @@
     </div>
 
     @push('scripts')
+    <script src="//cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
+    <script src="{{ asset('js/js_proyecto/inventario/modal-foto-producto.js') }}?v={{ filemtime(public_path('js/js_proyecto/inventario/modal-foto-producto.js')) }}"></script>
     <script src="{{ asset('js/js_proyecto/inventario/detalle-producto.js') }}?v={{ filemtime(public_path('js/js_proyecto/inventario/detalle-producto.js')) }}"></script>
     <script>
     function abrirModalReservas(btn) {

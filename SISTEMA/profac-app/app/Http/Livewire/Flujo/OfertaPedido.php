@@ -46,13 +46,33 @@ class OfertaPedido extends Component
     public function listarClientes(Request $request)
     {
         try {
-            $listaClientes = DB::select("
-                SELECT id, nombre AS text
-                FROM cliente
-                WHERE estado_cliente_id = 1
-                  AND (id LIKE ? OR nombre LIKE ?)
-                LIMIT 15
-            ", ['%'.$request->search.'%', '%'.$request->search.'%']);
+            $rolId  = Auth::user()->rol_id ?? 0;
+            $like   = '%' . $request->search . '%';
+
+            $query = DB::table('cliente')
+                ->select('id', 'nombre as text')
+                ->where('estado_cliente_id', 1)
+                ->where(function ($q) use ($like) {
+                    $q->where('id', 'LIKE', $like)
+                      ->orWhere('nombre', 'LIKE', $like);
+                });
+
+            // Admin (1), Tele asesor (3) y usuarios especiales ven todos.
+            $specialUsers = [121, 122];
+            if (!in_array($rolId, [1, 3], true) && !in_array(Auth::id(), $specialUsers, true)) {
+                $query->where(function ($access) {
+                    $access->where('cliente.vendedor', Auth::id())
+                        ->orWhereExists(function ($assigned) {
+                            $assigned->select(DB::raw(1))
+                                ->from('cliente_usuario as cu')
+                                ->whereColumn('cu.cliente_id', 'cliente.id')
+                                ->where('cu.usuario_id', Auth::id())
+                                ->whereIn('cu.rol_id', [2, 3]);
+                        });
+                });
+            }
+
+            $listaClientes = $query->orderBy('nombre')->limit(15)->get();
 
             return response()->json(['results' => $listaClientes], 200);
         } catch (QueryException $e) {
@@ -85,6 +105,45 @@ class OfertaPedido extends Component
                     'text'    => 'Por favor, verifica que todos los campos estén completados.',
                     'errors'  => $validator->errors(),
                 ], 401);
+            }
+
+            $pedido = DB::table('pedido')
+                ->where('id', (int) $request->pedido_id)
+                ->where('cliente_id', (int) $request->seleccionarCliente)
+                ->first(['id', 'cliente_id']);
+
+            if (!$pedido) {
+                return response()->json([
+                    'icon'  => 'warning',
+                    'title' => 'Pedido no válido',
+                    'text'  => 'El cliente seleccionado no corresponde al pedido.',
+                ], 422);
+            }
+
+            $rolId = (int) (Auth::user()->rol_id ?? 0);
+            $specialUsers = [121, 122];
+            if (!in_array($rolId, [1, 3], true) && !in_array(Auth::id(), $specialUsers, true)) {
+                $puedeOfertar = DB::table('cliente')
+                    ->where('cliente.id', (int) $pedido->cliente_id)
+                    ->where(function ($access) {
+                        $access->where('cliente.vendedor', Auth::id())
+                            ->orWhereExists(function ($assigned) {
+                                $assigned->select(DB::raw(1))
+                                    ->from('cliente_usuario as cu')
+                                    ->whereColumn('cu.cliente_id', 'cliente.id')
+                                    ->where('cu.usuario_id', Auth::id())
+                                    ->whereIn('cu.rol_id', [2, 3]);
+                            });
+                    })
+                    ->exists();
+
+                if (!$puedeOfertar) {
+                    return response()->json([
+                        'icon'  => 'warning',
+                        'title' => 'Acceso denegado',
+                        'text'  => 'No estás asignado a este cliente para registrar ofertas.',
+                    ], 403);
+                }
             }
 
             // Verificar si ya existe una oferta ganadora para este pedido
@@ -159,7 +218,7 @@ class OfertaPedido extends Component
                     'seccion_id'              => $request->{'idSeccion'.$idx},
                     'resta_inventario'        => $request->{'restaInventario'.$idx},
                     'isv_producto'            => $request->{'isv'.$idx},
-                    'tipo_precio'             => ($request->{'isv'.$idx} > 0) ? '2' : '1',
+                    'tipo_precio'             => ($request->{'isv'.$idx} > 0) ? '2' : '1', // '1' = Excento (producto sin ISV, isv = 0) | '2' = Gravado (producto con ISV, isv > 0)
                     'unidad_medida_venta_id'  => $request->{'idUnidadVenta'.$idx},
                     'monto_descProducto'      => $request->{'acumuladoDescuento'.$idx} ?? 0,
                     'idPrecioSeleccionado'    => $request->{'idPrecioSeleccionado'.$idx},

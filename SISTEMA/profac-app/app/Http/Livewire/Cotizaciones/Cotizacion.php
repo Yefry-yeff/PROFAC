@@ -2,6 +2,8 @@
 
 namespace App\Http\Livewire\Cotizaciones;
 
+use App\Support\ClienteActoresAsignados;
+use App\Support\ExpoConfig;
 use Livewire\Component;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\File;
@@ -28,6 +30,74 @@ class Cotizacion extends Component
     public $pedidosEncontrados = [];
     public $pedidoVinculado    = null;   // array con datos del pedido elegido
     public $pedidoId           = null;   // id que se inyecta en el form hidden
+
+    private function obtenerUbicacionSinExistencia(): array
+    {
+        $nombreTecnico = 'SIN EXISTENCIA COTIZACION';
+
+        $bodegaId = (int) (DB::table('bodega')
+            ->whereRaw('UPPER(TRIM(nombre)) = ?', [strtoupper($nombreTecnico)])
+            ->value('id') ?? 0);
+
+        if ($bodegaId <= 0) {
+            $estado = (int) (DB::table('bodega')->whereNotNull('estado_id')->orderBy('id')->value('estado_id') ?? 1);
+            $municipio = (int) (DB::table('bodega')->whereNotNull('municipio_id')->orderBy('id')->value('municipio_id') ?? 1);
+            $encargado = (int) (DB::table('bodega')->whereNotNull('encargado_bodega')->orderBy('id')->value('encargado_bodega') ?? 1);
+
+            $bodegaId = (int) DB::table('bodega')->insertGetId([
+                'nombre' => $nombreTecnico,
+                'direccion' => 'Bodega tecnica para productos sin existencia en cotizacion',
+                'estado_id' => $estado,
+                'municipio_id' => $municipio,
+                'encargado_bodega' => $encargado,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        if ($bodegaId <= 0) {
+            throw new \RuntimeException('No existe ninguna bodega para asignar productos sin existencia.');
+        }
+
+        $segmentoId = DB::table('segmento')
+            ->where('bodega_id', (int) $bodegaId)
+            ->whereRaw('UPPER(TRIM(descripcion)) = ?', [strtoupper($nombreTecnico)])
+            ->value('id');
+
+        if (!$segmentoId) {
+            $segmentoId = DB::table('segmento')->insertGetId([
+                'descripcion' => $nombreTecnico,
+                'bodega_id' => (int) $bodegaId,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        $seccionId = DB::table('seccion')
+            ->where('segmento_id', (int) $segmentoId)
+            ->whereRaw('UPPER(TRIM(descripcion)) = ?', [strtoupper($nombreTecnico)])
+            ->value('id');
+
+        if (!$seccionId) {
+            $estadoSeccion = (int) (DB::table('seccion')->whereNotNull('estado_id')->orderBy('id')->value('estado_id') ?? 1);
+            $numeracion = (int) (DB::table('seccion')->where('segmento_id', (int) $segmentoId)->max('numeracion') ?? 0) + 1;
+
+            $seccionId = DB::table('seccion')->insertGetId([
+                'descripcion' => $nombreTecnico,
+                'numeracion' => $numeracion,
+                'estado_id' => $estadoSeccion,
+                'segmento_id' => (int) $segmentoId,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        return [
+            'bodega_id' => (int) $bodegaId,
+            'seccion_id' => (int) $seccionId,
+            'nombre_bodega' => 'SIN EXISTENCIA',
+        ];
+    }
 
     public function mount($id)
     {
@@ -148,36 +218,38 @@ class Cotizacion extends Component
             $rolId   = Auth::user()->rol_id;
             $like    = '%' . $request->search . '%';
 
-            // Administrador (1), Televendedor/Facturador (3) y Mercadeo (9)
-            // ven TODOS los clientes activos sin restricción
-            if (in_array($rolId, [1, 3, 9])) {
-                $listaClientes = DB::select("
-                    SELECT id, nombre AS text
-                    FROM cliente
-                    WHERE estado_cliente_id = 1
-                      AND id <> 1
-                      AND (id LIKE ? OR nombre LIKE ?)
-                    ORDER BY nombre
-                    LIMIT 20
-                ", [$like, $like]);
+            $query = DB::table('cliente')
+                ->select('id', 'nombre as text')
+                ->where('estado_cliente_id', 1)
+                ->where('id', '<>', 1)
+                ->where(function ($q) use ($like) {
+                    $q->where('id', 'LIKE', $like)
+                      ->orWhere('nombre', 'LIKE', $like);
+                });
 
-                return response()->json(["results" => $listaClientes], 200);
+            // Los roles comerciales ven clientes asignados en cualquiera de sus funciones comerciales.
+            $specialUsers = [121, 122];
+            if (in_array((int) $rolId, [
+                ClienteActoresAsignados::ROL_ASESOR_COMERCIAL,
+                ClienteActoresAsignados::ROL_TELE_ASESOR,
+            ], true)) {
+                $query->whereExists(function ($subquery) {
+                    $subquery->select(DB::raw(1))
+                        ->from('cliente_usuario as cu')
+                        ->whereColumn('cu.cliente_id', 'cliente.id')
+                        ->where('cu.usuario_id', Auth::id())
+                        ->whereIn('cu.rol_id', [
+                            ClienteActoresAsignados::ROL_ASESOR_COMERCIAL,
+                            ClienteActoresAsignados::ROL_TELE_ASESOR,
+                        ]);
+                });
+            } elseif ($rolId !== 1 && !in_array(Auth::id(), $specialUsers, true)) {
+                $query->where('vendedor', Auth::id());
             }
 
-            // Asesor Comercial (2) y cualquier otro rol:
-            // solo los clientes que tienen asignado al usuario como vendedor
-            $listaClientes = DB::select("
-                SELECT id, nombre AS text
-                FROM cliente
-                WHERE estado_cliente_id = 1
-                  AND id <> 1
-                  AND vendedor = ?
-                  AND (id LIKE ? OR nombre LIKE ?)
-                ORDER BY nombre
-                LIMIT 20
-            ", [Auth::id(), $like, $like]);
+            $listaClientes = $query->orderBy('nombre')->limit(20)->get();
 
-            return response()->json(["results" => $listaClientes], 200);
+            return response()->json(['results' => $listaClientes], 200);
 
         } catch (QueryException $e) {
             return response()->json([
@@ -187,10 +259,52 @@ class Cotizacion extends Component
         }
     }
 
+    public function listadoActoresAsignados(Request $request)
+    {
+        $datos = $request->validate([
+            'cliente_id' => 'required|integer|exists:cliente,id',
+            'rol_id' => 'required|integer|in:2,3',
+            'search' => 'nullable|string|max:150',
+        ]);
+
+        $usuarios = ClienteActoresAsignados::usuarios((int) $datos['cliente_id'], (int) $datos['rol_id']);
+        $busqueda = trim((string) ($datos['search'] ?? ''));
+        if ($busqueda !== '') {
+            $usuarios = $usuarios->filter(function ($usuario) use ($busqueda) {
+                return stripos($usuario->text, $busqueda) !== false;
+            })->values();
+        }
+
+        return response()->json([
+            'results' => $usuarios,
+            'bloqueado' => $usuarios->count() === 1,
+        ]);
+    }
+
+    public function listadoVendedoresAsignados(Request $request)
+    {
+        $request->merge(['rol_id' => ClienteActoresAsignados::ROL_ASESOR_COMERCIAL]);
+        return $this->listadoActoresAsignados($request);
+    }
+
+    public function obtenerAsesorAsignado(Request $request)
+    {
+        $request->merge(['rol_id' => ClienteActoresAsignados::ROL_ASESOR_COMERCIAL]);
+        $response = $this->listadoActoresAsignados($request);
+        $datos = $response->getData(true);
+        $asesores = $datos['results'] ?? [];
+
+        return response()->json([
+            'asesor' => count($asesores) === 1 ? $asesores[0] : null,
+            'asesores' => $asesores,
+            'puede_editar' => count($asesores) > 1,
+        ]);
+    }
+
     public function clientesCorporativo(Request $request)
     {
-
-        if (Auth::user()->rol_id == 1 || Auth::user()->rol_id == 9) {
+        $specialUsers = [121, 122];
+        if (Auth::user()->rol_id == 1 || Auth::user()->rol_id == 9 || in_array(Auth::id(), $specialUsers, true)) {
             $listaClientes = DB::SELECT("
             select
                 id,
@@ -228,8 +342,8 @@ class Cotizacion extends Component
 
     public function clientesEstatal(Request $request)
     {
-
-        if (Auth::user()->rol_id == 1 || Auth::user()->rol_id == 3 || Auth::user()->rol_id == 9) {
+        $specialUsers = [121, 122];
+        if (Auth::user()->rol_id == 1 || Auth::user()->rol_id == 3 || Auth::user()->rol_id == 9 || in_array(Auth::id(), $specialUsers, true)) {
             $listaClientes = DB::SELECT("
                     select
                         id,
@@ -257,9 +371,8 @@ class Cotizacion extends Component
 
     public function clientesExonerados(Request $request)
     {
-
-
-        if (Auth::user()->rol_id == 1 || Auth::user()->rol_id == 9) {
+        $specialUsers = [121, 122];
+        if (Auth::user()->rol_id == 1 || Auth::user()->rol_id == 9 || in_array(Auth::id(), $specialUsers, true)) {
             $listaClientes = DB::SELECT("
                     select
                         id,
@@ -300,6 +413,7 @@ class Cotizacion extends Component
             'numeroInputs' => 'required',
             'seleccionarCliente' => 'required',
             'nombre_cliente_ventas' => 'required',
+            'vendedor' => 'required|integer|exists:users,id',
             // bodega y seleccionarProducto son campos del buscador de productos,
             // no son datos a guardar — los productos reales vienen en bodega{idx}, idProducto{idx}, etc.
 
@@ -318,12 +432,91 @@ class Cotizacion extends Component
             ], 401);
         }
 
+        ClienteActoresAsignados::validar(
+            (int) $request->seleccionarCliente,
+            (int) $request->vendedor,
+            ClienteActoresAsignados::ROL_ASESOR_COMERCIAL,
+            'vendedor'
+        );
+
 
         $arrayTemporal = $request->arregloIdInputs;
         $arrayInputs = explode(',', $arrayTemporal);
         $arrayProductos = [];
 
+        $expoId = (int) $request->input('expo_id', 0);
+        $tipoVentaExpoId = ExpoConfig::tipoVentaId();
+        $expoConfig = null;
+
+        if ($expoId <= 0 && $tipoVentaExpoId && (int) $request->tipo_venta_id === $tipoVentaExpoId) {
+            return response()->json([
+                'icon' => 'error',
+                'title' => 'Expo no válida',
+                'text' => 'Toda Oferta de Expo debe estar vinculada a una configuración vigente.',
+            ], 422);
+        }
+
+        if ($expoId > 0) {
+            $expoConfig = ExpoConfig::detalleActivaParaUsuario($expoId, Auth::id());
+            if (!$expoConfig || !$tipoVentaExpoId) {
+                return response()->json([
+                    'icon' => 'error',
+                    'title' => 'Expo no disponible',
+                    'text' => 'La Expo ya no está activa o está fuera de vigencia.',
+                ], 422);
+            }
+
+            $ventaBruta = 0.0;
+            foreach ($arrayInputs as $indice) {
+                $precioCargaId = (int) $request->input('precios_producto_carga_id' . $indice, 0);
+                $escalaId = (int) (DB::table('precios_producto_carga')->where('id', $precioCargaId)->value('categoria_precios_id') ?? 0);
+                if (!in_array($escalaId, $expoConfig['escalas'], true)) {
+                    return response()->json([
+                        'icon' => 'error', 'title' => 'Escala no permitida',
+                        'text' => 'Uno de los productos utiliza una escala que no pertenece a la Expo.',
+                    ], 422);
+                }
+
+                $restaInventario = (float) $request->input('restaInventario' . $indice, 0);
+                $bodegaId = (int) $request->input('idBodega' . $indice, 0);
+                if ($restaInventario > 0 && !in_array($bodegaId, $expoConfig['bodegas'], true)) {
+                    return response()->json([
+                        'icon' => 'error', 'title' => 'Bodega no permitida',
+                        'text' => 'Uno de los productos utiliza una bodega que no pertenece a la Expo.',
+                    ], 422);
+                }
+
+                $ventaBruta += (float) $request->input('precio' . $indice, 0)
+                    * (float) $request->input('cantidad' . $indice, 0)
+                    * (float) $request->input('unidad' . $indice, 0);
+            }
+
+            $porcentajeExpo = 0.0;
+            foreach ($expoConfig['descuentos'] as $regla) {
+                if ($ventaBruta >= $regla['venta_minima']) {
+                    $porcentajeExpo = $regla['porcentaje_descuento'];
+                }
+            }
+
+            $request->merge([
+                'tipo_venta_id' => $tipoVentaExpoId,
+                'porDescuento' => $porcentajeExpo,
+            ]);
+        }
+
         DB::beginTransaction();
+
+            if ($expoConfig && !DB::table('expo')->where('id', $expoId)->where('estado', 'Activo')
+                ->where('fecha_inicio', '<=', now())
+                ->where(function ($query) {
+                    $query->whereNull('fecha_fin')->orWhere('fecha_fin', '>=', now());
+                })->lockForUpdate()->exists()) {
+                DB::rollBack();
+                return response()->json([
+                    'icon' => 'error', 'title' => 'Expo no disponible',
+                    'text' => 'La Expo dejó de estar vigente antes de guardar la oferta.',
+                ], 422);
+            }
 
             $cotizacion = new ModelCotizacion();
             $cotizacion->nombre_cliente = $request->nombre_cliente_ventas;
@@ -348,6 +541,15 @@ class Cotizacion extends Component
             $cotizacion->estado_id  = 1;
             $cotizacion->created_by = Auth::id();
             $cotizacion->save();
+
+            if ($expoConfig) {
+                DB::table('expo_cotizacion')->insert([
+                    'expo_id' => $expoId,
+                    'cotizacion_id' => $cotizacion->id,
+                    'created_by' => Auth::id(),
+                    'created_at' => now(),
+                ]);
+            }
 
             $numeroOrdenCompra = $request->numero_orden_compra ?: null;
             $archivoOrdenCompra = $request->archivo_orden_compra ?: null;
@@ -570,6 +772,17 @@ class Cotizacion extends Component
                 $nombreBodega = $request->$keyBodegaNombre;
                 $monto_descProducto = $request->$keymonto_descProducto;
 
+                $idSeccion = is_numeric($idSeccion) ? (int) $idSeccion : null;
+                $idBodega = is_numeric($idBodega) ? (int) $idBodega : null;
+                $restaInventario = ((float) $restaInventario > 0) ? 1 : 0;
+
+                if ($restaInventario === 0) {
+                    $ubicacionSinExistencia = $this->obtenerUbicacionSinExistencia();
+                    $idBodega = (int) $ubicacionSinExistencia['bodega_id'];
+                    $idSeccion = (int) $ubicacionSinExistencia['seccion_id'];
+                    $nombreBodega = (string) $ubicacionSinExistencia['nombre_bodega'];
+                }
+
 
                 array_push($arrayProductos,[
                 'cotizacion_id'=> $cotizacion->id,
@@ -586,7 +799,7 @@ class Cotizacion extends Component
                 'seccion_id'=>$idSeccion,
                 'resta_inventario'=>$restaInventario,
                 'isv_producto'=>$ivsProductoAsignado,
-                'tipo_precio'=>($ivsProductoAsignado > 0) ? '2' : '1',
+                'tipo_precio'=>($ivsProductoAsignado > 0) ? '2' : '1', // '1' = Excento (producto sin ISV, isv = 0) | '2' = Gravado (producto con ISV, isv > 0)
                 'unidad_medida_venta_id'=>$idUnidadVenta,
                 'monto_descProducto'=>$monto_descProducto,
                 'idPrecioSeleccionado'=>$idPrecioSeleccionado,
@@ -617,10 +830,23 @@ class Cotizacion extends Component
 
         } catch (QueryException $e) {
         DB::rollback();
+
+        $codigoDb = (int) ($e->errorInfo[1] ?? 0);
+        $detalleDb = (string) ($e->errorInfo[2] ?? '');
+        $mensajeError = 'Ha ocurrido un error al guardar la cotización.';
+        $icono = 'error';
+        $titulo = 'Error!';
+
+        if ($codigoDb === 1062 && stripos($detalleDb, 'cotizacion_has_producto.PRIMARY') !== false) {
+            $mensajeError = 'No se ha logrado procesar la oferta debido a que se agrego dos veces el mismo producto.';
+            $icono = 'info';
+            $titulo = 'Información';
+        }
+
         return response()->json([
-            'icon'=>'error',
-            'text'=>'Ha ocurrido un error al guardar la cotización.',
-            'title'=>'Error!',
+            'icon'=>$icono,
+            'text'=>$mensajeError,
+            'title'=>$titulo,
             'message' => $e,
             'error' => $e
         ],402);
@@ -1068,9 +1294,28 @@ class Cotizacion extends Component
         }
     }
 
-    public function listarBodegas(Request $request)
+    public function listarBodegas(Request $request, int $idProducto)
     {
         try {
+            $idProducto = $idProducto > 0 ? $idProducto : (int) ($request->idProducto ?? 0);
+            $search = addslashes((string) ($request->search ?? ''));
+
+            $netStockExpr = "GREATEST(0,
+                    sum(A.cantidad_disponible) - COALESCE((
+                        SELECT SUM(php2.cantidad)
+                        FROM prefactura_has_producto php2
+                        INNER JOIN prefactura pf2 ON pf2.id = php2.prefactura_id
+                        WHERE pf2.estado = 'activo'
+                            AND TIMESTAMPADD(
+                                DAY,
+                                COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7),
+                                COALESCE(pf2.created_at, CONCAT(COALESCE(pf2.fecha_emision, CURDATE()), ' 00:00:00'))
+                            ) > NOW()
+                            AND php2.producto_id = A.producto_id
+                            AND php2.seccion_id  = A.seccion_id
+                            AND php2.resta_inventario = 1
+                    ), 0)
+                )";
 
             // Stock neto = cantidad_disponible - reservado en prefacturas activas
             $results = DB::SELECT("
@@ -1079,17 +1324,7 @@ class Cotizacion extends Component
             D.id as 'idBodega',
             CONCAT(D.nombre,'',REPLACE(B.descripcion,'Seccion','')) as 'bodegaSeccion',
             concat(D.nombre,' - ', REPLACE(B.descripcion,'Seccion',''),' - cantidad ',
-                GREATEST(0,
-                    sum(A.cantidad_disponible) - COALESCE((
-                        SELECT SUM(php2.cantidad)
-                        FROM prefactura_has_producto php2
-                        INNER JOIN prefactura pf2 ON pf2.id = php2.prefactura_id
-                        WHERE pf2.estado = 'activo'
-                          AND php2.producto_id = A.producto_id
-                          AND php2.seccion_id  = A.seccion_id
-                          AND php2.resta_inventario = 1
-                    ), 0)
-                )
+                {$netStockExpr}
             ) as 'text'
         FROM recibido_bodega A
             INNER JOIN seccion B
@@ -1098,10 +1333,35 @@ class Cotizacion extends Component
             ON B.segmento_id = C.id
             INNER JOIN bodega D
             ON C.bodega_id = D.id
-        WHERE  producto_id = " . (int)$request->idProducto . "
-        AND (D.nombre LIKE '%" . addslashes($request->search) . "%' OR B.descripcion LIKE '%" . addslashes($request->search) . "%')
+        WHERE  producto_id = " . $idProducto . "
+        AND (D.nombre LIKE '%" . $search . "%' OR B.descripcion LIKE '%" . $search . "%')
         GROUP BY A.seccion_id
+        HAVING {$netStockExpr} > 0
             ");
+
+            $hayStockGlobal = count($results) > 0 || !empty(DB::SELECT(" 
+                SELECT A.seccion_id
+                FROM recibido_bodega A
+                WHERE A.producto_id = " . $idProducto . "
+                GROUP BY A.seccion_id
+                HAVING {$netStockExpr} > 0
+                LIMIT 1
+            "));
+
+            $results = array_values(array_filter($results, function ($item) {
+                $texto = (string) (($item->text ?? '') ?: '');
+                return stripos($texto, 'SIN EXISTENCIA - Cotizar sin reserva de inventario') === false;
+            }));
+
+            if (!$hayStockGlobal) {
+                $ubicacionSinExistencia = $this->obtenerUbicacionSinExistencia();
+                $results[] = (object) [
+                    'id' => (int) $ubicacionSinExistencia['seccion_id'],
+                    'idBodega' => (int) $ubicacionSinExistencia['bodega_id'],
+                    'bodegaSeccion' => 'SIN EXISTENCIA',
+                    'text' => 'SIN EXISTENCIA - Cotizar sin reserva de inventario',
+                ];
+            }
 
             return response()->json([
                 "results" => $results

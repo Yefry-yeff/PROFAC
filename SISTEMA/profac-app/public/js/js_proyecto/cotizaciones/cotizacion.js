@@ -89,6 +89,46 @@
             }
 
             $('#vendedor').select2({
+                placeholder: '-- Seleccionar asesor --',
+                width: '100%'
+            });
+
+            function cargarAsesoresComercialesCliente(idCliente) {
+                var vendedorSelect = $('#vendedor');
+                vendedorSelect.prop('disabled', true).empty()
+                    .append(new Option('Cargando asesores...', '', true, false))
+                    .trigger('change');
+
+                if (!idCliente) return;
+
+                axios.get('/cotizacion/actores-asignados', {
+                    params: { cliente_id: idCliente, rol_id: 2 }
+                }).then(function(response) {
+                    var asesores = response.data.results || [];
+                    vendedorSelect.empty();
+
+                    if (asesores.length === 0) {
+                        vendedorSelect.append(new Option('Sin asesores asignados en cartera', '', true, false));
+                        vendedorSelect.prop('disabled', true).trigger('change');
+                        return;
+                    }
+
+                    if (asesores.length > 1) {
+                        vendedorSelect.append(new Option('-- Seleccionar asesor --', '', true, false));
+                    }
+                    asesores.forEach(function(asesor) {
+                        vendedorSelect.append(new Option(asesor.text, asesor.id, asesores.length === 1, asesores.length === 1));
+                    });
+                    vendedorSelect.prop('disabled', asesores.length === 1).trigger('change');
+                }).catch(function() {
+                    vendedorSelect.empty()
+                        .append(new Option('No se pudieron cargar los asesores', '', true, false))
+                        .prop('disabled', true)
+                        .trigger('change');
+                });
+            }
+
+            $('#gestor_entrega').select2({
                 ajax:{
                     url:'/ventas/corporativo/vendedores',
                     data: function(params) {
@@ -97,12 +137,11 @@
                             type: 'public',
                             page: params.page || 1
                         }
-
-                        // Query parameters will be ?search=[term]&type=public
                         return query;
                     }
-
-                }
+                },
+                placeholder: '-- Seleccionar gestor --',
+                allowClear: true
             });
 
             /*$('#seleccionarProducto').select2({
@@ -153,6 +192,23 @@
                 $('#bodega').select2({
                     ajax: {
                         url: '/cotizacion/listar/bodegas/' + idProducto,
+                        processResults: function(data) {
+                            let results = Array.isArray(data?.results) ? data.results.slice() : [];
+                            const sinExistenciaText = 'SIN EXISTENCIA - Cotizar sin reserva de inventario';
+
+                            const hayBodegasConStock = results.some(function(item) {
+                                const text = String(item?.text || '').toUpperCase();
+                                return text.includes('CANTIDAD') && !text.includes('SIN EXISTENCIA');
+                            });
+
+                            if (hayBodegasConStock) {
+                                results = results.filter(function(item) {
+                                    return String(item?.text || '').trim() !== sinExistenciaText;
+                                });
+                            }
+
+                            return { results: results };
+                        },
                         data: function(params) {
                             var query = {
                                 search: params.term,
@@ -939,6 +995,7 @@
             function obtenerDatosCliente() {
 
                 let idCliente = document.getElementById("seleccionarCliente").value;
+                cargarAsesoresComercialesCliente(idCliente);
                 axios.post("/ventas/datos/cliente", {
                         id: idCliente
                     })
@@ -1024,6 +1081,7 @@
                 document.getElementById("guardar_cotizacion_btn").disabled = true;
 
                 var data = new FormData($('#crear_venta').get(0));
+                data.set('vendedor', $('#vendedor').val() || '');
 
                 let longitudArreglo = arregloIdInputs.length;
                 for (var i = 0; i < longitudArreglo; i++) {

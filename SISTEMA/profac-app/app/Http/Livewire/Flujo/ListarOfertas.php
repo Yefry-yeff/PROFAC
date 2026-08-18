@@ -14,6 +14,9 @@ class ListarOfertas extends Component
     public $filtroPedido    = '';
     public $filtroEstado    = '';
 
+    // ── Control de acceso ─────────────────────────────────────────────────
+    public $esAdmin = false;
+
     // ── Estadísticas ──────────────────────────────────────────────────────
     public $statsTotal      = 0;
     public $statsGanadoras  = 0;
@@ -39,6 +42,13 @@ class ListarOfertas extends Component
     public $mensajeExito       = '';
     public $mensajeError       = '';
     public $motivoAnulacion    = '';
+
+    // ── Ciclo de vida ──────────────────────────────────────────────────────
+    public function mount()
+    {
+        $rolId = (int) (Auth::user()->rol_id ?? 0);
+        $this->esAdmin = in_array($rolId, [1, 16], true);
+    }
 
     // ── Reset paginación al cambiar filtros ───────────────────────────────
     public function updatedBusquedaCliente() { $this->pagina = 1; }
@@ -80,6 +90,20 @@ class ListarOfertas extends Component
             )
             ->orderByDesc('p.created_at')
             ->limit(10);
+
+        if (!$this->esAdmin) {
+            $q->where(function ($access) {
+                $access->where('p.users_id', Auth::id())
+                    ->orWhere('c.vendedor', Auth::id())
+                    ->orWhereExists(function ($assigned) {
+                        $assigned->select(DB::raw(1))
+                            ->from('cliente_usuario as cu')
+                            ->whereColumn('cu.cliente_id', 'c.id')
+                            ->where('cu.usuario_id', Auth::id())
+                            ->whereIn('cu.rol_id', [2, 3]);
+                    });
+            });
+        }
 
         if ($esNumero) {
             $q->where('p.id', (int) $term);
@@ -147,6 +171,43 @@ class ListarOfertas extends Component
 
         if ($this->filtroFecha !== '') {
             $q->whereDate('o.created_at', $this->filtroFecha);
+        }
+
+        // Solo mostrar ofertas donde el usuario es actor involucrado
+        if (!$this->esAdmin) {
+            $q->where(function ($sub) {
+                $sub->where('o.users_id', Auth::id())
+                    ->orWhere('o.vendedor', Auth::id())
+                    ->orWhereExists(function ($assigned) {
+                        $assigned->select(DB::raw(1))
+                            ->from('cliente_usuario as cu')
+                            ->whereColumn('cu.cliente_id', 'o.cliente_id')
+                            ->where('cu.usuario_id', Auth::id())
+                            ->whereIn('cu.rol_id', [2, 3]);
+                    })
+                    ->orWhereExists(function ($sq) {
+                        // Creador del pedido relacionado
+                        $sq->select(DB::raw(1))
+                           ->from('pedido as p2')
+                           ->whereColumn('p2.id', 'o.pedido_id')
+                           ->where('p2.users_id', Auth::id());
+                    })
+                    ->orWhereExists(function ($sq) {
+                        // Actor en la factura del flujo al que pertenece esta oferta
+                        $sq->select(DB::raw(1))
+                           ->from('historico_flujo as hfo')
+                           ->join('historico_flujo as hff', 'hff.flujo_id', '=', 'hfo.flujo_id')
+                           ->join('factura as fa', 'fa.id', '=', 'hff.tramite_id')
+                           ->whereColumn('hfo.tramite_id', 'o.id')
+                           ->where('hfo.tipo_tramite_id', 2)
+                           ->where('hff.tipo_tramite_id', 3)
+                           ->where(function ($sfa) {
+                               $sfa->where('fa.vendedor', Auth::id())
+                                   ->orWhere('fa.users_id', Auth::id())
+                                   ->orWhere('fa.gestor_entrega', Auth::id());
+                           });
+                    });
+            });
         }
 
         return $q;

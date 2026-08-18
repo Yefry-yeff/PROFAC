@@ -1,4 +1,8 @@
 ﻿<div>
+    @php
+        // Solo estos roles pueden cambiar el "Tipo de cliente" al editar (Administrador, Créditos y Cobros).
+        $puedeEditarTipoCliente = in_array((int) (auth()->user()->rol_id ?? 0), [1, 4], true);
+    @endphp
     @push('styles')
     <style>
 /* ── Variables PROFAC ─────────────────────────────────────────────── */
@@ -395,7 +399,7 @@
                                         <div class="col-md-4">
                                             <div class="form-group mb-2">
                                                 <label class="col-form-label focus-label">Tipo de cliente <span class="text-danger">*</span></label>
-                                                <select class="form-control" name="categoria_cliente" id="categoria_cliente">
+                                                <select class="form-control" name="categoria_cliente" id="categoria_cliente" disabled title="Todo cliente nuevo se registra como Estatal (A)">
                                                     <option selected disabled>---Seleccione---</option>
                                                 </select>
                                             </div>
@@ -684,7 +688,8 @@
                                 <div class="col-md-4">
                                     <label class="col-form-label focus-label">Tipo de cliente</label>
                                     <select class="form-group form-control" name="categoria_cliente_editar" id="categoria_cliente_editar"
-                                        data-parsley-required>
+                                        data-parsley-required
+                                        @if(!$puedeEditarTipoCliente) disabled title="Solo un rol autorizado puede cambiar el tipo de cliente" @endif>
                                         <option selected disabled>---Seleccione una opción---</option>
 
                                     </select>

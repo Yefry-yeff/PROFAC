@@ -7,9 +7,11 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
 use App\Models\PrefacturaAuditoria;
 use App\Models\CreditoRevision;
 use App\Models\ModelCodigoAutorizacion;
+use App\Models\ConfiguracionCodigoAutorizacion;
 use App\Models\ModelRecibirBodega;
 use App\Models\ModelCliente;
 use App\Models\ModelLogTranslados;
@@ -36,7 +38,12 @@ class ModalFlujoPedido extends Component
     public $ofertaSeleccionada  = null;
     public $confirmAccionOferta = null;  // null|'ganadora'|'anular_oferta'|'duplicar_oferta'
     public $motivoAnulOferta    = '';
+    public $comentarioCreditoGanadora = '';
     public bool $revisionInventarioActiva = false;
+    public bool $modalSinExistenciaVisible = false;
+    public array $productosSinExistenciaModal = [];
+    public string $motivoEdicionSinExistencia = '';
+    public string $mensajeErrorSinExistencia = '';
 
     // ── Revisión de Crédito ───────────────────────────────────────────────
     public array  $creditoRevisionData   = [];    // datos del registro credito_revision activo
@@ -75,6 +82,11 @@ class ModalFlujoPedido extends Component
     public $stockErrors             = [];  // errores de inventario al crear prefactura
     public $confirmAccionPrefactura = null; // null | 'revertir' | 'anular'
     public $vencimientoProcesado    = false; // true cuando se procesó el vencimiento en esta carga
+    public bool $prefacturaVencida       = false;
+    public bool $prefacturaPuedeFacturar = true;
+    public array $prefacturaStockFaltante = [];
+    public bool $prefacturaReservaCompleta = true;
+    public array $prefacturaReservaFaltante = [];
     public $mostrarAutorizacionPrefactura = false;
     public $accionAutorizacionPrefactura  = null;
     public $codigoAutorizacion            = '';
@@ -224,6 +236,7 @@ class ModalFlujoPedido extends Component
         $this->confirmAccionPrefactura = null;
         $this->motivoAnulacion         = '';
         $this->motivoAnulOferta        = '';
+        $this->comentarioCreditoGanadora = '';
         $this->mensajeExito            = '';
         $this->mensajeError            = '';
         $this->stockErrors             = [];
@@ -235,6 +248,8 @@ class ModalFlujoPedido extends Component
         }
         if ($pasoFinal === 'factura') {
             $this->cargarFactura();
+        } elseif (in_array(3, $this->flujoTipos) || in_array(5, $this->flujoTipos)) {
+            $this->cargarFactura(); // cargar para detectar estado anulada en stepper
         }
         if ($pasoFinal === 'entrega') {
             $this->cargarHistorialEntregasFactura();
@@ -250,6 +265,9 @@ class ModalFlujoPedido extends Component
      */
     public function abrirDesdeFlujo(int $flujoId): void
     {
+        $this->prefacturaReservaCompleta = true;
+        $this->prefacturaReservaFaltante = [];
+
         $flujo = DB::table('flujo')->where('id', $flujoId)->first();
         if (!$flujo) return;
 
@@ -379,6 +397,7 @@ class ModalFlujoPedido extends Component
         $this->confirmAccionPrefactura = null;
         $this->motivoAnulacion         = '';
         $this->motivoAnulOferta        = '';
+        $this->comentarioCreditoGanadora = '';
         $this->mensajeExito            = '';
         $this->mensajeError            = '';
         $this->stockErrors             = [];
@@ -390,6 +409,8 @@ class ModalFlujoPedido extends Component
         }
         if ($pasoAbierto === 'factura') {
             $this->cargarFactura();
+        } elseif (in_array(3, $this->flujoTipos) || in_array(5, $this->flujoTipos)) {
+            $this->cargarFactura(); // cargar para detectar estado anulada en stepper
         }
         if ($pasoAbierto === 'entrega') {
             $this->cargarHistorialEntregasFactura();
@@ -419,6 +440,27 @@ class ModalFlujoPedido extends Component
             $data['usuario_revision_nombre'] = '—';
         }
         return $data;
+    }
+
+    private function diasVigenciaPrefactura(int $flujoId): int
+    {
+        $credito = DB::table('credito_revision')
+            ->where('flujo_id', $flujoId)
+            ->where('estado', CreditoRevision::APROBADO)
+            ->latest('id')
+            ->first(['dias_credito_aprobados', 'fecha_aprobacion', 'fecha_vencimiento_credito']);
+
+        if ($credito && !is_null($credito->dias_credito_aprobados)) {
+            return max(0, (int) $credito->dias_credito_aprobados);
+        }
+
+        if ($credito && $credito->fecha_aprobacion && $credito->fecha_vencimiento_credito) {
+            return max(0, (int) \Carbon\Carbon::parse($credito->fecha_aprobacion)
+                ->diffInDays(\Carbon\Carbon::parse($credito->fecha_vencimiento_credito), false));
+        }
+
+        return max(0, (int) (DB::table('configuracion_prefactura')
+            ->orderByDesc('id')->value('dias_validez') ?? 7));
     }
 
     private function recargar(): void
@@ -451,9 +493,13 @@ class ModalFlujoPedido extends Component
         $this->confirmAccionOferta  = null;
         $this->motivoAnulacion         = '';
         $this->motivoAnulOferta        = '';
+        $this->comentarioCreditoGanadora = '';
         $this->mensajeExito            = '';
         $this->mensajeError            = '';
         $this->prefacturaData          = null;
+        $this->prefacturaVencida       = false;
+        $this->prefacturaPuedeFacturar = true;
+        $this->prefacturaStockFaltante = [];
         $this->stockErrors             = [];
         $this->confirmAccionPrefactura = null;
         $this->facturaData             = null;
@@ -495,6 +541,7 @@ class ModalFlujoPedido extends Component
         $this->confirmAccionOferta  = null;
         $this->motivoAnulacion      = '';
         $this->motivoAnulOferta     = '';
+        $this->comentarioCreditoGanadora = '';
         $this->mensajeExito         = '';
         $this->mensajeError         = '';
 
@@ -654,7 +701,6 @@ class ModalFlujoPedido extends Component
      */
     private function cargarPreciosDuplicarPedido(): void
     {
-        if (!$this->flujoId || !$this->pedidoData) return;
 
         $clienteId        = (int) $this->pedidoData['cliente_id'];
         $nuevaCategoriaId = DB::table('cliente')
@@ -814,8 +860,6 @@ class ModalFlujoPedido extends Component
                 ->where('c.id', $cotizacionId)
                 ->select(
                     'c.id', 'c.nombre_cliente', 'c.RTN', 'c.total', 'c.isv',
-                    'c.sub_total', 'c.porc_descuento', 'c.monto_descuento',
-                    'c.fecha_emision', 'c.fecha_vencimiento', 'c.created_at', 'c.cliente_id',
                     'c.estado_id as cotizacion_estado_id',
                     'hf.observaciones as hf_observaciones'
                 )
@@ -828,11 +872,16 @@ class ModalFlujoPedido extends Component
             }
 
             $productos = DB::table('cotizacion_has_producto as chp')
+                ->leftJoin('seccion as s', 's.id', '=', 'chp.seccion_id')
+                ->leftJoin('segmento as sg', 'sg.id', '=', 's.segmento_id')
+                ->leftJoin('bodega as b', 'b.id', '=', 'sg.bodega_id')
                 ->leftJoin('precios_producto_carga as ppc', 'ppc.id', '=', 'chp.precios_producto_carga_id')
                 ->leftJoin('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')
                 ->where('chp.cotizacion_id', $cotizacionId)
                 ->select(
-                    'chp.nombre_producto', 'chp.cantidad', 'chp.precio_unidad', 'chp.total',
+                    'chp.indice', 'chp.producto_id', 'chp.nombre_producto', 'chp.cantidad', 'chp.precio_unidad', 'chp.total',
+                    'chp.bodega_id', 'chp.seccion_id', 'chp.nombre_bodega', 'chp.resta_inventario',
+                    'b.nombre as bodega_actual_nombre', 's.descripcion as seccion_actual_descripcion',
                     'chp.idPrecioSeleccionado', 'chp.precios_producto_carga_id',
                     'cp.nombre as nombre_categoria_precio',
                     // Escala Selec.: precio_a del ppc vinculado al momento de la oferta
@@ -849,9 +898,46 @@ class ModalFlujoPedido extends Component
                 ->map(fn($r) => (array) $r)
                 ->toArray();
 
+            $productoIds = collect($productos)
+                ->pluck('producto_id')
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+
+            $stockGlobalPorProducto = [];
+            if (!empty($productoIds)) {
+                $stockGlobalPorProducto = DB::table('recibido_bodega')
+                    ->whereIn('producto_id', $productoIds)
+                    ->where('cantidad_disponible', '>', 0)
+                    ->select('producto_id', DB::raw('SUM(cantidad_disponible) as stock_total'))
+                    ->groupBy('producto_id')
+                    ->pluck('stock_total', 'producto_id')
+                    ->map(fn ($stock) => (float) $stock)
+                    ->toArray();
+            }
+
+            $productos = collect($productos)
+                ->map(function (array $prod) use ($stockGlobalPorProducto) {
+                    $productoId = (int) ($prod['producto_id'] ?? 0);
+                    $stockGlobal = (float) ($stockGlobalPorProducto[$productoId] ?? 0);
+                    $nombreBodegaLinea = strtoupper(trim((string) ($prod['nombre_bodega'] ?? '')));
+                    $sinExistenciaLinea = !((float) ($prod['resta_inventario'] ?? 0) > 0)
+                        || str_contains($nombreBodegaLinea, 'SIN EXISTENCIA');
+                    $prod['stock_total_global'] = $stockGlobal;
+                    $prod['sin_existencia_global'] = $stockGlobal <= 0;
+                    $prod['sin_existencia_linea'] = $sinExistenciaLinea;
+                    return $prod;
+                })
+                ->toArray();
+
             $this->ofertaSeleccionada  = array_merge((array) $row, ['productos' => $productos]);
+            $this->pasoActivo          = 'ofertas';
             $this->confirmAccionOferta = null;
             $this->motivoAnulOferta    = '';
+            $this->modalSinExistenciaVisible = false;
+            $this->productosSinExistenciaModal = [];
+            $this->motivoEdicionSinExistencia = '';
             $this->mensajeExito        = '';
             $this->mensajeError        = '';
         } catch (\Throwable $e) {
@@ -868,14 +954,257 @@ class ModalFlujoPedido extends Component
         $this->ofertaSeleccionada  = null;
         $this->confirmAccionOferta = null;
         $this->motivoAnulOferta    = '';
+        $this->modalSinExistenciaVisible = false;
+        $this->productosSinExistenciaModal = [];
+        $this->motivoEdicionSinExistencia = '';
         $this->mensajeExito        = '';
         $this->mensajeError        = '';
+    }
+
+    public function abrirEdicionProductosSinExistencia(): void
+    {
+        $this->mensajeErrorSinExistencia = '';
+
+        if (!$this->ofertaSeleccionada || empty($this->ofertaSeleccionada['id'])) {
+            $this->mensajeErrorSinExistencia = 'No hay una oferta seleccionada.';
+            return;
+        }
+
+        $cotizacionId = (int) $this->ofertaSeleccionada['id'];
+        $sinExistencia = collect($this->ofertaSeleccionada['productos'] ?? [])
+            ->filter(fn (array $prod) => (bool) ($prod['sin_existencia_linea'] ?? false))
+            ->values();
+
+        if ($sinExistencia->isEmpty()) {
+            $this->mensajeErrorSinExistencia = 'La oferta no tiene productos marcados como sin existencia.';
+            return;
+        }
+
+        $productoIds = $sinExistencia->pluck('producto_id')->filter()->unique()->values()->all();
+        $destinosPorProducto = $this->obtenerDestinosDisponiblesPorProducto($productoIds);
+
+        $this->productosSinExistenciaModal = $sinExistencia->map(function (array $prod) use ($destinosPorProducto) {
+            $destinos = $destinosPorProducto[$prod['producto_id']] ?? [];
+            return [
+                'indice' => $prod['indice'] ?? null,
+                'producto_id' => $prod['producto_id'] ?? null,
+                'nombre_producto' => $prod['nombre_producto'] ?? 'Producto',
+                'cantidad' => $prod['cantidad'] ?? 0,
+                'bodega_actual_id' => $prod['bodega_id'] ?? null,
+                'bodega_actual_nombre' => $prod['bodega_actual_nombre'] ?? ($prod['nombre_bodega'] ?? 'SIN EXISTENCIA'),
+                'seccion_actual_id' => $prod['seccion_id'] ?? null,
+                'seccion_actual_descripcion' => $prod['seccion_actual_descripcion'] ?? null,
+                'destino_seleccionado' => '',
+                'destinos' => $destinos,
+            ];
+        })->toArray();
+
+        $this->motivoEdicionSinExistencia = '';
+        $this->modalSinExistenciaVisible = true;
+        $this->dispatchBrowserEvent('modal-sin-existencia-show');
+    }
+
+    public function guardarEdicionProductosSinExistencia(): void
+    {
+        $this->mensajeErrorSinExistencia = '';
+
+        if (!$this->ofertaSeleccionada || empty($this->ofertaSeleccionada['id'])) {
+            $this->mensajeErrorSinExistencia = 'No hay una oferta seleccionada.';
+            return;
+        }
+
+        if (empty($this->productosSinExistenciaModal)) {
+            $this->mensajeErrorSinExistencia = 'No hay productos para actualizar.';
+            return;
+        }
+
+        $cotizacionId = (int) $this->ofertaSeleccionada['id'];
+        $motivo = trim($this->motivoEdicionSinExistencia);
+        $actualizados = 0;
+        $historialDisponible = Schema::hasTable('historico_cotizacion_producto_sin_existencia');
+        if (!$historialDisponible) {
+            Log::warning('No existe la tabla historico_cotizacion_producto_sin_existencia. Se omite auditoria de edicion sin existencia.', [
+                'cotizacion_id' => $cotizacionId,
+                'user_id' => Auth::id(),
+            ]);
+        }
+
+        // Validar que la cantidad total solicitada por destino no exceda el stock disponible.
+        $demandaPorDestino = [];
+        foreach ($this->productosSinExistenciaModal as $linea) {
+            $seleccion = trim((string) ($linea['destino_seleccionado'] ?? ''));
+            if ($seleccion === '') {
+                continue;
+            }
+
+            [$bodegaDestinoId, $seccionDestinoId] = array_pad(explode('|', $seleccion, 2), 2, null);
+            $bodegaDestinoId = (int) $bodegaDestinoId;
+            $seccionDestinoId = (int) $seccionDestinoId;
+            if ($bodegaDestinoId <= 0 || $seccionDestinoId <= 0) {
+                continue;
+            }
+
+            $opcionDestino = collect($linea['destinos'] ?? [])->firstWhere('value', $seleccion);
+            if (!$opcionDestino) {
+                continue;
+            }
+
+            $productoId = (int) ($linea['producto_id'] ?? 0);
+            $cantidadSolicitada = (float) ($linea['cantidad'] ?? 0);
+            $stockDisponible = (float) ($opcionDestino['stock'] ?? 0);
+            $destinoTexto = (string) ($opcionDestino['text'] ?? 'Destino');
+            $key = $productoId . '|' . $bodegaDestinoId . '|' . $seccionDestinoId;
+
+            if (!isset($demandaPorDestino[$key])) {
+                $demandaPorDestino[$key] = [
+                    'solicitado' => 0.0,
+                    'stock' => $stockDisponible,
+                    'producto' => (string) ($linea['nombre_producto'] ?? 'Producto'),
+                    'destino' => $destinoTexto,
+                ];
+            }
+
+            $demandaPorDestino[$key]['solicitado'] += $cantidadSolicitada;
+            if ($demandaPorDestino[$key]['solicitado'] > $demandaPorDestino[$key]['stock']) {
+                $this->mensajeErrorSinExistencia = 'No se puede realizar la edición. La cantidad solicitada para '
+                    . $demandaPorDestino[$key]['producto']
+                    . ' supera el stock acumulado en '
+                    . $demandaPorDestino[$key]['destino']
+                    . ' (Solicitado: ' . (int) $demandaPorDestino[$key]['solicitado']
+                    . ', Disponible: ' . (int) $demandaPorDestino[$key]['stock'] . ').';
+                return;
+            }
+        }
+
+        DB::beginTransaction();
+        try {
+            foreach ($this->productosSinExistenciaModal as $linea) {
+                $seleccion = trim((string) ($linea['destino_seleccionado'] ?? ''));
+                if ($seleccion === '') {
+                    continue;
+                }
+
+                [$bodegaDestinoId, $seccionDestinoId] = array_pad(explode('|', $seleccion, 2), 2, null);
+                $bodegaDestinoId = (int) $bodegaDestinoId;
+                $seccionDestinoId = (int) $seccionDestinoId;
+                if ($bodegaDestinoId <= 0 || $seccionDestinoId <= 0) {
+                    continue;
+                }
+
+                $opcionDestino = collect($linea['destinos'] ?? [])->firstWhere('value', $seleccion);
+                if (!$opcionDestino) {
+                    continue;
+                }
+
+                $nombreBodegaDestino = (string) ($opcionDestino['bodega_nombre'] ?? '');
+
+                $afectados = DB::table('cotizacion_has_producto')
+                    ->where('cotizacion_id', $cotizacionId)
+                    ->where('indice', (int) ($linea['indice'] ?? 0))
+                    ->update([
+                        'Bodega_id' => $bodegaDestinoId,
+                        'seccion_id' => $seccionDestinoId,
+                        'nombre_bodega' => $nombreBodegaDestino,
+                        'resta_inventario' => 1,
+                        'updated_at' => now(),
+                    ]);
+
+                if ($afectados > 0) {
+                    if ($historialDisponible) {
+                        DB::table('historico_cotizacion_producto_sin_existencia')->insert([
+                            'id_cotizacion' => $cotizacionId,
+                            'id_producto' => (int) ($linea['producto_id'] ?? 0),
+                            'indice_linea' => (int) ($linea['indice'] ?? 0),
+                            'nombre_producto' => $linea['nombre_producto'] ?? null,
+                            'id_bodega_origen' => (int) ($linea['bodega_actual_id'] ?? 0) ?: null,
+                            'id_seccion_origen' => (int) ($linea['seccion_actual_id'] ?? 0) ?: null,
+                            'id_bodega_actualizacion' => $bodegaDestinoId,
+                            'id_seccion_actualizacion' => $seccionDestinoId,
+                            'nombre_bodega_origen' => $linea['bodega_actual_nombre'] ?? 'SIN EXISTENCIA',
+                            'nombre_bodega_destino' => $nombreBodegaDestino,
+                            'motivo' => $motivo !== '' ? $motivo : 'Reasignación de producto sin existencia',
+                            'created_by' => Auth::id(),
+                            'updated_by' => Auth::id(),
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+                    }
+                    $actualizados++;
+                }
+            }
+
+            if ($actualizados === 0) {
+                DB::rollBack();
+                $this->mensajeErrorSinExistencia = 'Seleccione al menos un destino válido para actualizar.';
+                return;
+            }
+
+            DB::commit();
+
+            $this->modalSinExistenciaVisible = false;
+            $this->productosSinExistenciaModal = [];
+            $this->motivoEdicionSinExistencia = '';
+            $this->mensajeErrorSinExistencia = '';
+            $this->dispatchBrowserEvent('modal-sin-existencia-hide');
+
+            $this->verOferta($cotizacionId);
+            $this->mensajeExito = 'Se actualizaron ' . $actualizados . ' producto(s) sin existencia.';
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            $this->mensajeErrorSinExistencia = 'No se pudo actualizar la relación de productos sin existencia: ' . $e->getMessage();
+        }
+    }
+
+    /**
+     * @param array<int> $productoIds
+     * @return array<int, array<int, array<string, mixed>>>
+     */
+    private function obtenerDestinosDisponiblesPorProducto(array $productoIds): array
+    {
+        if (empty($productoIds)) {
+            return [];
+        }
+
+        $rows = DB::table('recibido_bodega as rb')
+            ->join('seccion as s', 's.id', '=', 'rb.seccion_id')
+            ->join('segmento as sg', 'sg.id', '=', 's.segmento_id')
+            ->join('bodega as b', 'b.id', '=', 'sg.bodega_id')
+            ->whereIn('rb.producto_id', $productoIds)
+            ->where('rb.cantidad_disponible', '>', 0)
+            ->select(
+                'rb.producto_id',
+                'sg.bodega_id',
+                's.id as seccion_id',
+                'b.nombre as bodega_nombre',
+                's.descripcion as seccion_descripcion',
+                DB::raw('SUM(rb.cantidad_disponible) as stock')
+            )
+            ->groupBy('rb.producto_id', 'sg.bodega_id', 's.id', 'b.nombre', 's.descripcion')
+            ->orderBy('b.nombre')
+            ->orderBy('s.descripcion')
+            ->get();
+
+        $destinos = [];
+        foreach ($rows as $row) {
+            $destinos[(int) $row->producto_id][] = [
+                'value' => (int) $row->bodega_id . '|' . (int) $row->seccion_id,
+                'bodega_id' => (int) $row->bodega_id,
+                'seccion_id' => (int) $row->seccion_id,
+                'bodega_nombre' => (string) $row->bodega_nombre,
+                'seccion_descripcion' => (string) $row->seccion_descripcion,
+                'stock' => (float) $row->stock,
+                'text' => trim((string) $row->bodega_nombre . ' - ' . (string) $row->seccion_descripcion . ' (Stock: ' . (int) $row->stock . ')'),
+            ];
+        }
+
+        return $destinos;
     }
 
     public function confirmarAccionOferta(string $accion): void
     {
         $this->confirmAccionOferta             = $accion;
         $this->motivoAnulOferta                = '';
+        $this->comentarioCreditoGanadora       = '';
         $this->mensajeError                    = '';
         $this->clienteDuplicarError            = '';
         $this->productosPrecioEscalaCambiado   = [];
@@ -890,6 +1219,7 @@ class ModalFlujoPedido extends Component
     {
         $this->confirmAccionOferta             = null;
         $this->motivoAnulOferta                = '';
+        $this->comentarioCreditoGanadora       = '';
         $this->mensajeError                    = '';
         $this->mostrarSelectorClienteDuplicar  = false;
         $this->busquedaClienteDuplicar         = '';
@@ -939,9 +1269,18 @@ class ModalFlujoPedido extends Component
                   ->orWhere('nombre', 'LIKE', $like);
             });
 
-        // Solo el Administrador (1), Televendedor (3) y Mercadeo (9) ven todos los clientes
-        if (!in_array($rolId, [1, 3, 9])) {
-            $query->where('vendedor', Auth::id());
+        // Solo Admin (1) ve todos los clientes; los demás solo sus asignados.
+        if ($rolId !== 1) {
+            $query->where(function ($access) {
+                $access->where('cliente.vendedor', Auth::id())
+                    ->orWhereExists(function ($assigned) {
+                        $assigned->select(DB::raw(1))
+                            ->from('cliente_usuario as cu')
+                            ->whereColumn('cu.cliente_id', 'cliente.id')
+                            ->where('cu.usuario_id', Auth::id())
+                            ->whereIn('cu.rol_id', [2, 3]);
+                    });
+            });
         }
 
         $this->resultadosClienteDuplicar = $query
@@ -968,6 +1307,31 @@ class ModalFlujoPedido extends Component
     {
         if (!$this->clienteDuplicarId) {
             $this->clienteDuplicarError = 'Debe seleccionar un cliente.';
+            return;
+        }
+
+        $clientePermitido = DB::table('cliente')
+            ->where('cliente.id', $this->clienteDuplicarId)
+            ->where('cliente.estado_cliente_id', 1)
+            ->where('cliente.id', '!=', 1);
+
+        if ((int) Auth::user()->rol_id !== 1) {
+            $clientePermitido->where(function ($access) {
+                $access->where('cliente.vendedor', Auth::id())
+                    ->orWhereExists(function ($assigned) {
+                        $assigned->select(DB::raw(1))
+                            ->from('cliente_usuario as cu')
+                            ->whereColumn('cu.cliente_id', 'cliente.id')
+                            ->where('cu.usuario_id', Auth::id())
+                            ->whereIn('cu.rol_id', [2, 3]);
+                    });
+            });
+        }
+
+        if (!$clientePermitido->exists()) {
+            $this->clienteDuplicarId = null;
+            $this->clienteDuplicarNombre = '';
+            $this->clienteDuplicarError = 'El cliente seleccionado no está asignado a su usuario.';
             return;
         }
 
@@ -1062,6 +1426,7 @@ class ModalFlujoPedido extends Component
 
             DB::beginTransaction();
             try {
+                $comentarioCredito = trim((string) $this->comentarioCreditoGanadora);
                 // 1. Quitar ganadora anterior si existe
                 DB::table('historico_flujo')
                     ->where('flujo_id', $this->flujoId)
@@ -1075,6 +1440,16 @@ class ModalFlujoPedido extends Component
                     ->where('tipo_tramite_id', 2)
                     ->where('flujo_id', $this->flujoId)
                     ->update(['observaciones' => 'ganadora', 'updated_at' => now()]);
+
+                DB::table('flujo_oferta_credito_comentarios')->insert([
+                    'flujo_id'    => $this->flujoId,
+                    'tramite_id'  => $cotizacionId,
+                    'observacion' => $comentarioCredito !== '' ? $comentarioCredito : null,
+                    'created_by'  => Auth::id(),
+                    'updated_by'  => Auth::id(),
+                    'created_at'  => now(),
+                    'updated_at'  => now(),
+                ]);
 
                 // 3. Auditoría cotizacion_estado
                 if ($creditoVigente) {
@@ -1138,6 +1513,7 @@ class ModalFlujoPedido extends Component
                     $this->stockErrors         = [];
                     $this->confirmAccionOferta = null;
                     $this->ofertaSeleccionada  = null;
+                    $this->comentarioCreditoGanadora = '';
                     $this->mensajeExito = 'Oferta #' . $cotizacionId . ' marcada como ganadora. Crédito vigente — enviada a Revisión de Inventario.';
 
                 } else {
@@ -1215,6 +1591,7 @@ class ModalFlujoPedido extends Component
                     $this->stockErrors         = [];
                     $this->confirmAccionOferta = null;
                     $this->ofertaSeleccionada  = null;
+                    $this->comentarioCreditoGanadora = '';
                     $this->mensajeExito = 'Oferta #' . $cotizacionId . ' marcada como ganadora y enviada a Revisión de Crédito.';
                 }
 
@@ -1234,6 +1611,23 @@ class ModalFlujoPedido extends Component
             ->where('cotizacion_id', $cotizacionId)
             ->get();
 
+        $sinExistencia = [];
+        foreach ($productos as $prod) {
+            if (!((float) ($prod->resta_inventario ?? 0) > 0)) {
+                $sinExistencia[] = [
+                    'producto'   => (string) ($prod->nombre_producto ?? ('Producto #' . ($prod->producto_id ?? 'N/A'))),
+                    'solicitado' => (int) ($prod->cantidad ?? 0),
+                    'disponible' => 0,
+                ];
+            }
+        }
+
+        if (!empty($sinExistencia)) {
+            $this->stockErrors = $sinExistencia;
+            $this->mensajeError = 'No se puede generar Prefactura porque hay productos marcados como sin existencia en la oferta.';
+            return;
+        }
+
         // ── 1. Validar inventario (stock_real - reservado en prefacturas activas) ─
         $stockErrors = [];
         foreach ($productos as $prod) {
@@ -1246,6 +1640,7 @@ class ModalFlujoPedido extends Component
                 $reservado = (float) DB::table('prefactura_has_producto as php')
                     ->join('prefactura as pf', 'pf.id', '=', 'php.prefactura_id')
                     ->where('pf.estado', 'activo')
+                    ->whereRaw("TIMESTAMPADD(DAY, COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7), COALESCE(pf.created_at, CONCAT(COALESCE(pf.fecha_emision, CURDATE()), ' 00:00:00'))) > NOW()")
                     ->where('php.producto_id', $prod->producto_id)
                     ->where('php.seccion_id',  $prod->seccion_id)
                     ->where('php.resta_inventario', 1)
@@ -1267,11 +1662,11 @@ class ModalFlujoPedido extends Component
             return;
         }
 
-        $config      = DB::table('configuracion_prefactura')->first();
-        $diasValidez = $config ? (int) $config->dias_validez : 7;
+        $diasValidez = $this->diasVigenciaPrefactura((int) $this->flujoId);
 
         DB::beginTransaction();
         try {
+            $comentarioCredito = trim((string) $this->comentarioCreditoGanadora);
             // ── 2. Quitar ganadora anterior si existe ──────────────────────
             DB::table('historico_flujo')
                 ->where('flujo_id', $this->flujoId)
@@ -1285,6 +1680,16 @@ class ModalFlujoPedido extends Component
                 ->where('tipo_tramite_id', 2)
                 ->where('flujo_id', $this->flujoId)
                 ->update(['observaciones' => 'ganadora', 'updated_at' => now()]);
+
+            DB::table('flujo_oferta_credito_comentarios')->insert([
+                'flujo_id'    => $this->flujoId,
+                'tramite_id'  => $cotizacionId,
+                'observacion' => $comentarioCredito !== '' ? $comentarioCredito : null,
+                'created_by'  => Auth::id(),
+                'updated_by'  => Auth::id(),
+                'created_at'  => now(),
+                'updated_at'  => now(),
+            ]);
 
             // ── 4. Auditoría cotizacion_estado ─────────────────────────────
             DB::table('cotizacion_estado')->insert([
@@ -1382,6 +1787,7 @@ class ModalFlujoPedido extends Component
             $this->stockErrors         = [];
             $this->confirmAccionOferta = null;
             $this->ofertaSeleccionada  = null;
+            $this->comentarioCreditoGanadora = '';
             $this->mensajeExito = 'Prefactura #' . $prefacturaId . ' generada. Válida por ' . $diasValidez . ' día(s).';
             $this->emit('pedidoActualizado');
             $this->recargar();
@@ -1560,107 +1966,84 @@ class ModalFlujoPedido extends Component
     // ─────────────────────────────────────────────────────────────────────
 
     /**
-     * Procesa el vencimiento de una prefactura:
-     * 1. Inactiva la prefactura.
-     * 2. Marca historico_flujo de la prefactura con estado_id=4 (Vencido).
-     * 3. Retrocede el flujo a Ofertas (tipo_tramite_id=2).
-     * 4. Por cada cotización del flujo, compara precios:
-     *    - Precios cambiaron → inactiva cotizacion (estado_id=2) + cotizacion_estado.
-     *    - Precios no cambiaron → cotizacion queda activa, cotizacion_estado con observación.
+     * Mantiene compatibilidad histórica al detectar una prefactura vencida.
+     * Requerimiento actual: NO inactivar ni mover estado de la prefactura,
+     * solo liberar su reserva por fecha en los cálculos de disponibilidad.
      */
     private function procesarVencimientoPrefactura(object $pref): void
     {
-        DB::beginTransaction();
+        $this->vencimientoProcesado = $this->prefacturaVencio($pref);
+    }
+
+    private function prefacturaVencio(?object $pref): bool
+    {
+        if (!$pref) {
+            return false;
+        }
+
         try {
-            // 1. Inactivar prefactura
-            DB::table('prefactura')
-                ->where('id', $pref->id)
-                ->update(['estado' => 'inactive', 'updated_at' => now()]);
+            $diasValidez = (int) (DB::table('configuracion_prefactura')
+                ->orderByDesc('id')
+                ->value('dias_validez') ?? 7);
+            $diasValidez = max(0, $diasValidez);
 
-            // 2. Marcar historico_flujo de la prefactura como Vencido (estado_id=4)
-            DB::table('historico_flujo')
-                ->where('flujo_id', $this->flujoId)
-                ->where('tipo_tramite_id', 4)          // tipo_tramite_id=4 = Prefactura
-                ->where('tramite_id', $pref->id)
-                ->update(['estado_id' => 4, 'updated_at' => now()]);
-
-            // 3. Retroceder flujo a Ofertas
-            DB::table('flujo')
-                ->where('id', $this->flujoId)
-                ->update([
-                    'tipo_tramite_id' => 2,
-                    'updated_by'      => Auth::id(),
-                    'updated_at'      => now(),
-                ]);
-
-            // 4. Validar precios por cada cotización del flujo
-            $cotizaciones = DB::table('historico_flujo')
-                ->where('flujo_id', $this->flujoId)
-                ->where('tipo_tramite_id', 2)      // tipo_tramite_id=2 = Ofertas
-                ->whereNotIn('observaciones', ['ganadora'])
-                ->whereRaw('(observaciones NOT LIKE ? OR observaciones IS NULL)', ['Anulado:%'])
-                ->pluck('tramite_id')
-                ->unique();
-
-            foreach ($cotizaciones as $cotId) {
-                $preciosCambiaron = $this->verificarCambioPrecios((int) $cotId);
-
-                if ($preciosCambiaron) {
-                    // Inactivar cotización por precios desactualizados
-                    DB::table('cotizacion')
-                        ->where('id', $cotId)
-                        ->update(['estado_id' => 2, 'updated_at' => now()]);
-
-                    // Marcar en historico_flujo la oferta como VencidaPrecios
-                    DB::table('historico_flujo')
-                        ->where('flujo_id', $this->flujoId)
-                        ->where('tipo_tramite_id', 2)
-                        ->where('tramite_id', $cotId)
-                        ->update([
-                            'observaciones' => 'VencidaPrecios: Prefactura vencida, precios cambiaron',
-                            'updated_at'    => now(),
-                        ]);
-
-                    DB::table('cotizacion_estado')->insert([
-                        'cotizacion_id' => $cotId,
-                        'flujo_id'      => $this->flujoId,
-                        'ganadora'      => 4,  // 4 = Vencida / inactiva por precios
-                        'comentario'    => 'Oferta inactivada: prefactura #' . $pref->id . ' venció y los precios cambiaron',
-                        'estado_id'     => 1,
-                        'created_by'    => Auth::id(),
-                        'updated_by'    => Auth::id(),
-                        'created_at'    => now(),
-                        'updated_at'    => now(),
-                    ]);
-                } else {
-                    // Precios sin cambio: oferta vuelve a quedar disponible
-                    DB::table('historico_flujo')
-                        ->where('flujo_id', $this->flujoId)
-                        ->where('tipo_tramite_id', 2)
-                        ->where('tramite_id', $cotId)
-                        ->where('observaciones', 'ganadora')   // si estaba marcada como ganadora, limpiar
-                        ->update(['observaciones' => null, 'updated_at' => now()]);
-
-                    DB::table('cotizacion_estado')->insert([
-                        'cotizacion_id' => $cotId,
-                        'flujo_id'      => $this->flujoId,
-                        'ganadora'      => 2,
-                        'comentario'    => 'Oferta reactivada: prefactura #' . $pref->id . ' venció, precios sin cambio',
-                        'estado_id'     => 1,
-                        'created_by'    => Auth::id(),
-                        'updated_by'    => Auth::id(),
-                        'created_at'    => now(),
-                        'updated_at'    => now(),
-                    ]);
-                }
+            if (!empty($pref->created_at)) {
+                $base = \Carbon\Carbon::parse($pref->created_at);
+            } elseif (!empty($pref->fecha_emision)) {
+                $base = \Carbon\Carbon::parse($pref->fecha_emision)->startOfDay();
+            } else {
+                return false;
             }
 
-            DB::commit();
-            $this->mensajeError = ''; // limpio para que el blade muestre el aviso de vencimiento
-        } catch (\Exception $e) {
-            DB::rollBack();
-            $this->mensajeError = 'Error al procesar vencimiento: ' . $e->getMessage();
+            return now()->gt($base->copy()->addDays($diasValidez));
+        } catch (\Throwable $e) {
+            return false;
         }
+    }
+
+    private function obtenerFaltantesInventarioPrefactura(int $prefacturaId, bool $ignorarReservaPropia): array
+    {
+        $faltantes = [];
+        $productos = DB::table('prefactura_has_producto')
+            ->where('prefactura_id', $prefacturaId)
+            ->where('resta_inventario', 1)
+            ->whereNotNull('producto_id')
+            ->whereNotNull('seccion_id')
+            ->get(['producto_id', 'seccion_id', 'nombre_producto', 'cantidad']);
+
+        foreach ($productos as $prod) {
+            $rawStock = (float) DB::table('recibido_bodega')
+                ->where('producto_id', $prod->producto_id)
+                ->where('seccion_id', $prod->seccion_id)
+                ->where('cantidad_disponible', '>', 0)
+                ->sum('cantidad_disponible');
+
+            $reservadoQuery = DB::table('prefactura_has_producto as php')
+                ->join('prefactura as pf', 'pf.id', '=', 'php.prefactura_id')
+                ->where('pf.estado', 'activo')
+                ->whereRaw("TIMESTAMPADD(DAY, COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7), COALESCE(pf.created_at, CONCAT(COALESCE(pf.fecha_emision, CURDATE()), ' 00:00:00'))) > NOW()")
+                ->where('php.producto_id', $prod->producto_id)
+                ->where('php.seccion_id', $prod->seccion_id)
+                ->where('php.resta_inventario', 1);
+
+            if ($ignorarReservaPropia) {
+                $reservadoQuery->where('pf.id', '!=', $prefacturaId);
+            }
+
+            $reservado = (float) $reservadoQuery->sum('php.cantidad');
+            $disponible = max(0.0, $rawStock - $reservado);
+            $solicitado = (float) ($prod->cantidad ?? 0);
+
+            if ($disponible + 0.0001 < $solicitado) {
+                $faltantes[] = [
+                    'producto'   => (string) ($prod->nombre_producto ?? ('Producto #' . $prod->producto_id)),
+                    'solicitado' => round($solicitado, 2),
+                    'disponible' => round($disponible, 2),
+                ];
+            }
+        }
+
+        return $faltantes;
     }
 
     /**
@@ -1794,6 +2177,11 @@ class ModalFlujoPedido extends Component
     {
         if (!$this->flujoId) {
             $this->prefacturaData = null;
+            $this->prefacturaVencida = false;
+            $this->prefacturaPuedeFacturar = true;
+            $this->prefacturaStockFaltante = [];
+            $this->prefacturaReservaCompleta = true;
+            $this->prefacturaReservaFaltante = [];
             return;
         }
         $pref = DB::table('prefactura')
@@ -1804,21 +2192,15 @@ class ModalFlujoPedido extends Component
 
         if (!$pref) {
             $this->prefacturaData = null;
+            $this->prefacturaVencida = false;
+            $this->prefacturaPuedeFacturar = true;
+            $this->prefacturaStockFaltante = [];
+            $this->prefacturaReservaCompleta = true;
+            $this->prefacturaReservaFaltante = [];
             return;
         }
 
-        // ── Verificar vencimiento (solo si sigue activa) ───────────────────
-        if ($pref->estado === 'activo' && $pref->fecha_vencimiento && now()->startOfDay()->gt(
-                \Carbon\Carbon::parse($pref->fecha_vencimiento)->startOfDay()
-            )) {
-            $this->procesarVencimientoPrefactura($pref);
-            $this->prefacturaData    = null;
-            $this->vencimientoProcesado = true;
-            // Recargar las ofertas para que reflejen los nuevos estados
-            $this->cargarOfertasPedido();
-            return;
-        }
-
+        $this->prefacturaVencida = $this->prefacturaVencio($pref);
         $this->vencimientoProcesado = false;
 
         $productos = DB::table('prefactura_has_producto')
@@ -1829,6 +2211,25 @@ class ModalFlujoPedido extends Component
             ->toArray();
 
         $this->prefacturaData = array_merge((array) $pref, ['productos' => $productos]);
+
+        // Regla todo-o-nada de reserva: si no cubre cantidades completas, no debe apartar.
+        $this->prefacturaReservaFaltante = $this->obtenerFaltantesInventarioPrefactura((int) $pref->id, true);
+        $this->prefacturaReservaCompleta = empty($this->prefacturaReservaFaltante);
+
+        if ($this->prefacturaVencida) {
+            // Al vencer, la reserva de esta prefactura se considera liberada.
+            // Para facturar se requiere revalidar stock disponible actual.
+            $this->prefacturaStockFaltante = $this->obtenerFaltantesInventarioPrefactura((int) $pref->id, true);
+            $this->prefacturaPuedeFacturar = empty($this->prefacturaStockFaltante);
+        } else {
+            if ($this->prefacturaReservaCompleta) {
+                $this->prefacturaStockFaltante = [];
+                $this->prefacturaPuedeFacturar = true;
+            } else {
+                $this->prefacturaStockFaltante = $this->prefacturaReservaFaltante;
+                $this->prefacturaPuedeFacturar = false;
+            }
+        }
     }
 
     public function confirmarAccionPrefactura(string $accion): void
@@ -1868,12 +2269,19 @@ class ModalFlujoPedido extends Component
             default                => ucfirst(str_replace('_', ' ', $accion)),
         };
 
-        $codigo = rand(1000, 9999);
+        $config   = ConfiguracionCodigoAutorizacion::obtener();
+        $codigo   = rand(1000, 9999);
 
         $autorizacion = new ModelCodigoAutorizacion;
-        $autorizacion->codigo    = $codigo;
-        $autorizacion->users_id  = Auth::user()->id;
-        $autorizacion->estado_id = 1;
+        $autorizacion->codigo           = $codigo;
+        $autorizacion->users_id         = Auth::user()->id;
+        $autorizacion->estado_id        = 1;
+        $autorizacion->flujo_id         = $flujoId;
+        $autorizacion->tipo_tramite     = $accion;  // editar_factura | anular_prefactura | revertir_prefactura
+        $autorizacion->estado_codigo_id = 1; // Pendiente
+        $autorizacion->fecha_expiracion = $config->expiracion_activa
+            ? now()->addMinutes($config->tiempo_expiracion_minutos)
+            : null;
         $autorizacion->save();
 
         $viewData = [
@@ -1920,13 +2328,13 @@ class ModalFlujoPedido extends Component
             return;
         }
 
-        $autorizacion = DB::table('codigo_autorizacion')
-            ->where('estado_id', 1)
+        $autorizacion = ModelCodigoAutorizacion::where('estado_id', 1)
+            ->where('estado_codigo_id', 1) // Pendiente
             ->where('codigo', $codigo)
-            ->first(['id', 'users_id']);
+            ->first(['id', 'users_id', 'flujo_id', 'tipo_tramite', 'fecha_expiracion', 'estado_codigo_id']);
 
-        if (!$autorizacion) {
-            $this->mensajeError = 'El código de autorización es inválido o ya fue desactivado.';
+        if (!$autorizacion || !$autorizacion->esValido((int) $this->flujoId, $this->accionAutorizacionPrefactura)) {
+            $this->mensajeError = 'El código de autorización no es válido o ha expirado.';
             return;
         }
 
@@ -1939,10 +2347,8 @@ class ModalFlujoPedido extends Component
             return;
         }
 
-        // Desactivar el código para que no pueda reutilizarse
-        DB::table('codigo_autorizacion')
-            ->where('id', $this->autorizacionId)
-            ->update(['estado_id' => 2, 'updated_at' => now()]);
+        // Marcar el código como utilizado
+        $autorizacion->marcarUtilizado();
 
         if ($this->accionAutorizacionPrefactura === 'editar_factura') {
             $this->redireccionarEdicionFacturaAutorizada();
@@ -1965,6 +2371,17 @@ class ModalFlujoPedido extends Component
     public function facturarPrefacturaDirecta(): void
     {
         if (!$this->prefacturaData || !$this->flujoId) return;
+
+        if ($this->prefacturaVencida) {
+            $faltantes = $this->obtenerFaltantesInventarioPrefactura((int) $this->prefacturaData['id'], true);
+            $this->prefacturaStockFaltante = $faltantes;
+            $this->prefacturaPuedeFacturar = empty($faltantes);
+
+            if (!$this->prefacturaPuedeFacturar) {
+                $this->mensajeError = 'No es posible generar la factura porque uno o más productos ya no cuentan con inventario disponible. Actualice la prefactura antes de continuar.';
+                return;
+            }
+        }
 
         // Determinar tipo_pago con la misma lógica de prioridades que el backend:
         // 1. credito_revision aprobado:
@@ -2011,6 +2428,9 @@ class ModalFlujoPedido extends Component
         $this->dispatchBrowserEvent('fmp-facturar-directo', [
             'url'       => '/prefactura/' . (int) $this->prefacturaData['id'] . '/facturar-directo',
             'tipo_pago' => $tipoPago,
+            'cliente_id' => (int) ($this->pedidoData['cliente_id'] ?? 0),
+            'tele_asesor_id' => Auth::id(),
+            'tele_asesor_nombre' => Auth::user()->name ?? '',
         ]);
     }
 
@@ -2078,11 +2498,22 @@ class ModalFlujoPedido extends Component
             ->orderByDesc('id')
             ->first(['id', 'numero_vale']);
 
+        $printUrl = '/factura/cooporativo/' . $factura->id;
+        $printCopiaUrl = '/factura/cooporativoCopia/' . $factura->id;
+        $printActaRecUrl = '/facturaCoor/actaRec/' . $factura->id;
+        if ((int) ($factura->tipo_venta_id ?? 0) === 3) {
+            $printUrl = '/exonerado/factura/' . $factura->id;
+            $printCopiaUrl = '/exonerado/facturaCopia/' . $factura->id;
+            $printActaRecUrl = '/exonerado/actaRec/' . $factura->id;
+        }
+
         $this->facturaData = array_merge((array) $factura, [
             'productos'      => $productos,
             'historico_id'   => null,
             'tramite_tipo_id'=> 3,
-            'print_url'      => '/factura/cooporativo/' . $factura->id,
+            'print_url'      => $printUrl,
+            'print_copia_url'=> $printCopiaUrl,
+            'print_acta_rec_url' => $printActaRecUrl,
             'vale_id'        => $valeData ? $valeData->id : null,
             'vale_numero'    => $valeData ? $valeData->numero_vale : null,
         ]);

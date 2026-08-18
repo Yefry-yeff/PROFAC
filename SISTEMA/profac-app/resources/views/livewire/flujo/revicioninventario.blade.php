@@ -184,6 +184,7 @@
                                         <select wire:model="filtroEstado" class="form-control form-control-sm" style="border-radius:8px;">
                                             <option value="">Todos</option>
                                             <option value="ok">OK</option>
+                                            <option value="sin_existencia">Sin existencia</option>
                                             <option value="sin_stock">Sin stock</option>
                                             <option value="sin_control">Sin control</option>
                                         </select>
@@ -307,7 +308,12 @@
                                                     </div>
                                                 </td>
                                                 <td style="padding:8px 14px; text-align:center;">
-                                                    @if ($prod['falta_stock'])
+                                                    @if ($prod['sin_existencia'] ?? false)
+                                                        <span style="background:#ffebee; color:#c62828; border-radius:8px;
+                                                                     padding:3px 10px; font-size:11px; font-weight:700;">
+                                                            <i class="fa fa-ban mr-1"></i>Sin existencia
+                                                        </span>
+                                                    @elseif ($prod['falta_stock'])
                                                         <span style="background:#fce4ec; color:#b71c1c; border-radius:8px;
                                                                      padding:3px 10px; font-size:11px; font-weight:700;">
                                                             <i class="fa fa-exclamation-triangle mr-1"></i>Sin stock
@@ -387,7 +393,8 @@
                             $puedePasarPrefactura = count($stockErrors) === 0
                                 && count($productos) > 0
                                 && collect($obsProducto)->filter()->isEmpty()
-                                && $this->todosProductosRevisados();
+                                && $this->todosProductosRevisados()
+                                && ! $this->tieneProductosSinExistencia();
 
                             $puedeDevolverOferta = $this->todosProductosRevisados();
 
@@ -395,7 +402,9 @@
                                 ? 'Debe marcar todos los productos como revisados'
                                 : (collect($obsProducto)->filter()->isNotEmpty()
                                     ? 'Elimine las notas/reemplazos antes de pasar a Prefactura'
-                                    : 'Hay productos sin stock suficiente');
+                                    : ($this->tieneProductosSinExistencia()
+                                        ? 'Hay productos marcados como sin existencia'
+                                        : 'Hay productos sin stock suficiente'));
                         @endphp
                         <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center;">
                             {{-- Pasar a Prefactura --}}
@@ -966,7 +975,7 @@
                                         <th style="padding:8px 12px; color:#555; font-weight:700;">Cliente</th>
                                         <th style="padding:8px 12px; text-align:center; color:#e65100; font-weight:700;">Cant. Reservada</th>
                                         <th style="padding:8px 12px; color:#555; font-weight:700;">Emisión</th>
-                                        <th style="padding:8px 12px; color:#555; font-weight:700;">Vence</th>
+                                        <th style="padding:8px 12px; color:#555; font-weight:700;">Vence reserva</th>
                                     </tr>
                                 </thead>
                                 <tbody id="invres_tbody"></tbody>
@@ -1038,7 +1047,7 @@
                             (r.fecha_emision ? r.fecha_emision.substring(0,10).split('-').reverse().join('/') : '—') +
                         '</td>' +
                         '<td style="padding:8px 12px;font-size:12px;color:#555;">' +
-                            (r.fecha_vencimiento ? r.fecha_vencimiento.substring(0,10).split('-').reverse().join('/') : '—') +
+                            (r.fecha_vencimiento_reserva ? r.fecha_vencimiento_reserva.substring(0,10).split('-').reverse().join('/') : '—') +
                         '</td>';
                     tbody.appendChild(tr);
                 });

@@ -9,6 +9,23 @@ $('#tbl_creditos_abonos_div').addClass('d-none');
 // lo limpie (hidden.bs.modal destruye selectBanco), para enviarlo al confirmar.
 var _pendingAbonoData = null;
 
+var dataTablesLanguageEs = {
+    "sProcessing":   "Procesando...",
+    "sLengthMenu":   "Mostrar _MENU_ registros",
+    "sZeroRecords":  "No se encontraron resultados",
+    "sEmptyTable":   "Ningún dato disponible en esta tabla",
+    "sInfo":         "Mostrando registros del _START_ al _END_ de un total de _TOTAL_ registros",
+    "sInfoEmpty":    "Mostrando registros del 0 al 0 de un total de 0 registros",
+    "sInfoFiltered": "(filtrado de un total de _MAX_ registros)",
+    "sSearch":       "Buscar:",
+    "oPaginate": {
+        "sFirst":    "Primero",
+        "sLast":     "Último",
+        "sNext":     "Siguiente",
+        "sPrevious": "Anterior"
+    }
+};
+
 // Fix: prevent aria-hidden focus warning when Bootstrap modals close
 $(document).on('hide.bs.modal', '.modal', function () {
     if (document.activeElement && $.contains(this, document.activeElement)) {
@@ -23,7 +40,17 @@ $(document).on('hide.bs.modal', '.modal', function () {
 ──────────────────────────────────────────────────────────────── */
 function apCtxToggle(btn) {
     var $btn  = $(btn);
-    var $menu = $btn.siblings('.ap-ctx-menu');
+    var $menu = $btn.data('ap-menu');
+    if (!$menu || !$menu.length) {
+        $menu = $btn.siblings('.ap-ctx-menu').first();
+        if ($menu && $menu.length) {
+            $btn.data('ap-menu', $menu);
+        }
+    }
+    if (!$menu || !$menu.length) {
+        return;
+    }
+
     var isOpen = $menu.is(':visible');
 
     // Cerrar todos los menús abiertos
@@ -36,8 +63,11 @@ function apCtxToggle(btn) {
         $menu.data('ap-origin', $menu.parent());
         $menu.appendTo('body');
         $menu.data('ap-moved', true);
-        $menu.data('ap-btn', $btn);
     }
+
+    // Mantener vínculo botón <-> menú para aperturas posteriores
+    $menu.data('ap-btn', $btn);
+    $btn.data('ap-menu', $menu);
 
     var rect    = btn.getBoundingClientRect();
     var menuW   = 240;
@@ -93,6 +123,9 @@ function modalRetencion(codigoPago, retencion, estadoRetencion, caiFactura, idFa
     $('#montoRetencion').val(retencion);
     $('#facturaCai').val(caiFactura);
     $('#idFacturaRetencion').val(idFactura);
+    $('#numero_retencion').val('');
+    $('#doc_retencion').val('');
+    $('#comentario_retencion').val('');
 
     $('#modalretencion').modal('show');
 }
@@ -105,16 +138,20 @@ function modalNotaCredito(codigoPagoA, caiFactura, idFactura, tieneNC ){
 
 
 
-    //llamando todas las notas de credito de la factura en cuestion
-
-    if(tieneNC == 1){
-        //Tiene notas de credito esa factura
-        axios.get("/listar/nc/aplicacion/"+idFactura)
+    axios.get("/listar/nc/aplicacion/"+idFactura)
         .then(response => {
 
             let notas = response.data.results;
-            console.log(response);
-            let htmlnotas = '  <option value="" selected disabled >--Seleccione la nota a aplicar--</option>';
+            if (!notas.length) {
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Sin crédito disponible',
+                    text: 'El cliente no tiene notas de crédito con saldo disponible.'
+                });
+                return;
+            }
+
+            let htmlnotas = '<option value="" selected disabled>--Seleccione la nota--</option>';
 
             notas.forEach(element => {
 
@@ -124,6 +161,10 @@ function modalNotaCredito(codigoPagoA, caiFactura, idFactura, tieneNC ){
             });
 
             document.getElementById('selectNotaCredito').innerHTML = htmlnotas;
+            $('#destinoCredito').val('').trigger('change');
+            $('#totalNotaCredito, #saldoPendienteClienteNC, #motivoNotacredito').val('');
+            actualizarDestinoCredito();
+            cargarBancosReembolso();
             $('#modalNC').modal('show');
 
         })
@@ -136,17 +177,6 @@ function modalNotaCredito(codigoPagoA, caiFactura, idFactura, tieneNC ){
             })
             console.error(err);
         });
-    }else{
-        //No tiene Tiene notas de credito esa factura
-        Swal.fire({
-            icon: 'Info',
-            text: "Esta factura no cuenta con notas de crédito para aplicar."
-        });
-
-    }
-
-
-
 }
 
 function datosNotaCredito(){
@@ -156,19 +186,12 @@ function datosNotaCredito(){
 
         let nota = response.data.result;
 
-        console.log(nota[0].estado_rebajado);
-        /*LLENANDO EL SELECT DE LA APLICACION DEL PAGO*/
-        /*if(nota[0].estado_rebajado == 1){
-            document.getElementById("selectAplicado").innerHTML += '<option selected class="form-control" value="1">SE APLICA REBAJA DE NOTA DE CRÉDITO - <span class="badge badge-success">ACTUÁL</span></option>';
-            document.getElementById("selectAplicado").innerHTML += '<option class="form-control" value="2">NO SE APLICA REBAJA DE NOTA DE CRÉDITO</option>';
-        }else{
-            document.getElementById("selectAplicado").innerHTML += '<option  class="form-control" value="1">SE APLICA REBAJA DE NOTA DE CRÉDITO</option>';
-            document.getElementById("selectAplicado").innerHTML += '<option selected class="form-control" value="2">NO SE APLICA REBAJA DE NOTA DE CRÉDITO - <span class="badge badge-success">ACTUÁL</span></option>';
-        }*/
-
-
-        $('#totalNotaCredito').val(nota[0].total);
+        $('#totalNotaCredito').val(Number(nota[0].saldo_disponible).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+        $('#totalNotaCredito').data('valor', Number(nota[0].saldo_disponible));
+        $('#saldoPendienteClienteNC').val(Number(response.data.saldo_pendiente_cliente).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+        $('#saldoPendienteClienteNC').data('valor', Number(response.data.saldo_pendiente_cliente));
         $('#motivoNotacredito').val(nota[0].comentario);
+        actualizarDestinoCredito();
     })
     .catch(err => {
         let data = err.response.data;
@@ -179,6 +202,42 @@ function datosNotaCredito(){
         })
         console.error(err);
     });
+}
+
+function cargarBancosReembolso() {
+    axios.get('/listar/aplicacion/bancos').then(function(response) {
+        var html = '<option value="">— Seleccione —</option>';
+        (response.data.result || []).forEach(function(banco) {
+            html += '<option value="' + banco.idBanco + '">' + banco.banco + '</option>';
+        });
+        $('#bancoReembolso').html(html);
+    });
+}
+
+function actualizarDestinoCredito() {
+    var destino = $('#destinoCredito').val();
+    var credito = Number($('#totalNotaCredito').data('valor') || 0);
+    var deuda = Number($('#saldoPendienteClienteNC').data('valor') || 0);
+    var aplicado = destino === 'reembolso' ? 0 : Math.min(credito, deuda);
+    var reembolso = destino === 'reembolso' ? credito : (destino === 'mixto' ? Math.max(credito - aplicado, 0) : 0);
+    var saldo = Math.max(credito - aplicado - reembolso, 0);
+    var requiereReembolso = destino === 'reembolso' || (destino === 'mixto' && reembolso > 0.005);
+
+    $('#panelReembolsoNC').toggle(requiereReembolso);
+    $('#bancoReembolso, #metodoReembolso, #fechaReembolso').prop('required', requiereReembolso);
+
+    if (!destino || !credito) {
+        $('#resumenDestinoCredito').hide().text('');
+        return;
+    }
+
+    var formato = function(valor) {
+        return 'L ' + Number(valor).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    };
+    var texto = 'El sistema aplicará ' + formato(aplicado) + ' a las facturas más antiguas.';
+    if (reembolso > 0) texto += ' Reembolsará ' + formato(reembolso) + '.';
+    if (saldo > 0) texto += ' Quedarán ' + formato(saldo) + ' disponibles para una gestión posterior.';
+    $('#resumenDestinoCredito').html('<i class="fa fa-info-circle mr-1"></i>' + texto).show();
 }
 
 function modalNotaDebito(codigoPagoA, caiFactura, idFactura, tieneND ){
@@ -278,7 +337,7 @@ function modalOtrosMovimientos(codigoPagoA, caiFactura, idFactura, saldo){
     $('#modalOtrosMovimientos').modal('show');
 }
 
-function modalAbonos(codigoPagoA, caiFactura, idFactura, saldo){
+function modalAbonos(codigoPagoA, caiFactura, idFactura, saldo, seguimientoEstado){
     $('#codAplicPagoAbono').val(codigoPagoA);
     $('#facturaCaiAbono').val(caiFactura);
     $('#idFacturaAbono').val(idFactura);
@@ -286,6 +345,18 @@ function modalAbonos(codigoPagoA, caiFactura, idFactura, saldo){
     var s = parseFloat(saldo) || 0;
     $('#montoAbono').val(s > 0 ? s.toFixed(2) : '');
     $('#abono-saldo-label').text(s > 0 ? '(Total: L. ' + s.toLocaleString('es-HN', {minimumFractionDigits:2, maximumFractionDigits:2}) + ')' : '');
+    $('#requiereRetencionFutura').prop('checked', false).prop('disabled', false);
+    $('#retencionFuturaEstadoActual').hide().text('');
+
+    if (seguimientoEstado === 'pendiente') {
+        $('#requiereRetencionFutura').prop('checked', true);
+        $('#retencionFuturaEstadoActual').show().css('color', '#c2410c').text('Estado actual: pendiente de retención.');
+    } else if (seguimientoEstado === 'aplicada') {
+        $('#requiereRetencionFutura').prop('disabled', true);
+        $('#retencionFuturaEstadoActual').show().css('color', '#047857').text('Estado actual: retención ya aplicada.');
+    } else if (seguimientoEstado === 'descartada') {
+        $('#retencionFuturaEstadoActual').show().css('color', '#475569').text('Estado actual: seguimiento resuelto como no aplica.');
+    }
 
     datosBanco();
     $('#modalAbonos').modal('show');
@@ -296,20 +367,26 @@ function llamarTablas(){
     $('#tbl_movimientos_div').removeClass('d-none');
     $('#tbl_creditos_abonos_div').removeClass('d-none');
 
-    $("#tbl_cuentas_facturas_cliente").dataTable().fnDestroy();
-    $("#tbl_tipo_movimientos_cliente").dataTable().fnDestroy();
-    $("#tbl_abonos_cliente").dataTable().fnDestroy();
+    if ($.fn.DataTable.isDataTable('#tbl_cuentas_facturas_cliente')) {
+        $('#tbl_cuentas_facturas_cliente').DataTable().destroy();
+    }
+    if ($.fn.DataTable.isDataTable('#tbl_tipo_movimientos_cliente')) {
+        $('#tbl_tipo_movimientos_cliente').DataTable().destroy();
+    }
+    if ($.fn.DataTable.isDataTable('#tbl_abonos_cliente')) {
+        $('#tbl_abonos_cliente').DataTable().destroy();
+    }
+    if ($.fn.DataTable.isDataTable('#tbl_historico_retenciones_cliente')) {
+        $('#tbl_historico_retenciones_cliente').DataTable().destroy();
+    }
 
-
-    this.listarCuentasPorCobrar();
-
-    this.listarMovimientos();
-    this.listarAbonos()
+    listarCuentasPorCobrar();
+    listarMovimientos();
+    listarAbonos();
+    listarHistoricoRetenciones();
 
     $('#btnEC').removeClass('d-none');
     $('#apStats').removeClass('d-none');
-
-
 }
 
 function listarCuentasPorCobrar() {
@@ -317,9 +394,7 @@ function listarCuentasPorCobrar() {
     var idCliente = document.getElementById('cliente').value;
     $('#tbl_cuentas_facturas_cliente').DataTable({
         "paging": true,
-        "language": {
-            "url": "//cdn.datatables.net/1.13.5/css/jquery.dataTables.min.css"
-        },
+        "language": dataTablesLanguageEs,
         pageLength: 10,
         responsive: true,
         dom: '<"html5buttons"B>lTfgitp',
@@ -335,7 +410,20 @@ function listarCuentasPorCobrar() {
                         data: 'idFactura'
                     },
                     {
-                        data: 'codigoFactura'
+                        data: 'codigoFactura',
+                        render: function (data, type, row) {
+                            var html = '<strong>' + (data || '—') + '</strong>';
+
+                            if (row.seguimientoRetencionEstado === 'pendiente') {
+                                html += '<div class="ap-ret-flag pending"><i class="fa fa-flag"></i> Pendiente retención</div>';
+                            } else if (row.seguimientoRetencionEstado === 'aplicada') {
+                                html += '<div class="ap-ret-flag applied"><i class="fa fa-check-circle"></i> Retención aplicada</div>';
+                            } else if (row.seguimientoRetencionEstado === 'descartada') {
+                                html += '<div class="ap-ret-flag dismissed"><i class="fa fa-times-circle"></i> No aplica</div>';
+                            }
+
+                            return html;
+                        }
                     },
                     {
                         data: 'cargo'
@@ -370,6 +458,21 @@ function listarCuentasPorCobrar() {
                             }
 
 
+                        }
+                    },
+                    {
+                        data: 'seguimientoRetencionEstado',
+                        render: function (data) {
+                            if (data === 'pendiente') {
+                                return "<span class='badge badge-warning'>PENDIENTE</span>";
+                            }
+                            if (data === 'aplicada') {
+                                return "<span class='badge badge-success'>APLICADA</span>";
+                            }
+                            if (data === 'descartada') {
+                                return "<span class='badge badge-secondary'>NO APLICA</span>";
+                            }
+                            return "<span class='badge badge-light'>SIN MARCA</span>";
                         }
                     },
                     {
@@ -409,19 +512,15 @@ function listarCuentasPorCobrar() {
                             });
                         });
 
+                    var rows = this.api().data().toArray();
                     // ── Stats cards ──
-                    var api = this.api();
-                    var rows = api.data().toArray();
-                    var fmt = function(n){ return 'L. '+parseFloat(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','); };
-                    $('#apStatFacturas').text(rows.length);
-                    $('#apStatCargo').text(fmt(rows.reduce(function(s,r){ return s+parseFloat(r.cargo||0); },0)));
-                    $('#apStatSaldo').text(fmt(rows.reduce(function(s,r){ return s+parseFloat(r.saldo||0); },0)));
-                    $('#apStatAbonado').text(fmt(rows.reduce(function(s,r){ return s+parseFloat(r.abonosCargo||0); },0)));
+                    updateStatsCards(rows);
                     // ── Badge pestaña Facturas ──
                     $('#badge-facturas').text(rows.length);
                 },
                 drawCallback: function() {
                     var count = this.api().data().count();
+                    updateStatsCards(this.api().data().toArray());
                     $('#badge-facturas').text(count);
                 }
 
@@ -432,14 +531,32 @@ function listarCuentasPorCobrar() {
             $('#btnEC').show();
 }
 
+function updateStatsCards(rows) {
+    var fmt = function(n){ return 'L. '+parseFloat(n || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','); };
+    var hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    var totalVencido = rows.reduce(function(s, r) {
+        var fechaRaw = r.fechaVencimiento || r.fecha_vencimiento || null;
+        if (!fechaRaw) return s;
+        var fecha = new Date(String(fechaRaw).substring(0, 10) + 'T00:00:00');
+        if (isNaN(fecha.getTime())) return s;
+        var diff = Math.floor((hoy - fecha) / 86400000);
+        return diff > 0 ? s + (parseFloat(r.saldo || 0) || 0) : s;
+    }, 0);
+
+    $('#apStatFacturas').text(rows.length);
+    $('#apStatCargo').text(fmt(rows.reduce(function(s,r){ return s + (parseFloat(r.cargo || 0) || 0); },0)));
+    $('#apStatVencido').text(fmt(totalVencido));
+    $('#apStatSaldo').text(fmt(rows.reduce(function(s,r){ return s + (parseFloat(r.saldo || 0) || 0); },0)));
+    $('#apStatAbonado').text(fmt(rows.reduce(function(s,r){ return s + (parseFloat(r.abonosCargo || 0) || 0); },0)));
+}
+
 function listarMovimientos() {
 
     var idCliente = document.getElementById('cliente').value;
     $('#tbl_tipo_movimientos_cliente').DataTable({
         "paging": true,
-        "language": {
-            "url": "//cdn.datatables.net/1.13.5/css/jquery.dataTables.min.css"
-        },
+        "language": dataTablesLanguageEs,
         pageLength: 10,
         responsive: true,
         dom: '<"html5buttons"B>lTfgitp',
@@ -494,6 +611,9 @@ function listarMovimientos() {
                         data: 'userRegistro'
                     },
                     {
+                        data: 'fechaCreacion'
+                    },
+                    {
                         data: 'fechaRegistro'
                     },
                     {
@@ -537,9 +657,7 @@ function listarAbonos() {
     var idCliente = document.getElementById('cliente').value;
     $('#tbl_abonos_cliente').DataTable({
         "paging": true,
-        "language": {
-            "url": "//cdn.datatables.net/1.13.5/css/jquery.dataTables.min.css"
-        },
+        "language": dataTablesLanguageEs,
         pageLength: 10,
         responsive: true,
         dom: '<"html5buttons"B>lTfgitp',
@@ -581,6 +699,9 @@ function listarAbonos() {
                         data: 'userRegistro'
                     },
                     {
+                        data: 'fechaPago'
+                    },
+                    {
                         data: 'fechaRegistro'
                     },
                     {
@@ -619,17 +740,119 @@ function listarAbonos() {
 
             });
 }
+
+function listarHistoricoRetenciones() {
+
+    var idCliente = document.getElementById('cliente').value;
+    $('#tbl_historico_retenciones_cliente').DataTable({
+        "paging": true,
+        "language": dataTablesLanguageEs,
+        pageLength: 10,
+        responsive: true,
+        dom: '<"html5buttons"B>lTfgitp',
+                buttons: [
+                ],
+                "ajax": "/aplicacion/pagos/listar/historico-retenciones/"+idCliente,
+                "columns": [
+                    {
+                        data: 'codigoSeguimiento'
+                    },
+                    {
+                        data: 'codigoPago'
+                    },
+                    {
+                        data: 'correlativo'
+                    },
+                    {
+                        data: 'cliente'
+                    },
+                    {
+                        data: 'estadoEtiqueta'
+                    },
+                    {
+                        data: 'fechaMarcado'
+                    },
+                    {
+                        data: 'fechaResolucion'
+                    },
+                    {
+                        data: 'observacion_marcado'
+                    },
+                    {
+                        data: 'observacion_resolucion'
+                    },
+                    {
+                        data: 'numeroRetencion'
+                    },
+                    {
+                        data: 'archivoEtiqueta'
+                    }
+
+                ],initComplete: function () {
+                    this.api()
+                        .columns()
+                        .every(function () {
+                            let column = this;
+                            let footer = column.footer();
+                            if (!footer) return;
+                            let title = footer.textContent;
+
+                            let input = document.createElement('input');
+                            input.placeholder = title;
+                            input.style.width = '100%';
+                            footer.replaceChildren(input);
+
+                            input.addEventListener('keyup', () => {
+                                if (column.search() !== input.value) {
+                                    column.search(input.value).draw();
+                                }
+                            });
+                        });
+                    $('#badge-historico-retenciones').text(this.api().data().count());
+                },
+                drawCallback: function() {
+                    $('#badge-historico-retenciones').text(this.api().data().count());
+                }
+
+            });
+}
 /////////////////////////////FUNCIONALIDADES DE LAS GESTIONES
 
 $(document).on('submit', '#formEstadoRetencion', function(event) {
+
+    event.preventDefault();
+
+    var fileInput = document.getElementById('doc_retencion');
+    var file = fileInput && fileInput.files ? fileInput.files[0] : null;
+
+    if (file) {
+        var validTypes = ['image/png', 'image/jpeg', 'application/pdf'];
+        var maxSizeBytes = 5 * 1024 * 1024;
+
+        if (validTypes.indexOf(file.type) === -1) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Archivo no permitido',
+                text: 'Solo se permiten archivos PDF, JPG, JPEG o PNG.'
+            });
+            return;
+        }
+
+        if (file.size > maxSizeBytes) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Archivo demasiado grande',
+                text: 'El archivo de retención no debe superar 5 MB.'
+            });
+            return;
+        }
+    }
 
     $('#btn_cambioRetencion').css('display','none');
     $('#btn_cambioRetencion').hide();
 
 
     $('#modalretencion').modal('hide');
-
-    event.preventDefault();
     guardarRetencions();
 });
 
@@ -639,8 +862,23 @@ function guardarRetencions(){
     axios.post("/pagos/retencion/guardar", data)
         .then(response => {
 
+            var resp = response && response.data ? response.data : {};
+            var traz = resp.trazabilidad || {};
+
+            var mensajeExito = "Ha realizado gestiona la retención.";
+            if (traz.cierra_por_retencion) {
+                if (traz.fecha_comision_usada) {
+                    mensajeExito = "Retención gestionada y factura cerrada. La comisión se evaluó usando la fecha del último abono: " + traz.fecha_comision_usada + ".";
+                } else {
+                    mensajeExito = "Retención gestionada y factura cerrada. No se encontró fecha de abono previa para trazabilidad de comisión.";
+                }
+            }
+
             //$('#formEstadoRetencion').parsley().reset();
             $('#tbl_cuentas_facturas_cliente').DataTable().ajax.reload();
+            if ($.fn.DataTable.isDataTable('#tbl_historico_retenciones_cliente')) {
+                $('#tbl_historico_retenciones_cliente').DataTable().ajax.reload();
+            }
 
             var formulario = document.getElementById("formEstadoRetencion");
 
@@ -653,12 +891,20 @@ function guardarRetencions(){
             Swal.fire({
                 icon: 'success',
                 title: 'Exito!',
-                text: "Ha realizado gestiona la retención."
+                text: mensajeExito
             });
 
     })
     .catch(err => {
-        let data = err.response.data;
+        let data = (err.response && err.response.data) ? err.response.data : {
+            icon: 'error',
+            title: 'Error',
+            text: 'No se pudo guardar la retención.'
+        };
+
+        $('#btn_cambioRetencion').css('display','block');
+        $('#btn_cambioRetencion').show();
+
         Swal.fire({
             icon: data.icon,
             title: data.title,
@@ -671,13 +917,10 @@ function guardarRetencions(){
 
 $(document).on('submit', '#formNotaCredito', function(event) {
 
+    event.preventDefault();
+
     $('#btn_notacredito').css('display','none');
     $('#btn_notacredito').hide();
-
-
-    $('#modalNC').modal('hide');
-
-    event.preventDefault();
     guardargNC();
 });
 
@@ -694,19 +937,33 @@ function guardargNC(){
 
             // Resetear el formulario, lo que también reseteará el valor del TextArea
             formulario.reset();
+            $('#modalNC').modal('hide');
 
             $('#btn_notacredito').css('display','block');
             $('#btn_notacredito').show();
 
+            var resultado = response.data.resultado || {};
+            var formato = function(valor) {
+                return 'L ' + Number(valor || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            };
+            var facturasAplicadas = (resultado.aplicaciones || []).map(function(aplicacion) {
+                return '<li><strong>' + aplicacion.factura + '</strong>: ' + formato(aplicacion.monto) + '</li>';
+            }).join('');
             Swal.fire({
                 icon: 'success',
-                title: 'Exito!',
-                text: "Ha realizado la gestion."
+                title: 'Nota gestionada',
+                html: '<div style="text-align:left;font-size:14px;">' +
+                    '<p>Aplicado a saldos: <strong>' + formato(resultado.monto_aplicado) + '</strong></p>' +
+                    (facturasAplicadas ? '<p class="mb-1"><strong>Facturas aplicadas:</strong></p><ul>' + facturasAplicadas + '</ul>' : '') +
+                    '<p>Reembolsado: <strong>' + formato(resultado.monto_reembolsado) + '</strong></p>' +
+                    '<p>Crédito disponible: <strong>' + formato(resultado.saldo_disponible) + '</strong></p>' +
+                    '</div>'
             });
 
     })
     .catch(err => {
-        let data = err.response.data;
+        let data = err.response && err.response.data ? err.response.data : { icon:'error', title:'Error', text:'No se pudo gestionar la nota.' };
+        $('#btn_notacredito').css('display','block').show();
         Swal.fire({
             icon: data.icon,
             title: data.title,
@@ -825,49 +1082,232 @@ $(document).on('submit', '#formabonos', function(event) {
     var facturaId        = $('#idFacturaAbono').val();
     var montoAbono       = $('#montoAbono').val();
     var aplicacionPagoId = $('#codAplicPagoAbono').val();
+    var fechaPago        = $('#fecha_pago').val(); // YYYY-MM-DD
 
-    // Consultar si este pago cerrará la factura y qué roles recibirán comisión
-    axios.get('/pagos/preview-comisiones', {
-        params: {
-            factura_id:          facturaId,
-            monto_abono:         montoAbono,
-            aplicacion_pagos_id: aplicacionPagoId
-        }
-    }).then(function(response) {
-        var preview = response.data;
+    // ── PASO 1: Verificar si el mes del pago está conciliado ──────────
+    // Helper: muestra el modal de preview (o guarda directo si no cierra factura).
+    // Funciona tanto si #modalAbonos está abierto como si ya fue cerrado (flujo desvío).
+    function continuar_con_preview() {
+        // Consultar si este pago cerrará la factura y qué roles recibirán comisión
+        axios.get('/pagos/preview-comisiones', {
+            params: {
+                factura_id:          facturaId,
+                monto_abono:         montoAbono,
+                aplicacion_pagos_id: aplicacionPagoId,
+                fecha_pago:          fechaPago
+            }
+        }).then(function(response) {
+            var preview = response.data;
+            var modalYaCerrado = !$('#modalAbonos').hasClass('show');
 
-        if (preview.cerrara) {
-            // Capturar FormData ANTES de ocultar el modal
-            _pendingAbonoData = new FormData($('#formabonos').get(0));
+            if (preview.cerrara) {
+                // Solo capturar si el modal sigue abierto.
+                // Si ya cerró (flujo desvío), _pendingAbonoData ya tiene banco_id y no debe pisarse.
+                if (!modalYaCerrado) {
+                    _pendingAbonoData = new FormData($('#formabonos').get(0));
+                }
 
-            if (preview.targets && preview.targets.length > 0) {
-                renderPreviewComisiones(preview.targets);
+                if (preview.targets && preview.targets.length > 0) {
+                    renderPreviewComisiones(preview);
+                } else {
+                    renderPreviewSinComisiones(preview);
+                }
+
+                if (modalYaCerrado) {
+                    // El modal ya está cerrado (flujo desvío) — mostrar preview directo
+                    $('.modal-backdrop').remove();
+                    $('body').removeClass('modal-open').css('padding-right', '');
+                    $('#modalPreviewComisiones').modal('show');
+                } else {
+                    $('#modalAbonos').one('hidden.bs.modal', function() {
+                        $('.modal-backdrop').remove();
+                        $('body').removeClass('modal-open').css('padding-right', '');
+                        $('#modalPreviewComisiones').modal('show');
+                    });
+                    $('#modalAbonos').modal('hide');
+                }
             } else {
-                // Cerrará la factura pero ningún rol tiene configuración activa
-                renderPreviewSinComisiones();
+                // No cerrará o ya fue comisionada — guardar directo
+                if (!modalYaCerrado) {
+                    $('#modalAbonos').modal('hide');
+                }
+                guardarCreditos();
+            }
+        }).catch(function() {
+            // En caso de error en el preview, proceder igual
+            if ($('#modalAbonos').hasClass('show')) {
+                $('#modalAbonos').modal('hide');
+            }
+            guardarCreditos();
+        });
+    }
+
+    // Si no hay fecha de pago, saltamos la verificación de período
+    if (!fechaPago) {
+        continuar_con_preview();
+        return;
+    }
+
+    axios.get('/comisiones/conciliacion/verificar-periodo', { params: { fecha: fechaPago } })
+        .then(function(res) {
+            var info = res.data;
+
+            if (!info.conciliado) {
+                // Período abierto — flujo normal
+                continuar_con_preview();
+                return;
             }
 
+            // Período conciliado → capturar FormData AHORA (banco_id aún vivo en Select2)
+            // y luego cerrar el modal para que el Swal quede al frente
+            _pendingAbonoData = new FormData($('#formabonos').get(0));
+
+            var msgHtml =
+                '<div style="text-align:left;font-size:13px;line-height:1.7;">' +
+                    '<div style="background:#fff7ed;border-left:4px solid #f59e0b;border-radius:6px;padding:10px 14px;margin-bottom:14px;">' +
+                        '<i class="fa fa-exclamation-triangle" style="color:#f59e0b;margin-right:6px;"></i>' +
+                        '<strong>El período <span style="color:#92400e;">' + info.periodo_label + '</span> ya está conciliado.</strong>' +
+                    '</div>' +
+                    '<p style="margin:0 0 10px;">La comisión generada por este pago <strong>no podrá acreditarse en ' + info.periodo_label + '</strong>.</p>' +
+                    (info.proximo_abierto
+                        ? '<p style="margin:0;">Se acreditará automáticamente en el próximo período abierto: <strong style="color:#15803d;">' + info.proximo_label + '</strong>.</p>'
+                        : '<p style="margin:0;color:#991b1b;">No se encontró un período abierto disponible. Contacte al administrador.</p>') +
+                    '<p style="margin:10px 0 0;font-size:11.5px;color:#64748b;">Esta acción quedará registrada en el historial del abono para auditoría.</p>' +
+                '</div>';
+
+            // Ocultar el modal para que el Swal quede al frente
             $('#modalAbonos').one('hidden.bs.modal', function() {
                 $('.modal-backdrop').remove();
                 $('body').removeClass('modal-open').css('padding-right', '');
-                $('#modalPreviewComisiones').modal('show');
+
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Período ya conciliado',
+                    html: msgHtml,
+                    showCancelButton: true,
+                    confirmButtonText: '<i class="fa fa-check mr-1"></i> Entendido, continuar',
+                    cancelButtonText: '<i class="fa fa-arrow-left mr-1"></i> Cambiar fecha',
+                    confirmButtonColor: '#1e3a8a',
+                    cancelButtonColor: '#6b7280',
+                    reverseButtons: true
+                }).then(function(result) {
+                    if (!result.isConfirmed) {
+                        // Volver a abrir el modal para que el usuario cambie la fecha
+                        $('#btn_notaabono').css('display','block').show();
+                        $('#modalAbonos').modal('show');
+                        return;
+                    }
+
+                    // Agregar los campos de desvío directamente al FormData ya capturado
+                    // (no al formulario DOM, que ya está cerrado y sin banco_id)
+                    _pendingAbonoData.delete('periodo_comision_original');
+                    _pendingAbonoData.delete('periodo_comision_asignado');
+                    _pendingAbonoData.append('periodo_comision_original', info.periodo);
+                    if (info.proximo_abierto) {
+                        _pendingAbonoData.append('periodo_comision_asignado', info.proximo_abierto);
+                    }
+
+                    continuar_con_preview();
+                });
             });
             $('#modalAbonos').modal('hide');
-        } else {
-            // No cerrará o ya fue comisionada — proceder directamente
-            $('#modalAbonos').modal('hide');
-            guardarCreditos();
-        }
-    }).catch(function() {
-        // En caso de error en el preview, proceder igual
-        $('#modalAbonos').modal('hide');
-        guardarCreditos();
-    });
+        })
+        .catch(function() {
+            // Si falla la verificación, flujo normal sin bloquear
+            continuar_con_preview();
+        });
 });
 
 /* Renderiza aviso cuando la factura cierra pero ningún rol tiene configuración activa */
-function renderPreviewSinComisiones() {
+function apEsc(v) {
+    return String(v == null ? '' : v)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function renderSrResumen(preview) {
+    if (!preview || !preview.sr_forzado) return '';
+
+    var tipo = preview.sr_tipo_factura || {};
+    var cat  = preview.sr_categoria_baja || null;
+    var productos = Array.isArray(preview.sr_productos) ? preview.sr_productos : [];
+    var porcentajes = Array.isArray(preview.sr_porcentajes) ? preview.sr_porcentajes : [];
+    var penaliza = preview.sr_penaliza === true;
+
+    var badgeTipo = tipo.nombre
+        ? '<span style="display:inline-block;background:#fee2e2;color:#991b1b;border:1px solid #fecaca;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;">' + apEsc(tipo.nombre) + '</span>'
+        : '';
+
+    var catHtml = cat
+        ? '<strong>' + apEsc(cat.nombre) + '</strong> <span style="color:#64748b;">(ID: ' + apEsc(cat.id) + (cat.porc_precio_a != null ? ', %Precio A: ' + Number(cat.porc_precio_a).toFixed(2) + '%' : '') + ')</span>'
+        : '<span style="color:#b91c1c;">No se encontró categoría activa para la escala del cliente.</span>';
+
+    // Mensaje y estilo según si hay penalización o no
+    var srMensaje, srColor, srBorder, srIcono;
+    if (penaliza) {
+        srColor  = '#fff7ed'; srBorder = '#fdba74'; srIcono = 'fa-exclamation-triangle'; 
+        srMensaje = 'Esta factura fue emitida como <strong>SR</strong>. Uno o más productos se vendieron <strong>por debajo del precio de la categoría más baja</strong> de la escala del cliente ('
+            + catHtml + '). La comisión de esos productos se calculará por esa categoría mínima como penalización.';
+    } else {
+        srColor  = '#f0fdf4'; srBorder = '#86efac'; srIcono = 'fa-check-circle';
+        srMensaje = 'Esta factura fue emitida como <strong>SR</strong>, pero todos los productos se vendieron <strong>al precio de la categoría real o por encima</strong> del precio mínimo ('
+            + catHtml + '). La comisión se calculará por la categoría de precio real usada en cada línea. <strong>No aplica penalización SR.</strong>';
+    }
+
+    var rowsProd = productos.map(function(p) {
+        return '<tr>'
+            + '<td>' + apEsc(p.producto || '—') + '</td>'
+            + '<td>' + apEsc(p.categoria_usada || '—') + '</td>'
+            + '<td class="text-right">' + Number(p.cantidad || 0).toLocaleString('es-HN', {minimumFractionDigits:0, maximumFractionDigits:2}) + '</td>'
+            + '<td class="text-right">L. ' + Number(p.precio_unidad || 0).toLocaleString('es-HN', {minimumFractionDigits:2, maximumFractionDigits:2}) + '</td>'
+            + '</tr>';
+    }).join('');
+
+    var rowsPct = porcentajes.map(function(p) {
+        return '<tr>'
+            + '<td>' + apEsc(p.capacidad || '—') + '</td>'
+            + '<td>' + apEsc(p.rol_nombre || '—') + '</td>'
+            + '<td class="text-right"><strong>' + (p.porcentaje_comision != null ? Number(p.porcentaje_comision).toFixed(2) + '%' : '—') + '</strong></td>'
+            + '</tr>';
+    }).join('');
+
+    var header = penaliza
+        ? '<strong style="color:#9a3412;">Regla SR — Penalización aplicada</strong>'
+        : '<strong style="color:#166534;">Factura SR — Sin penalización</strong>';
+
+    var tablasPct = penaliza
+        ? '<div class="table-responsive" style="margin-bottom:8px;">'
+            + '  <table class="table table-bordered table-sm mb-0" style="font-size:.83rem;">'
+            + '    <thead style="background:#1f2937;color:#fff;"><tr><th>Capacidad</th><th>Rol</th><th class="text-right">% Comisión (categoría más baja)</th></tr></thead>'
+            + '    <tbody>' + (rowsPct || '<tr><td colspan="3" class="text-center text-muted">Sin porcentajes configurados para la categoría más baja</td></tr>') + '</tbody>'
+            + '  </table>'
+            + '</div>'
+        : '';
+
+    return ''
+        + '<div style="background:' + srColor + ';border:1.5px solid ' + srBorder + ';border-radius:10px;padding:12px 14px;margin-bottom:14px;">'
+        + '  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;">'
+        + '    <i class="fa ' + srIcono + '" style="color:' + (penaliza ? '#c2410c' : '#16a34a') + ';"></i>'
+        + '    ' + header + ' ' + badgeTipo
+        + '  </div>'
+        + '  <div style="font-size:12.5px;color:' + (penaliza ? '#7c2d12' : '#14532d') + ';line-height:1.6;">' + srMensaje + '</div>'
+        + '</div>'
+        + '<div class="table-responsive" style="margin-bottom:10px;">'
+        + '  <table class="table table-bordered table-sm mb-0" style="font-size:.83rem;">'
+        + '    <thead style="background:#0f172a;color:#fff;"><tr><th>Producto</th><th>Categoría usada en venta</th><th class="text-right">Cantidad</th><th class="text-right">Precio unidad</th></tr></thead>'
+        + '    <tbody>' + (rowsProd || '<tr><td colspan="4" class="text-center text-muted">Sin líneas de producto</td></tr>') + '</tbody>'
+        + '  </table>'
+        + '</div>'
+        + tablasPct;
+}
+
+function renderPreviewSinComisiones(preview) {
+    var srHtml = renderSrResumen(preview);
     var html =
+        srHtml +
         '<div style="background:#f8fafc;border:1.5px solid #cbd5e1;border-radius:12px;overflow:hidden;">' +
             '<div style="background:#475569;padding:12px 16px;display:flex;align-items:center;gap:10px;">' +
                 '<i class="fa fa-info-circle" style="color:#94a3b8;font-size:16px;"></i>' +
@@ -889,32 +1329,64 @@ function renderPreviewSinComisiones() {
 }
 
 /* Renderiza la tabla de roles a comisionar en el modal de preview */
-function renderPreviewComisiones(targets) {
+function renderMoraRetencionAviso(preview) {
+    var mora = preview && preview.mora_retencion;
+    if (!mora || !mora.aplica || !Array.isArray(mora.detalles) || mora.detalles.length === 0) return '';
+
+    var filas = '';
+    mora.detalles.forEach(function(d) {
+        filas += '<tr>'
+            + '<td><strong>' + d.capacidad + '</strong> — ' + d.rol_nombre + '</td>'
+            + '<td class="text-center">' + d.periodos_vencidos + '</td>'
+            + '<td class="text-center">' + Number(d.porcentaje_por_periodo).toFixed(2) + '% × ' + d.periodos_vencidos + ' = <strong>' + Number(d.porcentaje_total_retencion).toFixed(2) + '%</strong></td>'
+            + '</tr>';
+    });
+
+    return '<div style="background:#fff7ed;border-left:4px solid #ea580c;border-radius:4px;padding:12px 14px;margin-bottom:12px;">'
+        + '<div style="font-weight:700;color:#c2410c;margin-bottom:6px;">'
+        + '<i class="fa fa-exclamation-circle mr-1"></i> Retención por mora — Factura de crédito'
+        + '</div>'
+        + '<p style="font-size:12.5px;color:#7c2d12;margin:0 0 8px;">'
+        + 'La factura venció el <strong>' + mora.fecha_vencimiento + '</strong> y han transcurrido <strong>' + mora.dias_transcurridos + ' días</strong> desde el vencimiento. '
+        + 'Se aplicará una retención del <strong>' + Number(mora.detalles[0].porcentaje_por_periodo).toFixed(2) + '% por período de gracia vencido</strong> sobre la comisión de cada empleado:'
+        + '</p>'
+        + '<table class="table table-sm table-bordered mb-0" style="font-size:12px;background:#fff;">'
+        + '<thead style="background:#ea580c;color:#fff;"><tr><th>Empleado / Rol</th><th class="text-center">Períodos vencidos</th><th class="text-center">Retención total</th></tr></thead>'
+        + '<tbody>' + filas + '</tbody>'
+        + '</table>'
+        + '</div>';
+}
+
+function renderPreviewComisiones(preview) {
+    var targets = (preview && Array.isArray(preview.targets)) ? preview.targets : [];
     var tipoConfig = {
         1: { label: 'FACTURADOR', color: '#f59e0b' },
         2: { label: 'ROL REAL',   color: '#3b82f6' },
-        3: { label: 'VENDEDOR',   color: '#10b981' }
+        3: { label: 'VENDEDOR',   color: '#10b981' },
+        4: { label: 'GESTOR ENTREGA', color: '#0ea5e9' }
     };
 
-    var html = '<div class="table-responsive">'
+    var html = renderSrResumen(preview)
+        + renderMoraRetencionAviso(preview)
+        + '<div class="table-responsive">'
         + '<table class="table table-bordered table-sm mb-0" style="font-size:.9rem;">'
         + '<thead style="background:#1e40af;color:#fff;">'
-        + '<tr><th style="width:120px;">Capacidad</th><th>Empleado</th><th>Rol de Comisión</th><th class="text-center" style="width:110px;">Escala Activa</th></tr>'
+        + '<tr><th style="width:120px;">Capacidad</th><th>Empleado</th><th>Rol de Comisión</th><th class="text-center" style="width:140px;">% Comisión</th></tr>'
         + '</thead><tbody>';
 
     targets.forEach(function(t) {
         var cfg   = tipoConfig[t.tipo] || { label: 'N/D', color: '#6b7280' };
         var badge = '<span style="background:' + cfg.color + ';color:#fff;padding:2px 8px;border-radius:8px;font-size:10px;font-weight:700;">'
             + cfg.label + '</span>';
-        var escala = t.tiene_escala
-            ? '<span class="badge badge-success" style="font-size:10px;">&#10003; Configurada</span>'
+        var porcentaje = (t.porcentaje_comision != null)
+            ? ('<span class="badge badge-success" style="font-size:10px;">' + Number(t.porcentaje_comision).toFixed(2) + '%</span>')
             : '<span class="badge badge-secondary" style="font-size:10px;">&#8212; Sin escala</span>';
 
         html += '<tr>'
             + '<td class="text-center">' + badge + '</td>'
             + '<td><i class="fa fa-user mr-1 text-muted"></i><strong>' + t.empleado + '</strong></td>'
             + '<td>' + t.rol_nombre + '</td>'
-            + '<td class="text-center">' + escala + '</td>'
+            + '<td class="text-center">' + porcentaje + '</td>'
             + '</tr>';
     });
 
@@ -947,33 +1419,44 @@ function guardarCreditos(){
 
     axios.post("/pagos/creditos/guardar", data)
         .then(response => {
+            var res = response.data || {};
 
-            //$('#formEstadoRetencion').parsley().reset();
             $('#tbl_cuentas_facturas_cliente').DataTable().ajax.reload();
             $('#tbl_abonos_cliente').DataTable().ajax.reload();
+            if ($.fn.DataTable.isDataTable('#tbl_historico_retenciones_cliente')) {
+                $('#tbl_historico_retenciones_cliente').DataTable().ajax.reload();
+            }
+
+            // Limpiar campos de desvío inyectados
+            $('#formabonos').find('[name="periodo_comision_original"]').remove();
+            $('#formabonos').find('[name="periodo_comision_asignado"]').remove();
 
             var formulario = document.getElementById("formabonos");
-
-            // Resetear el formulario, lo que también reseteará el valor del TextArea
             formulario.reset();
+            $('#requiereRetencionFutura').prop('checked', false).prop('disabled', false);
+            $('#retencionFuturaEstadoActual').hide().text('');
 
             $('#btn_notaabono').css('display','block');
             $('#btn_notaabono').show();
 
             Swal.fire({
-                icon: 'success',
-                title: 'Exito!',
-                text: "Ha realizado la gestion."
+                icon:  res.icon  || 'success',
+                title: res.title || '¡Éxito!',
+                text:  res.text  || 'El pago fue registrado correctamente.'
             });
 
     })
     .catch(err => {
-        let data = err.response.data;
+        // Limpiar campos de desvío también en caso de error
+        $('#formabonos').find('[name="periodo_comision_original"]').remove();
+        $('#formabonos').find('[name="periodo_comision_asignado"]').remove();
+
+        let errData = (err.response && err.response.data) ? err.response.data : {};
         Swal.fire({
-            icon: data.icon,
-            title: data.title,
-            text: data.text
-        })
+            icon:  errData.icon  || 'error',
+            title: errData.title || 'Error',
+            text:  errData.text  || 'Ha ocurrido un error al registrar el pago.'
+        });
         console.error(err);
 
     })
@@ -986,6 +1469,9 @@ function AnularOtroMov(idOtroMov){
         .then(response => {
 
             $('#tbl_cuentas_facturas_cliente').DataTable().ajax.reload();
+            if ($.fn.DataTable.isDataTable('#tbl_historico_retenciones_cliente')) {
+                $('#tbl_historico_retenciones_cliente').DataTable().ajax.reload();
+            }
             $('#tbl_tipo_movimientos_cliente').DataTable().ajax.reload();
             $('#tbl_abonos_cliente').DataTable().ajax.reload();
 

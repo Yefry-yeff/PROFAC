@@ -17,6 +17,8 @@ var dashboardVentas = (function () {
     var _filtroAdvVend   = null;
     var _facturasCliData = [];   /* cache para exportación con totales */
     var _dts          = {};   /* DataTables instances */
+    var _reqCliDeps   = 0;
+    var _reqMarcDeps  = 0;
 
     /* ─── DataTables helpers ──────────────────────────────────────────────── */
     var DT_LANG = {
@@ -128,8 +130,91 @@ var dashboardVentas = (function () {
         _activarBuscadorSelect($('#prod-filtro-producto'), 'Buscar por codigo o nombre...');
         _activarBuscadorSelect($('#cli-cliente'), 'Buscar por nombre de cliente...');
         _activarBuscadorSelect($('#cli-producto'), 'Buscar producto...');
+        _activarBuscadorSelect($('#cli-marca'), 'Buscar marca...');
         _activarBuscadorSelect($('#marc-cliente'), 'Buscar cliente...');
         _activarBuscadorSelect($('#marc-producto'), 'Buscar producto...');
+    }
+
+    function _buildOptionsHtml(items, placeholder, valueKey, labelKey) {
+        var html = '<option value="">' + (placeholder || 'Todos') + '</option>';
+        (items || []).forEach(function (it) {
+            var val = it[valueKey] === null || it[valueKey] === undefined ? '' : it[valueKey];
+            var txt = it[labelKey] === null || it[labelKey] === undefined ? '' : it[labelKey];
+            html += '<option value="' + val + '">' + txt + '</option>';
+        });
+        return html;
+    }
+
+    function _refreshCliMarcasOptions() {
+        var f = getCliFilters();
+        var token = ++_reqCliDeps;
+        var selectedMarca = $('#cli-marca').val() || '';
+
+        return $.get('/reporte/dashboard/filtros-marcas-cliente', {
+            fecha_inicio: f.fecha_inicio,
+            fecha_final: f.fecha_final,
+            cliente: f.cliente,
+            producto: f.producto
+        }).then(function (rows) {
+            if (token !== _reqCliDeps) return;
+            rows = Array.isArray(rows) ? rows : [];
+
+            $('#cli-marca').html(_buildOptionsHtml(rows, 'Todas las marcas', 'id', 'nombre'));
+            if (selectedMarca && $('#cli-marca option[value="' + selectedMarca + '"]').length) {
+                $('#cli-marca').val(selectedMarca);
+            } else {
+                $('#cli-marca').val('');
+            }
+            _activarBuscadorSelect($('#cli-marca'), 'Buscar marca...');
+        });
+    }
+
+    function _refreshCliDependentCatalogs() {
+        var f = getCliFilters();
+        var token = ++_reqCliDeps;
+        var selectedProducto = $('#cli-producto').val() || '';
+
+        return $.get('/reporte/dashboard/filtros-productos-cliente', {
+            fecha_inicio: f.fecha_inicio,
+            fecha_final: f.fecha_final,
+            cliente: f.cliente
+        }).then(function (rows) {
+            if (token !== _reqCliDeps) return;
+            rows = Array.isArray(rows) ? rows : [];
+
+            $('#cli-producto').html(_buildOptionsHtml(rows, 'Todos los productos', 'id', 'nombre'));
+            if (selectedProducto && $('#cli-producto option[value="' + selectedProducto + '"]').length) {
+                $('#cli-producto').val(selectedProducto);
+            } else {
+                $('#cli-producto').val('');
+            }
+            _activarBuscadorSelect($('#cli-producto'), 'Buscar producto...');
+
+            _refreshCliMarcasOptions();
+        });
+    }
+
+    function _refreshMarcDependentCatalogs() {
+        var f = getMarkFilters();
+        var token = ++_reqMarcDeps;
+        var selectedProducto = $('#marc-producto').val() || '';
+
+        return $.get('/reporte/dashboard/filtros-productos-cliente', {
+            fecha_inicio: f.fecha_inicio,
+            fecha_final: f.fecha_final,
+            cliente: f.cliente
+        }).then(function (rows) {
+            if (token !== _reqMarcDeps) return;
+            rows = Array.isArray(rows) ? rows : [];
+
+            $('#marc-producto').html(_buildOptionsHtml(rows, 'Todos los productos', 'id', 'nombre'));
+            if (selectedProducto && $('#marc-producto option[value="' + selectedProducto + '"]').length) {
+                $('#marc-producto').val(selectedProducto);
+            } else {
+                $('#marc-producto').val('');
+            }
+            _activarBuscadorSelect($('#marc-producto'), 'Buscar producto...');
+        });
     }
 
     function syncFiltrosAnaliticaPorPestana() {
@@ -158,6 +243,7 @@ var dashboardVentas = (function () {
             fecha_inicio: $('#s-fi').val() || primerDiaMes(),
             fecha_final:  $('#s-ff').val() || todayStr(),
             vendedor:     $('#s-vendedor').val() || '',
+            teleasesor:   $('#s-teleasesor').val() || '',
             tipo_cliente: $('#s-tipo-cliente').val() || '',
             dia_semana:   _filtroSemDia || ''
         };
@@ -214,6 +300,9 @@ var dashboardVentas = (function () {
             $('#marc-fi').val(primerDiaMesAnterior());
             $('#marc-ff').val(ultimoDiaMesAnterior());
 
+            _refreshCliDependentCatalogs();
+            _refreshMarcDependentCatalogs();
+
             /* Auto-carga pestaña 1 */
             cargarHistorico();
         });
@@ -221,11 +310,31 @@ var dashboardVentas = (function () {
         /* Cuando se cambia a la pestaña Analítica, cargar datos automáticamente */
         $('#tab-adv').on('shown.bs.tab', function () { cargarAnalitica(); });
 
+        $('#cli-cliente, #cli-fi, #cli-ff').on('change', function () {
+            _refreshCliDependentCatalogs();
+        });
+        $('#cli-producto').on('change', function () {
+            _refreshCliMarcasOptions();
+        });
+
+        $('#marc-cliente, #marc-fi, #marc-ff').on('change', function () {
+            _refreshMarcDependentCatalogs();
+        });
+
+        $('#cmp-fi, #cmp-ff').on('change', function () {
+            _filtrarVendChecksPorFecha();
+        });
+
+        $('#tla-fi, #tla-ff').on('change', function () {
+            _filtrarTlaChecksPorFecha();
+        });
+
         /* Redimensionar charts cuando se cambia de sub-pill (Analítica) */
         $('#adv-pills a[data-toggle="pill"]').on('shown.bs.tab', function () {
             syncFiltrosAnaliticaPorPestana();
             var href = $(this).attr('href');
             if (href === '#pill-pane-cli') {
+                _refreshCliDependentCatalogs();
                 /* Recalcular anchos de columnas DataTables al hacer visible el tab */
                 setTimeout(function () {
                     Object.keys(_dts).forEach(function (id) {
@@ -233,7 +342,12 @@ var dashboardVentas = (function () {
                     });
                 }, 50);
             } else if (href === '#pill-pane-marc') {
+                _refreshMarcDependentCatalogs();
                 cargarMarcas();
+            } else if (href === '#pill-pane-comp') {
+                _filtrarVendChecksPorFecha();
+            } else if (href === '#pill-pane-tla') {
+                _filtrarTlaChecksPorFecha();
             }
             setTimeout(function () {
                 Object.keys(charts).forEach(function (id) {
@@ -273,6 +387,7 @@ var dashboardVentas = (function () {
             $('#h-tipo-cliente, #s-tipo-cliente, #a-tipo-cliente').html(tcOpts);
 
             /* Checkboxes de vendedores para comparación */
+            _vendedoresCatalogo = vendsData;
             _renderVendChecks(vendsData);
 
             /* Fechas por defecto comparación: primer día del mes actual → hoy */
@@ -280,11 +395,21 @@ var dashboardVentas = (function () {
             var _firstOfMonth = _now.getFullYear() + '-' + String(_now.getMonth() + 1).padStart(2, '0') + '-01';
             $('#cmp-fi').val(_firstOfMonth);
             $('#cmp-ff').val(todayStr());
+            _filtrarVendChecksPorFecha();
 
-            /* Checkboxes tele-asesores (misma lista de usuarios que vendedores) */
-            _renderTlaChecks(vendsData);
+            /* Checkboxes tele-asesores (users_id en factura) */
+            var tlasData = Array.isArray(data.teleAsesores) ? data.teleAsesores : vendsData;
+            _tlasCatalogo = tlasData;
+            _renderTlaChecks(tlasData);
+            var tlaOpts = '<option value="">Todos</option>';
+            tlasData.forEach(function (tla) {
+                tlaOpts += '<option value="' + tla.id + '">' + tla.name + '</option>';
+            });
+            $('#s-teleasesor').html(tlaOpts);
+            _activarBuscadorSelect($('#s-teleasesor'), 'Todos los teleasesores');
             $('#tla-fi').val(_firstOfMonth);
             $('#tla-ff').val(todayStr());
+            _filtrarTlaChecksPorFecha();
 
             var prodOpts = '<option value="">— Seleccione un producto —</option>';
             productosData.forEach(function (p) { prodOpts += '<option value="' + p.id + '">' + p.nombre + '</option>'; });
@@ -493,7 +618,7 @@ var dashboardVentas = (function () {
     function cargarSemanal() {
         var p = getP2();
 
-        ['s-kpi-total','s-kpi-facturas','s-kpi-sin-isv','s-kpi-mejor-dia','s-kpi-vend','s-kpi-cliente']
+        ['s-kpi-total','s-kpi-facturas','s-kpi-sin-isv','s-kpi-mejor-dia','s-kpi-vend','s-kpi-teleasesor','s-kpi-cliente']
             .forEach(skeleton);
 
         /* Resumen KPIs + gráfica por día */
@@ -503,6 +628,7 @@ var dashboardVentas = (function () {
             setText('s-kpi-sin-isv',  fmt(d.total_sin_isv));
             setText('s-kpi-mejor-dia', d.mejor_dia || '-');
             setText('s-kpi-vend',     d.mejor_vendedor || '-');
+            setText('s-kpi-teleasesor', d.mejor_teleasesor || '-');
             setText('s-kpi-cliente',  d.mejor_cliente || '-');
             renderPorDia(d.por_dia);
         });
@@ -518,9 +644,14 @@ var dashboardVentas = (function () {
             recalcularCrecimiento();      /* también actualiza chart crecimiento */
         });
 
+        $.get('/reporte/dashboard/top-tele-asesores', p).then(function (rows) {
+            renderRankingTeleasesorSem(rows);
+        });
+
         /* Top 5 clientes */
         $.get('/reporte/dashboard/top-clientes-vendedor', $.extend({}, p, { limite: 5 })).then(function (rows) {
             renderTopCliSem(rows, p.vendedor);
+            renderTopCliTeleasesorSem(rows, p.teleasesor);
         });
 
         /* Tabla server-side */
@@ -587,7 +718,6 @@ var dashboardVentas = (function () {
         var sorted = rows.slice().sort(function (a, b) {
             return parseFloat(b.total_ventas) - parseFloat(a.total_ventas);
         });
-
         charts['chart-ranking-vend-sem'] = new ApexCharts(get('chart-ranking-vend-sem'), {
             chart: {
                 type: 'bar', height: 300, toolbar: { show: false },
@@ -611,6 +741,37 @@ var dashboardVentas = (function () {
         charts['chart-ranking-vend-sem'].render();
     }
 
+    function renderRankingTeleasesorSem(rows) {
+        destroyChart('chart-ranking-teleasesor-sem');
+        if (!rows || !rows.length) return;
+
+        var sorted = rows.slice().sort(function (a, b) {
+            return parseFloat(b.total_ventas) - parseFloat(a.total_ventas);
+        });
+
+        charts['chart-ranking-teleasesor-sem'] = new ApexCharts(get('chart-ranking-teleasesor-sem'), {
+            chart: {
+                type: 'bar', height: 300, toolbar: { show: false },
+                events: {
+                    dataPointSelection: function (e, ctx, cfg) {
+                        var teleasesor = sorted[cfg.dataPointIndex];
+                        $('#s-teleasesor').val(teleasesor.vendedor_id).trigger('change');
+                        $('#filter-badge-teleasesor').text('Teleasesor: ' + teleasesor.vendedor).show();
+                        $('#sem-active-filters').removeClass('d-none');
+                        cargarSemanal();
+                    }
+                }
+            },
+            series: [{ name: 'Total Ventas', data: sorted.map(function (r) { return parseFloat(r.total_ventas); }) }],
+            xaxis: { categories: sorted.map(function (r) { return r.vendedor; }), labels: { formatter: function (v) { return 'L.' + fmtN(v); } } },
+            yaxis: {},
+            tooltip: { y: { formatter: function (v) { return fmt(v); } } },
+            colors: ['#36b9cc'],
+            plotOptions: { bar: { borderRadius: 4, horizontal: true } }
+        });
+        charts['chart-ranking-teleasesor-sem'].render();
+    }
+
     function renderTopCliSem(rows, vendedor) {
         destroyChart('chart-top-cli-sem');
         setText('top-cli-sem-label', vendedor ? 'Asesor comercial seleccionado' : 'Todos los asesores comerciales');
@@ -626,6 +787,23 @@ var dashboardVentas = (function () {
             plotOptions: { bar: { borderRadius: 4 } }
         });
         charts['chart-top-cli-sem'].render();
+    }
+
+    function renderTopCliTeleasesorSem(rows, teleasesor) {
+        destroyChart('chart-top-cli-teleasesor-sem');
+        setText('top-cli-teleasesor-sem-label', teleasesor ? 'Teleasesor seleccionado' : 'Todos los teleasesores');
+        if (!rows || !rows.length) return;
+
+        charts['chart-top-cli-teleasesor-sem'] = new ApexCharts(get('chart-top-cli-teleasesor-sem'), {
+            chart: { type: 'bar', height: 280, toolbar: { show: false } },
+            series: [{ name: 'Ventas', data: rows.map(function (r) { return parseFloat(r.total_comprado); }) }],
+            xaxis: { categories: rows.map(function (r) { return r.cliente; }) },
+            yaxis: { labels: { formatter: function (v) { return 'L.' + fmtN(v); } } },
+            tooltip: { y: { formatter: function (v) { return fmt(v); } } },
+            colors: ['#36b9cc'],
+            plotOptions: { bar: { borderRadius: 4 } }
+        });
+        charts['chart-top-cli-teleasesor-sem'].render();
     }
 
     function _cargarTablaSemanal(p) {
@@ -657,6 +835,7 @@ var dashboardVentas = (function () {
                 },
                 { data: 'cliente' },
                 { data: 'vendedor' },
+                { data: 'teleasesor' },
                 { data: 'tipo_cliente' },
                 { data: 'subtotal',  className: 'text-right' },
                 { data: 'impuesto',  className: 'text-right' },
@@ -697,6 +876,14 @@ var dashboardVentas = (function () {
             setText('crec-vend-periodo-label', 'vs. ' + fi2 + ' al ' + ff2);
             _renderCrecimientoVend(res[0], res[1]);
         });
+
+        Promise.all([
+            $.get('/reporte/dashboard/top-tele-asesores', p),
+            $.get('/reporte/dashboard/top-tele-asesores', pBase)
+        ]).then(function (res) {
+            setText('crec-teleasesor-periodo-label', 'vs. ' + fi2 + ' al ' + ff2);
+            _renderCrecimientoTeleasesor(res[0], res[1]);
+        });
     }
 
     function _renderCrecimientoVend(actual, anterior) {
@@ -726,11 +913,38 @@ var dashboardVentas = (function () {
         charts['chart-crec-vend-sem'].render();
     }
 
+    function _renderCrecimientoTeleasesor(actual, anterior) {
+        destroyChart('chart-crec-teleasesor-sem');
+        if (!actual || !actual.length) return;
+
+        var anteriorMap = {};
+        anterior.forEach(function (r) { anteriorMap[r.vendedor] = parseFloat(r.total_ventas); });
+        var sorted = actual.slice().sort(function (a, b) {
+            return parseFloat(b.total_ventas) - parseFloat(a.total_ventas);
+        });
+
+        charts['chart-crec-teleasesor-sem'] = new ApexCharts(get('chart-crec-teleasesor-sem'), {
+            chart: { type: 'bar', height: 300, toolbar: { show: false } },
+            series: [
+                { name: 'Período actual', data: sorted.map(function (r) { return parseFloat(r.total_ventas); }) },
+                { name: 'Período anterior', data: sorted.map(function (r) { return anteriorMap[r.vendedor] || 0; }) }
+            ],
+            xaxis: { categories: sorted.map(function (r) { return r.vendedor; }) },
+            yaxis: { labels: { formatter: function (v) { return 'L.' + fmtN(v); } } },
+            tooltip: { y: { formatter: function (v) { return fmt(v); } } },
+            colors: ['#36b9cc', '#858796'],
+            plotOptions: { bar: { columnWidth: '60%', borderRadius: 3 } },
+            legend: { position: 'top' }
+        });
+        charts['chart-crec-teleasesor-sem'].render();
+    }
+
     function limpiarFiltrosSem() {
         _filtroSemDia = null;
         $('#s-vendedor').val('').trigger('change');
+        $('#s-teleasesor').val('').trigger('change');
         $('#s-tipo-cliente').val('');
-        $('#filter-badge-dia, #filter-badge-vend').hide();
+        $('#filter-badge-dia, #filter-badge-vend, #filter-badge-teleasesor').hide();
         $('#sem-active-filters').addClass('d-none');
         cargarSemanal();
     }
@@ -2415,8 +2629,11 @@ var dashboardVentas = (function () {
     var _vendedoresCatalogo = [];
 
     function _renderVendChecks(vendedores) {
-        _vendedoresCatalogo = vendedores;
         var $cont = $('#cmp-vend-checks').empty();
+        if (!vendedores || !vendedores.length) {
+            $cont.append('<small class="text-muted">No hay asesores comerciales con facturas en el rango seleccionado.</small>');
+            return;
+        }
         vendedores.forEach(function (v) {
             $cont.append(
                 '<span>' +
@@ -2424,6 +2641,41 @@ var dashboardVentas = (function () {
                 '<label class="cmp-vend-label mb-0" for="cmp-v-' + v.id + '">' + v.name + '</label>' +
                 '</span>'
             );
+        });
+    }
+
+    function _filtrarVendChecksPorFecha() {
+        if (!_vendedoresCatalogo.length) {
+            _renderVendChecks([]);
+            return;
+        }
+
+        var _n = new Date();
+        var fi = $('#cmp-fi').val() || (_n.getFullYear() + '-' + String(_n.getMonth() + 1).padStart(2, '0') + '-01');
+        var ff = $('#cmp-ff').val() || todayStr();
+        var prevSel = _getVendsSeleccionados();
+        var allIds = _vendedoresCatalogo.map(function (u) { return String(u.id); });
+
+        $.get('/reporte/dashboard/top-vendedores', {
+            fecha_inicio: fi,
+            fecha_final: ff,
+            vendedores: allIds.join(',')
+        }).then(function (rows) {
+            var activos = {};
+            (rows || []).forEach(function (r) {
+                activos[String(r.vendedor_id)] = true;
+            });
+
+            var filtrados = _vendedoresCatalogo.filter(function (u) {
+                return !!activos[String(u.id)];
+            });
+
+            _renderVendChecks(filtrados);
+            prevSel.forEach(function (id) {
+                $('#cmp-v-' + id).prop('checked', true);
+            });
+        }).fail(function () {
+            _renderVendChecks([]);
         });
     }
 
@@ -2945,8 +3197,11 @@ var dashboardVentas = (function () {
     var _tlasCatalogo = [];
 
     function _renderTlaChecks(usuarios) {
-        _tlasCatalogo = usuarios;
         var $cont = $('#tla-vend-checks').empty();
+        if (!usuarios || !usuarios.length) {
+            $cont.append('<small class="text-muted">No hay tele-asesores con facturas en el rango seleccionado.</small>');
+            return;
+        }
         usuarios.forEach(function (v) {
             $cont.append(
                 '<span>' +
@@ -2954,6 +3209,41 @@ var dashboardVentas = (function () {
                 '<label class="cmp-vend-label mb-0" for="tla-v-' + v.id + '">' + v.name + '</label>' +
                 '</span>'
             );
+        });
+    }
+
+    function _filtrarTlaChecksPorFecha() {
+        if (!_tlasCatalogo.length) {
+            _renderTlaChecks([]);
+            return;
+        }
+
+        var _n = new Date();
+        var fi = $('#tla-fi').val() || (_n.getFullYear() + '-' + String(_n.getMonth() + 1).padStart(2, '0') + '-01');
+        var ff = $('#tla-ff').val() || todayStr();
+        var prevSel = _getTlasSeleccionados();
+        var allIds = _tlasCatalogo.map(function (u) { return String(u.id); });
+
+        $.get('/reporte/dashboard/top-tele-asesores', {
+            fecha_inicio: fi,
+            fecha_final: ff,
+            vendedores: allIds.join(',')
+        }).then(function (rows) {
+            var activos = {};
+            (rows || []).forEach(function (r) {
+                activos[String(r.vendedor_id)] = true;
+            });
+
+            var filtrados = _tlasCatalogo.filter(function (u) {
+                return !!activos[String(u.id)];
+            });
+
+            _renderTlaChecks(filtrados);
+            prevSel.forEach(function (id) {
+                $('#tla-v-' + id).prop('checked', true);
+            });
+        }).fail(function () {
+            _renderTlaChecks([]);
         });
     }
 
@@ -3567,6 +3857,7 @@ var dashboardVentas = (function () {
                     ['Facturas',        d.facturas || 0],
                     ['Ticket Promedio', parseFloat(d.ticket_promedio) || 0],
                     ['Mejor Asesor Comercial',  d.mejor_vendedor || '-'],
+                    ['Mejor Teleasesor', d.mejor_teleasesor || '-'],
                     ['Mejor Cliente',   d.mejor_cliente || '-'],
                     ['Mejor Día',       d.mejor_dia || '-']
                 ];
@@ -3695,8 +3986,8 @@ var dashboardVentas = (function () {
             wb.created = new Date();
 
             var ws      = wb.addWorksheet('Detalle Facturas');
-            var headers = ['Fecha', 'Día', 'Semana', 'Documento', 'Cliente', 'Vendedor', 'Tipo', 'Subtotal', 'ISV', 'Descuento', 'Total'];
-            var widths  = [14, 14, 10, 22, 35, 22, 18, 14, 14, 14, 14];
+            var headers = ['Fecha', 'Día', 'Semana', 'Documento', 'Cliente', 'Asesor Comercial', 'Teleasesor', 'Tipo', 'Subtotal', 'ISV', 'Descuento', 'Total'];
+            var widths  = [14, 14, 10, 22, 35, 22, 22, 18, 14, 14, 14, 14];
 
             /* Título y encabezados */
             ws.addRow(['Detalle de Facturas — Reporte Semanal']);
@@ -3720,13 +4011,13 @@ var dashboardVentas = (function () {
             widths.forEach(function (w, i) { ws.getColumn(i + 1).width = w; });
             ws.getRow(5).height = 22;
 
-            /* Columnas monetarias (índice 1-based): Subtotal=8, ISV=9, Descuento=10, Total=11 */
+            /* Columnas monetarias (índice 1-based): Subtotal=9, ISV=10, Descuento=11, Total=12 */
             var CUR_FMT = '"L."#,##0.00';
 
             rows.forEach(function (r, idx) {
                 var dataRow = ws.addRow([
                     r.fecha, r.dia_semana, r.semana_iso, r.documento,
-                    r.cliente, r.vendedor, r.tipo_cliente,
+                    r.cliente, r.vendedor, r.teleasesor, r.tipo_cliente,
                     parseFloat(r.subtotal)   || 0,
                     parseFloat(r.impuesto)   || 0,
                     parseFloat(r.descuento)  || 0,
@@ -3742,7 +4033,7 @@ var dashboardVentas = (function () {
                         left:   { style: 'hair', color: { argb: 'FFCCCCCC' } },
                         right:  { style: 'hair', color: { argb: 'FFCCCCCC' } }
                     };
-                    if ([8, 9, 10, 11].indexOf(colNum) !== -1) {
+                    if ([9, 10, 11, 12].indexOf(colNum) !== -1) {
                         cell.numFmt    = CUR_FMT;
                         cell.alignment = { horizontal: 'right' };
                     }
@@ -3751,7 +4042,7 @@ var dashboardVentas = (function () {
 
             /* Fila de totales */
             var totRow = ws.addRow([
-                'TOTAL', '', '', '', '', '', '',
+                'TOTAL', '', '', '', '', '', '', '',
                 rows.reduce(function (s, r) { return s + (parseFloat(r.subtotal)  || 0); }, 0),
                 rows.reduce(function (s, r) { return s + (parseFloat(r.impuesto)  || 0); }, 0),
                 rows.reduce(function (s, r) { return s + (parseFloat(r.descuento) || 0); }, 0),
@@ -3760,7 +4051,7 @@ var dashboardVentas = (function () {
             totRow.eachCell({ includeEmpty: true }, function (cell, colNum) {
                 cell.font = { bold: true };
                 cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE0B2' } };
-                if ([8, 9, 10, 11].indexOf(colNum) !== -1) {
+                if ([9, 10, 11, 12].indexOf(colNum) !== -1) {
                     cell.numFmt    = CUR_FMT;
                     cell.alignment = { horizontal: 'right' };
                 }

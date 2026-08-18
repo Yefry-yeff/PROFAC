@@ -19,6 +19,27 @@ use Illuminate\Support\Facades\Auth;
  */
 class RevicionInventario extends Component
 {
+    private function diasVigenciaPrefactura(int $flujoId): int
+    {
+        $credito = DB::table('credito_revision')
+            ->where('flujo_id', $flujoId)
+            ->where('estado', 'aprobado')
+            ->latest('id')
+            ->first(['dias_credito_aprobados', 'fecha_aprobacion', 'fecha_vencimiento_credito']);
+
+        if ($credito && !is_null($credito->dias_credito_aprobados)) {
+            return max(0, (int) $credito->dias_credito_aprobados);
+        }
+
+        if ($credito && $credito->fecha_aprobacion && $credito->fecha_vencimiento_credito) {
+            return max(0, (int) \Carbon\Carbon::parse($credito->fecha_aprobacion)
+                ->diffInDays(\Carbon\Carbon::parse($credito->fecha_vencimiento_credito), false));
+        }
+
+        return max(0, (int) (DB::table('configuracion_prefactura')
+            ->orderByDesc('id')->value('dias_validez') ?? 7));
+    }
+
     // ── Bandeja ───────────────────────────────────────────────────────────
     public array  $bandejaRegistros  = [];   // pestaña: llegando
     public array  $bandejaDevueltos  = [];   // pestaña: devueltos a oferta
@@ -66,6 +87,11 @@ class RevicionInventario extends Component
     public bool   $modalReservasVisible = false;
     public array  $modalReservasData    = [];
     public string $modalReservaNombre   = '';
+
+    // ── Modal de edición de productos sin existencia ───────────────────────
+    public bool   $modalSinExistenciaVisible = false;
+    public array  $productosSinExistenciaModal = [];
+    public string $motivoEdicionSinExistencia = '';
 
     // ── Mensajes ──────────────────────────────────────────────────────────
     public string $mensajeExito = '';
@@ -375,10 +401,25 @@ class RevicionInventario extends Component
 
         // Obtener productos (solo nombre + cantidad + stock actual)
         $prods = DB::table('cotizacion_has_producto as chp')
+            ->leftJoin('seccion as s', 's.id', '=', 'chp.seccion_id')
+            ->leftJoin('segmento as sg', 'sg.id', '=', 's.segmento_id')
+            ->leftJoin('bodega as b', 'b.id', '=', 'sg.bodega_id')
             ->leftJoin('unidad_medida_venta as umv', 'umv.id', '=', 'chp.unidad_medida_venta_id')
             ->leftJoin('unidad_medida as um', 'um.id', '=', 'umv.unidad_medida_id')
             ->where('chp.cotizacion_id', $this->cotizacionId)
-            ->select('chp.nombre_producto', 'chp.nombre_bodega', 'chp.cantidad', 'chp.producto_id', 'chp.seccion_id', 'chp.resta_inventario', 'chp.unidad_medida_venta_id', 'um.nombre as unidad_medida')
+            ->select(
+                'chp.nombre_producto',
+                'chp.nombre_bodega',
+                'chp.cantidad',
+                'chp.producto_id',
+                'chp.seccion_id',
+                'chp.resta_inventario',
+                'chp.unidad_medida_venta_id',
+                'sg.bodega_id',
+                'b.nombre as bodega_actual_nombre',
+                's.descripcion as seccion_actual_descripcion',
+                'um.nombre as unidad_medida'
+            )
             ->get();
 
         $this->productos   = [];
@@ -388,18 +429,42 @@ class RevicionInventario extends Component
         $batchProdIds    = $prods->pluck('producto_id')->filter()->unique()->values()->toArray();
         $batchSecIds     = $prods->pluck('seccion_id')->filter()->unique()->values()->toArray();
         $reservasDetalle = collect();
+        $reservadoPorProdSec = [];
+        $reservadoGlobalPorProd = [];
         if (!$this->devuelto && !empty($batchProdIds) && !empty($batchSecIds)) {
-            $reservasDetalle = DB::table('prefactura_has_producto as php')
+            $reservasRaw = DB::table('prefactura_has_producto as php')
                 ->join('prefactura as pf', 'pf.id', '=', 'php.prefactura_id')
+                ->leftJoin('seccion as s', 's.id', '=', 'php.seccion_id')
+                ->leftJoin('segmento as sg', 'sg.id', '=', 's.segmento_id')
                 ->where('pf.estado', 'activo')
+                ->whereRaw("TIMESTAMPADD(DAY, COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7), COALESCE(pf.created_at, CONCAT(COALESCE(pf.fecha_emision, CURDATE()), ' 00:00:00'))) > NOW()")
                 ->whereIn('php.producto_id', $batchProdIds)
                 ->whereIn('php.seccion_id', $batchSecIds)
                 ->where('php.resta_inventario', 1)
                 ->select('php.producto_id', 'php.seccion_id', 'pf.id as prefactura_id',
                          'pf.flujo_id', 'pf.nombre_cliente', 'php.cantidad',
-                         'pf.fecha_emision', 'pf.fecha_vencimiento')
-                ->get()
+                         'pf.fecha_emision', 'sg.bodega_id')
+                ->selectRaw("DATE(TIMESTAMPADD(DAY, COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7), COALESCE(pf.created_at, CONCAT(COALESCE(pf.fecha_emision, CURDATE()), ' 00:00:00')))) as fecha_vencimiento_reserva")
+                ->get();
+
+            $cacheReservaCompleta = [];
+            $reservasFiltradas = $reservasRaw->filter(function ($r) use (&$cacheReservaCompleta) {
+                return $this->prefacturaTieneReservaCompleta((int) $r->prefactura_id, $cacheReservaCompleta);
+            });
+
+            $reservasDetalle = $reservasFiltradas
                 ->groupBy(fn($r) => $r->producto_id . '_' . $r->seccion_id);
+
+            $reservadoPorProdSec = $reservasFiltradas
+                ->groupBy(fn($r) => $r->producto_id . '_' . $r->seccion_id)
+                ->map(fn($rows) => (float) $rows->sum('cantidad'))
+                ->toArray();
+
+            $reservadoGlobalPorProd = $reservasFiltradas
+                ->filter(fn($r) => (int) ($r->bodega_id ?? 0) !== 18)
+                ->groupBy('producto_id')
+                ->map(fn($rows) => (float) $rows->sum('cantidad'))
+                ->toArray();
         }
 
         foreach ($prods as $i => $prod) {
@@ -408,22 +473,17 @@ class RevicionInventario extends Component
             $disponible       = null;
             $faltaStock       = false;
             $disponibleGlobal = null;
+            $sinExistencia    = !((float) ($prod->resta_inventario ?? 0) > 0);
 
             // Para registros ya devueltos no recalcular stock (solo mostrar datos)
-            if (!$this->devuelto && $prod->resta_inventario && $prod->producto_id && $prod->seccion_id) {
+            if (!$this->devuelto && !$sinExistencia && $prod->producto_id && $prod->seccion_id) {
                 $rawStock  = (float) DB::table('recibido_bodega')
                     ->where('producto_id', $prod->producto_id)
                     ->where('seccion_id',  $prod->seccion_id)
                     ->where('cantidad_disponible', '>', 0)
                     ->sum('cantidad_disponible');
 
-                $reservado = (float) DB::table('prefactura_has_producto as php')
-                    ->join('prefactura as pf', 'pf.id', '=', 'php.prefactura_id')
-                    ->where('pf.estado', 'activo')
-                    ->where('php.producto_id', $prod->producto_id)
-                    ->where('php.seccion_id',  $prod->seccion_id)
-                    ->where('php.resta_inventario', 1)
-                    ->sum('php.cantidad');
+                $reservado = (float) ($reservadoPorProdSec[$prod->producto_id . '_' . $prod->seccion_id] ?? 0.0);
 
                 $disponible = max(0.0, $rawStock - $reservado);
                 $faltaStock = $disponible < (float) $prod->cantidad;
@@ -437,15 +497,7 @@ class RevicionInventario extends Component
                     ->where('sg.bodega_id', '!=', 18)
                     ->sum('rb.cantidad_disponible');
 
-                $reservadoGlobal = (float) DB::table('prefactura_has_producto as php')
-                    ->join('prefactura as pf',  'pf.id',  '=', 'php.prefactura_id')
-                    ->join('seccion as s',       's.id',   '=', 'php.seccion_id')
-                    ->join('segmento as sg',     'sg.id',  '=', 's.segmento_id')
-                    ->where('pf.estado', 'activo')
-                    ->where('php.producto_id', $prod->producto_id)
-                    ->where('php.resta_inventario', 1)
-                    ->where('sg.bodega_id', '!=', 18)
-                    ->sum('php.cantidad');
+                $reservadoGlobal = (float) ($reservadoGlobalPorProd[$prod->producto_id] ?? 0.0);
 
                 $disponibleGlobal = max(0, (int) ($rawStockGlobal - $reservadoGlobal));
 
@@ -464,17 +516,21 @@ class RevicionInventario extends Component
                 'idx'             => $i,
                 'nombre_producto' => $prod->nombre_producto,
                 'nombre_bodega'   => $prod->nombre_bodega,
+                'bodega_id'       => $prod->bodega_id,
+                'bodega_actual_nombre' => $prod->bodega_actual_nombre,
+                'seccion_actual_descripcion' => $prod->seccion_actual_descripcion,
                 'unidad_medida'   => $prod->unidad_medida,
                 'cantidad'        => $prod->cantidad,
                 'producto_id'     => $prod->producto_id,
                 'seccion_id'      => $prod->seccion_id,
                 'resta_inventario'=> $prod->resta_inventario,
+                'sin_existencia'  => $sinExistencia,
                 'rawStock'        => $rawStock,
                 'reservado'       => $reservado,
                 'disponible'      => $disponible,
                 'disponible_global' => $disponibleGlobal,
                 'falta_stock'     => $faltaStock,
-                'reservas_detalle' => (!$this->devuelto && $prod->resta_inventario && $prod->producto_id && $prod->seccion_id)
+                'reservas_detalle' => (!$this->devuelto && !$sinExistencia && $prod->producto_id && $prod->seccion_id)
                     ? ($reservasDetalle->get($prod->producto_id . '_' . $prod->seccion_id, collect())
                         ->map(fn($r) => (array) $r)->values()->toArray())
                     : [],
@@ -534,6 +590,9 @@ class RevicionInventario extends Component
         $this->modalReservasVisible = false;
         $this->modalReservasData    = [];
         $this->modalReservaNombre   = '';
+        $this->modalSinExistenciaVisible = false;
+        $this->productosSinExistenciaModal = [];
+        $this->motivoEdicionSinExistencia = '';
     }
 
     /**
@@ -567,6 +626,15 @@ class RevicionInventario extends Component
     }
 
     /**
+     * Indica si existe al menos una línea marcada como sin existencia.
+     */
+    public function tieneProductosSinExistencia(): bool
+    {
+        return collect($this->productos)
+            ->contains(fn (array $prod) => !empty($prod['sin_existencia']));
+    }
+
+    /**
      * Productos visibles según filtros de la tabla.
      */
     public function getProductosFiltradosProperty(): array
@@ -591,6 +659,10 @@ class RevicionInventario extends Component
                 }
 
                 if ($estado !== '') {
+                    if ($estado === 'sin_existencia' && !($prod['sin_existencia'] ?? false)) {
+                        return false;
+                    }
+
                     if ($estado === 'sin_stock' && !($prod['falta_stock'] ?? false)) {
                         return false;
                     }
@@ -599,7 +671,7 @@ class RevicionInventario extends Component
                         return false;
                     }
 
-                    if ($estado === 'sin_control' && ($prod['disponible'] !== null)) {
+                    if ($estado === 'sin_control' && (($prod['disponible'] !== null) || ($prod['sin_existencia'] ?? false))) {
                         return false;
                     }
                 }
@@ -684,6 +756,15 @@ class RevicionInventario extends Component
             return;
         }
 
+        $lineasSinExistencia = $productos->filter(function ($prod) {
+            return !((float) ($prod->resta_inventario ?? 0) > 0);
+        });
+
+        if ($lineasSinExistencia->isNotEmpty()) {
+            $this->mensajeError = 'No se puede pasar a Prefactura: la oferta contiene productos marcados como sin existencia.';
+            return;
+        }
+
         $tramitePrefacturaId = (int) (DB::table('tipos_tramites')
             ->whereRaw('LOWER(nombre) = ?', ['prefactura'])
             ->value('id') ?? 0);
@@ -693,8 +774,7 @@ class RevicionInventario extends Component
             return;
         }
 
-        $config      = DB::table('configuracion_prefactura')->first();
-        $diasValidez = $config ? (int) $config->dias_validez : 7;
+        $diasValidez = $this->diasVigenciaPrefactura((int) $this->flujoId);
 
         DB::beginTransaction();
         try {
@@ -932,6 +1012,7 @@ class RevicionInventario extends Component
             ->join('prefactura as pf', 'pf.id', '=', 'php.prefactura_id')
             ->leftJoin('flujo as f', 'f.id', '=', 'pf.flujo_id')
             ->where('pf.estado', 'activo')
+            ->whereRaw("TIMESTAMPADD(DAY, COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7), COALESCE(pf.created_at, CONCAT(COALESCE(pf.fecha_emision, CURDATE()), ' 00:00:00'))) > NOW()")
             ->where('php.producto_id', $productoId)
             ->where('php.seccion_id', $seccionId)
             ->where('php.resta_inventario', 1)
@@ -940,14 +1021,205 @@ class RevicionInventario extends Component
                 'pf.flujo_id',
                 'pf.nombre_cliente',
                 'php.cantidad',
-                'pf.fecha_emision',
-                'pf.fecha_vencimiento'
+                'pf.fecha_emision'
             )
+            ->selectRaw("DATE(TIMESTAMPADD(DAY, COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7), COALESCE(pf.created_at, CONCAT(COALESCE(pf.fecha_emision, CURDATE()), ' 00:00:00')))) as fecha_vencimiento_reserva")
             ->get()
+            ->filter(function ($r) {
+                static $cache = [];
+                return $this->prefacturaTieneReservaCompleta((int) $r->prefactura_id, $cache);
+            })
             ->map(fn($r) => (array) $r)
             ->toArray();
 
         $this->modalReservasVisible = true;
+    }
+
+    /**
+     * Abre el modal con los productos marcados como sin existencia para reasignarlos.
+     */
+    public function abrirEdicionProductosSinExistencia(): void
+    {
+        if (!$this->flujoId || !$this->cotizacionId) {
+            $this->mensajeError = 'No hay un flujo u oferta seleccionada.';
+            return;
+        }
+
+        $sinExistencia = collect($this->productos)
+            ->filter(fn (array $prod) => (bool) ($prod['sin_existencia'] ?? false))
+            ->values();
+
+        if ($sinExistencia->isEmpty()) {
+            $this->mensajeError = 'No hay productos marcados como sin existencia para editar.';
+            return;
+        }
+
+        $productoIds = $sinExistencia->pluck('producto_id')->filter()->unique()->values()->all();
+        $destinosPorProducto = $this->obtenerDestinosDisponiblesPorProducto($productoIds);
+
+        $this->productosSinExistenciaModal = $sinExistencia->map(function (array $prod) use ($destinosPorProducto) {
+            $destinos = $destinosPorProducto[$prod['producto_id']] ?? [];
+
+            return [
+                'idx' => $prod['idx'],
+                'producto_id' => $prod['producto_id'],
+                'nombre_producto' => $prod['nombre_producto'],
+                'cantidad' => $prod['cantidad'],
+                'bodega_actual_id' => $prod['bodega_id'] ?? null,
+                'bodega_actual_nombre' => $prod['bodega_actual_nombre'] ?? ($prod['nombre_bodega'] ?? 'SIN EXISTENCIA'),
+                'seccion_actual_id' => $prod['seccion_id'] ?? null,
+                'seccion_actual_descripcion' => $prod['seccion_actual_descripcion'] ?? null,
+                'destino_seleccionado' => '',
+                'destinos' => $destinos,
+            ];
+        })->toArray();
+
+        $this->motivoEdicionSinExistencia = '';
+        $this->modalSinExistenciaVisible = true;
+        $this->dispatchBrowserEvent('modal-sin-existencia-show');
+    }
+
+    /**
+     * Guarda las reasignaciones de los productos sin existencia.
+     */
+    public function guardarEdicionProductosSinExistencia(): void
+    {
+        if (!$this->flujoId || !$this->cotizacionId) {
+            $this->mensajeError = 'No hay un flujo u oferta seleccionada.';
+            return;
+        }
+
+        if (empty($this->productosSinExistenciaModal)) {
+            $this->mensajeError = 'No hay productos para actualizar.';
+            return;
+        }
+
+        $motivo = trim($this->motivoEdicionSinExistencia);
+        $actualizados = 0;
+
+        DB::beginTransaction();
+        try {
+            foreach ($this->productosSinExistenciaModal as $linea) {
+                $seleccion = trim((string) ($linea['destino_seleccionado'] ?? ''));
+                if ($seleccion === '') {
+                    continue;
+                }
+
+                [$bodegaDestinoId, $seccionDestinoId] = array_pad(explode('|', $seleccion, 2), 2, null);
+                $bodegaDestinoId = (int) $bodegaDestinoId;
+                $seccionDestinoId = (int) $seccionDestinoId;
+
+                if ($bodegaDestinoId <= 0 || $seccionDestinoId <= 0) {
+                    continue;
+                }
+
+                $opcionDestino = collect($linea['destinos'] ?? [])->firstWhere('value', $seleccion);
+                if (!$opcionDestino) {
+                    continue;
+                }
+
+                $nombreBodegaDestino = (string) ($opcionDestino['bodega_nombre'] ?? '');
+
+                $afectados = DB::table('cotizacion_has_producto')
+                    ->where('cotizacion_id', $this->cotizacionId)
+                    ->where('producto_id', (int) $linea['producto_id'])
+                    ->where('indice', (int) $linea['idx'])
+                    ->update([
+                        'Bodega_id' => $bodegaDestinoId,
+                        'seccion_id' => $seccionDestinoId,
+                        'nombre_bodega' => $nombreBodegaDestino,
+                        'resta_inventario' => 1,
+                        'updated_at' => now(),
+                    ]);
+
+                if ($afectados > 0) {
+                    DB::table('historico_cotizacion_producto_sin_existencia')->insert([
+                        'id_cotizacion' => $this->cotizacionId,
+                        'id_producto' => (int) $linea['producto_id'],
+                        'indice_linea' => (int) $linea['idx'],
+                        'nombre_producto' => $linea['nombre_producto'],
+                        'id_bodega_origen' => (int) ($linea['bodega_actual_id'] ?? 0) ?: null,
+                        'id_seccion_origen' => (int) ($linea['seccion_actual_id'] ?? 0) ?: null,
+                        'id_bodega_actualizacion' => $bodegaDestinoId,
+                        'id_seccion_actualizacion' => $seccionDestinoId,
+                        'nombre_bodega_origen' => $linea['bodega_actual_nombre'] ?? 'SIN EXISTENCIA',
+                        'nombre_bodega_destino' => $nombreBodegaDestino,
+                        'motivo' => $motivo !== '' ? $motivo : 'Reasignación de producto sin existencia',
+                        'created_by' => Auth::id(),
+                        'updated_by' => Auth::id(),
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                    $actualizados++;
+                }
+            }
+
+            if ($actualizados === 0) {
+                DB::rollBack();
+                $this->mensajeError = 'Seleccione al menos un destino válido para actualizar.';
+                return;
+            }
+
+            DB::commit();
+
+            $this->modalSinExistenciaVisible = false;
+            $this->productosSinExistenciaModal = [];
+            $this->motivoEdicionSinExistencia = '';
+            $this->dispatchBrowserEvent('modal-sin-existencia-hide');
+
+            $this->seleccionarFlujo($this->flujoId, $this->soloVisualizacion);
+            $this->mensajeExito = 'Se actualizaron ' . $actualizados . ' producto(s) sin existencia.';
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            $this->mensajeError = 'No se pudo actualizar la relación de productos sin existencia: ' . $e->getMessage();
+        }
+    }
+
+    /**
+     * Obtiene destinos con stock disponible por producto.
+     *
+     * @param array<int> $productoIds
+     * @return array<int, array<int, array<string, mixed>>>
+     */
+    private function obtenerDestinosDisponiblesPorProducto(array $productoIds): array
+    {
+        if (empty($productoIds)) {
+            return [];
+        }
+
+        $rows = DB::table('recibido_bodega as rb')
+            ->join('seccion as s', 's.id', '=', 'rb.seccion_id')
+            ->join('segmento as sg', 'sg.id', '=', 's.segmento_id')
+            ->join('bodega as b', 'b.id', '=', 'sg.bodega_id')
+            ->whereIn('rb.producto_id', $productoIds)
+            ->where('rb.cantidad_disponible', '>', 0)
+            ->select(
+                'rb.producto_id',
+                'sg.bodega_id',
+                's.id as seccion_id',
+                'b.nombre as bodega_nombre',
+                's.descripcion as seccion_descripcion',
+                DB::raw('SUM(rb.cantidad_disponible) as stock')
+            )
+            ->groupBy('rb.producto_id', 'sg.bodega_id', 's.id', 'b.nombre', 's.descripcion')
+            ->orderBy('b.nombre')
+            ->orderBy('s.descripcion')
+            ->get();
+
+        $destinos = [];
+        foreach ($rows as $row) {
+            $destinos[(int) $row->producto_id][] = [
+                'value' => (int) $row->bodega_id . '|' . (int) $row->seccion_id,
+                'bodega_id' => (int) $row->bodega_id,
+                'seccion_id' => (int) $row->seccion_id,
+                'bodega_nombre' => (string) $row->bodega_nombre,
+                'seccion_descripcion' => (string) $row->seccion_descripcion,
+                'stock' => (float) $row->stock,
+                'text' => trim((string) $row->bodega_nombre . ' - ' . (string) $row->seccion_descripcion . ' (Stock: ' . (int) $row->stock . ')'),
+            ];
+        }
+
+        return $destinos;
     }
 
     public function cerrarModalReservas(): void
@@ -955,6 +1227,36 @@ class RevicionInventario extends Component
         $this->modalReservasVisible = false;
         $this->modalReservasData    = [];
         $this->modalReservaNombre   = '';
+    }
+
+    private function prefacturaTieneReservaCompleta(int $prefacturaId, array &$cache): bool
+    {
+        if (array_key_exists($prefacturaId, $cache)) {
+            return (bool) $cache[$prefacturaId];
+        }
+
+        $lineas = DB::table('prefactura_has_producto')
+            ->where('prefactura_id', $prefacturaId)
+            ->where('resta_inventario', 1)
+            ->whereNotNull('producto_id')
+            ->whereNotNull('seccion_id')
+            ->get(['producto_id', 'seccion_id', 'cantidad']);
+
+        foreach ($lineas as $linea) {
+            $rawStock = (float) DB::table('recibido_bodega')
+                ->where('producto_id', $linea->producto_id)
+                ->where('seccion_id', $linea->seccion_id)
+                ->where('cantidad_disponible', '>', 0)
+                ->sum('cantidad_disponible');
+
+            if ($rawStock + 0.0001 < (float) $linea->cantidad) {
+                $cache[$prefacturaId] = false;
+                return false;
+            }
+        }
+
+        $cache[$prefacturaId] = true;
+        return true;
     }
 
     // ─────────────────────────────────────────────────────────────────────

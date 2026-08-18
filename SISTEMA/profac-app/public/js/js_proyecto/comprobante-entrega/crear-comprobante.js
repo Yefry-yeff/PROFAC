@@ -378,9 +378,18 @@ function agregarProductoCarrito() {
     }
 
     let data = $("#bodega").select2('data')[0];
-    let bodega = data.bodegaSeccion;
-    let idBodega = data.idBodega;
-    let idSeccion = data.id
+    let idSeccion = data ? Number(data.id) : NaN;
+    let idBodega = data ? Number(data.idBodega) : NaN;
+    let bodega = data ? data.bodegaSeccion : '';
+
+    if (!Number.isFinite(idSeccion) || !Number.isFinite(idBodega) || !bodega) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Advertencia',
+            text: 'Debe seleccionar una bodega válida antes de agregar el producto.'
+        });
+        return;
+    }
 
 
     axios.post('/ventas/datos/producto', {

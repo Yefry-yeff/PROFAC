@@ -858,6 +858,13 @@
                     <small class="text-muted">
                         Las demás ofertas de este pedido quedarán <strong>canceladas</strong> y el pedido avanzará a la etapa de <strong>Pre Factura</strong>.
                     </small>
+                    <div class="mt-3 text-left">
+                        <label style="font-size:12px; font-weight:700; color:#616161;">Comentario para Créditos (opcional)</label>
+                        <textarea wire:model.defer="comentarioCreditoGanadora"
+                                  rows="2"
+                                  class="form-control"
+                                  placeholder="Escribe una observación para créditos..."></textarea>
+                    </div>
                 </div>
                 <div class="modal-footer" style="border:none; justify-content:center;">
                     <button type="button" wire:click="cancelarSeleccionGanadora" class="btn btn-default">

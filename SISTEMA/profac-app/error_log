@@ -1,0 +1,8 @@
+[20-Jul-2026 19:33:27 America/New_York] PHP Fatal error:  Uncaught Error: Call to undefined function opcache_reset() in Command line code:1
+Stack trace:
+#0 {main}
+  thrown in Command line code on line 1
+[27-Jul-2026 13:50:31 America/New_York] PHP Fatal error:  Uncaught Error: Call to undefined function opcache_reset() in Command line code:1
+Stack trace:
+#0 {main}
+  thrown in Command line code on line 1

@@ -49,7 +49,8 @@ class ListadoAjustes extends Component
         numero_ajuste,
         fecha,
         name,
-        ajuste.created_at
+        ajuste.created_at,
+        ajuste.anulado
         from ajuste
         inner join users
         on users.id = ajuste.users_id
@@ -61,20 +62,35 @@ class ListadoAjustes extends Component
         
 
         return Datatables::of($listado)
+        ->addColumn('estado', function ($ajuste) {
+            if ($ajuste->anulado == 1) {
+                return '<span class="badge-anulado"><i class="fa fa-ban mr-1"></i>Anulado</span>';
+            }
+            return '<span class="badge-activo"><i class="fa fa-check-circle mr-1"></i>Activo</span>';
+        })
         ->addColumn('opciones', function ($ajuste) {
+            $btnImprimir = '<a href="/ajustes/imprimir/ajuste/'.$ajuste->codigo.'" target="_blank" class="dropdown-item"><i class="fa fa-file-invoice mr-1 text-warning"></i> Imprimir</a>';
 
-            return
+            if ($ajuste->anulado == 1) {
+                $btnAnular = '<a class="dropdown-item text-muted disabled" style="pointer-events:none;opacity:.5"><i class="fa fa-ban mr-1"></i> Anulado</a>';
+            } else {
+                $btnAnular = '<a class="dropdown-item text-danger" onclick="confirmarAnularAjuste('.$ajuste->codigo.',\''.addslashes($ajuste->numero_ajuste).'\')"><i class="fa fa-ban mr-1"></i> Anular</a>';
+            }
 
-            '<div class="text-center">
-    
-            <a href="/ajustes/imprimir/ajuste/'.$ajuste->codigo.'" target="_blank" class="btn btn-sm btn-warning "><i class="fa-solid fa-file-invoice"></i> Imprimir</a>
-     
-     
-                
+            return '
+            <div class="aj-dropdown">
+                <button class="btn-aj-menu" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    <i class="fa fa-ellipsis-v mr-1"></i> Acciones
+                </button>
+                <div class="dropdown-menu dropdown-menu-right">
+                    '.$btnImprimir.'
+                    <div class="dropdown-divider"></div>
+                    '.$btnAnular.'
+                </div>
             </div>';
         })
 
-        ->rawColumns(['opciones',])
+        ->rawColumns(['estado', 'opciones',])
         ->make(true);
 
      
@@ -89,4 +105,215 @@ class ListadoAjustes extends Component
        ],402);
        }
     }
+
+    public function anularAjuste(Request $request)
+    {
+        try {
+            $idAjuste = (int) $request->idAjuste;
+            $motivo   = trim($request->motivo ?? '');
+
+            DB::beginTransaction();
+
+            // Verificar que el ajuste exista y no esté ya anulado
+            $ajuste = DB::table('ajuste')
+                ->where('id', $idAjuste)
+                ->lockForUpdate()
+                ->first(['id', 'numero_ajuste', 'anulado']);
+
+            if (!$ajuste) {
+                DB::rollBack();
+                return response()->json([
+                    'icon'  => 'warning',
+                    'text'  => 'El ajuste no existe.',
+                    'title' => 'Advertencia!',
+                ], 200);
+            }
+
+            if ($ajuste->anulado == 1) {
+                DB::rollBack();
+                return response()->json([
+                    'icon'  => 'warning',
+                    'text'  => 'Este ajuste ya fue anulado anteriormente.',
+                    'title' => 'Acción no permitida!',
+                ], 200);
+            }
+
+            // Obtener productos del ajuste con información de bodega
+            $productos = DB::SELECT("
+                select
+                    ahp.recibido_bodega_id,
+                    ahp.producto_id,
+                    ahp.tipo_aritmetica,
+                    ahp.cantidad_total,
+                    ahp.unidad_medida_venta_id,
+                    p.nombre as nombre_producto,
+                    b.id as bodega_id,
+                    b.nombre as bodega_nombre,
+                    sg.id as segmento_id,
+                    sg.descripcion as segmento_nombre,
+                    sc.id as seccion_id,
+                    sc.descripcion as seccion_nombre
+                from ajuste_has_producto ahp
+                inner join recibido_bodega rb on rb.id = ahp.recibido_bodega_id
+                inner join seccion sc on sc.id = rb.seccion_id
+                inner join segmento sg on sg.id = sc.segmento_id
+                inner join bodega b on b.id = sg.bodega_id
+                inner join producto p on p.id = ahp.producto_id
+                where ahp.ajuste_id = " . intval($idAjuste)
+            );
+
+            if (empty($productos)) {
+                DB::rollBack();
+                return response()->json([
+                    'icon'  => 'warning',
+                    'text'  => 'No se encontraron productos asociados a este ajuste.',
+                    'title' => 'Advertencia!',
+                ], 200);
+            }
+
+            $usuario = Auth::user();
+            $now = now();
+
+            foreach ($productos as $prod) {
+                $movimientosAnulacion = [];
+
+                // Operacion inversa: si fue suma (1) → restar; si fue resta (2) → sumar
+                if ($prod->tipo_aritmetica == 1) {
+                    $lotesDisponibles = DB::table('recibido_bodega')
+                        ->where('producto_id', $prod->producto_id)
+                        ->where('seccion_id', $prod->seccion_id)
+                        ->where('cantidad_disponible', '>', 0)
+                        ->orderByRaw('id = ? DESC', [$prod->recibido_bodega_id])
+                        ->orderBy('id')
+                        ->lockForUpdate()
+                        ->get(['id', 'cantidad_disponible']);
+
+                    $existenciaTotal = (float) $lotesDisponibles->sum('cantidad_disponible');
+                    $cantidadARevertir = (float) $prod->cantidad_total;
+
+                    if ($existenciaTotal + 0.00001 < $cantidadARevertir) {
+                        DB::rollBack();
+
+                        return response()->json([
+                            'icon' => 'warning',
+                            'text' => 'No se puede anular el ajuste. En '
+                                . $prod->bodega_nombre . ' / ' . $prod->seccion_nombre
+                                . ' hay ' . $this->formatearCantidad($existenciaTotal)
+                                . ' unidades de ' . $prod->nombre_producto
+                                . ', el ajuste requiere ' . $this->formatearCantidad($cantidadARevertir)
+                                . ' y faltan ' . $this->formatearCantidad($cantidadARevertir - $existenciaTotal) . '.',
+                            'title' => 'Existencia insuficiente',
+                        ], 200);
+                    }
+
+                    $cantidadPendiente = $cantidadARevertir;
+                    foreach ($lotesDisponibles as $loteDisponible) {
+                        if ($cantidadPendiente <= 0.00001) {
+                            break;
+                        }
+
+                        $cantidadLote = (float) $loteDisponible->cantidad_disponible;
+                        $cantidadDescontada = min($cantidadLote, $cantidadPendiente);
+
+                        DB::table('recibido_bodega')
+                            ->where('id', $loteDisponible->id)
+                            ->update(['cantidad_disponible' => max(0, $cantidadLote - $cantidadDescontada)]);
+
+                        $movimientosAnulacion[] = [
+                            'origen' => $loteDisponible->id,
+                            'cantidad' => $cantidadDescontada,
+                        ];
+                        $cantidadPendiente -= $cantidadDescontada;
+                    }
+
+                    $descripcionAnulacionCardex = 'Anulación de ajuste - Ajuste de tipo suma de unidades (-)';
+                    $descripcionAnulacionLog = 'Anulación ajuste suma (-)';
+                } else {
+                    $lote = DB::table('recibido_bodega')
+                        ->where('id', $prod->recibido_bodega_id)
+                        ->lockForUpdate()
+                        ->first(['cantidad_disponible']);
+                    $nuevaCantidad = (float) $lote->cantidad_disponible + (float) $prod->cantidad_total;
+
+                    DB::table('recibido_bodega')
+                        ->where('id', $prod->recibido_bodega_id)
+                        ->update(['cantidad_disponible' => $nuevaCantidad]);
+
+                    $movimientosAnulacion[] = [
+                        'origen' => $prod->recibido_bodega_id,
+                        'cantidad' => $prod->cantidad_total,
+                    ];
+                    $descripcionAnulacionCardex = 'Anulación de ajuste - Ajuste de tipo resta de unidades (+)';
+                    $descripcionAnulacionLog = 'Anulación ajuste resta (+)';
+                }
+
+                // Insertar registro en cardex
+                DB::table('cardex')->insert([
+                    'fecha_creacion'      => $now,
+                    'producto'            => $prod->nombre_producto,
+                    'id_producto'         => $prod->producto_id,
+                    'ajuste'              => $ajuste->id,
+                    'ajuste_cod'          => $ajuste->numero_ajuste,
+                    'descripcion'         => $descripcionAnulacionCardex,
+                    'id_Bodega_origen'    => $prod->bodega_id,
+                    'Bodega_origen_nombre'=> $prod->bodega_nombre,
+                    'id_segmento_origen'  => $prod->segmento_id,
+                    'segmento_origen_nombre' => $prod->segmento_nombre,
+                    'id_seccion_origen'   => $prod->seccion_id,
+                    'seccion_origen_nombre' => $prod->seccion_nombre,
+                    'cantidad'            => $prod->cantidad_total,
+                    'usuario'             => $usuario->name,
+                ]);
+
+                // Insertar en el log real de movimientos de inventario
+                foreach ($movimientosAnulacion as $movimiento) {
+                    DB::table('log_translado')->insert([
+                        'origen'               => $movimiento['origen'],
+                        'cantidad'             => $movimiento['cantidad'],
+                        'unidad_medida_venta_id' => $prod->unidad_medida_venta_id,
+                        'users_id'             => $usuario->id,
+                        'descripcion'          => $descripcionAnulacionLog,
+                        'comentario'           => $motivo,
+                        'ajuste_id'            => $ajuste->id,
+                        'created_at'           => $now,
+                        'updated_at'           => $now,
+                    ]);
+                }
+            }
+
+            // Marcar ajuste como anulado
+            DB::statement(
+                "UPDATE ajuste SET anulado = 1, anulado_por = ?, anulado_at = ?, motivo_anulacion = ? WHERE id = ?",
+                [$usuario->id, $now, $motivo ?: null, $idAjuste]
+            );
+
+            DB::commit();
+
+            return response()->json([
+                'icon'  => 'success',
+                'text'  => 'El ajuste <b>' . $ajuste->numero_ajuste . '</b> fue anulado exitosamente.',
+                'title' => 'Éxito!',
+            ], 200);
+
+        } catch (\Throwable $e) {
+            if (DB::transactionLevel() > 0) {
+                DB::rollBack();
+            }
+            return response()->json([
+                'icon'    => 'error',
+                'text'    => 'Ha ocurrido un error al anular el ajuste.',
+                'title'   => 'Error!',
+                'message' => 'Ha ocurrido un error',
+                'error'   => $e,
+            ], 402);
+        }
+    }
+
+    private function formatearCantidad($cantidad): string
+    {
+        $cantidad = (float) $cantidad;
+
+        return number_format($cantidad, floor($cantidad) == $cantidad ? 0 : 2, '.', ',');
+    }
 }
+

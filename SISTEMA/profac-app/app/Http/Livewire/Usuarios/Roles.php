@@ -58,14 +58,19 @@ class Roles extends Component
                     nr.nombre              AS nivel_nombre,
                     nr.orden               AS nivel_orden,
                     a.nombre               AS area_nombre,
-                    COUNT(DISTINCT u.id)   AS total_usuarios,
+                    (
+                        SELECT COUNT(DISTINCT x.id) FROM (
+                            SELECT id FROM users WHERE rol_id = r.id
+                            UNION
+                            SELECT usuario_id AS id FROM usuario_rol WHERE rol_id = r.id
+                        ) x
+                    )                      AS total_usuarios,
                     COUNT(DISTINCT rs.sub_menu_id) AS total_permisos,
                     r.created_at
                 FROM rol r
                 LEFT JOIN estado      e  ON e.id  = r.estado_id
                 LEFT JOIN nivel_rol   nr ON nr.id = r.nivel_id
                 LEFT JOIN area        a  ON a.id  = r.area_id
-                LEFT JOIN users       u  ON u.rol_id = r.id
                 LEFT JOIN rol_submenu rs ON rs.rol_id = r.id
                 GROUP BY r.id, r.nombre, r.estado_id, r.nivel_id, r.area_id,
                          e.descripcion, nr.nombre, nr.orden, a.nombre, r.created_at
@@ -341,8 +346,8 @@ class Roles extends Component
 
             $rol = Rol::findOrFail($id);
 
-            // Verificar si tiene usuarios asignados
-            if ($rol->usuarios()->count() > 0) {
+            // Verificar si tiene usuarios asignados (como rol principal o adicional)
+            if ($rol->usuarios()->count() > 0 || $rol->usuariosAdicionales()->count() > 0) {
                 return response()->json([
                     'success' => false,
                     'mensaje' => 'No se puede eliminar el rol porque tiene usuarios asignados'
@@ -513,6 +518,122 @@ class Roles extends Component
         }
     }
 
+    // ==================================================================
+    // USUARIOS ADICIONALES DEL ROL (multi-rol) — NO afecta el rol
+    // principal de cada usuario (users.rol_id), es un mecanismo separado
+    // de la asignación de rol principal (agregarUsuarioAlRol arriba).
+    // ==================================================================
+
+    /**
+     * Lista los usuarios que tienen este rol como ADICIONAL.
+     */
+    public function obtenerUsuariosAdicionalesDelRol($rolId)
+    {
+        try {
+            $usuarios = DB::table('usuario_rol as ur')
+                ->join('users as u', 'u.id', '=', 'ur.usuario_id')
+                ->where('ur.rol_id', $rolId)
+                ->select('u.id', 'u.name', 'u.email')
+                ->orderBy('u.name')
+                ->get();
+
+            return response()->json(['success' => true, 'data' => $usuarios], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'mensaje' => 'Error al obtener usuarios adicionales: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Búsqueda (select2 ajax) de usuarios que se puedan agregar como
+     * adicionales a este rol: excluye a quienes ya lo tienen como
+     * principal o como adicional.
+     */
+    public function buscarUsuariosAdicionalesDisponibles(Request $request, $rolId)
+    {
+        $texto = trim((string) $request->get('q', ''));
+
+        $yaAsignados = DB::table('usuario_rol')
+            ->where('rol_id', $rolId)
+            ->pluck('usuario_id')
+            ->toArray();
+
+        $query = DB::table('users')->where('rol_id', '<>', $rolId);
+        if (!empty($yaAsignados)) {
+            $query->whereNotIn('id', $yaAsignados);
+        }
+        if ($texto !== '') {
+            $query->where(function ($q) use ($texto) {
+                $q->where('name', 'like', '%' . $texto . '%')
+                  ->orWhere('email', 'like', '%' . $texto . '%');
+            });
+        }
+
+        $usuarios = $query->orderBy('name')->limit(20)->get(['id', 'name', 'email']);
+
+        return response()->json([
+            'results' => $usuarios->map(function ($u) {
+                return ['id' => $u->id, 'text' => $u->name . ' - ' . $u->email];
+            }),
+        ]);
+    }
+
+    /**
+     * Agrega un usuario ADICIONAL a este rol (no toca su rol principal).
+     */
+    public function agregarUsuarioAdicionalAlRol(Request $request, $rolId)
+    {
+        try {
+            $request->validate(['usuario_id' => 'required|integer|exists:users,id']);
+
+            $usuario = DB::table('users')->where('id', $request->usuario_id)->first();
+            if ($usuario && (int) $usuario->rol_id === (int) $rolId) {
+                return response()->json([
+                    'success' => false,
+                    'mensaje' => 'Ese usuario ya tiene este rol como principal.'
+                ], 422);
+            }
+
+            DB::table('usuario_rol')->insertOrIgnore([
+                'usuario_id' => $request->usuario_id,
+                'rol_id'     => $rolId,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            return response()->json(['success' => true, 'mensaje' => 'Usuario adicional agregado correctamente.'], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'mensaje' => 'Error al agregar usuario adicional: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Quita un usuario ADICIONAL de este rol (no toca su rol principal).
+     */
+    public function quitarUsuarioAdicionalDelRol(Request $request, $rolId)
+    {
+        try {
+            $request->validate(['usuario_id' => 'required|integer']);
+
+            DB::table('usuario_rol')
+                ->where('usuario_id', $request->usuario_id)
+                ->where('rol_id', $rolId)
+                ->delete();
+
+            return response()->json(['success' => true, 'mensaje' => 'Usuario adicional removido correctamente.'], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'mensaje' => 'Error al quitar usuario adicional: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function obtenerRolAnteriorUsuario($usuarioId)
     {
         try {
@@ -647,7 +768,8 @@ class Roles extends Component
     public function reporteUsuariosPorRol()
     {
         try {
-            $rows = DB::table('users as u')
+            // Incluye una fila por CADA rol del usuario (principal + adicionales).
+            $principal = DB::table('users as u')
                 ->join('rol as r', 'r.id', '=', 'u.rol_id')
                 ->where('u.estado_id', 1)
                 ->where('r.estado_id', 1)
@@ -660,9 +782,27 @@ class Roles extends Component
                     'u.identidad',
                     'u.telefono',
                     'u.created_at',
-                ])
-                ->orderBy('r.nombre')
-                ->orderBy('u.name')
+                ]);
+
+            $adicionales = DB::table('usuario_rol as ur')
+                ->join('rol as r', 'r.id', '=', 'ur.rol_id')
+                ->join('users as u', 'u.id', '=', 'ur.usuario_id')
+                ->where('u.estado_id', 1)
+                ->where('r.estado_id', 1)
+                ->select([
+                    'r.id as rol_id',
+                    'r.nombre as rol_nombre',
+                    'u.id as usuario_id',
+                    'u.name as usuario_nombre',
+                    'u.email',
+                    'u.identidad',
+                    'u.telefono',
+                    'u.created_at',
+                ]);
+
+            $rows = $principal->unionAll($adicionales)
+                ->orderBy('rol_nombre')
+                ->orderBy('usuario_nombre')
                 ->get();
 
             return response()->json(['success' => true, 'data' => $rows], 200);

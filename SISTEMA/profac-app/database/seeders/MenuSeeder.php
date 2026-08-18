@@ -60,6 +60,7 @@ class MenuSeeder extends Seeder
                 'estado_id' => 1,
                 'submenus' => [
                     ['nombre' => 'Escalas de Comisión', 'url' => 'comisiones/escala/index', 'icono' => 'fa fa-list', 'orden' => 1, 'roles' => [1]],
+                    ['nombre' => 'Conciliación de Comisiones', 'url' => 'comisiones/conciliacion', 'icono' => 'fa fa-balance-scale', 'orden' => 2, 'roles' => [1]],
                 ]
             ],
 
@@ -386,6 +387,7 @@ class MenuSeeder extends Seeder
                     ['nombre' => 'Reporte de Ventas', 'url' => 'facturaDia', 'icono' => 'fa fa-chart-line', 'orden' => 1, 'roles' => [1, 4, 5, 8]],
                     ['nombre' => 'Reportes Varios', 'url' => 'reporte/reporteria', 'icono' => 'fa fa-file-alt', 'orden' => 2, 'roles' => [1, 4]],
                     ['nombre' => 'Reporte Comisiones', 'url' => 'reporte/comision', 'icono' => 'fa fa-dollar', 'orden' => 3, 'roles' => [1, 8]],
+                    ['nombre' => 'Productos sin imágenes', 'url' => 'reporte/productos-sin-imagenes', 'icono' => 'fa fa-image', 'orden' => 4, 'roles' => [1, 4, 5, 7, 8]],
                 ]
             ],
         ];

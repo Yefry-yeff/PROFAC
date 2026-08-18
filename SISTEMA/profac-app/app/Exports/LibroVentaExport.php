@@ -2,106 +2,174 @@
 
 namespace App\Exports;
 
-use Illuminate\Contracts\View\View;
-use Maatwebsite\Excel\Concerns\FromView;
+use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithStyles;
-use Maatwebsite\Excel\Concerns\WithDrawings;
 use Maatwebsite\Excel\Concerns\WithEvents;
+use Maatwebsite\Excel\Concerns\WithStrictNullComparison;
+use Maatwebsite\Excel\Concerns\WithColumnWidths;
+use Maatwebsite\Excel\Concerns\WithDefaultStyles;
 use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
-use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 
-class LibroVentaExport implements FromView, WithStyles, WithDrawings, WithEvents
+/**
+ * Libro de Ventas — exportación optimizada con FromArray.
+ *
+ * Columnas (A–K, 11 cols):
+ *  A Asesor Comercial  B Teleasesor  C Cliente  D Factura  E Exonerado
+ *  F Gravado  G Exento  H Subtotal  I ISV  J Total  K Fecha Compra
+ */
+class LibroVentaExport implements FromArray, WithStyles, WithEvents, WithStrictNullComparison, WithColumnWidths
 {
-    protected $data;
-    protected $fechaInicio;
-    protected $fechaFinal;
+    protected array $data;
+    protected string $fechaInicio;
+    protected string $fechaFinal;
 
-    public function __construct($data, $fechaInicio, $fechaFinal)
+    const LAST_COL  = 'K';
+    const COL_COUNT = 11;
+
+    public function __construct($data, string $fechaInicio, string $fechaFinal)
     {
-        $this->data = $data;
+        $this->data       = is_array($data) ? $data : json_decode(json_encode($data), true);
         $this->fechaInicio = $fechaInicio;
-        $this->fechaFinal = $fechaFinal;
+        $this->fechaFinal  = $fechaFinal;
     }
 
-    public function view(): View
+    public function columnWidths(): array
     {
-        return view('Excel.libroventarep', [
-            'data'        => $this->data,
-            'fechaInicio' => $this->fechaInicio,
-            'fechaFinal'  => $this->fechaFinal,
-        ]);
+        return [
+            'A' => 22, // Asesor Comercial
+            'B' => 22, // Teleasesor
+            'C' => 35, // Cliente
+            'D' => 22, // Factura
+            'E' => 14, // Exonerado
+            'F' => 14, // Gravado
+            'G' => 14, // Exento
+            'H' => 14, // Subtotal
+            'I' => 12, // ISV
+            'J' => 14, // Total
+            'K' => 20, // Fecha Venta
+        ];
     }
 
-    /**
-     * Header logo placed at A1 (top-left of the spreadsheet).
-     */
-    public function drawings()
+    public function array(): array
     {
-        $drawing = new Drawing();
-        $drawing->setName('Logo Valencia');
-        $drawing->setDescription('Logo Distribuciones Valencia');
-        $drawing->setPath(public_path('img/membrete/Logo3.png'));
-        $drawing->setHeight(65);
-        $drawing->setCoordinates('A1');
-        $drawing->setOffsetX(4);
-        $drawing->setOffsetY(4);
+        $out = [];
 
-        return $drawing;
+        // Fila 1 — empresa
+        $r1 = array_fill(0, self::COL_COUNT, '');
+        $r1[0] = 'DISTRIBUCIONES VALENCIA   |   RTN: 08011986138652';
+        $out[] = $r1;
+
+        // Fila 2 — título
+        $r2 = array_fill(0, self::COL_COUNT, '');
+        $r2[0] = 'LIBRO GENERAL DE VENTAS';
+        $out[] = $r2;
+
+        // Fila 3 — rango de fechas
+        $r3 = array_fill(0, self::COL_COUNT, '');
+        $r3[0] = 'Período: ' . $this->fechaInicio . '  a  ' . $this->fechaFinal
+               . '     Generado: ' . now()->format('d/m/Y H:i');
+        $out[] = $r3;
+
+        // Fila 4 — cabeceras
+        $out[] = [
+            'ASESOR COMERCIAL', 'TELEASESOR', 'CLIENTE', 'FACTURA',
+            'EXONERADO', 'GRAVADO', 'EXENTO',
+            'SUBTOTAL', 'ISV', 'TOTAL', 'FECHA VENTA',
+        ];
+
+        // Acumuladores de totales
+        $totExon = $totGrav = $totExen = $totSub = $totIsv = $totTotal = 0.0;
+
+        foreach ($this->data as $item) {
+            $r = (array) $item;
+
+            $exon  = (float) ($r['EXONERADO']    ?? 0);
+            $grav  = (float) ($r['GRAVADO']       ?? 0);
+            $exen  = (float) ($r['EXENTO']        ?? 0);
+            $sub   = (float) ($r['SUBTOTAL']      ?? 0);
+            $isv   = (float) ($r['ISV']           ?? 0);
+            $total = (float) ($r['TOTAL']         ?? 0);
+
+            // Convertir fecha a número Excel para formato nativo
+            $fechaRaw = $r['FECHA VENTA'] ?? '';
+            $fechaVal = '';
+            if ($fechaRaw) {
+                $ts = strtotime((string) $fechaRaw);
+                $fechaVal = $ts !== false ? ExcelDate::PHPToExcel($ts) : $fechaRaw;
+            }
+
+            $totExon  += $exon;
+            $totGrav  += $grav;
+            $totExen  += $exen;
+            $totSub   += $sub;
+            $totIsv   += $isv;
+            $totTotal += $total;
+
+            $out[] = [
+                $r['ASESOR_COMERCIAL'] ?? '',
+                $r['TELEASESOR']       ?? '',
+                $r['CLIENTE']          ?? '',
+                $r['FACTURA']          ?? '',
+                $exon, $grav, $exen, $sub, $isv, $total,
+                $fechaVal,
+            ];
+        }
+
+        // Fila de totales
+        $tot = array_fill(0, self::COL_COUNT, '');
+        $tot[0] = 'TOTALES:';
+        $tot[4] = round($totExon,  2);
+        $tot[5] = round($totGrav,  2);
+        $tot[6] = round($totExen,  2);
+        $tot[7] = round($totSub,   2);
+        $tot[8] = round($totIsv,   2);
+        $tot[9] = round($totTotal, 2);
+        $out[] = $tot;
+
+        return $out;
     }
 
     public function styles(Worksheet $sheet)
     {
-        // ── Header rows ─────────────────────────────────────────────────────
-        $sheet->mergeCells('A1:J1');
-        $sheet->mergeCells('A2:J2');
-        $sheet->mergeCells('A3:J3');
+        // Fusionar celdas de cabecera
+        $sheet->mergeCells('A1:K1');
+        $sheet->mergeCells('A2:K2');
+        $sheet->mergeCells('A3:K3');
 
-        // Row 1 – company name + RTN (right-aligned so text shows beside logo)
-        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(13);
-        $sheet->getStyle('A1')->getFont()->getColor()->setRGB('1F3864');
-        $sheet->getStyle('A1')->getAlignment()
-            ->setHorizontal(Alignment::HORIZONTAL_RIGHT)
-            ->setVertical(Alignment::VERTICAL_CENTER)
-            ->setIndent(2);
-        $sheet->getRowDimension(1)->setRowHeight(68);
+        // Fila 1
+        $sheet->getStyle('A1')->applyFromArray([
+            'font' => ['bold' => true, 'size' => 13, 'color' => ['rgb' => '7D3F00']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+        ]);
+        $sheet->getRowDimension(1)->setRowHeight(28);
 
-        // Row 2 – report title
-        $sheet->getStyle('A2')->getFont()->setBold(true)->setSize(11);
-        $sheet->getStyle('A2')->getFont()->getColor()->setRGB('1F3864');
-        $sheet->getStyle('A2')->getAlignment()
-            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
-            ->setVertical(Alignment::VERTICAL_CENTER);
+        // Fila 2
+        $sheet->getStyle('A2')->applyFromArray([
+            'font' => ['bold' => true, 'size' => 11, 'color' => ['rgb' => 'E07000']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+        ]);
         $sheet->getRowDimension(2)->setRowHeight(20);
 
-        // Row 3 – date range
-        $sheet->getStyle('A3')->getFont()->setSize(10)->setItalic(true);
-        $sheet->getStyle('A3')->getFont()->getColor()->setRGB('404040');
-        $sheet->getStyle('A3')->getAlignment()
-            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
-            ->setVertical(Alignment::VERTICAL_CENTER);
-        $sheet->getRowDimension(3)->setRowHeight(18);
+        // Fila 3
+        $sheet->getStyle('A3')->applyFromArray([
+            'font' => ['size' => 9, 'italic' => true, 'color' => ['rgb' => '404040']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+        ]);
+        $sheet->getRowDimension(3)->setRowHeight(16);
 
-        // Row 4 – column headers (dark blue background, white bold text)
-        $sheet->getStyle('A4:J4')->getFont()->setBold(true)->setSize(10);
-        $sheet->getStyle('A4:J4')->getFont()->getColor()->setRGB('FFFFFF');
-        $sheet->getStyle('A4:J4')->getFill()
-            ->setFillType(Fill::FILL_SOLID)
-            ->getStartColor()->setRGB('1F3864');
-        $sheet->getStyle('A4:J4')->getAlignment()
-            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
-            ->setVertical(Alignment::VERTICAL_CENTER)
-            ->setWrapText(true);
+        // Fila 4 — cabeceras
+        $sheet->getStyle('A4:K4')->applyFromArray([
+            'font' => ['bold' => true, 'size' => 10, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'E07000']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER, 'wrapText' => true],
+        ]);
         $sheet->getRowDimension(4)->setRowHeight(22);
-
-        // Auto-size all columns
-        foreach (range('A', 'J') as $col) {
-            $sheet->getColumnDimension($col)->setAutoSize(true);
-        }
 
         return [];
     }
@@ -112,103 +180,56 @@ class LibroVentaExport implements FromView, WithStyles, WithDrawings, WithEvents
             AfterSheet::class => function (AfterSheet $event) {
                 $sheet    = $event->sheet->getDelegate();
                 $lastRow  = $sheet->getHighestRow();
-                $dataStart = 5; // rows 1-3 = header; row 4 = col headers; row 5+ = data
+                $dataEnd  = $lastRow - 1; // última fila de datos (antes de totales)
 
-                // ── Process data rows + totals row ───────────────────────────
-                for ($row = $dataStart; $row <= $lastRow; $row++) {
-
-                    // Convert numeric columns D-I to real numbers + apply format
-                    foreach (['D', 'E', 'F', 'G', 'H', 'I'] as $col) {
-                        $cell  = $sheet->getCell($col . $row);
-                        $value = $cell->getValue();
-                        if ($value !== null && trim((string) $value) !== '') {
-                            $numeric = (float) str_replace(',', '', (string) $value);
-                            $cell->setValue($numeric);
-                            // EXONERADO keeps plain number; GRAVADO-TOTAL get Lempira symbol
-                            $formatCode = ($col === 'D') ? '#,##0.00' : '"L"\  #,##0.00';
-                            $sheet->getStyle($col . $row)
-                                ->getNumberFormat()
-                                ->setFormatCode($formatCode);
-                        }
-                    }
-
-                    // Convert date column J to proper Excel date with long format
-                    $dateCell  = $sheet->getCell('J' . $row);
-                    $dateValue = $dateCell->getValue();
-                    if ($dateValue !== null && trim((string) $dateValue) !== '') {
-                        $timestamp = strtotime((string) $dateValue);
-                        if ($timestamp !== false) {
-                            $dateCell->setValue(ExcelDate::PHPToExcel($timestamp));
-                            $sheet->getStyle('J' . $row)
-                                ->getNumberFormat()
-                                ->setFormatCode('dd/mm/yyyy hh:mm:ss');
-                        }
-                    }
-
-                    // Center-align all cells in the row
-                    $sheet->getStyle("A{$row}:J{$row}")
-                        ->getAlignment()
-                        ->setHorizontal(Alignment::HORIZONTAL_CENTER)
-                        ->setVertical(Alignment::VERTICAL_CENTER);
-
-                    // VENDEDOR and CLIENTE always left-aligned
-                    $sheet->getStyle("A{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
-                    $sheet->getStyle("B{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
-
-                    // Alternating row colors for data rows (exclude totals row)
-                    if ($row < $lastRow) {
-                        if ($row % 2 === 0) {
-                            $sheet->getStyle("A{$row}:J{$row}")
-                                ->getFill()
-                                ->setFillType(Fill::FILL_SOLID)
-                                ->getStartColor()->setRGB('EBF3FB');
-                        } else {
-                            $sheet->getStyle("A{$row}:J{$row}")
-                                ->getFill()
-                                ->setFillType(Fill::FILL_SOLID)
-                                ->getStartColor()->setRGB('FFFFFF');
-                        }
-                        $sheet->getRowDimension($row)->setRowHeight(16);
-                    }
+                if ($lastRow < 5) {
+                    return;
                 }
 
-                // ── Totals row styling ───────────────────────────────────────
-                $sheet->getStyle("A{$lastRow}:J{$lastRow}")
-                    ->getFont()->setBold(true)->setSize(10);
-                $sheet->getStyle("A{$lastRow}:J{$lastRow}")
-                    ->getFill()
-                    ->setFillType(Fill::FILL_SOLID)
-                    ->getStartColor()->setRGB('BDD7EE');
-                $sheet->getStyle("A{$lastRow}:J{$lastRow}")
-                    ->getFont()->getColor()->setRGB('1F3864');
+                // ── Formato numérico por columna (una sola llamada por columna) ──
+                $numFmt  = '#,##0.00';
+                $lpsCol  = ['F', 'G', 'H', 'I', 'J']; // con prefijo L
+                $exonCol = 'E'; // sin prefijo
+
+                if ($lastRow >= 5) {
+                    $sheet->getStyle("E5:E{$lastRow}")->getNumberFormat()->setFormatCode($numFmt);
+                    foreach ($lpsCol as $col) {
+                        $sheet->getStyle("{$col}5:{$col}{$lastRow}")->getNumberFormat()->setFormatCode($numFmt);
+                    }
+                    // Fecha por columna
+                    $sheet->getStyle("K5:K{$lastRow}")->getNumberFormat()
+                        ->setFormatCode(NumberFormat::FORMAT_DATE_DATETIME);
+                }
+
+                // ── Alineación de toda la tabla de datos en bloque ──
+                $sheet->getStyle("A5:K{$lastRow}")->getAlignment()
+                    ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+                    ->setVertical(Alignment::VERTICAL_CENTER);
+
+                // Asesor, teleasesor y cliente — izquierda (por columna completa)
+                $sheet->getStyle("A5:A{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+                $sheet->getStyle("B5:B{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+                $sheet->getStyle("C5:C{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+
+                // ── Alto de filas por defecto (evita iterar fila por fila) ──
+                $sheet->getDefaultRowDimension()->setRowHeight(15);
+
+                // ── Fila de totales ──
+                $sheet->getStyle("A{$lastRow}:K{$lastRow}")->applyFromArray([
+                    'font' => ['bold' => true, 'size' => 10, 'color' => ['rgb' => '7D3F00']],
+                    'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FFF3E0']],
+                ]);
                 $sheet->getRowDimension($lastRow)->setRowHeight(18);
 
-                // ── Borders for the full table (row 4 → lastRow) ─────────────
-                $tableRange = "A4:J{$lastRow}";
-                $sheet->getStyle($tableRange)->getBorders()->getAllBorders()
-                    ->setBorderStyle(Border::BORDER_THIN)
-                    ->getColor()->setRGB('B0C4DE');
-
-                $sheet->getStyle($tableRange)->getBorders()->getOutline()
+                // ── Bordes de toda la tabla en una sola llamada ──
+                $tableRange = "A4:K{$lastRow}";
+                $sheet->getStyle($tableRange)->getBorders()->applyFromArray([
+                    'allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'E8D5BF']],
+                    'outline'    => ['borderStyle' => Border::BORDER_MEDIUM, 'color' => ['rgb' => 'E07000']],
+                ]);
+                $sheet->getStyle("A4:K4")->getBorders()->getBottom()
                     ->setBorderStyle(Border::BORDER_MEDIUM)
-                    ->getColor()->setRGB('1F3864');
-
-                // Thicker bottom border on column-header row
-                $sheet->getStyle("A4:J4")->getBorders()->getBottom()
-                    ->setBorderStyle(Border::BORDER_MEDIUM)
-                    ->getColor()->setRGB('1F3864');
-
-                // ── Footer logo (same image, placed below the totals row) ─────
-                $footerRow = $lastRow + 3;
-                $footerDrawing = new Drawing();
-                $footerDrawing->setName('Footer Logo Valencia');
-                $footerDrawing->setDescription('Logo footer');
-                $footerDrawing->setPath(public_path('img/membrete/Logo3.png'));
-                $footerDrawing->setHeight(60);
-                $footerDrawing->setCoordinates('D' . $footerRow);
-                $footerDrawing->setOffsetX(10);
-                $footerDrawing->setOffsetY(5);
-                $footerDrawing->setWorksheet($sheet);
+                    ->getColor()->setRGB('B05000');
             },
         ];
     }

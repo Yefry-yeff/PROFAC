@@ -28,6 +28,7 @@ use App\Exports\ClientesExport;
 use App\Exports\Escalas\ClientesCategoriaPlantillaExport;
 use App\Imports\Escalas\ClientesCategoriaMasivaImport;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use ZipArchive;
 use Illuminate\Support\Facades\Log;
 
@@ -103,7 +104,7 @@ class Cliente extends Component
 
     public function listaVendedores(){
         $vendedor = DB::SELECT("
-        select id, name from users where rol_id = 2
+        select id, name from users where rol_id IN (2,3) and estado_id = 1
         ");
 
         return response()->json([
@@ -169,9 +170,10 @@ class Cliente extends Component
             $cliente->dias_credito=$request->dias_credito;
             $cliente->latitud =TRIM($request->latitud_cliente);
             $cliente->longitud =TRIM($request->longitud_cliente);
-            $cliente->tipo_cliente_id = $request->categoria_cliente;
+            // Todo cliente nuevo se registra siempre como Estatal (A), sin importar lo enviado.
+            $cliente->tipo_cliente_id = 2;
             $cliente->tipo_personalidad_id = $request->tipo_personalidad ;
-            $cliente->categoria_id = $request->categoria_cliente ;
+            $cliente->categoria_id = 2 ;
             $cliente->vendedor = $request->vendedor_cliente ;
             $cliente->users_id = Auth::user()->id;
             $cliente->estado_cliente_id = 1;
@@ -218,9 +220,10 @@ class Cliente extends Component
                 $cliente->dias_credito=TRIM($request->dias_credito);
                 $cliente->latitud =TRIM($request->latitud_cliente);
                 $cliente->longitud =TRIM($request->longitud_cliente);
-                $cliente->tipo_cliente_id = $request->categoria_cliente;
+                // Todo cliente nuevo se registra siempre como Estatal (A), sin importar lo enviado.
+                $cliente->tipo_cliente_id = 2;
                 $cliente->tipo_personalidad_id = $request->tipo_personalidad ;
-                $cliente->categoria_id = $request->categoria_cliente ;
+                $cliente->categoria_id = 2 ;
                 $cliente->vendedor = $request->vendedor_cliente ;
                 $cliente->users_id = Auth::user()->id;
                 $cliente->estado_cliente_id = 1;
@@ -255,6 +258,8 @@ class Cliente extends Component
 
         }
 
+        $this->registrarAsesorComercialEnCartera($cliente, $request->vendedor_cliente);
+
         DB::commit();
         return response()->json([
             "icon" => "success",
@@ -281,10 +286,52 @@ class Cliente extends Component
        }
     }
 
+    private function registrarAsesorComercialEnCartera(ModelCliente $cliente, $asesorId): void
+    {
+        $asesorId = (int) $asesorId;
+        if ($asesorId <= 0) {
+            return;
+        }
+
+        $asignacionExiste = DB::table('cliente_usuario')
+            ->where('cliente_id', $cliente->id)
+            ->where('usuario_id', $asesorId)
+            ->where('rol_id', 2)
+            ->exists();
+
+        if ($asignacionExiste) {
+            return;
+        }
+
+        DB::table('cliente_usuario')->insert([
+            'cliente_id' => $cliente->id,
+            'usuario_id' => $asesorId,
+            'rol_id' => 2,
+            'fecha_asignacion' => now(),
+            'asignado_por' => Auth::id(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('cliente_asesor_auditoria')->insert([
+            'cliente_id' => $cliente->id,
+            'asesor_id' => $asesorId,
+            'tipo' => 'Asesor Comercial',
+            'accion' => 'INSERT',
+            'usuario' => Auth::id(),
+            'comentario' => 'Asignación al crear cliente',
+            'lote_id' => (string) Str::uuid(),
+            'fecha' => now(),
+        ]);
+    }
+
     public function listarClientes(){
        try {
+            $rolId  = (int) (Auth::user()->rol_id ?? 0);
+            $userId = (int) Auth::id();
+            $soloAsignados = !in_array($rolId, [1, 4], true);
 
-            $clientes = DB::SELECT("
+            $sql = "
             select
                 cliente.id as idCliente,
                 (select nombre_categoria from cliente_categoria_escala where id = cliente_categoria_escala_id ) as categoria_escala_cliente,
@@ -300,7 +347,9 @@ class Cliente extends Component
             from cliente
             inner join estado_cliente on estado_cliente.id = cliente.estado_cliente_id
             inner join users on users.id = cliente.users_id
-            ");
+            " . ($soloAsignados ? " WHERE cliente.vendedor = {$userId}" : "");
+
+            $clientes = DB::SELECT($sql);
 
 
             return Datatables::of($clientes)
@@ -448,9 +497,13 @@ class Cliente extends Component
         $cliente->dias_credito = trim($request->dias_credito_editar);
         $cliente->latitud = trim($request->latitud_cliente_editar);
         $cliente->longitud = trim($request->longitud_cliente_editar);
-        $cliente->tipo_cliente_id = $request->categoria_cliente_editar;
+        // Solo roles autorizados (Administrador, Créditos y Cobros) pueden cambiar el tipo de cliente al editar.
+        $puedeEditarTipoCliente = in_array((int) (Auth::user()->rol_id ?? 0), [1, 4], true);
+        if ($puedeEditarTipoCliente && $request->filled('categoria_cliente_editar')) {
+            $cliente->tipo_cliente_id = $request->categoria_cliente_editar;
+            $cliente->categoria_id = $request->categoria_cliente_editar;
+        }
         $cliente->tipo_personalidad_id = $request->tipo_personalidad_editar;
-        $cliente->categoria_id = $request->categoria_cliente_editar;
         $cliente->vendedor = $request->vendedor_cliente_editar;
         $cliente->users_id = Auth::user()->id;
         $cliente->estado_cliente_id = 1;
@@ -830,7 +883,6 @@ class Cliente extends Component
                 $qq->where('nombre_categoria', 'like', '%'.$q.'%');
             })
             ->orderBy('nombre_categoria')
-            ->limit(50)
             ->get();
 
         return response()->json(['categorias' => $cats], 200);
@@ -1042,13 +1094,17 @@ class Cliente extends Component
 
             $contactos = DB::select("SELECT id, nombre, telefono FROM contacto WHERE estado_id = 1 AND cliente_id = ? ORDER BY id ASC LIMIT 2", [$id]);
 
-            $ubicacion = $datosCliente->municipio_id
-                ? DB::selectOne("SELECT C.id as idPais, A.id as idDepto, B.id as idMunicipio
+            $ubicacion = null;
+            if (!empty($datosCliente->municipio_id)) {
+                $ubicacion = DB::selectOne("SELECT C.id as idPais, A.id as idDepto, B.id as idMunicipio
                     FROM departamento A
                     INNER JOIN municipio B ON A.id = B.departamento_id
                     INNER JOIN pais C ON C.id = A.pais_id
-                    WHERE B.id = ?", [$datosCliente->municipio_id])
-                : (object)['idPais' => null, 'idDepto' => null, 'idMunicipio' => null];
+                    WHERE B.id = ?", [$datosCliente->municipio_id]);
+            }
+            if (!$ubicacion) {
+                $ubicacion = (object)['idPais' => null, 'idDepto' => null, 'idMunicipio' => null];
+            }
 
             $paises     = DB::select("SELECT id, nombre FROM pais ORDER BY nombre ASC");
             $deptos     = $ubicacion->idPais   ? DB::select("SELECT id, nombre FROM departamento WHERE pais_id = ? ORDER BY nombre ASC", [$ubicacion->idPais])   : [];
@@ -1069,6 +1125,45 @@ class Cliente extends Component
             /* Tipos de documento marcados como "tiene físico" */
             $docFisico = DB::select("SELECT tipo_documento FROM cliente_doc_fisico WHERE cliente_id = ?", [$id]);
             $docFisicoList = array_column((array)$docFisico, 'tipo_documento');
+
+            // Alinear con Cuentas por Cobrar: asegurar que aplicacion_pagos
+            // esté sincronizada con facturas activas antes de calcular disponible.
+            $existenciaAplicacion = DB::selectOne(" 
+                SELECT COUNT(*) AS existe
+                FROM aplicacion_pagos ap
+                INNER JOIN factura fa ON fa.id = ap.factura_id
+                WHERE ap.estado = 1
+                  AND fa.estado_venta_id = 1
+                  AND fa.cliente_id = ?
+            ", [$id]);
+
+            $facturasActivas = DB::selectOne(" 
+                SELECT COUNT(*) AS num
+                FROM factura fa
+                WHERE fa.estado_venta_id = 1
+                  AND fa.cliente_id = ?
+            ", [$id]);
+
+            $facturasEnPagos = DB::selectOne(" 
+                SELECT COUNT(*) AS num
+                FROM aplicacion_pagos ap
+                WHERE ap.factura_id IN (
+                    SELECT fa.id
+                    FROM factura fa
+                    WHERE fa.estado_venta_id = 1
+                      AND fa.cliente_id = ?
+                )
+            ", [$id]);
+
+            if ((int)($existenciaAplicacion->existe ?? 0) === 0) {
+                DB::select(" 
+                    CALL sp_aplicacion_pagos('1', ?, ?, '0','na','0','0','0', @estado, @msjResultado)
+                ", [$id, (int)(Auth::id() ?? 1)]);
+            } elseif ((int)($facturasActivas->num ?? 0) > (int)($facturasEnPagos->num ?? 0)) {
+                DB::select(" 
+                    CALL sp_aplicacion_pagos('3', ?, ?, '0','na','0','0','0', @estado, @msjResultado)
+                ", [$id, (int)(Auth::id() ?? 1)]);
+            }
 
             $montoDisponible = CreditoService::calcularDisponible((int)$id, (float)($datosCliente->credito_inicial ?? 0));
 
@@ -1156,6 +1251,10 @@ class Cliente extends Component
             if ($nombreImagen) $cliente->url_imagen = $nombreImagen;
             $cliente->save();
 
+            // El vendedor seleccionado es también el Asesor Comercial inicial
+            // del cliente dentro del módulo Cartera de Clientes.
+            $this->registrarAsesorComercialEnCartera($cliente, $cliente->vendedor);
+
             // ---- contactos ----
             foreach ([
                 ['nombre' => 'nombre_contacto1', 'telefono' => 'telefono_contacto1'],
@@ -1214,20 +1313,20 @@ class Cliente extends Component
             $nombre = trim(str_replace(["'", '"', '´'], ' ', $request->nombre_cliente));
             $cliente->nombre                     = $nombre;
             $cliente->rtn                        = trim($request->rtn_cliente ?? '');
-            $cliente->tipo_personalidad_id       = $request->tipo_personalidad_id;
-            $cliente->tipo_cliente_id            = $request->tipo_cliente_id;
-            $cliente->categoria_id               = $request->tipo_cliente_id;
+            $cliente->tipo_personalidad_id       = $request->tipo_personalidad_id ?: $cliente->tipo_personalidad_id;
+            $cliente->tipo_cliente_id            = $request->tipo_cliente_id ?: $cliente->tipo_cliente_id;
+            $cliente->categoria_id               = $request->tipo_cliente_id ?: $cliente->tipo_cliente_id ?: $cliente->categoria_id;
             $cliente->ano_operacion              = $request->ano_operacion ?? null;
             $cliente->dni_representante_legal    = trim($request->dni_representante ?? '');
             $cliente->estado_cliente_id          = $request->estado_activo ? 1 : 2;
             $cliente->correo                     = trim($request->correo ?? '');
             $cliente->telefono_empresa           = trim($request->telefono ?? '');
             $cliente->direccion                  = trim($request->direccion ?? '');
-            $cliente->municipio_id               = $request->municipio_id ?? $cliente->municipio_id;
-            $cliente->vendedor                   = $request->dp_vendedor_id ?? $request->vendedor_id ?? $cliente->vendedor;
-            $cliente->metodo_pago                = trim($request->dp_metodo_pago ?? $cliente->metodo_pago ?? '');
+            $cliente->municipio_id               = $request->municipio_id ?: $cliente->municipio_id;
+            $cliente->vendedor                   = ($request->dp_vendedor_id ?: $request->vendedor_id) ?: $cliente->vendedor;
+            $cliente->metodo_pago                = trim($request->dp_metodo_pago ?? '') ?: ($cliente->metodo_pago ?? '');
             $cliente->users_id                   = Auth::user()->id;
-            $cliente->cliente_categoria_escala_id = $request->cliente_categoria_escala_id ?? $cliente->cliente_categoria_escala_id;
+            $cliente->cliente_categoria_escala_id = $request->cliente_categoria_escala_id ?: $cliente->cliente_categoria_escala_id;
 
             // Track exact fields changed using Laravel dirty detection
             $fieldLabels = [
@@ -1243,6 +1342,10 @@ class Cliente extends Component
             $logDesc = count($changed) > 0 ? 'Campos: ' . implode(', ', $changed) : 'Sin cambios en datos principales';
 
             $cliente->save();
+
+            // Si se seleccionó un nuevo vendedor, incorporarlo a la cartera sin
+            // eliminar otros asesores comerciales asignados al mismo cliente.
+            $this->registrarAsesorComercialEnCartera($cliente, $cliente->vendedor);
 
             // ---- contactos ----
             ModelContacto::where('cliente_id', $id)->update(['estado_id' => 2]);
@@ -1272,6 +1375,14 @@ class Cliente extends Component
      */
     public function guardarCredito(Request $request)
     {
+        if (!$this->puedeGestionarCreditoYReferencias()) {
+            return response()->json([
+                'icon' => 'info',
+                'title' => 'Solo visualización',
+                'text' => 'No tiene permisos para modificar datos de crédito.'
+            ], 403);
+        }
+
         try {
             DB::beginTransaction();
             $id = $request->cliente_id;
@@ -1333,6 +1444,14 @@ class Cliente extends Component
      */
     public function guardarObservacion(Request $request)
     {
+        if (!$this->puedeEditarObservacionesGerencia()) {
+            return response()->json([
+                'icon' => 'info',
+                'title' => 'Solo visualización',
+                'text' => 'No tiene permisos para modificar observaciones.'
+            ], 403);
+        }
+
         try {
             $obs = ClienteObservacion::create([
                 'cliente_id' => $request->cliente_id,
@@ -1558,10 +1677,16 @@ class Cliente extends Component
      */
     public function vistaFormCliente(Request $request)
     {
-        $id = $request->route('id');
-        $clientes     = DB::select("SELECT id, name FROM users WHERE rol_id = 2 ORDER BY name ASC");
-        $metodosPago  = DB::select("SELECT id, descripcion FROM tipo_pago_cobro ORDER BY id ASC");
-        return view('livewire.clientes.cliente-form', compact('id', 'clientes', 'metodosPago'));
+        $id          = $request->route('id');
+        $rolId       = (int) (Auth::user()->rol_id ?? 0);
+        $clientes    = DB::select("SELECT id, name FROM users WHERE rol_id = 2 ORDER BY name ASC");
+        $metodosPago = DB::select("SELECT id, descripcion FROM tipo_pago_cobro ORDER BY id ASC");
+        $categoriasEscala = DB::table('cliente_categoria_escala')
+            ->select('id', 'nombre_categoria')
+            ->where('estado_id', 1)
+            ->orderBy('nombre_categoria')
+            ->get();
+        return view('livewire.clientes.cliente-form', compact('id', 'clientes', 'metodosPago', 'categoriasEscala'));
     }
 
     private function logHistorial(int $clienteId, string $accion, ?string $descripcion = null): void
@@ -1581,6 +1706,14 @@ class Cliente extends Component
      */
     public function guardarReferencias(Request $request)
     {
+        if (!$this->puedeGestionarCreditoYReferencias()) {
+            return response()->json([
+                'icon' => 'info',
+                'title' => 'Solo visualización',
+                'text' => 'No tiene permisos para modificar referencias.'
+            ], 403);
+        }
+
         try {
             $id      = $request->cliente_id;
             $cliente = ModelCliente::findOrFail($id);
@@ -1603,6 +1736,14 @@ class Cliente extends Component
      */
     public function guardarAutorizacionGerencia(Request $request)
     {
+        if (!$this->puedeEditarObservacionesGerencia()) {
+            return response()->json([
+                'icon' => 'info',
+                'title' => 'Solo visualización',
+                'text' => 'No tiene permisos para modificar observación de gerencia.'
+            ], 403);
+        }
+
         try {
             $id      = $request->cliente_id;
             $credito = ClienteCredito::where('cliente_id', $id)->where('activo', 1)->first();
@@ -1675,6 +1816,18 @@ class Cliente extends Component
         }
 
         return null; // todo OK
+    }
+
+    private function puedeGestionarCreditoYReferencias(): bool
+    {
+        $rolId = (int) (Auth::user()->rol_id ?? 0);
+        return in_array($rolId, [1, 4], true);
+    }
+
+    private function puedeEditarObservacionesGerencia(): bool
+    {
+        $rolId = (int) (Auth::user()->rol_id ?? 0);
+        return in_array($rolId, [1, 4], true);
     }
 
 }

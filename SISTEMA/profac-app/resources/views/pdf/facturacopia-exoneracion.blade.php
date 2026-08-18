@@ -1,319 +1,284 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 
 <head>
-
-
         <link rel="stylesheet" href="{{ public_path('css/bootstrap.min.css') }}">
     <style>
+        @page {
+            margin: 320px 28px 38px 28px;
+        }
+
         .color-red {
             color: red;
         }
 
         p {
-            font-size: 12px;
+            font-size: 10px;
         }
 
         body {
-
-           /*  background-size: 100% 100%; */
-            margin-left: -95px;
-            padding: 50px;
-            /* ##background-image: url('img/membrete/Logo1.png'); */
-
-
-            width: 45rem;
-            height: 3rem;
-
-
+            margin: 0;
+            padding: 0;
+            width: 100%;
         }
-
 
         table {
             border-collapse: collapse;
             border-spacing: 0;
             width: 100%;
-            border: 1px solid #ddd;
+        }
+
+        .card-body {
+            position: static !important;
         }
 
         th,
         td {
             text-align: left;
             padding: 2px;
-
         }
 
         thead {
-            background-color: #f2f2f2
+            background-color: #f2f2f2;
+            display: table-header-group;
         }
 
-        /* tr:nth-child(even) {
-            background-color: #f2f2f2
-        } */
+        #encabezado-fijo {
+            position: fixed;
+            top: -312px;
+            left: 0;
+            right: 0;
+            width: 100%;
+            font-size: 10px;
+        }
 
         .letra {
             font-weight: 800;
+        }
 
+        .encabezado-celda {
+            background-color: #fff;
+            font-weight: normal;
+            border: none;
+            padding: 0;
+        }
 
+        tbody td {
+            border: none;
+        }
+
+        tbody tr {
+            page-break-inside: avoid;
         }
     </style>
-    <title>FACTURA</title>
+    <title>FACTURA EXONERADA COPIA</title>
 </head>
 
 <body>
 
     @php
-        $altura = 200;
-        $altura2 = 320;
-        $contadorFilas = 0;
-        $contPe = 0;
-        $p1 = 24;
-        $p2 = 30;
-        $vueltasTabla = 0;
+        $usuarioImpresion = auth()->check() ? auth()->user()->name : 'Usuario';
+        $fechaImpresion   = now()->format('d/m/Y H:i');
     @endphp
 
+    @if ($cai->estado_venta_id == 2)
+    <div style="position:fixed; top:30%; left:0; width:100%; text-align:center; transform:rotate(-45deg); opacity:0.18; z-index:9999;">
+        <p style="font-size:90px; font-weight:900; color:#cc0000; letter-spacing:8px; margin:0;">FACTURA ANULADA</p>
+    </div>
+    @endif
+
+    {{-- ENCABEZADO FIJO: se repite en todas las páginas (position:fixed en DomPDF) --}}
+    <div id="encabezado-fijo">
+
+        {{-- LOGO --}}
+        <img src="{{ public_path('img/membrete/Logo3.png') }}"
+             style="display:block; width:100%; margin-bottom:2px;" alt="">
+
+        {{-- TARJETA: DATOS DE FACTURA --}}
+        <div class="card border border-dark" style="margin-left:0; margin-top:2px; width:100%;">
+            <div class="card-header" style="padding:3px 8px; display:table; width:100%; box-sizing:border-box;">
+                <b style="display:table-cell; text-align:left;">Factura No. {{ $cai->numero_factura }} </b>
+                <b style="display:table-cell; text-align:center;"> *Copia* </b>
+                <b style="display:table-cell; text-align:right;">Factura de: {{ $cai->descripcion }}</b>
+            </div>
+            <div class="card-body" style="padding:4px 10px;">
+                <table style="width:100%; border:none; border-collapse:collapse; font-size:10px;">
+                    <tr>
+                        <td style="border:none; padding:1px 0;"><b>Registro tributario: 08011986138652</b></td>
+                        <td style="border:none; padding:1px 0; text-align:right;"><b>CAI: {{ $cai->cai }}</b></td>
+                    </tr>
+                    <tr>
+                        <td style="border:none; padding:1px 0;"><b>Fecha l&iacute;mite de emisi&oacute;n: {{ $cai->fecha_limite_emision }}</b></td>
+                        <td style="border:none; padding:1px 0; text-align:right;"><b>Rango autorizado: {{ $cai->numero_inicial }} - {{ $cai->numero_final }}</b></td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        {{-- TARJETA: DATOS DEL CLIENTE --}}
+        <div class="card border border-dark" style="margin-left:0; margin-top:4px; width:100%;">
+            <div class="card-body" style="padding:4px 10px;">
+                <table style="width:100%; border:none; border-collapse:collapse; font-size:10px;">
+                    <tr>
+                        <td style="width:58%; vertical-align:top; padding:0; border:none;">
+                            <p style="margin:0 0 2px;"><b>Cliente:</b> {{ $cliente->nombre }} - ({{ $cliente->clienteId }})</p>
+                            <p style="margin:0 0 2px;"><b>Direcci&oacute;n:</b> {{ $cliente->direccion }}</p>
+                            <p style="margin:0 0 2px;"><b>Correo:</b> {{ $cliente->correo }} &nbsp;&nbsp; <b>Tel&eacute;fono:</b> {{ $cliente->telefono_empresa }}</p>
+                            <p style="margin:0;"><b>Notas:</b> {{ $cai->comentario }}</p>
+                        </td>
+                        <td style="width:42%; vertical-align:top; padding:0 0 0 10px; border:none; border-left:1px solid #ccc;">
+                            <p style="margin:0 0 2px;"><b>Fecha:</b> {{ $cai->fecha_emision }}</p>
+                            <p style="margin:0 0 2px;"><b>Hora:</b> {{ $cai->hora }}</p>
+                            <p style="margin:0 0 2px;"><b>Vence:</b> {{ $cai->fecha_vencimiento }}</p>
+                            <p style="margin:0 0 2px;"><b>RTN:</b> {{ $cliente->rtn }}</p>
+                            <p style="margin:0 0 2px;"><b>Orden N&deg;:</b> {{ $ordenCompra->numero_orden }}</p>
+                        </td>
+                    </tr>
+                </table>
+                <table style="width:100%; border:none; border-collapse:collapse; font-size:10px; margin-top:3px; border-top:1px solid #ccc;">
+                    <tr>
+                        <td style="width:33%; border:none; padding:2px 0 1px;"><b>Correlativo de Ord. exenta</b></td>
+                        <td style="width:34%; border:none; padding:2px 0 1px; text-align:center;"><b>Constancia de registro exonerado</b></td>
+                        <td style="width:33%; border:none; padding:2px 0 1px; text-align:right;"><b>Identificativo del registro de la SAG</b></td>
+                    </tr>
+                    <tr>
+                        <td style="border:none; height:14px; border-bottom:1px solid #aaa;">{{ strtoupper($cai->correlativoexo ?? '') }}</td>
+                        <td style="border:none; height:14px; border-bottom:1px solid #aaa; text-align:center;">{{ strtoupper($cai->codigo_exoneracion ?? '') }}</td>
+                        <td style="border:none; height:14px; border-bottom:1px solid #aaa;"></td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+    </div>{{-- fin #encabezado-fijo --}}
 
     <div class="pruebaFondo">
-        <img src="{{ public_path('img/membrete/Logo3.png') }}" width="800rem" style="margin-left:3%; margin-top:-25px; position:absolute;"alt="">
-        <div class="card border border-dark" style="margin-left:44px;  margin-top:150px; width:45rem; height:5.5rem;">
-            <div class="card-header">
-                <b>Factura No. {{$cai->numero_factura}} </b>
-                <b style="position:absolute;right: 270px"> *Copia* </b>
-                <b style="position:absolute;right: 10px" >Factura de: {{$cai->descripcion}}</b>
-            </div>
+        @php $cant = count($productos); @endphp
 
-            <div class="card-body">
-                <p class="card-text" style="position:absolute;left:20px;  top:50px;"><b>Registro tributario:
-                        08011986138652</b></p>
-                <p class="card-text" style="position:absolute;left:420px;  top:50px;"><b>CAI:
-                        {{$cai->cai}}</b></p>
-                <p class="card-text" style="position:absolute;left:20px;  top:65px;"><b>Fecha límite de emisión:
-                        {{$cai->fecha_limite_emision}}</b></p>
-                <p class="card-text" style="position:absolute;left:340px;  top:65px;"><b>Rango autorizado:
-                        {{$cai->numero_inicial}} - {{$cai->numero_final}}</b></p>
-            </div>
-        </div>
+        <table style="font-size:9px; width:100%; border-collapse:collapse; border: 1px solid #000; margin-top:8px;">
+            <thead>
+                {{-- FILA DE CABECERAS DE COLUMNAS (se repite via table-header-group) --}}
+                <tr>
+                    <th>Código</th>
+                    <th>Producto</th>
+                    <th>Bodega</th>
+                    <th>Seccion</th>
+                    <th>Medida</th>
+                    <th>Precio</th>
+                    <th>Cantidad</th>
+                    <th>Importe</th>
+                </tr>
+            </thead>
+                    <tbody>
+                        @foreach ($productos as $producto)
+                            <tr>
+                                <td>{{ $producto->codigo }}</td>
+                                <td>{{ $producto->descripcion }}</td>
+                                <td>{{ $producto->bodega }}</td>
+                                <td>{{ $producto->seccion }}</td>
+                                <td>{{ $producto->medida }}</td>
+                                <td>{{ $producto->precio }}</td>
+                                <td>{{ $producto->cantidad }}</td>
+                                <td>{{ $producto->importe }}</td>
+                            </tr>
+                        @endforeach
 
-        <div class="card border border-dark"   style="margin-left:44px; margin-top:10px; width:45rem; height:10.5rem;">
-            <div class="card-body">
-                <p class="card-text" style="position:absolute;left:20px;  top:10px;"><b>Cliente: </b>{{$cliente->nombre}} - ({{ $cliente->clienteId }})</p>
-                <p class="card-text" style="position:absolute;left:20px;  top:29px; font-size: 11 px; max-width:500px"><b>Dirección:</b> {{$cliente->direccion}}</p>
-
-                <p class="card-text" style="position:absolute;left:20px;  top:54px;"><b>Correo:</b> {{$cliente->correo}}
-                </p>
-                <p class="card-text" style="position:absolute;left:20px;  top:80px; max-width:680px"><b>Notas:</b>{{ $cai->comentario }} </p>
-
-
-                <p class="card-text "  style="position:absolute;left:20px;  top:127px;"><b>Correlativo de Ord. exenta</b>
-                </p>
-                <p class="card-text" style="position:absolute;left:250px;  top:127px;"><b>Constancia de registro
-                        exonerado</b></p>
-                <p class="card-text" style="position:absolute;left:500px;  top:127px;"><b>Identificativo del registro de
-                        la SAG</b></p>
-
-                <p class="card-text" style="position:absolute;left:250px;  top:141px;">{{strtoupper($cai->codigo_exoneracion)}}</p>
-
-                <p class="card-text" style="position:absolute;left:20px;  top:141px;">{{strtoupper($cai->correlativoexo)}}</p>
-
-
-                <p class="card-text" style="position:absolute;left:520px;  top:10px;"><b>Fecha:</b> {{$cai->fecha_emision}}</p>
-                <p class="card-text" style="position:absolute;left:520px;  top:25px;"><b>Hora:</b> {{$cai->hora}}</p>
-                <p class="card-text" style="position:absolute;left:520px;  top:40px;"><b>Vence:</b> {{$cai->fecha_vencimiento}}</p>
-                <p class="card-text" style="position:absolute;left:520px;  top:57px;"><b>RTN:</b> {{$cliente->rtn}}</p>
-                <p class="card-text" style="position:absolute;left:520px;  top:72px;"><b>Orden:</b>{{ $ordenCompra->numero_orden}}
-                </p>
+                        @php $altura = 50; $altura2 = 450; @endphp
+                    </tbody>
+            </table>
 
 
 
-                <p class="card-text" style="position:absolute;left:270px;  top:52px;"><b>Teléfono:</b> {{$cliente->telefono_empresa}}
-                </p>
-            </div>
-        </div>
+                <div style="position: relative; margin-top:6px; width:100%; min-height:14rem;">
 
-                 @php
-                    $cant = count($productos);
-                @endphp
-                <div class="" style="position: relative; margin-left:44px; margin-top:10px; width:45rem">
+                    <div class="card border border-dark" style="position:absolute;left:0; width:57%;">
+                        <div class="card-body" style="padding:4px 8px;">
+                            <p style="margin:0 0 1px; font-size:10px;"><b>Asesor comercial:</b> {{ $cai->vendedor }} &nbsp; <b>Tele asesor:</b> {{ $cai->facturador }} &nbsp; <b>Asesor de entrega:</b> {{ $cai->asesor_entrega ?? '' }}</p>
+                            <p style="margin:0 0 2px; font-size:10px;"><b>Trámite #{{ $cai->flujo_id ?? '—' }}</b></p>
+                            <hr style="margin:2px 0; border-top:1px solid #999;">
+                            <p style="margin:0 0 1px; font-size:9px;">1. Por cada cheque devuelto se cobra 750 lempiras.</p>
+                            <p style="margin:0 0 1px; font-size:9px;">2. Toda cuenta vencida pagara el 3.25% de interés mensual.</p>
+                            <p style="margin:0 0 1px; font-size:9px;">3. El único comprobante de pago de ésta factura es el emitido por distribuciones valencia.</p>
+                            <p style="margin:0 0 1px; font-size:9px;">4. No se aceptan reclamos ni devoluciones después de 10 días.</p>
+                            <p style="margin:0 0 1px; font-size:9px;">5. La firma del cliente o representante en la factura, da por hecho que acepta y obliga a este a cumplir con todas las condiciones estipuladas.</p>
+                            <p style="margin:0 0 1px; font-size:9px;">6. El cliente debera realizar el pago de la factura a su fecha de vencimiento, en caso de incumplimiento de pago, este se compromete a aceptar otros procesos de cobros a la vez renuncia a su domicilio para efectos legales y somete a la jurisdicción de tegucigalpa municipio del distrito central.</p>
+                            <p style="margin:0; font-size:9px;">7. Las entregas y creditos para cuentas con facturas vencidas serán congeladas hasta el pago de las mismas haya sido efectuado en su totalidad.
+                                @if ($cai->estado_factura == 1)
+                                    N{{ $cai->numero }}-CF11
+                                @else
+                                    N{{ $cai->numero }}-CF12
+                                @endif
+                            </p>
+                        </div>
+                    </div>
 
-                    <div>
-
-                        <table class="" style="font-size: 10px; ">
-                            <thead>
+                    <div class="card border border-dark" style="position:absolute;right:0; width:41%;">
+                        <div class="card-body" style="padding:4px 8px;">
+                            <table style="width:100%; border:none; border-collapse:collapse; font-size:10px;">
                                 <tr>
-                                    <th>Código</th>
-                                    <th>Producto</th>
-                                    <th>Bodega</th>
-                                    <th>Seccion</th>
-                                    <th>Medida</th>
-                                    <th>Precio </th>
-                                    <th>Cantidad</th>
-                                    <th>Importe</th>
+                                    <td style="border:none; padding:1px 0;">Importe Exonerado:</td>
+                                    <td style="border:none; padding:1px 0; text-align:right;">L. 0.00</td>
                                 </tr>
-                            </thead>
-                            <tbody>
-
-                                @foreach ($productos as $producto)
-                                    <tr>
-                                        <td>{{ $producto->codigo }}</td>
-                                        <td>{{ $producto->descripcion }}</td>
-                                        <td>{{ $producto->bodega }}</td>
-                                        <td>{{ $producto->seccion }}</td>
-                                         <td>{{ $producto->medida }}</td>
-                                        <td>{{ $producto->precio }}</td>
-                                        <td>{{ $producto->cantidad }}</td>
-                                        <td>{{ $producto->importe }}</td>
-                                    </tr>
-                                @endforeach
-
-
-                                @php
-
-                                    $altura = 50;
-                                    $altura2 = 450;
-                                @endphp
-
-                            </tbody>
-
-
-                        </table>
-
+                                <tr>
+                                    <td style="border:none; padding:1px 0;">Importe Gravado 15%:</td>
+                                    <td style="border:none; padding:1px 0; text-align:right;">L. 0.00</td>
+                                </tr>
+                                <tr>
+                                    <td style="border:none; padding:1px 0;">Importe Gravado 18%:</td>
+                                    <td style="border:none; padding:1px 0; text-align:right;">L. 0.00</td>
+                                </tr>
+                                <tr>
+                                    <td style="border:none; padding:1px 0;">Importe Exento:</td>
+                                    <td style="border:none; padding:1px 0; text-align:right;">L. {{ $importesConCentavos->sub_total }}</td>
+                                </tr>
+                                <tr>
+                                    <td style="border:none; padding:1px 0;">Desc. y Rebajas {{$importes->porc_descuento}}%:</td>
+                                    <td style="border:none; padding:1px 0; text-align:right;">L. {{$importesConCentavos->monto_descuento}}</td>
+                                </tr>
+                                <tr>
+                                    <td style="border:none; padding:1px 0;">Sub Total:</td>
+                                    <td style="border:none; padding:1px 0; text-align:right;">L. {{ $importesConCentavos->sub_total }}</td>
+                                </tr>
+                                <tr>
+                                    <td style="border:none; padding:1px 0;">Impuesto sobre venta 15%:</td>
+                                    <td style="border:none; padding:1px 0; text-align:right;">L. 0.00</td>
+                                </tr>
+                                <tr>
+                                    <td style="border:none; padding:1px 0;">Impuesto sobre venta 18%:</td>
+                                    <td style="border:none; padding:1px 0; text-align:right;">L. 0.00</td>
+                                </tr>
+                                <tr>
+                                    <td style="border:none; padding:3px 0 1px; border-top:1px solid #999;"><b>Total a Pagar:</b></td>
+                                    <td style="border:none; padding:3px 0 1px; text-align:right; border-top:1px solid #999;"><b>L. {{ $importesConCentavos->sub_total }}</b></td>
+                                </tr>
+                                <tr>
+                                    <td colspan="2" style="border:none; padding:2px 0 0; font-size:8px;">
+                                        <b>@if ($flagCentavos == false)"{{ $numeroLetras . ' CON CERO CENTAVOS' }}"@else"{{ $numeroLetras }}"@endif</b>
+                                    </td>
+                                </tr>
+                            </table>
+                            <p style="margin:3px 0 0; font-size:8px; text-align:center;">Original: Cliente, Copia obligado tributario emisor.</p>
+                        </div>
                     </div>
 
                 </div>
 
-
-
-                <div style=" position: relative; margin-left:44px; margin-top:30px; width:26rem; height:20rem;">
-
-
-                    <div class="card border border-dark" style="position:absolute;left:0px;  width:26rem; height:15rem;">
-                        <div class="card-body">
-
-
-                            <p class="card-text" style="position:absolute;left:10px;  top:2px; font-size:14px;"><b>Asesor comercial:
-                            </b>
-                            {{ $cai->vendedor }} </p>
-                            <p class="card-text" style="position:absolute;left:180px;  top:2px; font-size:14px;"><b>Tele asesor:
-                                </b>
-                                {{ $cai->facturador }} </p>
-                            <p class="card-text" style="position:absolute;left:10px;  top:18px; font-size:11px;"><b>Asesor de entrega:</b> {{ $cai->asesor_entrega ?? '' }}</p>
-
-                                <!--
-
-                                @if($cai->factura == 1)
-                                <p class="letra" style="position:absolute; right:10px;  top:2px; font-size:10px;">1</p>
-                                @else
-                                <p class="letra" style="position:absolute; right:10px;  top:2px; font-size:10px;">2</p>
-                                @endif   -->
-
-
-
-                            <p class="card-text" style="position:absolute;left:0px;  top:28px; font-size:11px;">
-                                ____________________________________________________________________</p>
-                            <p class="card-text" style="position:absolute;left:10px;  top:40px; font-size:11px;">1. por cada cheque
-                                devuelto se cobra 750 lempiras.</p>
-                            <p class="card-text" style="position:absolute;left:10px;  top:51px; font-size:11px">2. toda cuenta
-                                vencida pagara el 3.25% de interés mensual.</p>
-                            <p class="card-text" style="position:absolute;left:10px;  top:63px; font-size:11px">3. el único
-                                comprobante de pago de ésta factura es el emitido por distribuciones valencia.</p>
-                            <p class="card-text" style="position:absolute;left:10px;  top:95px; font-size:11px">4 no se aceptan
-                                reclamos ni devoluciones después de 10 días.</p>
-                            <p class="card-text" style="position:absolute;left:10px;  top:110px; font-size:11px">5. la firma del
-                                cliente o representante en la factura, da por hecho que acepta y obliga a este a cumplir con todas
-                                las condiciones estipuladas.</p>
-                            <p class="card-text" style="position:absolute;left:10px;  top:143px; font-size:11px">6. el cliente
-                                debera realizar el pago de la factura a su fecha de vencimiento, en caso de incumplimiento de pago,
-                                este se compromete a aceptar otros procesos de cobros a la vez renuncia a su domicilio para efectos
-                                legales y somete a la jurisdicción de tegucigalpa municipio del distrito central.</p>
-                            <p class="card-text" style="position:absolute;left:10px;  top:205px; font-size:11px">7. las entregas y
-                                creditos para cuentas con facturas vencidas serán congeladas hasta el pago de las mismas haya sido
-                                efectuado en su totalidad.
-
-                                @if($cai->estado_factura==1)
-                                <span style = "font-size: 10px">N{{$cai->numero}}-CF11</span></p>
-                                @else
-                                <span style = "font-size: 10px">N{{$cai->numero}}-CF12</span></p>
-                                @endif
-
-
-                            @if($flagCentavos == false)
-                            <p class="card-text" style="position:absolute;left:35px;  top:240px; font-size:12px;">"{{$numeroLetras." CON CERO CENTAVOS"}}"</p>
-
-                            @else
-                            <p class="card-text" style="position:absolute;left:35px;  top:240px; font-size:14px;">"{{$numeroLetras }}"</p>
-                            @endif
-                        </div>
-                    </div>
-
-                    <div class="card border border-dark" style="position:absolute;left:430px;   width:18rem; height:15rem;">
-                        <div class="card-body">
-                            <div>
-                                <p class="card-text " style="position:absolute; left:10px;  top:10px; font-size:14px;">Importe
-                                    exonerado:</p>
-                                <p class="card-text" style="position:absolute;  right:10px;  top:10px; font-size:14px;">L. 0.00</p>
-                            </div>
-                            <div>
-                                <p class="card-text" style="position:absolute; left:10px;  top:28px; font-size:14px;">Importe Gravado 15%: </p>
-                                <p class="card-text" style="position:absolute; right:10px;  top:28px; font-size:14px;">L. 0.00</p>
-                            </div>
-                            <div>
-                                <p class="card-text" style="position:absolute; left:10px;  top:46px; font-size:14px;">Importe Gravado 18%: </p>
-                                <p class="card-text" style="position:absolute; right:10px;  top:46px; font-size:14px;">L. 0.00</p>
-                            </div>
-
-                            <div>
-                                <p class="card-text" style="position:absolute; left:10px;  top:64px; font-size:14px;">Importe Exento:  </p>
-                                <p class="card-text" style="position:absolute; right:10px;  top:64px; font-size:14px;">L. {{$importesConCentavos->sub_total}}</p>
-                            </div>
-
-
-                            {{-- <p class="card-text" style="position:absolute; left:10px;  top:65px; font-size:16px;">Total Importe:
-                            </p>
-                            <p class="card-text" style="position:absolute; left:200px;  top:65px; font-size:16px;">1200.00</p> --}}
-
-                            {{--  <p class="card-text" style="position:absolute; left:10px;  top:85px; font-size:14px;">Desc. y Rebajas {{$importes->porc_descuento}}:
-                            </p>
-                            <p class="card-text" style="position:absolute; right:10px;  top:85px; font-size:14px;">L. {{$importesConCentavos->monto_descuento}}</p>
-  --}}
-                            <p class="card-text" style="position:absolute; left:10px;  top:105px; font-size:14px;">Sub Total:</p>
-                            <p class="card-text" style="position:absolute; right:10px;  top:105px; font-size:14px;">L. {{$importesConCentavos->sub_total}}</p>
-
-                            <p class="card-text" style="position:absolute; left:10px;  top:130px; font-size:14px;">Impuesto sobre
-                                venta 15%: </p>
-                            <p class="card-text" style="position:absolute; right:10px;  top:130px; font-size:14px;"> L. 0.00</p>
-
-                            <p class="card-text" style="position:absolute; left:10px;  top:148px; font-size:14px;">Impuesto sobre
-                                venta 18%: </p>
-                            <p class="card-text" style="position:absolute; right:10px;  top:148px; font-size:14px;"> L. 0.00</p>
-
-                            <p class="card-text" style="position:absolute; left:10px;  top:185px; font-size:16px;"><b>Total a
-                                    Pagar: </b></p>
-                            <p class="card-text" style="position:absolute; right:10px;  top:185px; font-size:16px;"><b>L. {{$importesConCentavos->sub_total}}</b>
-                            </p>
-                        </div>
-                    </div>
-
-
-                    <div style="position:absolute; left:0px;   width:45rem; margin-top:300px">
-                        <p class="card-text" style="position:absolute;left:20px;  top:10px;">
-                            _______________________________________</p>
-                        <p class="card-text" style="position:absolute;left:450px;  top:10px;">
-                            _______________________________________</p>
-                        <p class="card-text" style="position:absolute;left:20px;  top:25px; max-width:500px;  ">Cliente: {{ strtoupper($cliente->nombre) }}</p>
-                        <p class="card-text" style="position:absolute;left:20px;  top:40px; max-width:250px;  ">Recibido por: </p>
-                        <p class="card-text" style="position:absolute;left:20px;  top:55px; max-width:250px;  ">Telefono: </p>
-                        <p class="card-text" style="position:absolute;left:20px;  top:70px; max-width:250px;  "><b>*Se requiere firma y sello de recibido.*</b></p>
-                        <p class="card-text" style="position:absolute;left:495px;  top:25px;">DISTRIBUCIONES VALENCIA</p>
-                        <p class="card-text" style="position:absolute;left:460px;  top:-60px;">Original: Cliente, Copia obligado tributario emisor. </p>
-                    </div>
-
-                    @if ($cai->estado_venta_id == 2)
-                    <div  style="position:absolute;   text-align: center; margin-top:350px;width:45rem">
-                        <p style="font-size:50px">
-                            --FACTURA ANULADA--</p>
-                    </div>
-                    @endif
-
+                <div style="margin-top:70px; width:100%;">
+                    <table style="width:100%; border:none; border-collapse:collapse; font-size:9px;">
+                        <tr>
+                            <td style="width:50%; border:none; vertical-align:top; padding:0 20px 0 0;">
+                                <p style="margin:0; border-top:1px solid #000; padding-top:3px; word-wrap:break-word; overflow-wrap:break-word;">Cliente: {{ strtoupper($cliente->nombre) }}</p>
+                                <p style="margin:4px 0 0;">Recibido por: _______________________</p>
+                                <p style="margin:4px 0 0;">DNI: ________________________________</p>
+                                <p style="margin:4px 0 0;">Cargo: ______________________________</p>
+                                <p style="margin:4px 0 0;">Telefono: ___________________________</p>
+                                <p style="margin:5px 0 0;"><b>*Se requiere firma y sello de recibido.*</b></p>
+                            </td>
+                            <td style="width:50%; border:none; vertical-align:top; padding:0 0 0 20px; text-align:center;">
+                                <p style="margin:0; border-top:1px solid #000; padding-top:3px; text-align:center;">DISTRIBUCIONES VALENCIA</p>
+                            </td>
+                        </tr>
+                    </table>
                 </div>
 
 
@@ -330,6 +295,16 @@
 
 
 
+
+    <script type="text/php">
+        if (isset($pdf)) {
+            $font = $fontMetrics->get_font('Helvetica', 'normal');
+            $size = 7;
+            $y    = $pdf->get_height() - 20;
+            $pdf->page_text(28, $y, '{{ addslashes($usuarioImpresion) }} {{ $fechaImpresion }}', $font, $size, [0,0,0]);
+            $pdf->page_text($pdf->get_width() - 80, $y, 'Página {PAGE_NUM} | {PAGE_COUNT}', $font, $size, [0,0,0]);
+        }
+    </script>
 
     <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"
         integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous">

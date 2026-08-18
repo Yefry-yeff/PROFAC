@@ -104,10 +104,10 @@
                                     <div style="font-weight:700;">{{ \Carbon\Carbon::parse($fechaAprobacionActual)->format('d/m/Y') }}</div>
                                 </div>
                                 @endif
-                                @if ($fechaVencimientoActual)
+                                @if (!is_null($diasCreditoAprobadosActual))
                                 <div>
-                                    <div style="font-size:11px; color:#66bb6a; font-weight:700; text-transform:uppercase;">Vence</div>
-                                    <div style="font-weight:700;">{{ \Carbon\Carbon::parse($fechaVencimientoActual)->format('d/m/Y') }}</div>
+                                    <div style="font-size:11px; color:#66bb6a; font-weight:700; text-transform:uppercase;">Días aprobados</div>
+                                    <div style="font-weight:700;">{{ $diasCreditoAprobadosActual }} días</div>
                                 </div>
                                 @endif
                                 @if ($usuarioAprobadorActual)
@@ -185,6 +185,16 @@
                                         <div style="font-size:11px; color:#78909c; text-transform:uppercase; font-weight:700;">Días solicitados del crédito</div>
                                         <div style="font-size:15px; font-weight:800; color:#1565c0;">{{ $diasSolicitadosCredito }}</div>
                                     </div>
+                                    @if($comentarioOferta || $comentarioCreditoOferta)
+                                    <div class="col-md-4 mb-2">
+                                        <div style="font-size:11px; color:#78909c; text-transform:uppercase; font-weight:700;">Comentario de la oferta</div>
+                                        <div style="font-size:13px; color:#2c3e50; white-space:pre-wrap;">{{ $comentarioOferta ?: '—' }}</div>
+                                    </div>
+                                    <div class="col-md-4 mb-2">
+                                        <div style="font-size:11px; color:#78909c; text-transform:uppercase; font-weight:700;">Comentario para Créditos</div>
+                                        <div style="font-size:13px; color:#2c3e50; white-space:pre-wrap;">{{ $comentarioCreditoOferta ?: '—' }}</div>
+                                    </div>
+                                    @endif
                                 </div>
                                 <div style="margin-top:10px; padding-top:10px; border-top:1px solid #eef1f5;">
                                     <div style="font-size:11px; color:#78909c; text-transform:uppercase; font-weight:700;">Monto total de la oferta</div>
@@ -262,7 +272,7 @@
                                          <input type="text"
                                              wire:model.lazy="montoCreditoEditableTexto"
                                                class="form-control" style="border-radius:8px; font-size:13px;">
-                                        <small class="text-muted">Editable y se actualiza en cliente</small>
+                                                                                <small class="text-muted">Editable solo para este flujo</small>
                                     </div>
                                     <div class="col-md-4 mb-3">
                                         <label style="font-size:12px; font-weight:700; color:#2e7d32;">Monto disponible</label>
@@ -276,7 +286,7 @@
                                         <input type="number" min="0"
                                                wire:model.debounce.300ms="diasCreditoEditable"
                                                class="form-control" style="border-radius:8px; font-size:13px;">
-                                        <small class="text-muted">Editable y se actualiza en cliente</small>
+                                             <small class="text-muted">Editable solo para este flujo</small>
                                     </div>
                                 </div>
 

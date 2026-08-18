@@ -65,6 +65,16 @@ class Rol extends Model
     }
 
     /**
+     * Usuarios que tienen este rol como ADICIONAL (multi-rol), ademas de
+     * los usuarios que lo tienen como principal (relación usuarios()).
+     */
+    public function usuariosAdicionales()
+    {
+        return $this->belongsToMany(User::class, 'usuario_rol', 'rol_id', 'usuario_id')
+                    ->withTimestamps();
+    }
+
+    /**
      * Obtener los menús disponibles para este rol
      */
     public function getMenusConSubmenus()

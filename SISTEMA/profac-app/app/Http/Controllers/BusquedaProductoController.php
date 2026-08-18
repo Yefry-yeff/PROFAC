@@ -35,7 +35,8 @@ class BusquedaProductoController extends Controller
             ->select([
                 'p.id', 'p.nombre', 'p.codigo_barra', 'p.codigo_estatal',
                 'p.isv', 'm.nombre as marca_nombre',
-            ]);
+            ])
+            ->where('p.estado_producto_id', 1);
 
         // Filtro multi-palabra
         foreach ($words as $word) {

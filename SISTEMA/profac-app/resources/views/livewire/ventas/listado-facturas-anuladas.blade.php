@@ -52,6 +52,13 @@
     #tbl_listar_compras tbody td {
         font-size: .80rem; vertical-align: middle; padding: 6px 8px;
     }
+    .factura-link {
+        color: #e67e22;
+        font-weight: 600;
+        text-decoration: underline;
+        cursor: pointer;
+    }
+    .factura-link:hover { color: #c76305; }
     #tbl_listar_compras tbody tr:hover { background: #fffcf5; }
     .modal-header-fact {
         background: var(--pf-grad); color: #fff;
@@ -98,6 +105,35 @@
         box-shadow: 0 0 0 .18rem rgba(230,126,34,.2);
     }
     .select2-container--open { z-index: 99999 !important; }
+    #modalDetalleFacturaAnul .modal-body {
+        background: #fffdf9;
+        padding: 16px 18px;
+    }
+    #modalDetalleFacturaAnul .table thead th {
+        background: #fdf4e7;
+        color: #7d3f00;
+        font-size: .72rem;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        border-bottom: 2px solid #f2d49a;
+    }
+    #modalDetalleFacturaAnul .table tbody td {
+        font-size: .82rem;
+        vertical-align: middle;
+    }
+    .detalle-tools {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        justify-content: flex-end;
+        margin-bottom: 10px;
+        flex-wrap: wrap;
+    }
+    .detalle-tools .form-control {
+        max-width: 260px;
+        height: 32px;
+        font-size: .80rem;
+    }
     </style>
     @endpush
 
@@ -105,6 +141,59 @@
     <div id="tbl_loading_overlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.78); z-index:9000; text-align:center; padding-top:18%; display:none;">
         <i class="fa fa-spinner fa-spin fa-3x" style="color:#1ab394;"></i>
         <p class="mt-3" style="color:#555; font-size:1rem;">Cargando datos...</p>
+    </div>
+
+    <!-- Modal Detalle Productos/Escala -->
+    <div class="modal fade" id="modalDetalleFacturaAnul" tabindex="-1" role="dialog" aria-labelledby="tituloModalDetalleFacturaAnul" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header modal-header-fact">
+                    <h5 class="modal-title" id="tituloModalDetalleFacturaAnul">
+                        <i class="fa fa-list-alt mr-2"></i>Detalle de productos por escala
+                    </h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="d-flex flex-wrap align-items-center justify-content-between mb-2" style="gap:8px">
+                        <small class="text-muted">Factura: <strong id="detalleFacturaNumeroAnul">-</strong></small>
+                    </div>
+
+                    <div id="detalleFacturaLoadingAnul" class="text-center py-3" style="display:none">
+                        <i class="fa fa-spinner fa-spin"></i> Cargando detalle...
+                    </div>
+
+                    <div class="detalle-tools">
+                        <input type="text" id="detalleFacturaBuscarAnul" class="form-control form-control-sm" placeholder="Buscar producto o escala...">
+                        <button type="button" id="btnDetalleFacturaExcelAnul" class="btn btn-success btn-sm">
+                            <i class="fa fa-file-excel-o mr-1"></i>Excel
+                        </button>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-sm mb-0" id="tblDetalleFacturaProductosAnul">
+                            <thead>
+                                <tr>
+                                    <th>Producto</th>
+                                    <th class="text-right">Cantidad</th>
+                                    <th>Escala</th>
+                                    <th class="text-right">Monto</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted">Seleccione una factura para ver el detalle.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div class="row wrapper border-bottom white-bg page-heading">
@@ -164,7 +253,6 @@
                                     <tr>
                                         <th>Codigo Interno</th>
                                         <th>N° Factura</th>
-                                        <th>CAI</th>
                                         <th>Fecha de Emision</th>
                                         <th>Cliente</th>
                                         <th>Tipo de Pago</th>
@@ -213,7 +301,7 @@
                             <i class="fa fa-circle mr-1" style="font-size:.65rem"></i>Exoneradas
                         </button>
                     </div>
-                    <p class="modal-section-label"><i class="fa fa-calendar mr-1"></i>Rango de fechas</p>
+                    <p class="modal-section-label"><i class="fa fa-calendar mr-1"></i>Rango por fecha de creación de la factura</p>
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group">
@@ -233,9 +321,9 @@
                     <div class="row">
                         <div class="col-md-12">
                             <div class="form-group">
-                                <label class="font-weight-bold small">N° Factura</label>
+                                    <label class="font-weight-bold small">CAI</label>
                                 <input type="text" class="form-control form-control-sm" id="anulFiltroCai"
-                                       placeholder="Ej: 000-001-01-00041992 o solo 41992">
+                                        placeholder="Ej: 000-001-01-00041992">
                             </div>
                         </div>
                         <div class="col-md-12">
@@ -338,6 +426,7 @@
     @push('scripts')
         <script>
             // ── Configuración ────────────────────────────────────────────────
+            var usuarioDescargaExcel = @json(optional(Auth::user())->name ?? 'Sistema');
             var anulNombresTipo = { 1: 'Clientes B', 2: 'Clientes A', 3: 'Exoneradas' };
             var anulUrlHistory  = { 1: '/ventas/anulado/corporativo', 2: '/ventas/anulado/estatal', 3: '/ventas/anulado/exonerado' };
             var anulFiltros = {
@@ -349,6 +438,186 @@
                 desde: '',
                 hasta: ''
             };
+
+            function fechaHoraDescargaExcel() {
+                var now = new Date();
+                return now.toLocaleDateString('es-HN', { day: '2-digit', month: '2-digit', year: 'numeric' }) +
+                    ' ' + now.toLocaleTimeString('es-HN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            }
+
+            function normalizarNumeroExcel(valor) {
+                if (valor === null || valor === undefined) return 0;
+                var limpio = String(valor)
+                    .replace(/L\.|HNL|,/gi, '')
+                    .replace(/\s+/g, '')
+                    .trim();
+                var n = parseFloat(limpio);
+                return isNaN(n) ? 0 : n;
+            }
+
+            async function descargarPdfAnuladas() {
+                var campos = {
+                    _token: @json(csrf_token()),
+                    idTipo: anulFiltros.idTipo,
+                    filtroCai: anulFiltros.cai,
+                    filtroCliente: anulFiltros.cliente,
+                    filtroVendedor: anulFiltros.vendedor,
+                    filtroFacturador: anulFiltros.facturador,
+                    filtroDesde: anulFiltros.desde,
+                    filtroHasta: anulFiltros.hasta
+                };
+
+                try {
+                    var response = await fetch('/ventas/anulado/exportar-pdf', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+                            'X-CSRF-TOKEN': campos._token,
+                            'Accept': 'application/pdf'
+                        },
+                        body: new URLSearchParams(campos).toString()
+                    });
+                    if (!response.ok) throw new Error('No se pudo generar el PDF.');
+
+                    var blob = await response.blob();
+                    var disposition = response.headers.get('Content-Disposition') || '';
+                    var match = disposition.match(/filename="?([^";]+)"?/i);
+                    var link = document.createElement('a');
+                    var objectUrl = URL.createObjectURL(blob);
+                    link.href = objectUrl;
+                    link.download = match ? match[1] : 'Facturas_Anuladas.pdf';
+                    document.body.appendChild(link);
+                    link.click();
+                    link.remove();
+                    window.setTimeout(function() { URL.revokeObjectURL(objectUrl); }, 1000);
+                } catch (error) {
+                    Swal.fire('Error', error.message, 'error');
+                }
+            }
+
+            function buildExcelButton(config) {
+                return {
+                    extend: 'excelHtml5',
+                    title: '',
+                    filename: function() {
+                        return config.fileName;
+                    },
+                    messageTop: function() {
+                        return '';
+                    },
+                    className: 'btn btn-success btn-sm',
+                    exportOptions: {
+                        format: {
+                            body: function(data, row, column) {
+                                if (config.numberColumns.indexOf(column) >= 0) {
+                                    return normalizarNumeroExcel(data);
+                                }
+                                return $('<div>').html(data).text();
+                            }
+                        }
+                    },
+                    customize: function(xlsx) {
+                        var sheet = xlsx.xl.worksheets['sheet1.xml'];
+                        var $sheet = $(sheet);
+                        var styles = xlsx.xl['styles.xml'];
+                        var $styles = $(styles);
+
+                        function escapeXml(text) {
+                            return String(text || '')
+                                .replace(/&/g, '&amp;')
+                                .replace(/</g, '&lt;')
+                                .replace(/>/g, '&gt;')
+                                .replace(/"/g, '&quot;')
+                                .replace(/'/g, '&apos;');
+                        }
+
+                        function colFromRef(ref) {
+                            return String(ref || '').replace(/[0-9]/g, '');
+                        }
+
+                        var sheetData = $sheet.find('sheetData');
+                        var horaDescarga = fechaHoraDescargaExcel();
+                        var encabezado1 = 'Distribuciones Valencia';
+                        var encabezado2 = config.reportTitle;
+                        var encabezado3 = 'Hora de descarga: ' + horaDescarga + '  |  Descargado por: ' + (usuarioDescargaExcel || 'Sistema');
+
+                        sheetData.find('row').each(function() {
+                            var $row = $(this);
+                            var oldRow = parseInt($row.attr('r') || '0', 10);
+                            var newRow = oldRow + 4;
+                            $row.attr('r', String(newRow));
+                            $row.find('c').each(function() {
+                                var $cell = $(this);
+                                var oldRef = $cell.attr('r') || '';
+                                var col = colFromRef(oldRef);
+                                if (col) $cell.attr('r', col + newRow);
+                            });
+                        });
+
+                        var filasHeader = '' +
+                            '<row r="1"><c r="A1" t="inlineStr"><is><t>' + escapeXml(encabezado1) + '</t></is></c></row>' +
+                            '<row r="2"><c r="A2" t="inlineStr"><is><t>' + escapeXml(encabezado2) + '</t></is></c></row>' +
+                            '<row r="3"><c r="A3" t="inlineStr"><is><t>' + escapeXml(encabezado3) + '</t></is></c></row>' +
+                            '<row r="4"><c r="A4" t="inlineStr"><is><t></t></is></c></row>';
+                        sheetData.prepend(filasHeader);
+
+                        var $dimension = $sheet.find('dimension');
+                        if ($dimension.length) {
+                            var ref = $dimension.attr('ref') || 'A1:O1';
+                            var parts = ref.split(':');
+                            if (parts.length === 2) {
+                                var endCol = colFromRef(parts[1]) || 'O';
+                                var endRow = parseInt(String(parts[1]).replace(/[^0-9]/g, '') || '1', 10) + 4;
+                                $dimension.attr('ref', 'A1:' + endCol + endRow);
+                            }
+                        }
+
+                        var $numFmts = $styles.find('numFmts');
+                        if (!$numFmts.length) {
+                            $styles.find('styleSheet').prepend('<numFmts count="0"></numFmts>');
+                            $numFmts = $styles.find('numFmts');
+                        }
+                        if (!$numFmts.find('numFmt[numFmtId="300"]').length) {
+                            $numFmts.append('<numFmt numFmtId="300" formatCode="&quot;L &quot;#,##0.00"/>');
+                            $numFmts.attr('count', parseInt($numFmts.attr('count') || '0', 10) + 1);
+                        }
+
+                        var $cellXfs = $styles.find('cellXfs');
+                        var xfCount = parseInt($cellXfs.attr('count') || '0', 10);
+
+                        var estiloTextoEditable = xfCount;
+                        $cellXfs.append('<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyProtection="1"><protection locked="0"/></xf>');
+                        xfCount += 1;
+
+                        var estiloMonedaEditable = xfCount;
+                        $cellXfs.append('<xf numFmtId="300" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyProtection="1"><protection locked="0"/></xf>');
+                        xfCount += 1;
+
+                        $cellXfs.attr('count', xfCount);
+
+                        if ($sheet.find('sheetProtection').length === 0) {
+                            $sheet.find('worksheet').append('<sheetProtection sheet="1" objects="1" scenarios="1" selectLockedCells="1" selectUnlockedCells="1"/>');
+                        }
+
+                        sheetData.find('row').each(function() {
+                            var $row = $(this);
+                            var rowNum = parseInt($row.attr('r') || '0', 10);
+                            if (rowNum >= 5) {
+                                $row.find('c').each(function() {
+                                    var $cell = $(this);
+                                    var ref = $cell.attr('r') || '';
+                                    var col = colFromRef(ref);
+                                    if (config.moneyColumns.indexOf(col) >= 0 && rowNum >= 6) {
+                                        $cell.attr('s', String(estiloMonedaEditable));
+                                    } else {
+                                        $cell.attr('s', String(estiloTextoEditable));
+                                    }
+                                });
+                            }
+                        });
+                    }
+                };
+            }
 
             // ── Tipo buttons en modal ────────────────────────────────────────
             $(document).on('click', '#modalFiltrosAnul .tipo-filter-btn', function() {
@@ -416,7 +685,7 @@
                 var bar  = document.getElementById('filtrosBarAnul');
                 var html = '<span class="filtro-badge"><i class="fa fa-tag mr-1"></i>Tipo: ' + (anulNombresTipo[anulFiltros.idTipo] || '') + '</span>';
                 if (anulFiltros.cai)
-                    html += '<span class="filtro-badge">N° Factura: ' + anulFiltros.cai + ' <span class="filtro-remove" onclick="quitarFiltroAnul(\'cai\')">×</span></span>';
+                    html += '<span class="filtro-badge">CAI: ' + anulFiltros.cai + ' <span class="filtro-remove" onclick="quitarFiltroAnul(\'cai\')">×</span></span>';
                 if (anulFiltros.cliente)
                     html += '<span class="filtro-badge">Cliente: ' + ($('#anulFiltroCliente option:selected').text() || anulFiltros.cliente) + ' <span class="filtro-remove" onclick="quitarFiltroAnul(\'cliente\')">×</span></span>';
                 if (anulFiltros.vendedor)
@@ -451,7 +720,19 @@
                     pageLength: 10,
                     responsive: true,
                     dom: '<"html5buttons"B>lTfgitp',
-                    buttons: [{ extend: 'excel', title: 'Facturas_anuladas', className: 'btn btn-success btn-sm' }],
+                    buttons: [
+                        buildExcelButton({
+                            fileName: 'Facturas_Anuladas',
+                            reportTitle: 'Reporte de facturas anuladas',
+                            numberColumns: [6, 7, 8],
+                            moneyColumns: ['G', 'H', 'I']
+                        }),
+                        {
+                            text: '<i class="fa fa-file-pdf-o mr-1"></i>PDF',
+                            className: 'btn btn-danger btn-sm btn-anul-pdf',
+                            action: function () {}
+                        }
+                    ],
                     "ajax": {
                         'url':  '/ventas/anulado/listado',
                         'type': 'post',
@@ -468,8 +749,15 @@
                     },
                     "columns": [
                         { data: 'id' },
-                        { data: 'numero_factura' },
-                        { data: 'cai' },
+                        {
+                            data: 'cai',
+                            render: function(d, type, row) {
+                                if (type !== 'display') return d;
+                                var label = d || '';
+                                if (!row || !row.id) return label;
+                                return '<a href="javascript:void(0)" class="factura-link anul-factura-link" data-factura-id="' + row.id + '" data-factura-cai="' + label + '">' + label + '</a>';
+                            }
+                        },
                         { data: 'fecha_emision' },
                         { data: 'nombre' },
                         { data: 'descripcion' },
@@ -485,6 +773,10 @@
                     ],
                     "initComplete": function() {
                         document.getElementById('tbl_loading_overlay').style.display = 'none';
+                        $('.dt-buttons .btn-anul-pdf').off('click.anulPdf').on('click.anulPdf', function(event) {
+                            event.preventDefault();
+                            descargarPdfAnuladas();
+                        });
                     }
                 });
             }
@@ -512,6 +804,102 @@
 
             // ── Select2 + fix focusin.modal ──────────────────────────────────
             $(document).ready(function() {
+                var detalleFacturaAnulTable = null;
+                var detalleFacturaAnulActual = '';
+
+                function formatoNumeroModal(n) {
+                    var num = Number(n || 0);
+                    return num.toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                }
+
+                function renderDetalleFacturaAnul(productos) {
+                    var rows = [];
+                    (productos || []).forEach(function(item) {
+                        rows.push({
+                            producto: item.producto || '-',
+                            cantidad: Number(item.cantidad || 0),
+                            escala: item.escala || 'Sin escala',
+                            monto: Number(item.monto || 0)
+                        });
+                    });
+
+                    if (!detalleFacturaAnulTable) {
+                        detalleFacturaAnulTable = $('#tblDetalleFacturaProductosAnul').DataTable({
+                            data: rows,
+                            paging: true,
+                            pageLength: 10,
+                            ordering: true,
+                            info: true,
+                            searching: true,
+                            dom: 'Brtip',
+                            language: { "url": "/js/plugins/dataTables/i18n/Spanish.json" },
+                            buttons: [{
+                                extend: 'excelHtml5',
+                                title: function() {
+                                    return 'Detalle de productos por escala';
+                                },
+                                filename: function() {
+                                    var num = (detalleFacturaAnulActual || 'factura').replace(/[^0-9A-Za-z_-]/g, '_');
+                                    return 'Distribuciones_Valencia_Detalle_' + num;
+                                },
+                                className: 'd-none'
+                            }],
+                            columns: [
+                                { data: 'producto' },
+                                { data: 'cantidad', className: 'text-right', render: function(d, t) { return t === 'display' ? formatoNumeroModal(d) : d; } },
+                                { data: 'escala' },
+                                { data: 'monto', className: 'text-right', render: function(d, t) { return t === 'display' ? ('L. ' + formatoNumeroModal(d)) : d; } }
+                            ]
+                        });
+                    } else {
+                        detalleFacturaAnulTable.clear().rows.add(rows).draw();
+                    }
+
+                    $('#detalleFacturaBuscarAnul').val('');
+                    detalleFacturaAnulTable.search('').draw();
+                }
+
+                function abrirDetalleFacturaAnul(idFactura, numeroFactura) {
+                    var loading = document.getElementById('detalleFacturaLoadingAnul');
+                    var numero  = document.getElementById('detalleFacturaNumeroAnul');
+                    detalleFacturaAnulActual = numeroFactura || ('#' + idFactura);
+
+                    if (numero) numero.textContent = detalleFacturaAnulActual;
+                    if (detalleFacturaAnulTable) detalleFacturaAnulTable.clear().draw();
+                    if (loading) loading.style.display = '';
+
+                    $('#modalDetalleFacturaAnul').modal('show');
+
+                    axios.get('/factura/detalle-productos-escala/' + idFactura)
+                        .then(function(response) {
+                            var data = response.data || {};
+                            renderDetalleFacturaAnul(data.productos || []);
+                        })
+                        .catch(function() {
+                            if (detalleFacturaAnulTable) detalleFacturaAnulTable.clear().draw();
+                        })
+                        .finally(function() {
+                            if (loading) loading.style.display = 'none';
+                        });
+                }
+
+                $(document).on('click', '.anul-factura-link', function() {
+                    var idFactura = this.getAttribute('data-factura-id');
+                    var numeroFac = this.getAttribute('data-factura-cai');
+                    if (!idFactura) return;
+                    abrirDetalleFacturaAnul(idFactura, numeroFac);
+                });
+
+                $('#detalleFacturaBuscarAnul').on('keyup', function() {
+                    if (!detalleFacturaAnulTable) return;
+                    detalleFacturaAnulTable.search(this.value || '').draw();
+                });
+
+                $('#btnDetalleFacturaExcelAnul').on('click', function() {
+                    if (!detalleFacturaAnulTable) return;
+                    detalleFacturaAnulTable.button(0).trigger();
+                });
+
                 function s2opts(url, placeholder) {
                     return {
                         ajax: {

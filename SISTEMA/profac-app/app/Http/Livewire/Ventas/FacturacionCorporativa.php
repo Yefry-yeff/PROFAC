@@ -2,6 +2,8 @@
 
 namespace App\Http\Livewire\Ventas;
 
+use App\Support\ExpoConfig;
+use App\Support\ClienteActoresAsignados;
 use Livewire\Component;
 
 
@@ -36,6 +38,69 @@ class FacturacionCorporativa extends Component
     public $arrayProductos = [];
     public $arrayLogs = [];
 
+    private function calcularFechaVencimientoFactura(string $fechaEmision, int $tipoPago, ?int $diasAprobados = null, ?int $diasCliente = null): string
+    {
+        $fechaBase = \Carbon\Carbon::parse($fechaEmision);
+
+        if ($tipoPago !== 2) {
+            return $fechaBase->toDateString();
+        }
+
+        $dias = $diasAprobados !== null ? max(0, $diasAprobados) : max(0, (int) ($diasCliente ?? 0));
+
+        return $fechaBase->copy()->addDays($dias)->toDateString();
+    }
+
+    private function obtenerDiasCreditoAprobados(?int $flujoId): ?int
+    {
+        if (!$flujoId) {
+            return null;
+        }
+
+        $creditoAprobado = DB::table('credito_revision')
+            ->where('flujo_id', $flujoId)
+            ->where('estado', 'aprobado')
+            ->latest('id')
+            ->first(['dias_credito_aprobados', 'fecha_aprobacion', 'fecha_vencimiento_credito']);
+
+        if (!$creditoAprobado) {
+            return null;
+        }
+
+        if (!is_null($creditoAprobado->dias_credito_aprobados)) {
+            return max(0, (int) $creditoAprobado->dias_credito_aprobados);
+        }
+
+        if ($creditoAprobado->fecha_aprobacion && $creditoAprobado->fecha_vencimiento_credito) {
+            return max(0, (int) \Carbon\Carbon::parse($creditoAprobado->fecha_aprobacion)
+                ->diffInDays(\Carbon\Carbon::parse($creditoAprobado->fecha_vencimiento_credito), false));
+        }
+
+        return null;
+    }
+
+    private function resolverDiasCreditoFactura(int $tipoPago, ?int $flujoId, int $diasCliente): int
+    {
+        if ($tipoPago !== 2) {
+            return 0;
+        }
+
+        return $this->obtenerDiasCreditoAprobados($flujoId) ?? max(0, $diasCliente);
+    }
+
+    private function resolveTeleAsesorId(Request $request): int
+    {
+        $teleAsesorId = $request->tele_asesor ? (int) $request->tele_asesor : Auth::id();
+        ClienteActoresAsignados::validar(
+            (int) $request->seleccionarCliente,
+            $teleAsesorId,
+            ClienteActoresAsignados::ROL_TELE_ASESOR,
+            'tele_asesor'
+        );
+
+        return $teleAsesorId;
+    }
+
     // Nota: Este componente solo se usa como controlador API.
     // El render() no se invoca desde ninguna ruta de página.
     public function render()
@@ -46,43 +111,29 @@ class FacturacionCorporativa extends Component
     public function listarClientes(Request $request)
     {
         try {
+            $rolId = Auth::user()->rol_id ?? 0;
+            $like  = '%' . $request->search . '%';
 
+            $query = DB::table('cliente')
+                ->join('users', 'users.id', '=', 'cliente.vendedor')
+                ->select('cliente.id', 'cliente.nombre as text',
+                         'users.id as idVendedor', 'users.name as vendedor')
+                ->where('cliente.estado_cliente_id', 1)
+                ->where('cliente.tipo_cliente_id', 1)
+                ->where(function ($q) use ($like) {
+                    $q->where('cliente.id', 'LIKE', $like)
+                      ->orWhere('cliente.nombre', 'LIKE', $like);
+                });
 
-            if (Auth::user()->rol_id == 1 or Auth::user()->rol_id == 3) {
-                $listaClientes = DB::SELECT("
-                select
-                    cliente.id,
-                    cliente.nombre as text,
-                    users.id as 'idVendedor',
-                    users.name as 'vendedor'
-                from cliente
-                inner join users on users.id = cliente.vendedor
-                    where cliente.estado_cliente_id = 1
-
-                    and cliente.tipo_cliente_id=1
-                    and  (cliente.id LIKE '%" . $request->search . "%' or cliente.nombre Like '%" . $request->search . "%') limit 15
-                        ");
-            } else {
-                $listaClientes = DB::SELECT("
-                select
-                    cliente.id,
-                    cliente.nombre as text,
-                    users.id as 'idVendedor',
-                    users.name as 'vendedor'
-                from cliente
-                inner join users on users.id = cliente.vendedor
-                    where cliente.estado_cliente_id = 1
-
-                    and cliente.tipo_cliente_id=1
-                    and  (cliente.id LIKE '%" . $request->search . "%' or cliente.nombre Like '%" . $request->search . "%') limit 15
-                        ");
+            // Admin (1) y Tele asesor (3) ven todos; usuarios especiales 121/122 también; los demás solo sus asignados
+            $specialUsers = [121, 122];
+            if (!in_array($rolId, [1, 3], true) && !in_array(Auth::id(), $specialUsers, true)) {
+                $query->where('cliente.vendedor', Auth::id());
             }
 
+            $listaClientes = $query->get();
 
-
-            return response()->json([
-                "results" => $listaClientes,
-            ], 200);
+            return response()->json(['results' => $listaClientes], 200);
         } catch (QueryException $e) {
             return response()->json([
                 'message' => 'Ha ocurrido un error',
@@ -205,7 +256,12 @@ class FacturacionCorporativa extends Component
                         SELECT SUM(php2.cantidad)
                         FROM prefactura_has_producto php2
                         INNER JOIN prefactura pf2 ON pf2.id = php2.prefactura_id
-                        WHERE pf2.estado = 'activo'
+                                                WHERE pf2.estado = 'activo'
+                                                    AND TIMESTAMPADD(
+                                                        DAY,
+                                                        COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7),
+                                                        COALESCE(pf2.created_at, CONCAT(COALESCE(pf2.fecha_emision, CURDATE()), ' 00:00:00'))
+                                                    ) > NOW()
                           {$pfExcludeClause2}
                           AND php2.producto_id = {$prodId}
                           AND php2.seccion_id  = A.seccion_id
@@ -225,7 +281,12 @@ class FacturacionCorporativa extends Component
                 SELECT SUM(php3.cantidad)
                 FROM prefactura_has_producto php3
                 INNER JOIN prefactura pf3 ON pf3.id = php3.prefactura_id
-                WHERE pf3.estado = 'activo'
+                                WHERE pf3.estado = 'activo'
+                                    AND TIMESTAMPADD(
+                                        DAY,
+                                        COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7),
+                                        COALESCE(pf3.created_at, CONCAT(COALESCE(pf3.fecha_emision, CURDATE()), ' 00:00:00'))
+                                    ) > NOW()
                   {$pfExcludeClause3}
                   AND php3.producto_id = {$prodId}
                   AND php3.seccion_id  = A.seccion_id
@@ -233,6 +294,22 @@ class FacturacionCorporativa extends Component
             ), 0)
         ) > 0
             ");
+
+            $results = array_map(function ($row) {
+                $row->esSinExistencia = 0;
+                return $row;
+            }, $results);
+
+            $permitirSinExistencia = (int) ($request->permitir_sin_existencia ?? 0) === 1;
+            if ($permitirSinExistencia) {
+                $results[] = (object) [
+                    'id' => 'sin_existencia',
+                    'idBodega' => null,
+                    'bodegaSeccion' => 'SIN EXISTENCIA',
+                    'text' => 'SIN EXISTENCIA - Cotizar sin reserva de inventario',
+                    'esSinExistencia' => 1,
+                ];
+            }
 
             return response()->json([
                 "results" => $results
@@ -452,8 +529,27 @@ class FacturacionCorporativa extends Component
         try {
             $productoId          = $request->producto_id;
             $categoriaEscalaId   = $request->cliente_categoria_escala_id;
+            $expoId = (int) $request->input('expo_id', 0);
+            $expo = $expoId > 0 ? ExpoConfig::detalleActivaParaUsuario($expoId, Auth::id()) : null;
 
-            if ($categoriaEscalaId) {
+            if ($expoId > 0 && !$expo) {
+                return response()->json(['message' => 'La Expo no está activa o está fuera de vigencia.'], 422);
+            }
+
+            if ($expo) {
+                $categorias = DB::table('categoria_precios as cp')
+                    ->join('cliente_categoria_escala as cce', 'cce.id', '=', 'cp.cliente_categoria_escala_id')
+                    ->join('precios_producto_carga as ppc', function ($join) use ($productoId) {
+                        $join->on('ppc.categoria_precios_id', '=', 'cp.id')
+                            ->where('ppc.producto_id', '=', $productoId)
+                            ->where('ppc.estado_id', '=', 1);
+                    })
+                    ->whereIn('cp.id', $expo['escalas'])
+                    ->where('cp.estado_id', 1)
+                    ->orderByDesc('ppc.precio_a')
+                    ->get(['cp.id', DB::raw("CONCAT(cce.nombre_categoria, ' - ', cp.nombre) as nombre_categoria"), 'ppc.precio_a'])
+                    ->all();
+            } elseif ($categoriaEscalaId) {
                 // Filtrado: solo las categorías de precio ligadas al cce del cliente
                 // Si incluir_cp_inactivos=true, muestra también cp con estado_id=2 (p.ej. escalas archivadas)
                 $incluirInactivos = $request->boolean('incluir_cp_inactivos', false);
@@ -766,7 +862,8 @@ class FacturacionCorporativa extends Component
                 'nombre_cliente_ventas' => 'required',
                 'tipoPagoVenta' => 'required',
                 'restriccion' => 'required',
-                'vendedor' => 'required'
+                'vendedor' => 'required',
+                'tele_asesor' => 'nullable|integer|exists:users,id'
 
 
 
@@ -783,6 +880,8 @@ class FacturacionCorporativa extends Component
                     'errors' => $validator->errors()
                 ], 401);
             }
+
+            $teleAsesorId = $this->resolveTeleAsesorId($request);
             //
 
 
@@ -904,7 +1003,12 @@ class FacturacionCorporativa extends Component
                         IFNULL((SELECT SUM(php2.cantidad)
                                  FROM prefactura_has_producto php2
                                  INNER JOIN prefactura pf2 ON pf2.id = php2.prefactura_id
-                                 WHERE pf2.estado = 'activo'
+                                                                 WHERE pf2.estado = 'activo'
+                                                                     AND TIMESTAMPADD(
+                                                                         DAY,
+                                                                         COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7),
+                                                                         COALESCE(pf2.created_at, CONCAT(COALESCE(pf2.fecha_emision, CURDATE()), ' 00:00:00'))
+                                                                     ) > NOW()
                                    {$excludePfClause}
                                    AND php2.producto_id = " . (int)$request->$keyIdProducto . "
                                    AND php2.seccion_id  = " . (int)$request->$keyIdSeccion . "
@@ -1033,9 +1137,14 @@ class FacturacionCorporativa extends Component
                 $factura->total = $request->totalGeneral;
                 $factura->credito = $request->totalGeneral;
                 $factura->fecha_emision = $request->fecha_emision;
-                $factura->fecha_vencimiento = $request->fecha_vencimiento;
+                $factura->fecha_vencimiento = $this->calcularFechaVencimientoFactura(
+                    (string) $request->fecha_emision,
+                    (int) $request->tipoPagoVenta,
+                    $this->obtenerDiasCreditoAprobados((int) ($request->flujo_id ?? 0)),
+                    (int) $diasCredito
+                );
                 $factura->tipo_pago_id = $request->tipoPagoVenta;
-                $factura->dias_credito = $diasCredito;
+                $factura->dias_credito = $this->resolverDiasCreditoFactura((int) $request->tipoPagoVenta, (int) ($request->flujo_id ?? 0), (int) $diasCredito);
                 $factura->cai_id = $cai->id;
                 $factura->estado_venta_id = 1;
                 $factura->cliente_id = $request->seleccionarCliente;
@@ -1044,7 +1153,7 @@ class FacturacionCorporativa extends Component
                 $factura->monto_comision = $montoComision;
                 $factura->tipo_venta_id = 2; // corporativa
                 $factura->estado_factura_id = 1; // se presenta
-                $factura->users_id = Auth::user()->id;
+                $factura->users_id = $teleAsesorId;
                 $factura->comision_estado_pagado = 0;
                 $factura->pendiente_cobro = $request->totalGeneral;
                 $factura->estado_editar = 1;
@@ -1103,6 +1212,10 @@ class FacturacionCorporativa extends Component
                     //$factura = $this->alternar($request);
                     $factura = $this->guardarVentaND($request);
                 }
+
+                if ($factura instanceof \Illuminate\Http\JsonResponse) {
+                    return $factura;
+                }
             }
 
 
@@ -1141,7 +1254,7 @@ class FacturacionCorporativa extends Component
                 $subTotal = $request->$keySubTotal;
                 $isv = $request->$keyIsv;
                 $total = $request->$keyTotal;
-                $tipoPrecio = ($ivsProducto > 0) ? '2' : '1';
+                $tipoPrecio = ($ivsProducto > 0) ? '2' : '1'; // '1' = Excento (producto sin ISV, isv = 0) | '2' = Gravado (producto con ISV, isv > 0)
 
                 // dd($factura);
 
@@ -1232,6 +1345,7 @@ class FacturacionCorporativa extends Component
     {
 
 
+            $teleAsesorId = $this->resolveTeleAsesorId($request);
         try {
             $numeroSecuencia = 0;
             $numeroSecuenciaUpdated = 0;
@@ -1319,9 +1433,14 @@ class FacturacionCorporativa extends Component
             $factura->total = $request->totalGeneral;
             $factura->credito = $request->totalGeneral;
             $factura->fecha_emision = $request->fecha_emision;
-            $factura->fecha_vencimiento = $request->fecha_vencimiento;
+            $factura->fecha_vencimiento = $this->calcularFechaVencimientoFactura(
+                (string) $request->fecha_emision,
+                (int) $request->tipoPagoVenta,
+                $this->obtenerDiasCreditoAprobados((int) ($request->flujo_id ?? 0)),
+                (int) $diasCredito
+            );
             $factura->tipo_pago_id = $request->tipoPagoVenta;
-            $factura->dias_credito = $diasCredito;
+            $factura->dias_credito = $this->resolverDiasCreditoFactura((int) $request->tipoPagoVenta, (int) ($request->flujo_id ?? 0), (int) $diasCredito);
             $factura->cai_id = $cai->id;
             $factura->estado_venta_id = 1;
             $factura->cliente_id = $request->seleccionarCliente;
@@ -1330,7 +1449,7 @@ class FacturacionCorporativa extends Component
             $factura->monto_comision = $montoComision;
             $factura->tipo_venta_id = 2; //coorporativo;
             $factura->estado_factura_id = $estado; // se presenta
-            $factura->users_id = Auth::user()->id;
+            $factura->users_id = $teleAsesorId;
             $factura->comision_estado_pagado = 0;
             $factura->pendiente_cobro = $request->totalGeneral;
             $factura->estado_editar = 1;
@@ -1399,6 +1518,7 @@ class FacturacionCorporativa extends Component
         try {
 
         $numeroSecuencia = 0;
+            $teleAsesorId = $this->resolveTeleAsesorId($request);
         $numeroSecuenciaUpdated = 0;
 
         // FOR UPDATE bloquea la fila hasta que se haga commit,
@@ -1472,9 +1592,14 @@ class FacturacionCorporativa extends Component
         $factura->total = $request->totalGeneral;
         $factura->credito = $request->totalGeneral;
         $factura->fecha_emision = $request->fecha_emision;
-        $factura->fecha_vencimiento = $request->fecha_vencimiento;
+        $factura->fecha_vencimiento = $this->calcularFechaVencimientoFactura(
+            (string) $request->fecha_emision,
+            (int) $request->tipoPagoVenta,
+            $this->obtenerDiasCreditoAprobados((int) ($request->flujo_id ?? 0)),
+            (int) $diasCredito
+        );
         $factura->tipo_pago_id = $request->tipoPagoVenta;
-        $factura->dias_credito = $diasCredito;
+        $factura->dias_credito = $this->resolverDiasCreditoFactura((int) $request->tipoPagoVenta, (int) ($request->flujo_id ?? 0), (int) $diasCredito);
         $factura->cai_id = $cai->id;
         $factura->estado_venta_id = 1;
         $factura->cliente_id = $request->seleccionarCliente;
@@ -1483,7 +1608,7 @@ class FacturacionCorporativa extends Component
         $factura->monto_comision = $montoComision;
         $factura->tipo_venta_id = 2; //coorporativo;
         $factura->estado_factura_id = 2; // se presenta
-        $factura->users_id = Auth::user()->id;
+        $factura->users_id = $teleAsesorId;
         $factura->comision_estado_pagado = 0;
         $factura->pendiente_cobro = $request->totalGeneral;
         $factura->estado_editar = 1;
@@ -1522,6 +1647,7 @@ class FacturacionCorporativa extends Component
     public function metodoLista($request)
     {
         try {
+            $teleAsesorId = $this->resolveTeleAsesorId($request);
 
             //dd("lista");
             $numeroSecuencia = null;
@@ -1610,9 +1736,14 @@ class FacturacionCorporativa extends Component
             $factura->total = $request->totalGeneral;
             $factura->credito = $request->totalGeneral;
             $factura->fecha_emision = $request->fecha_emision;
-            $factura->fecha_vencimiento = $request->fecha_vencimiento;
+            $factura->fecha_vencimiento = $this->calcularFechaVencimientoFactura(
+                (string) $request->fecha_emision,
+                (int) $request->tipoPagoVenta,
+                $this->obtenerDiasCreditoAprobados((int) ($request->flujo_id ?? 0)),
+                (int) $diasCredito
+            );
             $factura->tipo_pago_id = $request->tipoPagoVenta;
-            $factura->dias_credito = $diasCredito;
+            $factura->dias_credito = $this->resolverDiasCreditoFactura((int) $request->tipoPagoVenta, (int) ($request->flujo_id ?? 0), (int) $diasCredito);
             $factura->cai_id = $cai->cai_id;
             $factura->estado_venta_id = 1;
             $factura->cliente_id = $request->seleccionarCliente;
@@ -1621,7 +1752,7 @@ class FacturacionCorporativa extends Component
             $factura->monto_comision = $montoComision;
             $factura->tipo_venta_id = 2; //coorporativo;
             $factura->estado_factura_id = 2; // se presenta
-            $factura->users_id = Auth::user()->id;
+            $factura->users_id = $teleAsesorId;
             $factura->comision_estado_pagado = 0;
             $factura->pendiente_cobro = $request->totalGeneral;
             $factura->estado_editar = 1;
@@ -1847,7 +1978,21 @@ class FacturacionCorporativa extends Component
         (select name from users where id = A.users_id ) as facturador,
         (select name from users where id = A.gestor_entrega) as asesor_entrega,
         D.id as factura,
-        (select hf.flujo_id from historico_flujo hf where hf.tramite_id = A.id and hf.tipo_tramite_id in (3, 5) limit 1) as flujo_id
+                COALESCE(
+                        (select hf.flujo_id
+                         from historico_flujo hf
+                         where hf.tramite_id = A.id
+                             and hf.tipo_tramite_id in (3, 5)
+                         order by hf.id desc
+                         limit 1),
+                        (select pf.flujo_id
+                         from prefactura_auditoria pa
+                         inner join prefactura pf on pf.id = pa.prefactura_id
+                         where pa.factura_id = A.id
+                             and pa.prefactura_id is not null
+                         order by pa.id desc
+                         limit 1)
+                ) as flujo_id
 
        from factura A
        inner join cai B  on A.cai_id = B.id
@@ -2011,7 +2156,22 @@ class FacturacionCorporativa extends Component
         users.name as vendedor,
         (select name from users where id = A.users_id ) as facturador,
         (select name from users where id = A.gestor_entrega) as asesor_entrega,
-        D.id as factura
+                D.id as factura,
+                COALESCE(
+                        (select hf.flujo_id
+                         from historico_flujo hf
+                         where hf.tramite_id = A.id
+                             and hf.tipo_tramite_id in (3, 5)
+                         order by hf.id desc
+                         limit 1),
+                        (select pf.flujo_id
+                         from prefactura_auditoria pa
+                         inner join prefactura pf on pf.id = pa.prefactura_id
+                         where pa.factura_id = A.id
+                             and pa.prefactura_id is not null
+                         order by pa.id desc
+                         limit 1)
+                ) as flujo_id
 
        from factura A
        inner join cai B
@@ -2176,6 +2336,7 @@ class FacturacionCorporativa extends Component
         try {
 
 
+            $teleAsesorId = $this->resolveTeleAsesorId($request);
             $listado = DB::SELECTONE("
             select
             id,
@@ -2256,9 +2417,14 @@ class FacturacionCorporativa extends Component
             $factura->total = $request->totalGeneral;
             $factura->credito = $request->totalGeneral;
             $factura->fecha_emision = $request->fecha_emision;
-            $factura->fecha_vencimiento = $request->fecha_vencimiento;
+            $factura->fecha_vencimiento = $this->calcularFechaVencimientoFactura(
+                (string) $request->fecha_emision,
+                (int) $request->tipoPagoVenta,
+                $this->obtenerDiasCreditoAprobados((int) ($request->flujo_id ?? 0)),
+                (int) $diasCredito
+            );
             $factura->tipo_pago_id = $request->tipoPagoVenta;
-            $factura->dias_credito =  $diasCredito;
+            $factura->dias_credito = $this->resolverDiasCreditoFactura((int) $request->tipoPagoVenta, (int) ($request->flujo_id ?? 0), (int) $diasCredito);
             $factura->cai_id = $listado->cai_id;
             $factura->estado_venta_id = 1;
             $factura->cliente_id = $request->seleccionarCliente;
@@ -2267,7 +2433,7 @@ class FacturacionCorporativa extends Component
             $factura->monto_comision = $montoComision;
             $factura->tipo_venta_id = 2; //coorporativo;
             $factura->estado_factura_id = $listado->estado; // se presenta
-            $factura->users_id = Auth::user()->id;
+            $factura->users_id = $teleAsesorId;
             $factura->comision_estado_pagado = 0;
             $factura->pendiente_cobro = $request->totalGeneral;
             $factura->estado_editar = 1;
@@ -2440,6 +2606,7 @@ class FacturacionCorporativa extends Component
     {
         DB::beginTransaction();
         try {
+            $teleAsesorId = $this->resolveTeleAsesorId($request);
 
         $numeroSecuencia = 0;
         $numeroSecuenciaUpdated = 0;
@@ -2516,9 +2683,14 @@ class FacturacionCorporativa extends Component
         $factura->total = $request->totalGeneral;
         $factura->credito = $request->totalGeneral;
         $factura->fecha_emision = $request->fecha_emision;
-        $factura->fecha_vencimiento = $request->fecha_vencimiento;
+        $factura->fecha_vencimiento = $this->calcularFechaVencimientoFactura(
+            (string) $request->fecha_emision,
+            (int) $request->tipoPagoVenta,
+            $this->obtenerDiasCreditoAprobados((int) ($request->flujo_id ?? 0)),
+            (int) $diasCredito
+        );
         $factura->tipo_pago_id = $request->tipoPagoVenta;
-        $factura->dias_credito = $diasCredito;
+        $factura->dias_credito = $this->resolverDiasCreditoFactura((int) $request->tipoPagoVenta, (int) ($request->flujo_id ?? 0), (int) $diasCredito);
         $factura->cai_id = $cai->id;
         $factura->estado_venta_id = 1;
         $factura->cliente_id = $request->seleccionarCliente;
@@ -2527,7 +2699,7 @@ class FacturacionCorporativa extends Component
         $factura->monto_comision = $montoComision;
         $factura->tipo_venta_id = 2; //coorporativo;
         $factura->estado_factura_id = $estado;
-        $factura->users_id = Auth::user()->id;
+        $factura->users_id = $teleAsesorId;
         $factura->comision_estado_pagado = 0;
         $factura->pendiente_cobro = $request->totalGeneral;
         $factura->estado_editar = 1;

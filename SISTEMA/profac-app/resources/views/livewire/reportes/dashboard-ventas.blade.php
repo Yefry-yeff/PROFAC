@@ -233,20 +233,28 @@
                         </div>
                     </div>
                     <div class="col-md-2">
+                        <label class="small font-weight-bold">Teleasesor</label>
+                        <div wire:ignore>
+                        <select class="form-control form-control-sm" id="s-teleasesor">
+                            <option value="">Todos</option>
+                        </select>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
                         <label class="small font-weight-bold">Tipo cliente</label>
                         <select class="form-control form-control-sm" id="s-tipo-cliente">
                             <option value="">Todos</option>
                         </select>
                     </div>
                     <div class="col-md-2 d-flex align-items-end">
-                        <button class="btn btn-primary btn-sm btn-block" onclick="dashboardVentas.cargarSemanal()">
-                            <i class="fas fa-search"></i> Consultar
-                        </button>
-                    </div>
-                    <div class="col-md-2 d-flex align-items-end">
-                        <button class="btn btn-success btn-sm btn-block" onclick="dashboardVentas.exportarExcel()">
-                            <i class="fas fa-file-excel"></i> Excel + Gráficas
-                        </button>
+                        <div class="w-100">
+                            <button class="btn btn-primary btn-sm btn-block mb-1" onclick="dashboardVentas.cargarSemanal()">
+                                <i class="fas fa-search"></i> Consultar
+                            </button>
+                            <button class="btn btn-success btn-sm btn-block" onclick="dashboardVentas.exportarExcel()">
+                                <i class="fas fa-file-excel"></i> Excel + Gráficas
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -294,6 +302,14 @@
                     </div>
                 </div>
                 <div class="mb-2 col-6 col-md-3">
+                    <div class="card kpi-card border-left-info h-100">
+                        <div class="px-3 py-2 card-body">
+                            <div class="mb-1 text-xs font-weight-bold text-info text-uppercase">Mejor Teleasesor</div>
+                            <div class="mb-0 h5 font-weight-bold" id="s-kpi-teleasesor">—</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-2 col-6 col-md-3">
                     <div class="card kpi-card border-left-secondary h-100">
                         <div class="px-3 py-2 card-body">
                             <div class="mb-1 text-xs font-weight-bold text-secondary text-uppercase">Mejor Cliente</div>
@@ -310,6 +326,7 @@
                     <small class="font-weight-bold text-muted mr-1">Filtro activo:</small>
                     <span id="filter-badge-dia"  class="badge badge-pill bi-badge" style="display:none;cursor:pointer"></span>
                     <span id="filter-badge-vend" class="badge badge-pill bi-badge" style="display:none;cursor:pointer"></span>
+                    <span id="filter-badge-teleasesor" class="badge badge-pill bi-badge" style="display:none;cursor:pointer"></span>
                     <button class="btn btn-xs btn-outline-danger ml-1" onclick="dashboardVentas.limpiarFiltrosSem()">
                         <i class="fas fa-times mr-1"></i>Limpiar filtros
                     </button>
@@ -352,7 +369,20 @@
                 </div>
             </div>
 
-            {{-- FILA 3: Crecimiento de vendedores (full width) --}}
+            {{-- FILA 3: Top teleasesores (full width) --}}
+            <div class="mb-3 row">
+                <div class="col-12">
+                    <div class="shadow-sm card bi-clickable-chart">
+                        <div class="py-2 card-header d-flex justify-content-between align-items-center">
+                            <span class="font-weight-bold"><i class="fas fa-headset mr-1"></i> Top Teleasesores del Período</span>
+                            <small class="text-muted">Clic para filtrar por teleasesor</small>
+                        </div>
+                        <div class="p-2 card-body"><div id="chart-ranking-teleasesor-sem" style="min-height:300px"></div></div>
+                    </div>
+                </div>
+            </div>
+
+            {{-- FILA 4: Crecimiento de vendedores (full width) --}}
             <div class="mb-3 row">
                 <div class="col-12">
                     <div class="shadow-sm card bi-clickable-chart">
@@ -374,7 +404,20 @@
                 </div>
             </div>
 
-            {{-- FILA 4: Top 5 clientes (full width) --}}
+            {{-- FILA 5: Crecimiento de teleasesores (full width) --}}
+            <div class="mb-3 row">
+                <div class="col-12">
+                    <div class="shadow-sm card">
+                        <div class="py-2 px-3 card-header d-flex justify-content-between align-items-center">
+                            <span class="font-weight-bold"><i class="fas fa-chart-bar mr-1"></i> Crecimiento por Teleasesor</span>
+                            <small class="text-muted font-italic" id="crec-teleasesor-periodo-label">vs. período anterior</small>
+                        </div>
+                        <div class="p-2 card-body"><div id="chart-crec-teleasesor-sem" style="min-height:300px"></div></div>
+                    </div>
+                </div>
+            </div>
+
+            {{-- FILA 6: Top 5 clientes por asesor comercial --}}
             <div class="mb-3 row">
                 <div class="col-12">
                     <div class="shadow-sm card">
@@ -383,6 +426,19 @@
                             <small class="text-muted" id="top-cli-sem-label">Todos los asesores comerciales</small>
                         </div>
                         <div class="p-2 card-body"><div id="chart-top-cli-sem" style="min-height:280px"></div></div>
+                    </div>
+                </div>
+            </div>
+
+            {{-- FILA 7: Top 5 clientes por teleasesor --}}
+            <div class="mb-3 row">
+                <div class="col-12">
+                    <div class="shadow-sm card">
+                        <div class="py-2 card-header d-flex justify-content-between align-items-center">
+                            <span class="font-weight-bold"><i class="fas fa-star mr-1 text-info"></i> Top 5 Clientes por Teleasesor</span>
+                            <small class="text-muted" id="top-cli-teleasesor-sem-label">Todos los teleasesores</small>
+                        </div>
+                        <div class="p-2 card-body"><div id="chart-top-cli-teleasesor-sem" style="min-height:280px"></div></div>
                     </div>
                 </div>
             </div>
@@ -405,6 +461,7 @@
                                 <th>Documento</th>
                                 <th>Cliente</th>
                                 <th>Asesor Comercial</th>
+                                <th>Teleasesor</th>
                                 <th>Tipo</th>
                                 <th>Subtotal</th>
                                 <th>ISV</th>

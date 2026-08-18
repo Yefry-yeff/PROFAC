@@ -6,6 +6,7 @@ use Livewire\Component;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Auth;
 use Validator;
 use DataTables;
@@ -21,6 +22,7 @@ use App\Exports\CuentasPorCobrarExport;
 use App\Exports\CuentasPorCobrarInteresExport;
 use App\Models\AplicacionPagos\Modelotros_movimientos;
 use App\Models\AplicacionPagos\Modelabonos_creditos;
+use App\Models\AplicacionPagos\Modelfactura_retencion_seguimiento;
 use App\Models\AplicacionPagos\ModelComisionReversionLog;
 use App\Models\Comisiones\Escalado\modelproducto_comision;
 use App\Models\Comisiones\Escalado\modelfacturas_comision;
@@ -28,15 +30,86 @@ use App\Models\Comisiones\Escalado\modelcomision_empleado;
 use App\Models\Comisiones\Escalado\modelcomision_escala;
 use App\Services\Comisiones\ProcesadorComisiones;
 use App\Services\Comisiones\GeneradorFacturasComision;
+use App\Services\Comisiones\AplicadorRetencionesMora;
+use App\Services\NotaCredito\GestorCreditoNota;
 
 
 
 
 class Pagos extends Component
 {
+    private const RETENCION_FUTURA_PENDIENTE = 'pendiente';
+    private const RETENCION_FUTURA_APLICADA = 'aplicada';
+    private const RETENCION_FUTURA_DESCARTADA = 'descartada';
+
     public function render()
     {
         return view('livewire.cuentas-por-cobrar.pagos');
+    }
+
+    private function marcarSeguimientoRetencionFutura(int $facturaId, int $aplicacionPagoId, ?string $observacion = null): void
+    {
+        $clienteId = (int) DB::table('factura')->where('id', $facturaId)->value('cliente_id');
+
+        $seguimiento = Modelfactura_retencion_seguimiento::query()
+            ->where('factura_id', $facturaId)
+            ->first();
+
+        if ($seguimiento && $seguimiento->estado === self::RETENCION_FUTURA_APLICADA) {
+            return;
+        }
+
+        $payload = [
+            'aplicacion_pagos_id'    => $aplicacionPagoId,
+            'cliente_id'             => $clienteId ?: null,
+            'estado'                 => self::RETENCION_FUTURA_PENDIENTE,
+            'observacion_marcado'    => $observacion,
+            'observacion_resolucion' => null,
+            'usr_marcado'            => Auth::id(),
+            'usr_resolvio'           => null,
+            'fecha_marcado'          => now(),
+            'fecha_resolucion'       => null,
+            'numero_retencion'       => null,
+            'archivo_retencion'      => null,
+        ];
+
+        if ($seguimiento) {
+            $seguimiento->fill($payload)->save();
+            return;
+        }
+
+        Modelfactura_retencion_seguimiento::create(array_merge($payload, [
+            'factura_id' => $facturaId,
+        ]));
+    }
+
+    private function resolverSeguimientoRetencionFutura(
+        int $facturaId,
+        int $aplicacionPagoId,
+        string $estado,
+        ?string $observacion = null,
+        ?string $numeroRetencion = null,
+        ?string $archivoRetencion = null
+    ): void {
+        $clienteId = (int) DB::table('factura')->where('id', $facturaId)->value('cliente_id');
+
+        $seguimiento = Modelfactura_retencion_seguimiento::query()
+            ->firstOrNew(['factura_id' => $facturaId]);
+
+        if (!$seguimiento->exists) {
+            $seguimiento->usr_marcado = Auth::id();
+            $seguimiento->fecha_marcado = now();
+        }
+
+        $seguimiento->aplicacion_pagos_id = $aplicacionPagoId;
+        $seguimiento->cliente_id = $clienteId ?: null;
+        $seguimiento->estado = $estado;
+        $seguimiento->observacion_resolucion = $observacion;
+        $seguimiento->usr_resolvio = Auth::id();
+        $seguimiento->fecha_resolucion = now();
+        $seguimiento->numero_retencion = $numeroRetencion;
+        $seguimiento->archivo_retencion = $archivoRetencion;
+        $seguimiento->save();
     }
 
 
@@ -60,83 +133,47 @@ class Pagos extends Component
         }
     }
 
+    private function sincronizarTotalesFacturasCliente(int $clienteId): void
+    {
+        DB::update("
+            UPDATE aplicacion_pagos ap
+            INNER JOIN factura f ON f.id = ap.factura_id
+            SET ap.saldo = ROUND(ap.saldo + (
+                    CASE WHEN f.tipo_venta_id = 3 THEN f.sub_total ELSE f.total END
+                    - ap.total_factura_cargo
+                ), 2),
+                ap.total_factura_cargo = CASE WHEN f.tipo_venta_id = 3 THEN f.sub_total ELSE f.total END,
+                ap.retencion_isv_factura = CASE WHEN f.tipo_venta_id = 3 THEN 0 ELSE f.isv END,
+                ap.ultimo_usr_actualizo = ?,
+                ap.updated_at = NOW()
+            WHERE ap.cliente_id = ?
+              AND ap.estado = 1
+              AND (
+                  ABS((CASE WHEN f.tipo_venta_id = 3 THEN f.sub_total ELSE f.total END) - ap.total_factura_cargo) >= 0.005
+                  OR ABS((CASE WHEN f.tipo_venta_id = 3 THEN 0 ELSE f.isv END) - ap.retencion_isv_factura) >= 0.005
+              )
+        ", [Auth::id() ?? 0, $clienteId]);
+    }
+
 
     public function listarCuentasPorCobrar($id){
         try{
 
-            /* VALIDANDO EXISTENCIA DE FACTURAS DE ESTE CLIENTE PARA CLIENTES VIEJOS*/
-            $existenciaAplicacion = DB::SELECTONE("
-
-                SELECT COUNT(*) AS existe FROM aplicacion_pagos ap
-                inner join factura fa on fa.id = ap.factura_id
-                inner join cliente cli on cli.id = fa.cliente_id
-                where ap.estado = 1 and cli.id = ".$id."
-
-
-            ");
-
-            $facturasActivas = DB::SELECTONE("
-
-                SELECT COUNT(*) as num
-                FROM factura fa
-                inner join cliente cli on cli.id = fa.cliente_id
-                where fa.estado_venta_id = 1 and cli.id = ".$id."
-
-
-            ");
-
-            $facturasEnPagos = DB::SELECTONE("
-
-                SELECT COUNT(*) as num
-                    from aplicacion_pagos
-                where
-                    aplicacion_pagos.factura_id in (
-                        SELECT
-                            fa.id
-                        FROM factura fa
-                            inner join cliente cli on cli.id = fa.cliente_id
-                        where
-                            fa.estado_venta_id = 1
-                            and cli.id = ".$id."
-
-                )");
-
-
-            if ($existenciaAplicacion->existe == 0) {
-
-                $cuentas2 = DB::select("
-
-                CALL sp_aplicacion_pagos('1','".$id."', '".Auth::user()->id."', '0','na','0','0','0', @estado, @msjResultado);");
-
-                //dd($cuentas2[0]->estado);
-
-                if ($cuentas2[0]->estado == -1) {
-                    return response()->json([
-                        "text" => "Ha ocurrido un error al insertar facturas en aplicacion de pagos.",
-                        "icon" => "error",
-                        "title"=>"Error!"
-                    ],402);
-                }
-
-            }else if ($facturasActivas->num > $facturasEnPagos->num) {
-                //este es el caso de un cliente nuevo o de una factura creada
-                //antes de ir al modulo de pagos
-
-
-                $cuentas3 = DB::select("
+            // Sincroniza siempre las facturas activas del cliente en aplicacion_pagos.
+            // Esto evita que una comparación por conteos deje facturas fuera del listado.
+            $cuentasSync = DB::select(" 
 
                 CALL sp_aplicacion_pagos('3','".$id."', '".Auth::user()->id."', '0','na','0','0','0', @estado, @msjResultado);");
 
-                //dd($cuentas2[0]->estado);
-
-                if ($cuentas3[0]->estado == -1) {
-                    return response()->json([
-                        "text" => "Ha ocurrido un error al insertar facturas en aplicacion de pagos.",
-                        "icon" => "error",
-                        "title"=>"Error!"
-                    ],402);
-                }
+            if ($cuentasSync[0]->estado == -1) {
+                return response()->json([
+                    "text" => "Ha ocurrido un error al sincronizar las facturas en aplicacion de pagos.",
+                    "icon" => "error",
+                    "title"=>"Error!"
+                ],402);
             }
+
+            $this->sincronizarTotalesFacturasCliente((int) $id);
 
             $cuentas = DB::select("
                 select
@@ -153,8 +190,12 @@ class Pagos extends Component
                 movimiento_resta as        'movResta',
                 retencion_isv_factura as   'isv',
                 saldo as                   'saldo',
+                (select fecha_vencimiento
+                from factura
+                where id = factura_id) as  'fechaVencimiento',
                 estado_retencion_isv as    'estadoRetencion',
                 retencion_aplicada as      'retencion_aplicada',
+                COALESCE((select frs.estado from factura_retencion_seguimiento frs where frs.factura_id = aplicacion_pagos.factura_id limit 1), 'sin_marcar') as 'seguimientoRetencionEstado',
                 estado as                  'estado',
                 estado_cerrado as          'estadoCierre',
                 usr_cerro as               'usrCierre',
@@ -203,6 +244,15 @@ class Pagos extends Component
                                 : '<a class="ap-ctx-item ap-ctx-dimmed">
                                         <span class="ap-ctx-icon ci-green"><i class="fa fa-check"></i></span>Retención gestionada</a>';
 
+                            $seguimientoEstado = (string) ($cuenta->seguimientoRetencionEstado ?? 'sin_marcar');
+                            $seguimientoLabel = $seguimientoEstado === self::RETENCION_FUTURA_PENDIENTE
+                                ? '<a class="ap-ctx-item ap-ctx-dimmed"><span class="ap-ctx-icon ci-orange"><i class="fa fa-flag"></i></span>Marcada para retención futura</a>'
+                                : ($seguimientoEstado === self::RETENCION_FUTURA_APLICADA
+                                    ? '<a class="ap-ctx-item ap-ctx-dimmed"><span class="ap-ctx-icon ci-green"><i class="fa fa-check-circle"></i></span>Seguimiento resuelto: aplicada</a>'
+                                    : ($seguimientoEstado === self::RETENCION_FUTURA_DESCARTADA
+                                        ? '<a class="ap-ctx-item ap-ctx-dimmed"><span class="ap-ctx-icon ci-gray"><i class="fa fa-times-circle"></i></span>Seguimiento resuelto: no aplica</a>'
+                                        : ''));
+
                             $btnBase = '
                                 <div class="ap-ctx-wrap">
                                     <button class="ap-actions-toggle" onclick="apCtxToggle(this)">
@@ -215,6 +265,7 @@ class Pagos extends Component
                                         <a class="ap-ctx-item" href="/factura/cooporativo/'.$cuenta->idFactura.'" target="_blank">
                                             <span class="ap-ctx-icon ci-red"><i class="fa fa-file-pdf-o"></i></span>Imprimir factura</a>
                                         <div class="ap-ctx-divider"></div>
+                                        '.$seguimientoLabel.'
                                         '.$retencionItem.'
                                         <a class="ap-ctx-item" onclick="modalNotaCredito('.$cuenta->codigoPago.',\''.$cuenta->codigoFactura.'\','.$cuenta->idFactura.','.$cuenta->tieneNC.')">
                                             <span class="ap-ctx-icon ci-green"><i class="fa fa-arrow-down"></i></span>Nota de crédito</a>
@@ -223,7 +274,7 @@ class Pagos extends Component
                                         <a class="ap-ctx-item" onclick="modalOtrosMovimientos('.$cuenta->codigoPago.',\''.$cuenta->codigoFactura.'\','.$cuenta->idFactura.','.$cuenta->saldo.')">
                                             <span class="ap-ctx-icon ci-gray"><i class="fa fa-refresh"></i></span>Otros movimientos</a>
                                         <div class="ap-ctx-divider"></div>
-                                        <a class="ap-ctx-item ap-ctx-highlight" onclick="modalAbonos('.$cuenta->codigoPago.',\''.$cuenta->codigoFactura.'\','.$cuenta->idFactura.','.$cuenta->saldo.')">
+                                        <a class="ap-ctx-item ap-ctx-highlight" onclick="modalAbonos('.$cuenta->codigoPago.',\''.$cuenta->codigoFactura.'\','.$cuenta->idFactura.','.$cuenta->saldo.',\''.$seguimientoEstado.'\')">
                                             <span class="ap-ctx-icon ci-teal"><i class="fa fa-money"></i></span>Registrar pago</a>
                                     </div>
                                 </div>';
@@ -250,26 +301,104 @@ class Pagos extends Component
         try{
 
             $consulta = DB::select("
+                SELECT movimientos.*
+                FROM (
+                    SELECT
+                        CAST(ot.id AS CHAR) AS codigoMovimiento,
+                        ot.aplicacion_pagos_id AS codigoPago,
+                        f.cai AS correlativo,
+                        FORMAT(ot.monto, 2) AS monto,
+                        ot.tipo_movimiento,
+                        ot.comentario,
+                        ot.estado AS estadoMov,
+                        u.name AS userRegistro,
+                        DATE_FORMAT(ot.created_at, '%Y-%m-%d') AS fechaCreacion,
+                        DATE_FORMAT(ot.created_at, '%Y-%m-%d %H:%i:%s') AS fechaRegistro,
+                        ot.factura_id,
+                        NULL AS comentarioNotaCredito
+                    FROM otros_movimientos ot
+                    INNER JOIN aplicacion_pagos ap ON ap.id = ot.aplicacion_pagos_id
+                    INNER JOIN factura f ON f.id = ot.factura_id
+                    LEFT JOIN users u ON u.id = ot.usr_registro
+                    WHERE ap.cliente_id = ?
+                        AND ap.estado = 1
+                        AND ot.estado = 1
 
-            select
-            ot.id as 'codigoMovimiento',
-            ot.aplicacion_pagos_id as 'codigoPago',
-            (select cai from factura where id = ot.factura_id) as correlativo,
-            FORMAT(ot.monto, 2) as monto,
-            ot.tipo_movimiento,
-            ot.comentario,
-            ot.estado as estadoMov,
-            (select name from users where id = ot.usr_registro) as userRegistro,
-            ot.created_at as fechaRegistro,
-            ot.factura_id
-                from otros_movimientos ot
-                inner join aplicacion_pagos ap on ap.id = ot.aplicacion_pagos_id
-                where
-                ap.cliente_id = ".$id."
-                and ap.estado = 1
-                and ot.estado = 1
-                ;"
-            );
+                    UNION ALL
+
+                    SELECT
+                        CONCAT('NC-LEG-', nc.id) AS codigoMovimiento,
+                        ap.id AS codigoPago,
+                        f.cai AS correlativo,
+                        FORMAT(nc.total, 2) AS monto,
+                        2 AS tipo_movimiento,
+                        nc.comentario,
+                        1 AS estadoMov,
+                        u.name AS userRegistro,
+                        DATE_FORMAT(COALESCE(nc.fecha_rebajado, nc.updated_at), '%Y-%m-%d') AS fechaCreacion,
+                        DATE_FORMAT(COALESCE(nc.fecha_rebajado, nc.updated_at), '%Y-%m-%d %H:%i:%s') AS fechaRegistro,
+                        nc.factura_id,
+                        nc.comentario AS comentarioNotaCredito
+                    FROM nota_credito nc
+                    INNER JOIN factura f ON f.id = nc.factura_id
+                    INNER JOIN aplicacion_pagos ap ON ap.factura_id = nc.factura_id
+                    LEFT JOIN users u ON u.id = nc.user_registra_rebaja
+                    WHERE ap.cliente_id = ?
+                        AND ap.estado = 1
+                        AND nc.estado_nota_id = 1
+                        AND nc.estado_rebajado = 1
+                        AND NOT EXISTS (
+                            SELECT 1
+                            FROM nota_credito_creditos ncc_legacy
+                            INNER JOIN nota_credito_movimientos ncm_legacy
+                                ON ncm_legacy.credito_id = ncc_legacy.id
+                                AND ncm_legacy.tipo = 'aplicacion'
+                            WHERE ncc_legacy.nota_credito_id = nc.id
+                        )
+
+                    UNION ALL
+
+                    SELECT
+                        CONCAT('NC-', ncm.id) AS codigoMovimiento,
+                        ncm.aplicacion_pagos_id AS codigoPago,
+                        fd.cai AS correlativo,
+                        FORMAT(ncm.monto, 2) AS monto,
+                        2 AS tipo_movimiento,
+                        CONCAT(
+                            'Nota de crédito ', nc.cai,
+                            ' aplicada a factura ', fd.cai,
+                            CASE
+                                WHEN NULLIF(TRIM(ncm.comentario), '') IS NULL THEN ''
+                                ELSE CONCAT(' - ', ncm.comentario)
+                            END
+                        ) AS comentario,
+                        1 AS estadoMov,
+                        u.name AS userRegistro,
+                        DATE_FORMAT(ncm.fecha_movimiento, '%Y-%m-%d') AS fechaCreacion,
+                        DATE_FORMAT(ncm.created_at, '%Y-%m-%d %H:%i:%s') AS fechaRegistro,
+                        ncm.factura_id,
+                        nc.comentario AS comentarioNotaCredito
+                    FROM nota_credito_movimientos ncm
+                    INNER JOIN nota_credito_creditos ncc ON ncc.id = ncm.credito_id
+                    INNER JOIN nota_credito nc ON nc.id = ncc.nota_credito_id
+                    INNER JOIN aplicacion_pagos ap ON ap.id = ncm.aplicacion_pagos_id
+                    INNER JOIN factura fd ON fd.id = ncm.factura_id
+                    LEFT JOIN users u ON u.id = ncm.users_id
+                    WHERE ap.cliente_id = ?
+                        AND ap.estado = 1
+                        AND ncm.tipo = 'aplicacion'
+                ) AS movimientos
+                ORDER BY movimientos.fechaRegistro DESC
+            ", [(int) $id, (int) $id, (int) $id]);
+
+            foreach ($consulta as $movimiento) {
+                if ($movimiento->comentarioNotaCredito !== null) {
+                    $movimiento->comentario = $this->formatearComentarioNotaCredito(
+                        $movimiento->comentarioNotaCredito
+                    );
+                }
+                unset($movimiento->comentarioNotaCredito);
+            }
 
 
 
@@ -296,6 +425,26 @@ class Pagos extends Component
         }
     }
 
+    private function formatearComentarioNotaCredito(?string $comentario): string
+    {
+        $comentario = trim((string) $comentario);
+        if ($comentario === '') {
+            return 'Sin comentario';
+        }
+
+        $datos = json_decode($comentario, true);
+        if (!is_array($datos)) {
+            return $comentario;
+        }
+
+        $partes = array_values(array_unique(array_filter([
+            trim((string) ($datos['descripcion'] ?? '')),
+            trim((string) ($datos['notas'] ?? '')),
+        ])));
+
+        return $partes ? implode(' - ', $partes) : 'Sin comentario';
+    }
+
     public function listarAbonos($id){
         try{
 
@@ -310,7 +459,8 @@ class Pagos extends Component
             ac.comentario as 'comentarioabono',
             ac.estado_abono as 'estadoAbono',
             (select name from users where id = ac.usr_registro) as 'userRegistro',
-            ac.created_at as 'fechaRegistro',
+            DATE_FORMAT(ac.fecha_pago, '%Y-%m-%d') as 'fechaPago',
+            DATE_FORMAT(ac.created_at, '%Y-%m-%d %H:%i:%s') as 'fechaRegistro',
             ac.factura_id
                 from abonos_creditos ac
                 inner join aplicacion_pagos ap on ap.id = ac.aplicacion_pagos_id
@@ -348,12 +498,31 @@ class Pagos extends Component
     public function listarNotasCredito($idFactura){
 
         try {
-                $notasCredito = DB::select("
-                    select
-                    id as 'idNotaCredito',
-                    cai as 'correlativo'
-                    from nota_credito where estado_rebajado = 2 and estado_nota_id = 1 and factura_id =
-                ".$idFactura);
+                $clienteId = DB::table('factura')->where('id', (int) $idFactura)->value('cliente_id');
+                if (!$clienteId) {
+                    return response()->json(['results' => []], 200);
+                }
+
+                $notasCredito = DB::table('nota_credito_creditos as cc')
+                    ->join('nota_credito as nc', 'nc.id', '=', 'cc.nota_credito_id')
+                    ->where('cc.cliente_id', $clienteId)
+                    ->where('nc.estado_nota_id', 1)
+                    ->where('cc.estado', 'disponible')
+                    ->where('cc.monto_aplicado', '<=', 0.005)
+                    ->where('cc.monto_reembolsado', '<=', 0.005)
+                    ->where('cc.saldo_disponible', '>', 0.005)
+                    ->whereNotExists(function ($query) {
+                        $query->select(DB::raw(1))
+                            ->from('nota_credito_movimientos as ncm')
+                            ->whereColumn('ncm.credito_id', 'cc.id');
+                    })
+                    ->orderBy('nc.fecha')
+                    ->orderBy('nc.id')
+                    ->select(
+                        'nc.id as idNotaCredito',
+                        DB::raw("CONCAT(nc.cai, ' · Disponible L ', FORMAT(cc.saldo_disponible, 2)) as correlativo")
+                    )
+                    ->get();
             return response()->json([
                 'results'=>$notasCredito,
             ],200);
@@ -370,15 +539,50 @@ class Pagos extends Component
     public function datosNotasCredito($idNotaCredito){
 
         try {
-                $notaCredito = DB::select("
-                    select
-                    comentario,
-                    total AS total,
-                    estado_rebajado
-                    from nota_credito where id =
-                ".$idNotaCredito);
+                $notaCredito = DB::table('nota_credito as nc')
+                    ->join('nota_credito_creditos as cc', 'cc.nota_credito_id', '=', 'nc.id')
+                    ->where('nc.id', (int) $idNotaCredito)
+                    ->where('nc.estado_nota_id', 1)
+                    ->where('cc.estado', 'disponible')
+                    ->where('cc.monto_aplicado', '<=', 0.005)
+                    ->where('cc.monto_reembolsado', '<=', 0.005)
+                    ->where('cc.saldo_disponible', '>', 0.005)
+                    ->whereNotExists(function ($query) {
+                        $query->select(DB::raw(1))
+                            ->from('nota_credito_movimientos as ncm')
+                            ->whereColumn('ncm.credito_id', 'cc.id');
+                    })
+                    ->select(
+                        'nc.comentario',
+                        'nc.total',
+                        'nc.estado_rebajado',
+                        'cc.saldo_disponible',
+                        'cc.monto_aplicado',
+                        'cc.monto_reembolsado',
+                        'cc.cliente_id'
+                    )
+                    ->get();
+
+                $saldoPendiente = 0;
+                if ($notaCredito->isNotEmpty()) {
+                    $saldoPendiente = DB::table('aplicacion_pagos')
+                        ->where('cliente_id', $notaCredito->first()->cliente_id)
+                        ->where('estado', 1)
+                        ->where('estado_cerrado', '<>', 2)
+                        ->where('saldo', '>', 0.005)
+                        ->sum('saldo');
+                }
+
+                if ($notaCredito->isEmpty()) {
+                    return response()->json([
+                        'icon' => 'warning',
+                        'title' => 'Nota no disponible',
+                        'text' => 'La nota de crédito ya fue aplicada o reembolsada automáticamente y no puede utilizarse en Aplicación de Pagos.',
+                    ], 422);
+                }
             return response()->json([
                 'result'=>$notaCredito,
+                'saldo_pendiente_cliente' => round((float) $saldoPendiente, 2),
             ],200);
 
         } catch (QueryException $e) {
@@ -444,6 +648,18 @@ class Pagos extends Component
 
         try {
 
+                        $request->validate([
+                            'codAplicPago'        => 'required|integer',
+                            'idFacturaRetencion'  => 'required|integer',
+                            'comentario_retencion'=> 'required|string|max:500',
+                            'selectTiporetencion' => 'required|in:1,2',
+                            'montoRetencion'      => 'required',
+                            'numero_retencion'    => 'nullable|string|max:100',
+                            'doc_retencion'       => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+                        ]);
+
+                        $comentarioRetencion = str_replace("'", "''", (string) $request->comentario_retencion);
+
 
                          $cuentas2 = DB::select("
 
@@ -452,7 +668,7 @@ class Pagos extends Component
                             '0',
                             '".Auth::user()->id."',
                             '".$request->idFacturaRetencion."',
-                            '".$request->comentario_retencion."',
+                            '".$comentarioRetencion."',
                             '".$request->codAplicPago."',
                             '".$request->selectTiporetencion."',
                             '".$request->montoRetencion."',
@@ -469,6 +685,155 @@ class Pagos extends Component
                             ],402);
                         }
 
+                        $archivoRetencion = null;
+                        $file = $request->file('doc_retencion');
+                        if ($file !== null) {
+                            $folderPath = public_path('documentos_retenciones_cxc');
+                            if (!File::exists($folderPath)) {
+                                File::makeDirectory($folderPath, 0755, true);
+                            }
+
+                            $fileName = 'retencion_'.time().'_'.$request->codAplicPago.'.'.$file->getClientOriginalExtension();
+                            $file->move($folderPath, $fileName);
+                            $archivoRetencion = '/documentos_retenciones_cxc/'.$fileName;
+                        }
+
+                        $updateAplicacionPago = [
+                            'updated_at' => now(),
+                        ];
+
+                        if (Schema::hasColumn('aplicacion_pagos', 'numero_retencion')) {
+                            $updateAplicacionPago['numero_retencion'] = $request->numero_retencion;
+                        }
+
+                        if (Schema::hasColumn('aplicacion_pagos', 'archivo_retencion')) {
+                            $updateAplicacionPago['archivo_retencion'] = $archivoRetencion;
+                        }
+
+                        DB::table('aplicacion_pagos')
+                            ->where('id', $request->codAplicPago)
+                            ->update($updateAplicacionPago);
+
+                        // Si la retencion aplicada deja saldo en 0, cerrar y comisionar
+                        // usando la fecha del ultimo abono registrado en la factura.
+                        $apPostRetencion = DB::table('aplicacion_pagos')
+                            ->where('id', (int) $request->codAplicPago)
+                            ->select('factura_id', 'saldo', 'estado_cerrado')
+                            ->first();
+
+                        $retencionAplica = ((int) $request->selectTiporetencion === 2);
+                        $saldoPost = (float) ($apPostRetencion->saldo ?? 0);
+                        $cierraPorRetencion = false;
+                        $fechaPagoComision = null;
+                        $fuenteFechaComision = null;
+
+                        if ($retencionAplica && $apPostRetencion && $saldoPost <= 0.0001) {
+                            $cierraPorRetencion = true;
+                            DB::table('aplicacion_pagos')
+                                ->where('id', (int) $request->codAplicPago)
+                                ->update(['saldo' => 0, 'updated_at' => now()]);
+
+                            if ((int) ($apPostRetencion->estado_cerrado ?? 0) !== 2) {
+                                $cierreRetencion = DB::select(" 
+                                    CALL sp_aplicacion_pagos(
+                                        '9',
+                                        '0',
+                                        '".Auth::user()->id."',
+                                        '0',
+                                        'CIERRE AUTOMATICO POR RETENCION',
+                                        '".$request->codAplicPago."',
+                                        '0',
+                                        '0',
+                                        @estado,
+                                        @msjResultado);");
+
+                                if (($cierreRetencion[0]->estado ?? -1) == -1) {
+                                    return response()->json([
+                                        "text" => "Ha ocurrido un error al cerrar automaticamente la factura por retencion.",
+                                        "icon" => "error",
+                                        "title"=>"Error!"
+                                    ],402);
+                                }
+
+                                $apTrasCierre = DB::table('aplicacion_pagos')
+                                    ->where('id', (int) $request->codAplicPago)
+                                    ->select('estado_cerrado')
+                                    ->first();
+
+                                if (!$apTrasCierre || (int) $apTrasCierre->estado_cerrado !== 2) {
+                                    DB::table('aplicacion_pagos')
+                                        ->where('id', (int) $request->codAplicPago)
+                                        ->update([
+                                            'estado_cerrado'       => 2,
+                                            'usr_cerro'            => Auth::id(),
+                                            'fecha_cierre_factura' => now(),
+                                            'ultimo_usr_actualizo' => Auth::id(),
+                                            'updated_at'           => now(),
+                                        ]);
+                                }
+                            }
+
+                            $ultimoAbono = DB::table('abonos_creditos')
+                                ->where('aplicacion_pagos_id', (int) $request->codAplicPago)
+                                ->where('factura_id', (int) $request->idFacturaRetencion)
+                                ->where('estado_abono', 1)
+                                ->orderByRaw('CASE WHEN fecha_pago IS NULL THEN 1 ELSE 0 END ASC')
+                                ->orderBy('fecha_pago', 'desc')
+                                ->orderBy('id', 'desc')
+                                ->select('fecha_pago', 'created_at')
+                                ->first();
+
+                            if ($ultimoAbono) {
+                                $fechaBase = $ultimoAbono->fecha_pago ?: $ultimoAbono->created_at;
+                                if (!empty($fechaBase)) {
+                                    $fechaPagoComision = Carbon::parse($fechaBase)->toDateString();
+                                    $fuenteFechaComision = !empty($ultimoAbono->fecha_pago)
+                                        ? 'ultimo_abono_fecha_pago'
+                                        : 'ultimo_abono_created_at';
+                                }
+                            } else {
+                                $fuenteFechaComision = 'sin_abonos_previos';
+                            }
+
+                            $generador = app(GeneradorFacturasComision::class);
+                            $arrayfacturas_comision = $generador->generar(
+                                (int) $request->idFacturaRetencion,
+                                (int) $request->codAplicPago,
+                                $fechaPagoComision
+                            );
+
+                            if (!empty($arrayfacturas_comision)) {
+                                $arrayfacturas_comision = app(AplicadorRetencionesMora::class)
+                                    ->aplicar($arrayfacturas_comision, (int) $request->idFacturaRetencion, $fechaPagoComision);
+                                $procesador = app(ProcesadorComisiones::class);
+                                foreach ($arrayfacturas_comision as $factura) {
+                                    $procesador->procesar($factura);
+                                }
+                            }
+                        }
+
+                        $this->resolverSeguimientoRetencionFutura(
+                            (int) $request->idFacturaRetencion,
+                            (int) $request->codAplicPago,
+                            ((int) $request->selectTiporetencion === 2)
+                                ? self::RETENCION_FUTURA_APLICADA
+                                : self::RETENCION_FUTURA_DESCARTADA,
+                            (string) $request->comentario_retencion,
+                            $request->numero_retencion,
+                            $archivoRetencion
+                        );
+
+                        return response()->json([
+                            "icon" => "success",
+                            "text" => "Retención gestionada correctamente.",
+                            "title"=>"Exito!",
+                            "trazabilidad" => [
+                                "cierra_por_retencion" => $cierraPorRetencion,
+                                "fecha_comision_usada" => $fechaPagoComision,
+                                "fuente_fecha_comision" => $fuenteFechaComision,
+                            ]
+                        ],200);
+
             }catch (QueryException $e) {
             return response()->json([
                 "icon" => "error",
@@ -476,52 +841,123 @@ class Pagos extends Component
                 "title"=>"Error!",
                 "error" => $e
             ],402);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                "icon"  => "warning",
+                "title" => "Datos incompletos",
+                "text"  => collect($e->errors())->flatten()->first() ?? 'Revise los datos de retención.'
+            ], 422);
         }
 
     }
 
    ///////////////////////////////GESTIONES DE notas nde credito
 
-    public function gestionNC( Request $request){
-
-        //dd($request);
-
+    public function gestionNC(Request $request, GestorCreditoNota $gestor)
+    {
+        $comprobante = null;
         try {
+            $request->validate([
+                'selectNotaCredito' => 'required|integer',
+                'destinoCredito' => 'required|in:saldos,reembolso,mixto',
+                'bancoReembolso' => 'nullable|integer',
+                'metodoReembolso' => 'nullable|integer',
+                'fechaReembolso' => 'nullable|date',
+                'referenciaReembolso' => 'nullable|string|max:100',
+                'comprobanteReembolso' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+                'comentarioRebaja' => 'nullable|string|max:500',
+            ]);
 
+            $credito = DB::table('nota_credito_creditos as cc')
+                ->join('nota_credito as nc', 'nc.id', '=', 'cc.nota_credito_id')
+                ->where('cc.nota_credito_id', (int) $request->selectNotaCredito)
+                ->where('nc.estado_nota_id', 1)
+                ->where('cc.estado', 'disponible')
+                ->where('cc.monto_aplicado', '<=', 0.005)
+                ->where('cc.monto_reembolsado', '<=', 0.005)
+                ->where('cc.saldo_disponible', '>', 0.005)
+                ->whereNotExists(function ($query) {
+                    $query->select(DB::raw(1))
+                        ->from('nota_credito_movimientos as ncm')
+                        ->whereColumn('ncm.credito_id', 'cc.id');
+                })
+                ->select('cc.*')
+                ->first();
 
-                        $cuentas2 = DB::select("
+            if (!$credito) {
+                return response()->json([
+                    'icon' => 'warning',
+                    'title' => 'Nota no disponible',
+                    'text' => 'La nota de crédito ya fue aplicada o reembolsada automáticamente y no puede volver a utilizarse.',
+                ], 422);
+            }
+            $saldoPendiente = $credito
+                ? (float) DB::table('aplicacion_pagos')
+                    ->where('cliente_id', $credito->cliente_id)
+                    ->where('estado', 1)
+                    ->where('estado_cerrado', '<>', 2)
+                    ->where('saldo', '>', 0.005)
+                    ->sum('saldo')
+                : 0;
+            $requiereReembolso = $request->destinoCredito === 'reembolso'
+                || ($request->destinoCredito === 'mixto'
+                    && (float) ($credito->saldo_disponible ?? 0) > $saldoPendiente + 0.005);
 
-                        CALL sp_aplicacion_pagos(
-                            '5',
-                            '".$request->selectNotaCredito."',
-                            '".Auth::user()->id."',
-                            '".$request->idFacturaNC."',
-                            '".$request->comentarioRebaja."',
-                            '".$request->codAplicPagonc."',
-                            '".$request->selectAplicado."',
-                            '".$request->totalNotaCredito."',
-                            @estado, @msjResultado);");
+            if ($requiereReembolso) {
+                $request->validate([
+                    'bancoReembolso' => 'required|integer',
+                    'metodoReembolso' => 'required|integer',
+                    'fechaReembolso' => 'required|date',
+                ]);
+            }
 
+            if ($request->hasFile('comprobanteReembolso')) {
+                $folderPath = public_path('documentos_reembolsos_notas_credito');
+                if (!File::exists($folderPath)) {
+                    File::makeDirectory($folderPath, 0755, true);
+                }
+                $file = $request->file('comprobanteReembolso');
+                $fileName = 'reembolso_nc_' . time() . '_' . $request->selectNotaCredito . '.' . $file->getClientOriginalExtension();
+                $file->move($folderPath, $fileName);
+                $comprobante = '/documentos_reembolsos_notas_credito/' . $fileName;
+            }
 
-                        //dd($cuentas2[0]->estado);
+            $resultado = $gestor->procesar(
+                (int) $request->selectNotaCredito,
+                (string) $request->destinoCredito,
+                [
+                    'banco_id' => $request->bancoReembolso,
+                    'tipo_pago_cobro_id' => $request->metodoReembolso,
+                    'fecha' => $request->fechaReembolso,
+                    'referencia' => $request->referenciaReembolso,
+                    'comprobante' => $comprobante,
+                    'comentario' => $request->comentarioRebaja,
+                ],
+                (int) Auth::id()
+            );
 
-                        if ($cuentas2[0]->estado == -1) {
-                            return response()->json([
-                                "text" => "Ha ocurrido un error.",
-                                "icon" => "error",
-                                "title"=>"Error!"
-                            ],402);
-                        }
-
-            }catch (QueryException $e) {
             return response()->json([
-                "icon" => "error",
-                "text" => "Ha ocurrido un error: ".$e,
-                "title"=>"Error!",
-                "error" => $e
-            ],402);
+                'icon' => 'success',
+                'title' => 'Nota gestionada',
+                'text' => 'La nota de crédito fue distribuida automáticamente.',
+                'resultado' => $resultado,
+            ], 200);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'icon' => 'warning',
+                'title' => 'Datos incompletos',
+                'text' => collect($e->errors())->flatten()->first(),
+            ], 422);
+        } catch (\Throwable $e) {
+            if ($comprobante && File::exists(public_path($comprobante))) {
+                File::delete(public_path($comprobante));
+            }
+            return response()->json([
+                'icon' => 'error',
+                'title' => 'No se pudo gestionar la nota',
+                'text' => $e->getMessage(),
+            ], 422);
         }
-
     }
 
 
@@ -658,6 +1094,8 @@ class Pagos extends Component
                                 );
 
                                 if (!empty($arrayfacturas_comision)) {
+                                    $arrayfacturas_comision = app(AplicadorRetencionesMora::class)
+                                        ->aplicar($arrayfacturas_comision, (int) $request->idFacturaom);
                                     $procesador = app(ProcesadorComisiones::class);
                                     foreach ($arrayfacturas_comision as $factura) {
                                         $procesador->procesar($factura);
@@ -692,6 +1130,23 @@ class Pagos extends Component
 
     ///////////////////////////////GESTIONES DE creditos y abonos
 
+    private function obtenerCategoriaPrecioMasBaja(int $clienteCategoriaEscalaId): ?int
+    {
+        if ($clienteCategoriaEscalaId <= 0) {
+            return null;
+        }
+
+        $categoriaId = DB::table('categoria_precios')
+            ->where('cliente_categoria_escala_id', $clienteCategoriaEscalaId)
+            ->where('estado_id', 1)
+            ->orderByRaw('CASE WHEN porc_precio_a IS NULL THEN 1 ELSE 0 END ASC')
+            ->orderBy('porc_precio_a', 'asc')
+            ->orderBy('id', 'asc')
+            ->value('id');
+
+        return $categoriaId ? (int) $categoriaId : null;
+    }
+
     /**
      * Previsualiza qué roles recibirían comisión si este pago cierra la factura.
      * No modifica ningún dato — solo lectura.
@@ -702,45 +1157,87 @@ class Pagos extends Component
         $montoAbono       = (float) $request->input('monto_abono', 0);
         $aplicacionPagoId = (int) $request->input('aplicacion_pagos_id');
 
+        $respBase = [
+            'cerrara'             => false,
+            'ya_comisionada'      => false,
+            'targets'             => [],
+            'sr_forzado'          => false,
+            'sr_tipo_factura'     => null,
+            'sr_categoria_baja'   => null,
+            'sr_productos'        => [],
+            'sr_porcentajes'      => [],
+        ];
+
         // Si la factura ya tiene comisiones activas, no habrá nuevas comisiones.
         // Si solo tiene comisiones inactivas (revertidas), sí puede recalcular.
         if (DB::table('facturas_comision')->where('factura_id', $facturaId)->where('estado_id', 1)->exists()) {
-            return response()->json(['cerrara' => false, 'ya_comisionada' => true, 'targets' => []]);
+            $respBase['ya_comisionada'] = true;
+            return response()->json($respBase);
         }
 
         // Verificar si el monto abonado cierra la factura (saldo queda en 0)
         $saldo = (float) DB::table('aplicacion_pagos')->where('id', $aplicacionPagoId)->value('saldo');
         if ($saldo <= 0 || $montoAbono < $saldo) {
-            return response()->json(['cerrara' => false, 'ya_comisionada' => false, 'targets' => []]);
+            return response()->json($respBase);
         }
 
-        // Obtener facturador y vendedor con sus roles
+        // Obtener facturador, vendedor y gestor de entrega (si existe) con sus roles
         $fila = DB::selectOne(
             "SELECT f.users_id AS facturador_id,
                     uf.rol_id   AS facturador_rol,
                     uf.name     AS facturador_nombre,
                     f.vendedor  AS vendedor_id,
                     uv.rol_id   AS vendedor_rol,
-                    uv.name     AS vendedor_nombre
+                    uv.name     AS vendedor_nombre,
+                    f.gestor_entrega AS gestor_id,
+                    ug.rol_id   AS gestor_rol,
+                    ug.name     AS gestor_nombre,
+                    tf.codigo   AS tipo_factura_codigo,
+                    tf.nombre   AS tipo_factura_nombre,
+                    cl.cliente_categoria_escala_id,
+                    f.tipo_pago_id,
+                    DATE(f.fecha_vencimiento) as fecha_vencimiento
              FROM factura f
              INNER JOIN users uf ON uf.id = f.users_id
              INNER JOIN users uv ON uv.id = f.vendedor
+             LEFT JOIN users ug ON ug.id = f.gestor_entrega
+             LEFT JOIN tipo_factura tf ON tf.id = f.tipo_factura_id
+             LEFT JOIN cliente cl ON cl.id = f.cliente_id
              WHERE f.id = ?",
             [$facturaId]
         );
 
         if (!$fila) {
-            return response()->json(['cerrara' => false, 'ya_comisionada' => false, 'targets' => []]);
+            return response()->json($respBase);
+        }
+
+        $tipoFacturaCodigo = (string) ($fila->tipo_factura_codigo ?? '');
+        $clienteCategoriaEscalaId = (int) ($fila->cliente_categoria_escala_id ?? 0);
+        $esFacturaSr = in_array($tipoFacturaCodigo, [
+            'sin_restriccion_gobierno',
+            'sin_restriccion_precio',
+        ], true);
+
+        $categoriaBajaId = null;
+        $categoriaBaja = null;
+        if ($esFacturaSr) {
+            $categoriaBajaId = $this->obtenerCategoriaPrecioMasBaja((int) ($fila->cliente_categoria_escala_id ?? 0));
+            if ($categoriaBajaId) {
+                $cat = DB::table('categoria_precios')
+                    ->where('id', $categoriaBajaId)
+                    ->select('id', 'nombre', 'porc_precio_a')
+                    ->first();
+                if ($cat) {
+                    $categoriaBaja = [
+                        'id' => (int) $cat->id,
+                        'nombre' => (string) $cat->nombre,
+                        'porc_precio_a' => $cat->porc_precio_a !== null ? (float) $cat->porc_precio_a : null,
+                    ];
+                }
+            }
         }
 
         $roles          = DB::table('rol')->pluck('nombre', 'id');
-        $rolesConEscala = DB::table('comision_escala')
-            ->where('estado_id', 1)
-            ->pluck('rol_id')
-            ->unique()
-            ->flip()
-            ->all();
-
         // Roles desactivados en el panel de control — mismo filtro que el generador.
         // Los roles que NO aparecen en comision_rol_config se asumen habilitados.
         $rolesDesactivados = DB::table('comision_rol_config')
@@ -760,17 +1257,20 @@ class Pagos extends Component
                 'empleado'     => $fila->facturador_nombre,
                 'rol_id'       => $rolFijo,
                 'rol_nombre'   => $roles[$rolFijo] ?? 'Desconocido',
-                'tiene_escala' => isset($rolesConEscala[$rolFijo]),
+                'tiene_escala' => false,
+                'porcentaje_comision' => null,
             ];
         }
 
         // Capacidad 2 — Facturador en su rol real (si difiere del fijo)
-        // Se omite si su rol real es ROL_VENDEDOR_ID y es la misma persona que el vendedor.
-        $facturadorRol     = (int) $fila->facturador_rol;
-        $mismaPersona      = ((int) $fila->facturador_id === (int) $fila->vendedor_id);
-        $rolRealEsVendedor = ($facturadorRol === GeneradorFacturasComision::ROL_VENDEDOR_ID);
+        // Se omite si:
+        //   a) Su rol real coincide con ROL_FACTURADOR_ID (ya cubierto por entrada 1).
+        //   b) Su rol real coincide con ROL_VENDEDOR_ID: la entrada 3 (VENDEDOR) ya
+        //      cubre ese rol. No importa si son personas distintas — un rol solo
+        //      recibe comisión una vez por factura.
+        $facturadorRol = (int) $fila->facturador_rol;
 
-        if ($facturadorRol !== $rolFijo && !($rolRealEsVendedor && $mismaPersona)) {
+        if ($facturadorRol !== $rolFijo && $facturadorRol !== GeneradorFacturasComision::ROL_VENDEDOR_ID) {
             if (!isset($rolesDesactivados[$facturadorRol])) {
                 $targets[] = [
                     'capacidad'    => 'Rol Real',
@@ -778,7 +1278,8 @@ class Pagos extends Component
                     'empleado'     => $fila->facturador_nombre,
                     'rol_id'       => $facturadorRol,
                     'rol_nombre'   => $roles[$facturadorRol] ?? 'Desconocido',
-                    'tiene_escala' => isset($rolesConEscala[$facturadorRol]),
+                    'tiene_escala' => false,
+                    'porcentaje_comision' => null,
                 ];
             }
         }
@@ -792,20 +1293,202 @@ class Pagos extends Component
                 'empleado'     => $fila->vendedor_nombre,
                 'rol_id'       => $rolVendedor,
                 'rol_nombre'   => $roles[$rolVendedor] ?? 'Desconocido',
-                'tiene_escala' => isset($rolesConEscala[$rolVendedor]),
+                'tiene_escala' => false,
+                'porcentaje_comision' => null,
             ];
         }
+
+        // Capacidad 4 — Gestor de entrega con rol fijo ROL_GESTOR_ENTREGA_ID (16)
+        $gestorId = (int) ($fila->gestor_id ?? 0);
+        $rolGestor = GeneradorFacturasComision::ROL_GESTOR_ENTREGA_ID;
+        if ($gestorId > 0 && !isset($rolesDesactivados[$rolGestor])) {
+            $targets[] = [
+                'capacidad'    => 'Gestor de Entrega',
+                'tipo'         => 4,
+                'empleado'     => $fila->gestor_nombre ?? 'Sin nombre',
+                'rol_id'       => $rolGestor,
+                'rol_nombre'   => $roles[$rolGestor] ?? 'Desconocido',
+                'tiene_escala' => false,
+                'porcentaje_comision' => null,
+            ];
+        }
+
+        $categoriasProductoFactura = DB::table('venta_has_producto as vp')
+            ->join('precios_producto_carga as ppc', 'ppc.id', '=', 'vp.precios_producto_carga_id')
+            ->where('vp.factura_id', $facturaId)
+            ->pluck('ppc.categoria_precios_id')
+            ->map(fn($id) => (int) $id)
+            ->filter(fn($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        // Regla SR: usar categoría más baja SOLO para productos cuyo precio vendido
+        // está por DEBAJO del precio_a de esa categoría. Si está igual o por encima,
+        // el producto comisiona por su categoría real.
+        $srPenalizaAlgunProducto = false;
+        if ($esFacturaSr && $categoriaBajaId) {
+            $productosConPrecio = DB::table('venta_has_producto as vp')
+                ->join('precios_producto_carga as ppc', 'ppc.id', '=', 'vp.precios_producto_carga_id')
+                ->where('vp.factura_id', $facturaId)
+                ->selectRaw('vp.producto_id, ppc.categoria_precios_id,
+                              COALESCE(NULLIF(vp.precioSeleccionado,0), vp.precio_unidad) as precio_vendido')
+                ->get();
+
+            $precioRefBajaCat = DB::table('precios_producto_carga')
+                ->where('categoria_precios_id', $categoriaBajaId)
+                ->whereIn('producto_id', $productosConPrecio->pluck('producto_id')->all())
+                ->get(['producto_id', 'precio_a'])
+                ->keyBy('producto_id');
+
+            $categoriasEfectivas = [];
+            foreach ($productosConPrecio as $prod) {
+                $ref = $precioRefBajaCat->get((int) $prod->producto_id);
+                $precioVendido = (float) $prod->precio_vendido;
+                if ($ref !== null && $precioVendido < (float) $ref->precio_a) {
+                    // Vendió por debajo del precio mínimo → penalizar con categoría más baja
+                    $categoriasEfectivas[] = $categoriaBajaId;
+                    $srPenalizaAlgunProducto = true;
+                } else {
+                    // Vendió igual o por encima → usa su categoría real
+                    $categoriasEfectivas[] = (int) $prod->categoria_precios_id;
+                }
+            }
+            $categoriasProductoFactura = array_values(array_unique($categoriasEfectivas));
+        }
+
+        foreach ($targets as &$t) {
+            $qEscala = DB::table('comision_escala')
+                ->where('estado_id', 1)
+                ->where('rol_id', (int) $t['rol_id'])
+                ->where('cliente_categoria_escala_id', $clienteCategoriaEscalaId);
+
+            if (!empty($categoriasProductoFactura)) {
+                $qEscala->whereIn('categoria_precios_id', $categoriasProductoFactura);
+            }
+
+            $escalas = $qEscala
+                ->orderBy('categoria_precios_id')
+                ->orderBy('id', 'desc')
+                ->get(['categoria_precios_id', 'porcentaje_comision']);
+
+            $t['tiene_escala'] = $escalas->isNotEmpty();
+            $t['porcentaje_comision'] = $escalas->isNotEmpty()
+                ? (float) $escalas->first()->porcentaje_comision
+                : null;
+        }
+        unset($t);
 
         // Filtrar: solo roles con escala activa configurada (los desactivados ya fueron excluidos arriba)
         $targets = array_values(array_filter($targets, function ($t) {
             return $t['tiene_escala'] === true;
         }));
 
+        $productosSr = [];
+        if ($esFacturaSr) {
+            $productos = DB::table('venta_has_producto as vp')
+                ->leftJoin('producto as p', 'p.id', '=', 'vp.producto_id')
+                ->leftJoin('precios_producto_carga as ppc', 'ppc.id', '=', 'vp.precios_producto_carga_id')
+                ->leftJoin('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')
+                ->where('vp.factura_id', $facturaId)
+                ->selectRaw('p.nombre as producto, cp.id as categoria_usada_id, cp.nombre as categoria_usada, vp.cantidad, vp.precio_unidad, vp.precioSeleccionado, COALESCE(NULLIF(vp.precioSeleccionado, 0), vp.precio_unidad) as precio_para_comision')
+                ->get();
+
+            foreach ($productos as $prod) {
+                $productosSr[] = [
+                    'producto' => (string) ($prod->producto ?? 'Producto sin nombre'),
+                    'categoria_usada_id' => $prod->categoria_usada_id ? (int) $prod->categoria_usada_id : null,
+                    'categoria_usada' => (string) ($prod->categoria_usada ?? 'Sin categoría'),
+                    'cantidad' => (float) ($prod->cantidad ?? 0),
+                    'precio_unidad' => (float) ($prod->precio_unidad ?? 0),
+                    'precio_seleccionado' => (float) ($prod->precioSeleccionado ?? 0),
+                    'precio_para_comision' => (float) ($prod->precio_para_comision ?? $prod->precio_unidad ?? 0),
+                ];
+            }
+        }
+
+        $porcentajesSr = array_map(function ($t) {
+            return [
+                'capacidad' => (string) $t['capacidad'],
+                'rol_id' => (int) $t['rol_id'],
+                'rol_nombre' => (string) $t['rol_nombre'],
+                'porcentaje_comision' => $t['porcentaje_comision'] !== null ? (float) $t['porcentaje_comision'] : null,
+            ];
+        }, $targets);
+
+        // ── Retención por mora crédito ─────────────────────────────────────
+        $moraRetencion = null;
+        if ((int) ($fila->tipo_pago_id ?? 0) === 2 && !empty($fila->fecha_vencimiento)) {
+            $fechaPagoInput = trim((string) $request->input('fecha_pago', ''));
+            $fechaReferencia = ($fechaPagoInput !== '')
+                ? Carbon::parse($fechaPagoInput)->startOfDay()
+                : Carbon::now()->startOfDay();
+
+            $fechaVenc  = Carbon::parse($fila->fecha_vencimiento)->startOfDay();
+            $diasTransc = (int) $fechaVenc->diffInDays($fechaReferencia, false);
+
+            if ($diasTransc > 0 && !empty($targets)) {
+                $rolIdsTargets = array_unique(array_column($targets, 'rol_id'));
+                $configs = DB::table('dias_gracia_comision')
+                    ->whereIn('rol_id', $rolIdsTargets)
+                    ->where('tipo_factura', 'credito')
+                    ->where('dias_gracia', '>', 0)
+                    ->get()
+                    ->keyBy('rol_id');
+
+                $moraDetalles = [];
+                foreach ($targets as $t) {
+                    $config = $configs->get($t['rol_id']);
+                    if (!$config) {
+                        continue;
+                    }
+                    $diasGracia = (int) $config->dias_gracia;
+                    if ($diasTransc <= $diasGracia) {
+                        continue;
+                    }
+                    $pct      = (float) $config->porcentaje_retencion;
+                    $periodos = (int) ceil(($diasTransc - $diasGracia) / $diasGracia);
+                    $moraDetalles[] = [
+                        'rol_id'                     => (int) $t['rol_id'],
+                        'rol_nombre'                 => (string) $t['rol_nombre'],
+                        'capacidad'                  => (string) $t['capacidad'],
+                        'dias_gracia'                => $diasGracia,
+                        'dias_transcurridos'         => $diasTransc,
+                        'periodos_vencidos'          => $periodos,
+                        'porcentaje_por_periodo'     => $pct,
+                        'porcentaje_total_retencion' => min(100, round($periodos * $pct, 4)),
+                    ];
+                }
+
+                if (!empty($moraDetalles)) {
+                    $moraRetencion = [
+                        'aplica'             => true,
+                        'dias_transcurridos' => $diasTransc,
+                        'fecha_vencimiento'  => (string) $fila->fecha_vencimiento,
+                        'detalles'           => $moraDetalles,
+                    ];
+                }
+            }
+        }
+        // ──────────────────────────────────────────────────────────────────
+
         return response()->json([
             'cerrara'        => true,
             'ya_comisionada' => false,
             'sin_config'     => count($targets) === 0,
             'targets'        => $targets,
+            'sr_forzado'     => $esFacturaSr,
+            'sr_penaliza'    => $srPenalizaAlgunProducto,
+            'sr_tipo_factura' => $esFacturaSr
+                ? [
+                    'codigo' => $tipoFacturaCodigo,
+                    'nombre' => (string) ($fila->tipo_factura_nombre ?? ''),
+                ]
+                : null,
+            'sr_categoria_baja' => $categoriaBaja,
+            'sr_productos'      => $productosSr,
+            'sr_porcentajes'    => $porcentajesSr,
+            'mora_retencion'    => $moraRetencion,
         ]);
     }
 
@@ -856,6 +1539,13 @@ class Pagos extends Component
                         $abonos->url_documento = $path;
                         $abonos->fecha_pago = $request->fecha_pago;
                         $abonos->numero_recibo = $request->numero_recibo;
+
+                        // Registro de desvío de período por conciliación
+                        if ($request->filled('periodo_comision_original')) {
+                            $abonos->periodo_comision_original = $request->periodo_comision_original;
+                            $abonos->periodo_comision_asignado = $request->periodo_comision_asignado ?: null;
+                            $abonos->desvio_confirmado_por     = Auth::id();
+                        }
 
                        $abonos->save();
 
@@ -946,11 +1636,19 @@ class Pagos extends Component
                                    ]);
                            }
 
-                                // Registrar comisiones usando la fecha_pago del modal
+                                // Registrar comisiones.
+                                // Si el mes del pago estaba conciliado, usar el período asignado
+                                // (próximo abierto); de lo contrario usar fecha_pago normal.
                                 $generador = app(GeneradorFacturasComision::class);
-                                $fechaPagoComision = $request->fecha_pago
-                                    ? \Carbon\Carbon::parse($request->fecha_pago)->toDateString()
-                                    : null;
+                                if ($request->filled('periodo_comision_asignado')) {
+                                    // Usar el primer día del mes asignado como fecha de comisión
+                                    $fechaPagoComision = \Carbon\Carbon::parse($request->periodo_comision_asignado)
+                                        ->startOfMonth()->toDateString();
+                                } else {
+                                    $fechaPagoComision = $request->fecha_pago
+                                        ? \Carbon\Carbon::parse($request->fecha_pago)->toDateString()
+                                        : null;
+                                }
                                 $arrayfacturas_comision = $generador->generar(
                                     (int) $request->idFacturaAbono,
                                     (int) $request->codAplicPagoAbono,
@@ -958,17 +1656,34 @@ class Pagos extends Component
                                 );
 
                                 if (!empty($arrayfacturas_comision)) {
+                                    // Para mora usar siempre la fecha real de pago del abono.
+                                    // La fecha asignada de período se conserva solo para mes contable.
+                                    $fechaMoraCalculo = $request->fecha_pago
+                                        ? \Carbon\Carbon::parse($request->fecha_pago)->toDateString()
+                                        : $fechaPagoComision;
+                                    $arrayfacturas_comision = app(AplicadorRetencionesMora::class)
+                                        ->aplicar($arrayfacturas_comision, (int) $request->idFacturaAbono, $fechaMoraCalculo);
                                     $procesador = app(ProcesadorComisiones::class);
                                     foreach ($arrayfacturas_comision as $factura) {
                                         $procesador->procesar($factura);
                                     }
                                 }
 
-
-
-
                        }
 
+                       if ($request->boolean('requiereRetencionFutura')) {
+                           $this->marcarSeguimientoRetencionFutura(
+                               (int) $request->idFacturaAbono,
+                               (int) $request->codAplicPagoAbono,
+                               $request->comentarioAbono
+                           );
+                       }
+
+                       return response()->json([
+                           'icon'  => 'success',
+                           'title' => '¡Éxito!',
+                           'text'  => 'El pago fue registrado correctamente.',
+                       ]);
 
            }catch (QueryException $e) {
 
@@ -999,7 +1714,9 @@ class Pagos extends Component
                 $porcentaje_comision    = $param->porcentaje_comision;
 
                 foreach ($productos_factura as $producto) {
-                    $precio_venta = $producto->precio_unidad;
+                    $precio_venta = (float) ($producto->precioSeleccionado ?? 0) > 0
+                        ? (float) $producto->precioSeleccionado
+                        : (float) $producto->precio_unidad;
                     $cantidad = $producto->cantidad;
                     $idproducto =  $producto->producto_id;
                     $precios_producto_carga_id  = $producto->precios_producto_carga_id;
@@ -1165,6 +1882,8 @@ class Pagos extends Component
                 );
 
                 if (!empty($arrayfacturas_comision)) {
+                    $arrayfacturas_comision = app(AplicadorRetencionesMora::class)
+                        ->aplicar($arrayfacturas_comision, (int) $apCierre->factura_id);
                     $procesador = app(ProcesadorComisiones::class);
                     foreach ($arrayfacturas_comision as $factura) {
                         $procesador->procesar($factura);
@@ -1184,7 +1903,30 @@ class Pagos extends Component
     }
 
     public function imprimirEstadoCuenta($idClientepdf){
+        $this->sincronizarTotalesFacturasCliente((int) $idClientepdf);
         $estadoCuenta = DB::select("CALL estadoCuenta_sp('".$idClientepdf."');");
+
+        $estadoCuenta = array_map(function ($row) {
+            $row->acumulado = $row->acumulado ?? $row->Acumulado ?? 0;
+            return $row;
+        }, $estadoCuenta);
+
+        // Filtrar para mostrar únicamente movimientos con saldo > 0
+        $estadoCuenta = array_filter($estadoCuenta, function ($row) {
+            $saldo = $row->saldo ?? $row->Saldo ?? 0;
+            return ((float) $saldo) > 0;
+        });
+        // Reindexar el array tras el filtro
+        $estadoCuenta = array_values($estadoCuenta);
+
+        // Recalcular acumulado = saldo + interés tras el filtrado
+        // &$row necesario: stdClass se pasa por copia en foreach sin referencia
+        $runningTotal = 0;
+        foreach ($estadoCuenta as &$row) {
+            $runningTotal   += (float) ($row->saldo ?? 0) + (float) ($row->interes ?? 0);
+            $row->acumulado  = $runningTotal;
+        }
+        unset($row);
 
         if (empty($estadoCuenta)) {
             // Sin facturas pendientes para este cliente — generar PDF informativo
@@ -1255,6 +1997,7 @@ class Pagos extends Component
                      WHEN 1 THEN u.id = (SELECT users_id FROM factura WHERE id = fc.factura_id)
                      WHEN 2 THEN u.id = (SELECT users_id FROM factura WHERE id = fc.factura_id)
                      WHEN 3 THEN u.id = (SELECT vendedor FROM factura WHERE id = fc.factura_id)
+                     WHEN 4 THEN u.id = (SELECT gestor_entrega FROM factura WHERE id = fc.factura_id)
                      ELSE 1=0
                  END
              )
@@ -1264,9 +2007,10 @@ class Pagos extends Component
                  AND ce.rol_id        = fc.rol_id
                  AND ce.estado_id     = 1
                  AND ce.mes_comision  = DATE_FORMAT(fc.fecha_cierre_factura, '%Y-%m-01')
-             WHERE fc.factura_id = ?
-               AND fc.estado_id  = 1",
-            [$abono->factura_id]
+                         WHERE fc.factura_id = ?
+                             AND fc.aplicacion_pagos_id = ?
+                             AND fc.estado_id  = 1",
+                        [$abono->factura_id, $abono->aplicacion_pagos_id]
         );
 
         foreach ($rows as $row) {
@@ -1392,6 +2136,7 @@ class Pagos extends Component
                          WHEN 1 THEN u.id = (SELECT users_id FROM factura WHERE id = fc.factura_id)
                          WHEN 2 THEN u.id = (SELECT users_id FROM factura WHERE id = fc.factura_id)
                          WHEN 3 THEN u.id = (SELECT vendedor FROM factura WHERE id = fc.factura_id)
+                         WHEN 4 THEN u.id = (SELECT gestor_entrega FROM factura WHERE id = fc.factura_id)
                          ELSE 1=0
                      END
                  )
@@ -1400,8 +2145,10 @@ class Pagos extends Component
                      AND ce.rol_id        = fc.rol_id
                      AND ce.estado_id     = 1
                      AND ce.mes_comision  = DATE_FORMAT(fc.fecha_cierre_factura, '%Y-%m-01')
-                 WHERE fc.factura_id = ? AND fc.estado_id = 1",
-                [$factura_id]
+                                 WHERE fc.factura_id = ?
+                                     AND fc.aplicacion_pagos_id = ?
+                                     AND fc.estado_id = 1",
+                                [$factura_id, $apId]
             );
 
             foreach ($filas as $fila) {
@@ -1435,7 +2182,13 @@ class Pagos extends Component
                 $fcIds = array_column($comisionesRevertidas, 'facturas_comision_id');
                 DB::table('facturas_comision')
                     ->whereIn('id', $fcIds)
-                    ->update(['estado_id' => 2, 'updated_at' => now()]);
+                    ->update([
+                        'estado_id' => 2,
+                        'monto_rol' => 0,
+                        'retencion_mora_monto' => 0,
+                        'retencion_mora_dias' => 0,
+                        'updated_at' => now(),
+                    ]);
 
                 // Marcar líneas de producto_comision asociadas
                 DB::table('producto_comision')
@@ -1479,6 +2232,52 @@ class Pagos extends Component
                 'title' => 'Error',
                 'text'  => 'Ocurrió un error al anular el pago: ' . $e->getMessage(),
             ], 500);
+        }
+    }
+
+    public function listarHistoricoRetenciones($id)
+    {
+        try {
+            $consulta = DB::table('factura_retencion_seguimiento as frs')
+                ->join('factura as f', 'f.id', '=', 'frs.factura_id')
+                ->join('cliente as c', 'c.id', '=', 'frs.cliente_id')
+                ->leftJoin('users as um', 'um.id', '=', 'frs.usr_marcado')
+                ->leftJoin('users as ur', 'ur.id', '=', 'frs.usr_resolvio')
+                ->where('frs.cliente_id', $id)
+                ->orderByDesc('frs.fecha_marcado')
+                ->selectRaw("frs.id as codigoSeguimiento, frs.aplicacion_pagos_id as codigoPago, frs.factura_id as idFactura, f.cai as correlativo, c.nombre as cliente, frs.estado, DATE_FORMAT(frs.fecha_marcado, '%Y-%m-%d %H:%i:%s') as fechaMarcado, DATE_FORMAT(frs.fecha_resolucion, '%Y-%m-%d %H:%i:%s') as fechaResolucion, frs.observacion_marcado, frs.observacion_resolucion, frs.numero_retencion as numeroRetencion, frs.archivo_retencion as archivoRetencion, um.name as usuarioMarcado, ur.name as usuarioResolvio")
+                ->get();
+
+            return Datatables::of($consulta)
+                ->addColumn('estadoEtiqueta', function ($consulta) {
+                    if ($consulta->estado === self::RETENCION_FUTURA_PENDIENTE) {
+                        return '<span class="badge badge-warning">PENDIENTE</span>';
+                    }
+
+                    if ($consulta->estado === self::RETENCION_FUTURA_APLICADA) {
+                        return '<span class="badge badge-success">APLICADA</span>';
+                    }
+
+                    if ($consulta->estado === self::RETENCION_FUTURA_DESCARTADA) {
+                        return '<span class="badge badge-secondary">NO APLICA</span>';
+                    }
+
+                    return '<span class="badge badge-light">SIN ESTADO</span>';
+                })
+                ->addColumn('archivoEtiqueta', function ($consulta) {
+                    if (empty($consulta->archivoRetencion)) {
+                        return '<span class="badge badge-light">Sin archivo</span>';
+                    }
+
+                    return '<a class="badge badge-info" href="' . e($consulta->archivoRetencion) . '" target="_blank" rel="noopener">Ver archivo</a>';
+                })
+                ->rawColumns(['estadoEtiqueta', 'archivoEtiqueta'])
+                ->make(true);
+        } catch (QueryException $e) {
+            return response()->json([
+                'message' => 'Ha ocurrido un error al listar el histórico de retenciones.',
+                'errorTh' => $e,
+            ], 402);
         }
     }
 

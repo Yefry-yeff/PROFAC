@@ -213,4 +213,55 @@ class DetalleVenta extends Component
        ],402);
        }
     }
+
+      public function detalleProductosEscala($id)
+      {
+        try {
+          $factura = DB::table('factura')
+            ->select('id', 'cai', 'vendedor')
+            ->where('id', $id)
+            ->first();
+
+          if (!$factura) {
+            return response()->json([
+              'message' => 'Factura no encontrada.'
+            ], 404);
+          }
+
+          $esAdmin = in_array((int) Auth::user()->rol_id, [1, 3, 5]);
+          if (!$esAdmin && (int) $factura->vendedor !== (int) Auth::user()->id) {
+            return response()->json([
+              'message' => 'No autorizado para consultar esta factura.'
+            ], 403);
+          }
+
+          $productos = DB::table('venta_has_producto as vhp')
+            ->join('producto as p', 'p.id', '=', 'vhp.producto_id')
+            ->leftJoin('precios_producto_carga as ppc', 'ppc.id', '=', 'vhp.precios_producto_carga_id')
+            ->leftJoin('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')
+            ->where('vhp.factura_id', $id)
+            ->selectRaw(" 
+              p.nombre as producto,
+              SUM(COALESCE(vhp.cantidad_s, vhp.cantidad, 0)) as cantidad,
+              COALESCE(NULLIF(cp.nombre, ''), CONCAT('Tipo precio ', COALESCE(vhp.tipo_precio, 'N/A'))) as escala,
+              ROUND(SUM(COALESCE(vhp.total_s, vhp.sub_total_s, 0)), 2) as monto
+            ")
+            ->groupBy('p.nombre', 'cp.nombre', 'vhp.tipo_precio')
+            ->orderBy('p.nombre')
+            ->get();
+
+          return response()->json([
+            'factura' => [
+              'id' => $factura->id,
+              'cai' => $factura->cai,
+            ],
+            'productos' => $productos,
+          ], 200);
+        } catch (QueryException $e) {
+          return response()->json([
+            'message' => 'Ha ocurrido un error al obtener el detalle de productos.',
+            'error' => $e->getMessage(),
+          ], 402);
+        }
+      }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Livewire\VentasExoneradas;
 
+use App\Support\ClienteActoresAsignados;
 use Livewire\Component;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\File;
@@ -30,6 +31,56 @@ class VentasExoneradas extends Component
     public $arrayProductos = [];
     public $arrayLogs = [];
 
+    private function calcularFechaVencimientoFactura(string $fechaEmision, int $tipoPago, ?int $diasAprobados = null, ?int $diasCliente = null): string
+    {
+        $fechaBase = \Carbon\Carbon::parse($fechaEmision);
+
+        if ($tipoPago !== 2) {
+            return $fechaBase->toDateString();
+        }
+
+        $dias = $diasAprobados !== null ? max(0, $diasAprobados) : max(0, (int) ($diasCliente ?? 0));
+
+        return $fechaBase->copy()->addDays($dias)->toDateString();
+    }
+
+    private function obtenerDiasCreditoAprobados(?int $flujoId): ?int
+    {
+        if (!$flujoId) {
+            return null;
+        }
+
+        $creditoAprobado = DB::table('credito_revision')
+            ->where('flujo_id', $flujoId)
+            ->where('estado', 'aprobado')
+            ->latest('id')
+            ->first(['dias_credito_aprobados', 'fecha_aprobacion', 'fecha_vencimiento_credito']);
+
+        if (!$creditoAprobado) {
+            return null;
+        }
+
+        if (!is_null($creditoAprobado->dias_credito_aprobados)) {
+            return max(0, (int) $creditoAprobado->dias_credito_aprobados);
+        }
+
+        if ($creditoAprobado->fecha_aprobacion && $creditoAprobado->fecha_vencimiento_credito) {
+            return max(0, (int) \Carbon\Carbon::parse($creditoAprobado->fecha_aprobacion)
+                ->diffInDays(\Carbon\Carbon::parse($creditoAprobado->fecha_vencimiento_credito), false));
+        }
+
+        return null;
+    }
+
+    private function resolverDiasCreditoFactura(int $tipoPago, ?int $flujoId, int $diasCliente): int
+    {
+        if ($tipoPago !== 2) {
+            return 0;
+        }
+
+        return $this->obtenerDiasCreditoAprobados($flujoId) ?? max(0, $diasCliente);
+    }
+
     public function render()
     {
         return view('livewire.ventas-exoneradas.ventas-exoneradas');
@@ -38,38 +89,25 @@ class VentasExoneradas extends Component
     public function listarClientes(Request $request)
     {
         try {
-            if (Auth::user()->rol_id == 1 or Auth::user()->rol_id == 3) {
-                $listaClientes = DB::SELECT("
-                select
-                    id,
-                    nombre as text
-                from cliente
-                    where estado_cliente_id = 1
-                    and id<>1
-                    and  (id LIKE '%" . $request->search . "%' or nombre Like '%" . $request->search . "%') limit 15
-                        ");
+            $like = '%' . $request->search . '%';
 
-            }else{
-                $listaClientes = DB::SELECT("
-                select
-                    id,
-                    nombre as text
-                from cliente
-                    where estado_cliente_id = 1
-                    and id<>1
-                    and vendedor =" . Auth::user()->id . "
-                    and  (id LIKE '%" . $request->search . "%' or nombre Like '%" . $request->search . "%') limit 15
-                        ");
+            $query = DB::table('cliente')
+                ->select('id', 'nombre as text')
+                ->where('estado_cliente_id', 1)
+                ->where('id', '<>', 1)
+                ->where(function ($q) use ($like) {
+                    $q->where('id', 'LIKE', $like)
+                      ->orWhere('nombre', 'LIKE', $like);
+                });
 
+            // Admin (1) y Tele asesor (3) ven todos; los demás solo sus asignados
+            if (!in_array((int) Auth::user()->rol_id, [1, 3], true)) {
+                $query->where('vendedor', Auth::id());
             }
 
+            $listaClientes = $query->limit(15)->get();
 
-
-
-
-            return response()->json([
-                "results" => $listaClientes,
-            ], 200);
+            return response()->json(['results' => $listaClientes], 200);
         } catch (QueryException $e) {
             return response()->json([
                 'message' => 'Ha ocurrido un error',
@@ -144,6 +182,14 @@ class VentasExoneradas extends Component
                 'errors' => $validator->errors()
             ], 406);
         }
+
+        $teleAsesorId = $request->tele_asesor ? (int) $request->tele_asesor : Auth::user()->id;
+        ClienteActoresAsignados::validar(
+            (int) $request->seleccionarCliente,
+            $teleAsesorId,
+            ClienteActoresAsignados::ROL_TELE_ASESOR,
+            'tele_asesor'
+        );
 
         /* if ($request->restriccion == 1) {
             $facturaVencida = $this->comprobarFacturaVencida($request->seleccionarCliente);
@@ -242,7 +288,12 @@ class VentasExoneradas extends Component
                     IFNULL((SELECT SUM(php2.cantidad)
                              FROM prefactura_has_producto php2
                              INNER JOIN prefactura pf2 ON pf2.id = php2.prefactura_id
-                             WHERE pf2.estado = 'activo'
+                                                                                                                 WHERE pf2.estado = 'activo'
+                                                                                                                         AND TIMESTAMPADD(
+                                                                                                                             DAY,
+                                                                                                                             COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7),
+                                                                                                                             COALESCE(pf2.created_at, CONCAT(COALESCE(pf2.fecha_emision, CURDATE()), ' 00:00:00'))
+                                                                                                                         ) > NOW()
                                {$excludePfClause}
                                AND php2.producto_id = " . (int)$request->$keyIdProducto . "
                                AND php2.seccion_id  = " . (int)$request->$keyIdSeccion . "
@@ -347,9 +398,14 @@ class VentasExoneradas extends Component
             $factura->total = $subTotalFactura;
             $factura->credito = $subTotalFactura;
             $factura->fecha_emision = $request->fecha_emision;
-            $factura->fecha_vencimiento = $request->fecha_vencimiento;
+            $factura->fecha_vencimiento = $this->calcularFechaVencimientoFactura(
+                (string) $request->fecha_emision,
+                (int) $request->tipoPagoVenta,
+                $this->obtenerDiasCreditoAprobados((int) ($request->flujo_id ?? 0)),
+                (int) $diasCredito
+            );
             $factura->tipo_pago_id = $request->tipoPagoVenta;
-            $factura->dias_credito = $diasCredito;
+            $factura->dias_credito = $this->resolverDiasCreditoFactura((int) $request->tipoPagoVenta, (int) ($request->flujo_id ?? 0), (int) $diasCredito);
             $factura->cai_id = $cai->id;
             $factura->estado_venta_id = 1;
             $factura->cliente_id = $request->seleccionarCliente;
@@ -358,12 +414,24 @@ class VentasExoneradas extends Component
             $factura->monto_comision = $montoComision;
             $factura->tipo_venta_id = 3; // exonerado
             $factura->estado_factura_id = 1; // se presenta
-            $factura->users_id = Auth::user()->id;
+            $factura->users_id = $teleAsesorId;
             $factura->comision_estado_pagado = 0;
             $factura->pendiente_cobro = $subTotalFactura;
             $factura->codigo_exoneracion_id = $request->codigo;
             $factura->estado_editar = 1;
             $factura->sub_total_grabado = 0;
+
+            // Calcular sub_total_excento: suma de productos verdaderamente exentos (isv = 0)
+            $subTotalExcento = 0;
+            foreach ($arrayInputs as $idx) {
+                $keyISVpre = "isv" . $idx;
+                $keySTpre  = "subTotal" . $idx;
+                if ((float)($request->$keyISVpre ?? 0) == 0) {
+                    $subTotalExcento += (float)($request->$keySTpre ?? 0);
+                }
+            }
+            $factura->sub_total_excento = $subTotalExcento;
+
             $factura->numero_orden_compra_id=$request->ordenCompra;
             $factura->comentario=$request->nota_comen;
             $factura->porc_descuento =$request->porDescuento;
@@ -422,7 +490,10 @@ class VentasExoneradas extends Component
                 $precio = $request->$keyPrecio;
                 $cantidad = $request->$keyCantidad;
                 $subTotal = $request->$keySubTotal;
-                $tipoPrecio = ($ivsProducto > 0) ? '2' : '1'; // '2' = gravado, '1' = exento
+                // En exoneradas, el tipo se clasifica por el ISV real del producto,
+                // no por el valor enviado desde frontend (que puede venir en 0).
+                $isvProductoCatalogo = (float) (DB::table('producto')->where('id', $idProducto)->value('isv') ?? 0);
+                $tipoPrecio = ($isvProductoCatalogo > 0) ? '2' : '1'; // '1' = Excento (producto sin ISV, isv = 0) | '2' = Gravado (producto con ISV, isv > 0)
                 $isv = 0;
                 $total = $subTotal;
                 $ivsProducto = 0;
@@ -723,7 +794,22 @@ class VentasExoneradas extends Component
         A.estado_venta_id,
         users.name as vendedor,
         (select name from users where id = A.users_id ) as facturador,
-        (select name from users where id = A.gestor_entrega) as asesor_entrega
+                (select name from users where id = A.gestor_entrega) as asesor_entrega,
+                COALESCE(
+                        (select hf2.flujo_id
+                         from historico_flujo hf2
+                         where hf2.tramite_id = A.id
+                             and hf2.tipo_tramite_id in (3, 5)
+                         order by hf2.id desc
+                         limit 1),
+                        (select pf.flujo_id
+                         from prefactura_auditoria pa
+                         inner join prefactura pf on pf.id = pa.prefactura_id
+                         where pa.factura_id = A.id
+                             and pa.prefactura_id is not null
+                         order by pa.id desc
+                         limit 1)
+                ) as flujo_id
        from factura A
        inner join cai B
        on A.cai_id = B.id
@@ -762,10 +848,10 @@ class VentasExoneradas extends Component
          total,
          COALESCE((select sum(round(vhp.sub_total_s * (p.isv / 100), 2)) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv != 0 and vhp.factura_id = ".$idFactura."),0) as isv,
          sub_total,
-         FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp where vhp.tipo_precio = '2' and vhp.factura_id = ".$idFactura."),2) as sub_total_grabado,
+         FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp where vhp.factura_id = ".$idFactura." and vhp.tipo_precio = '2'),2) as sub_total_grabado,
          COALESCE(sub_total_excento, 0) as sub_total_excento,
          porc_descuento,
-        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp where vhp.tipo_precio = '1' and vhp.factura_id = ".$idFactura."),2) as subtotal_excentovale,
+        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp where vhp.factura_id = ".$idFactura." and vhp.tipo_precio = '1'),2) as subtotal_excentovale,
          monto_descuento
          from factura
          where id = ".$idFactura);
@@ -775,9 +861,9 @@ class VentasExoneradas extends Component
          FORMAT(total,2) as total,
          FORMAT(COALESCE((select sum(round(vhp.sub_total_s * (p.isv / 100), 2)) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv != 0 and vhp.factura_id = ".$idFactura."),0),2) as isv,
          FORMAT(sub_total,2) as sub_total,
-        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp where vhp.tipo_precio = '2' and vhp.factura_id = ".$idFactura."),2) as sub_total_grabado,
+        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp where vhp.factura_id = ".$idFactura." and vhp.tipo_precio = '2'),2) as sub_total_grabado,
         FORMAT(COALESCE(sub_total_excento, 0),2) as sub_total_excento,
-        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp where vhp.tipo_precio = '1' and vhp.factura_id = ".$idFactura."),2) as subtotal_excentovale,
+        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp where vhp.factura_id = ".$idFactura." and vhp.tipo_precio = '1'),2) as subtotal_excentovale,
          FORMAT(porc_descuento,2) as porc_descuento,
          FORMAT(monto_descuento,2) as monto_descuento
          from factura where factura.id = ".$idFactura);
@@ -840,10 +926,12 @@ class VentasExoneradas extends Component
         on A.numero_orden_compra_id = B.id
         where A.id =" . $idFactura);
 
-        $flujoFacturaId = DB::table('historico_flujo')
-            ->where('tipo_tramite_id', 3)
-            ->where('tramite_id', $idFactura)
-            ->value('flujo_id');
+        $flujoFacturaId = $cai->flujo_id
+            ?? DB::table('historico_flujo')
+                ->where('tipo_tramite_id', 3)
+                ->where('tramite_id', $idFactura)
+                ->orderByDesc('id')
+                ->value('flujo_id');
 
         $flujoDocData = $flujoFacturaId
             ? DB::table('flujo')->where('id', $flujoFacturaId)->first([
@@ -923,7 +1011,22 @@ class VentasExoneradas extends Component
         A.estado_venta_id,
         users.name as vendedor,
         (select name from users where id = A.users_id ) as facturador,
-        (select name from users where id = A.gestor_entrega) as asesor_entrega
+                (select name from users where id = A.gestor_entrega) as asesor_entrega,
+                COALESCE(
+                        (select hf2.flujo_id
+                         from historico_flujo hf2
+                         where hf2.tramite_id = A.id
+                             and hf2.tipo_tramite_id in (3, 5)
+                         order by hf2.id desc
+                         limit 1),
+                        (select pf.flujo_id
+                         from prefactura_auditoria pa
+                         inner join prefactura pf on pf.id = pa.prefactura_id
+                         where pa.factura_id = A.id
+                             and pa.prefactura_id is not null
+                         order by pa.id desc
+                         limit 1)
+                ) as flujo_id
        from factura A
        inner join cai B
        on A.cai_id = B.id
@@ -962,10 +1065,10 @@ class VentasExoneradas extends Component
         total,
         COALESCE((select sum(round(vhp.sub_total_s * (p.isv / 100), 2)) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv != 0 and vhp.factura_id = ".$idFactura."),0) as isv,
         sub_total,
-        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp where vhp.tipo_precio = '2' and vhp.factura_id = ".$idFactura."),2) as sub_total_grabado,
+        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp where vhp.factura_id = ".$idFactura." and vhp.tipo_precio = '2'),2) as sub_total_grabado,
         COALESCE(sub_total_excento, 0) as sub_total_excento,
         porc_descuento,
-        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp where vhp.tipo_precio = '1' and vhp.factura_id = ".$idFactura."),2) as subtotal_excentovale,
+        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp where vhp.factura_id = ".$idFactura." and vhp.tipo_precio = '1'),2) as subtotal_excentovale,
         monto_descuento
         from factura
         where id = ".$idFactura);
@@ -975,10 +1078,10 @@ class VentasExoneradas extends Component
         FORMAT(total,2) as total,
         FORMAT(COALESCE((select sum(round(vhp.sub_total_s * (p.isv / 100), 2)) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv != 0 and vhp.factura_id = ".$idFactura."),0),2) as isv,
         FORMAT(sub_total,2) as sub_total,
-        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp where vhp.tipo_precio = '2' and vhp.factura_id = ".$idFactura."),2) as sub_total_grabado,
+        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp where vhp.factura_id = ".$idFactura." and vhp.tipo_precio = '2'),2) as sub_total_grabado,
         FORMAT(COALESCE(sub_total_excento, 0),2) as sub_total_excento,
         FORMAT(porc_descuento,2) as porc_descuento,
-        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp where vhp.tipo_precio = '1' and vhp.factura_id = ".$idFactura."),2) as subtotal_excentovale,
+        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp where vhp.factura_id = ".$idFactura." and vhp.tipo_precio = '1'),2) as subtotal_excentovale,
         FORMAT(monto_descuento,2) as monto_descuento
         from factura where factura.id = ".$idFactura);
 
@@ -1042,10 +1145,12 @@ class VentasExoneradas extends Component
         on A.numero_orden_compra_id = B.id
         where A.id =" . $idFactura);
 
-        $flujoFacturaId = DB::table('historico_flujo')
-            ->where('tipo_tramite_id', 3)
-            ->where('tramite_id', $idFactura)
-            ->value('flujo_id');
+        $flujoFacturaId = $cai->flujo_id
+            ?? DB::table('historico_flujo')
+                ->where('tipo_tramite_id', 3)
+                ->where('tramite_id', $idFactura)
+                ->orderByDesc('id')
+                ->value('flujo_id');
 
         $flujoDocData = $flujoFacturaId
             ? DB::table('flujo')->where('id', $flujoFacturaId)->first([
@@ -1167,10 +1272,10 @@ class VentasExoneradas extends Component
          total,
          isv,
          sub_total,
-         FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp where vhp.tipo_precio = '2' and vhp.factura_id = ".$idFactura."),2) as sub_total_grabado,
+         FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp where vhp.factura_id = ".$idFactura." and vhp.tipo_precio = '2'),2) as sub_total_grabado,
          COALESCE(sub_total_excento, 0) as sub_total_excento,
          porc_descuento,
-        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp where vhp.tipo_precio = '1' and vhp.factura_id = ".$idFactura."),2) as subtotal_excentovale,
+        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp where vhp.factura_id = ".$idFactura." and vhp.tipo_precio = '1'),2) as subtotal_excentovale,
          monto_descuento
          from factura
          where id = ".$idFactura);
@@ -1180,9 +1285,9 @@ class VentasExoneradas extends Component
          FORMAT(total,2) as total,
          FORMAT(isv,2) as isv,
          FORMAT(sub_total,2) as sub_total,
-        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp where vhp.tipo_precio = '2' and vhp.factura_id = ".$idFactura."),2) as sub_total_grabado,
+        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp where vhp.factura_id = ".$idFactura." and vhp.tipo_precio = '2'),2) as sub_total_grabado,
         FORMAT(COALESCE(sub_total_excento, 0),2) as sub_total_excento,
-        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp where vhp.tipo_precio = '1' and vhp.factura_id = ".$idFactura."),2) as subtotal_excentovale,
+        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp where vhp.factura_id = ".$idFactura." and vhp.tipo_precio = '1'),2) as subtotal_excentovale,
          FORMAT(porc_descuento,2) as porc_descuento,
          FORMAT(monto_descuento,2) as monto_descuento
          from factura where factura.id = ".$idFactura);

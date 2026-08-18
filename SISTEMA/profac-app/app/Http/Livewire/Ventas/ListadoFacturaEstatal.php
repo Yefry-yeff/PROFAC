@@ -24,6 +24,8 @@ use App\Models\ModelLogTranslados;
 
 class ListadoFacturaEstatal extends Component
 {
+    const ADMIN_ROLES = [1, 3, 5, 16];
+
     public function render()
     {
         return view('livewire.ventas.listado-facturas-unificado', ['tipoVenta' => 'estatal', 'nombreTipo' => 'Clientes A', 'esVendedor' => false]); // Vista unificada
@@ -48,7 +50,7 @@ class ListadoFacturaEstatal extends Component
             elseif ($filtroDesde)  { $whereFilters .= " AND DATE(factura.created_at) >= ? "; $bindings[] = $filtroDesde; }
             elseif ($filtroHasta)  { $whereFilters .= " AND DATE(factura.created_at) <= ? "; $bindings[] = $filtroHasta; }
 
-            $esAdmin = in_array(Auth::user()->rol_id, [1, 3, 5]);
+            $esAdmin = in_array((int) Auth::user()->rol_id, self::ADMIN_ROLES, true);
 
             if ($esAdmin) {
                 $listaFacturas = DB::SELECT("
@@ -60,6 +62,9 @@ class ListadoFacturaEstatal extends Component
                     fecha_emision,
                     factura.nombre_cliente as nombre,
                     tipo_pago_venta.descripcion,
+                    FORMAT(COALESCE(factura.sub_total_grabado,0),2) as gravado,
+                    FORMAT(COALESCE(factura.sub_total_excento,0),2) as exento,
+                    FORMAT(CASE WHEN factura.tipo_venta_id = 3 THEN COALESCE(factura.sub_total,0) ELSE 0 END,2) as exonerado,
                     fecha_vencimiento,
                     FORMAT(sub_total,2) as sub_total,
                     FORMAT(isv,2) as isv,
@@ -84,6 +89,8 @@ class ListadoFacturaEstatal extends Component
 
             } else {
 
+                $userId = (int) Auth::id();
+
                 $listaFacturas = DB::SELECT("
                 select
                     factura.id as id,
@@ -93,6 +100,9 @@ class ListadoFacturaEstatal extends Component
                     fecha_emision,
                     factura.nombre_cliente as nombre,
                     tipo_pago_venta.descripcion,
+                    FORMAT(COALESCE(factura.sub_total_grabado,0),2) as gravado,
+                    FORMAT(COALESCE(factura.sub_total_excento,0),2) as exento,
+                    FORMAT(CASE WHEN factura.tipo_venta_id = 3 THEN COALESCE(factura.sub_total,0) ELSE 0 END,2) as exonerado,
                     fecha_vencimiento,
                     FORMAT(sub_total,2) as sub_total,
                     FORMAT(isv,2) as isv,
@@ -110,12 +120,13 @@ class ListadoFacturaEstatal extends Component
                 where YEAR(factura.created_at) >= (YEAR(NOW())-2)
                     and factura.estado_venta_id <> 2
                     and factura.tipo_venta_id = 2
-                    and factura.vendedor = ".Auth::user()->id." {$whereFilters}
+                    and (factura.vendedor = {$userId} or factura.users_id = {$userId} or factura.gestor_entrega = {$userId})
+                    {$whereFilters}
                 order by factura.created_at desc
                 ", $bindings);
             }
 
-            $puedeAnular = ((int) Auth::user()->rol_id === 1);
+            $puedeAnular = in_array((int) Auth::user()->rol_id, self::ADMIN_ROLES, true);
 
             return Datatables::of($listaFacturas)
             ->addColumn('opciones', function ($listaFacturas) use ($puedeAnular) {
@@ -220,7 +231,7 @@ class ListadoFacturaEstatal extends Component
     }
 
     public function anularVentaRegistro(Request $request){
-        if ((int) Auth::user()->rol_id !== 1) {
+        if (!in_array((int) Auth::user()->rol_id, self::ADMIN_ROLES, true)) {
             return response()->json([
                 "text" => "No autorizado para anular facturas estatales.",
                 "icon" => "warning",
@@ -236,6 +247,7 @@ class ListadoFacturaEstatal extends Component
          $numeroPagos = DB::SELECTONE("select count(id) as 'numero_pagos' from pago_venta where estado_venta_id = 1 and factura_id = ".$request->idFactura);
 
          if($numeroPagos->numero_pagos != 0 ){
+                DB::rollBack();
             return response()->json([
                 "text" =>"<p  class='text-left'>Esta factura no puede ser anulada, dado que cuenta con pagos registrados, si desea anular dicha factura debe eliminar todo registro de pago.</p>",
                 "icon" => "warning",
@@ -244,6 +256,35 @@ class ListadoFacturaEstatal extends Component
          }
 
          $estadoVenta = DB::SELECTONE("select estado_venta_id from factura where id =".$request->idFactura );
+
+            if($estadoVenta->estado_venta_id == 2 ){
+                DB::rollBack();
+                return response()->json([
+                     "text" =>"<p  class='text-left'>Esta factura no puede ser anulada, dado que ha sido anulada anteriormente.</p>",
+                     "icon" => "warning",
+                     "title" => "Advertencia!",
+                ],200);
+            }
+
+            $periodoConciliado = DB::selectOne(
+                "SELECT COUNT(*) as total
+                 FROM facturas_comision fc
+                 INNER JOIN comision_periodo cp
+                     ON cp.periodo = DATE_FORMAT(fc.fecha_cierre_factura, '%Y-%m-01')
+                    AND cp.estado = 1
+                 WHERE fc.factura_id = ?
+                    AND fc.estado_id = 1",
+                [$request->idFactura]
+            );
+
+            if ((int)($periodoConciliado->total ?? 0) > 0) {
+                DB::rollBack();
+                return response()->json([
+                     "text" =>"<p  class='text-left'>No se puede anular la factura porque su comisión pertenece a un período conciliado.</p>",
+                     "icon" => "warning",
+                     "title" => "Periodo conciliado",
+                ],200);
+            }
 
          $compra = ModelFactura::find($request->idFactura);
          $compra->estado_venta_id = 2;
@@ -288,6 +329,61 @@ class ListadoFacturaEstatal extends Component
                     UPDATE aplicacion_pagos
                     SET aplicacion_pagos.estado = 2
                     WHERE aplicacion_pagos.factura_id = ".$request->idFactura);
+
+            // Revertir comisiones activas de la factura anulada
+            $fcRows = DB::select(
+                "SELECT fc.id, fc.rol_id, fc.tipo_comision, fc.monto_rol,
+                        DATE_FORMAT(fc.fecha_cierre_factura, '%Y-%m-01') as mes_comision,
+                        CASE fc.tipo_comision
+                            WHEN 1 THEN f.users_id
+                            WHEN 2 THEN f.users_id
+                            WHEN 3 THEN f.vendedor
+                            WHEN 4 THEN f.gestor_entrega
+                            ELSE NULL
+                        END as user_id
+                 FROM facturas_comision fc
+                 INNER JOIN factura f ON f.id = fc.factura_id
+                 WHERE fc.factura_id = ?
+                   AND fc.estado_id = 1",
+                [$request->idFactura]
+            );
+
+            $fcIds = [];
+            foreach ($fcRows as $fcRow) {
+                $fcIds[] = (int) $fcRow->id;
+
+                if (!empty($fcRow->user_id) && !empty($fcRow->rol_id) && !empty($fcRow->mes_comision)) {
+                    DB::table('comision_empleado')
+                        ->where('users_comision', (int) $fcRow->user_id)
+                        ->where('rol_id', (int) $fcRow->rol_id)
+                        ->where('mes_comision', (string) $fcRow->mes_comision)
+                        ->where('estado_id', 1)
+                        ->update([
+                            'comision_acumulada' => DB::raw('GREATEST(0, comision_acumulada - ' . (float) $fcRow->monto_rol . ')'),
+                            'fecha_ult_modificacion' => now(),
+                            'updated_at' => now(),
+                        ]);
+                }
+            }
+
+            if (!empty($fcIds)) {
+                DB::table('facturas_comision')
+                    ->whereIn('id', $fcIds)
+                    ->update([
+                        'estado_id' => 2,
+                        'monto_rol' => 0,
+                        'retencion_mora_monto' => 0,
+                        'retencion_mora_dias' => 0,
+                        'updated_at' => now(),
+                    ]);
+
+                DB::table('producto_comision')
+                    ->whereIn('facturas_comision_id', $fcIds)
+                    ->update([
+                        'estado_id' => 2,
+                        'updated_at' => now(),
+                    ]);
+            }
 
 
 

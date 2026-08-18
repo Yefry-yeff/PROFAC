@@ -41,6 +41,14 @@
         border-color: transparent !important;
     }
     .tipo-filter-btn:hover:not(.active) { background: rgba(255,255,255,.30); }
+    .origen-filter-btn {
+        font-size: .76rem; font-weight: 600; padding: 5px 12px;
+        border: 1px solid rgba(255,255,255,.5); background: rgba(255,255,255,.15);
+        color: #fff; cursor: pointer;
+    }
+    .origen-filter-btn:first-child { border-radius: 5px 0 0 5px; }
+    .origen-filter-btn:last-child { border-radius: 0 5px 5px 0; }
+    .origen-filter-btn.active { background: #fff; color: #1b5e20; }
     #tbl_listar_cotizaciones { width: 100% !important; }
     #tbl_listar_cotizaciones thead th {
         background: #fdf4e7; color: #7d3f00;
@@ -167,6 +175,11 @@
                                     <i class="fa fa-circle" style="font-size:.6rem;vertical-align:middle;"></i> Exoneradas
                                 </button>
                             </div>
+                            <div class="btn-group" aria-label="Tipo de venta">
+                                <button type="button" class="origen-filter-btn active" data-origen="todas" onclick="cambiarOrigenCotizacion('todas', this)">Todas</button>
+                                <button type="button" class="origen-filter-btn" data-origen="normales" onclick="cambiarOrigenCotizacion('normales', this)">Ventas normales</button>
+                                <button type="button" class="origen-filter-btn" data-origen="expo" onclick="cambiarOrigenCotizacion('expo', this)">Ventas Expo</button>
+                            </div>
                             <button class="btn-fact-filter" data-toggle="modal" data-target="#modalFiltrosCot">
                                 <i class="fa fa-filter mr-1"></i>Filtros
                             </button>
@@ -233,6 +246,12 @@
                             <i class="fa fa-circle mr-1" style="font-size:.65rem"></i>Exoneradas
                         </button>
                     </div>
+                    <p class="modal-section-label"><i class="fa fa-shopping-cart mr-1"></i>Origen de la venta</p>
+                    <div class="mb-3 btn-group" id="modalOrigenCot" style="display:flex;">
+                        <button type="button" class="btn btn-outline-success btn-sm active" data-origen="todas">Todas</button>
+                        <button type="button" class="btn btn-outline-success btn-sm" data-origen="normales">Ventas normales</button>
+                        <button type="button" class="btn btn-outline-success btn-sm" data-origen="expo">Ventas Expo</button>
+                    </div>
                     <p class="modal-section-label"><i class="fa fa-search mr-1"></i>Criterios de b&uacute;squeda</p>
                     <div class="row">
                         <div class="col-md-12">
@@ -268,13 +287,155 @@
     @push('scripts')
         <script>
             // ── Configuración ────────────────────────────────────────────────
+            var usuarioDescargaExcel = @json(optional(Auth::user())->name ?? 'Sistema');
             var nombresTipoCotiz = { 1: 'Coorporativo', 2: 'Gobierno', 3: 'Exonerado' };
             var urlHistoryCotiz  = { 1: '/cotizacion/listado/corporativo', 2: '/cotizacion/listado/estatal', 3: '/cotizacion/listado/exonerado' };
             var cotFiltros = {
                 idTipo:   {{ $idTipoVenta }},
+                origen:   'todas',
                 cliente:  '',
                 vendedor: ''
             };
+
+            function fechaHoraDescargaExcel() {
+                var now = new Date();
+                return now.toLocaleDateString('es-HN', { day: '2-digit', month: '2-digit', year: 'numeric' }) +
+                    ' ' + now.toLocaleTimeString('es-HN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            }
+
+            function normalizarNumeroExcel(valor) {
+                if (valor === null || valor === undefined) return 0;
+                var limpio = String(valor)
+                    .replace(/L\.|HNL|,/gi, '')
+                    .replace(/\s+/g, '')
+                    .trim();
+                var n = parseFloat(limpio);
+                return isNaN(n) ? 0 : n;
+            }
+
+            function buildExcelButton(config) {
+                return {
+                    extend: 'excelHtml5',
+                    title: '',
+                    filename: function() {
+                        return config.fileName;
+                    },
+                    messageTop: function() {
+                        return '';
+                    },
+                    className: 'btn btn-success btn-sm',
+                    exportOptions: {
+                        format: {
+                            body: function(data, row, column) {
+                                if (config.numberColumns.indexOf(column) >= 0) {
+                                    return normalizarNumeroExcel(data);
+                                }
+                                return $('<div>').html(data).text();
+                            }
+                        }
+                    },
+                    customize: function(xlsx) {
+                        var sheet = xlsx.xl.worksheets['sheet1.xml'];
+                        var $sheet = $(sheet);
+                        var styles = xlsx.xl['styles.xml'];
+                        var $styles = $(styles);
+
+                        function escapeXml(text) {
+                            return String(text || '')
+                                .replace(/&/g, '&amp;')
+                                .replace(/</g, '&lt;')
+                                .replace(/>/g, '&gt;')
+                                .replace(/"/g, '&quot;')
+                                .replace(/'/g, '&apos;');
+                        }
+
+                        function colFromRef(ref) {
+                            return String(ref || '').replace(/[0-9]/g, '');
+                        }
+
+                        var sheetData = $sheet.find('sheetData');
+                        var horaDescarga = fechaHoraDescargaExcel();
+                        var encabezado1 = 'Distribuciones Valencia';
+                        var encabezado2 = config.reportTitle;
+                        var encabezado3 = 'Hora de descarga: ' + horaDescarga + '  |  Descargado por: ' + (usuarioDescargaExcel || 'Sistema');
+
+                        sheetData.find('row').each(function() {
+                            var $row = $(this);
+                            var oldRow = parseInt($row.attr('r') || '0', 10);
+                            var newRow = oldRow + 4;
+                            $row.attr('r', String(newRow));
+                            $row.find('c').each(function() {
+                                var $cell = $(this);
+                                var oldRef = $cell.attr('r') || '';
+                                var col = colFromRef(oldRef);
+                                if (col) $cell.attr('r', col + newRow);
+                            });
+                        });
+
+                        var filasHeader = '' +
+                            '<row r="1"><c r="A1" t="inlineStr"><is><t>' + escapeXml(encabezado1) + '</t></is></c></row>' +
+                            '<row r="2"><c r="A2" t="inlineStr"><is><t>' + escapeXml(encabezado2) + '</t></is></c></row>' +
+                            '<row r="3"><c r="A3" t="inlineStr"><is><t>' + escapeXml(encabezado3) + '</t></is></c></row>' +
+                            '<row r="4"><c r="A4" t="inlineStr"><is><t></t></is></c></row>';
+                        sheetData.prepend(filasHeader);
+
+                        var $dimension = $sheet.find('dimension');
+                        if ($dimension.length) {
+                            var ref = $dimension.attr('ref') || 'A1:J1';
+                            var parts = ref.split(':');
+                            if (parts.length === 2) {
+                                var endCol = colFromRef(parts[1]) || 'J';
+                                var endRow = parseInt(String(parts[1]).replace(/[^0-9]/g, '') || '1', 10) + 4;
+                                $dimension.attr('ref', 'A1:' + endCol + endRow);
+                            }
+                        }
+
+                        var $numFmts = $styles.find('numFmts');
+                        if (!$numFmts.length) {
+                            $styles.find('styleSheet').prepend('<numFmts count="0"></numFmts>');
+                            $numFmts = $styles.find('numFmts');
+                        }
+                        if (!$numFmts.find('numFmt[numFmtId="300"]').length) {
+                            $numFmts.append('<numFmt numFmtId="300" formatCode="&quot;L &quot;#,##0.00"/>');
+                            $numFmts.attr('count', parseInt($numFmts.attr('count') || '0', 10) + 1);
+                        }
+
+                        var $cellXfs = $styles.find('cellXfs');
+                        var xfCount = parseInt($cellXfs.attr('count') || '0', 10);
+
+                        var estiloTextoEditable = xfCount;
+                        $cellXfs.append('<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyProtection="1"><protection locked="0"/></xf>');
+                        xfCount += 1;
+
+                        var estiloMonedaEditable = xfCount;
+                        $cellXfs.append('<xf numFmtId="300" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyProtection="1"><protection locked="0"/></xf>');
+                        xfCount += 1;
+
+                        $cellXfs.attr('count', xfCount);
+
+                        if ($sheet.find('sheetProtection').length === 0) {
+                            $sheet.find('worksheet').append('<sheetProtection sheet="1" objects="1" scenarios="1" selectLockedCells="1" selectUnlockedCells="1"/>');
+                        }
+
+                        sheetData.find('row').each(function() {
+                            var $row = $(this);
+                            var rowNum = parseInt($row.attr('r') || '0', 10);
+                            if (rowNum >= 5) {
+                                $row.find('c').each(function() {
+                                    var $cell = $(this);
+                                    var ref = $cell.attr('r') || '';
+                                    var col = colFromRef(ref);
+                                    if (config.moneyColumns.indexOf(col) >= 0 && rowNum >= 6) {
+                                        $cell.attr('s', String(estiloMonedaEditable));
+                                    } else {
+                                        $cell.attr('s', String(estiloTextoEditable));
+                                    }
+                                });
+                            }
+                        });
+                    }
+                };
+            }
 
             // ── Tipo buttons en modal ────────────────────────────────────────
             $(document).on('click', '#modalFiltrosCot .tipo-filter-btn', function() {
@@ -282,10 +443,17 @@
                 $(this).addClass('active');
             });
 
+            $(document).on('click', '#modalOrigenCot [data-origen]', function() {
+                $('#modalOrigenCot [data-origen]').removeClass('active');
+                $(this).addClass('active');
+            });
+
             // ── Aplicar filtros ──────────────────────────────────────────────
             function aplicarFiltrosCot() {
                 var activeBtn = document.querySelector('#modalFiltrosCot .tipo-filter-btn.active');
                 if (activeBtn) cotFiltros.idTipo = parseInt(activeBtn.dataset.idtipo);
+                var activeOrigen = document.querySelector('#modalOrigenCot [data-origen].active');
+                if (activeOrigen) cotFiltros.origen = activeOrigen.dataset.origen;
                 cotFiltros.cliente  = $('#cotFiltroCliente').val()  || '';
                 cotFiltros.vendedor = $('#cotFiltroVendedor').val() || '';
 
@@ -303,6 +471,7 @@
                 document.querySelectorAll('.cot-card-header .tipo-filter-btn').forEach(function(b) { b.classList.remove('active'); });
                 var hdrBtn = document.querySelector('.cot-card-header .tipo-filter-btn[data-idtipo="' + cotFiltros.idTipo + '"]');
                 if (hdrBtn) hdrBtn.classList.add('active');
+                document.querySelectorAll('.cot-card-header .origen-filter-btn').forEach(function(b) { b.classList.toggle('active', b.dataset.origen === cotFiltros.origen); });
 
                 renderBadgesCot();
 
@@ -321,14 +490,19 @@
                 $('#cotFiltroVendedor').val(null).trigger('change');
                 cotFiltros.cliente  = '';
                 cotFiltros.vendedor = '';
+                cotFiltros.origen = 'todas';
                 $('#modalFiltrosCot .tipo-filter-btn').removeClass('active');
                 $('#modalFiltrosCot .tipo-filter-btn[data-idtipo="{{ $idTipoVenta }}"]').addClass('active');
+                $('#modalOrigenCot [data-origen]').removeClass('active');
+                $('#modalOrigenCot [data-origen="todas"]').addClass('active');
             }
 
             // ── Badges de filtros activos ────────────────────────────────────
             function renderBadgesCot() {
                 var bar  = document.getElementById('filtrosBarCot');
+                var origenNombre = { todas: 'Todas', normales: 'Ventas normales', expo: 'Ventas Expo' };
                 var html = '<span class="filtro-badge"><i class="fa fa-tag mr-1"></i>Tipo: ' + (nombresTipoCotiz[cotFiltros.idTipo] || '') + '</span>';
+                html += '<span class="filtro-badge"><i class="fa fa-shopping-cart mr-1"></i>' + origenNombre[cotFiltros.origen] + '</span>';
                 if (cotFiltros.cliente)
                     html += '<span class="filtro-badge">Cliente: ' + ($('#cotFiltroCliente option:selected').text() || cotFiltros.cliente) + ' <span class="filtro-remove" onclick="quitarFiltroCot(\'cliente\')">×</span></span>';
                 if (cotFiltros.vendedor)
@@ -353,13 +527,19 @@
                     pageLength: 10,
                     responsive: true,
                     dom: '<"html5buttons"B>lTfgitp',
-                    buttons: [{ extend: 'excel', title: 'Cotizaciones', className: 'btn btn-success btn-sm' }],
+                    buttons: [buildExcelButton({
+                        fileName: 'Listado_Cotizaciones',
+                        reportTitle: 'Reporte de cotizaciones',
+                        numberColumns: [3, 4, 5],
+                        moneyColumns: ['D', 'E', 'F']
+                    })],
                     "ajax": {
                         'url':  '/cotizacion/obtener/listado',
                         'type': 'post',
                         'headers': { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
                         'data': function(d) {
                             d.id             = cotFiltros.idTipo;
+                            d.filtroOrigen   = cotFiltros.origen;
                             d.filtroCliente  = cotFiltros.cliente;
                             d.filtroVendedor = cotFiltros.vendedor;
                         }
@@ -392,6 +572,23 @@
                 var bcEl = document.querySelector('.breadcrumb-item.active a');
                 if (bcEl) bcEl.textContent = nombresTipoCotiz[nuevoIdTipo];
                 history.pushState({ tipo: nuevoIdTipo }, '', urlHistoryCotiz[nuevoIdTipo]);
+                if (document.getElementById('cot-table-wrapper').style.display !== 'none') {
+                    document.getElementById('tbl_loading_overlay').style.display = '';
+                    renderBadgesCot();
+                    if ($.fn.DataTable.isDataTable('#tbl_listar_cotizaciones')) {
+                        $('#tbl_listar_cotizaciones').DataTable().ajax.reload(function() {
+                            document.getElementById('tbl_loading_overlay').style.display = 'none';
+                        });
+                    }
+                }
+            }
+
+            function cambiarOrigenCotizacion(origen, btnElement) {
+                cotFiltros.origen = origen;
+                document.querySelectorAll('.cot-card-header .origen-filter-btn').forEach(function(b) { b.classList.remove('active'); });
+                btnElement.classList.add('active');
+                $('#modalOrigenCot [data-origen]').removeClass('active');
+                $('#modalOrigenCot [data-origen="' + origen + '"]').addClass('active');
                 if (document.getElementById('cot-table-wrapper').style.display !== 'none') {
                     document.getElementById('tbl_loading_overlay').style.display = '';
                     renderBadgesCot();

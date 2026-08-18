@@ -38,6 +38,7 @@ class ListarPedidos extends Component
     public $showModalGanadora = false;
     public $ofertaGanadoraId  = null;
     public $pedidoGanadoraId  = null;
+    public $comentarioCreditoGanadora = '';
 
     // ── Reasignación de flujo (solo admin) ──────────────────────────────────
     public $showModalReasignar  = false;
@@ -119,9 +120,33 @@ class ListarPedidos extends Component
             )
             ->orderByDesc('p.created_at');
 
-        // Solo ver propios registros si no es administrador
+        // Ver registros donde el usuario es actor involucrado
         if (!$this->esAdmin) {
-            $q->where('p.users_id', Auth::id());
+            $q->where(function ($sub) {
+                $sub->where('p.users_id', Auth::id())
+                    ->orWhereExists(function ($sq) {
+                        // Creador o vendedor de cualquier oferta del pedido
+                        $sq->select(DB::raw(1))
+                           ->from('oferta as oa')
+                           ->whereColumn('oa.pedido_id', 'p.id')
+                           ->where(function ($soa) {
+                               $soa->where('oa.users_id', Auth::id())
+                                   ->orWhere('oa.vendedor', Auth::id());
+                           });
+                    })
+                    ->orWhereExists(function ($sq) {
+                        // Vendedor o creador de la factura ligada al flujo del pedido
+                        $sq->select(DB::raw(1))
+                           ->from('historico_flujo as hff')
+                           ->join('factura as fa', 'fa.id', '=', 'hff.tramite_id')
+                           ->whereColumn('hff.flujo_id', 'hf.flujo_id')
+                           ->where('hff.tipo_tramite_id', 3)
+                           ->where(function ($sfa) {
+                               $sfa->where('fa.vendedor', Auth::id())
+                                   ->orWhere('fa.users_id', Auth::id());
+                           });
+                    });
+            });
         }
 
         // Filtro por número de documento
@@ -355,6 +380,7 @@ class ListarPedidos extends Component
     {
         $this->ofertaGanadoraId  = $ofertaId;
         $this->pedidoGanadoraId  = $pedidoId;
+        $this->comentarioCreditoGanadora = '';
         $this->showModalGanadora = true;
     }
 
@@ -362,6 +388,7 @@ class ListarPedidos extends Component
     {
         $this->ofertaGanadoraId  = null;
         $this->pedidoGanadoraId  = null;
+        $this->comentarioCreditoGanadora = '';
         $this->showModalGanadora = false;
     }
 
@@ -371,6 +398,7 @@ class ListarPedidos extends Component
 
         DB::beginTransaction();
         try {
+            $comentarioCredito = trim((string) $this->comentarioCreditoGanadora);
             // Cancelar todas las demás ofertas del pedido
             DB::table('oferta')
                 ->where('pedido_id', $this->pedidoGanadoraId)
@@ -393,6 +421,13 @@ class ListarPedidos extends Component
                 ->where('tramite_id', $this->pedidoGanadoraId)
                 ->first();
 
+            $flujoIdComentario = $hf && !empty($hf->flujo_id)
+                ? (int) $hf->flujo_id
+                : (int) (DB::table('flujo')
+                    ->where('identificacion', (string) $this->pedidoGanadoraId)
+                    ->where('tipo_flujo_id', 1)
+                    ->value('id') ?? 0);
+
             if ($hf) {
                 DB::table('flujo')
                     ->where('id', $hf->flujo_id)
@@ -400,6 +435,19 @@ class ListarPedidos extends Component
                 DB::table('historico_flujo')
                     ->where('id', $hf->id)
                     ->update(['estado' => 'pre_factura', 'updated_by' => Auth::id(), 'updated_at' => now()]);
+
+            }
+
+            if ($flujoIdComentario > 0) {
+                DB::table('flujo_oferta_credito_comentarios')->insert([
+                    'flujo_id'    => $flujoIdComentario,
+                    'tramite_id'  => (int) $this->ofertaGanadoraId,
+                    'observacion' => $comentarioCredito !== '' ? $comentarioCredito : null,
+                    'created_by'  => Auth::id(),
+                    'updated_by'  => Auth::id(),
+                    'created_at'  => now(),
+                    'updated_at'  => now(),
+                ]);
             }
 
             DB::commit();
@@ -408,6 +456,7 @@ class ListarPedidos extends Component
             $pedidoId = $this->pedidoGanadoraId;
             $this->ofertaGanadoraId  = null;
             $this->pedidoGanadoraId  = null;
+            $this->comentarioCreditoGanadora = '';
 
             $this->verFlujo($pedidoId);
 

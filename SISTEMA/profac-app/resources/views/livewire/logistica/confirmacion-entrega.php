@@ -872,18 +872,30 @@
                         }
                     }
 
-                    // Solo marcar checkboxes de productos sin incidencias
+                    // Marcar todas las casillas habilitadas y sincronizar el estado en memoria.
                     let productosSeleccionados = 0;
+                    const productosFactura = factura ? (factura.productos || []) : [];
+
                     $('#tablaProductos .chk-producto').each(function() {
                         const $checkbox = $(this);
                         // Solo marcar si no está deshabilitado (significa que no tiene incidencia)
                         if (!$checkbox.prop('disabled')) {
                             $checkbox.prop('checked', true);
                             const productoId = $checkbox.data('producto');
-                            estadoCheckboxes[productoId] = true;
+                            const producto = productosFactura.find(p => Number(p.id) === Number(productoId));
+                            if (producto) {
+                                producto.entregado = 1;
+                                producto.cantidad_entregada = Number($checkbox.data('cantidad')) || producto.cantidad_facturada || 0;
+                            }
                             productosSeleccionados++;
                         }
                     });
+
+                    if (factura) {
+                        factura.productos = productosFactura;
+                    }
+
+                    renderDetalleFactura(distribucionFacturaId);
 
                     if (productosSeleccionados > 0) {
                         toastr.success(`${productosSeleccionados} producto(s) marcado(s) como entregado(s)`, 'Productos seleccionados');

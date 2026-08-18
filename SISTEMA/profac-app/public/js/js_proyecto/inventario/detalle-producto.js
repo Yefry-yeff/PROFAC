@@ -1,94 +1,12 @@
-﻿
-const $foto_producto = document.querySelector("#foto_producto_edit");
-
-$foto_producto.addEventListener("change", () => {
-    const files = $foto_producto.files;
-    const grid = document.getElementById('previewGrid');
-    const container = document.getElementById('previewContainer');
-    const countEl = document.getElementById('previewCount');
-
-    grid.innerHTML = '';
-
-    if (!files || !files.length) {
-        container.style.display = 'none';
-        return;
-    }
-
-    if (files.length > 10) {
-        Swal.fire({ icon: 'warning', title: 'Máximo 10 imágenes', text: 'Solo se subirán las primeras 10 imágenes seleccionadas.' });
-    }
-
-    const max = Math.min(files.length, 10);
-    countEl.textContent = max;
-    container.style.display = 'block';
-
-    for (let i = 0; i < max; i++) {
-        const file = files[i];
-        const reader = new FileReader();
-        const div = document.createElement('div');
-        div.style.cssText = 'border-radius:8px;overflow:hidden;border:2px solid #e0e6ed;background:#f8fafc;min-height:90px;display:flex;align-items:center;justify-content:center;';
-        const img = document.createElement('img');
-        img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
-        reader.onload = (e) => { img.src = e.target.result; };
-        reader.readAsDataURL(file);
-        div.appendChild(img);
-        grid.appendChild(div);
-    }
-});
-
-$(document).on('submit', '#foto_productoForm', function(event) {
-
-event.preventDefault();
-guardarFoto();
-
-});
-
-function guardarFoto() {
-$('#modal_foto_producto').modal('hide');
-$('#modalSpinnerLoading').modal('show');
-
-let data = new FormData($('#foto_productoForm').get(0));
-
-let totalfiles = Math.min(document.getElementById('foto_producto_edit').files.length, 10);
-for (var i = 0; i < totalfiles; i++) {
-    data.append("files[]", document.getElementById('foto_producto_edit').files[i]);
-};
-
-axios.post('/ruta/imagen/edit', data)
-    .then(response => {
-
-
-        $('#modalSpinnerLoading').modal('hide');
-
-
-        $('#foto_productoForm').parsley().reset();
-        document.getElementById("foto_productoForm").reset();
-        const pc = document.getElementById('previewContainer');
-        const pg = document.getElementById('previewGrid');
-        if (pc) pc.style.display = 'none';
-        if (pg) pg.innerHTML = '';
-        $('#modal_foto_producto').modal('hide');
-
-
-        Swal.fire({
-            icon: 'success',
-            title: 'Exito!',
-            text: "Imagen guardada con exito."
-        });
-
-        location.reload();
-
-    })
-    .catch(err => {
-        console.error(err);
-
-    })
-}
-
-$(document).ready(function() {
+﻿$(document).ready(function() {
 
 var idProducto_edit = document.getElementById('id_producto_edit').value;
 obtenerDatosProductoEditar(idProducto_edit);
+
+var tablaLotes = document.getElementById('tbl_lotes_listar');
+var codigoProducto = tablaLotes.dataset.productoCodigo || idProducto_edit;
+var nombreProducto = tablaLotes.dataset.productoNombre || 'Producto';
+var usuarioDescarga = tablaLotes.dataset.usuarioDescarga || 'Sistema';
 
 $('#tbl_lotes_listar').DataTable({
     "language": {
@@ -98,8 +16,48 @@ $('#tbl_lotes_listar').DataTable({
     responsive: true,
     dom: '<"html5buttons"B>lTfgitp',
     buttons: [
-
-
+        {
+            extend: 'excelHtml5',
+            title: '',
+            filename: 'Distribuciones_Valencia_Disponibilidad_Producto_' + codigoProducto,
+            text: '<i class="fa-solid fa-file-excel"></i> Exportar a Excel',
+            className: 'btn btn-success btn-sm',
+            exportOptions: {
+                modifier: {
+                    search: 'applied',
+                    page: 'all'
+                },
+                format: {
+                    body: function(data, row, column) {
+                        var texto = $('<div>').html(data).text().trim();
+                        if ([0, 1, 8, 9, 10, 11].indexOf(column) >= 0) {
+                            var numero = parseFloat(texto.replace(/,/g, ''));
+                            return isNaN(numero) ? 0 : numero;
+                        }
+                        return texto;
+                    }
+                }
+            },
+            customizeData: function(data) {
+                var totales = [0, 0, 0];
+                data.body.forEach(function(fila) {
+                    totales[0] += parseFloat(fila[9]) || 0;
+                    totales[1] += parseFloat(fila[10]) || 0;
+                    totales[2] += parseFloat(fila[11]) || 0;
+                });
+                data.body.push([
+                    'TOTALES', '', '', '', '', '', '', '', '',
+                    totales[0], totales[1], totales[2]
+                ]);
+            },
+            customize: function(xlsx) {
+                personalizarExcelDisponibilidad(
+                    xlsx,
+                    'Disponibilidad de Producto - ' + codigoProducto + ' - ' + nombreProducto,
+                    usuarioDescarga
+                );
+            }
+        }
     ],
     drawCallback: function() {
         var api = $('#tbl_lotes_listar').DataTable();
@@ -147,6 +105,180 @@ $('#tbl_unidades_listar').DataTable({
 
 });
 
+function personalizarExcelDisponibilidad(xlsx, tituloReporte, usuarioDescarga) {
+var sheet = xlsx.xl.worksheets['sheet1.xml'];
+var $sheet = $(sheet);
+var styles = xlsx.xl['styles.xml'];
+var $styles = $(styles);
+var sheetData = $sheet.find('sheetData');
+var fecha = new Date();
+var fechaDescarga = fecha.toLocaleDateString('es-HN', {
+    day: '2-digit', month: '2-digit', year: 'numeric'
+}) + ' ' + fecha.toLocaleTimeString('es-HN', {
+    hour: '2-digit', minute: '2-digit', second: '2-digit'
+});
+
+function escaparXml(texto) {
+    return String(texto || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&apos;');
+}
+
+function columnaDeReferencia(referencia) {
+    return String(referencia || '').replace(/[0-9]/g, '');
+}
+
+sheetData.find('row').each(function() {
+    var $row = $(this);
+    var nuevaFila = parseInt($row.attr('r') || '0', 10) + 4;
+    $row.attr('r', String(nuevaFila));
+    $row.find('c').each(function() {
+        var $cell = $(this);
+        var columna = columnaDeReferencia($cell.attr('r'));
+        if (columna) $cell.attr('r', columna + nuevaFila);
+    });
+});
+
+var encabezado = '' +
+    '<row r="1" ht="30" customHeight="1"><c r="A1" t="inlineStr"><is><t>DISTRIBUCIONES VALENCIA   |   RTN: 08011986138652</t></is></c></row>' +
+    '<row r="2" ht="20" customHeight="1"><c r="A2" t="inlineStr"><is><t>' + escaparXml(tituloReporte.toUpperCase()) + '</t></is></c></row>' +
+    '<row r="3"><c r="A3" t="inlineStr"><is><t>' +
+        escaparXml('Generado: ' + fechaDescarga + '  |  Descargado por: ' + usuarioDescarga) +
+    '</t></is></c></row>' +
+    '<row r="4"><c r="A4" t="inlineStr"><is><t></t></is></c></row>';
+sheetData.prepend(encabezado);
+
+var $dimension = $sheet.find('dimension');
+if ($dimension.length) {
+    var referencia = $dimension.attr('ref') || 'A1:L1';
+    var partes = referencia.split(':');
+    var columnaFinal = partes.length === 2 ? columnaDeReferencia(partes[1]) : 'L';
+    var filaFinal = partes.length === 2
+        ? parseInt(String(partes[1]).replace(/[^0-9]/g, '') || '1', 10) + 4
+        : 5;
+    $dimension.attr('ref', 'A1:' + (columnaFinal || 'L') + filaFinal);
+}
+
+var merges = $sheet.find('mergeCells');
+if (!merges.length) {
+    $sheet.find('worksheet').append('<mergeCells count="0"></mergeCells>');
+    merges = $sheet.find('mergeCells');
+}
+merges.append('<mergeCell ref="A1:L1"/><mergeCell ref="A2:L2"/><mergeCell ref="A3:L3"/>');
+merges.attr('count', parseInt(merges.attr('count') || '0', 10) + 3);
+
+var $fonts = $styles.find('fonts');
+var fontEmpresa = parseInt($fonts.attr('count') || '0', 10);
+$fonts.append('<font><sz val="12"/><name val="Calibri"/><b/><color rgb="FF1F3864"/></font>');
+var fontTitulo = fontEmpresa + 1;
+$fonts.append('<font><sz val="12"/><name val="Calibri"/><b/><color rgb="FFE07000"/></font>');
+var fontMeta = fontEmpresa + 2;
+$fonts.append('<font><sz val="9"/><name val="Calibri"/><i/></font>');
+var fontCabecera = fontEmpresa + 3;
+$fonts.append('<font><sz val="8"/><name val="Calibri"/><b/><color rgb="FFFFFFFF"/></font>');
+var fontTotal = fontEmpresa + 4;
+$fonts.append('<font><sz val="10"/><name val="Calibri"/><b/><color rgb="FF7D3F00"/></font>');
+$fonts.attr('count', fontEmpresa + 5);
+
+var $fills = $styles.find('fills');
+var fillNaranja = parseInt($fills.attr('count') || '0', 10);
+$fills.append('<fill><patternFill patternType="solid"><fgColor rgb="FFE07000"/><bgColor indexed="64"/></patternFill></fill>');
+var fillTotal = fillNaranja + 1;
+$fills.append('<fill><patternFill patternType="solid"><fgColor rgb="FFFFF3E0"/><bgColor indexed="64"/></patternFill></fill>');
+$fills.attr('count', fillNaranja + 2);
+
+var $borders = $styles.find('borders');
+var borderDatos = parseInt($borders.attr('count') || '0', 10);
+$borders.append('<border><left style="thin"><color rgb="FFE8D5BF"/></left><right style="thin"><color rgb="FFE8D5BF"/></right><top style="thin"><color rgb="FFE8D5BF"/></top><bottom style="thin"><color rgb="FFE8D5BF"/></bottom><diagonal/></border>');
+var borderTotal = borderDatos + 1;
+$borders.append('<border><left style="thin"><color rgb="FFE8D5BF"/></left><right style="thin"><color rgb="FFE8D5BF"/></right><top style="medium"><color rgb="FFE07000"/></top><bottom style="thin"><color rgb="FFE8D5BF"/></bottom><diagonal/></border>');
+$borders.attr('count', borderDatos + 2);
+
+var $cellXfs = $styles.find('cellXfs');
+var siguienteEstilo = parseInt($cellXfs.attr('count') || '0', 10);
+
+function agregarEstilo(fontId, fillId, borderId, numFmtId, alineacion) {
+    var estilo = siguienteEstilo++;
+    $cellXfs.append(
+        '<xf numFmtId="' + numFmtId + '" fontId="' + fontId + '" fillId="' + fillId +
+        '" borderId="' + borderId + '" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1" applyNumberFormat="1">' +
+        '<alignment ' + alineacion + '/></xf>'
+    );
+    return estilo;
+}
+
+var estiloEmpresa = agregarEstilo(fontEmpresa, 0, 0, 0, 'horizontal="center" vertical="center"');
+var estiloTitulo = agregarEstilo(fontTitulo, 0, 0, 0, 'horizontal="center" vertical="center"');
+var estiloMeta = agregarEstilo(fontMeta, 0, 0, 0, 'horizontal="center" vertical="center"');
+var estiloCabecera = agregarEstilo(fontCabecera, fillNaranja, borderDatos, 0, 'horizontal="center" vertical="center" wrapText="1"');
+var estiloDatoCentro = agregarEstilo(0, 0, borderDatos, 0, 'horizontal="center" vertical="center"');
+var estiloDatoIzquierda = agregarEstilo(0, 0, borderDatos, 0, 'horizontal="left" vertical="center"');
+var estiloCantidad = agregarEstilo(0, 0, borderDatos, 3, 'horizontal="right" vertical="center"');
+var estiloTotal = agregarEstilo(fontTotal, fillTotal, borderTotal, 0, 'horizontal="center" vertical="center"');
+var estiloTotalCantidad = agregarEstilo(fontTotal, fillTotal, borderTotal, 3, 'horizontal="right" vertical="center"');
+$cellXfs.attr('count', siguienteEstilo);
+
+function completarCeldasFila($row, numeroFila) {
+    var columnas = 'ABCDEFGHIJKL'.split('');
+    var celdas = {};
+    $row.find('c').each(function() {
+        celdas[columnaDeReferencia($(this).attr('r'))] = this;
+    });
+    $row.empty();
+    columnas.forEach(function(columna) {
+        if (celdas[columna]) {
+            $row.append(celdas[columna]);
+        } else {
+            $row.append('<c r="' + columna + numeroFila + '" t="inlineStr"><is><t></t></is></c>');
+        }
+    });
+}
+
+$sheet.find('c[r="A1"]').attr('s', estiloEmpresa);
+$sheet.find('c[r="A2"]').attr('s', estiloTitulo);
+$sheet.find('c[r="A3"]').attr('s', estiloMeta);
+$sheet.find('row[r="5"]').attr({ ht: '28', customHeight: '1' }).find('c').attr('s', estiloCabecera);
+
+sheetData.find('row').each(function() {
+    var $row = $(this);
+    var numeroFila = parseInt($row.attr('r') || '0', 10);
+    if (numeroFila < 6) return;
+
+    var etiqueta = $row.find('c[r="A' + numeroFila + '"] t').text();
+    completarCeldasFila($row, numeroFila);
+    if (etiqueta === 'TOTALES') {
+        $row.attr({ ht: '18', customHeight: '1' });
+        $row.find('c').attr('s', estiloTotal);
+        ['J', 'K', 'L'].forEach(function(columna) {
+            $row.find('c[r="' + columna + numeroFila + '"]').attr('s', estiloTotalCantidad);
+        });
+        return;
+    }
+
+    $row.attr({ ht: '18', customHeight: '1' });
+    $row.find('c').attr('s', estiloDatoCentro);
+    ['C', 'D', 'E', 'F', 'G', 'H'].forEach(function(columna) {
+        $row.find('c[r="' + columna + numeroFila + '"]').attr('s', estiloDatoIzquierda);
+    });
+    ['J', 'K', 'L'].forEach(function(columna) {
+        $row.find('c[r="' + columna + numeroFila + '"]').attr('s', estiloCantidad);
+    });
+});
+
+var anchos = [6, 14, 32, 18, 18, 24, 26, 14, 10, 12, 16, 16];
+$sheet.find('cols col').each(function(indice) {
+    if (anchos[indice]) $(this).attr({ width: anchos[indice], customWidth: '1' });
+});
+
+$sheet.find('worksheet').prepend(
+    '<sheetViews><sheetView workbookViewId="0"><pane ySplit="5" topLeftCell="A6" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>'
+);
+merges.before('<autoFilter ref="A5:L5"/>');
+}
+
 
 function obtenerDatosProductoEditar(id) {
 var idProducto = document.getElementById('id_producto_edit').value;
@@ -162,22 +294,26 @@ axios.get("/producto/datos/" + idProducto)
         if (isvEl) isvEl.value = datos.datosProducto.isv;
         document.getElementById("cod_barra_producto_edit").value = datos.datosProducto.codigo_barra;
         document.getElementById("cod_estatal_producto_edit").value = datos.datosProducto.codigo_estatal;
-        document.getElementById("precioBase_edit").value = datos.datosProducto.precio_base;
-        document.getElementById("costo_promedio_editar").value = datos.datosProducto.costo_promedio;
+        var precioBaseEl = document.getElementById("precioBase_edit");
+        var costoPromedioEl = document.getElementById("costo_promedio_editar");
+        var ultimoCostoEl = document.getElementById("ultimo_costo_compra_editar");
+        if (precioBaseEl) precioBaseEl.value = datos.datosProducto.precio_base;
+        if (costoPromedioEl) costoPromedioEl.value = datos.datosProducto.costo_promedio;
         document.getElementById("unidades_editar").value = datos.datosProducto.unidadad_compra;
-        document.getElementById("ultimo_costo_compra_editar").value = datos.datosProducto.ultimo_costo_compra;
+        if (ultimoCostoEl) ultimoCostoEl.value = datos.datosProducto.ultimo_costo_compra;
 
-
-        document.getElementById("precio1").value = datos.datosProducto.precio1;
-        document.getElementById("precio2").value = datos.datosProducto.precio2;
-        document.getElementById("precio3").value = datos.datosProducto.precio3;
-        document.getElementById("precio4").value = datos.datosProducto.precio4;
+        ['precio1', 'precio2', 'precio3', 'precio4'].forEach(function(id, index) {
+            var precioEl = document.getElementById(id);
+            if (precioEl) precioEl.value = datos.datosProducto['precio' + (index + 1)];
+        });
 
 
 
         if (datos.preciosProducto.length != 0) {
-            document.getElementById("precio2_edit").value = datos.preciosProducto[1].precio;
-            document.getElementById("precio3_edit").value = datos.preciosProducto[2].precio;
+            var precio2EditEl = document.getElementById("precio2_edit");
+            var precio3EditEl = document.getElementById("precio3_edit");
+            if (precio2EditEl && datos.preciosProducto[1]) precio2EditEl.value = datos.preciosProducto[1].precio;
+            if (precio3EditEl && datos.preciosProducto[2]) precio3EditEl.value = datos.preciosProducto[2].precio;
         }
 
 
@@ -315,14 +451,10 @@ $('#modalSpinnerLoading').modal('show');
 
 var data = new FormData($('#editarProductoForm').get(0));
 
-let precio1 = document.getElementById('precio1').value;
-let precio2 =  document.getElementById('precio2').value
-let precio3 =  document.getElementById('precio3').value
-let precio4 = document.getElementById('precio4').value
-data.append('precio1', precio1);
-data.append('precio2', precio2);
-data.append('precio3', precio3);
-data.append('precio4', precio4);
+['precio1', 'precio2', 'precio3', 'precio4'].forEach(function(id) {
+    var precioEl = document.getElementById(id);
+    if (precioEl) data.append(id, precioEl.value);
+});
 axios.post("/producto/editar", data)
     .then(response => {
         $('#modalSpinnerLoading').modal('hide');
@@ -344,7 +476,7 @@ axios.post("/producto/editar", data)
         $('#modal_producto_editar').modal('hide');
 
         console.error(err);
-        let data = err.response.data;
+    let data = err.response && err.response.data ? err.response.data : {};
         if (data.icon) {
             Swal.fire({
                 icon: data.icon,

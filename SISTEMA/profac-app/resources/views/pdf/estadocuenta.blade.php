@@ -70,6 +70,26 @@
 <body>
     @php
         $fecha_actual = date("Y-m-d");
+        $hoy = \Carbon\Carbon::today();
+        $diasVencidos = static function ($fechaVencimiento) use ($hoy) {
+            if (empty($fechaVencimiento)) {
+                return 0;
+            }
+
+            try {
+                $vence = \Carbon\Carbon::parse($fechaVencimiento)->startOfDay();
+            } catch (\Throwable $e) {
+                return 0;
+            }
+
+            return $vence->lt($hoy) ? $vence->diffInDays($hoy) : 0;
+        };
+        $totalAcumuladoVencido = 0;
+        foreach ($estadoCuenta as $fila) {
+            if ($diasVencidos($fila->fecha_vencimiento ?? null) > 0) {
+                $totalAcumuladoVencido += (float) ($fila->saldo ?? 0);
+            }
+        }
     @endphp
 
     <div class="pruebaFondo">
@@ -96,6 +116,7 @@
                                                     <th style="text-align: center">No. Compra</th>
                                                     <th style="text-align: center">Fecha Emisión</th>
                                                     <th style="text-align: center">Fecha Vencimiento</th>
+                                                    <th style="text-align: center">Días Venc.</th>
                                                     <th style="text-align: center">Cargo</th>
                                                     <th style="text-align: center">Crédito</th>
                                                     <th style="text-align: center">Notas Crédito</th>
@@ -107,17 +128,19 @@
                                 <tbody>
 
                                     @foreach ($estadoCuenta as $valor)
+                                        @php($diasFila = $diasVencidos($valor->fecha_vencimiento ?? null))
                                         <tr>
                                             <td style="text-align: center">{{ $valor->correlativo }}</td>
                                             <td style="text-align: center">{{ $valor->numOrden }}</td>
                                             <td style="text-align: center">{{ $valor->fecha_emision }}</td>
                                             <td style="text-align: center">{{ $valor->fecha_vencimiento }}</td>
+                                            <td style="text-align: center">{{ $diasFila }}</td>
                                              <td style="text-align: center"> L. {{ number_format($valor->cargo, 2, ',') }}</td>
                                             <td style="text-align: center"> L. {{ number_format($valor->credito, 2, ',') }}</td>
                                             <td style="text-align: center"> L. {{ number_format($valor->notaCredito, 2, ',') }}</td>
                                             <td style="text-align: center"> L. {{ number_format($valor->notaDebito, 2, ',') }}</td>
-                                            <td style="text-align: center"> L. {{ number_format($valor->saldo, 2, ',') }}</td>
-                                            <td style="text-align: center"> L. {{ number_format($valor->acumulado, 2, ',') }}</td>
+                                            <td style="text-align: center; color: {{ $diasFila > 0 ? 'red' : 'inherit' }}; font-weight: {{ $diasFila > 0 ? '700' : '400' }};"> L. {{ number_format($valor->saldo, 2, ',') }}</td>
+                                            <td style="text-align: center"> L. {{ number_format($valor->Acumulado, 2, ',') }}</td>
                                         </tr>
                                     @endforeach
 
@@ -125,6 +148,11 @@
 
 
                             </table>
+
+                            <div style="margin-top:12px; text-align:right; font-size:13px; font-weight:700; color:#111;">
+                                <span>Total Acumulado vencido:</span>
+                                <span style="margin-left:10px; color:red;">L. {{ number_format($totalAcumuladoVencido, 2, ',', ',') }}</span>
+                            </div>
 
                             <div style="position:absolute; left:120px;   width:45rem; margin-top:30px">
                                 <p class="card-text" style="position:absolute;left:20px;  top:10px;">

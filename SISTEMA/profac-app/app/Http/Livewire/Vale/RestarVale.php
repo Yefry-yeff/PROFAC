@@ -148,6 +148,34 @@ class RestarVale extends Component
     public function anularVale(Request $request){
            try {
             DB::beginTransaction();
+
+            $vale = ModelVale::where('id', $request->idVale)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$vale) {
+                DB::rollBack();
+
+                return response()->json([
+                    'icon' => 'warning',
+                    'text' => 'El vale indicado no existe.',
+                    'title' => 'Acción no permitida!',
+                ], 404);
+            }
+
+            if ((int) $vale->estado_id !== 1) {
+                DB::rollBack();
+
+                return response()->json([
+                    'icon' => 'warning',
+                    'text' => 'Este vale ya fue anulado.',
+                    'title' => 'Acción no permitida!',
+                ], 200);
+            }
+
+            $this->arrayProductos = [];
+            $this->arrayLogs = [];
+
             $listaProductos = DB::SELECT("
             select
                 B.resta_inventario_total,
@@ -158,6 +186,7 @@ class RestarVale extends Component
                 B.sub_total,
                 B.isv,
                 B.total,
+                B.precios_producto_carga_id,
                 C.isv as ivsProducto,
                 D.unidad_venta,
                 E.id as idFactura,
@@ -192,6 +221,8 @@ class RestarVale extends Component
             }
 
             if ($flag) {
+                DB::rollBack();
+
                 return response()->json([
                     'icon' => "warning",
                     'text' =>  '<p class="text-left">' . $mensaje . '</p>',
@@ -202,7 +233,7 @@ class RestarVale extends Component
             }
 
             foreach($listaProductos as $producto){
-                $tipoPrecio = ($producto->ivsProducto > 0) ? '2' : '1';
+                $tipoPrecio = ($producto->ivsProducto > 0) ? '2' : '1'; // '1' = Excento (producto sin ISV, isv = 0) | '2' = Gravado (producto con ISV, isv > 0)
                 $this->restarUnidadesInventario(
                     $producto->resta_inventario_total,
                     $producto->producto_id,
@@ -215,26 +246,25 @@ class RestarVale extends Component
                     $producto->total,
                     $producto->ivsProducto,
                     $producto->unidad_venta,
-                    $tipoPrecio
+                    $tipoPrecio,
+                    $producto->precios_producto_carga_id
                 );
             }
 
-            // Eliminar registros existentes con la misma clave primaria (factura_id, producto_id, lote)
-            // para evitar error de entrada duplicada, independientemente del seccion_id
-            foreach($this->arrayProductos as $item){
-                DB::table('venta_has_producto')
-                    ->where('factura_id', '=', $item['factura_id'])
-                    ->where('producto_id', '=', $item['producto_id'])
-                    ->where('lote', '=', $item['lote'])
-                    ->delete();
-            }
-
-            //dd($this->arrayProductos);
-            ModelVentaProducto::insert($this->arrayProductos);
+            $this->guardarProductosValeSinSobrescribir();
 
             ModelLogTranslados::insert($this->arrayLogs);
 
-            $vale =  ModelVale::find($request->idVale);
+            foreach($listaProductos as $producto){
+                DB::table('venta_has_producto')
+                    ->where('factura_id', $producto->idFactura)
+                    ->where('producto_id', $producto->producto_id)
+                    ->where('lote', 1)
+                    ->where('seccion_id', 0)
+                    ->where('numero_unidades_resta_inventario', 0)
+                    ->delete();
+            }
+
             $vale->estado_id = 2;
             $vale->comentario_anular = $request->motivo;
             $vale->save();
@@ -258,7 +288,35 @@ class RestarVale extends Component
            }
     }
 
-    public function restarUnidadesInventario($unidadesRestarInv, $idProducto, $idFactura, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $tipoPrecio = '2')
+    protected function guardarProductosValeSinSobrescribir(): void
+    {
+        foreach ($this->arrayProductos as $item) {
+            $query = DB::table('venta_has_producto')
+                ->where('factura_id', $item['factura_id'])
+                ->where('producto_id', $item['producto_id'])
+                ->where('lote', $item['lote']);
+
+            $existente = $query->lockForUpdate()->first();
+
+            if (!$existente) {
+                DB::table('venta_has_producto')->insert($item);
+                continue;
+            }
+
+            $query->update([
+                'numero_unidades_resta_inventario' => (int) $existente->numero_unidades_resta_inventario + (int) $item['numero_unidades_resta_inventario'],
+                'unidades_nota_credito_resta_inventario' => (int) $existente->unidades_nota_credito_resta_inventario + (int) $item['numero_unidades_resta_inventario'],
+                'cantidad_s' => (float) $existente->cantidad_s + (float) $item['cantidad_s'],
+                'cantidad_para_entregar' => (float) $existente->cantidad_para_entregar + (float) $item['cantidad_para_entregar'],
+                'sub_total_s' => (float) $existente->sub_total_s + (float) $item['sub_total_s'],
+                'isv_s' => (float) $existente->isv_s + (float) $item['isv_s'],
+                'total_s' => (float) $existente->total_s + (float) $item['total_s'],
+                'updated_at' => now(),
+            ]);
+        }
+    }
+
+    public function restarUnidadesInventario($unidadesRestarInv, $idProducto, $idFactura, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $tipoPrecio = '2', $preciosProductoCargaId = null)
     {
 
 
@@ -353,6 +411,7 @@ class RestarVale extends Component
                     "isv_s" => $isvSecccionado,
                     "total_s" => $totalSecccionado,
                     "tipo_precio" => $tipoPrecio,
+                    "precios_producto_carga_id" => $preciosProductoCargaId,
                     "created_at" => now(),
                     "updated_at" => now(),
                 ]);
@@ -413,6 +472,29 @@ class RestarVale extends Component
         }
 
         $factura->save();
+
+        $aplicacionPago = DB::table('aplicacion_pagos')
+            ->where('factura_id', $factura->id)
+            ->where('estado', 1)
+            ->lockForUpdate()
+            ->first();
+
+        if ($aplicacionPago) {
+            $diferenciaCargo = round(
+                (float) $factura->total - (float) $aplicacionPago->total_factura_cargo,
+                2
+            );
+
+            DB::table('aplicacion_pagos')
+                ->where('id', $aplicacionPago->id)
+                ->update([
+                    'total_factura_cargo' => $factura->total,
+                    'retencion_isv_factura' => $factura->isv,
+                    'saldo' => round((float) $aplicacionPago->saldo + $diferenciaCargo, 2),
+                    'ultimo_usr_actualizo' => Auth::user()->id,
+                    'updated_at' => now(),
+                ]);
+        }
 
 
 

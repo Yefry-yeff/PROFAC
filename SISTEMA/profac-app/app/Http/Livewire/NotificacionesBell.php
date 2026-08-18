@@ -10,12 +10,26 @@ class NotificacionesBell extends Component
     public int    $count          = 0;
     public array  $notificaciones = [];
     public bool   $mostrarPanel   = false;
+    public int    $pollSegundos   = 180;
 
-    protected $listeners = ['$refresh' => 'cargar'];
+    protected $listeners = ['notificacionNueva' => 'cargarContador'];
 
     public function mount(): void
     {
-        $this->cargar();
+        if (request()->is('flujo/*')) {
+            // Pantallas de flujo son pesadas; bajar frecuencia reduce timeouts en origen.
+            $this->pollSegundos = 600;
+        }
+
+        $this->cargarContador();
+    }
+
+    public function cargarContador(): void
+    {
+        $user = Auth::user();
+        if (!$user) return;
+
+        $this->count = $user->unreadNotifications()->count();
     }
 
     public function cargar(): void

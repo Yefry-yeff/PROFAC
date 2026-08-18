@@ -7,6 +7,12 @@ use App\Models\Comisiones\Escalado\modelproducto_comision;
 
 class GeneradorFacturasComision
 {
+    /** Códigos de facturación SR que fuerzan comisión por categoría más baja de la escala del cliente. */
+    const TIPOS_FACTURA_SR = [
+        'sin_restriccion_gobierno',
+        'sin_restriccion_precio',
+    ];
+
     /**
      * Rol fijo que representa la capacidad de "facturador" en comision_escala.
      * Se usa independientemente del rol real del usuario que creó la factura.
@@ -21,15 +27,43 @@ class GeneradorFacturasComision
     const TIPO_FACTURADOR_ROL  = 2;
     /** Tipo de comisión: vendedor de la factura → siempre con ROL_VENDEDOR_ID */
     const TIPO_VENDEDOR        = 3;
+    /** Tipo de comisión: gestor de entrega → siempre con ROL_GESTOR_ENTREGA_ID */
+    const TIPO_GESTOR_ENTREGA  = 4;
+
+    /** Rol fijo que representa al gestor de entrega (Gestor de entregas). */
+    const ROL_GESTOR_ENTREGA_ID = 16;
+
+    /**
+     * Obtiene la categoría de precio "más baja" para una escala de cliente.
+     * Prioriza menor porc_precio_a y, en empate, el menor ID.
+     */
+    private function obtenerCategoriaPrecioMasBaja(int $clienteCategoriaEscalaId): ?int
+    {
+        if ($clienteCategoriaEscalaId <= 0) {
+            return null;
+        }
+
+        $categoriaId = DB::table('categoria_precios')
+            ->where('cliente_categoria_escala_id', $clienteCategoriaEscalaId)
+            ->where('estado_id', 1)
+            ->orderByRaw('CASE WHEN porc_precio_a IS NULL THEN 1 ELSE 0 END ASC')
+            ->orderBy('porc_precio_a', 'asc')
+            ->orderBy('id', 'asc')
+            ->value('id');
+
+        return $categoriaId ? (int) $categoriaId : null;
+    }
 
     /**
      * Genera comisiones para la factura indicada.
-     * Por cada factura se construyen hasta 3 entradas de comisión:
+     * Por cada factura se construyen hasta 4 entradas de comisión:
      *   1. Facturador (factura.users_id) → siempre con ROL_FACTURADOR_ID (3).
      *   2. Facturador en su rol real     → si su rol_id real ≠ ROL_FACTURADOR_ID.
-     *   3. Vendedor   (factura.vendedor)  → su rol_id real, si la combinación
-     *      user_id+rol_id no está ya en la lista (evita duplicados).
-     * monto_comision = precio_unidad * cantidad * (porcentaje / 100)
+     *   3. Vendedor   (factura.vendedor)  → siempre con ROL_VENDEDOR_ID (2).
+     *   4. Gestor de entrega (factura.gestor_entrega) → siempre con ROL_GESTOR_ENTREGA_ID (16),
+     *      solo si el campo no es nulo y tiene comisión activa en comision_rol_config.
+    * monto_comision = precio_seleccionado * cantidad * (porcentaje / 100)
+    * (si precioSeleccionado no existe/vale 0, usa precio_unidad como fallback histórico)
      */
     /**
      * @param string|null $fechaPago  Fecha del pago del usuario (YYYY-MM-DD).
@@ -45,15 +79,21 @@ class GeneradorFacturasComision
 
         $fechaComision = $fechaPago ?? now()->toDateString();
 
-        // Resolver facturador y vendedor con sus roles reales
+        // Resolver facturador, vendedor y gestor de entrega con sus roles reales
         $fila = DB::selectOne(
-            "SELECT f.users_id AS facturador_id,
-                    uf.rol_id   AS facturador_rol,
-                    f.vendedor  AS vendedor_id,
-                    uv.rol_id   AS vendedor_rol
+            "SELECT f.users_id      AS facturador_id,
+                    uf.rol_id       AS facturador_rol,
+                    f.vendedor      AS vendedor_id,
+                    uv.rol_id       AS vendedor_rol,
+                    f.gestor_entrega AS gestor_id,
+                    f.tipo_factura_id,
+                    tf.codigo       AS tipo_factura_codigo,
+                    cl.cliente_categoria_escala_id
              FROM factura f
              INNER JOIN users uf ON uf.id = f.users_id
              INNER JOIN users uv ON uv.id = f.vendedor
+             LEFT JOIN cliente cl ON cl.id = f.cliente_id
+             LEFT JOIN tipo_factura tf ON tf.id = f.tipo_factura_id
              WHERE f.id = ?",
             [$facturaId]
         );
@@ -62,12 +102,21 @@ class GeneradorFacturasComision
             return [];
         }
 
+        $tipoFacturaCodigo = (string) ($fila->tipo_factura_codigo ?? '');
+        $clienteCategoriaEscalaId = (int) ($fila->cliente_categoria_escala_id ?? 0);
+        $esFacturaSr = in_array($tipoFacturaCodigo, self::TIPOS_FACTURA_SR, true);
+        $categoriaPrecioForzadaId = null;
+
+        if ($esFacturaSr) {
+            $categoriaPrecioForzadaId = $this->obtenerCategoriaPrecioMasBaja($clienteCategoriaEscalaId);
+        }
+
         // ── Construcción de targets ──────────────────────────────────────────
-        // Una entrada por persona involucrada usando su ROL REAL:
+        // Una entrada por persona involucrada:
         //   1. Facturador (quien emitió la factura) → tipo TIPO_FACTURADOR_FIJO
-        //   2. Vendedor   (responsable de la venta)  → tipo TIPO_VENDEDOR
-        //      Se omite si es la misma persona CON el mismo rol que el facturador
-        //      (solo habría un registro, evitando doble comisión).
+        //   2. Facturador en su rol real            → tipo TIPO_FACTURADOR_ROL
+        //   3. Vendedor   (responsable de la venta) → tipo TIPO_VENDEDOR
+        //   4. Gestor de entrega (si está asignado)  → tipo TIPO_GESTOR_ENTREGA
         // El panel de control (comision_rol_config) filtra quién calcula y quién no.
         $targetsList = [];
 
@@ -81,13 +130,12 @@ class GeneradorFacturasComision
         // 2. Facturador en su rol real (Administrador, Gerente, etc.)
         //    Se omite si:
         //    a) Su rol real coincide con ROL_FACTURADOR_ID (ya cubierto por entrada 1).
-        //    b) Su rol real coincide con ROL_VENDEDOR_ID y ademas es la misma persona
-        //       que el vendedor: la entrada 3 ya cubre esa comision, evitando doble pago.
-        $facturadorRol     = (int) $fila->facturador_rol;
-        $mismaPersona      = ((int) $fila->facturador_id === (int) $fila->vendedor_id);
-        $rolRealEsVendedor = ($facturadorRol === self::ROL_VENDEDOR_ID);
+        //    b) Su rol real coincide con ROL_VENDEDOR_ID: la entrada 3 (VENDEDOR) ya
+        //       cubre ese rol, evitando doble comisión para el mismo rol aunque sean
+        //       personas distintas.
+        $facturadorRol = (int) $fila->facturador_rol;
 
-        if ($facturadorRol !== self::ROL_FACTURADOR_ID && !($rolRealEsVendedor && $mismaPersona)) {
+        if ($facturadorRol !== self::ROL_FACTURADOR_ID && $facturadorRol !== self::ROL_VENDEDOR_ID) {
             $targetsList[] = [
                 'user_id' => (int) $fila->facturador_id,
                 'rol_id'  => $facturadorRol,
@@ -104,6 +152,30 @@ class GeneradorFacturasComision
             'rol_id'  => self::ROL_VENDEDOR_ID,
             'tipo'    => self::TIPO_VENDEDOR,
         ];
+
+        // 4. Gestor de entrega: solo si la factura tiene uno asignado.
+        //    Siempre con ROL_GESTOR_ENTREGA_ID (16).
+        //    Si comision_rol_config.calcular = 0 para rol 16, el filtro posterior lo excluirá.
+        $gestorId = isset($fila->gestor_id) ? (int) $fila->gestor_id : 0;
+        if ($gestorId > 0) {
+            $targetsList[] = [
+                'user_id' => $gestorId,
+                'rol_id'  => self::ROL_GESTOR_ENTREGA_ID,
+                'tipo'    => self::TIPO_GESTOR_ENTREGA,
+            ];
+        }
+
+        // ── Deduplicar por rol_id ────────────────────────────────────────────
+        // Solo puede existir UNA comisión por rol, sin importar cuántas personas
+        // compartan ese rol en la factura. Prioridad: TIPO_GESTOR > TIPO_VENDEDOR > TIPO_FACTURADOR_ROL > TIPO_FACTURADOR_FIJO
+        $uniqueTargets = [];
+        foreach ($targetsList as $t) {
+            $key = $t['rol_id'];
+            if (!isset($uniqueTargets[$key]) || $t['tipo'] > $uniqueTargets[$key]['tipo']) {
+                $uniqueTargets[$key] = $t;
+            }
+        }
+        $targetsList = array_values($uniqueTargets);
 
         $rolIds = array_unique(array_column($targetsList, 'rol_id'));
 
@@ -128,10 +200,11 @@ class GeneradorFacturasComision
             return [];
         }
 
-        // Escala activa indexada por "rolId_catPrecioId"
+        // Escala activa indexada por "rolId_catClienteId_catPrecioId"
         $escalaRows = DB::table('comision_escala')
             ->whereIn('rol_id', $rolIds)
             ->where('estado_id', 1)
+            ->where('cliente_categoria_escala_id', $clienteCategoriaEscalaId)
             ->whereNotNull('categoria_precios_id')
             ->get();
 
@@ -141,24 +214,44 @@ class GeneradorFacturasComision
 
         $escala = [];
         foreach ($escalaRows as $row) {
-            $escala[$row->rol_id . '_' . $row->categoria_precios_id] = $row;
+            $escala[$row->rol_id . '_' . $row->cliente_categoria_escala_id . '_' . $row->categoria_precios_id] = $row;
         }
 
         // Líneas de producto con su categoria_precios_id
         $productos = DB::table('venta_has_producto as vp')
             ->join('precios_producto_carga as ppc', 'ppc.id', '=', 'vp.precios_producto_carga_id')
             ->where('vp.factura_id', $facturaId)
-            ->select(
-                'vp.cantidad',
-                'vp.precio_unidad',
-                'vp.precios_producto_carga_id',
-                'vp.producto_id',
-                'ppc.categoria_precios_id'
+            ->selectRaw(
+                'vp.cantidad,
+                 vp.precio_unidad,
+                 vp.precioSeleccionado,
+                 COALESCE(NULLIF(vp.precioSeleccionado, 0), vp.precio_unidad) as precio_para_comision,
+                 vp.precios_producto_carga_id,
+                 vp.producto_id,
+                 vp.seccion_id,
+                 vp.unidad_medida_venta_id,
+                 ppc.categoria_precios_id'
             )
             ->get();
 
         if ($productos->isEmpty()) {
             return [];
+        }
+
+        $cantidadesDevueltasFactura = $this->cantidadesDevueltasPorLinea($facturaId);
+
+        // Regla SR: precargar precio_a de la categoría más baja para comparar por producto.
+        // La categoría forzada solo aplica si el precio vendido es MAYOR al precio de esa categoría.
+        $precioRefMasBajaMap = [];
+        if ($esFacturaSr && $categoriaPrecioForzadaId) {
+            $precioRefs = DB::table('precios_producto_carga')
+                ->where('categoria_precios_id', $categoriaPrecioForzadaId)
+                ->whereIn('producto_id', $productos->pluck('producto_id')->unique()->values()->all())
+                ->select('producto_id', 'precio_a')
+                ->get();
+            foreach ($precioRefs as $ref) {
+                $precioRefMasBajaMap[(int) $ref->producto_id] = (float) $ref->precio_a;
+            }
         }
 
         $resultado = [];
@@ -170,20 +263,42 @@ class GeneradorFacturasComision
 
             $totalTarget    = 0.0;
             $lineasProducto = [];
+            $cantidadesDevueltas = $cantidadesDevueltasFactura;
 
             foreach ($productos as $prod) {
-                $key = $rolId . '_' . $prod->categoria_precios_id;
+                $cantidadComisionable = $this->consumirCantidadDevuelta($prod, $cantidadesDevueltas);
+                if ($cantidadComisionable <= 0.005) {
+                    continue;
+                }
+
+                // Regla SR: usar la categoría más baja SOLO si el precio vendido es
+                // estrictamente mayor al precio_a de esa categoría para este producto.
+                // Si es menor o igual, se comisiona por la categoría real de la línea.
+                if ($esFacturaSr && $categoriaPrecioForzadaId) {
+                    $precioVendido  = (float) ($prod->precio_para_comision ?? $prod->precio_unidad ?? 0);
+                    $precioRefBaja  = $precioRefMasBajaMap[(int) $prod->producto_id] ?? null;
+                    // Penalizar con categoría más baja SOLO si vendió por DEBAJO del precio de esa categoría.
+                    // Si vendió igual o por encima, comisiona por la categoría real usada en la venta.
+                    $categoriaPrecioParaComision = ($precioRefBaja !== null && $precioVendido < $precioRefBaja)
+                        ? $categoriaPrecioForzadaId
+                        : (int) $prod->categoria_precios_id;
+                } else {
+                    $categoriaPrecioParaComision = (int) $prod->categoria_precios_id;
+                }
+
+                $key = $rolId . '_' . $clienteCategoriaEscalaId . '_' . $categoriaPrecioParaComision;
                 if (!isset($escala[$key])) {
                     continue;
                 }
 
+                $precioParaComision = (float) ($prod->precio_para_comision ?? $prod->precio_unidad ?? 0);
                 $pct        = (float) $escala[$key]->porcentaje_comision;
-                $montoLinea = round(($pct / 100) * $prod->precio_unidad * $prod->cantidad, 4);
+                $montoLinea = round(($pct / 100) * $precioParaComision * $cantidadComisionable, 4);
                 $totalTarget += $montoLinea;
 
                 $lineasProducto[] = [
-                    'cantidad'                  => $prod->cantidad,
-                    'precio_venta'              => $prod->precio_unidad,
+                    'cantidad'                  => $cantidadComisionable,
+                    'precio_venta'              => $precioParaComision,
                     'monto_comision'            => $montoLinea,
                     'precios_producto_carga_id' => $prod->precios_producto_carga_id,
                     'factura_id'                => $facturaId,
@@ -235,6 +350,66 @@ class GeneradorFacturasComision
         }
 
         return $resultado;
+    }
+
+    private function cantidadesDevueltasPorLinea(int $facturaId): array
+    {
+        $lineas = DB::table('nota_credito_has_producto as ncp')
+            ->join('nota_credito as nc', 'nc.id', '=', 'ncp.nota_credito_id')
+            ->where('nc.factura_id', $facturaId)
+            ->where('nc.estado_nota_id', 1)
+            ->selectRaw(
+                'ncp.producto_id,
+                 ncp.seccion_id,
+                 ncp.unidad_medida_venta_id,
+                 ncp.precios_producto_carga_id,
+                 ncp.precio_unidad,
+                 SUM(ncp.cantidad) AS cantidad'
+            )
+            ->groupBy(
+                'ncp.producto_id',
+                'ncp.seccion_id',
+                'ncp.unidad_medida_venta_id',
+                'ncp.precios_producto_carga_id',
+                'ncp.precio_unidad'
+            )
+            ->get();
+
+        $cantidades = ['exactas' => [], 'por_precio' => []];
+        foreach ($lineas as $linea) {
+            $base = $linea->producto_id . '|' . $linea->seccion_id . '|' . $linea->unidad_medida_venta_id;
+            if ($linea->precios_producto_carga_id) {
+                $clave = $base . '|' . $linea->precios_producto_carga_id;
+                $cantidades['exactas'][$clave] = ($cantidades['exactas'][$clave] ?? 0) + (float) $linea->cantidad;
+                continue;
+            }
+
+            $clave = $base . '|' . number_format((float) $linea->precio_unidad, 4, '.', '');
+            $cantidades['por_precio'][$clave] = ($cantidades['por_precio'][$clave] ?? 0) + (float) $linea->cantidad;
+        }
+
+        return $cantidades;
+    }
+
+    private function consumirCantidadDevuelta(object $producto, array &$cantidades): float
+    {
+        $cantidadVendida = max((float) $producto->cantidad, 0);
+        $base = $producto->producto_id . '|' . $producto->seccion_id . '|' . $producto->unidad_medida_venta_id;
+        $claveExacta = $base . '|' . $producto->precios_producto_carga_id;
+        $clavePrecio = $base . '|' . number_format((float) $producto->precio_unidad, 4, '.', '');
+
+        $devuelta = min($cantidadVendida, (float) ($cantidades['exactas'][$claveExacta] ?? 0));
+        if ($devuelta > 0) {
+            $cantidades['exactas'][$claveExacta] -= $devuelta;
+        }
+
+        $pendiente = $cantidadVendida - $devuelta;
+        $devueltaPorPrecio = min($pendiente, (float) ($cantidades['por_precio'][$clavePrecio] ?? 0));
+        if ($devueltaPorPrecio > 0) {
+            $cantidades['por_precio'][$clavePrecio] -= $devueltaPorPrecio;
+        }
+
+        return max($cantidadVendida - $devuelta - $devueltaPorPrecio, 0);
     }
 }
 

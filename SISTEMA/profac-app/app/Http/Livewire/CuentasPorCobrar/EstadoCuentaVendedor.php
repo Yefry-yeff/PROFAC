@@ -16,17 +16,61 @@ class EstadoCuentaVendedor extends Component
         return view('livewire.cuentas-por-cobrar.estado-cuenta-vendedor');
     }
 
+    const ADMIN_ROLES = [1, 3, 5, 16];
+
+    private function esAdmin(): bool
+    {
+        return in_array((int) Auth::user()->rol_id, self::ADMIN_ROLES, true);
+    }
+
+    private function sincronizarTotalesFacturasCliente(int $clienteId): void
+    {
+        DB::update("
+            UPDATE aplicacion_pagos ap
+            INNER JOIN factura f ON f.id = ap.factura_id
+            SET ap.saldo = ROUND(ap.saldo + (
+                    CASE WHEN f.tipo_venta_id = 3 THEN f.sub_total ELSE f.total END
+                    - ap.total_factura_cargo
+                ), 2),
+                ap.total_factura_cargo = CASE WHEN f.tipo_venta_id = 3 THEN f.sub_total ELSE f.total END,
+                ap.retencion_isv_factura = CASE WHEN f.tipo_venta_id = 3 THEN 0 ELSE f.isv END,
+                ap.ultimo_usr_actualizo = ?,
+                ap.updated_at = NOW()
+            WHERE ap.cliente_id = ?
+              AND ap.estado = 1
+              AND (
+                  ABS((CASE WHEN f.tipo_venta_id = 3 THEN f.sub_total ELSE f.total END) - ap.total_factura_cargo) >= 0.005
+                  OR ABS((CASE WHEN f.tipo_venta_id = 3 THEN 0 ELSE f.isv END) - ap.retencion_isv_factura) >= 0.005
+              )
+        ", [Auth::id() ?? 0, $clienteId]);
+    }
+
     // ─── Buscar clientes (Select2) ────────────────────────────────────────────
     public function listarClientes(Request $request)
     {
         $search = $request->search ?? '';
-        $clientes = DB::select(
-            "SELECT id, CONCAT(id,' - ',nombre) AS text
-             FROM cliente
-             WHERE (id LIKE ? OR nombre LIKE ?)
-             LIMIT 15",
-            ["%{$search}%", "%{$search}%"]
-        );
+        $like   = "%{$search}%";
+
+        if ($this->esAdmin()) {
+            $clientes = DB::select(
+                "SELECT id, CONCAT(id,' - ',nombre) AS text
+                 FROM cliente
+                 WHERE (id LIKE ? OR nombre LIKE ?)
+                 LIMIT 15",
+                [$like, $like]
+            );
+        } else {
+            // Solo clientes asignados directamente al usuario (campo vendedor del cliente)
+            $uid = Auth::id();
+            $clientes = DB::select(
+                "SELECT id, CONCAT(id,' - ',nombre) AS text
+                 FROM cliente
+                 WHERE vendedor = ?
+                   AND (id LIKE ? OR nombre LIKE ?)
+                 LIMIT 15",
+                [$uid, $like, $like]
+            );
+        }
 
         return response()->json(['results' => $clientes], 200);
     }
@@ -75,6 +119,8 @@ class EstadoCuentaVendedor extends Component
             );
         }
 
+        $this->sincronizarTotalesFacturasCliente((int) $id);
+
         $cuentas = DB::select("
             SELECT
                 ap.id                       AS codigoPago,
@@ -83,6 +129,8 @@ class EstadoCuentaVendedor extends Component
                                             AS codigoFactura,
                 (SELECT fecha_emision FROM factura WHERE id = ap.factura_id)
                                             AS fechaFactura,
+                (SELECT fecha_vencimiento FROM factura WHERE id = ap.factura_id)
+                                            AS fechaVencimiento,
                 ap.total_factura_cargo      AS cargo,
                 ap.total_notas_credito      AS notasCredito,
                 ap.total_nodas_debito       AS notasDebito,
@@ -101,7 +149,7 @@ class EstadoCuentaVendedor extends Component
             WHERE ap.cliente_id = ?
               AND ap.estado = 1
               AND ap.estado_cerrado <> 2
-              AND ap.saldo <> 0
+                            AND ap.saldo > 0
         ", [$id]);
 
         return DataTables::of($cuentas)
@@ -257,6 +305,24 @@ class EstadoCuentaVendedor extends Component
     public function imprimirEstadoCuenta($idClientepdf)
     {
         $estadoCuenta = DB::select("CALL estadoCuenta_sp(?)", [$idClientepdf]);
+
+        $estadoCuenta = array_map(function ($row) {
+            $row->acumulado = $row->acumulado ?? $row->Acumulado ?? 0;
+            return $row;
+        }, $estadoCuenta);
+
+        $estadoCuenta = array_values(array_filter($estadoCuenta, function ($row) {
+            return (float) ($row->saldo ?? 0) > 0;
+        }));
+
+        // Recalcular acumulado como suma acumulada después del filtrado
+        // &$row necesario: stdClass se pasa por copia en foreach sin referencia
+        $runningTotal = 0;
+        foreach ($estadoCuenta as &$row) {
+            $runningTotal   += (float) ($row->saldo ?? 0) + (float) ($row->interes ?? 0);
+            $row->acumulado  = $runningTotal;
+        }
+        unset($row);
 
         if (empty($estadoCuenta)) {
             $nombreCliente = DB::table('cliente')->where('id', (int) $idClientepdf)->value('nombre') ?? 'Cliente #'.$idClientepdf;

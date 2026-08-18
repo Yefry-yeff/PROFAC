@@ -37,9 +37,19 @@
     .fmp-step-clickable { cursor:pointer; transition:transform .15s ease; }
     .fmp-step-clickable:hover { transform:translateY(-3px); }
     .fmp-overlay {
+        position:fixed !important;
+        top:0 !important;
+        right:0 !important;
+        bottom:0 !important;
+        left:0 !important;
+        width:100vw !important;
+        height:100vh !important;
+        z-index:2147483646 !important;
+        display:flex !important;
         align-items:flex-start !important;
-        justify-content:center;
+        justify-content:center !important;
         padding:72px 16px 16px !important;
+        overflow:auto !important;
     }
     @@media (max-width: 575px) {
         .fmp-overlay { padding:12px !important; }
@@ -50,6 +60,31 @@
     }
     .fmp-offers-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
     .fmp-offers-wrap table { min-width:480px; }
+    .fmp-offer-card {
+        width:100%;
+        text-align:left;
+        padding:9px 12px;
+        border:1px solid #f0f0f0;
+        border-radius:10px;
+        margin-bottom:6px;
+        cursor:pointer;
+        background:#fff;
+        opacity:1;
+        transition:transform .16s ease, box-shadow .16s ease, border-color .16s ease, background-color .16s ease, opacity .16s ease;
+        will-change:transform;
+    }
+    .fmp-offer-card:hover,
+    .fmp-offer-card:focus-visible {
+        transform:translateY(-2px);
+        border-color:#cfe0ff;
+        box-shadow:0 10px 24px rgba(26,126,251,.14);
+        background:linear-gradient(180deg,#ffffff 0%,#f8fbff 100%);
+        outline:none;
+    }
+    .fmp-offer-card:active {
+        transform:translateY(0);
+        box-shadow:0 4px 12px rgba(26,126,251,.10);
+    }
     .fmp-info-grid { display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:#666; }
     /* Modal gestor de entrega: encima del flujo modal y su backdrop */
     #modal-gestor-flujo { z-index: 1060 !important; }
@@ -89,6 +124,7 @@
     $cobroCompletado     = ($cobroEstadoId === 1);
     $finalizadoCompletado = $entregaEsCompletada && $cobroCompletado;
     $facturaCompletada = in_array(5, $flujoTipos) || in_array(3, $flujoTipos);
+    $facturaAnulada = $facturaCompletada && isset($facturaData['estado_venta_id']) && (int)$facturaData['estado_venta_id'] === 2;
 
     // fPaso: número del paso activo en el stepper (1-6 para el pipeline principal)
     // 1=Pedido, 2=Ofertas, 3=RevCrédito, 4=RevInventario, 5=PreFactura, 6=Factura
@@ -211,10 +247,13 @@
                         // Rev. Crédito rechazada: mostrar como rojo con X
                         $esRechazado = ($info['key'] === 'revision_credito')
                             && ($tieneRevisionCreditoRechazada ?? false);
-                        if ($esDevuelto)  $pendiente = false;
-                        if ($esRechazado) { $pendiente = false; $completado = false; $activo = false; }
-                        $labelColor = ($esSinPedido || $esSinAplica) ? '#e74c3c' : ($esRechazado ? '#e74c3c' : ($completado ? '#1ab394' : ($activo ? '#1a7efb' : ($esDevuelto ? '#e67e22' : '#aab'))));
-                        $puedeClick = ($completado || $activo || $esDevuelto || $esRechazado) && !$esSinPedido && !$esSinAplica;
+                        // Factura anulada: mostrar paso 6 como rojo con X
+                        $esFacturaAnulada = ($info['key'] === 'factura') && ($facturaAnulada ?? false);
+                        if ($esDevuelto)     $pendiente = false;
+                        if ($esRechazado)    { $pendiente = false; $completado = false; $activo = false; }
+                        if ($esFacturaAnulada) { $pendiente = false; $completado = false; $activo = false; }
+                        $labelColor = ($esSinPedido || $esSinAplica) ? '#e74c3c' : ($esRechazado || $esFacturaAnulada ? '#e74c3c' : ($completado ? '#1ab394' : ($activo ? '#1a7efb' : ($esDevuelto ? '#e67e22' : '#aab'))));
+                        $puedeClick = ($completado || $activo || $esDevuelto || $esRechazado || $esFacturaAnulada) && !$esSinPedido && !$esSinAplica;
                     @endphp
 
                     {{-- Step card --}}
@@ -275,7 +314,7 @@
                                          width:20px; height:20px; display:flex; align-items:center; justify-content:center;
                                          font-size:10px; font-weight:800; border:2px solid #fff; line-height:1;">{{ $paso }}</span>
                         </div>
-                        @elseif ($esRechazado)
+                        @elseif ($esRechazado || $esFacturaAnulada)
                         <div class="fmp-step-circle" style="position:relative; width:60px; height:60px; margin-bottom:8px; flex-shrink:0;">
                             <div style="width:60px; height:60px; border-radius:50%;
                                         background:linear-gradient(135deg,#e74c3c,#c0392b); color:#fff;
@@ -320,6 +359,8 @@
                                     <i class="fa fa-map-marker" style="animation:dotBlink 1s ease-in-out infinite;"></i> Actual
                                 @elseif ($esDevuelto)
                                     <i class="fa fa-reply"></i> Devuelto
+                                @elseif ($esFacturaAnulada)
+                                    <i class="fa fa-times-circle"></i> Anulada
                                 @elseif ($esRechazado)
                                     <i class="fa fa-times-circle"></i> Rechazado
                                 @else
@@ -946,6 +987,11 @@
 
                     {{-- Productos de la oferta --}}
                     @if (!empty($ofertaSeleccionada['productos']))
+                    @php
+                        $sinExistenciaCount = collect($ofertaSeleccionada['productos'])
+                            ->filter(fn ($pr) => (bool) ($pr['sin_existencia_linea'] ?? false))
+                            ->count();
+                    @endphp
                     <div style="border-radius:10px; overflow:hidden; border:1px solid #e8eaf0;
                                 max-height:170px; overflow-y:auto;">
                         <table style="width:100%; font-size:11px; border-collapse:collapse;">
@@ -990,6 +1036,18 @@
                                 @endforeach
                             </tbody>
                         </table>
+                    </div>
+                    @endif
+
+                    @if ($sinExistenciaCount > 0 && !$esAnuDet && !$esVencDet)
+                    <div style="display:flex; justify-content:flex-end; margin-top:12px;">
+                        <button type="button" wire:click="abrirEdicionProductosSinExistencia"
+                                style="background:linear-gradient(135deg,#7b1fa2,#9c27b0); color:#fff;
+                                       border:none; border-radius:8px; padding:6px 12px;
+                                       font-size:11px; font-weight:700; cursor:pointer;">
+                            <i class="mr-1 fa fa-pencil-square-o"></i>
+                            Editar productos sin existencia
+                        </button>
                     </div>
                     @endif
 
@@ -1104,6 +1162,15 @@
                             Se creará la <strong>Pre-Factura automáticamente</strong> y se reservará el inventario.
                         </p>
                         @endif
+                        <div style="margin:0 0 10px;">
+                            <label style="display:block; font-size:11px; font-weight:700; color:#616161; margin-bottom:4px;">
+                                Comentario para Créditos (opcional)
+                            </label>
+                            <textarea wire:model.defer="comentarioCreditoGanadora"
+                                      rows="2"
+                                      placeholder="Escribe una observación para el área de créditos..."
+                                      style="width:100%; border:1px solid #ddd; border-radius:8px; padding:8px 10px; font-size:12px; resize:vertical;"></textarea>
+                        </div>
                         <div style="display:flex; gap:8px; justify-content:center;">
                             <button type="button" wire:click="ganadoraOferta"
                                     style="background:{{ $revisionInventarioActiva ? 'linear-gradient(135deg,#7b1fa2,#9c27b0)' : 'linear-gradient(135deg,#e65100,#f9a826)' }}; color:#fff;
@@ -1334,6 +1401,15 @@
                                     </li>
                                     @endforeach
                                 </ul>
+                                @elseif (mb_strlen(trim($busquedaClienteDuplicar)) >= 2 && !$clienteDuplicarId)
+                                <div style="position:absolute; top:100%; left:0; right:0; z-index:9999;
+                                            background:#fff; border:1px solid #ccc; border-top:none;
+                                            border-radius:0 0 6px 6px; padding:9px 12px;
+                                            box-shadow:0 4px 12px rgba(0,0,0,.12);
+                                            color:#777; font-size:12px;">
+                                    <i class="mr-1 fa fa-info-circle"></i>
+                                    No hay clientes asignados que coincidan con la búsqueda.
+                                </div>
                                 @endif
                             </div>
 
@@ -1462,12 +1538,11 @@
                             $listBadgeColor = $isGan2 ? '#155724' : ($isAnu2 ? '#721c24' : ($isVenc2 ? '#e65100' : '#1a7efb'));
                             $listBadgeText  = $isGan2 ? 'Ganadora' : ($isAnu2 ? 'Anulada' : ($isVenc2 ? 'Precios cambiaron' : 'Activa'));
                         @endphp
-                        <div wire:click="verOferta({{ $of['cotizacion_id'] }})"
-                             style="padding:9px 12px; border:1px solid #f0f0f0; border-radius:10px;
-                                    margin-bottom:6px; cursor:pointer; transition:box-shadow .15s ease;
-                                    opacity:{{ ($isAnu2 || $isVenc2) ? '.65' : '1' }};"
-                             onmouseover="this.style.boxShadow='0 2px 12px rgba(0,0,0,.1)'"
-                             onmouseout="this.style.boxShadow='none'">
+                        <button type="button"
+                                wire:key="oferta-card-{{ $of['cotizacion_id'] }}"
+                                wire:click.prevent.stop="verOferta({{ $of['cotizacion_id'] }})"
+                            class="fmp-offer-card"
+                            style="opacity:{{ ($isAnu2 || $isVenc2) ? '.65' : '1' }};">
                             <div style="display:flex; justify-content:space-between; align-items:center;">
                                 <div>
                                     <span style="font-weight:800; color:#2c3e50; font-size:13px;">
@@ -1496,7 +1571,7 @@
                                 &nbsp;·&nbsp;
                                 {{ \Carbon\Carbon::parse($of['hf_fecha'])->format('d/m/Y') }}
                             </div>
-                        </div>
+                        </button>
                         @endforeach
                         @endif
                     </div>
@@ -1517,6 +1592,7 @@
                     $crEstado     = $creditoRevisionData['estado'] ?? 'pendiente';
                     $crAprobado   = ($crEstado === 'aprobado');
                     $crRechazado  = ($crEstado === 'rechazado');
+                    $crMensajeOficial = trim((string)($creditoRevisionData['observaciones'] ?? ''));
                     $crColor      = $crAprobado ? '#1b5e20,#2e7d32' : ($crRechazado ? '#b71c1c,#c62828' : '#0d47a1,#1565c0');
                     $crIcon       = $crAprobado ? 'fa-check-circle' : ($crRechazado ? 'fa-times-circle' : 'fa-credit-card');
                 @endphp
@@ -1547,12 +1623,19 @@
                                     @if(!empty($creditoRevisionData['fecha_aprobacion']))
                                         Autorizado el {{ \Carbon\Carbon::parse($creditoRevisionData['fecha_aprobacion'])->format('d/m/Y') }}.
                                     @endif
-                                    @if(!empty($creditoRevisionData['fecha_vencimiento_credito']))
-                                        Vence el {{ \Carbon\Carbon::parse($creditoRevisionData['fecha_vencimiento_credito'])->format('d/m/Y') }}.
+                                    @if(array_key_exists('dias_credito_aprobados', $creditoRevisionData) && !is_null($creditoRevisionData['dias_credito_aprobados']))
+                                        Días de crédito aprobados: <strong>{{ (int) $creditoRevisionData['dias_credito_aprobados'] }}</strong>.
+                                    @elseif(!empty($creditoRevisionData['fecha_aprobacion']) && !empty($creditoRevisionData['fecha_vencimiento_credito']))
+                                        Días de crédito aprobados: <strong>{{ max(0, \Carbon\Carbon::parse($creditoRevisionData['fecha_aprobacion'])->diffInDays(\Carbon\Carbon::parse($creditoRevisionData['fecha_vencimiento_credito']), false)) }}</strong>.
                                     @endif
                                     @if(!empty($creditoRevisionData['usuario_revision']))
                                         <span style="display:block; margin-top:4px;">
                                             <i class="fa fa-user mr-1"></i>Aprobado por: <strong>{{ $creditoRevisionData['usuario_revision_nombre'] ?? '—' }}</strong>
+                                        </span>
+                                    @endif
+                                    @if($crMensajeOficial !== '')
+                                        <span style="display:block; margin-top:4px; word-break:break-word; overflow-wrap:anywhere;">
+                                            <strong>Mensaje:</strong> {{ $crMensajeOficial }}
                                         </span>
                                     @endif
                                 @elseif ($crRechazado)
@@ -1566,6 +1649,11 @@
                                     @if(!empty($creditoRevisionData['motivo_rechazo']))
                                         <span style="display:block; margin-top:4px; word-break:break-word; overflow-wrap:anywhere;">
                                             Motivo: {{ $creditoRevisionData['motivo_rechazo'] }}
+                                        </span>
+                                    @endif
+                                    @if($crMensajeOficial !== '')
+                                        <span style="display:block; margin-top:4px; word-break:break-word; overflow-wrap:anywhere;">
+                                            <strong>Mensaje:</strong> {{ $crMensajeOficial }}
                                         </span>
                                     @endif
                                 @else
@@ -1773,6 +1861,11 @@
                                 <i class="mr-1 fa fa-clock-o"></i>
                                 Vence: {{ \Carbon\Carbon::parse($pref['fecha_vencimiento'])->format('d/m/Y') }}
                             </span>
+                            @if ($prefacturaVencida)
+                            <span style="background:#fff3e0; color:#ef6c00; border-radius:8px; padding:1px 8px; font-size:10px; font-weight:700;">
+                                <i class="mr-1 fa fa-exclamation-triangle"></i> Vencida (reserva liberada)
+                            </span>
+                            @endif
                             <strong style="color:#e65100;">
                                 Total: L {{ number_format($pref['total'], 2) }}
                             </strong>
@@ -1781,9 +1874,15 @@
                                 <i class="mr-1 fa fa-file-text"></i> Facturada
                             </span>
                             @else
-                            <span style="background:#e8f5e9; color:#1b5e20; border-radius:8px; padding:1px 8px; font-size:10px; font-weight:700;">
-                                <i class="mr-1 fa fa-check-circle"></i> Activa
-                            </span>
+                                @if ($prefacturaReservaCompleta)
+                                <span style="background:#e8f5e9; color:#1b5e20; border-radius:8px; padding:1px 8px; font-size:10px; font-weight:700;">
+                                    <i class="mr-1 fa fa-check-circle"></i> Activa
+                                </span>
+                                @else
+                                <span style="background:#fff3e0; color:#e65100; border-radius:8px; padding:1px 8px; font-size:10px; font-weight:700;">
+                                    <i class="mr-1 fa fa-exclamation-triangle"></i> Activa sin reserva
+                                </span>
+                                @endif
                             @endif
                         </div>
                     </div>
@@ -1846,6 +1945,7 @@
                         </a>
 
                         @if (!$facturaCompletada)
+                        @if ($prefacturaPuedeFacturar)
                         <button id="btn-facturar-directo" type="button" wire:click="facturarPrefacturaDirecta"
                                 wire:loading.attr="disabled" wire:target="facturarPrefacturaDirecta"
                                 style="background:linear-gradient(135deg,#1b5e20,#2e7d32); color:#fff;
@@ -1857,6 +1957,13 @@
                                 <i class="fa fa-spinner fa-spin mr-1"></i> Procesando...
                             </span>
                         </button>
+                        @else
+                        <button type="button" disabled
+                                style="background:#cfd8dc; color:#607d8b; border:none; border-radius:8px; padding:6px 14px;
+                                       font-size:12px; font-weight:700; cursor:not-allowed; opacity:.9;">
+                            <i class="mr-1 fa fa-ban"></i> Facturar no disponible
+                        </button>
+                        @endif
                         <button type="button" wire:click="solicitarAutorizacionPrefactura('editar_factura')"
                                 style="background:linear-gradient(135deg,#0f766e,#0ea5a4); color:#fff;
                                        border:none; border-radius:8px; padding:6px 14px;
@@ -1865,6 +1972,44 @@
                         </button>
                         @endif
 
+                    </div>
+                    @endif
+
+                    @if (!$prefacturaPuedeFacturar)
+                    <div style="margin-top:10px; background:#fff8e1; border:1px solid #ffe082;
+                                border-radius:10px; padding:10px 12px; font-size:12px; color:#7b4f00;">
+                        <div style="font-weight:700; color:#e65100; margin-bottom:5px;">
+                            <i class="mr-1 fa fa-exclamation-triangle"></i>
+                            No es posible generar la factura porque uno o más productos ya no cuentan con inventario disponible. Actualice la prefactura antes de continuar.
+                        </div>
+                        @if (!empty($prefacturaStockFaltante))
+                        <ul style="margin:0; padding-left:18px;">
+                            @foreach ($prefacturaStockFaltante as $faltante)
+                            <li>
+                                {{ $faltante['producto'] }}: solicitado {{ $faltante['solicitado'] }}, disponible {{ $faltante['disponible'] }}
+                            </li>
+                            @endforeach
+                        </ul>
+                        @endif
+                    </div>
+                    @endif
+
+                    @if (!$prefacturaReservaCompleta)
+                    <div style="margin-top:10px; background:#fff3e0; border:1px solid #ffcc80;
+                                border-radius:10px; padding:10px 12px; font-size:12px; color:#7b4f00;">
+                        <div style="font-weight:700; color:#e65100; margin-bottom:5px;">
+                            <i class="mr-1 fa fa-lock"></i>
+                            Esta prefactura no aparta producto porque no cuenta con la cantidad total requerida.
+                        </div>
+                        @if (!empty($prefacturaReservaFaltante))
+                        <ul style="margin:0; padding-left:18px;">
+                            @foreach ($prefacturaReservaFaltante as $faltante)
+                            <li>
+                                {{ $faltante['producto'] }}: requerido {{ $faltante['solicitado'] }}, disponible {{ $faltante['disponible'] }}.
+                            </li>
+                            @endforeach
+                        </ul>
+                        @endif
                     </div>
                     @endif
 
@@ -2015,6 +2160,20 @@
                                   text-decoration:none; display:inline-flex; align-items:center; gap:5px;">
                             <i class="fa fa-print"></i> Imprimir factura
                         </a>
+
+                        <a href="{{ $fac['print_copia_url'] ?? ('/factura/cooporativoCopia/' . $fac['id']) }}" target="_blank"
+                           style="background:#f8f9fc; color:#455a64; border:1px solid #e8eaf0;
+                                  border-radius:8px; padding:6px 14px; font-size:12px; font-weight:700;
+                                  text-decoration:none; display:inline-flex; align-items:center; gap:5px;">
+                            <i class="fa fa-copy"></i> Imprimir copia
+                        </a>
+
+                                <a href="{{ $fac['print_acta_rec_url'] ?? (((int)($fac['tipo_venta_id'] ?? 0) === 3) ? ('/exonerado/actaRec/' . $fac['id']) : ('/facturaCoor/actaRec/' . $fac['id'])) }}" target="_blank"
+                                    style="background:#f8f9fc; color:#455a64; border:1px solid #e8eaf0;
+                                             border-radius:8px; padding:6px 14px; font-size:12px; font-weight:700;
+                                             text-decoration:none; display:inline-flex; align-items:center; gap:5px;">
+                                     <i class="fa fa-print"></i> Imprimir Acta de Recepción
+                                </a>
 
                         @if(!empty($fac['vale_id']))
                         <a href="/vale/imprimir/{{ $fac['vale_id'] }}" target="_blank"
@@ -2294,6 +2453,101 @@
 
 @endif
 
+@if ($modalSinExistenciaVisible)
+<div style="position:fixed !important; top:0 !important; right:0 !important; bottom:0 !important; left:0 !important; width:100vw !important; height:100vh !important; z-index:2147483647 !important; background:rgba(15,15,35,.62); backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px); display:flex; align-items:center; justify-content:center; padding:16px;">
+    <div style="width:min(1100px, 100%); max-height:calc(100vh - 32px); overflow:hidden; background:#fff; border-radius:16px; box-shadow:0 24px 70px rgba(0,0,0,.35); display:flex; flex-direction:column;">
+        <div style="background:linear-gradient(135deg,#7b1fa2,#9c27b0); padding:14px 20px; display:flex; align-items:flex-start; justify-content:space-between; gap:16px;">
+            <div>
+                <h5 style="color:#fff; font-weight:700; font-size:14px; margin:0;">
+                    <i class="fa fa-pencil-square-o mr-2"></i>Editar productos sin existencia
+                </h5>
+                <small style="color:rgba(255,255,255,.85); font-size:11px; display:block; margin-top:2px;">
+                    Reasigne únicamente los productos de esta oferta que no cuentan con existencia.
+                </small>
+            </div>
+            <button type="button" wire:click="$set('modalSinExistenciaVisible', false)"
+                    style="background:transparent; color:#fff; border:none; font-size:24px; line-height:1; cursor:pointer; padding:0;">
+                &times;
+            </button>
+        </div>
+        <div style="padding:18px 20px; overflow:auto;">
+            @if ($mensajeErrorSinExistencia)
+            <div class="alert alert-danger" style="font-size:12px; margin-bottom:12px;">
+                <i class="fa fa-exclamation-triangle mr-1"></i>{{ $mensajeErrorSinExistencia }}
+            </div>
+            @endif
+
+            <div class="alert alert-info" style="font-size:12px; margin-bottom:12px;">
+                Seleccione la bodega y sección destino solo para los productos que ya tengan stock disponible en otra ubicación.
+            </div>
+            <div class="table-responsive" style="max-height:420px; overflow-y:auto; border:1px solid #e8eaf0; border-radius:10px;">
+                <table class="table table-sm mb-0" style="font-size:12px;">
+                    <thead style="background:#f8f9fc; position:sticky; top:0; z-index:1;">
+                        <tr>
+                            <th style="padding:8px 12px; color:#555; font-weight:700;">Producto</th>
+                            <th style="padding:8px 12px; color:#555; font-weight:700;">Cantidad</th>
+                            <th style="padding:8px 12px; color:#555; font-weight:700;">Bodega actual</th>
+                            <th style="padding:8px 12px; color:#555; font-weight:700;">Destino con stock</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($productosSinExistenciaModal as $idx => $linea)
+                        <tr style="border-bottom:1px solid #f0f0f0;">
+                            <td style="padding:10px 12px; color:#2c3e50; font-weight:600;">{{ $linea['nombre_producto'] }}</td>
+                            <td style="padding:10px 12px; text-align:center; color:#e65100; font-weight:700;">{{ (int) $linea['cantidad'] }}</td>
+                            <td style="padding:10px 12px; color:#607d8b;">
+                                {{ $linea['bodega_actual_nombre'] ?? 'SIN EXISTENCIA' }}
+                                @if(!empty($linea['seccion_actual_descripcion']))
+                                <div style="font-size:11px; color:#90a4ae;">{{ $linea['seccion_actual_descripcion'] }}</div>
+                                @endif
+                            </td>
+                            <td style="padding:10px 12px; min-width:340px;">
+                                @if(!empty($linea['destinos']))
+                                <select wire:model.defer="productosSinExistenciaModal.{{ $idx }}.destino_seleccionado"
+                                        class="form-control form-control-sm"
+                                        style="border-radius:8px; font-size:12px;">
+                                    <option value="">Mantener sin cambio</option>
+                                    @foreach ($linea['destinos'] as $destino)
+                                    <option value="{{ $destino['value'] }}">{{ $destino['text'] }}</option>
+                                    @endforeach
+                                </select>
+                                @else
+                                <div style="background:#fff5f5; border:1px solid #ffcdd2; color:#b71c1c; border-radius:8px; padding:6px 10px; font-size:11px;">
+                                    No hay bodegas con stock disponible para este producto.
+                                </div>
+                                @endif
+                            </td>
+                        </tr>
+                        @empty
+                        <tr>
+                            <td colspan="4" style="padding:18px; text-align:center; color:#888;">
+                                No hay productos sin existencia para editar.
+                            </td>
+                        </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="margin-top:12px;">
+                <label style="font-size:12px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">
+                    Motivo de la actualización
+                </label>
+                <textarea wire:model.defer="motivoEdicionSinExistencia"
+                          rows="2"
+                          class="form-control"
+                          placeholder="Opcional: describa por qué se reasignaron estos productos..."
+                          style="border-radius:8px; font-size:12px; resize:vertical;"></textarea>
+            </div>
+        </div>
+        <div style="border-top:1px solid #eef0f5; padding:10px 20px; display:flex; justify-content:flex-end; gap:8px;">
+            <button type="button" class="btn btn-primary" wire:click="guardarEdicionProductosSinExistencia" style="border-radius:8px; font-weight:700;">Guardar cambios</button>
+            <button type="button" class="btn btn-default" wire:click="$set('modalSinExistenciaVisible', false)" style="border-radius:8px;">Cancelar</button>
+        </div>
+    </div>
+</div>
+@endif
+
 <script>
     function solicitarCodigoPrefactura(btn) {
         var msgEl = document.getElementById('msgSolicitarCodigo');
@@ -2334,16 +2588,15 @@
             if (!e.detail || !e.detail.url) return;
             var detail = e.detail;
 
-            // Construir select HTML para SweetAlert2
-            var selectHtml = '<select id="swal-gestor-select" class="swal2-input" style="width:100%;margin:0;height:38px;font-size:13px;">'
-                           + '<option value="">-- Sin gestor --</option>'
-                           + '</select>'
-                           + '<div id="swal-gestor-loading" style="font-size:12px;color:#888;margin-top:6px;display:none;">Cargando gestores...</div>';
-
             Swal.fire({
                 title: '<i class="fa fa-truck mr-2" style="color:#1565c0;"></i> Gestor de Entrega',
-                html: '<p style="font-size:13px;color:#666;margin-bottom:16px;">Seleccione el responsable de entrega (opcional).</p>'
-                    + '<select id="swal-gestor-select" style="width:100%;"></select>',
+                html: '<div style="text-align:left;">'
+                    + '<p style="font-size:13px;color:#666;margin-bottom:16px;">Seleccione el responsable de entrega y el tele asesor para la factura.</p>'
+                    + '<label style="display:block;font-size:12px;font-weight:700;color:#455a64;margin:0 0 6px;">Gestor de entrega</label>'
+                    + '<select id="swal-gestor-select" style="width:100%;"></select>'
+                    + '<label style="display:block;font-size:12px;font-weight:700;color:#455a64;margin:14px 0 6px;">Tele asesor</label>'
+                    + '<select id="swal-tele-asesor-select" style="width:100%;"></select>'
+                    + '</div>',
                 showCancelButton: true,
                 confirmButtonText: '<i class="fa fa-check mr-1"></i> Confirmar y Facturar',
                 cancelButtonText: 'Cancelar',
@@ -2368,6 +2621,29 @@
                             }
                         }
                     });
+                    $('#swal-tele-asesor-select').select2({
+                        dropdownParent: $('.swal-gestor-popup'),
+                        placeholder: '-- Seleccionar tele asesor --',
+                        allowClear: false
+                    });
+                    $.get('/cotizacion/actores-asignados', {
+                        cliente_id: detail.cliente_id,
+                        rol_id: 3
+                    }).done(function(data) {
+                        var teleasesores = data.results || [];
+                        var actualAsignado = teleasesores.some(function(usuario) {
+                            return Number(usuario.id) === Number(detail.tele_asesor_id);
+                        });
+                        teleasesores.forEach(function(usuario) {
+                            var seleccionado = actualAsignado
+                                ? Number(usuario.id) === Number(detail.tele_asesor_id)
+                                : teleasesores.length === 1;
+                            $('#swal-tele-asesor-select').append(
+                                new Option(usuario.text, usuario.id, seleccionado, seleccionado)
+                            );
+                        });
+                        $('#swal-tele-asesor-select').trigger('change');
+                    });
                     // Evitar que el clic en el dropdown de Select2 cierre el SweetAlert
                     $(document).on('mousedown.swal2gestorfix', '.select2-container', function(e) {
                         e.stopPropagation();
@@ -2378,13 +2654,25 @@
                     if ($('#swal-gestor-select').hasClass('select2-hidden-accessible')) {
                         $('#swal-gestor-select').select2('destroy');
                     }
+                    if ($('#swal-tele-asesor-select').hasClass('select2-hidden-accessible')) {
+                        $('#swal-tele-asesor-select').select2('destroy');
+                    }
                 },
                 preConfirm: function() {
-                    return $('#swal-gestor-select').val() || null;
+                    var teleAsesorId = $('#swal-tele-asesor-select').val() || null;
+                    if (!teleAsesorId) {
+                        Swal.showValidationMessage('Debe seleccionar un tele asesor.');
+                        return false;
+                    }
+                    return {
+                        gestorId: $('#swal-gestor-select').val() || null,
+                        teleAsesorId: teleAsesorId
+                    };
                 }
             }).then(function(result) {
                 if (!result.isConfirmed) return;
-                var gestorId = result.value || null;
+                var gestorId = result.value ? result.value.gestorId : null;
+                var teleAsesorId = result.value ? result.value.teleAsesorId : null;
 
                 // Bloquear botón y mostrar spinner durante el POST
                 var btn = document.getElementById('btn-facturar-directo');
@@ -2400,7 +2688,11 @@
                 }
                 setLoading(true);
 
-                axios.post(detail.url, { tipo_pago: detail.tipo_pago || 1, gestor_entrega: gestorId })
+                axios.post(detail.url, {
+                    tipo_pago: detail.tipo_pago || 1,
+                    gestor_entrega: gestorId,
+                    tele_asesor: teleAsesorId
+                })
                     .then(function(response) {
                         var data = response.data || {};
                         if (data.print_url) {

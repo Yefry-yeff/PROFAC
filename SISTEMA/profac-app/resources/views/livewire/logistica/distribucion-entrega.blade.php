@@ -1260,24 +1260,45 @@ function abrirConfirmacion(id) {
                 });
                 return;
             }
-            
-            // Si pasa todas las validaciones, mostrar confirmación
+
+            // Si pasa todas las validaciones, pedir la hora de llegada del equipo
+            const ahora = new Date();
+            const horaActual = ahora.getHours().toString().padStart(2,'0') + ':' + ahora.getMinutes().toString().padStart(2,'0');
+
             Swal.fire({
                 title: '¿Completar distribución?',
-                text: 'Esto cambiará el estado de la distribución a "Completada".',
+                html: '<div style="text-align:left;padding:0 0.25rem">' +
+                      '<p style="font-size:0.85rem;color:#6c757d;margin:0 0 0.75rem">' +
+                      'Esto cambiará el estado de la distribución a <strong>"Completada"</strong>.</p>' +
+                      '<label style="font-size:0.8rem;font-weight:600;color:#495057;display:block;margin-bottom:4px">' +
+                      'Hora de llegada del equipo <span style="color:#dc3545">*</span></label>' +
+                      '<input type="time" id="inputHoraLlegada" value="' + horaActual + '" ' +
+                      'style="width:100%;font-size:0.9rem;padding:6px 10px;border:1px solid #ced4da;border-radius:6px;outline:none;box-sizing:border-box;">' +
+                      '</div>',
                 icon: 'question',
+                width: 420,
                 showCancelButton: true,
                 confirmButtonColor: '#28a745',
                 cancelButtonColor: '#6c757d',
                 confirmButtonText: 'Sí, completar',
-                cancelButtonText: 'Cancelar'
+                cancelButtonText: 'Cancelar',
+                customClass: { htmlContainer: 'swal-compact' },
+                preConfirm: () => {
+                    const hora = document.getElementById('inputHoraLlegada').value;
+                    if (!hora) {
+                        Swal.showValidationMessage('La hora de llegada es obligatoria.');
+                        return false;
+                    }
+                    return hora;
+                }
             }).then((result) => {
                 if (result.isConfirmed) {
                     $.ajax({
                         url: "{{ url('/logistica/distribuciones/completar') }}/" + id,
                         type: 'POST',
                         data: {
-                            _token: $('meta[name="csrf-token"]').attr('content')
+                            _token: $('meta[name="csrf-token"]').attr('content'),
+                            hora_llegada: result.value
                         },
                         success: function(r) {
                             Swal.fire({

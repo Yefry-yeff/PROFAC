@@ -18,6 +18,7 @@ class ListarVentas extends Component
 
     // ── Control de acceso ─────────────────────────────────────────────────
     public $esAdmin = false;
+    public $puedeVerTodoHistorial = false;
 
     // ── Paginación y datos ────────────────────────────────────────────────
     public int $paginaOfr = 1;
@@ -57,7 +58,9 @@ class ListarVentas extends Component
     // ── Ciclo de vida ──────────────────────────────────────────────────────
     public function mount()
     {
-        $this->esAdmin = Auth::user()->rol_id === 1;
+        $roles = Auth::user()->rolesIds();
+        $this->esAdmin = in_array(1, $roles, true);
+        $this->puedeVerTodoHistorial = count(array_intersect($roles, [1, 16])) > 0;
         $this->cargarRegistros();
 
         // Si viene desde una notificación (?flujo_id=X), resolver pedido_id en PHP.
@@ -185,12 +188,55 @@ class ListarVentas extends Component
                 DB::raw("CASE WHEN p.id IS NULL THEN 'cotizacion' ELSE 'pedido' END as origen")
             );
 
-        // Solo ver propios registros si no es administrador
-        if (!$this->esAdmin) {
+        // En historial, Admin (1) y Gestor de Entregas (16) ven todos.
+        if (!$this->puedeVerTodoHistorial) {
             $q->where(function ($sub) {
                 $sub->where('p.users_id', Auth::id())
                     ->orWhere('co.users_id', Auth::id())
-                    ->orWhere('f.created_by', Auth::id());
+                    ->orWhere('co.vendedor', Auth::id())
+                    ->orWhere('f.created_by', Auth::id())
+                    ->orWhereExists(function ($sq) {
+                        $sq->select(DB::raw(1))
+                           ->from('cliente_usuario as cu')
+                           ->whereRaw('cu.cliente_id = COALESCE(p.cliente_id, co.cliente_id)')
+                           ->where('cu.usuario_id', Auth::id())
+                           ->whereIn('cu.rol_id', [2, 3]);
+                    })
+                    ->orWhereExists(function ($sq) {
+                        // Actor en factura del flujo
+                        $sq->select(DB::raw(1))
+                           ->from('historico_flujo as hff')
+                           ->join('factura as fa', 'fa.id', '=', 'hff.tramite_id')
+                           ->whereColumn('hff.flujo_id', 'f.id')
+                           ->where('hff.tipo_tramite_id', 3)
+                           ->where(function ($sfa) {
+                               $sfa->where('fa.vendedor', Auth::id())
+                                   ->orWhere('fa.users_id', Auth::id())
+                                   ->orWhere('fa.gestor_entrega', Auth::id());
+                           });
+                    })
+                    ->orWhereExists(function ($sq) {
+                        $sq->select(DB::raw(1))
+                           ->from('historico_flujo as hfc')
+                           ->join('factura as fac', 'fac.id', '=', 'hfc.tramite_id')
+                           ->join('cliente_usuario as cu', 'cu.cliente_id', '=', 'fac.cliente_id')
+                           ->whereColumn('hfc.flujo_id', 'f.id')
+                           ->where('hfc.tipo_tramite_id', 3)
+                           ->where('cu.usuario_id', Auth::id())
+                           ->whereIn('cu.rol_id', [2, 3]);
+                    })
+                    ->orWhereExists(function ($sq) {
+                        // Actor en oferta del pedido vinculado al flujo
+                        // Se busca directo por oferta.pedido_id = f.identificacion
+                        // para evitar problemas de tipo en el JOIN con historico_flujo
+                        $sq->select(DB::raw(1))
+                           ->from('oferta as oa')
+                           ->whereRaw('oa.pedido_id = CAST(f.identificacion AS UNSIGNED)')
+                           ->where(function ($soa) {
+                               $soa->where('oa.users_id', Auth::id())
+                                   ->orWhere('oa.vendedor', Auth::id());
+                           });
+                    });
             });
         }
 

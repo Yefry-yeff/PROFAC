@@ -15,6 +15,8 @@ class Modelaplicacion_pagos extends Model
         'total_factura_cargo',
         'retencion_isv_factura',
         'estado_retencion_isv',
+        'numero_retencion',
+        'archivo_retencion',
         'total_notas_credito',
         'total_nodas_debito',
         'credito_abonos',

@@ -4,6 +4,8 @@
 
 namespace App\Http\Livewire\Ventas;
 
+use App\Support\ExpoConfig;
+use App\Support\ClienteActoresAsignados;
 use Livewire\Component;
 
 
@@ -32,6 +34,56 @@ class FacturacionEstatal extends Component
 {
     public $idCotizacion = null;
     public $fromFlujo = false;
+
+    private function calcularFechaVencimientoFactura(string $fechaEmision, int $tipoPago, ?int $diasAprobados = null, ?int $diasCliente = null): string
+    {
+        $fechaBase = \Carbon\Carbon::parse($fechaEmision);
+
+        if ($tipoPago !== 2) {
+            return $fechaBase->toDateString();
+        }
+
+        $dias = $diasAprobados !== null ? max(0, $diasAprobados) : max(0, (int) ($diasCliente ?? 0));
+
+        return $fechaBase->copy()->addDays($dias)->toDateString();
+    }
+
+    private function obtenerDiasCreditoAprobados(?int $flujoId): ?int
+    {
+        if (!$flujoId) {
+            return null;
+        }
+
+        $creditoAprobado = DB::table('credito_revision')
+            ->where('flujo_id', $flujoId)
+            ->where('estado', 'aprobado')
+            ->latest('id')
+            ->first(['dias_credito_aprobados', 'fecha_aprobacion', 'fecha_vencimiento_credito']);
+
+        if (!$creditoAprobado) {
+            return null;
+        }
+
+        if (!is_null($creditoAprobado->dias_credito_aprobados)) {
+            return max(0, (int) $creditoAprobado->dias_credito_aprobados);
+        }
+
+        if ($creditoAprobado->fecha_aprobacion && $creditoAprobado->fecha_vencimiento_credito) {
+            return max(0, (int) \Carbon\Carbon::parse($creditoAprobado->fecha_aprobacion)
+                ->diffInDays(\Carbon\Carbon::parse($creditoAprobado->fecha_vencimiento_credito), false));
+        }
+
+        return null;
+    }
+
+    private function resolverDiasCreditoFactura(int $tipoPago, ?int $flujoId, int $diasCliente): int
+    {
+        if ($tipoPago !== 2) {
+            return 0;
+        }
+
+        return $this->obtenerDiasCreditoAprobados($flujoId) ?? max(0, $diasCliente);
+    }
 
     public function mount($id = null)
     {
@@ -336,46 +388,26 @@ class FacturacionEstatal extends Component
     public function listarClientes(Request $request)
     {
         try {
+            $like = '%' . $request->search . '%';
 
-            if (Auth::user()->rol_id == 1 or Auth::user()->rol_id == 3) {
-                $listaClientes = DB::SELECT("
-                select
-                    id,
-                    nombre as text
-                from cliente
-                    where estado_cliente_id = 1
-                    and tipo_cliente_id=2
-                    and  (id LIKE '%" . $request->search . "%' or nombre Like '%" . $request->search . "%') limit 15
-                        ");
-            }else{
-                $listaClientes = DB::SELECT("
-                select
-                    id,
-                    nombre as text
-                from cliente
-                    where estado_cliente_id = 1
-                    and tipo_cliente_id=2
-                    and vendedor =" . Auth::user()->id . "
-                    and  (id LIKE '%" . $request->search . "%' or nombre Like '%" . $request->search . "%') limit 15
-                        ");
+            $query = DB::table('cliente')
+                ->select('id', 'nombre as text')
+                ->where('estado_cliente_id', 1)
+                ->where('tipo_cliente_id', 2)
+                ->where(function ($q) use ($like) {
+                    $q->where('id', 'LIKE', $like)
+                      ->orWhere('nombre', 'LIKE', $like);
+                });
+
+            // Admin (1) y Tele asesor (3) ven todos; usuarios especiales 121/122 también; los demás solo sus asignados
+            $specialUsers = [121, 122];
+            if (!in_array((int) Auth::user()->rol_id, [1, 3], true) && !in_array(Auth::id(), $specialUsers, true)) {
+                $query->where('vendedor', Auth::id());
             }
 
+            $listaClientes = $query->limit(15)->get();
 
-            //  $listaClientes = DB::SELECT("
-            //  select
-            //      id,
-            //      nombre as text
-            //  from cliente
-            //      where estado_cliente_id = 1
-            //      and tipo_cliente_id=2
-            //      and vendedor =".Auth::user()->id."
-            //      and  (id LIKE '%".$request->search."%' or nombre Like '%".$request->search."%') limit 15
-            //          ");
-
-
-            return response()->json([
-                "results" => $listaClientes,
-            ], 200);
+            return response()->json(['results' => $listaClientes], 200);
         } catch (QueryException $e) {
             return response()->json([
                 'message' => 'Ha ocurrido un error',
@@ -496,7 +528,12 @@ class FacturacionEstatal extends Component
                         SELECT SUM(php2.cantidad)
                         FROM prefactura_has_producto php2
                         INNER JOIN prefactura pf2 ON pf2.id = php2.prefactura_id
-                        WHERE pf2.estado = 'activo'
+                                                                                                WHERE pf2.estado = 'activo'
+                                                                                                        AND TIMESTAMPADD(
+                                                                                                            DAY,
+                                                                                                            COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7),
+                                                                                                            COALESCE(pf2.created_at, CONCAT(COALESCE(pf2.fecha_emision, CURDATE()), ' 00:00:00'))
+                                                                                                        ) > NOW()
                           {$pfExcludeClause2}
                           AND php2.producto_id = {$prodId}
                           AND php2.seccion_id  = A.seccion_id
@@ -516,7 +553,12 @@ class FacturacionEstatal extends Component
                 SELECT SUM(php3.cantidad)
                 FROM prefactura_has_producto php3
                 INNER JOIN prefactura pf3 ON pf3.id = php3.prefactura_id
-                WHERE pf3.estado = 'activo'
+                                                                WHERE pf3.estado = 'activo'
+                                                                        AND TIMESTAMPADD(
+                                                                            DAY,
+                                                                            COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7),
+                                                                            COALESCE(pf3.created_at, CONCAT(COALESCE(pf3.fecha_emision, CURDATE()), ' 00:00:00'))
+                                                                        ) > NOW()
                   {$pfExcludeClause3}
                   AND php3.producto_id = {$prodId}
                   AND php3.seccion_id  = A.seccion_id
@@ -524,6 +566,32 @@ class FacturacionEstatal extends Component
             ), 0)
         ) > 0
             ");
+
+            $results = array_map(function ($row) {
+                $row->esSinExistencia = 0;
+                return $row;
+            }, $results);
+
+            $expoId = (int) $request->input('expo_id', 0);
+            if ($expoId > 0) {
+                $expo = ExpoConfig::detalleActivaParaUsuario($expoId, Auth::id());
+                if (!$expo) {
+                    return response()->json(['message' => 'La Expo no está activa o está fuera de vigencia.'], 422);
+                }
+                $bodegas = $expo['bodegas'];
+                $results = array_values(array_filter($results, fn ($row) => in_array((int) $row->idBodega, $bodegas, true)));
+            }
+
+            $permitirSinExistencia = (int) ($request->permitir_sin_existencia ?? 0) === 1;
+            if ($permitirSinExistencia) {
+                $results[] = (object) [
+                    'id' => 'sin_existencia',
+                    'idBodega' => null,
+                    'bodegaSeccion' => 'SIN EXISTENCIA',
+                    'text' => 'SIN EXISTENCIA - Cotizar sin reserva de inventario',
+                    'esSinExistencia' => 1,
+                ];
+            }
 
             return response()->json([
                 "results" => $results
@@ -734,6 +802,14 @@ class FacturacionEstatal extends Component
             ], 406);
         }
 
+        $teleAsesorId = $request->tele_asesor ? (int) $request->tele_asesor : Auth::user()->id;
+        ClienteActoresAsignados::validar(
+            (int) $request->seleccionarCliente,
+            $teleAsesorId,
+            ClienteActoresAsignados::ROL_TELE_ASESOR,
+            'tele_asesor'
+        );
+
         if ($request->restriccion == 1) {
             $facturaVencida = $this->comprobarFacturaVencida($request->seleccionarCliente);
 
@@ -832,7 +908,12 @@ class FacturacionEstatal extends Component
                     IFNULL((SELECT SUM(php2.cantidad)
                              FROM prefactura_has_producto php2
                              INNER JOIN prefactura pf2 ON pf2.id = php2.prefactura_id
-                             WHERE pf2.estado = 'activo'
+                                                                                                                 WHERE pf2.estado = 'activo'
+                                                                                                                         AND TIMESTAMPADD(
+                                                                                                                             DAY,
+                                                                                                                             COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7),
+                                                                                                                             COALESCE(pf2.created_at, CONCAT(COALESCE(pf2.fecha_emision, CURDATE()), ' 00:00:00'))
+                                                                                                                         ) > NOW()
                                {$excludePfClause}
                                AND php2.producto_id = " . (int)$request->$keyIdProducto . "
                                AND php2.seccion_id  = " . (int)$request->$keyIdSeccion . "
@@ -933,9 +1014,14 @@ class FacturacionEstatal extends Component
             $factura->total = $request->totalGeneral;
             $factura->credito = $request->totalGeneral;
             $factura->fecha_emision = $request->fecha_emision;
-            $factura->fecha_vencimiento = $request->fecha_vencimiento;
+            $factura->fecha_vencimiento = $this->calcularFechaVencimientoFactura(
+                (string) $request->fecha_emision,
+                (int) $request->tipoPagoVenta,
+                $this->obtenerDiasCreditoAprobados((int) ($request->flujo_id ?? 0)),
+                (int) $diasCredito
+            );
             $factura->tipo_pago_id = $request->tipoPagoVenta;
-            $factura->dias_credito = $diasCredito;
+            $factura->dias_credito = $this->resolverDiasCreditoFactura((int) $request->tipoPagoVenta, (int) ($request->flujo_id ?? 0), (int) $diasCredito);
             $factura->cai_id = $cai->id;
             $factura->estado_venta_id = 1;
             $factura->cliente_id = $request->seleccionarCliente;
@@ -944,7 +1030,7 @@ class FacturacionEstatal extends Component
             $factura->monto_comision = $montoComision;
             $factura->tipo_venta_id = 2; // estatal
             $factura->estado_factura_id = 1; // se presenta
-            $factura->users_id = Auth::user()->id;
+            $factura->users_id = $teleAsesorId;
             $factura->comision_estado_pagado = 0;
             $factura->pendiente_cobro = $request->totalGeneral;
             $factura->estado_editar = 1;
@@ -1025,7 +1111,7 @@ class FacturacionEstatal extends Component
                 $subTotal = $request->$keySubTotal;
                 $isv = $request->$keyIsv;
                 $total = $request->$keyTotal;
-                $tipoPrecio = ($ivsProducto > 0) ? '2' : '1';
+                $tipoPrecio = ($ivsProducto > 0) ? '2' : '1'; // '1' = Excento (producto sin ISV, isv = 0) | '2' = Gravado (producto con ISV, isv > 0)
 
                 $this->restarUnidadesInventario($precios_producto_carga_id, $idPrecioSeleccionado,$precioSeleccionado ,$restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $arrayInputs[$i], $tipoPrecio);
             };

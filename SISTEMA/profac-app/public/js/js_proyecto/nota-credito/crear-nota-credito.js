@@ -2,10 +2,17 @@
 var contador = 1;
 var arrayInputs = [];
 var productoSeccion = [];
+var temporizadorPrevisionCredito = null;
+var solicitudPrevisionCredito = 0;
+var solicitudDatosFactura = 0;
 
 // ========== FUNCIONES AUXILIARES PARA MODALES ==========
 function abrirModal(modalId) {
     try {
+        if (modalId === 'modal_imprimir_nota_credito') {
+            document.body.classList.add('nc-print-modal-open');
+        }
+
         if (typeof jQuery !== 'undefined' && jQuery.fn.modal) {
             $('#' + modalId).modal('show');
         } else {
@@ -56,6 +63,10 @@ function cerrarModal(modalId) {
                 document.body.style.overflow = '';
             }
         }
+
+        if (modalId === 'modal_imprimir_nota_credito') {
+            document.body.classList.remove('nc-print-modal-open');
+        }
     } catch (e) {
         console.error('Error al cerrar modal ' + modalId + ':', e);
         const modalElement = document.getElementById(modalId);
@@ -63,8 +74,13 @@ function cerrarModal(modalId) {
             modalElement.classList.remove('show');
             modalElement.style.display = 'none';
         }
+        document.body.classList.remove('nc-print-modal-open');
     }
 }
+
+$(document).on('hidden.bs.modal', '#modal_imprimir_nota_credito', function () {
+    document.body.classList.remove('nc-print-modal-open');
+});
 // ===================================================
 
 $('#cliente').select2({
@@ -78,6 +94,25 @@ $('#cliente').select2({
             }
 
             // Query parameters will be ?search=[term]&type=public
+            return query;
+        }
+
+    }
+});
+
+// La factura se puede buscar directamente por su número (cai/numero_factura) sin necesidad
+// de seleccionar un cliente primero. Si hay un cliente seleccionado, la búsqueda se acota a él.
+$('#factura').select2({
+    ajax: {
+        url: '/nota/credito/facturas',
+        data: function(params) {
+            var query = {
+                idCliente: document.getElementById('cliente').value || '',
+                search: params.term,
+                type: 'public',
+                page: params.page || 1
+            }
+
             return query;
         }
 
@@ -198,6 +233,7 @@ function calcularDescuento(monto) {
     document.getElementById('subTotalGeneralExcentoCreditoMostrar').value = monedaLempiras(monto);
     document.getElementById('isvGeneralCreditoMostrar').value             = monedaLempiras(0);
     document.getElementById('totalGeneralCreditoMostrar').value           = monedaLempiras(monto);
+    actualizarDestinoCreditoCrear();
 }
 
 // =====================================================================
@@ -206,37 +242,23 @@ function obtenerFacturasDeCliente() {
     document.getElementById('factura').innerHTML =
         ' <option value="" selected disabled>--Seleccionar una factura--</option>';
 
+    $('#factura').val(null).trigger('change');
+
     this.limpiarTablas();
-
-    let idCliente = document.getElementById('cliente').value
-
-    $('#factura').select2({
-        ajax: {
-            url: '/nota/credito/facturas',
-            data: function(params) {
-                var query = {
-                    idCliente: idCliente,
-                    search: params.term,
-                    type: 'public',
-                    page: params.page || 1
-                }
-
-                // Query parameters will be ?search=[term]&type=public
-                return query;
-            }
-
-        }
-    });
 }
 
 function datosFactura() {
     let idFactura = document.getElementById('factura').value;
+    let numeroSolicitud = ++solicitudDatosFactura;
 
 
     axios.post('/nota/credito/datos/factura', {
             idFactura: idFactura
         })
         .then(response => {
+            if (numeroSolicitud !== solicitudDatosFactura || document.getElementById('factura').value !== idFactura) {
+                return;
+            }
 
             let data = response.data.datosFactura;
 
@@ -254,6 +276,9 @@ function datosFactura() {
             document.getElementById('vendedor').value = data.vendedor;
             document.getElementById('facturado').value = data.facturador;
             document.getElementById('fecha_registro').value = data.fechaRegistro;
+            document.getElementById('saldoPendienteCrear').dataset.valor = Number(data.saldo_pendiente_cliente || 0);
+            document.getElementById('saldoPendienteCrear').value = formatoLempirasCredito(data.saldo_pendiente_cliente || 0);
+            actualizarDestinoCreditoCrear();
 
 
             document.getElementById('subTotalGeneralMostrar').value = new Intl.NumberFormat('es-HN', {
@@ -355,6 +380,16 @@ function infoProducto(facturaId, productoId, seccionId) {
             document.getElementById('isvVenta').value = data.isVenta;
             document.getElementById('totalVenta').value = data.totalVenta;
 
+            let descuentoInfo = document.getElementById('descuentoInfo');
+            let porcDescuento = +data.porc_descuento;
+            if (porcDescuento > 0) {
+                let precioConDescuento = data.precio_unidad * (1 - (porcDescuento / 100));
+                document.getElementById('descuentoInfoPorcentaje').innerText = porcDescuento + '%';
+                document.getElementById('descuentoInfoPrecio').innerText = monedaLempiras(precioConDescuento);
+                descuentoInfo.style.display = 'block';
+            } else {
+                descuentoInfo.style.display = 'none';
+            }
 
             let htmlBodega =
                 `<option value="${data.bodegaId}" selected="" disabled="">${data.nombreBodega}</option>`;
@@ -596,6 +631,7 @@ function agregarProductoLista() {
     arrayInputs.push(contador);
     contador++;
     productoSeccion.push([idProducto, seccion.value]);
+    actualizarDestinoCreditoCrear();
 
     return;
 }
@@ -709,8 +745,7 @@ function eliminarFila(id, subtotal, isv, total) {
         currency: 'HNL',
         minimumFractionDigits: 2,
     }).format(totalInput);
-
-
+    actualizarDestinoCreditoCrear();
 
 }
 
@@ -724,6 +759,15 @@ $(document).on('submit', '#guardar_devolucion', function(event) {
 
 function guardarNotaCredito() {
     var tipoNota = document.getElementById('tipo_nota_credito').value;
+
+    if (!document.getElementById('destinoCreditoCrear').value) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Seleccione el destino',
+            text: 'Indique si la nota se aplicará a saldos, se reembolsará o tendrá una aplicación mixta.',
+        });
+        return;
+    }
 
     // Validaciones según tipo
     if (tipoNota === 'producto') {
@@ -794,15 +838,6 @@ function guardarNotaCredito() {
 
     dataForm.append("idFactura", idFactura);
     
-    // Debug temporal
-    console.log('Tipo de nota:', tipoNota);
-    console.log('ID Factura:', idFactura);
-    console.log('Array Inputs:', arrayInputs);
-    console.log('Valores del form:');
-    for (var pair of dataForm.entries()) {
-        console.log(pair[0] + ': ' + pair[1]);
-    }
-
     // let table = $('#tbl_translados_destino').DataTable();
     // table.destroy();
 
@@ -812,6 +847,7 @@ function guardarNotaCredito() {
             let data = response.data;
             let contador = data.contadorTranslados;
             let idNotaCredito = data.idNota || 0;
+            let resultado = data.resultado || {};
 
             // document.getElementById("btn_guardar_nota_credito").disabled = false;
 
@@ -828,7 +864,7 @@ function guardarNotaCredito() {
                     Swal.fire({
                         icon: data.icon || 'info',
                         title: data.title || 'Resultado',
-                        html: data.text || 'Operación completada',
+                        html: (data.text || 'Operación completada') + resumenResultadoCredito(resultado),
                         allowOutsideClick: false,
                         allowEscapeKey: false,
                         confirmButtonText: 'Aceptar',
@@ -920,6 +956,115 @@ function guardarNotaCredito() {
 
         })
 }
+
+function formatoLempirasCredito(valor) {
+    return 'L ' + Number(valor || 0).toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+}
+
+function actualizarDestinoCreditoCrear() {
+    var destino = $('#destinoCreditoCrear').val();
+    var credito = Number($('#totalGeneralCredito').val() || 0);
+    var deuda = Number($('#saldoPendienteCrear').attr('data-valor') || 0);
+    var tieneSaldosPendientes = deuda > 0.005;
+    var opcionesAplicacion = $('#destinoCreditoCrear option[value="saldos"], #destinoCreditoCrear option[value="mixto"]');
+
+    opcionesAplicacion.prop('hidden', !tieneSaldosPendientes).prop('disabled', !tieneSaldosPendientes);
+    if (!tieneSaldosPendientes && (destino === 'saldos' || destino === 'mixto')) {
+        $('#destinoCreditoCrear').val('');
+        destino = '';
+    }
+
+    var aplicado = destino === 'reembolso' ? 0 : Math.min(credito, deuda);
+    var reembolso = destino === 'reembolso' ? credito : (destino === 'mixto' ? Math.max(credito - aplicado, 0) : 0);
+    var saldo = Math.max(credito - aplicado - reembolso, 0);
+    var requiereReembolso = destino === 'reembolso' || (destino === 'mixto' && reembolso > 0.005);
+
+    $('#creditoPrevistoCrear').val(formatoLempirasCredito(credito));
+    $('#panelReembolsoCrear').toggle(requiereReembolso);
+    $('#bancoReembolsoCrear, #metodoReembolsoCrear, #fechaReembolsoCrear').prop('required', requiereReembolso);
+
+    if (!destino || credito <= 0) {
+        clearTimeout(temporizadorPrevisionCredito);
+        solicitudPrevisionCredito++;
+        $('#resumenDestinoCreditoCrear').hide().empty();
+        $('#detalleAplicacionCreditoCrear').hide();
+        $('#detalleAplicacionCreditoCrearBody').empty();
+        return;
+    }
+
+    var texto = 'Se aplicarán <strong>' + formatoLempirasCredito(aplicado) + '</strong> primero a la factura seleccionada y luego a los saldos vencidos más antiguos.';
+    if (reembolso > 0) texto += ' Se reembolsarán <strong>' + formatoLempirasCredito(reembolso) + '</strong>.';
+    if (saldo > 0) texto += ' Quedarán <strong>' + formatoLempirasCredito(saldo) + '</strong> disponibles.';
+    $('#resumenDestinoCreditoCrear').html('<i class="fa fa-info-circle mr-1"></i>' + texto).show();
+    cargarPrevisionAplicacionCredito(destino, credito);
+}
+
+function cargarPrevisionAplicacionCredito(destino, credito) {
+    clearTimeout(temporizadorPrevisionCredito);
+    var idFactura = $('#factura').val() || $('#idFactura').val();
+    var cuerpo = $('#detalleAplicacionCreditoCrearBody');
+
+    if (!idFactura || destino === 'reembolso') {
+        solicitudPrevisionCredito++;
+        cuerpo.empty();
+        $('#detalleAplicacionCreditoCrear').hide();
+        return;
+    }
+
+    temporizadorPrevisionCredito = setTimeout(function() {
+        var numeroSolicitud = ++solicitudPrevisionCredito;
+        axios.post('/nota/credito/previsualizar-aplicacion', {
+            idFactura: idFactura,
+            monto: credito,
+            destino: destino
+        }).then(function(response) {
+            if (numeroSolicitud !== solicitudPrevisionCredito) return;
+            var aplicaciones = response.data.aplicaciones || [];
+            if (!aplicaciones.length) {
+                cuerpo.html('<tr><td colspan="4" class="text-center text-muted">No hay facturas pendientes para aplicar.</td></tr>');
+            } else {
+                cuerpo.html(aplicaciones.map(function(aplicacion) {
+                    return '<tr><td><strong>' + aplicacion.factura + '</strong></td>' +
+                        '<td class="text-right">' + formatoLempirasCredito(aplicacion.saldo_anterior) + '</td>' +
+                        '<td class="text-right text-success"><strong>' + formatoLempirasCredito(aplicacion.monto) + '</strong></td>' +
+                        '<td class="text-right">' + formatoLempirasCredito(aplicacion.saldo_posterior) + '</td></tr>';
+                }).join(''));
+            }
+            $('#detalleAplicacionCreditoCrear').show();
+        }).catch(function() {
+            if (numeroSolicitud !== solicitudPrevisionCredito) return;
+            cuerpo.html('<tr><td colspan="4" class="text-center text-danger">No se pudo cargar el detalle de aplicación.</td></tr>');
+            $('#detalleAplicacionCreditoCrear').show();
+        });
+    }, 200);
+}
+
+function resumenResultadoCredito(resultado) {
+    if (!resultado || typeof resultado.monto_aplicado === 'undefined') return '';
+    var aplicaciones = (resultado.aplicaciones || []).map(function(aplicacion) {
+        return '<li><strong>' + aplicacion.factura + '</strong>: ' + formatoLempirasCredito(aplicacion.monto) + '</li>';
+    }).join('');
+
+    return '<hr><div class="text-left">' +
+        '<div>Aplicado a saldos: <strong>' + formatoLempirasCredito(resultado.monto_aplicado) + '</strong></div>' +
+        (aplicaciones ? '<div class="mt-2"><strong>Facturas aplicadas:</strong><ul class="mb-2 pl-4">' + aplicaciones + '</ul></div>' : '') +
+        '<div>Reembolsado: <strong>' + formatoLempirasCredito(resultado.monto_reembolsado) + '</strong></div>' +
+        '<div>Disponible: <strong>' + formatoLempirasCredito(resultado.saldo_disponible) + '</strong></div>' +
+        '</div>';
+}
+
+axios.get('/listar/aplicacion/bancos').then(function(response) {
+    var html = '<option value="">— Seleccione —</option>';
+    (response.data.result || []).forEach(function(banco) {
+        html += '<option value="' + banco.idBanco + '">' + banco.banco + '</option>';
+    });
+    $('#bancoReembolsoCrear').html(html);
+});
+
+$(document).on('input change', '#totalGeneralCredito, #monto_descuento', actualizarDestinoCreditoCrear);
 // ====== FUNCIONES PARA IMPRESIÓN ======
 
 function imprimirNotaCredito(tipo) {

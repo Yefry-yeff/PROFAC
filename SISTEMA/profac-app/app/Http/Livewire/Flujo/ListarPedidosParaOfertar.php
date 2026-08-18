@@ -2,6 +2,7 @@
 
 namespace App\Http\Livewire\Flujo;
 
+use App\Support\ExpoConfig;
 use Livewire\Component;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -34,6 +35,7 @@ class ListarPedidosParaOfertar extends Component
     // Datos
     public $pedidos = [];
     public $ofertas = [];
+    public $expoActiva = null;
 
     // Mensajes flash
     public $mensajeExito = '';
@@ -46,6 +48,7 @@ class ListarPedidosParaOfertar extends Component
 
     public function mount(): void
     {
+        $this->expoActiva = ExpoConfig::detalleActivaParaUsuario(null, Auth::id());
         $this->cargar();
     }
 
@@ -109,6 +112,17 @@ class ListarPedidosParaOfertar extends Component
             ->leftJoin('users as u', 'u.id', '=', 'p.users_id')
             ->where('f.tipo_flujo_id', 1)
             ->where('f.tipo_tramite_id', 1)
+            ->where(function ($sub) {
+                $sub->where('p.users_id', Auth::id())
+                    ->orWhere('c.vendedor', Auth::id())
+                    ->orWhereExists(function ($assigned) {
+                        $assigned->select(DB::raw(1))
+                            ->from('cliente_usuario as cu')
+                            ->whereColumn('cu.cliente_id', 'c.id')
+                            ->where('cu.usuario_id', Auth::id())
+                            ->whereIn('cu.rol_id', [2, 3]);
+                    });
+            })
             ->whereNotIn('p.estado', ['cancelado'])
             ->whereRaw('NOT EXISTS (SELECT 1 FROM historico_flujo hf WHERE hf.flujo_id = f.id AND hf.tipo_tramite_id = 2)')
             ->select(
@@ -165,6 +179,17 @@ class ListarPedidosParaOfertar extends Component
             ->join('pedido as p', DB::raw('CAST(f.identificacion AS UNSIGNED)'), '=', 'p.id')
             ->join('cliente as c', 'c.id', '=', 'p.cliente_id')
             ->where('f.tipo_flujo_id', 1)
+            ->where(function ($sub) {
+                $sub->where('p.users_id', Auth::id())
+                    ->orWhere('c.vendedor', Auth::id())
+                    ->orWhereExists(function ($assigned) {
+                        $assigned->select(DB::raw(1))
+                            ->from('cliente_usuario as cu')
+                            ->whereColumn('cu.cliente_id', 'c.id')
+                            ->where('cu.usuario_id', Auth::id())
+                            ->whereIn('cu.rol_id', [2, 3]);
+                    });
+            })
             ->whereExists(function ($q) {
                 $q->select(DB::raw(1))
                   ->from('historico_flujo as hf')
@@ -188,6 +213,17 @@ class ListarPedidosParaOfertar extends Component
             ->join('tipos_tramites as tt', 'tt.id', '=', 'f.tipo_tramite_id')
             ->join('cotizacion as o', DB::raw('CAST(f.identificacion AS UNSIGNED)'), '=', 'o.id')
             ->where('f.tipo_flujo_id', 1)
+            ->where(function ($sub) {
+                $sub->where('o.users_id', Auth::id())
+                    ->orWhere('o.vendedor', Auth::id())
+                    ->orWhereExists(function ($assigned) {
+                        $assigned->select(DB::raw(1))
+                            ->from('cliente_usuario as cu')
+                            ->whereColumn('cu.cliente_id', 'o.cliente_id')
+                            ->where('cu.usuario_id', Auth::id())
+                            ->whereIn('cu.rol_id', [2, 3]);
+                    });
+            })
             ->whereNotExists(function ($q) {
                 $q->select(DB::raw(1))
                   ->from('historico_flujo as hf')
@@ -330,6 +366,18 @@ class ListarPedidosParaOfertar extends Component
     public function nuevaOfertaSinPedido(): void
     {
         $this->redirect('/proforma/cotizacion/2?from=flujo');
+    }
+
+    public function nuevaOfertaExpo(): void
+    {
+        $expo = ExpoConfig::detalleActivaParaUsuario(null, Auth::id());
+        if (!$expo) {
+            $this->mensajeError = 'No existe una Expo activa y vigente autorizada para su usuario.';
+            $this->expoActiva = null;
+            return;
+        }
+
+        $this->redirect('/proforma/cotizacion/2?from=flujo&expo=' . $expo['id']);
     }
 
     // RENDER

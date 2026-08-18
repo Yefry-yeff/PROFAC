@@ -12,7 +12,7 @@ class ListadoFacturasUnificado extends Component
     public $esVendedor;
 
     /** Roles considerados administrador/supervisor */
-    const ADMIN_ROLES = [1, 3, 5];
+    const ADMIN_ROLES = [1, 3, 5, 16];
 
     public function mount($tipo = null)
     {
@@ -30,6 +30,9 @@ class ListadoFacturasUnificado extends Component
                 break;
             case 'exonerado':
                 $this->nombreTipo = 'Clientes Exonerado';
+                break;
+            case 'todos':
+                $this->nombreTipo = 'Todas las Facturas';
                 break;
             default:
                 $this->nombreTipo = 'Clientes';

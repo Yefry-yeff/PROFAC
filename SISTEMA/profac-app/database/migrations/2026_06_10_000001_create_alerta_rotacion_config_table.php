@@ -98,6 +98,7 @@ return new class extends Migration
                 'color'            => '#ef4444',
                 'prioridad'        => 'critica',
                 'activo'           => false,
+            ],
             [
                 'nombre'           => 'Recuperación vencida con stock activo',
                 'tipo'             => 'recuperacion_vencida',

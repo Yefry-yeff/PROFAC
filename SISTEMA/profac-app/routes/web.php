@@ -17,6 +17,7 @@ use App\Http\Livewire\Reportes\FacturaDia;
 use App\Http\Livewire\Reportes\DashboardVentas;
 
 use App\Http\Livewire\Reportes\Prodmes;
+use App\Http\Livewire\Reportes\ComisionPoliticaAnterior;
 use App\Http\Livewire\Reportes\Reporteria;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Artisan;
@@ -150,6 +151,7 @@ use App\Http\Livewire\Logistica\ReporteLogistica;
 use App\Http\Livewire\Comisiones\Escalado\Configuracion as confcomisiones;
 use App\Http\Livewire\Comisiones\Escalado\MisComisiones;
 use App\Http\Livewire\Comisiones\Escalado\ReportesComisionesGenerales;
+use App\Http\Livewire\Comisiones\Escalado\Conciliacion as ConciliacionComisiones;
 
 /*
 
@@ -198,6 +200,10 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/flujo/prefactura', \App\Http\Livewire\Flujo\Prefactura::class)->name('flujo.prefactura');
     Route::get('/flujo/oferta', \App\Http\Livewire\Flujo\OfertaPedido::class)->name('flujo.oferta');
     Route::get('/flujo/ofertas', \App\Http\Livewire\Flujo\ListarOfertas::class)->name('flujo.ofertas');
+    Route::get('/ventas/temporales', [\App\Http\Controllers\VentaTemporalController::class, 'index'])->name('ventas.temporales.index');
+    Route::post('/ventas/temporales', [\App\Http\Controllers\VentaTemporalController::class, 'store'])->name('ventas.temporales.store');
+    Route::get('/ventas/temporales/{id}', [\App\Http\Controllers\VentaTemporalController::class, 'show'])->name('ventas.temporales.show');
+    Route::delete('/ventas/temporales/{id}', [\App\Http\Controllers\VentaTemporalController::class, 'destroy'])->name('ventas.temporales.destroy');
     Route::get('/flujo/pedido/editar/{id}', \App\Http\Livewire\Flujo\EditarPedido::class)->name('flujo.pedido.editar');
     Route::get('/flujo/pedido/imprimir/{id}', [\App\Http\Livewire\Flujo\PedidoController::class, 'imprimir']);
 
@@ -222,6 +228,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/editar/configuracion/{estado}', [Configuracion::class, 'editarEstado']);
     Route::get('/configuracion/excel', [Configuracion::class, 'exportarExcel']);
     Route::get('/configuracion/notificaciones/flujo', \App\Http\Livewire\Configuracion\ConfiguracionNotificaciones::class)->name('configuracion.notificaciones.flujo');
+    Route::get('/configuracion/codigos-autorizacion', \App\Http\Livewire\Configuracion\ConfiguracionCodigosAutorizacion::class)->name('configuracion.codigos.autorizacion');
     Route::get('/notificaciones/historial', \App\Http\Livewire\NotificacionesHistorial::class)->name('notificaciones.historial');
     Route::get('/alertas/rotacion/{id}/reporte', \App\Http\Livewire\Alertas\AlertasRotacionReporte::class)->name('alertas.rotacion.reporte');
     Route::get('/configuracion/jerarquia', \App\Http\Livewire\Configuracion\JerarquiaOrganizacional::class)->name('configuracion.jerarquia');
@@ -267,7 +274,9 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
 
     // Rutas para listas de empleados y roles
     Route::get('/comision/empleados/lista', [ReportesComisionesGenerales::class, 'listarEmpleados']);
+    Route::get('/comision/empleados/todos', [ReportesComisionesGenerales::class, 'listarEmpleadosTodos']);
     Route::get('/comision/roles/lista', [ReportesComisionesGenerales::class, 'listarRoles']);
+    Route::get('/comision/roles/comisionables', [ReportesComisionesGenerales::class, 'listarRolesComisionables']);
 
     // Rutas para los 5 tipos de reportes
     Route::get('/comision/reporte/empleado', [ReportesComisionesGenerales::class, 'reporteEmpleado']);
@@ -276,15 +285,52 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/comision/reporte/productos', [ReportesComisionesGenerales::class, 'reporteProductos']);
     Route::get('/comision/reporte/facturas', [ReportesComisionesGenerales::class, 'reporteFacturas']);
     Route::get('/comision/reporte/reversiones', [ReportesComisionesGenerales::class, 'reporteReversiones']);
+    
+    // Proyección de comisiones
+    Route::get('/comisiones/proyeccion', [\App\Http\Controllers\ProyeccionComisionesController::class, 'index'])->name('comisiones.proyeccion');
 
     // Rutas nuevas: estadísticas, nómina, ranking y comparativo
     Route::get('/comision/reporte/stats',       [ReportesComisionesGenerales::class, 'stats']);
     Route::get('/comision/reporte/nomina',      [ReportesComisionesGenerales::class, 'reporteNomina']);
+    Route::get('/comision/reporte/nomina/detalle', [ReportesComisionesGenerales::class, 'detalleNomina']);
+    Route::get('/comision/reporte/proyecciones', [ReportesComisionesGenerales::class, 'reporteProyecciones']);
+    Route::post('/comision/reporte/proyecciones/exportar-excel', [ReportesComisionesGenerales::class, 'exportarProyeccionesExcel']);
+    Route::post('/comision/reporte/proyecciones/exportar-facturas', [ReportesComisionesGenerales::class, 'exportarFacturasProyectadasExcel']);
+    Route::post('/comision/reporte/proyecciones/exportar-excel-15', [ReportesComisionesGenerales::class, 'exportarProyeccionesExcel15']);
+    Route::post('/comision/reporte/proyecciones/exportar-nomina', [ReportesComisionesGenerales::class, 'exportarProyeccionesNomina']);
+    Route::get('/comision/reporte/factura-por-actor', [ReportesComisionesGenerales::class, 'facturasPorActor']);
+    Route::get('/comision/reporte/empleados-por-rol', [ReportesComisionesGenerales::class, 'listarEmpleadosPorRol']);
+    Route::get('/comision/reporte/actores-por-periodo', [ReportesComisionesGenerales::class, 'actoresPorPeriodo']);
+    Route::get('/comision/reporte/revision/facturas', [ReportesComisionesGenerales::class, 'reporteRevisionFacturasFactura']);
+    Route::get('/comision/reporte/revision/productos', [ReportesComisionesGenerales::class, 'reporteRevisionFacturasProductos']);
+    Route::get('/comision/reporte/brecha-ap-fc', [ReportesComisionesGenerales::class, 'reporteBrechaApFc']);
+    Route::post('/comision/reporte/brecha-ap-fc/reprocesar', [ReportesComisionesGenerales::class, 'reprocesarBrechaApFc']);
     Route::get('/comision/reporte/ranking',     [ReportesComisionesGenerales::class, 'reporteRanking']);
     Route::get('/comision/reporte/comparativo', [ReportesComisionesGenerales::class, 'reporteComparativo']);
+    Route::get('/comision/reporte/cuadre-libro-cobros', [ReportesComisionesGenerales::class, 'reporteCuadreLibroCobros']);
+    Route::get('/comision/reporte/auditoria-contable',  [ReportesComisionesGenerales::class, 'reporteAuditoriaContable']);
 
     // Ruta para descarga de Excel
     Route::get('/comision/reporte/excel', [ReportesComisionesGenerales::class, 'descargarExcel']);
+
+    // Conciliación de Comisiones
+    Route::get('/comisiones/conciliacion',                       ConciliacionComisiones::class)->name('comisiones.conciliacion');
+    Route::get('/comisiones/conciliacion/validar-reglas',        [ConciliacionComisiones::class, 'validarReglas'])->name('comisiones.conciliacion.validar');
+    Route::get('/comisiones/conciliacion/periodos',              [ConciliacionComisiones::class, 'listarPeriodos'])->name('comisiones.conciliacion.periodos');
+    Route::post('/comisiones/conciliacion/conciliar',            [ConciliacionComisiones::class, 'conciliarPeriodo'])->name('comisiones.conciliacion.conciliar');
+    Route::post('/comisiones/conciliacion/reabrir',              [ConciliacionComisiones::class, 'reabrirPeriodo'])->name('comisiones.conciliacion.reabrir');
+    Route::get('/comisiones/conciliacion/detalle',               [ConciliacionComisiones::class, 'detallePeriodo'])->name('comisiones.conciliacion.detalle');
+    Route::get('/comisiones/conciliacion/exportar/empleado',     [ConciliacionComisiones::class, 'exportarResumenEmpleado'])->name('comisiones.conciliacion.exportar.empleado');
+    Route::get('/comisiones/conciliacion/exportar/masivo',       [ConciliacionComisiones::class, 'exportarResumenMasivo'])->name('comisiones.conciliacion.exportar.masivo');
+    Route::get('/comisiones/conciliacion/auditoria-logs',        [ConciliacionComisiones::class, 'listarAuditoriaLogs'])->name('comisiones.conciliacion.auditoria');
+    Route::get('/comisiones/conciliacion/verificar-periodo',     [ConciliacionComisiones::class, 'verificarPeriodoPago'])->name('comisiones.conciliacion.verificar_periodo');
+    Route::get('/comisiones/conciliacion/retencion-fuente/resumen', [ConciliacionComisiones::class, 'resumenRetencionFuente'])->name('comisiones.conciliacion.retencion_fuente.resumen');
+    Route::post('/comisiones/conciliacion/retencion-fuente/aplicar', [ConciliacionComisiones::class, 'aplicarRetencionFuente'])->name('comisiones.conciliacion.retencion_fuente.aplicar');
+    Route::post('/comisiones/conciliacion/retencion-fuente/revertir', [ConciliacionComisiones::class, 'revertirRetencionFuente'])->name('comisiones.conciliacion.retencion_fuente.revertir');
+    Route::get('/comisiones/conciliacion/retencion-fuente/historial', [ConciliacionComisiones::class, 'historialRetencionFuente'])->name('comisiones.conciliacion.retencion_fuente.historial');
+    // Días de gracia
+    Route::get('/comisiones/dias-gracia',                        [ConciliacionComisiones::class, 'listarDiasGracia'])->name('comisiones.dias_gracia.index');
+    Route::post('/comisiones/dias-gracia/guardar',               [ConciliacionComisiones::class, 'guardarDiasGracia'])->name('comisiones.dias_gracia.guardar');
 
 
     Route::get('/precios', CategoriaPrecios::class);
@@ -548,6 +594,10 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
 
     //----------------------------------------------FACTURACIONES---------------------------------------------------------------------------------------//
 
+    Route::get('/facturas/todos', ListadoFacturasUnificado::class)->defaults('tipo', 'todos');
+    Route::get('/lista/facturas/todos', [ListadoFacturas::class, 'listarTodasFacturas']);
+    Route::post('/lista/facturas/exportar-excel', [ListadoFacturas::class, 'exportarExcelUnificado'])->name('lista.facturas.excel');
+
     Route::get('/facturas/corporativo', ListadoFacturasUnificado::class)->defaults('tipo', 'corporativo');
 
     Route::get('/lista/facturas/corporativo', [ListadoFacturas::class, 'listarFacturas']);
@@ -575,6 +625,12 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::post('/usuario/actualizar', [ListarUsuarios::class, 'actualizarUsuarios']);
     Route::post('/usuario/cambiar-contrasena', [ListarUsuarios::class, 'cambiarContrasenaUsuario']);
 
+    /*------------------------------------------------ROLES ADICIONALES (multi-rol) del usuario */
+    Route::get('/usuario/{idUsuario}/roles-adicionales', [ListarUsuarios::class, 'obtenerRolesAdicionales']);
+    Route::get('/usuario/{idUsuario}/roles-adicionales/buscar', [ListarUsuarios::class, 'buscarRolesAdicionalesDisponibles']);
+    Route::post('/usuario/{idUsuario}/roles-adicionales/agregar', [ListarUsuarios::class, 'agregarRolAdicional']);
+    Route::post('/usuario/{idUsuario}/roles-adicionales/quitar', [ListarUsuarios::class, 'quitarRolAdicional']);
+
     //-----------------------------------------------Roles-------------------------------------------------------------------------------------------//
     Route::get('/usuarios/roles', App\Http\Livewire\Usuarios\Roles::class)->name('roles.gestion');
     Route::get('/roles/listar', [App\Http\Livewire\Usuarios\Roles::class, 'listarRoles']);
@@ -591,6 +647,12 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/usuarios/{id}/rol-anterior', [App\Http\Livewire\Usuarios\Roles::class, 'obtenerRolAnteriorUsuario']);
     Route::get('/roles/{id}/permisos', [App\Http\Livewire\Usuarios\Roles::class, 'obtenerPermisosDelRol']);
     Route::get('/submenus/todos', [App\Http\Livewire\Usuarios\Roles::class, 'listarTodosSubmenus']);
+
+    /*------------------------------------------------USUARIOS ADICIONALES (multi-rol) del rol */
+    Route::get('/roles/{id}/usuarios-adicionales', [App\Http\Livewire\Usuarios\Roles::class, 'obtenerUsuariosAdicionalesDelRol']);
+    Route::get('/roles/{id}/usuarios-adicionales/buscar', [App\Http\Livewire\Usuarios\Roles::class, 'buscarUsuariosAdicionalesDisponibles']);
+    Route::post('/roles/{id}/usuarios-adicionales/agregar', [App\Http\Livewire\Usuarios\Roles::class, 'agregarUsuarioAdicionalAlRol']);
+    Route::post('/roles/{id}/usuarios-adicionales/quitar', [App\Http\Livewire\Usuarios\Roles::class, 'quitarUsuarioAdicionalDelRol']);
     // Catálogos de jerarquía de roles
     Route::get('/roles/catalogos/niveles', [App\Http\Livewire\Usuarios\Roles::class, 'listarNiveles'])->name('roles.niveles');
     Route::get('/roles/catalogos/areas',   [App\Http\Livewire\Usuarios\Roles::class, 'listarAreas'])->name('roles.areas');
@@ -740,6 +802,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/detalle/venta/{id}', DetalleVenta::class);
     Route::get('/detalle/venta/vendedor/{id}', DetalleVentaVendedor::class);
     Route::get('/lista/productos/factura/{id}', [DetalleVenta::class, 'listarProductosFactura']);
+    Route::get('/factura/detalle-productos-escala/{id}', [DetalleVenta::class, 'detalleProductosEscala']);
     Route::get('/lista/ubicacion/producto/{id}', [DetalleVenta::class, 'ubicacionProductos']);
     Route::get('/lista/pagos/venta/{id}', [DetalleVenta::class, 'pagosVenta']);
     Route::get('/venta/cobro/{id}', Cobros::class);
@@ -826,6 +889,9 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
 
     Route::get('/proforma/cotizacion/{id}', Cotizacion::class);
     Route::get('/cotizacion/clientes', [Cotizacion::class, 'listarClientes']);
+    Route::post('/cotizacion/asesor-asignado', [Cotizacion::class, 'obtenerAsesorAsignado']);
+    Route::get('/cotizacion/vendedores-asignados', [Cotizacion::class, 'listadoVendedoresAsignados']);
+    Route::get('/cotizacion/actores-asignados', [Cotizacion::class, 'listadoActoresAsignados']);
     Route::post('/guardar/cotizacion', [Cotizacion::class, 'guardarCotizacion']);
     Route::post('/cotizacion/adjunto/subir', [Cotizacion::class, 'subirAdjunto']);
 
@@ -895,6 +961,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
 
     Route::get('/listado/ajustes', ListadoAjustes::class);
     Route::post('/obtener/listado/ajustes', [ListadoAjustes::class, 'listarAjustes']);
+    Route::post('/ajuste/anular', [ListadoAjustes::class, 'anularAjuste']);
 
     Route::get('/inventario/ajuste/ingreso', AjusteIngresoProducto::class);
     Route::get('/ajuste/ingreso/productos', [AjusteIngresoProducto::class, 'obtenerProducto']);
@@ -908,6 +975,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
 
     Route::get('/ventas/anulado/{id}', ListadoFacturasAnuladas::class);
     Route::post('/ventas/anulado/listado', [ListadoFacturasAnuladas::class, 'listarFacturas']);
+    Route::post('/ventas/anulado/exportar-pdf', [ListadoFacturasAnuladas::class, 'exportarPdf']);
     Route::post('/ventas/anulado/detalle', [ListadoFacturasAnuladas::class, 'detalleFacturaAnulada']);
 
 
@@ -979,6 +1047,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/nota/credito/facturas', [CrearNotaCredito::class, 'obtenerFactura']);
     Route::get('/nota/credito/motivos', [CrearNotaCredito::class, 'obtenerMotivos']);
     Route::post('/nota/credito/datos/factura', [CrearNotaCredito::class, 'obtenerDetalleFactura']);
+    Route::post('/nota/credito/previsualizar-aplicacion', [CrearNotaCredito::class, 'previsualizarAplicacion']);
     Route::post('/nota/credito/obtener/productos', [CrearNotaCredito::class, 'obtenerProductos']);
     Route::post('/nota/credito/datos/producto', [CrearNotaCredito::class, 'datosProducto']);
     Route::post('/nota/credito/guardar', [CrearNotaCredito::class, 'guardarNotaCredito']);
@@ -993,6 +1062,10 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
 
     Route::get('/nota/credito/listado', ListadoNotaCredito::class);
     Route::post('/nota/credito/listar', [ListadoNotaCredito::class, 'listadoNotaCredito']);
+    Route::post('/nota/credito/kpis', [ListadoNotaCredito::class, 'kpis']);
+    Route::post('/nota/credito/exportar-excel', [ListadoNotaCredito::class, 'exportarExcel']);
+    Route::get('/nota/credito/asientos/{idNotaCredito}', [ListadoNotaCredito::class, 'asientos']);
+    Route::post('/nota/credito/gobierno/exportar-excel', [ListadoNotasND::class, 'exportarExcel']);
     Route::get('/nota/credito/imprimir/{idNota}', [ListadoNotaCredito::class, 'imprimirnotaCreditoOriginal']);
     Route::get('/nota/credito/imprimir/copia/{idNota}', [ListadoNotaCredito::class, 'imprimirnotaCreditoCopia']);
     Route::post('/nota/credito/anular', [CrearNotaCredito::class, 'anularNotaCredito']);
@@ -1075,6 +1148,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/aplicacion/pagos/listar/{id}', [Pagos::class, 'listarCuentasPorCobrar']);
     Route::get('/aplicacion/pagos/listar/movimientos/{id}', [Pagos::class, 'listarMovimientos']);
     Route::get('/aplicacion/pagos/listar/abonos/{id}', [Pagos::class, 'listarAbonos']);
+    Route::get('/aplicacion/pagos/listar/historico-retenciones/{id}', [Pagos::class, 'listarHistoricoRetenciones']);
 
     Route::post('/pagos/retencion/guardar', [Pagos::class, 'gestionRetencion']);
     Route::post('/pagos/notacredito/guardar', [Pagos::class, 'gestionNC']);
@@ -1258,10 +1332,30 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/nota/debito/lista/gobierno', ListadoNotasDebitoND::class);
     Route::get('/listado/nota/debito/gobierno/{fechaInicio}/{fechaFinal}', [ListadoNotasDebitoND::class,'listarnotasDebito']);
 
+    Route::post('/nota/debito/kpis', [ListadoNotasDebito::class,'kpis']);
+    Route::post('/nota/debito/exportar-excel', [ListadoNotasDebito::class,'exportarExcel']);
+    Route::post('/nota/debito/gobierno/exportar-excel', [ListadoNotasDebitoND::class,'exportarExcel']);
+
     Route::get('/debito/anular/{idNota}', [ListadoNotasDebitoND::class,'anularNota']);
 
     Route::get('/facturaDia', FacturaDia::class);
+    Route::post('/reporte/factura-dia/exportar-excel/{fecha_inicio}/{fecha_final}', [FacturaDia::class, 'exportarExcel'])->name('reporte.factura_dia.excel');
     Route::get('/reporte/comision', Prodmes::class);
+    Route::get('/reporte/comision/politica-anterior', ComisionPoliticaAnterior::class);
+    Route::get('/comision/politica-anterior/productos-activos', [ComisionPoliticaAnterior::class, 'listarProductosActivos']);
+    Route::get('/comision/politica-anterior/catalogo/marcas', [ComisionPoliticaAnterior::class, 'catalogoMarcas']);
+    Route::get('/comision/politica-anterior/catalogo/categorias', [ComisionPoliticaAnterior::class, 'catalogoCategorias']);
+    Route::get('/comision/politica-anterior/catalogo/sub-categorias', [ComisionPoliticaAnterior::class, 'catalogoSubCategorias']);
+    Route::get('/comision/politica-anterior/parametrizacion', [ComisionPoliticaAnterior::class, 'listarClasificacionProductos']);
+    Route::post('/comision/politica-anterior/parametrizacion', [ComisionPoliticaAnterior::class, 'guardarClasificacionProducto']);
+    Route::get('/comision/politica-anterior/parametrizacion-checklist', [ComisionPoliticaAnterior::class, 'listarProductosChecklist']);
+    Route::post('/comision/politica-anterior/parametrizacion-checklist', [ComisionPoliticaAnterior::class, 'guardarChecklist']);
+    Route::get('/comision/politica-anterior/no-miselaneos-registrados', [ComisionPoliticaAnterior::class, 'listarNoMiselaneosRegistrados']);
+    Route::post('/comision/politica-anterior/no-miselaneos/estado', [ComisionPoliticaAnterior::class, 'actualizarEstadoNoMiselaneo']);
+    Route::post('/comision/politica-anterior/parametrizacion/importar-no-miselaneos', [ComisionPoliticaAnterior::class, 'importarNoMiselaneosDesdeExcel']);
+    Route::post('/comision/politica-anterior/calcular-comisiones', [ComisionPoliticaAnterior::class, 'calcularComisionesFacturas']);
+    Route::post('/comision/politica-anterior/agregar-conciliacion', [ComisionPoliticaAnterior::class, 'agregarComisionPoliticaAnteriorAConciliacion']);
+    Route::post('/comision/politica-anterior/exportar-excel', [ComisionPoliticaAnterior::class, 'exportarDetalleExcel']);
     Route::get('/reporte/reporteria', Reporteria::class);
 
     // Dashboard de Ventas BI
@@ -1297,10 +1391,16 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/reporte/dashboard/productos-x-cliente',      [DashboardVentas::class,'productosXCliente']);
     Route::get('/reporte/dashboard/facturas-x-cliente',       [DashboardVentas::class,'facturasXCliente']);
     Route::get('/reporte/dashboard/top-marcas-cli',           [DashboardVentas::class,'topMarcasCli']);
+    Route::get('/reporte/dashboard/filtros-productos-cliente', [DashboardVentas::class,'productosPorClienteFecha']);
+    Route::get('/reporte/dashboard/filtros-marcas-cliente',    [DashboardVentas::class,'marcasPorClienteFecha']);
 
     Route::get('/reporte/reporteria/consulta/{fecha_inicio}/{fecha_final}', [Reporteria::class,'consulta']);
     Route::get('/reporte/reporteria/productos', [Reporteria::class,'catalogoProductos']);
     Route::get('/reporte/reporteria/clientes', [Reporteria::class,'consultaClientes']);
+    Route::get('/reporte/productos-sin-imagenes', \App\Http\Livewire\Reportes\ProductosSinImagenes::class);
+    Route::get('/reporte/productos-sin-imagenes/datos', [\App\Http\Livewire\Reportes\ProductosSinImagenes::class, 'consulta']);
+    Route::post('/reporte/productos-sin-imagenes/exportar-excel', [\App\Http\Livewire\Reportes\ProductosSinImagenes::class, 'exportarExcel']);
+    Route::post('/reporte/productos-sin-imagenes/exportar-pdf', [\App\Http\Livewire\Reportes\ProductosSinImagenes::class, 'exportarPdf']);
 
 
     Route::get('/consulta/{fecha_inicio}/{fecha_final}', [FacturaDia::class,'consulta']);
@@ -1350,6 +1450,7 @@ Route::post('/reporte/Facturasanuladasrep/exportar-excel/{tipo}/{fechaInicio}/{f
     ->name('reporte.Facturasanuladasrep.excel');
 //------------------------------- Libro de Cobros ----------------------------//
 Route::get('/reporte/Librocobrosrep', action: Librocobrosrep::class);
+Route::get('/reporte/Librocobrosrep/datos', [Librocobrosrep::class, 'consulta']);
 Route::get('/reporte/Librocobrosrep/consulta/{tipo}/{fechaInicio?}/{fechaFinal?}', [Librocobrosrep::class, 'consulta']);
 Route::post('/reporte/Librocobrosrep/exportar-pdf/{tipo}/{fechaInicio}/{fechaFinal}', [Librocobrosrep::class, 'exportarPdf'])
     ->name('reporte.Librocobrosrep.pdf');
@@ -1357,6 +1458,7 @@ Route::post('/reporte/Librocobrosrep/exportar-excel/{tipo}/{fechaInicio}/{fechaF
     ->name('reporte.Librocobrosrep.excel');
 //------------------------------- Libro de Ventas ----------------------------//
 Route::get('/reporte/Libroventarep', Libroventarep::class);
+Route::get('/reporte/Libroventarep/datos', [Libroventarep::class, 'consulta']);
 Route::get('/reporte/Libroventarep/consulta/{tipo}/{fechaInicio}/{fechaFinal}', [Libroventarep::class, 'consulta']);
 Route::post('/reporte/Libroventarep/exportar-pdf/{tipo}/{fechaInicio}/{fechaFinal}', [Libroventarep::class, 'exportarPdf'])
     ->name('reporte.libro_venta.pdf');
@@ -1376,8 +1478,12 @@ Route::get('/reporte/ventas-cobros',                                            
 Route::get('/reporte/ventas-cobros/consulta/{vendedorId}/{clienteId}/{mes}/{anio}',                 [ReporteVentasCobros::class, 'consulta']);
 Route::post('/reporte/ventas-cobros/exportar-pdf/{vendedorId}/{clienteId}/{mes}/{anio}',            [ReporteVentasCobros::class, 'exportarPdf'])->name('reporte.ventas_cobros.pdf');
 Route::post('/reporte/ventas-cobros/exportar-excel/{vendedorId}/{clienteId}/{mes}/{anio}',          [ReporteVentasCobros::class, 'exportarExcel'])->name('reporte.ventas_cobros.excel');
+Route::post('/reporte/ventas-cobros/exportar-excel-async/{vendedorId}/{clienteId}/{mes}/{anio}',    [ReporteVentasCobros::class, 'exportarExcelAsync'])->name('reporte.ventas_cobros.excel.async');
+Route::get('/reporte/ventas-cobros/exportar-excel-estado/{token}',                                   [ReporteVentasCobros::class, 'estadoExportExcel'])->name('reporte.ventas_cobros.excel.estado');
+Route::get('/reporte/ventas-cobros/exportar-excel-descargar/{token}',                                [ReporteVentasCobros::class, 'descargarExportExcel'])->name('reporte.ventas_cobros.excel.descargar');
 Route::get('/reporte/ventas-cobros/datos',                                                          [ReporteVentasCobros::class, 'consultaDatos']);
 Route::get('/reporte/ventas-cobros/kpis',                                                           [ReporteVentasCobros::class, 'kpis']);
+Route::get('/reporte/ventas-cobros/actores',                                                        [ReporteVentasCobros::class, 'actoresPorFechas']);
 Route::get('/reporte/ventas-cobros/expediente/{facturaId}',                                         [ReporteVentasCobros::class, 'expediente']);
 Route::post('/reporte/ventas-cobros/actualizar-f01/{facturaId}',                                    [ReporteVentasCobros::class, 'actualizarF01'])->name('reporte.ventas_cobros.actualizar_f01');
 
@@ -1441,11 +1547,19 @@ Route::post('/reporte/ventas-cobros/actualizar-f01/{facturaId}',                
     Route::get('/logistica/reporte_logistica',        ReporteLogistica::class);
     Route::get('/logistica/reportes/filtros',         [ReporteLogistica::class, 'obtenerFiltros']);
     Route::get('/logistica/reportes/kpis',            [ReporteLogistica::class, 'obtenerKPIs']);
+    Route::get('/logistica/reportes/pendientes-reales', [ReporteLogistica::class, 'obtenerPendientesReales']);
     Route::get('/logistica/reportes/evolucion',       [ReporteLogistica::class, 'obtenerEvolucion']);
     Route::get('/logistica/reportes/por-equipo',      [ReporteLogistica::class, 'obtenerPorEquipo']);
     Route::get('/logistica/reportes/estados',         [ReporteLogistica::class, 'obtenerEstados']);
     Route::get('/logistica/reportes/tabla',           [ReporteLogistica::class, 'obtenerTabla']);
     Route::get('/logistica/reportes/tabla-facturas',  [ReporteLogistica::class, 'obtenerTablaFacturas']);
+    Route::get('/logistica/reportes/facturas-sin-asignar', [ReporteLogistica::class, 'obtenerFacturasSinAsignar']);
+    Route::get('/logistica/reportes/tabla-equipos',   [ReporteLogistica::class, 'obtenerTablaEquipos']);
+    Route::get('/logistica/reportes/detalle-equipo',  [ReporteLogistica::class, 'obtenerDetalleEquipo']);
+    Route::get('/logistica/reportes/exportar-excel-equipos', [ReporteLogistica::class, 'exportarExcelEquipos']);
+    Route::get('/logistica/reportes/exportar-excel-distribucion', [ReporteLogistica::class, 'exportarExcelDistribucion']);
+    Route::get('/logistica/reportes/exportar-excel-facturas', [ReporteLogistica::class, 'exportarExcelFacturas']);
+    Route::get('/logistica/reportes/exportar-excel-resumen-detalle', [ReporteLogistica::class, 'exportarExcelResumenDetalle']);
 
 
 
@@ -1478,6 +1592,71 @@ Route::post('/reporte/ventas-cobros/actualizar-f01/{facturaId}',                
 
     // Análisis individual de producto (sección 2 de Analítica de Productos)
     Route::get('/reportes/analitica_de_productos/{productoId}', \App\Http\Livewire\Reportes\AnalisisProductoIndividual::class);
+
+
+    // Ruta auto-generada para: FlujoDeVenta\ModificarActoresEnFactura
+    Route::get('/flujo_de_venta/modificar_actores_en_factura', \App\Http\Livewire\FlujoDeVenta\ModificarActoresEnFactura::class)
+        ->name('flujo_de_venta.modificar_actores_en_factura');
+
+
+    // Ruta auto-generada para: LogisticaDeEntregas\AgrupacionesDeEntregas
+    Route::get('/logistica_de_entregas/agrupaciones_de_entregas', \App\Http\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class);
+
+    // Agrupación de Facturas por Zona Geográfica (Zonas)
+    Route::get('/logistica/zonas/listar', [\App\Http\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'listarZonas'])->name('logistica.zonas.listar');
+    Route::get('/logistica/zonas/departamentos', [\App\Http\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'obtenerDepartamentos'])->name('logistica.zonas.departamentos');
+    Route::get('/logistica/zonas/municipios/{departamentoId}', [\App\Http\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'obtenerMunicipios'])->name('logistica.zonas.municipios');
+    Route::get('/logistica/zonas/obtener/{id}', [\App\Http\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'obtenerZona'])->name('logistica.zonas.obtener');
+    Route::post('/logistica/zonas/guardar', [\App\Http\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'guardarZona'])->name('logistica.zonas.guardar');
+    Route::post('/logistica/zonas/actualizar', [\App\Http\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'actualizarZona'])->name('logistica.zonas.actualizar');
+    Route::post('/logistica/zonas/eliminar/{id}', [\App\Http\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'eliminarZona'])->name('logistica.zonas.eliminar');
+    Route::post('/logistica/zonas/reordenar', [\App\Http\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'reordenarZonas'])->name('logistica.zonas.reordenar');
+    Route::get('/logistica/zonas/resumen', [\App\Http\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'resumenZonas'])->name('logistica.zonas.resumen');
+    Route::get('/logistica/zonas/facturas', [\App\Http\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'facturasPorZona'])->name('logistica.zonas.facturas');
+
+
+    // Ruta auto-generada para: LogisticaDeEntregas\GestionDeFacturas
+    Route::get('/logistica_de_entregas/gestion_de_facturas', \App\Http\Livewire\LogisticaDeEntregas\GestionDeFacturas::class);
+
+    // Gestión de Distribución de Entregas (tratamiento y asignación por gestor)
+    Route::get('/logistica/gestion/sin-gestor', [\App\Http\Livewire\LogisticaDeEntregas\GestionDeFacturas::class, 'listarSinGestor'])->name('logistica.gestion.singestor');
+    Route::get('/logistica/gestion/sin-tratar', [\App\Http\Livewire\LogisticaDeEntregas\GestionDeFacturas::class, 'listarSinTratar'])->name('logistica.gestion.sintratar');
+    Route::get('/logistica/gestion/tratadas', [\App\Http\Livewire\LogisticaDeEntregas\GestionDeFacturas::class, 'listarTratadas'])->name('logistica.gestion.tratadas');
+    Route::get('/logistica/gestion/asignadas', [\App\Http\Livewire\LogisticaDeEntregas\GestionDeFacturas::class, 'listarAsignadas'])->name('logistica.gestion.asignadas');
+    Route::get('/logistica/gestion/completadas', [\App\Http\Livewire\LogisticaDeEntregas\GestionDeFacturas::class, 'listarCompletadas'])->name('logistica.gestion.completadas');
+    Route::get('/logistica/gestion/resumen', [\App\Http\Livewire\LogisticaDeEntregas\GestionDeFacturas::class, 'resumenEstados'])->name('logistica.gestion.resumen');
+    Route::post('/logistica/gestion/tratar', [\App\Http\Livewire\LogisticaDeEntregas\GestionDeFacturas::class, 'tratarFacturas'])->name('logistica.gestion.tratar');
+    Route::post('/logistica/gestion/asignar', [\App\Http\Livewire\LogisticaDeEntregas\GestionDeFacturas::class, 'asignarEquipo'])->name('logistica.gestion.asignar');
+    Route::get('/logistica/gestion/historial/{facturaId}', [\App\Http\Livewire\LogisticaDeEntregas\GestionDeFacturas::class, 'historialFactura'])->name('logistica.gestion.historial');
+
+
+    // Ruta auto-generada para: FlujoDeVenta\CarteraDeClientes
+    Route::get('/flujo_de_venta/cartera_de_clientes', \App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class);
+
+    // Cartera de Clientes - endpoints de listado, filtros, asignación e historial
+    Route::get('/flujo_de_venta/cartera_de_clientes/listar', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'listar'])->name('cartera_clientes.listar');
+    Route::get('/flujo_de_venta/cartera_de_clientes/listar-ids', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'listarIds'])->name('cartera_clientes.listar_ids');
+    Route::get('/flujo_de_venta/cartera_de_clientes/exportar-excel', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'exportarExcel'])->name('cartera_clientes.exportar_excel');
+    Route::get('/flujo_de_venta/cartera_de_clientes/agrupado', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'listarAgrupado'])->name('cartera_clientes.agrupado');
+    Route::get('/flujo_de_venta/cartera_de_clientes/clientes', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'buscarClientes'])->name('cartera_clientes.clientes');
+    Route::get('/flujo_de_venta/cartera_de_clientes/usuarios', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'buscarUsuarios'])->name('cartera_clientes.usuarios');
+    Route::get('/flujo_de_venta/cartera_de_clientes/datos/{id}', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'datosCliente'])->name('cartera_clientes.datos');
+    Route::get('/flujo_de_venta/cartera_de_clientes/historial/{id}', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'historialCliente'])->name('cartera_clientes.historial');
+    Route::post('/flujo_de_venta/cartera_de_clientes/historial-masivo', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'historialMasivo'])->name('cartera_clientes.historial_masivo');
+    Route::post('/flujo_de_venta/cartera_de_clientes/asignar', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'asignarIndividual'])->name('cartera_clientes.asignar');
+    Route::post('/flujo_de_venta/cartera_de_clientes/asignar-masivo', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'asignarMasivo'])->name('cartera_clientes.asignar_masivo');
+    Route::get('/flujo_de_venta/cartera_de_clientes/zonas', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'listarZonas'])->name('cartera_clientes.zonas');
+    Route::get('/flujo_de_venta/cartera_de_clientes/zonas-catalogos', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'catalogosZonas'])->name('cartera_clientes.zonas_catalogos');
+    Route::get('/flujo_de_venta/cartera_de_clientes/zona/{id}', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'datosZona'])->name('cartera_clientes.zona_datos');
+    Route::get('/flujo_de_venta/cartera_de_clientes/zona-clientes-buscar', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'buscarClientesZona'])->name('cartera_clientes.zona_clientes_buscar');
+    Route::post('/flujo_de_venta/cartera_de_clientes/zona-guardar', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'guardarZona'])->name('cartera_clientes.zona_guardar');
+    Route::post('/flujo_de_venta/cartera_de_clientes/zona-asignar-clientes', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'asignarClientesZona'])->name('cartera_clientes.zona_asignar_clientes');
+    Route::post('/flujo_de_venta/cartera_de_clientes/zona-quitar-cliente', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'quitarClienteZona'])->name('cartera_clientes.zona_quitar_cliente');
+    Route::get('/flujo_de_venta/cartera_de_clientes/zona-historial/{id}', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'historialZona'])->name('cartera_clientes.zona_historial');
+
+
+    // Ruta auto-generada para: FlujoDeVenta\Expo
+    Route::get('/flujo_de_venta/expo', \App\Http\Livewire\FlujoDeVenta\Expo::class);
 
     // [auto-routes-anchor]
 });

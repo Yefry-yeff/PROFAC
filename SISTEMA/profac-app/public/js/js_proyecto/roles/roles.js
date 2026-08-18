@@ -110,6 +110,7 @@ function editarRol(idRol) {
                 cargarUsuariosDisponibles();
                 cargarPermisosDelRol(idRol);
                 cargarSubmenusDisponibles();
+                cargarUsuariosAdicionalesDelRol(idRol);
 
                 // Forzar cierre del spinner
                 $('#modalSpinnerLoading').modal('hide');
@@ -1066,3 +1067,117 @@ function renderizarReporteUsuarios(rows) {
         });
     });
 }
+
+// ======================================================================
+// USUARIOS ADICIONALES DEL ROL (multi-rol) — NO afecta la asignación de
+// rol principal (agregarUsuarioAlRol / mostrarUsuariosEnTabla arriba).
+// Cada Agregar/Quitar se guarda de inmediato.
+// ======================================================================
+
+/**
+ * Cargar usuarios adicionales del rol y preparar el buscador select2.
+ */
+function cargarUsuariosAdicionalesDelRol(rolId) {
+    var $sel = $('#selectUsuarioAdicionalAgregar');
+    if ($sel.data('select2')) { $sel.select2('destroy'); }
+    $sel.empty();
+    $sel.select2({
+        placeholder: 'Buscar usuario para agregar...',
+        width: '100%',
+        dropdownParent: $sel.closest('.modal'),
+        ajax: {
+            url: '/roles/' + rolId + '/usuarios-adicionales/buscar',
+            dataType: 'json',
+            delay: 250,
+            data: function (params) { return { q: params.term }; },
+            processResults: function (data) { return { results: data.results || [] }; }
+        }
+    });
+
+    axios.get('/roles/' + rolId + '/usuarios-adicionales')
+        .then(function (response) {
+            mostrarUsuariosAdicionalesEnTabla(rolId, response.data.data || []);
+        })
+        .catch(function (error) {
+            console.error('Error al cargar usuarios adicionales:', error);
+        });
+}
+
+function mostrarUsuariosAdicionalesEnTabla(rolId, usuarios) {
+    var $tbody = $('#listaUsuariosAdicionalesRol').empty();
+
+    if (!usuarios.length) {
+        $tbody.html('<tr><td colspan="4" class="text-center text-muted py-3"><i class="fa fa-user-tag mr-1"></i>Sin usuarios adicionales</td></tr>');
+        return;
+    }
+
+    usuarios.forEach(function (u) {
+        $tbody.append(
+            '<tr>'
+            + '<td>' + u.id + '</td>'
+            + '<td>' + u.name + '</td>'
+            + '<td>' + u.email + '</td>'
+            + '<td class="text-center">'
+            + '  <button type="button" class="btn btn-danger btn-xs btn-quitar-usuario-adicional" data-usuario-id="' + u.id + '" title="Quitar">'
+            + '    <i class="fa fa-times"></i>'
+            + '  </button>'
+            + '</td>'
+            + '</tr>'
+        );
+    });
+
+    $tbody.find('.btn-quitar-usuario-adicional').off('click').on('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var usuarioId = $(this).data('usuario-id');
+        quitarUsuarioAdicionalDelRol(rolId, usuarioId);
+    });
+}
+
+function agregarUsuarioAdicionalAlRol() {
+    var rolId = $('#rolId').val();
+    var $sel = $('#selectUsuarioAdicionalAgregar');
+    var data = $sel.select2('data');
+
+    if (!rolId) {
+        Swal.fire({ icon: 'warning', title: 'Atención', text: 'Guarde el rol antes de agregar usuarios adicionales.' });
+        return;
+    }
+    if (!data || !data.length) {
+        Swal.fire({ icon: 'warning', title: 'Atención', text: 'Seleccione un usuario para agregar.' });
+        return;
+    }
+    var usuarioId = parseInt(data[0].id, 10);
+
+    axios.post('/roles/' + rolId + '/usuarios-adicionales/agregar', { usuario_id: usuarioId })
+        .then(function () {
+            $sel.val(null).trigger('change');
+            cargarUsuariosAdicionalesDelRol(rolId);
+        })
+        .catch(function (error) {
+            var mensaje = error.response?.data?.mensaje || 'No se pudo agregar el usuario.';
+            Swal.fire({ icon: 'error', title: 'Error', text: mensaje });
+        });
+}
+
+function quitarUsuarioAdicionalDelRol(rolId, usuarioId) {
+    Swal.fire({
+        title: '¿Quitar usuario adicional?',
+        text: 'El usuario perderá los accesos que le otorgaba este rol adicional.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Sí, quitar',
+        cancelButtonText: 'Cancelar'
+    }).then(function (result) {
+        if (!result.isConfirmed) return;
+        axios.post('/roles/' + rolId + '/usuarios-adicionales/quitar', { usuario_id: usuarioId })
+            .then(function () { cargarUsuariosAdicionalesDelRol(rolId); })
+            .catch(function (error) {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo quitar el usuario.' });
+                console.error(error);
+            });
+    });
+}
+

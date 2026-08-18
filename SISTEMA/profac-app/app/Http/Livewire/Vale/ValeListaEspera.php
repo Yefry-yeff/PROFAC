@@ -288,6 +288,29 @@ class ValeListaEspera extends Component
         }
         $factura->save();
 
+        $aplicacionPago = DB::table('aplicacion_pagos')
+            ->where('factura_id', $factura->id)
+            ->where('estado', 1)
+            ->lockForUpdate()
+            ->first();
+
+        if ($aplicacionPago) {
+            $diferenciaCargo = round(
+                (float) $factura->total - (float) $aplicacionPago->total_factura_cargo,
+                2
+            );
+
+            DB::table('aplicacion_pagos')
+                ->where('id', $aplicacionPago->id)
+                ->update([
+                    'total_factura_cargo' => $factura->total,
+                    'retencion_isv_factura' => $factura->isv,
+                    'saldo' => round((float) $aplicacionPago->saldo + $diferenciaCargo, 2),
+                    'ultimo_usr_actualizo' => Auth::user()->id,
+                    'updated_at' => now(),
+                ]);
+        }
+
 
 
 
@@ -304,6 +327,7 @@ class ValeListaEspera extends Component
             $keyunidad = 'idUnidadVentaVP' . $arrayInputs[$i];
             $keyidPrecioSeleccionado = 'idPrecioSeleccionado'.$arrayInputs[$i];
             $keyprecioSeleccionado = 'precios'.$arrayInputs[$i];
+            $keyPreciosProductoCargaId = 'preciosProductoCargaIdVP'.$arrayInputs[$i];
 
 
 
@@ -322,6 +346,7 @@ class ValeListaEspera extends Component
                 'resta_inventario_total'=>$request->$keyRestaInventario,
                 "precioSeleccionado" => $request->$keyprecioSeleccionado,
                 "idPrecioSeleccionado" => $request->$keyidPrecioSeleccionado,
+                "precios_producto_carga_id" => $request->$keyPreciosProductoCargaId,
                 'created_at'=>now(),
                 'updated_at'=>now()
 
@@ -348,9 +373,10 @@ class ValeListaEspera extends Component
                 "sub_total_s" => $request->$keySubTotal,
                 "isv_s" => $request->$keyIsv,
                 "total_s" => $request->$keyTotal,
-                "tipo_precio" => ($request->$keyIsv > 0) ? '2' : '1',
+                "tipo_precio" => ($request->$keyIsv > 0) ? '2' : '1', // '1' = Excento (producto sin ISV, isv = 0) | '2' = Gravado (producto con ISV, isv > 0)
                 "precioSeleccionado" => $request->$keyprecioSeleccionado,
                 "idPrecioSeleccionado" => $request->$keyidPrecioSeleccionado,
+                "precios_producto_carga_id" => $request->$keyPreciosProductoCargaId,
                 "created_at" => now(),
                 "updated_at" => now(),
             ]);

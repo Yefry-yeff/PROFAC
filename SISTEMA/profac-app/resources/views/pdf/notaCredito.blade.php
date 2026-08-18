@@ -180,14 +180,32 @@
             <div class="card border border-dark" style="position:absolute;left:0px; margin-top:{{$altura}}px;   width:26rem; height:15rem;">
                 <div class="card-body">
 
-                    <p class="card-text" style="position:absolute;left:10px;  top:2px; font-size:14px;"><b>Vendedor: </b>
-                        {{$cai->name}} </p>
+                    <div style="position:absolute;left:10px;top:8px;width:390px;font-size:14px;line-height:16px;">
+                        <b>Vendedor: </b>{{ $cai->name }}
+                    </div>
 
+                    @if(!empty($movimientosCredito))
+                        <div style="position:absolute;left:10px;top:36px;width:390px;font-size:10px;line-height:14px;">
+                            <div style="font-weight:bold;margin-bottom:3px;">Aplicación del crédito:</div>
+                            @foreach($movimientosCredito as $movimiento)
+                                <div style="margin:0 0 2px 0;">
+                                    @if($movimiento->tipo === 'aplicacion')
+                                        Aplicado a factura {{ $movimiento->factura }}: L. {{ number_format((float) $movimiento->monto, 2) }}
+                                    @else
+                                        Reembolso {{ strtolower($movimiento->metodo_reembolso ?: 'registrado') }}: L. {{ number_format((float) $movimiento->monto, 2) }}
+                                    @endif
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
+
+                    <div style="position:absolute;left:10px;top:210px;font-size:10px;line-height:12px;">
                         @if($cai->estado_factura==1)
-                        <span style = "font-size: 10px">N{{ $cai->numero_factura }}-CF11</span></p>
+                            N{{ $cai->numero_factura }}-CF11
                         @else
-                        <span style = "font-size: 10px">N{{ $cai->numero_factura }}-CF12</span></p>
+                            N{{ $cai->numero_factura }}-CF12
                         @endif
+                    </div>
 
                     @if($flagCentavos == false)
                     <p class="card-text" style="position:absolute;left:35px;  top:240px; font-size:12px;">"{{$numeroLetras." CON CERO CENTAVOS"}}"</p>

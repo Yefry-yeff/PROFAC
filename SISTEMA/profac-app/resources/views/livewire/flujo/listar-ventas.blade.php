@@ -140,7 +140,7 @@
         <small style="color:#78909c; line-height:28px;">
             <i class="fa fa-list mr-1"></i> {{ $ofrTotal }} registro(s)
         </small>
-        @if(!$esAdmin)
+        @if(!$puedeVerTodoHistorial)
             <small style="color:#78909c; line-height:28px;">
                 <i class="fa fa-user mr-1"></i> Solo tus registros
             </small>

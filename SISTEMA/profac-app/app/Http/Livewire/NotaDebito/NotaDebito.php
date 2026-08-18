@@ -9,12 +9,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use DataTables;
 use Auth;
-
 use PDF;
 use App\Models\NotaDebito\montoNotaDebito;
 use App\Models\NotaDebito\notaDebito as mNotaDebito;
 use Luecano\NumeroALetras\NumeroALetras;
-
 use App\Models\ModelFactura;
 use App\Models\ModelCAI;
 use App\Models\ModelRecibirBodega;
@@ -30,133 +28,105 @@ use App\Http\Controllers\CAI\Notificaciones;
 class NotaDebito extends Component
 {
     public function render(){
-        $cai_nd_existencia = DB::SELECTONE("select count(id) as 'existe' from cai where cai.tipo_documento_fiscal_id = 4 and cai.estado_id = 1 and cai.cantidad_no_utilizada > 0");
-        return view('livewire.nota-debito.nota-debito', compact('cai_nd_existencia'));
+        $cai_nd_existencia = (object) ['existe' => $this->caiDebitoDisponible() ? 1 : 0];
+        return view('livewire.nota-debito.nota-debito-moderno', compact('cai_nd_existencia'));
     }
 
-    public function listarFacturas(){
-
+    public function listarFacturas(Request $request){
         try {
+            $notasActivas = DB::table('notadebito')
+                ->select('factura_id', DB::raw('COUNT(*) as total'))
+                ->where('estado_id', 1)
+                ->groupBy('factura_id');
 
-            $listaFacturas = DB::SELECT("
-            select
-            factura.id as id,
-            @i := @i + 1 as contador,
-            numero_factura,
-            factura.cai,
-            factura.cai as correlativo,
-            fecha_emision,
-            cliente.nombre,
-            tipo_pago_venta.descripcion,
-            fecha_vencimiento,
-            FORMAT(sub_total,2) as sub_total,
-            FORMAT(isv,2) as isv,
-            FORMAT(total,2) as total,
-            factura.credito,
-            users.name as creado_por,
-            factura.pendiente_cobro as monto_pagado,
-            factura.estado_venta_id
+            $listaFacturas = DB::table('factura as f')
+                ->join('cliente as c', 'f.cliente_id', '=', 'c.id')
+                ->join('tipo_pago_venta as tp', 'f.tipo_pago_id', '=', 'tp.id')
+                ->join('users as u', 'f.vendedor', '=', 'u.id')
+                ->leftJoinSub($notasActivas, 'nd', 'nd.factura_id', '=', 'f.id')
+                ->select([
+                    'f.id', 'f.numero_factura', 'f.cai', 'f.fecha_emision',
+                    'c.nombre', 'tp.descripcion', 'f.fecha_vencimiento',
+                    'f.credito', 'u.name as creado_por', 'f.pendiente_cobro as monto_pagado',
+                    'f.estado_venta_id', DB::raw('COALESCE(nd.total, 0) as notas_activas'),
+                    DB::raw('FORMAT(f.sub_total, 2) as sub_total'),
+                    DB::raw('FORMAT(f.isv, 2) as isv'),
+                    DB::raw('FORMAT(f.total, 2) as total'),
+                ])
+                ->when($request->filled('fecha_desde'), fn ($query) => $query->whereDate('f.fecha_emision', '>=', $request->fecha_desde))
+                ->when($request->filled('fecha_hasta'), fn ($query) => $query->whereDate('f.fecha_emision', '<=', $request->fecha_hasta))
+                ->when($request->filled('factura'), function ($query) use ($request) {
+                    $buscar = trim($request->factura);
+                    $query->where(function ($filtro) use ($buscar) {
+                        $filtro->where('f.cai', 'like', "%{$buscar}%")
+                            ->orWhere('f.numero_factura', 'like', "%{$buscar}%");
+                    });
+                })
+                ->when($request->filled('cliente'), function ($query) use ($request) {
+                    $query->where(function ($filtro) use ($request) {
+                        $filtro->where('c.nombre', $request->cliente)
+                            ->orWhere('f.nombre_cliente', $request->cliente);
+                    });
+                })
+                ->when($request->filled('vendedor'), fn ($query) => $query->where('u.name', $request->vendedor))
+                ->when($request->estado_nota === 'asignada', fn ($query) => $query->whereRaw('COALESCE(nd.total, 0) > 0'))
+                ->when($request->estado_nota === 'sin_asignar', fn ($query) => $query->whereRaw('COALESCE(nd.total, 0) = 0'))
+                ->when($request->estado_cobro === 'pendiente', fn ($query) => $query->where('f.pendiente_cobro', '<>', 0))
+                ->when($request->estado_cobro === 'completo', fn ($query) => $query->where('f.pendiente_cobro', 0))
+                ->orderByDesc('f.created_at');
 
-            from factura
-            inner join cliente
-            on factura.cliente_id = cliente.id
-            inner join tipo_pago_venta
-            on factura.tipo_pago_id = tipo_pago_venta.id
-            inner join users
-            on factura.vendedor = users.id
-
-            cross join (select @i := 0) r
-            where factura.fecha_emision > DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
-            order by factura.created_at desc
-            ");
-
-
-
-
-
+            $montoDebito = DB::table('montonotadebito')->where('estado_id', 1)->first(['id', 'monto']);
+            $caiDisponible = $this->caiDebitoDisponible();
 
             return Datatables::of($listaFacturas)
-            ->addColumn('opciones', function ($listaFacturas) {
-
-                $existencianDebito = DB::SELECTONE("select COUNT(factura_id) as 'existe' from notadebito
-                where notadebito.factura_id = ".$listaFacturas->id." and notadebito.estado_id = 1");
-
-
-                    if ($existencianDebito->existe == 0) {
-
-                        $montoDebito = DB::SELECTONE("select monto, id from montonotadebito where estado_id = 1");
-
-                        return
-
-                        '<div class="btn-group">
-                            <button data-toggle="dropdown" class="btn btn-warning dropdown-toggle" aria-expanded="false">Ver
-                                más</button>
-                            <ul class="dropdown-menu" x-placement="bottom-start" style="position: absolute; top: 33px; left: 0px; will-change: top, left;">
-
-                                <li>
-                                    <a class="dropdown-item" onclick="llenadoModalDebito('.$listaFacturas->id.', '.$montoDebito->monto.', '.$montoDebito->id.')" > <i class="fa-solid fa-arrows-to-eye text-info"></i> Asignar Noda Débito </a>
-                                </li>
-
-                            </ul>
-                        </div>';
-                    }else{
-                        return
-
-                        '<div class="btn-group">
-                            <button data-toggle="dropdown" class="btn btn-warning dropdown-toggle" aria-expanded="false">Ver
-                                más</button>
-                            <ul class="dropdown-menu" x-placement="bottom-start" style="position: absolute; top: 33px; left: 0px; will-change: top, left;">
-
-                                <li>
-                                    <a class="dropdown-item" href="/debito/imprimir/'.$listaFacturas->id.'" > <i class="fa-solid fa-arrows-to-eye text-info"></i> Imprimir Nota Débito </a>
-                                </li>
-
-                            </ul>
-                        </div>';
-                    }
-
-            })
-            ->addColumn('estado_cobro', function ($listaFacturas) {
-
-
-                //if( round($listaFacturas->monto_pagado,2) >= str_replace(",","",$listaFacturas->total) ){
-
-                    if( $listaFacturas->monto_pagado != 0) {
-
-                    return
-                    '
-                    <p class="text-center"><span class="badge badge-danger p-2" style="font-size:0.75rem">Pendiente</span></p>
-                    ';
-
-                }else{
-                    return
-                    '
-
-                    <p class="text-center" ><span class="badge badge-primary p-2" style="font-size:0.75rem">Completo</span></p>
-                    ';
+            ->filter(function ($query) use ($request) {
+                $buscar = trim((string) $request->input('search.value', ''));
+                if ($buscar === '') {
+                    return;
                 }
 
-           })
-           ->addColumn('estado_ndebito', function ($listaFacturas) {
+                $termino = "%{$buscar}%";
+                $query->where(function ($filtro) use ($termino) {
+                    $filtro->where('f.cai', 'like', $termino)
+                        ->orWhere('f.numero_factura', 'like', $termino)
+                        ->orWhere('f.fecha_emision', 'like', $termino)
+                        ->orWhere('c.nombre', 'like', $termino)
+                        ->orWhere('tp.descripcion', 'like', $termino)
+                        ->orWhere('f.fecha_vencimiento', 'like', $termino)
+                        ->orWhere('f.sub_total', 'like', $termino)
+                        ->orWhere('f.isv', 'like', $termino)
+                        ->orWhere('f.total', 'like', $termino)
+                        ->orWhere('u.name', 'like', $termino);
+                });
+            })
+            ->addColumn('opciones', function ($factura) use ($montoDebito, $caiDisponible) {
+                if ((int) $factura->notas_activas === 0) {
+                    if (!$caiDisponible) {
+                        return '<button class="btn btn-sm btn-secondary" disabled title="Configure un CAI vigente">CAI no disponible</button>';
+                    }
 
-                $existencianDebito = DB::SELECTONE("select COUNT(factura_id) as 'existe' from notadebito
-                where notadebito.factura_id = ".$listaFacturas->id." and notadebito.estado_id = 1");
-               if( $existencianDebito->existe == 0 ){
-                   return
-                   '
-                   <p class="text-center"><span class="badge badge-danger p-2" style="font-size:0.75rem">Nota Sin Asignar</span></p>
-                   ';
+                    if (!$montoDebito) {
+                        return '<button class="btn btn-sm btn-secondary" disabled title="Configure un monto activo">Sin monto activo</button>';
+                    }
 
-               }else{
+                    return '<button type="button" class="btn btn-sm btn-warning" onclick="llenadoModalDebito('
+                        . $factura->id . ', ' . (float) $montoDebito->monto . ', ' . $montoDebito->id
+                        . ')"><i class="fa fa-plus-circle mr-1"></i>Asignar</button>';
+                }
 
-                return
-                '
-
-                <p class="text-center" ><span class="badge badge-primary p-2" style="font-size:0.75rem">Nota Asignada</span></p>
-                ';
-               }
-
-          })
+                return '<a class="btn btn-sm btn-outline-warning" href="/debito/imprimir/' . $factura->id
+                    . '" target="_blank"><i class="fa fa-file-pdf-o mr-1"></i>Imprimir</a>';
+            })
+            ->addColumn('estado_cobro', function ($factura) {
+                return (float) $factura->monto_pagado !== 0.0
+                    ? '<span class="badge badge-danger p-2">Pendiente</span>'
+                    : '<span class="badge badge-success p-2">Completo</span>';
+            })
+            ->addColumn('estado_ndebito', function ($factura) {
+                return (int) $factura->notas_activas === 0
+                    ? '<span class="badge badge-warning p-2">Sin asignar</span>'
+                    : '<span class="badge badge-success p-2">Asignada</span>';
+            })
             ->rawColumns(['opciones','estado_cobro','estado_ndebito'])
             ->make(true);
 
@@ -278,7 +248,9 @@ class NotaDebito extends Component
                              if( DATE(NOW()) > fecha_limite_emision ,'TRUE','FALSE') as fecha_limite_emision,
                              cantidad_no_utilizada
                              from cai
-                             where tipo_documento_fiscal_id = 4 and estado_id = 1");
+                                      where tipo_documento_fiscal_id = 4 and estado_id = 1
+                                          and cantidad_no_utilizada > 0
+                                          and DATE(fecha_limite_emision) >= CURDATE()");
 
          } elseif($tipoCliente->tipo_cliente_id === 1) {
 
@@ -293,11 +265,55 @@ class NotaDebito extends Component
                              if( DATE(NOW()) > fecha_limite_emision ,'TRUE','FALSE') as fecha_limite_emision,
                              cantidad_no_utilizada
                              from cai
-                             where tipo_documento_fiscal_id = 4 and estado_id = 1");
+                                      where tipo_documento_fiscal_id = 4 and estado_id = 1
+                                          and cantidad_no_utilizada > 0
+                                          and DATE(fecha_limite_emision) >= CURDATE()");
          }
 
-         if ($cai->numero_actual < $cai->cantidad_otorgada) {
+            if (!$cai) {
+                return response()->json([
+                     "title" => "CAI no disponible",
+                     "icon" => "warning",
+                     "text" => "No existe un CAI vigente con correlativos disponibles para notas de débito.",
+                ], 422);
+            }
 
+            DB::beginTransaction();
+
+            $caiBloqueado = ModelCAI::whereKey($cai->id)->lockForUpdate()->first();
+            DB::table('factura')->where('id', $request->factura_id)->lockForUpdate()->first();
+
+            if (!$caiBloqueado || $caiBloqueado->cantidad_no_utilizada <= 0
+                 || date('Y-m-d', strtotime($caiBloqueado->fecha_limite_emision)) < date('Y-m-d')) {
+                DB::rollBack();
+                return response()->json([
+                     "title" => "CAI no disponible",
+                     "icon" => "warning",
+                     "text" => "El CAI ya no tiene correlativos vigentes disponibles.",
+                ], 422);
+            }
+
+            $notaActiva = DB::table('notadebito')
+                ->where('factura_id', $request->factura_id)
+                ->where('estado_id', 1)
+                ->exists();
+
+            if ($notaActiva) {
+                DB::rollBack();
+                return response()->json([
+                     'icon' => 'warning',
+                     'title' => 'Nota ya asignada',
+                     'text' => 'La factura ya tiene una nota de débito activa.',
+                ], 422);
+            }
+
+            $cai->numero_actual = $tipoCliente->tipo_cliente_id === 2
+                ? $caiBloqueado->numero_actual
+                : $caiBloqueado->serie;
+            $cai->cantidad_no_utilizada = $caiBloqueado->cantidad_no_utilizada;
+
+         if ($cai->numero_actual < $cai->cantidad_otorgada) {
+                DB::rollBack();
             return response()->json([
                 "title" => "Advertencia",
                 "icon" => "warning",
@@ -325,8 +341,6 @@ class NotaDebito extends Component
 
         $validarCAI = new Notificaciones();
         $validarCAI->validarAlertaCAI(ltrim($arrayCai[3],"0"),$numeroSecuencia, 5);
-
-        DB::beginTransaction();
 
         $NotaDebito = new mNotaDebito;
         $NotaDebito->factura_id = $request->factura_id;
@@ -381,7 +395,7 @@ class NotaDebito extends Component
         'text' => 'Nota de debito realizada con éxito.',
         'title' => 'Exito!',
        ],200);
-       } catch (QueryException $e) {
+    } catch (\Throwable $e) {
         DB::rollback();
         return response()->json([
             'icon' => 'error',
@@ -396,50 +410,47 @@ class NotaDebito extends Component
 
     }
 
-    public function listarnotasDebito(){
+    public function listarnotasDebito(Request $request){
         try {
-
-            $listanotaDebito = DB::SELECT("
-                select
-                id
-                ,factura_id
-                ,monto_asignado
-                ,fechaEmision
-                ,motivoDescripcion
-                ,cai_ndebito
-                ,numeroCai
-                ,correlativoND
-                ,(select name from users where id = notadebito.users_registra_id) as 'user'
-                ,created_at
-                from notadebito
-                where estado_id = 1
-            ");
+            $listanotaDebito = DB::table('notadebito as nd')
+                ->join('factura as f', 'f.id', '=', 'nd.factura_id')
+                ->join('cliente as c', 'c.id', '=', 'f.cliente_id')
+                ->join('users as u', 'u.id', '=', 'nd.users_registra_id')
+                ->select([
+                    'nd.id', 'nd.factura_id', 'nd.monto_asignado', 'nd.fechaEmision',
+                    'nd.motivoDescripcion', 'nd.numeroCai', 'nd.correlativoND',
+                    'nd.estado_id', 'nd.created_at', 'f.cai as factura_cai',
+                    'c.nombre as cliente', 'u.name as user',
+                ])
+                ->when($request->filled('fecha_desde'), fn ($query) => $query->whereDate('nd.fechaEmision', '>=', $request->fecha_desde))
+                ->when($request->filled('fecha_hasta'), fn ($query) => $query->whereDate('nd.fechaEmision', '<=', $request->fecha_hasta))
+                ->when($request->filled('factura'), function ($query) use ($request) {
+                    $buscar = trim($request->factura);
+                    $query->where(function ($filtro) use ($buscar) {
+                        $filtro->where('f.cai', 'like', "%{$buscar}%")
+                            ->orWhere('nd.correlativoND', 'like', "%{$buscar}%")
+                            ->orWhere('nd.numeroCai', 'like', "%{$buscar}%");
+                    });
+                })
+                ->when($request->filled('cliente'), function ($query) use ($request) {
+                    $query->where(function ($filtro) use ($request) {
+                        $filtro->where('c.nombre', $request->cliente)
+                            ->orWhere('f.nombre_cliente', $request->cliente);
+                    });
+                })
+                ->when($request->filled('usuario'), fn ($query) => $query->where('u.name', $request->usuario))
+                ->when($request->filled('estado'), fn ($query) => $query->where('nd.estado_id', (int) $request->estado))
+                ->orderByDesc('nd.id');
 
             return Datatables::of($listanotaDebito)
-            ->addColumn('estado', function ($listanotaDebito) {
-                $ESTADO = DB::SELECTONE("select estado_id from notadebito where id = ".$listanotaDebito->id);
-                if( $ESTADO->estado_id == 1){
-
-                    return
-                    '
-                    <p class="text-center" ><span class="badge badge-primary p-2" style="font-size:0.75rem">Activo</span></p>
-                    ';
-
-                }else if($ESTADO->estado_id == 2) {
-                    return
-                    '
-                    <p class="text-center"><span class="badge badge-danger p-2" style="font-size:0.75rem">Inactivo</span></p>
-                    ';
-                }
-
-           })
-           ->addColumn('file', function ($listanotaDebito) {
-
-                    return
-                    '
-                        <a class="btn btn-success" href="/debito/imprimir/'.$listanotaDebito->factura_id.'" > Ver <i class="fa-solid fa-file-pdf"></i></a>
-                    ';
-
+            ->addColumn('estado', function ($nota) {
+                return (int) $nota->estado_id === 1
+                    ? '<span class="badge badge-success p-2">Activo</span>'
+                    : '<span class="badge badge-danger p-2">Anulado</span>';
+            })
+            ->addColumn('file', function ($nota) {
+                return '<a class="btn btn-sm btn-outline-warning" target="_blank" href="/debito/imprimir/'
+                    . $nota->factura_id . '"><i class="fa fa-file-pdf-o mr-1"></i>Ver</a>';
             })
             ->rawColumns(['estado','file'])
             ->make(true);
@@ -469,7 +480,9 @@ class NotaDebito extends Component
                     ,created_at
                     ,estado_id
                 from notadebito
-                where notadebito.estado_id = 1 and notadebito.factura_id = ".$idFactura
+                where notadebito.factura_id = ".$idFactura."
+                order by notadebito.id desc
+                limit 1"
             );
 
             $cai = DB::SELECTONE("select
@@ -498,7 +511,7 @@ class NotaDebito extends Component
             $montoConCentavos= DB::SELECTONE("
             select
                 FORMAT(monto_asignado,2) as total
-            from notadebito where factura_id = ".$idFactura);
+            from notadebito where id = ".$notaDebito->id);
 
             $pdf = PDF::loadView('/pdf/nodaDeDebito', compact('numeroLetras','notaDebito', 'cliente', 'cai', 'montoConCentavos'))->setPaper('letter');
 
@@ -521,7 +534,9 @@ class NotaDebito extends Component
                 ,created_at
                 ,estado_id
             from notadebito
-            where notadebito.factura_id = ".$idFactura
+            where notadebito.factura_id = ".$idFactura."
+            order by notadebito.id desc
+            limit 1"
         );
 
         $cai = DB::SELECTONE("select
@@ -549,7 +564,7 @@ class NotaDebito extends Component
         $montoConCentavos= DB::SELECTONE("
         select
             FORMAT(monto_asignado,2) as total
-        from notadebito where factura_id = ".$idFactura);
+        from notadebito where id = ".$notaDebito->id);
 
         $pdf = PDF::loadView('/pdf/nodaDeDebito_copia', compact('numeroLetras','notaDebito', 'cliente', 'cai', 'montoConCentavos'))->setPaper('letter');
 
@@ -583,5 +598,15 @@ class NotaDebito extends Component
                 "error" => $e
             ],402);
         }
+    }
+
+    private function caiDebitoDisponible(): bool
+    {
+        return DB::table('cai')
+            ->where('tipo_documento_fiscal_id', 4)
+            ->where('estado_id', 1)
+            ->where('cantidad_no_utilizada', '>', 0)
+            ->whereDate('fecha_limite_emision', '>=', now()->toDateString())
+            ->exists();
     }
 }

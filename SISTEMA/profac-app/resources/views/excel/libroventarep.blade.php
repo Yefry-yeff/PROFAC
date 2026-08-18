@@ -17,11 +17,11 @@
                 <th>FACTURA</th>
                 <th>EXONERADO</th>
                 <th>GRAVADO</th>
-                <th>EXCENTO</th>
+                <th>EXENTO</th>
                 <th>SUBTOTAL</th>
                 <th>ISV</th>
                 <th>TOTAL</th>
-                <th>FECHA COMPRA</th>
+                <th>FECHA VENTA</th>
             </tr>
         </thead>
         <tbody>
@@ -32,11 +32,11 @@
                 <td>{{ $row['FACTURA'] }}</td>
                 <td>{{ number_format((float) $row['EXONERADO'], 2, '.', '') }}</td>
                 <td>{{ number_format((float) $row['GRAVADO'], 2, '.', '') }}</td>
-                <td>{{ number_format((float) $row['EXCENTO'], 2, '.', '') }}</td>
+                <td>{{ number_format((float) $row['EXENTO'], 2, '.', '') }}</td>
                 <td>{{ number_format((float) $row['SUBTOTAL'], 2, '.', '') }}</td>
                 <td>{{ number_format((float) $row['ISV'], 2, '.', '') }}</td>
                 <td>{{ number_format((float) $row['TOTAL'], 2, '.', '') }}</td>
-                <td>{{ $row['FECHA COMPRA'] }}</td>
+                <td>{{ $row['FECHA VENTA'] }}</td>
             </tr>
             @endforeach
         </tbody>

@@ -154,8 +154,16 @@ class CrearVale extends Component
             where A.factura_id = " . $request->idFactura . " and A.producto_id = " . $request->idProducto . " and A.seccion_id=" . $request->idSeccion
             );
 
-            $bodega = DB::SELECTONE(
-                "
+            // Cuando seccion_id = 0 (vales tipo lista de espera) no existe sección real
+            if ((int) $request->idSeccion === 0) {
+                $bodega = (object) [
+                    'idSeccion' => 0,
+                    'bodega'    => 'Sin Sección',
+                    'idBodega'  => 0,
+                ];
+            } else {
+                $bodega = DB::SELECTONE(
+                    "
         select
             B.id as idSeccion,
             concat(D.nombre,'-',B.descripcion ) as bodega,
@@ -168,7 +176,8 @@ class CrearVale extends Component
             inner join bodega D
             on D.id = C.bodega_id
             where A.factura_id = " . $request->idFactura . " and A.producto_id = " . $request->idProducto . " and A.seccion_id=" . $request->idSeccion
-            );
+                );
+            }
 
 
             return response()->json([
@@ -515,32 +524,26 @@ class CrearVale extends Component
     public function anularVale(Request $request)
     {
         try {
-
             $idVale = $request->idVale;
-
             DB::beginTransaction();
 
+            $vale = ModelVale::where('id', $idVale)
+                ->lockForUpdate()
+                ->first();
 
-            $lotes = DB::SELECT(
-                "
-        select
-            factura_id,
-            vale_id,
-            lote_id,
-            unidad_medida_venta_id,
-            resta_inventario_unidades,
-            estado_id
+            if (!$vale) {
+                DB::rollBack();
 
-        from vale_has_producto
-            inner join vale on
-            vale.id = vale_has_producto.vale_id
-            where estado_id <> 1 and vale_id = " . $idVale
-            );
+                return response()->json([
+                    'icon' => 'warning',
+                    'text' => 'El vale indicado no existe.',
+                    'title' => 'Acción no permitida!',
+                ], 404);
+            }
 
-           // dd($lotes);
-           $numeroDeRegistros = count($lotes);
+            if ((int) $vale->estado_id !== 1) {
+                DB::rollBack();
 
-            if ($numeroDeRegistros > 0) {
                 return response()->json([
                     'icon' => 'warning',
                     'text' => 'Este vale ya fue anulado!',
@@ -548,9 +551,17 @@ class CrearVale extends Component
                 ], 200);
             }
 
+            $lotes = DB::table('vale_has_producto')
+                ->join('vale', 'vale.id', '=', 'vale_has_producto.vale_id')
+                ->where('vale_has_producto.vale_id', $idVale)
+                ->get([
+                    'vale.factura_id',
+                    'vale_has_producto.vale_id',
+                    'vale_has_producto.lote_id',
+                    'vale_has_producto.unidad_medida_venta_id',
+                    'vale_has_producto.resta_inventario_unidades',
+                ]);
 
-
-            $vale = ModelVale::find($idVale);
             $vale->comentario_anular = $request->motivo;
             $vale->estado_id = 2;
             $vale->save();

@@ -38,6 +38,8 @@
     .modal-header-lc .modal-title { color:#fff; font-size:.95rem; font-weight:700; }
     .modal-header-lc .close { color:#fff; opacity:.8; text-shadow:none; font-size:1.4rem; }
     .modal-header-lc .close:hover { opacity:1; }
+    .select2-container--open { z-index: 99999 !important; }
+    .select2-dropdown { z-index: 99999 !important; }
     .lc-section-label { font-size:.68rem; font-weight:700; letter-spacing:.07em; text-transform:uppercase;
         color:#e67e22; border-bottom:2px solid #fdebd0; padding-bottom:5px; margin-bottom:14px; margin-top:6px;
         display:flex; align-items:center; gap:5px; }
@@ -58,8 +60,8 @@
     #tbl_libro_cobros tbody tr.lc-row-pagada td:nth-child(n+10) { background:#f0fdf4!important; }
     #tbl_libro_cobros tbody tr.lc-row-parcial td:nth-child(n+10) { background:#fafafa; }
     /* Separador visual entre datos del cobro y detalle de factura */
-    #tbl_libro_cobros thead th:nth-child(10),
-    #tbl_libro_cobros tbody td:nth-child(10) { border-left:3px solid #f2d49a!important; }
+    #tbl_libro_cobros thead th:nth-child(13),
+    #tbl_libro_cobros tbody td:nth-child(13) { border-left:3px solid #f2d49a!important; }
     </style>
     @endpush
 
@@ -125,11 +127,14 @@
                                 <thead>
                                     <tr>
                                         {{-- Datos del cobro --}}
+                                        <th>Fecha Venta</th>
+                                        <th>Fecha Vcto.</th>
                                         <th>Fecha Pago</th>
                                         <th>Cliente</th>
-                                        <th>Vendedor</th>
+                                        <th>Asesor Comercial</th>
+                                        <th>Teleasesor</th>
                                         <th>N&deg; Factura</th>
-                                        <th>Monto Cobrado</th>
+                                        <th>Monto Movimiento</th>
                                         <th>Estado</th>
                                         <th>Banco</th>
                                         <th>Cuenta</th>
@@ -169,20 +174,12 @@
                 <div class="modal-body pb-2">
                     <p class="lc-section-label"><i class="fa fa-calendar"></i>Rango de fechas de pago</p>
                     <div class="lc-filter-grid">
-                        {{-- Accesos rápidos --}}
-                        <div class="lc-date-shortcuts">
-                            <button type="button" class="lc-ds-btn" onclick="lcSetFechas('hoy')">Hoy</button>
-                            <button type="button" class="lc-ds-btn" onclick="lcSetFechas('semana')">Esta semana</button>
-                            <button type="button" class="lc-ds-btn" onclick="lcSetFechas('mes')">Este mes</button>
-                            <button type="button" class="lc-ds-btn" onclick="lcSetFechas('mes_ant')">Mes anterior</button>
-                            <button type="button" class="lc-ds-btn" onclick="lcSetFechas('trim')">Trimestre</button>
-                        </div>
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label>Desde</label>
                                     <div class="date-icon-lc"><i class="fa fa-calendar-o"></i>
-                                        <input type="date" class="form-control form-control-sm" id="lc_fecha_inicio">
+                                        <input type="date" class="form-control form-control-sm" id="fil_lc_fecha_desde">
                                     </div>
                                 </div>
                             </div>
@@ -190,19 +187,19 @@
                                 <div class="form-group">
                                     <label>Hasta</label>
                                     <div class="date-icon-lc"><i class="fa fa-calendar-o"></i>
-                                        <input type="date" class="form-control form-control-sm" id="lc_fecha_final">
+                                        <input type="date" class="form-control form-control-sm" id="fil_lc_fecha_hasta">
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    <p class="lc-section-label"><i class="fa fa-search"></i>Criterios de b&uacute;squeda</p>
+                    <p class="lc-section-label"><i class="fa fa-search"></i>Criterios de búsqueda</p>
                     <div class="lc-filter-grid">
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label>Cliente</label>
-                                    <select id="lc_cliente" class="form-control" style="width:100%;">
+                                    <select id="fil_lc_cliente" class="form-control" style="width:100%;">
                                         <option value="">&mdash; Todos &mdash;</option>
                                         @foreach($clientes as $cl)
                                             <option value="{{ $cl->id }}">{{ $cl->nombre }}</option>
@@ -212,8 +209,8 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label>Vendedor</label>
-                                    <select id="lc_vendedor" class="form-control" style="width:100%;">
+                                    <label>Asesor Comercial</label>
+                                    <select id="fil_lc_vendedor" class="form-control" style="width:100%;">
                                         <option value="">&mdash; Todos &mdash;</option>
                                         @foreach($vendedores as $v)
                                             <option value="{{ $v->id }}">{{ $v->name }}</option>
@@ -224,7 +221,7 @@
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label>Banco</label>
-                                    <select id="lc_banco" class="form-control form-control-sm" style="width:100%;">
+                                    <select id="fil_lc_banco" class="form-control form-control-sm" style="width:100%;">
                                         <option value="">&mdash; Todos &mdash;</option>
                                         @foreach($bancos as $b)
                                             <option value="{{ $b->id }}">{{ $b->nombre }}</option>
@@ -234,8 +231,8 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label>N&ordm; Factura</label>
-                                    <input type="text" class="form-control form-control-sm" id="lc_factura"
+                                    <label>N° Factura</label>
+                                    <input type="text" class="form-control form-control-sm" id="fil_lc_factura"
                                            placeholder="Ej: 2026-00123">
                                 </div>
                             </div>
@@ -243,10 +240,10 @@
                     </div>
                 </div>
                 <div class="modal-footer py-2">
-                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="lcLimpiarFiltros()">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="limpiarFiltrosLC()">
                         <i class="fa fa-eraser mr-1"></i>Limpiar
                     </button>
-                    <button type="button" class="btn btn-sm" onclick="lcBuscar()"
+                    <button type="button" class="btn btn-sm" id="btn_buscar_lc" onclick="aplicarFiltrosLC()"
                         style="background:linear-gradient(135deg,#f39c12,#e05a00);color:#fff;border:none;font-weight:600;padding:6px 20px;border-radius:5px;">
                         <i class="fa fa-search mr-1"></i>Buscar
                     </button>
@@ -257,15 +254,8 @@
 
     @push('scripts')
     <script src="//cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/pdfmake.min.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/vfs_fonts.js"></script>
     <script src="{{ asset('/js/js_proyecto/reportes/librocobrosrep.js') }}"></script>
     @endpush
 </div>
-    </div>
-</div>
-
-@push('scripts')
-<script src="//cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
-<script src="//cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/pdfmake.min.js"></script>
-<script src="//cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/vfs_fonts.js"></script>
-<script src="{{ asset('/js/js_proyecto/reportes/librocobrosrep.js') }}"></script>
-@endpush

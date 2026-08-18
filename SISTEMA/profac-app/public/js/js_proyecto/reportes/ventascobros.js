@@ -8,6 +8,8 @@
  * ──────────────────────────────────────────────────────────────────── */
 var rfdTable = null;
 var rfdOpenRows = {};   // { facturaId: DataTable row object }
+var rfdActoresRequest = 0;
+var rfdActoresTimer = null;
 
 /* ────────────────────────────────────────────────────────────────────
  *  Lectura de filtros
@@ -17,6 +19,7 @@ function getFiltros() {
         cliente:          $('#fil_cliente').val()          || '',
         factura:          $('#fil_factura').val()          || '',
         vendedor:         $('#fil_vendedor').val()         || '',
+        teleasesor:       $('#fil_teleasesor').val()       || '',
         modo_pago:        $('#fil_modo_pago').val()        || '',
         estado_f01:       $('#fil_estado_f01').val()       || '',
         fecha_desde:      $('#fil_fecha_desde').val()      || '',
@@ -40,11 +43,13 @@ function buildQueryString(f) {
  * ──────────────────────────────────────────────────────────────────── */
 function fmtLps(v) {
     var n = parseFloat(v) || 0;
+    if (Math.abs(n) < 0.005) n = 0;
     return 'L ' + n.toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 function fmtLpsAbs(v) { return fmtLps(Math.abs(parseFloat(v) || 0)); }
 function fmtLpsSaldo(v) {
     var n = parseFloat(v) || 0;
+    if (Math.abs(n) < 0.005) n = 0;
     if (n <= 0.01) return '<span style="color:#0e9f6e;font-weight:800;">' + fmtLps(0) + '</span>';
     return '<span style="color:#e02424;font-weight:800;">' + fmtLps(n) + '</span>';
 }
@@ -59,11 +64,17 @@ function escHtml(s) {
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+function esFacturaAnulada(row) {
+    var estadoF01 = String((row && row.estado_f01) || '').toUpperCase();
+    return estadoF01.indexOf('ANULAD') === 0 || String((row && row.estado_cobro_v2) || '') === 'Anuladas';
+}
+
 /* ────────────────────────────────────────────────────────────────────
  *  Badges de estado
  * ──────────────────────────────────────────────────────────────────── */
 function renderBadgeEstado(v) {
     var map = {
+        'Anuladas':            ['badge-anulado',      'fa-ban',           'Anuladas'],
         'Pagada':               ['badge-pagada',      'fa-check-circle',  'Pagada'],
         'Contado':              ['badge-contado',      'fa-money',         'Contado'],
         'Parcialmente Pagada':  ['badge-parcial',      'fa-adjust',        'Parcial'],
@@ -110,24 +121,37 @@ function cargarTabla() {
             { data: 'numero_secuencia_cai', render: function(d) { return '<strong>' + escHtml(d) + '</strong>'; } },
             /* 2 – cliente */
             { data: 'cliente' },
-            /* 3 – vendedor */
-            { data: 'vendedor' },
-            /* 4 – fecha venta */
-            { data: 'fecha_venta', render: function(d) { return fmtFecha(d); } },
-            /* 5 – modo pago */
+            /* 3 – asesor comercial */
+            { data: 'asesor_comercial' },
+            /* 4 – teleasesor */
+            { data: 'teleasesor' },
+            /* 5 – fecha venta */
+            { data: 'fecha_venta', render: function(d, type, row) { return esFacturaAnulada(row) ? '' : fmtFecha(d); } },
+            /* 6 – modo pago */
             { data: 'modo_pago' },
-            /* 6 – total */
-            { data: 'total', className: 'text-right', render: function(d) { return fmtLps(d); } },
-            /* 7 – monto pagado */
+            /* 7 – total */
+            { data: 'total', className: 'text-right', render: function(d, type, row) { return esFacturaAnulada(row) ? '' : fmtLps(d); } },
+            /* 8 – monto pagado */
             { data: 'monto_pagado', className: 'text-right', render: function(d) { return fmtLps(d); } },
-            /* 8 – saldo */
-            { data: 'saldo_pendiente', className: 'text-right', render: function(d) { return fmtLpsSaldo(d); } },
-            /* 9 – estado */
+            /* 9 – saldo */
+            { data: 'saldo_pendiente', className: 'text-right', render: function(d, type, row) { return esFacturaAnulada(row) ? '' : fmtLpsSaldo(d); } },
+            /* 10 – falta retencion */
+            {
+                data: null, className: 'text-center', orderable: false, searchable: false,
+                render: function(d, type, row) {
+                    if (esFacturaAnulada(row)) return '';
+                    var saldo = Math.round((parseFloat(row.saldo_pendiente) || 0) * 100);
+                    var isv = Math.round((parseFloat(row.isv) || 0) * 100);
+                    return saldo > 0 && isv > 0 && saldo === isv ? '<strong>X</strong>' : '';
+                }
+            },
+            /* 11 – estado */
             { data: 'estado_cobro_v2', render: function(d) { return renderBadgeEstado(d); } },
-            /* 10 – dias vencidos */
+            /* 12 – dias vencidos */
             {
                 data: 'dias_vencidos', className: 'text-center',
                 render: function(d, type, row) {
+                    if (esFacturaAnulada(row)) return '';
                     if (d === null || d === undefined) return '<span style="color:#9ca3af;">—</span>';
                     var n = parseInt(d, 10);
                     if (isNaN(n) || n <= 0) return '<span style="color:#9ca3af;">—</span>';
@@ -136,7 +160,7 @@ function cargarTabla() {
                 }
             }
         ],
-        order: [[1, 'asc']],
+        order: [[1, 'desc']],
         pageLength: 25,
         dom: '<"row"<"col-sm-6"l><"col-sm-6"f>>rt<"row"<"col-sm-5"i><"col-sm-7"p>>',
         initComplete: function() {
@@ -163,12 +187,14 @@ function cargarKpis() {
             var k = resp.kpis;
             $('#kpi_facturado').text(fmtLps(k.total_facturado));
             $('#kpi_cobrado').text(fmtLps(k.total_cobrado));
-            $('#kpi_pendiente').text(fmtLps(k.total_pendiente));
-            $('#kpi_vencido').text(fmtLps(k.total_vencido));
+            $('#kpi_pendiente').text(fmtLps(k.total_aumento_factura));
+            $('#kpi_vencido').text(fmtLps(k.total_disminucion_factura));
+            $('#kpi_saldo_pendiente').text(fmtLps(k.total_pendiente));
             $('#kpi_total_facturas').text(k.total_facturas + ' facturas');
             $('#kpi_fac_pagadas').text(k.facturas_pagadas + ' pagadas');
             $('#kpi_fac_pendientes').text(k.facturas_pendientes + ' pendientes');
-            $('#kpi_fac_vencidas').text(k.facturas_vencidas + ' vencidas');
+            $('#kpi_sub_aumento').text('');
+            $('#kpi_sub_disminucion').text('');
         }
     });
 }
@@ -220,6 +246,7 @@ $(document).on('click', '.rfd-toggle-btn', function() {
 function renderExpediente(resp) {
     var c  = resp.cabecera;
     var ms = resp.movimientos;
+    var esAnulada = esFacturaAnulada(c);
 
     var saldoClass = parseFloat(c.total_factura) <= 0.01 ? '' :
                      (parseFloat(resp.saldo_final) <= 0.01 ? 'saldo-0' : (parseFloat(c.dias_vencidos) > 0 ? 'saldo-venc' : ''));
@@ -230,12 +257,23 @@ function renderExpediente(resp) {
     html += '<h4><i class="fa fa-folder-open-o" style="margin-right:8px;"></i>Expediente Financiero — ' + escHtml(c.numero_secuencia_cai) + '</h4>';
     html += '<div class="rfd-exp-meta-grid">';
     html += metaItem('Cliente',        c.cliente);
-    html += metaItem('Vendedor',       c.vendedor);
-    html += metaItem('Fecha Emisión',  fmtFecha(c.fecha_venta));
-    html += metaItem('Vencimiento',    fmtFecha(c.fecha_vencimiento));
+    html += metaItem('Asesor Comercial', c.asesor_comercial);
+    html += metaItem('Teleasesor',       c.teleasesor);
+    html += metaItem('Fecha Emisión',  esAnulada ? '' : fmtFecha(c.fecha_venta));
+    html += metaItem('Vencimiento',    esAnulada ? '' : fmtFecha(c.fecha_vencimiento));
     html += metaItem('Días Crédito',   c.credito == 0 ? 'Contado' : (c.dias_credito + ' días'));
     html += metaItem('Modo Pago',      c.modo_pago);
-    html += metaItem('Estado F-01',    c.estado_f01);
+    html += '<div class="rfd-meta-item">'
+          + '<div class="rfd-meta-lbl">ESTADO F-01</div>'
+          + '<div class="rfd-meta-val" style="display:flex;align-items:center;gap:6px;">'
+          + '<span id="rfd-f01-val-' + c.factura_id + '">' + escHtml(c.flujo_forma_f01 || 'N/A') + '</span>'
+          + (c.tiene_flujo
+              ? ' <button onclick="rfdEditarF01(' + c.factura_id + ', this)" '
+                + 'style="background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.5);color:#fff;'
+                + 'border-radius:4px;padding:1px 7px;font-size:11px;cursor:pointer;" title="Editar F-01">'
+                + '<i class="fa fa-pencil"></i></button>'
+              : ' <span style="font-size:10px;opacity:.65;cursor:help;" title="Esta factura no tiene flujo asociado — no se puede editar"><i class="fa fa-lock"></i></span>')
+          + '</div></div>';
     html += metaItem('Orden Compra',   c.orden_compra || '—');
     html += metaItem('Fecha Entrega',  c.fecha_entrega ? fmtFecha(c.fecha_entrega) : 'Sin entrega');
     html += '</div></div>';
@@ -245,20 +283,52 @@ function renderExpediente(resp) {
 
     /* Montos fiscales */
     html += '<div class="rfd-fin-box"><h5><i class="fa fa-calculator" style="margin-right:5px;"></i>Montos Fiscales</h5>';
-    html += finRow('Gravado',    fmtLps(c.gravado));
-    html += finRow('Exento',     fmtLps(c.exento));
-    html += finRow('Exonerado',  fmtLps(c.exonerado));
-    html += finRow('Sub-Total',  fmtLps(c.sub_total));
-    html += finRow('ISV (15%)',  fmtLps(c.isv));
-    html += '<div class="rfd-fin-row total"><span class="lbl">TOTAL FACTURA</span><span class="val">' + fmtLps(c.total_factura) + '</span></div>';
+    html += finRow('Gravado',    esAnulada ? '' : fmtLps(c.gravado));
+    html += finRow('Exento',     esAnulada ? '' : fmtLps(c.exento));
+    html += finRow('Exonerado',  esAnulada ? '' : fmtLps(c.exonerado));
+    html += finRow('Sub-Total',  esAnulada ? '' : fmtLps(c.sub_total));
+    html += finRow('ISV (15%)',  esAnulada ? '' : fmtLps(c.isv));
+    html += '<div class="rfd-fin-row total"><span class="lbl">TOTAL FACTURA</span><span class="val">' + (esAnulada ? '' : fmtLps(c.total_factura)) + '</span></div>';
     html += '</div>';
 
     /* Estado financiero */
+    var totalAbonos      = 0;
+    var totalNotasDebito = 0;
+    var totalNotasCredito= 0;
+    var totalContrapartidasNotaCredito = 0;
+    var totalRetencion   = 0;
+    $.each(ms, function(i, mov) {
+        var monto = parseFloat(mov.monto) || 0;
+        if (mov.tipo === 'ABONO' || mov.tipo === 'PAGO') totalAbonos      += monto;
+        if (mov.tipo === 'NOTA_DEBITO')                  totalNotasDebito += monto;
+        if (mov.tipo === 'NOTA_CREDITO' || mov.tipo === 'NOTA_CREDITO_EMISION') totalNotasCredito += monto;
+        if (mov.tipo === 'NOTA_CREDITO_APLICACION' || mov.tipo === 'NOTA_CREDITO_REEMBOLSO') totalContrapartidasNotaCredito += monto;
+        if (mov.tipo === 'RETENCION')                    totalRetencion   += monto;
+    });
+
     html += '<div class="rfd-fin-box"><h5><i class="fa fa-line-chart" style="margin-right:5px;"></i>Estado Financiero Actual</h5>';
-    html += finRow('Total Facturado', fmtLps(c.total_factura));
-    html += finRow('Total Abonado / Pagado', fmtLps(parseFloat(c.total_factura) - parseFloat(resp.saldo_final)));
-    html += '<div class="rfd-fin-row ' + saldoClass + '"><span class="lbl">Saldo Pendiente</span><span class="val">' + fmtLps(resp.saldo_final) + '</span></div>';
+    html += '<div class="rfd-fin-row"><span class="lbl">Total Facturado</span><span class="val" style="color:#111827;font-weight:600;">' + (esAnulada ? '' : fmtLps(c.total_factura)) + '</span></div>';
+    if (!esAnulada && totalNotasDebito > 0) {
+        html += '<div class="rfd-fin-row"><span class="lbl" style="padding-left:12px;color:#6b7280;">↳ Notas de Débito</span><span class="val" style="color:#b45309;font-weight:600;">+ ' + fmtLps(totalNotasDebito) + '</span></div>';
+    }
+    if (!esAnulada && totalNotasCredito > 0) {
+        html += '<div class="rfd-fin-row"><span class="lbl" style="padding-left:12px;color:#6b7280;">↳ Notas de Crédito</span><span class="val" style="color:#e02424;font-weight:600;">- ' + fmtLps(totalNotasCredito) + '</span></div>';
+    }
+    if (!esAnulada && totalContrapartidasNotaCredito > 0) {
+        html += '<div class="rfd-fin-row"><span class="lbl" style="padding-left:12px;color:#6b7280;">↳ Aplicaciones / Reembolsos</span><span class="val" style="color:#0e9f6e;font-weight:600;">+ ' + fmtLps(totalContrapartidasNotaCredito) + '</span></div>';
+    }
+    if (!esAnulada && totalRetencion > 0) {
+        html += '<div class="rfd-fin-row"><span class="lbl" style="padding-left:12px;color:#6b7280;">↳ Retención ISV</span><span class="val" style="color:#0369a1;font-weight:600;">- ' + fmtLps(totalRetencion) + '</span></div>';
+    }
+    html += '<div class="rfd-fin-row"><span class="lbl">Total Abonado / Pagado</span><span class="val" style="color:#0e9f6e;font-weight:600;">' + fmtLps(totalAbonos) + '</span></div>';
+    var saldoCalculado = (parseFloat(c.total_factura) || 0) + totalNotasDebito + totalContrapartidasNotaCredito - totalNotasCredito - totalRetencion - totalAbonos;
+    if (Math.abs(saldoCalculado) < 0.005 || saldoCalculado < 0) saldoCalculado = 0;
+    var saldoClassCalc = saldoCalculado <= 0.01 ? 'saldo-0' : (parseInt(c.dias_vencidos) > 0 ? 'saldo-venc' : '');
+    html += '<div class="rfd-fin-row ' + saldoClassCalc + '"><span class="lbl">Saldo Pendiente</span><span class="val">' + (esAnulada ? '' : fmtLps(saldoCalculado)) + '</span></div>';
     html += finRow('D\u00edas Vencidos',
+        esAnulada
+            ? ''
+            :
         (parseInt(c.dias_vencidos) > 0)
             ? '<span style="color:#e02424;font-weight:700;">' + c.dias_vencidos + ' d\u00edas</span>'
             : '<span style="color:#0e9f6e;font-weight:600;">Al d\u00eda</span>');
@@ -279,7 +349,10 @@ function renderExpediente(resp) {
     /* ── Timeline ── */
     html += '<div class="rfd-timeline-hdr"><i class="fa fa-history" style="margin-right:6px;"></i>Línea de Tiempo del Ciclo de Vida</div>';
     html += '<ul class="rfd-timeline">';
-    $.each(ms, function(i, mov) { html += renderMovimiento(mov); });
+    $.each(ms, function(i, mov) {
+        if (mov.tipo === 'ENTREGA' || mov.tipo === 'VALE') return;
+        html += renderMovimiento(mov);
+    });
     html += '</ul>';
 
     html += '</div>'; /* /rfd-exp-wrapper */
@@ -290,6 +363,8 @@ function renderExpediente(resp) {
  *  Cálculo local de estado cobro (para el expediente)
  * ──────────────────────────────────────────────────────────────────── */
 function estadoCobro(c, saldoFinal) {
+    var estadoF01 = String(c.estado_f01 || '').toUpperCase();
+    if (estadoF01.indexOf('ANULAD') === 0) return 'Anuladas';
     if (c.credito == 0)             return 'Contado';
     if (parseFloat(saldoFinal) <= 0.01) return 'Pagada';
     if (c.dias_vencidos > 60)       return 'Vencida Cr\u00edtica';
@@ -303,7 +378,7 @@ function estadoCobro(c, saldoFinal) {
 function renderMovimiento(mov) {
     var tipo  = (mov.tipo || '').toUpperCase();
     var monto = parseFloat(mov.monto) || 0;
-    var esCargo  = tipo === 'VENTA';
+    var esCargo  = tipo === 'VENTA' || tipo === 'NOTA_DEBITO' || tipo === 'NOTA_CREDITO_APLICACION' || tipo === 'NOTA_CREDITO_REEMBOLSO';
     var esAbono  = !esCargo && tipo !== 'ENTREGA' && tipo !== 'VALE';
 
     var dotClass   = 'rfd-dot-' + tipo.toLowerCase();
@@ -314,7 +389,7 @@ function renderMovimiento(mov) {
 
     if (tipo !== 'ENTREGA' && tipo !== 'VALE') {
         var sign = esCargo ? '+' : '-';
-        var montoColor = esCargo ? '#e02424' : '#0e9f6e';
+        var montoColor = (tipo === 'NOTA_DEBITO') ? '#b45309' : (esCargo ? tipoColor : '#0e9f6e');
         montoHtml = '<span class="rfd-tl-monto" style="color:' + montoColor + ';">' + sign + ' ' + fmtLpsAbs(monto) + '</span>';
     }
 
@@ -367,16 +442,65 @@ function carteraItem(lbl, val) {
     return '<div class="rfd-cartera-item"><div class="ci-lbl">' + lbl + '</div><div class="ci-val">' + (val || '—') + '</div></div>';
 }
 function tipoIcon(t) {
-    var m = { VENTA:'fa-file-text-o', ENTREGA:'fa-truck', ABONO:'fa-money', PAGO:'fa-credit-card', NOTA_CREDITO:'fa-minus-circle', VALE:'fa-ticket' };
+    var m = { VENTA:'fa-file-text-o', ENTREGA:'fa-truck', ABONO:'fa-money', PAGO:'fa-credit-card', NOTA_CREDITO:'fa-minus-circle', NOTA_CREDITO_EMISION:'fa-file-o', NOTA_CREDITO_APLICACION:'fa-random', NOTA_CREDITO_REEMBOLSO:'fa-reply', NOTA_DEBITO:'fa-plus-circle', VALE:'fa-ticket', RETENCION:'fa-percent' };
     return m[t] || 'fa-circle-o';
 }
 function tipoLabel(t) {
-    var m = { VENTA:'Venta', ENTREGA:'Entrega', ABONO:'Abono Cr\u00e9dito', PAGO:'Pago Contado', NOTA_CREDITO:'Nota de Cr\u00e9dito', VALE:'Vale de Entrega' };
+    var m = { VENTA:'Venta', ENTREGA:'Entrega', ABONO:'Abono Crédito', PAGO:'Pago Contado', NOTA_CREDITO:'Nota de Crédito Recibida', NOTA_CREDITO_EMISION:'Nota de Crédito Emitida', NOTA_CREDITO_APLICACION:'Aplicación de Nota de Crédito', NOTA_CREDITO_REEMBOLSO:'Reembolso de Nota de Crédito', NOTA_DEBITO:'Nota de Débito', VALE:'Vale de Entrega', RETENCION:'Retención ISV' };
     return m[t] || t;
 }
 function tipoColorMap(t) {
-    var m = { VENTA:'#1a56db', ENTREGA:'#0e9f6e', ABONO:'#d97706', PAGO:'#7c3aed', NOTA_CREDITO:'#e02424', VALE:'#e67e22' };
+    var m = { VENTA:'#1a56db', ENTREGA:'#0e9f6e', ABONO:'#d97706', PAGO:'#7c3aed', NOTA_CREDITO:'#e02424', NOTA_CREDITO_EMISION:'#e02424', NOTA_CREDITO_APLICACION:'#7c3aed', NOTA_CREDITO_REEMBOLSO:'#0369a1', NOTA_DEBITO:'#b45309', VALE:'#e67e22', RETENCION:'#0369a1' };
     return m[t] || '#6b7280';
+}
+
+/* ────────────────────────────────────────────────────────────────────
+ *  Edición inline del Estado F-01
+ * ──────────────────────────────────────────────────────────────────── */
+function rfdEditarF01(facturaId, btn) {
+    var spanId  = '#rfd-f01-val-' + facturaId;
+    var valAct  = $(spanId).text().trim();
+    if (valAct === 'N/A') valAct = '';
+
+    Swal.fire({
+        title: 'Editar Estado F-01',
+        input: 'text',
+        inputValue: valAct,
+        inputPlaceholder: 'Ej: F-01-2026-00123',
+        inputAttributes: { maxlength: 100 },
+        showCancelButton: true,
+        confirmButtonText: '<i class="fa fa-save"></i> Guardar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#e67e22',
+        inputLabel: 'Número de forma F-01',
+        showLoaderOnConfirm: true,
+        preConfirm: function(valor) {
+            var tok = $('meta[name="csrf-token"]').attr('content');
+            return $.ajax({
+                url: '/reporte/ventas-cobros/actualizar-f01/' + facturaId,
+                method: 'POST',
+                data: { _token: tok, valor: valor },
+            }).fail(function(xhr) {
+                var msg = xhr.responseJSON && xhr.responseJSON.mensaje
+                    ? xhr.responseJSON.mensaje
+                    : 'Error al guardar.';
+                Swal.showValidationMessage(msg);
+            });
+        },
+        allowOutsideClick: function() { return !Swal.isLoading(); }
+    }).then(function(result) {
+        if (result.isConfirmed && result.value && result.value.success) {
+            var nuevo = result.value.valor || 'N/A';
+            $(spanId).text(nuevo);
+            Swal.fire({
+                icon: 'success',
+                title: 'Actualizado',
+                text: 'Estado F-01 guardado: ' + nuevo,
+                timer: 2000,
+                showConfirmButton: false,
+            });
+        }
+    });
 }
 
 /* ────────────────────────────────────────────────────────────────────
@@ -389,6 +513,7 @@ function _exportarForm(url) {
     var fields = {
         _token:            tok,
         vendedor:          f.vendedor          || '',
+        teleasesor:        f.teleasesor        || '',
         cliente:           f.cliente           || '',
         factura:           f.factura           || '',
         fecha_desde:       f.fecha_desde       || '',
@@ -408,8 +533,200 @@ function _exportarForm(url) {
     form.submit();
     form.remove();
 }
-function exportarPdf()   { _exportarForm('/reporte/ventas-cobros/exportar-pdf/null/null/null/null'); }
-function exportarExcel() { _exportarForm('/reporte/ventas-cobros/exportar-excel/null/null/null/null'); }
+function exportarPdf() {
+    var f   = getFiltros();
+    var tok = $('meta[name="csrf-token"]').attr('content');
+    var downloadToken = 'vcpdf_' + Date.now() + '_' + Math.floor(Math.random() * 1000000);
+    var cookieName = 'vc_pdf_download_token';
+    document.cookie = cookieName + '=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/';
+
+    var form = $('<form method="POST"></form>').attr('action', '/reporte/ventas-cobros/exportar-pdf/null/null/null/null');
+    var fields = {
+        _token: tok, download_token: downloadToken,
+        vendedor: f.vendedor || '', teleasesor: f.teleasesor || '', cliente: f.cliente || '',
+        factura: f.factura || '', fecha_desde: f.fecha_desde || '',
+        fecha_hasta: f.fecha_hasta || '', fecha_pago_desde: f.fecha_pago_desde || '',
+        fecha_pago_hasta: f.fecha_pago_hasta || '', estado_cobro: f.estado_cobro || '',
+        estado_f01: f.estado_f01 || '', modo_pago: f.modo_pago || '',
+        banco: f.banco || '', cuenta: f.cuenta || ''
+    };
+    $.each(fields, function(k, v) { form.append($('<input type="hidden">').attr('name', k).val(v)); });
+    $('body').append(form);
+
+    Swal.fire({
+        title: 'Generando PDF',
+        html: 'Preparando documento...<br><small>Este proceso puede tardar varios minutos.</small>',
+        allowOutsideClick: false, allowEscapeKey: false, showConfirmButton: false,
+        didOpen: function() { Swal.showLoading(); }
+    });
+
+    var startedAt = Date.now();
+    var timer = setInterval(function() {
+        var prefix = cookieName + '=', val = '';
+        document.cookie.split(';').forEach(function(c) {
+            var t = c.trim();
+            if (t.indexOf(prefix) === 0) val = decodeURIComponent(t.substring(prefix.length));
+        });
+        if (val === downloadToken) {
+            clearInterval(timer);
+            document.cookie = cookieName + '=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/';
+            Swal.close();
+        } else if (Date.now() - startedAt > 15 * 60 * 1000) {
+            clearInterval(timer);
+            Swal.fire({ icon: 'warning', title: 'Demora en descarga', text: 'La generación sigue en proceso. Intenta nuevamente.' });
+        }
+    }, 400);
+
+    form.trigger('submit');
+    setTimeout(function() { form.remove(); }, 1500);
+}
+function _vcProgressHtml(pct, msg) {
+    var safe = Math.max(3, Math.min(100, parseInt(pct, 10) || 3));
+    var label = msg || ('Procesando... ' + safe + '%');
+    return '<div style="margin:10px 0 4px;">' +
+        '<div style="background:#f0e6d3;border-radius:8px;height:18px;overflow:hidden;">' +
+        '<div id="vc-pbar" style="height:100%;width:' + safe + '%;background:linear-gradient(90deg,#f39c12,#e05a00);' +
+        'border-radius:8px;transition:width .4s ease;"></div>' +
+        '</div>' +
+        '<div id="vc-pbar-label" style="font-size:.78rem;color:#7d3f00;margin-top:5px;text-align:center;">' + label + '</div>' +
+        '</div>' +
+        '<small style="color:#999;">El reporte se procesa en segundo plano.</small>';
+}
+
+function _vcProgressUpdate(pct, msg) {
+    var safe = Math.max(3, Math.min(100, parseInt(pct, 10) || 3));
+    var label = msg || ('Procesando... ' + safe + '%');
+    var bar = document.getElementById('vc-pbar');
+    var lbl = document.getElementById('vc-pbar-label');
+    if (bar) bar.style.width = safe + '%';
+    if (lbl) lbl.textContent = label;
+}
+
+function exportarExcel() {
+    var f   = getFiltros();
+    var tok = $('meta[name="csrf-token"]').attr('content');
+
+    Swal.fire({
+        title: 'Generando Excel',
+        html: _vcProgressHtml(3, 'Iniciando...'),
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        showConfirmButton: false
+    });
+
+    $.ajax({
+        url: '/reporte/ventas-cobros/exportar-excel-async/null/null/null/null',
+        type: 'POST',
+        dataType: 'json',
+        data: {
+            _token: tok,
+            vendedor:          f.vendedor          || '',
+            teleasesor:        f.teleasesor        || '',
+            cliente:           f.cliente           || '',
+            factura:           f.factura           || '',
+            fecha_desde:       f.fecha_desde       || '',
+            fecha_hasta:       f.fecha_hasta       || '',
+            fecha_pago_desde:  f.fecha_pago_desde  || '',
+            fecha_pago_hasta:  f.fecha_pago_hasta  || '',
+            estado_cobro:      f.estado_cobro      || '',
+            estado_f01:        f.estado_f01        || '',
+            modo_pago:         f.modo_pago         || '',
+            banco:             f.banco             || '',
+            cuenta:            f.cuenta            || ''
+        },
+        success: function(resp) {
+            if (!resp || !resp.success || !resp.token) {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo iniciar la exportación.' });
+                return;
+            }
+            _pollExportExcel(resp.token);
+        },
+        error: function(xhr) {
+            var msg = (xhr.responseJSON && (xhr.responseJSON.message || xhr.responseJSON.mensaje))
+                ? (xhr.responseJSON.message || xhr.responseJSON.mensaje)
+                : 'No se pudo iniciar la exportación.';
+            Swal.fire({ icon: 'error', title: 'Error', text: msg });
+        }
+    });
+}
+
+function _pollExportExcel(token) {
+    var startedAt = Date.now();
+    var lastPct   = 3;
+    var warnedSlow = false;
+    var SOFT_WARN_MS = 15 * 60 * 1000;   // aviso informativo (no detiene)
+    var HARD_STOP_MS = 2 * 60 * 60 * 1000; // tope de seguridad: 2 horas
+    var pollId = setInterval(function() {
+        $.ajax({
+            url: '/reporte/ventas-cobros/exportar-excel-estado/' + encodeURIComponent(token),
+            type: 'GET',
+            dataType: 'json',
+            success: function(resp) {
+                if (!resp || !resp.success) {
+                    return;
+                }
+
+                var st  = resp.status || 'queued';
+                var pct = parseInt(resp.progress || 0, 10);
+                if (isNaN(pct)) pct = 0;
+                var msg = resp.message || '';
+
+                if (st === 'queued') {
+                    _vcProgressUpdate(Math.max(lastPct, 5), msg || 'En cola...');
+                    return;
+                }
+
+                if (st === 'processing') {
+                    // Avanza la barra al valor reportado o simula pequeño avance
+                    lastPct = Math.max(lastPct + 1, pct);
+                    lastPct = Math.min(lastPct, 95);
+                    _vcProgressUpdate(lastPct, msg || ('Procesando... ' + lastPct + '%'));
+                    return;
+                }
+
+                if (st === 'ready') {
+                    clearInterval(pollId);
+                    _vcProgressUpdate(100, '¡Listo! Descargando...');
+                    setTimeout(function() {
+                        Swal.close();
+                        window.location.href = '/reporte/ventas-cobros/exportar-excel-descargar/' + encodeURIComponent(token);
+                    }, 500);
+                    return;
+                }
+
+                if (st === 'failed') {
+                    clearInterval(pollId);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Exportación fallida',
+                        text: resp.message || 'No se pudo generar el archivo.'
+                    });
+                }
+            },
+            error: function() {
+                // tolerar fallos transitorios de red durante el polling
+            }
+        });
+
+        var elapsed = Date.now() - startedAt;
+
+        // Aviso suave: sigue esperando y no corta la descarga automatica.
+        if (!warnedSlow && elapsed > SOFT_WARN_MS) {
+            warnedSlow = true;
+            _vcProgressUpdate(Math.max(lastPct, 90), 'Tomando mas de lo normal. Seguimos procesando...');
+        }
+
+        // Tope de seguridad para evitar polling infinito en cliente.
+        if (elapsed > HARD_STOP_MS) {
+            clearInterval(pollId);
+            Swal.fire({
+                icon: 'warning',
+                title: 'Exportacion muy demorada',
+                text: 'El archivo sigue en proceso. Puedes intentar descargar nuevamente en unos minutos.'
+            });
+        }
+    }, 2500);
+}
 
 /* ────────────────────────────────────────────────────────────────────
  *  Fechas por defecto — último mes calendario
@@ -427,6 +744,52 @@ function setDefaultDates() {
     $('#fil_fecha_hasta').val(fmt(new Date(y, m + 1, 0)));
 }
 
+function reemplazarActores(selector, actores, valorActual) {
+    var select = $(selector);
+    select.empty().append(new Option('', '', false, false));
+
+    $.each(actores || [], function(_, actor) {
+        select.append(new Option(actor.name, String(actor.id), false, false));
+    });
+
+    var conservar = valorActual && select.find('option[value="' + valorActual + '"]').length > 0;
+    select.val(conservar ? valorActual : '').trigger('change');
+}
+
+function cargarActoresPorFechas() {
+    var requestId = ++rfdActoresRequest;
+    var vendedorActual = $('#fil_vendedor').val() || '';
+    var teleasesorActual = $('#fil_teleasesor').val() || '';
+
+    $('#fil_vendedor, #fil_teleasesor').prop('disabled', true);
+
+    $.ajax({
+        url: '/reporte/ventas-cobros/actores',
+        type: 'GET',
+        data: {
+            fecha_desde: $('#fil_fecha_desde').val() || '',
+            fecha_hasta: $('#fil_fecha_hasta').val() || '',
+            fecha_pago_desde: $('#fil_fecha_pago_desde').val() || '',
+            fecha_pago_hasta: $('#fil_fecha_pago_hasta').val() || ''
+        },
+        success: function(resp) {
+            if (requestId !== rfdActoresRequest) return;
+            reemplazarActores('#fil_vendedor', resp.asesores, vendedorActual);
+            reemplazarActores('#fil_teleasesor', resp.teleasesores, teleasesorActual);
+        },
+        complete: function() {
+            if (requestId === rfdActoresRequest) {
+                $('#fil_vendedor, #fil_teleasesor').prop('disabled', false);
+            }
+        }
+    });
+}
+
+function programarCargaActores() {
+    clearTimeout(rfdActoresTimer);
+    rfdActoresTimer = setTimeout(cargarActoresPorFechas, 200);
+}
+
 /* ────────────────────────────────────────────────────────────────────
  *  Barra de filtros activos (badges)
  * ──────────────────────────────────────────────────────────────────── */
@@ -436,6 +799,7 @@ function actualizarBadges() {
         { key: 'cliente',          el: '#fil_cliente',          lbl: 'Cliente',      isSelect: true },
         { key: 'factura',          el: '#fil_factura',          lbl: 'Factura',      isSelect: false },
         { key: 'vendedor',         el: '#fil_vendedor',         lbl: 'Vendedor',     isSelect: true },
+        { key: 'teleasesor',       el: '#fil_teleasesor',       lbl: 'Teleasesor',   isSelect: true },
         { key: 'modo_pago',        el: '#fil_modo_pago',        lbl: 'Pago',         isSelect: true },
         { key: 'estado_f01',       el: '#fil_estado_f01',       lbl: 'F-01',         isSelect: true },
         { key: 'fecha_desde',      el: '#fil_fecha_desde',      lbl: 'Desde',        isSelect: false },
@@ -478,13 +842,14 @@ function aplicarFiltros() {
 
 function limpiarFiltros() {
     if ($.fn.select2) {
-        $('#fil_cliente, #fil_vendedor').val('').trigger('change');
+        $('#fil_cliente, #fil_vendedor, #fil_teleasesor').val('').trigger('change');
     } else {
-        $('#fil_cliente, #fil_vendedor').val('');
+        $('#fil_cliente, #fil_vendedor, #fil_teleasesor').val('');
     }
     $('#fil_modo_pago, #fil_estado_f01, #fil_estado_cobro, #fil_banco').val('');
     $('#fil_factura, #fil_cuenta, #fil_fecha_pago_desde, #fil_fecha_pago_hasta').val('');
     setDefaultDates();
+    cargarActoresPorFechas();
 }
 
 /* ────────────────────────────────────────────────────────────────────
@@ -501,10 +866,17 @@ $(document).ready(function() {
             placeholder: '— Todos —', allowClear: true,
             dropdownParent: $('#modalFiltrosRVC')
         });
+        $('#fil_teleasesor').select2({
+            placeholder: '— Todos —', allowClear: true,
+            dropdownParent: $('#modalFiltrosRVC')
+        });
     }
 
     /* Fechas por defecto = último mes */
     setDefaultDates();
+    cargarActoresPorFechas();
+
+    $(document).on('change', '#fil_fecha_desde, #fil_fecha_hasta, #fil_fecha_pago_desde, #fil_fecha_pago_hasta', programarCargaActores);
 
     /* Carga inicial con filtros por defecto */
     actualizarBadges();

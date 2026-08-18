@@ -1,4 +1,65 @@
 
+function _fdSetCookie(name, value, seconds) {
+    var expires = '';
+    if (typeof seconds === 'number') {
+        var d = new Date(); d.setTime(d.getTime() + seconds * 1000);
+        expires = '; expires=' + d.toUTCString();
+    }
+    document.cookie = name + '=' + encodeURIComponent(value) + expires + '; path=/';
+}
+function _fdGetCookie(name) {
+    var prefix = name + '=';
+    var parts = document.cookie ? document.cookie.split(';') : [];
+    for (var i = 0; i < parts.length; i++) {
+        var c = parts[i].trim();
+        if (c.indexOf(prefix) === 0) return decodeURIComponent(c.substring(prefix.length));
+    }
+    return '';
+}
+
+function exportarFacturaDia() {
+    var fechaInicio = document.getElementById('fecha_inicio').value;
+    var fechaFinal  = document.getElementById('fecha_final').value;
+    if (!fechaInicio || !fechaFinal) {
+        Swal.fire({ icon: 'warning', title: 'Fechas requeridas', text: 'Selecciona el rango de fechas antes de exportar.' });
+        return;
+    }
+    var tok          = $('meta[name="csrf-token"]').attr('content');
+    var downloadToken = 'fdxls_' + Date.now() + '_' + Math.floor(Math.random() * 1000000);
+    var cookieName   = 'fd_excel_download_token';
+    _fdSetCookie(cookieName, '', -1);
+
+    var url  = '/reporte/factura-dia/exportar-excel/' + encodeURIComponent(fechaInicio) + '/' + encodeURIComponent(fechaFinal);
+    var form = $('<form method="POST"></form>').attr('action', url);
+    form.append($('<input type="hidden">').attr('name', '_token').val(tok));
+    form.append($('<input type="hidden">').attr('name', 'download_token').val(downloadToken));
+    $('body').append(form);
+
+    Swal.fire({
+        title: 'Generando Excel',
+        html: 'Preparando reporte...<br><small>Esto puede tardar unos momentos.</small>',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        showConfirmButton: false,
+        didOpen: function() { Swal.showLoading(); }
+    });
+
+    var startedAt = Date.now();
+    var timer = setInterval(function() {
+        if (_fdGetCookie(cookieName) === downloadToken) {
+            clearInterval(timer);
+            _fdSetCookie(cookieName, '', -1);
+            Swal.close();
+        } else if (Date.now() - startedAt > 5 * 60 * 1000) {
+            clearInterval(timer);
+            Swal.fire({ icon: 'warning', title: 'Demora en descarga', text: 'La generación sigue en proceso. Intenta nuevamente.' });
+        }
+    }, 400);
+
+    form.trigger('submit');
+    setTimeout(function() { form.remove(); }, 1500);
+}
+
 function cargaConsulta(){
 
     $("#tbl_facdia").dataTable().fnDestroy();
@@ -7,7 +68,7 @@ function cargaConsulta(){
     var fecha_final = document.getElementById('fecha_final').value;
 
     $('#tbl_facdia').DataTable({
-        "order": ['0', 'desc'],
+        "order": [[0, 'asc']],
         "paging": true,
         "language": {
             "decimal":        "",
@@ -29,48 +90,20 @@ function cargaConsulta(){
         },
         pageLength: 10,
         responsive: true,
-        dom: '<"html5buttons"B>lTfgitp',
-        buttons: [
-
-            {
-                extend: 'excel',
-                title: 'Facuracion_dia',
-                className:'btn btn-success'
-            }
-        ],
+        dom: 'lTfgitp',
         "ajax": "/consulta/"+fecha_inicio+"/"+fecha_final,
         "columns": [
-            {
-                data: 'fecha'
-            },
-            {
-                data: 'mes'
-            },
-            {
-                data: 'factura'
-            },
-            {
-                data: 'cliente'
-            },
-            {
-                data: 'vendedor'
-            },
-            {
-                data: 'facturador'
-            },
-            {
-                data: 'subtotal'
-            },
-
-            {
-                data: 'imp_venta'
-            },
-            {
-                data: 'total'
-            },
-            {
-                data: 'tipo'
-            },
+            { data: 'fecha' },
+            { data: 'mes' },
+            { data: 'factura' },
+            { data: 'cliente' },
+            { data: 'vendedor' },
+            { data: 'facturador' },
+            { data: 'gestor_entrega' },
+            { data: 'subtotal' },
+            { data: 'imp_venta' },
+            { data: 'total' },
+            { data: 'tipo' },
         ],initComplete: function () {
             var r = $('#tbl_facdia tfoot tr');
             r.find('th').each(function(){

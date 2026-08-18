@@ -36,8 +36,8 @@
     </li>
 @endforeach
 
-{{-- ── Sección Configuración: solo para Administrador ── --}}
-@if(optional(Auth::user()->rol)->nombre === 'Administrador' || Auth::user()->rol_id == 1)
+{{-- ── Sección Configuración: solo para Administrador (principal o adicional) ── --}}
+@if(Auth::user()->esAdministrador())
 @php
     $configActivo = request()->is('configuracion/*');
 @endphp
@@ -51,6 +51,11 @@
         <li class="{{ request()->routeIs('configuracion.notificaciones.flujo') ? 'active' : '' }}">
             <a href="{{ route('configuracion.notificaciones.flujo') }}" style="color:#ffffff;">
                 <i class="fa fa-bell"></i> Notificaciones
+            </a>
+        </li>
+        <li class="{{ request()->routeIs('configuracion.codigos.autorizacion') ? 'active' : '' }}">
+            <a href="{{ route('configuracion.codigos.autorizacion') }}" style="color:#ffffff;">
+                <i class="fa fa-key"></i> Códigos de Autorización
             </a>
         </li>
     </ul>

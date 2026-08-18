@@ -20,6 +20,9 @@ class Kernel extends ConsoleKernel
         // Verificar notificaciones sin leer y escalar según configuración
         $schedule->job(new EscalarNotificacionesJob)->hourly();
 
+        // Notificar prefacturas activas que vencen en las próximas 24 horas
+        $schedule->command('prefacturas:notificar-vencimiento')->hourly()->withoutOverlapping();
+
         // Evaluar alertas inteligentes de rotación e inventario (diario a las 6:00 AM)
         $schedule->job(new AlertasRotacionInventarioJob)->dailyAt('06:00');
     }

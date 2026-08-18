@@ -115,6 +115,26 @@
 <body>
 @php
     $fecha_actual = date('d/m/Y');
+    $hoy = \Carbon\Carbon::today();
+    $diasVencidos = static function ($fechaVencimiento) use ($hoy) {
+        if (empty($fechaVencimiento)) {
+            return 0;
+        }
+
+        try {
+            $vence = \Carbon\Carbon::parse($fechaVencimiento)->startOfDay();
+        } catch (\Throwable $e) {
+            return 0;
+        }
+
+        return $vence->lt($hoy) ? $vence->diffInDays($hoy) : 0;
+    };
+    $totalAcumuladoVencido = 0;
+    foreach ($estadoCuenta as $fila) {
+        if ($diasVencidos($fila->fecha_vencimiento ?? null) > 0) {
+            $totalAcumuladoVencido += (float) ($fila->saldo ?? 0);
+        }
+    }
 @endphp
 
 {{-- Logo --}}
@@ -143,6 +163,7 @@
             <th>No. Compra</th>
             <th>Fecha<br>Emisión</th>
             <th>Fecha<br>Vencimiento</th>
+            <th>Días<br>Venc.</th>
             <th>Cargo</th>
             <th>Crédito</th>
             <th>Extras</th>
@@ -155,23 +176,30 @@
     </thead>
     <tbody>
         @foreach ($estadoCuenta as $valor)
+        @php($diasFila = $diasVencidos($valor->fecha_vencimiento ?? null))
         <tr>
             <td class="center">{{ $valor->correlativo }}</td>
             <td class="center">{{ $valor->numOrden }}</td>
             <td class="center">{{ $valor->fecha_emision }}</td>
             <td class="center">{{ $valor->fecha_vencimiento }}</td>
+            <td class="center">{{ $diasFila }}</td>
             <td class="num">L. {{ number_format($valor->cargo,      2, '.', ',') }}</td>
             <td class="num">L. {{ number_format($valor->credito,    2, '.', ',') }}</td>
             <td class="num">L. {{ number_format($valor->extra,      2, '.', ',') }}</td>
             <td class="num">L. {{ number_format($valor->debita,     2, '.', ',') }}</td>
             <td class="num">L. {{ number_format($valor->notaCredito,2, '.', ',') }}</td>
             <td class="num">L. {{ number_format($valor->notaDebito, 2, '.', ',') }}</td>
-            <td class="num">L. {{ number_format($valor->saldo,      2, '.', ',') }}</td>
-            <td class="num">L. {{ number_format($valor->acumulado,  2, '.', ',') }}</td>
+            <td class="num" style="color: {{ $diasFila > 0 ? 'red' : '#1a1a1a' }}; font-weight: {{ $diasFila > 0 ? '700' : '400' }};">L. {{ number_format($valor->saldo,      2, '.', ',') }}</td>
+            <td class="num">L. {{ number_format($valor->acumulado ?? $valor->Acumulado ?? 0,  2, '.', ',') }}</td>
         </tr>
         @endforeach
     </tbody>
 </table>
+
+<div style="width:100%; text-align:right; margin:-10px 0 24px; font-size:12px; font-weight:bold;">
+    <span>Total Acumulado vencido:</span>
+    <span style="margin-left:10px; color:red;">L. {{ number_format($totalAcumuladoVencido, 2, '.', ',') }}</span>
+</div>
 
 {{-- Firmas --}}
 <div class="signatures">

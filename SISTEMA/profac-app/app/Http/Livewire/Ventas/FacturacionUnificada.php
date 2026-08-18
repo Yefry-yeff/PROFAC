@@ -2,6 +2,7 @@
 
 namespace App\Http\Livewire\Ventas;
 
+use App\Support\ExpoConfig;
 use Livewire\Component;
 use App\Models\TipoFactura;
 use Illuminate\Support\Facades\DB;
@@ -14,12 +15,14 @@ class FacturacionUnificada extends Component
     public $tiposFactura;
     public $fromFlujo = false;
     public $fromPrefactura = false;
+    public $expoConfig = null;
 
     // ── Buscador de prefactura ───────────────────────────────────────────
     public $busquedaPrefactura     = '';
     public $prefacturasEncontradas = [];
     public $prefacturaVinculada    = null;
     public $prefacturaVinculadaId  = null;
+    public $diasCreditoAprobados   = null;
 
 // ── Buscador de flujo ─────────────────────────────────────────────────
     public $busquedaFlujo      = '';
@@ -79,6 +82,34 @@ class FacturacionUnificada extends Component
         }
     }
 
+    private function obtenerDiasCreditoAprobados(?int $flujoId): ?int
+    {
+        if (!$flujoId) {
+            return null;
+        }
+
+        $credito = DB::table('credito_revision')
+            ->where('flujo_id', $flujoId)
+            ->where('estado', 'aprobado')
+            ->latest('id')
+            ->first(['dias_credito_aprobados', 'fecha_aprobacion', 'fecha_vencimiento_credito']);
+
+        if (!$credito) {
+            return null;
+        }
+
+        if (!is_null($credito->dias_credito_aprobados)) {
+            return max(0, (int) $credito->dias_credito_aprobados);
+        }
+
+        if ($credito->fecha_aprobacion && $credito->fecha_vencimiento_credito) {
+            return max(0, (int) \Carbon\Carbon::parse($credito->fecha_aprobacion)
+                ->diffInDays(\Carbon\Carbon::parse($credito->fecha_vencimiento_credito), false));
+        }
+
+        return null;
+    }
+
     public function mount($codigo = null)
     {
         $from = request()->get('from');
@@ -95,6 +126,17 @@ class FacturacionUnificada extends Component
         }
 
         $this->tipoFacturaId = $this->tipoFactura->id ?? null;
+
+        $expoId = (int) request()->get('expo', 0);
+        if ($expoId > 0) {
+            abort_unless(($this->tipoFactura->codigo ?? '') === 'cotizacion_clientes_a', 404);
+            $this->expoConfig = ExpoConfig::detalleActivaParaUsuario($expoId, Auth::id());
+            abort_unless($this->expoConfig, 403, 'No tiene autorización para acceder a esta Expo.');
+
+            $tipoVentaExpo = ExpoConfig::tipoVentaId();
+            abort_unless($tipoVentaExpo, 500, 'No existe el tipo de venta Expo. Ejecute las migraciones.');
+            $this->tipoFactura->tipo_venta_id = $tipoVentaExpo;
+        }
 
         // Vendedor = usuario autenticado por defecto
         if (Auth::check()) {
@@ -157,6 +199,7 @@ class FacturacionUnificada extends Component
                     'unidad_medida_venta_id',
                     'Bodega_id',
                     'seccion_id',
+                    'resta_inventario',
                     'precios_producto_carga_id',
                 ])
                 ->toArray();
@@ -367,6 +410,9 @@ class FacturacionUnificada extends Component
             $qB->where(fn ($s) => $s->where('c.nombre', 'LIKE', $like)->orWhere('c.rtn', 'LIKE', $like));
         }
 
+        $this->aplicarAlcanceUsuarioFlujo($qA);
+        $this->aplicarAlcanceUsuarioFlujo($qB);
+
         $this->flujoEncontrados = array_slice(
             array_merge($qA->get()->toArray(), $qB->get()->toArray()),
             0, 8
@@ -416,6 +462,7 @@ class FacturacionUnificada extends Component
 
     public function seleccionarFlujo(int $flujoId)
     {
+        abort_unless($this->usuarioPuedeAccederFlujo($flujoId), 403, 'No tiene acceso a este flujo de venta.');
         $hasPedido = DB::table('historico_flujo')
             ->where('flujo_id', $flujoId)
             ->where('tipo_tramite_id', 1)
@@ -519,6 +566,7 @@ class FacturacionUnificada extends Component
 
         // Ligado de flujo (solo prefacturas)
         $this->flujoVinculadoId = $pref->flujo_id ? (int) $pref->flujo_id : null;
+        $this->diasCreditoAprobados = $this->obtenerDiasCreditoAprobados($this->flujoVinculadoId);
         $this->cargarDocumentosComercialesDesdeFlujo($this->flujoVinculadoId);
         $this->flujoVinculado   = $pref->flujo_id ? [
             'flujo_id'  => (int) $pref->flujo_id,
@@ -550,6 +598,7 @@ class FacturacionUnificada extends Component
                 'unidad_medida_venta_id',
                 'Bodega_id',
                 'seccion_id',
+                'resta_inventario',
                 'precios_producto_carga_id',
             ])
             ->map(fn($r) => (array) $r)
@@ -588,6 +637,7 @@ class FacturacionUnificada extends Component
             'vendedorId'     => $vendedorId,
             'vendedorNombre' => $vendedorNombre,
             'flujoId'        => $this->flujoVinculadoId,
+            'diasCreditoAprobados' => $this->diasCreditoAprobados,
             'numeroOrdenCompra' => $this->documentosComerciales['numero_orden_compra'] ?? null,
             'archivoOrdenCompra' => $this->documentosComerciales['archivo_orden_compra'] ?? null,
             'numeroFormaF01' => $this->documentosComerciales['numero_forma_f01'] ?? null,
@@ -638,6 +688,7 @@ class FacturacionUnificada extends Component
             return DB::table('producto')
                 ->where('nombre', 'LIKE', '%' . $nombre . '%')
                 ->whereRaw('id IN (SELECT producto_id FROM inventario WHERE cantidad > 0)')
+                ->where('estado_producto_id', 1)
                 ->select('id', 'nombre', 'precio_base as precio', 'isv')
                 ->limit($limit)->get()->toArray();
         }
@@ -653,7 +704,8 @@ class FacturacionUnificada extends Component
         $score = 'IF(nombre LIKE ?, 10, 0) + ' . implode(' + ', $cases);
         $params = array_merge(['%' . $nombre . '%'], $params);
 
-        $results = $q->selectRaw('id, nombre, precio_base as precio, isv, (' . $score . ') as score', $params)
+        $results = $q->where('estado_producto_id', 1)
+            ->selectRaw('id, nombre, precio_base as precio, isv, (' . $score . ') as score', $params)
             ->having('score', '>', 0)
             ->orderByDesc('score')
             ->limit($limit)
@@ -663,6 +715,7 @@ class FacturacionUnificada extends Component
         if (empty($results)) {
             $results = DB::table('producto')
                 ->where('nombre', 'LIKE', '%' . array_values($palabras)[0] . '%')
+                ->where('estado_producto_id', 1)
                 ->select('id', 'nombre', 'precio_base as precio', 'isv')
                 ->limit($limit)->get()->toArray();
         }
@@ -691,6 +744,7 @@ class FacturacionUnificada extends Component
     {
         $this->prefacturaVinculadaId  = null;
         $this->prefacturaVinculada    = null;
+        $this->diasCreditoAprobados   = null;
         $this->busquedaPrefactura     = '';
         $this->prefacturasEncontradas = [];
         $this->flujoVinculadoId       = null;
@@ -704,11 +758,77 @@ class FacturacionUnificada extends Component
         ]);
     }
 
+    private function aplicarAlcanceUsuarioFlujo($query): void
+    {
+        $usuarioId = (int) Auth::id();
+
+        $query->where(function ($alcance) use ($usuarioId) {
+            $alcance->whereExists(function ($pedido) use ($usuarioId) {
+                $pedido->select(DB::raw(1))
+                    ->from('historico_flujo as hf_perm_p')
+                    ->join('pedido as p_perm', 'p_perm.id', '=', 'hf_perm_p.tramite_id')
+                    ->join('cliente as c_perm_p', 'c_perm_p.id', '=', 'p_perm.cliente_id')
+                    ->whereColumn('hf_perm_p.flujo_id', 'f.id')
+                    ->where('hf_perm_p.tipo_tramite_id', 1)
+                    ->where(function ($actor) use ($usuarioId) {
+                        $actor->where('p_perm.users_id', $usuarioId)
+                            ->orWhere('c_perm_p.vendedor', $usuarioId)
+                            ->orWhereExists(function ($asignado) use ($usuarioId) {
+                                $asignado->select(DB::raw(1))
+                                    ->from('cliente_usuario as cu_perm_p')
+                                    ->whereColumn('cu_perm_p.cliente_id', 'c_perm_p.id')
+                                    ->where('cu_perm_p.usuario_id', $usuarioId)
+                                    ->whereIn('cu_perm_p.rol_id', [2, 3]);
+                            });
+                    });
+            })->orWhereExists(function ($oferta) use ($usuarioId) {
+                $oferta->select(DB::raw(1))
+                    ->from('historico_flujo as hf_perm_o')
+                    ->join('cotizacion as co_perm', 'co_perm.id', '=', 'hf_perm_o.tramite_id')
+                    ->join('cliente as c_perm_o', 'c_perm_o.id', '=', 'co_perm.cliente_id')
+                    ->whereColumn('hf_perm_o.flujo_id', 'f.id')
+                    ->where('hf_perm_o.tipo_tramite_id', 2)
+                    ->where(function ($actor) use ($usuarioId) {
+                        $actor->where('co_perm.users_id', $usuarioId)
+                            ->orWhere('co_perm.vendedor', $usuarioId)
+                            ->orWhere('c_perm_o.vendedor', $usuarioId)
+                            ->orWhereExists(function ($asignado) use ($usuarioId) {
+                                $asignado->select(DB::raw(1))
+                                    ->from('cliente_usuario as cu_perm_o')
+                                    ->whereColumn('cu_perm_o.cliente_id', 'c_perm_o.id')
+                                    ->where('cu_perm_o.usuario_id', $usuarioId)
+                                    ->whereIn('cu_perm_o.rol_id', [2, 3]);
+                            });
+                    });
+            })->orWhereExists(function ($factura) use ($usuarioId) {
+                $factura->select(DB::raw(1))
+                    ->from('historico_flujo as hf_perm_f')
+                    ->join('factura as fa_perm', 'fa_perm.id', '=', 'hf_perm_f.tramite_id')
+                    ->whereColumn('hf_perm_f.flujo_id', 'f.id')
+                    ->where('hf_perm_f.tipo_tramite_id', 3)
+                    ->where(function ($actor) use ($usuarioId) {
+                        $actor->where('fa_perm.vendedor', $usuarioId)
+                            ->orWhere('fa_perm.users_id', $usuarioId)
+                            ->orWhere('fa_perm.gestor_entrega', $usuarioId);
+                    });
+            });
+        });
+    }
+
+    private function usuarioPuedeAccederFlujo(int $flujoId): bool
+    {
+        $query = DB::table('flujo as f')->where('f.id', $flujoId);
+        $this->aplicarAlcanceUsuarioFlujo($query);
+
+        return $query->exists();
+    }
+
     public function render()
     {
         return view('livewire.ventas.facturacion-unificada', [
             'tiposFactura' => $this->tiposFactura,
             'config'       => $this->tipoFactura,
+            'expoConfig'   => $this->expoConfig,
         ]);
     }
 }

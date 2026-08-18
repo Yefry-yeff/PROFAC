@@ -26,6 +26,8 @@ class LitsadoFacturasEstatalVendedor extends Component
 
         try {
 
+            $userId = (int) Auth::id();
+
             $listaFacturas = DB::SELECT("
             select
             factura.id as id,
@@ -36,6 +38,9 @@ class LitsadoFacturasEstatalVendedor extends Component
             factura.nombre_cliente as nombre,
             tipo_pago_venta.descripcion,
             fecha_vencimiento,
+            COALESCE(factura.sub_total_grabado, 0) as gravado,
+            COALESCE(factura.sub_total_excento, 0) as exento,
+            COALESCE(factura.sub_total - factura.sub_total_grabado - factura.sub_total_excento, 0) as exonerado,
             sub_total,
             isv,
             total,
@@ -52,7 +57,8 @@ class LitsadoFacturasEstatalVendedor extends Component
             inner join users
             on factura.vendedor = users.id
             cross join (select @i := 0) r
-        where ( YEAR(factura.created_at) >= (YEAR(NOW())-2) ) and factura.estado_venta_id<>2 and (factura.tipo_venta_id = 2) and factura.vendedor = ".Auth::user()->id."
+        where ( YEAR(factura.created_at) >= (YEAR(NOW())-2) ) and factura.estado_venta_id<>2 and (factura.tipo_venta_id = 2)
+            and (factura.vendedor = {$userId} or factura.users_id = {$userId} or factura.gestor_entrega = {$userId})
         order by factura.created_at desc
             ");
 

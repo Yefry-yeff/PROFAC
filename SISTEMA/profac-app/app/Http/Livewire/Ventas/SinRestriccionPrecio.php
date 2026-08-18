@@ -25,6 +25,7 @@ use App\Models\ModelCliente;
 use App\Models\logCredito;
 use App\Models\User;
 use App\Models\ModelCodigoAutorizacion;
+use App\Models\ConfiguracionCodigoAutorizacion;
 use Mail;
 
 
@@ -40,20 +41,25 @@ class SinRestriccionPrecio extends Component
     public function listarClientes(Request $request)
     {
         try {
+            $rolId = Auth::user()->rol_id ?? 0;
+            $like  = '%' . $request->search . '%';
 
+            $query = DB::table('cliente')
+                ->select('id', 'nombre as text')
+                ->where('estado_cliente_id', 1)
+                ->where(function ($q) use ($like) {
+                    $q->where('id', 'LIKE', $like)
+                      ->orWhere('nombre', 'LIKE', $like);
+                });
 
-                $listaClientes = DB::SELECT("
-                select
-                    id,
-                    nombre as text
-                from cliente
-                    where estado_cliente_id = 1
-                    and  (id LIKE '%" . $request->search . "%' or nombre Like '%" . $request->search . "%') limit 15
-                        ");
+            // Admin (1) y Tele asesor (3) ven todos; los demás solo sus asignados
+            if (!in_array($rolId, [1, 3], true)) {
+                $query->where('vendedor', Auth::id());
+            }
 
-            return response()->json([
-                "results" => $listaClientes,
-            ], 200);
+            $listaClientes = $query->limit(15)->get();
+
+            return response()->json(['results' => $listaClientes], 200);
         } catch (QueryException $e) {
             return response()->json([
                 'message' => 'Ha ocurrido un error',
@@ -64,12 +70,20 @@ class SinRestriccionPrecio extends Component
 
     public function enviarCodigo(Request $request){
 
-        $codigo = rand(1000,9999);
+        $config   = ConfiguracionCodigoAutorizacion::obtener();
+        $codigo   = rand(1000, 9999);
+        $flujoId  = $request->input('flujo_id') ?: null;
 
         $autorizacion = new ModelCodigoAutorizacion;
-        $autorizacion->codigo = $codigo;
-        $autorizacion->users_id = Auth::user()->id;
-        $autorizacion->estado_id = 1;
+        $autorizacion->codigo           = $codigo;
+        $autorizacion->users_id         = Auth::user()->id;
+        $autorizacion->estado_id        = 1;
+        $autorizacion->flujo_id         = $flujoId ? (int) $flujoId : null;
+        $autorizacion->tipo_tramite     = 'facturacion';
+        $autorizacion->estado_codigo_id = 1; // Pendiente
+        $autorizacion->fecha_expiracion = $config->expiracion_activa
+            ? now()->addMinutes($config->tiempo_expiracion_minutos)
+            : null;
         $autorizacion->save();
 
         $productos    = $request->input('productos', []);
@@ -107,31 +121,37 @@ class SinRestriccionPrecio extends Component
 
     public function verificarCodigo(Request $request){
 
-        $codigo = DB::SELECTONE("select id from codigo_autorizacion where estado_id = 1 and codigo = ".$request->codigo);
+        $flujoId      = $request->input('flujo_id') ? (int) $request->input('flujo_id') : null;
+        $tipoTramite  = $request->input('tipo_tramite', 'facturacion');
 
-        if(empty($codigo)){
+        $autorizacion = ModelCodigoAutorizacion::where('estado_id', 1)
+            ->where('estado_codigo_id', 1) // Pendiente
+            ->where('codigo', (int) $request->codigo)
+            ->first();
+
+        if (!$autorizacion || !$autorizacion->esValido($flujoId, $tipoTramite)) {
             return response()->json([
-                "message"=>"valor incorrecto",
-                "estado"=>2,
-                "idAutorizacion"=>'',
-            ],200);
+                'message'        => 'El código de autorización no es válido o ha expirado.',
+                'estado'         => 2,
+                'idAutorizacion' => '',
+            ], 200);
         }
 
         return response()->json([
-            "message"=>"valor correcto",
-            "estado"=>1,
-            "idAutorizacion"=>$codigo->id,
-        ],200);
+            'message'        => 'valor correcto',
+            'estado'         => 1,
+            'idAutorizacion' => $autorizacion->id,
+        ], 200);
 
     }
 
     public function desactivarCodigo(Request $request){
-       // dd($request->all());
-        $codigo = ModelCodigoAutorizacion::find($request->idAutorizacion);
-        $codigo->estado_id = 2;
-        $codigo->save();
+        $autorizacion = ModelCodigoAutorizacion::find($request->idAutorizacion);
+        if ($autorizacion) {
+            $autorizacion->marcarUtilizado();
+        }
 
-        return response()->json(["message"=>"exito"],200);
+        return response()->json(['message' => 'exito'], 200);
 
     }
 }
