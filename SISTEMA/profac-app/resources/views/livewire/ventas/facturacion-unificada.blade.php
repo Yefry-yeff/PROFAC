@@ -3718,10 +3718,16 @@
         Object.keys(importes).forEach(function(id) {
             var datos = importes[id];
             var redondearMoneda = function(valor) { return Math.round((valor + Number.EPSILON) * 100) / 100; };
-            var reglaMarca = reglasMarca.find(function(regla) { return Number(regla.marca_id) === datos.marcaId; });
-            var porcentajeMarca = reglaMarca && Number(subtotalesMarca[datos.marcaId] || 0) + 0.005 >= Number(reglaMarca.venta_minima || 0)
-                ? Number(reglaMarca.porcentaje_descuento || 0)
-                : 0;
+            var subtotalMarca = Number(subtotalesMarca[datos.marcaId] || 0);
+            var reglaMarca = reglasMarca
+                .filter(function(regla) {
+                    return Number(regla.marca_id) === datos.marcaId
+                        && subtotalMarca + 0.005 >= Number(regla.venta_minima || 0);
+                })
+                .sort(function(a, b) {
+                    return Number(b.venta_minima || 0) - Number(a.venta_minima || 0);
+                })[0] || null;
+            var porcentajeMarca = reglaMarca ? Number(reglaMarca.porcentaje_descuento || 0) : 0;
             var descuentoMarca = redondearMoneda(datos.importe * porcentajeMarca / 100);
             var descuentoGeneral = redondearMoneda((datos.importe - descuentoMarca) * porcentajeGeneral / 100);
             var descuentoTotal = redondearMoneda(descuentoMarca + descuentoGeneral);
@@ -4980,7 +4986,7 @@
                 if (msgFacturaEl) msgFacturaEl.textContent = 'Factura #' + data.idFactura + ' registrada exitosamente.';
                 eliminarVentaTemporal();
                 limpiarFormularioVenta(data);
-                if (data.liquidacionExpo && ['PENDIENTE_LIQUIDACION', 'LIQUIDADA', 'PENDIENTE_CONTABILIDAD'].indexOf(data.liquidacionExpo.estado) !== -1) {
+                if (data.liquidacionExpo && ['PENDIENTE_LIQUIDACION', 'LIQUIDADA'].indexOf(data.liquidacionExpo.estado) !== -1) {
                     mostrarResumenLiquidacionExpo(data.liquidacionExpo).then(function() {
                         $('#modalExitoFactura').modal('show');
                     });
@@ -5016,25 +5022,23 @@
             return '<tr><td>#' + factura.id + '</td><td>' + escapar(factura.numero) + '</td><td class="text-right">' + moneda(factura.subtotal_bruto) + '</td><td class="text-right">' + moneda(factura.total) + '</td></tr>';
         }).join('');
         var marcas = (resumen.descuentos_marca || []).map(function(regla) {
-            return '<tr><td>' + escapar(regla.factura) + '</td><td>' + escapar(regla.marca) + '</td><td class="text-right">' + moneda(regla.subtotal_bruto) + '</td><td>' + (regla.cumple ? 'Cumple' : 'No cumple') + '</td><td class="text-right">' + moneda(regla.descuento) + '</td></tr>';
+            return '<tr><td>' + escapar(regla.marca) + '</td><td class="text-right">' + Number(regla.porcentaje_descuento || 0).toFixed(2) + '%</td></tr>';
         }).join('');
         var pendientes = (resumen.lineas_pendientes || []).map(function(linea) {
             return '<tr><td>#' + linea.linea_id + '</td><td>' + escapar(linea.producto) + '</td><td class="text-right">' + Number(linea.cantidad_facturada || 0).toFixed(2) + '</td><td class="text-right">' + Number(linea.cantidad_pendiente || 0).toFixed(2) + '</td></tr>';
         }).join('');
-        var aplicaciones = (resumen.aplicaciones_realizadas || resumen.aplicaciones || []).map(function(aplicacion) {
+        var aplicaciones = (resumen.aumentos_realizados || []).map(function(aplicacion) {
             return '<tr><td>' + escapar(aplicacion.factura || ('#' + aplicacion.factura_id)) + '</td><td class="text-right">' + moneda(aplicacion.monto) + '</td></tr>';
         }).join('');
         var requiereConfirmacion = resumen.estado === 'PENDIENTE_LIQUIDACION';
-        var alerta = resumen.estado === 'PENDIENTE_CONTABILIDAD'
-            ? '<div class="alert alert-warning text-left">' + escapar(resumen.mensaje || 'La liquidación requiere revisión de Contabilidad.') + '</div>'
-            : (requiereConfirmacion
-                ? '<div class="alert alert-info text-left">Revise el cálculo antes de generar y aplicar la nota de crédito.</div>'
-                : '<div class="alert alert-success text-left">La Oferta Expo quedó liquidada.</div>');
+        var alerta = requiereConfirmacion
+            ? '<div class="alert alert-info text-left">Este cierre pendiente aplicará el aumento mediante otros movimientos.</div>'
+            : '<div class="alert alert-success text-left">La Oferta Expo quedó liquidada y el aumento correspondiente fue aplicado.</div>';
         return Swal.fire({
             icon: resumen.estado === 'LIQUIDADA' ? 'success' : 'warning',
             title: 'Liquidación final de la Oferta Expo',
             width: 800,
-            confirmButtonText: requiereConfirmacion ? 'Generar nota de crédito' : 'Continuar',
+            confirmButtonText: requiereConfirmacion ? 'Aplicar aumento' : 'Continuar',
             showCancelButton: requiereConfirmacion,
             cancelButtonText: 'Más tarde',
             showLoaderOnConfirm: requiereConfirmacion,
@@ -5049,22 +5053,22 @@
                     return response.data.liquidacionExpo;
                 }).catch(function(error) {
                     var data = error.response ? error.response.data : {};
-                    Swal.showValidationMessage(escapar(data.text || data.message || 'No se pudo generar la nota de crédito.'));
+                    Swal.showValidationMessage(escapar(data.text || data.message || 'No se pudo aplicar el aumento.'));
                     return false;
                 });
             } : undefined,
             html: alerta
                 + '<div class="row text-left mb-3"><div class="col-4"><small>Total original</small><br><strong>' + moneda(resumen.total_oferta) + '</strong></div>'
                 + '<div class="col-4"><small>Subtotal bruto facturado</small><br><strong>' + moneda(resumen.total_facturado) + '</strong></div>'
-                + '<div class="col-4"><small>Descuento total</small><br><strong>' + moneda(resumen.descuento_calculado) + '</strong></div></div>'
+                + '<div class="col-4"><small>Aumento aplicado</small><br><strong>' + moneda(resumen.aumento_calculado) + '</strong></div></div>'
                 + '<div class="row text-left mb-3"><div class="col-4"><small>Descuento por marca</small><br><strong>' + moneda(resumen.descuento_marca_total) + '</strong></div>'
                 + '<div class="col-4"><small>Base general</small><br><strong>' + moneda(resumen.base_general) + '</strong></div>'
                 + '<div class="col-4"><small>Descuento general</small><br><strong>' + Number(resumen.porcentaje_descuento || 0).toFixed(2) + '% · ' + moneda(resumen.descuento_general) + '</strong></div></div>'
+                + '<div class="row text-left mb-3"><div class="col-6"><small>Descuento otorgado</small><br><strong>' + moneda(resumen.descuento_otorgado) + '</strong></div><div class="col-6"><small>Descuento ganado</small><br><strong>' + moneda(resumen.descuento_ganado) + '</strong></div></div>'
                 + '<div class="table-responsive"><table class="table table-sm table-bordered"><thead><tr><th>ID</th><th>Factura</th><th class="text-right">Subtotal bruto</th><th class="text-right">Total</th></tr></thead><tbody>' + facturas + '</tbody></table></div>'
-                + (marcas ? '<h6 class="text-left">Evaluación por factura y marca</h6><div class="table-responsive"><table class="table table-sm table-bordered"><thead><tr><th>Factura</th><th>Marca</th><th class="text-right">Subtotal</th><th>Resultado</th><th class="text-right">Descuento</th></tr></thead><tbody>' + marcas + '</tbody></table></div>' : '')
+                + (marcas ? '<h6 class="text-left">Escalón alcanzado por marca</h6><div class="table-responsive"><table class="table table-sm table-bordered"><thead><tr><th>Marca</th><th class="text-right">Porcentaje</th></tr></thead><tbody>' + marcas + '</tbody></table></div>' : '')
                 + (pendientes ? '<h6 class="text-left">Productos no facturados</h6><div class="table-responsive"><table class="table table-sm table-bordered"><thead><tr><th>Línea</th><th>Producto</th><th class="text-right">Facturado</th><th class="text-right">Pendiente</th></tr></thead><tbody>' + pendientes + '</tbody></table></div>' : '')
-                + '<div class="table-responsive"><table class="table table-sm table-bordered"><thead><tr><th>Aplicada a</th><th class="text-right">Monto</th></tr></thead><tbody>' + aplicaciones + '</tbody></table></div>'
-                + '<div class="text-left"><strong>Saldo aplicable:</strong> ' + moneda(resumen.saldo_aplicable) + ' &nbsp; <strong>Diferencia:</strong> ' + moneda(resumen.diferencia) + '</div>'
+                + (aplicaciones ? '<h6 class="text-left">Aumentos realizados</h6><div class="table-responsive"><table class="table table-sm table-bordered"><thead><tr><th>Factura</th><th class="text-right">Monto</th></tr></thead><tbody>' + aplicaciones + '</tbody></table></div>' : '')
         }).then(function(result) {
             if (requiereConfirmacion && result.isConfirmed && result.value) {
                 return mostrarResumenLiquidacionExpo(result.value);

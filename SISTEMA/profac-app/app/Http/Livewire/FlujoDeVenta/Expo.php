@@ -2,6 +2,8 @@
 
 namespace App\Http\Livewire\FlujoDeVenta;
 
+use App\Services\Expo\GestorAumentoExpo;
+use App\Services\Expo\LiquidacionOfertaExpo;
 use Carbon\Carbon;
 use Livewire\Component;
 use Illuminate\Support\Facades\DB;
@@ -24,9 +26,17 @@ class Expo extends Component
     public $busquedaUsuario = '';
     public $descuentos = [];
     public $descuentosMarca = [];
+    public $mostrarModalDescuentoMarca = false;
+    public $marcaDescuentoSeleccionada = '';
+    public $escalonesMarcaModal = [];
+    public $busquedaDescuentoMarca = '';
+    public $ordenDescuentoMarca = 'marca';
+    public $direccionDescuentoMarca = 'asc';
     public $mostrarFormulario = false;
     public $expoDetalle = [];
     public $mostrarDetalle = false;
+    public $motivoCierre = '';
+    public $motivoReapertura = '';
 
     public function nueva(): void
     {
@@ -144,9 +154,78 @@ class Expo extends Component
         }
     }
 
-    public function agregarDescuentoMarca(): void
+    public function abrirModalDescuentoMarca(): void
     {
-        $this->descuentosMarca[] = ['marca_id' => '', 'venta_minima' => '', 'porcentaje_descuento' => ''];
+        $this->marcaDescuentoSeleccionada = '';
+        $this->escalonesMarcaModal = [['venta_minima' => '', 'porcentaje_descuento' => '']];
+        $this->mostrarModalDescuentoMarca = true;
+        $this->resetValidation(['marcaDescuentoSeleccionada', 'escalonesMarcaModal']);
+    }
+
+    public function cerrarModalDescuentoMarca(): void
+    {
+        $this->mostrarModalDescuentoMarca = false;
+        $this->marcaDescuentoSeleccionada = '';
+        $this->escalonesMarcaModal = [];
+        $this->resetValidation(['marcaDescuentoSeleccionada', 'escalonesMarcaModal']);
+    }
+
+    public function agregarEscalonMarcaModal(): void
+    {
+        $this->escalonesMarcaModal[] = ['venta_minima' => '', 'porcentaje_descuento' => ''];
+    }
+
+    public function eliminarEscalonMarcaModal(int $indice): void
+    {
+        if (count($this->escalonesMarcaModal) <= 1) {
+            return;
+        }
+
+        unset($this->escalonesMarcaModal[$indice]);
+        $this->escalonesMarcaModal = array_values($this->escalonesMarcaModal);
+    }
+
+    public function guardarDescuentoMarcaModal(): void
+    {
+        foreach ($this->escalonesMarcaModal as &$escalon) {
+            $escalon['venta_minima'] = str_replace(',', '', (string) ($escalon['venta_minima'] ?? ''));
+        }
+        unset($escalon);
+
+        $this->validate([
+            'marcaDescuentoSeleccionada' => 'required|integer|exists:marca,id',
+            'escalonesMarcaModal' => 'required|array|min:1',
+            'escalonesMarcaModal.*.venta_minima' => 'required|numeric|min:0',
+            'escalonesMarcaModal.*.porcentaje_descuento' => 'required|numeric|min:0|max:100',
+        ], [
+            'marcaDescuentoSeleccionada.required' => 'Seleccione una marca.',
+            'escalonesMarcaModal.*.venta_minima.required' => 'Ingrese la venta mínima.',
+            'escalonesMarcaModal.*.porcentaje_descuento.required' => 'Ingrese el porcentaje.',
+        ]);
+
+        $marcaId = (int) $this->marcaDescuentoSeleccionada;
+        $minimosExistentes = collect($this->descuentosMarca)
+            ->where('marca_id', $marcaId)
+            ->pluck('venta_minima')
+            ->map(fn ($valor) => (string) (float) str_replace(',', '', (string) $valor));
+        $minimosNuevos = collect($this->escalonesMarcaModal)
+            ->pluck('venta_minima')
+            ->map(fn ($valor) => (string) (float) $valor);
+
+        if ($minimosNuevos->duplicates()->isNotEmpty() || $minimosNuevos->intersect($minimosExistentes)->isNotEmpty()) {
+            $this->addError('escalonesMarcaModal', 'La marca no puede repetir el mismo monto mínimo en dos escalones.');
+            return;
+        }
+
+        foreach ($this->escalonesMarcaModal as $escalon) {
+            $this->descuentosMarca[] = [
+                'marca_id' => (string) $marcaId,
+                'venta_minima' => (string) $escalon['venta_minima'],
+                'porcentaje_descuento' => (string) $escalon['porcentaje_descuento'],
+            ];
+        }
+
+        $this->cerrarModalDescuentoMarca();
     }
 
     public function eliminarDescuentoMarca(int $indice): void
@@ -155,6 +234,21 @@ class Expo extends Component
             unset($this->descuentosMarca[$indice]);
             $this->descuentosMarca = array_values($this->descuentosMarca);
         }
+    }
+
+    public function ordenarDescuentosMarca(string $columna): void
+    {
+        if (!in_array($columna, ['marca', 'venta_minima', 'porcentaje_descuento'], true)) {
+            return;
+        }
+
+        if ($this->ordenDescuentoMarca === $columna) {
+            $this->direccionDescuentoMarca = $this->direccionDescuentoMarca === 'asc' ? 'desc' : 'asc';
+            return;
+        }
+
+        $this->ordenDescuentoMarca = $columna;
+        $this->direccionDescuentoMarca = 'asc';
     }
 
     public function guardar(): void
@@ -199,7 +293,7 @@ class Expo extends Component
             'descuentos.*.venta_minima' => 'required|numeric|min:0|distinct',
             'descuentos.*.porcentaje_descuento' => 'required|numeric|min:0|max:100',
             'descuentosMarca' => 'array',
-            'descuentosMarca.*.marca_id' => 'required|integer|distinct|exists:marca,id',
+            'descuentosMarca.*.marca_id' => 'required|integer|exists:marca,id',
             'descuentosMarca.*.venta_minima' => 'required|numeric|min:0',
             'descuentosMarca.*.porcentaje_descuento' => 'required|numeric|min:0|max:100',
         ], [
@@ -208,6 +302,16 @@ class Expo extends Component
             'usuariosSeleccionados.required' => 'Agregue al menos un usuario autorizado.',
             'fechaFin.after' => 'La fecha final debe ser posterior a la fecha de inicio.',
         ]);
+
+        $escalonesMarca = collect($this->descuentosMarca)
+            ->groupBy(fn ($regla) => (int) ($regla['marca_id'] ?? 0));
+        foreach ($escalonesMarca as $reglas) {
+            $minimos = $reglas->pluck('venta_minima')->map(fn ($valor) => (string) (float) $valor);
+            if ($minimos->duplicates()->isNotEmpty()) {
+                $this->addError('descuentosMarca', 'Una marca no puede repetir el mismo monto mínimo en dos escalones.');
+                return;
+            }
+        }
 
         try {
             DB::beginTransaction();
@@ -339,6 +443,11 @@ class Expo extends Component
                 ->orderBy('edm.orden')
                 ->get(['m.nombre as marca', 'edm.venta_minima', 'edm.porcentaje_descuento'])
                 ->map(fn ($regla) => (array) $regla)->all(),
+            'flujos' => DB::table('expo_cotizacion as ec')
+                ->where('ec.expo_id', $id)
+                ->orderByDesc('ec.id')
+                ->get(['ec.id', 'ec.cotizacion_id', 'ec.flujo_id', 'ec.estado', 'ec.aumento_aplicado', 'ec.reapertura_autorizada'])
+                ->map(fn ($flujo) => (array) $flujo)->all(),
         ];
         $this->mostrarDetalle = true;
     }
@@ -349,14 +458,94 @@ class Expo extends Component
         $this->expoDetalle = [];
     }
 
+    public function cerrarExpo(int $expoId): void
+    {
+        $this->validate(['motivoCierre' => 'required|string|min:5|max:500']);
+
+        try {
+            DB::transaction(fn () => $this->cerrarExpoInternamente(
+                $expoId,
+                trim($this->motivoCierre),
+                (int) Auth::id()
+            ), 3);
+
+            $this->motivoCierre = '';
+            $this->cerrarDetalle();
+            session()->flash('success', 'La Expo fue cerrada y sus flujos incompletos fueron liquidados.');
+        } catch (\Throwable $e) {
+            report($e);
+            session()->flash('error', 'No se pudo cerrar la Expo: ' . $e->getMessage());
+        }
+    }
+
+    public function reabrirExpo(int $expoId): void
+    {
+        $this->validate(['motivoReapertura' => 'required|string|min:5|max:500']);
+
+        try {
+            DB::transaction(function () use ($expoId) {
+                $expo = DB::table('expo')->where('id', $expoId)->lockForUpdate()->first();
+                abort_unless($expo, 404);
+                if (DB::table('expo')->where('estado', 'Activo')->where('id', '<>', $expoId)->exists()) {
+                    throw new \RuntimeException('Existe otra Expo activa. Ciérrela antes de reabrir esta Expo.');
+                }
+
+                foreach (DB::table('expo_cotizacion')->where('expo_id', $expoId)->lockForUpdate()->get() as $oferta) {
+                    $this->reabrirOferta($oferta, trim($this->motivoReapertura));
+                }
+
+                DB::table('expo')->where('id', $expoId)->update([
+                    'estado' => 'Activo',
+                    'cerrada_por' => null,
+                    'cerrada_at' => null,
+                    'motivo_cierre' => null,
+                    'updated_by' => Auth::id(),
+                    'updated_at' => now(),
+                ]);
+            }, 3);
+
+            $this->motivoReapertura = '';
+            $this->cerrarDetalle();
+            session()->flash('success', 'La Expo fue reabierta y sus aumentos fueron revertidos mediante disminuciones.');
+        } catch (\Throwable $e) {
+            report($e);
+            session()->flash('error', 'No se pudo reabrir la Expo: ' . $e->getMessage());
+        }
+    }
+
+    public function reabrirFlujo(int $expoCotizacionId): void
+    {
+        $this->validate(['motivoReapertura' => 'required|string|min:5|max:500']);
+        $expoId = (int) ($this->expoDetalle['expo']['id'] ?? 0);
+
+        try {
+            DB::transaction(function () use ($expoCotizacionId) {
+                $oferta = DB::table('expo_cotizacion')->where('id', $expoCotizacionId)->lockForUpdate()->first();
+                abort_unless($oferta, 404);
+                $this->reabrirOferta($oferta, trim($this->motivoReapertura));
+            }, 3);
+
+            $this->motivoReapertura = '';
+            $this->verDetalle($expoId);
+            session()->flash('success', 'El flujo fue reabierto y su aumento fue revertido mediante una disminución.');
+        } catch (\Throwable $e) {
+            report($e);
+            session()->flash('error', 'No se pudo reabrir el flujo: ' . $e->getMessage());
+        }
+    }
+
     private function resetForm(): void
     {
         $this->reset([
             'expoEditandoId', 'expoDuplicandoId', 'nombre', 'descripcion', 'fechaInicio', 'fechaFin',
             'bodegasSeleccionadas', 'escalasSeleccionadas', 'usuariosSeleccionados',
             'busquedaUsuario', 'descuentos', 'descuentosMarca', 'mostrarFormulario',
+            'mostrarModalDescuentoMarca', 'marcaDescuentoSeleccionada', 'escalonesMarcaModal',
+            'busquedaDescuentoMarca', 'ordenDescuentoMarca', 'direccionDescuentoMarca',
         ]);
         $this->estado = 'Inactivo';
+        $this->ordenDescuentoMarca = 'marca';
+        $this->direccionDescuentoMarca = 'asc';
         $this->resetValidation();
     }
 
@@ -381,6 +570,24 @@ class Expo extends Component
             ->orderBy('cce.nombre_categoria')->orderBy('cp.nombre')
             ->get(['cp.id', DB::raw("CONCAT(cce.nombre_categoria, ' - ', cp.nombre) as nombre")]);
         $marcas = DB::table('marca')->orderBy('nombre')->get(['id', 'nombre']);
+        $nombresMarca = $marcas->pluck('nombre', 'id');
+        $busquedaMarca = mb_strtolower(trim($this->busquedaDescuentoMarca));
+        $descuentosMarcaTabla = collect($this->descuentosMarca)
+            ->map(function ($regla, $indice) use ($nombresMarca) {
+                return [
+                    'indice' => (int) $indice,
+                    'marca_id' => (int) ($regla['marca_id'] ?? 0),
+                    'marca' => (string) ($nombresMarca[(int) ($regla['marca_id'] ?? 0)] ?? ('Marca #' . ($regla['marca_id'] ?? ''))),
+                    'venta_minima' => (float) str_replace(',', '', (string) ($regla['venta_minima'] ?? 0)),
+                    'porcentaje_descuento' => (float) ($regla['porcentaje_descuento'] ?? 0),
+                ];
+            })
+            ->when($busquedaMarca !== '', fn ($reglas) => $reglas->filter(
+                fn ($regla) => str_contains(mb_strtolower($regla['marca']), $busquedaMarca)
+            ));
+        $descuentosMarcaTabla = $this->direccionDescuentoMarca === 'desc'
+            ? $descuentosMarcaTabla->sortByDesc($this->ordenDescuentoMarca)
+            : $descuentosMarcaTabla->sortBy($this->ordenDescuentoMarca);
 
         $usuariosAgregados = DB::table('users')
             ->whereIn('id', array_map('intval', $this->usuariosSeleccionados))
@@ -403,7 +610,8 @@ class Expo extends Component
         }
 
         return view('livewire.flujodeventa.expo', compact(
-            'expos', 'bodegas', 'escalas', 'marcas', 'usuariosAgregados', 'usuariosEncontrados'
+            'expos', 'bodegas', 'escalas', 'marcas', 'descuentosMarcaTabla',
+            'usuariosAgregados', 'usuariosEncontrados'
         ));
     }
 
@@ -438,19 +646,99 @@ class Expo extends Component
 
     private function sincronizarExposVencidas(): void
     {
-        DB::table('expo')
+        $vencidas = DB::table('expo')
             ->where('estado', 'Activo')
             ->whereNotNull('fecha_fin')
             ->where('fecha_fin', '<=', now())
-            ->update([
-                'estado' => 'Inactivo',
-                'updated_by' => Auth::id(),
-                'updated_at' => now(),
-            ]);
+            ->get(['id', 'updated_by']);
+
+        foreach ($vencidas as $expo) {
+            $usuarioId = (int) (Auth::id() ?: $expo->updated_by);
+            DB::transaction(fn () => $this->cerrarExpoInternamente(
+                (int) $expo->id,
+                'Cierre automático por vencimiento del plazo de facturación.',
+                $usuarioId
+            ), 3);
+        }
     }
 
     private function estaFinalizada(object $expo): bool
     {
         return $expo->fecha_fin && Carbon::parse($expo->fecha_fin)->lte(now());
+    }
+
+    private function resolverFlujoId(int $cotizacionId, ?int $flujoId): ?int
+    {
+        if ($flujoId) {
+            return (int) $flujoId;
+        }
+
+        $id = DB::table('historico_flujo')
+            ->where('tramite_id', $cotizacionId)
+            ->where('tipo_tramite_id', 2)
+            ->value('flujo_id');
+
+        return $id ? (int) $id : null;
+    }
+
+    private function reabrirOferta(object $oferta, string $motivo): void
+    {
+        app(GestorAumentoExpo::class)->revertir((int) $oferta->id, (int) Auth::id());
+        $flujoId = $this->resolverFlujoId((int) $oferta->cotizacion_id, $oferta->flujo_id);
+        $tieneFacturas = $flujoId && DB::table('historico_flujo as hf')
+            ->join('factura as f', 'f.id', '=', 'hf.tramite_id')
+            ->where('hf.flujo_id', $flujoId)
+            ->whereIn('hf.tipo_tramite_id', [3, 5])
+            ->where('hf.estado_id', '<>', 7)
+            ->where('f.estado_venta_id', 1)
+            ->exists();
+
+        DB::table('expo_cotizacion')->where('id', $oferta->id)->update([
+            'estado' => $tieneFacturas ? 'FACTURACION_PARCIAL' : 'PENDIENTE_FACTURACION',
+            'reapertura_autorizada' => true,
+            'motivo_reapertura' => $motivo,
+            'reabierto_por' => Auth::id(),
+            'reabierto_at' => now(),
+            'aumento_aplicado' => 0,
+            'liquidado_por' => null,
+            'liquidado_at' => null,
+        ]);
+    }
+
+    private function cerrarExpoInternamente(int $expoId, string $motivo, int $usuarioId): void
+    {
+        $expo = DB::table('expo')->where('id', $expoId)->lockForUpdate()->first();
+        abort_unless($expo, 404);
+        if ($expo->estado !== 'Activo') {
+            return;
+        }
+
+        DB::table('expo')->where('id', $expoId)->update([
+            'estado' => 'Cerrada',
+            'cerrada_por' => $usuarioId,
+            'cerrada_at' => now(),
+            'motivo_cierre' => $motivo,
+            'updated_by' => $usuarioId,
+            'updated_at' => now(),
+        ]);
+
+        $ofertas = DB::table('expo_cotizacion')
+            ->where('expo_id', $expoId)
+            ->whereIn('estado', ['PENDIENTE_FACTURACION', 'FACTURACION_PARCIAL'])
+            ->lockForUpdate()
+            ->get();
+        foreach ($ofertas as $oferta) {
+            $flujoId = $this->resolverFlujoId((int) $oferta->cotizacion_id, $oferta->flujo_id);
+            if ($flujoId) {
+                app(LiquidacionOfertaExpo::class)->procesar(
+                    (int) $oferta->cotizacion_id,
+                    $flujoId,
+                    null,
+                    true,
+                    $motivo,
+                    $usuarioId
+                );
+            }
+        }
     }
 }

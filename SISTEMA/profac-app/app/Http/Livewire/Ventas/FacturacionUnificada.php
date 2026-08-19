@@ -194,7 +194,7 @@ class FacturacionUnificada extends Component
             $esExpo = !empty($expoCotizacionId);
             $this->esOfertaExpo = $esExpo;
             if ($esExpo) {
-                $this->expoConfig = ExpoConfig::detalleActivaParaUsuario((int) $expoCotizacionId, Auth::id());
+                $this->expoConfig = ExpoConfig::detalleParaFacturacion((int) $expoCotizacionId, (int) $cotizId, Auth::id());
                 abort_unless($this->expoConfig, 403, 'No tiene autorización para facturar esta Oferta Expo.');
                 $snapshot = json_decode((string) ($expoCotizacion->reglas_descuento_snapshot ?? ''), true) ?: [];
                 $this->reglasExpoOferta = array_key_exists('generales', $snapshot)
@@ -622,7 +622,11 @@ class FacturacionUnificada extends Component
             : null;
         $this->esOfertaExpo = !empty($expoCotizacion);
         if ($expoCotizacion) {
-            $this->expoConfig = ExpoConfig::detalleActivaParaUsuario((int) $expoCotizacion->expo_id, Auth::id());
+            $this->expoConfig = ExpoConfig::detalleParaFacturacion(
+                (int) $expoCotizacion->expo_id,
+                (int) $pref->cotizacion_id,
+                Auth::id()
+            );
             abort_unless($this->expoConfig, 403, 'No tiene autorización para facturar esta Oferta Expo.');
             $snapshot = json_decode((string) ($expoCotizacion->reglas_descuento_snapshot ?? ''), true) ?: [];
             $this->reglasExpoOferta = array_key_exists('generales', $snapshot)

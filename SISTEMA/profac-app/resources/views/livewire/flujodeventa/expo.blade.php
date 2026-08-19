@@ -176,6 +176,32 @@
             background: #fff;
         }
         .expo-discount-table { margin: 0; }
+        .expo-brand-search { width: min(300px, 100%); }
+        .expo-brand-table-scroll {
+            max-height: 292px;
+            overflow-y: auto;
+            overflow-x: auto;
+        }
+        .expo-brand-table-scroll .expo-discount-table { min-width: 620px; }
+        .expo-brand-table-scroll thead th {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+        }
+        .expo-brand-table-scroll tbody tr { height: 43px; }
+        .expo-sort-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 0;
+            border: 0;
+            background: transparent;
+            color: inherit;
+            font: inherit;
+            text-transform: inherit;
+        }
+        .expo-sort-button i { color: #a0aec0; font-size: 10px; }
+        .expo-sort-button.active i { color: #e65100; }
         .expo-discount-table thead th,
         .expo-history-table thead th {
             padding: 9px 12px;
@@ -255,6 +281,10 @@
             font-weight: 700 !important;
         }
         .expo-detail-backdrop { position:fixed; inset:0; z-index:2050; display:flex; align-items:center; justify-content:center; padding:20px; background:rgba(27,39,51,.55); }
+        .wrapper.wrapper-content.animated.fadeInRight:has(.expo-detail-backdrop) {
+            transform: none !important;
+            animation: none !important;
+        }
         .expo-detail-modal { width:min(900px, 100%); max-height:calc(100vh - 40px); overflow-y:auto; border-radius:10px; background:#fff; box-shadow:0 20px 55px rgba(0,0,0,.28); }
         .expo-detail-head { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; padding:17px 20px; background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; }
         .expo-detail-head h4 { margin:0; color:#fff; font-size:17px; font-weight:800; }
@@ -295,7 +325,7 @@
         </div>
     </div>
 
-    <div class="wrapper wrapper-content animated fadeInRight">
+    <div class="wrapper wrapper-content">
         
         @if (session()->has('success'))
             <div class="alert alert-success alert-dismissible fade show" role="alert">
@@ -471,86 +501,87 @@
                             </div>
 
                             <div class="expo-section">
-                            <div class="d-flex flex-wrap justify-content-between align-items-center mb-3" style="gap:8px;">
-                                <div class="expo-section-title mb-0" style="flex:1; min-width:200px;"><i class="fa fa-percent"></i>Reglas de descuento</div>
-                                <button type="button" wire:click="agregarDescuento" class="btn btn-sm btn-outline-warning" style="border-radius:7px; font-weight:700; font-size:11px;">
-                                    <i class="fa fa-plus mr-1"></i> Agregar regla
-                                </button>
-                            </div>
-                            <div class="table-responsive expo-discount-wrap mb-3">
-                                <table class="table table-sm expo-discount-table">
-                                    <thead>
-                                        <tr><th>Venta mínima (L.)</th><th>Descuento (%)</th><th style="width:60px;">Acción</th></tr>
-                                    </thead>
-                                    <tbody>
-                                        @forelse ($descuentos as $indice => $regla)
-                                            <tr wire:key="expo-descuento-{{ $indice }}">
-                                                <td>
-                                                    <input type="text" inputmode="decimal"
-                                                           wire:model.defer="descuentos.{{ $indice }}.venta_minima"
-                                                           class="form-control form-control-sm expo-money-input"
-                                                           placeholder="0.00" autocomplete="off"
-                                                           x-data="{}"
-                                                           x-init="$nextTick(() => { const amount = Number($el.value.replace(/,/g, '')); if (Number.isFinite(amount)) $el.value = amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); })"
-                                                           x-on:focus="$el.value = $el.value.replace(/,/g, '')"
-                                                           x-on:input="$el.value = $el.value.replace(/,/g, '').replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1')"
-                                                           x-on:blur="const amount = Number($el.value.replace(/,/g, '')); $el.value = Number.isFinite(amount) ? amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''">
-                                                    @error('descuentos.'.$indice.'.venta_minima') <small class="text-danger">{{ $message }}</small> @enderror
-                                                </td>
-                                                <td>
-                                                    <input type="number" step="0.01" min="0" max="100" wire:model.defer="descuentos.{{ $indice }}.porcentaje_descuento" class="form-control form-control-sm">
-                                                    @error('descuentos.'.$indice.'.porcentaje_descuento') <small class="text-danger">{{ $message }}</small> @enderror
-                                                </td>
-                                                <td class="text-center">
-                                                    <button type="button" wire:click="eliminarDescuento({{ $indice }})" class="btn btn-xs btn-white" title="Eliminar regla">
-                                                        <i class="fa fa-trash text-danger"></i>
+                                <div class="d-flex flex-wrap justify-content-between align-items-center mb-3" style="gap:8px;">
+                                    <div class="expo-section-title mb-0" style="flex:1; min-width:200px;"><i class="fa fa-tags"></i>Descuentos por marca</div>
+                                    <div class="d-flex flex-wrap align-items-center justify-content-end" style="gap:8px; flex:1;">
+                                        <div class="input-group input-group-sm expo-brand-search">
+                                            <div class="input-group-prepend"><span class="input-group-text"><i class="fa fa-search"></i></span></div>
+                                            <input type="search" wire:model.debounce.250ms="busquedaDescuentoMarca" class="form-control" placeholder="Buscar por marca..." autocomplete="off">
+                                        </div>
+                                        <button type="button" wire:click="abrirModalDescuentoMarca" class="btn btn-sm btn-outline-warning" style="border-radius:7px; font-weight:700; font-size:11px; white-space:nowrap;">
+                                            <i class="fa fa-plus mr-1"></i> Agregar descuento
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="expo-discount-wrap expo-brand-table-scroll mb-3">
+                                    <table class="table table-sm expo-discount-table">
+                                        <thead>
+                                            <tr>
+                                                <th>
+                                                    <button type="button" wire:click="ordenarDescuentosMarca('marca')" class="expo-sort-button {{ $ordenDescuentoMarca === 'marca' ? 'active' : '' }}">
+                                                        Marca <i class="fa {{ $ordenDescuentoMarca === 'marca' ? ($direccionDescuentoMarca === 'asc' ? 'fa-sort-asc' : 'fa-sort-desc') : 'fa-sort' }}"></i>
                                                     </button>
-                                                </td>
+                                                </th>
+                                                <th>
+                                                    <button type="button" wire:click="ordenarDescuentosMarca('venta_minima')" class="expo-sort-button {{ $ordenDescuentoMarca === 'venta_minima' ? 'active' : '' }}">
+                                                        Venta mínima (L.) <i class="fa {{ $ordenDescuentoMarca === 'venta_minima' ? ($direccionDescuentoMarca === 'asc' ? 'fa-sort-asc' : 'fa-sort-desc') : 'fa-sort' }}"></i>
+                                                    </button>
+                                                </th>
+                                                <th>
+                                                    <button type="button" wire:click="ordenarDescuentosMarca('porcentaje_descuento')" class="expo-sort-button {{ $ordenDescuentoMarca === 'porcentaje_descuento' ? 'active' : '' }}">
+                                                        Descuento (%) <i class="fa {{ $ordenDescuentoMarca === 'porcentaje_descuento' ? ($direccionDescuentoMarca === 'asc' ? 'fa-sort-asc' : 'fa-sort-desc') : 'fa-sort' }}"></i>
+                                                    </button>
+                                                </th>
+                                                <th style="width:60px;">Acción</th>
                                             </tr>
-                                        @empty
-                                            <tr><td colspan="3" class="text-center text-muted">Sin reglas de descuento.</td></tr>
-                                        @endforelse
-                                    </tbody>
-                                </table>
-                            </div>
+                                        </thead>
+                                        <tbody>
+                                            @forelse ($descuentosMarcaTabla as $regla)
+                                                <tr wire:key="expo-descuento-marca-{{ $regla['indice'] }}">
+                                                    <td><strong>{{ $regla['marca'] }}</strong></td>
+                                                    <td>{{ number_format($regla['venta_minima'], 2) }}</td>
+                                                    <td>{{ number_format($regla['porcentaje_descuento'], 2) }}%</td>
+                                                    <td class="text-center">
+                                                        <button type="button" wire:click="eliminarDescuentoMarca({{ $regla['indice'] }})" class="btn btn-xs btn-white" title="Eliminar regla de marca"><i class="fa fa-trash text-danger"></i></button>
+                                                    </td>
+                                                </tr>
+                                            @empty
+                                                <tr><td colspan="4" class="text-center text-muted py-3">{{ trim($busquedaDescuentoMarca) !== '' ? 'No hay marcas que coincidan con la búsqueda.' : 'Sin escalones de descuento por marca.' }}</td></tr>
+                                            @endforelse
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
 
                             <div class="expo-section">
                                 <div class="d-flex flex-wrap justify-content-between align-items-center mb-3" style="gap:8px;">
-                                    <div class="expo-section-title mb-0" style="flex:1; min-width:200px;"><i class="fa fa-tags"></i>Descuentos por marca</div>
-                                    <button type="button" wire:click="agregarDescuentoMarca" class="btn btn-sm btn-outline-warning" style="border-radius:7px; font-weight:700; font-size:11px;">
-                                        <i class="fa fa-plus mr-1"></i> Agregar marca
+                                    <div class="expo-section-title mb-0" style="flex:1; min-width:200px;"><i class="fa fa-percent"></i>Descuentos por total</div>
+                                    <button type="button" wire:click="agregarDescuento" class="btn btn-sm btn-outline-warning" style="border-radius:7px; font-weight:700; font-size:11px;">
+                                        <i class="fa fa-plus mr-1"></i> Agregar regla
                                     </button>
                                 </div>
                                 <div class="table-responsive expo-discount-wrap mb-3">
                                     <table class="table table-sm expo-discount-table">
-                                        <thead><tr><th>Marca</th><th>Venta mínima (L.)</th><th>Descuento (%)</th><th style="width:60px;">Acción</th></tr></thead>
+                                        <thead><tr><th>Venta mínima (L.)</th><th>Descuento (%)</th><th style="width:60px;">Acción</th></tr></thead>
                                         <tbody>
-                                            @forelse ($descuentosMarca as $indice => $regla)
-                                                <tr wire:key="expo-descuento-marca-{{ $indice }}">
+                                            @forelse ($descuentos as $indice => $regla)
+                                                <tr wire:key="expo-descuento-{{ $indice }}">
                                                     <td>
-                                                        <select wire:model.defer="descuentosMarca.{{ $indice }}.marca_id" class="form-control form-control-sm">
-                                                            <option value="">Seleccione</option>
-                                                            @foreach($marcas as $marca)
-                                                                <option value="{{ $marca->id }}">{{ $marca->nombre }}</option>
-                                                            @endforeach
-                                                        </select>
-                                                        @error('descuentosMarca.'.$indice.'.marca_id') <small class="text-danger">{{ $message }}</small> @enderror
-                                                    </td>
-                                                    <td>
-                                                        <input type="text" inputmode="decimal" wire:model.defer="descuentosMarca.{{ $indice }}.venta_minima" class="form-control form-control-sm" placeholder="0.00">
-                                                        @error('descuentosMarca.'.$indice.'.venta_minima') <small class="text-danger">{{ $message }}</small> @enderror
+                                                        <input type="text" inputmode="decimal" wire:model.defer="descuentos.{{ $indice }}.venta_minima"
+                                                               class="form-control form-control-sm expo-money-input" placeholder="0.00" autocomplete="off"
+                                                               x-data="{ formatMoney() { let raw = $el.value.replace(/,/g, '').replace(/[^0-9.]/g, ''); const point = raw.indexOf('.'); if (point !== -1) raw = raw.slice(0, point + 1) + raw.slice(point + 1).replace(/\./g, '').slice(0, 2); let parts = raw.split('.'); parts[0] = (parts[0] || '').replace(/^0+(?=\d)/, '').replace(/\B(?=(\d{3})+(?!\d))/g, ','); $el.value = parts[0] + (raw.includes('.') ? '.' + (parts[1] || '') : ''); } }"
+                                                               x-init="$nextTick(() => { formatMoney(); const amount = Number($el.value.replace(/,/g, '')); if (Number.isFinite(amount)) $el.value = amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); })"
+                                                               x-on:input="formatMoney()" x-on:blur="const amount = Number($el.value.replace(/,/g, '')); $el.value = Number.isFinite(amount) ? amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''">
+                                                        @error('descuentos.'.$indice.'.venta_minima') <small class="text-danger">{{ $message }}</small> @enderror
                                                     </td>
                                                     <td>
-                                                        <input type="number" step="0.01" min="0" max="100" wire:model.defer="descuentosMarca.{{ $indice }}.porcentaje_descuento" class="form-control form-control-sm">
-                                                        @error('descuentosMarca.'.$indice.'.porcentaje_descuento') <small class="text-danger">{{ $message }}</small> @enderror
+                                                        <input type="number" step="0.01" min="0" max="100" wire:model.defer="descuentos.{{ $indice }}.porcentaje_descuento" class="form-control form-control-sm">
+                                                        @error('descuentos.'.$indice.'.porcentaje_descuento') <small class="text-danger">{{ $message }}</small> @enderror
                                                     </td>
-                                                    <td class="text-center">
-                                                        <button type="button" wire:click="eliminarDescuentoMarca({{ $indice }})" class="btn btn-xs btn-white" title="Eliminar regla de marca"><i class="fa fa-trash text-danger"></i></button>
-                                                    </td>
+                                                    <td class="text-center"><button type="button" wire:click="eliminarDescuento({{ $indice }})" class="btn btn-xs btn-white" title="Eliminar regla"><i class="fa fa-trash text-danger"></i></button></td>
                                                 </tr>
                                             @empty
-                                                <tr><td colspan="4" class="text-center text-muted">Sin descuentos por marca.</td></tr>
+                                                <tr><td colspan="3" class="text-center text-muted">Sin descuentos por total.</td></tr>
                                             @endforelse
                                         </tbody>
                                     </table>
@@ -663,9 +694,50 @@
                             <div class="expo-detail-section"><h6><i class="fa fa-percent mr-1"></i>Reglas de descuento</h6><div class="expo-detail-tags">@forelse($expoDetalle['descuentos'] as $regla)<span class="expo-detail-tag">Desde L {{ number_format($regla['venta_minima'], 2) }}: <strong>{{ number_format($regla['porcentaje_descuento'], 2) }}%</strong></span>@empty<span class="text-muted small">Sin descuentos.</span>@endforelse</div></div>
                             <div class="expo-detail-section"><h6><i class="fa fa-tags mr-1"></i>Descuentos por marca</h6><div class="expo-detail-tags">@forelse($expoDetalle['descuentos_marca'] as $regla)<span class="expo-detail-tag">{{ $regla['marca'] }} desde L {{ number_format($regla['venta_minima'], 2) }}: <strong>{{ number_format($regla['porcentaje_descuento'], 2) }}%</strong></span>@empty<span class="text-muted small">Sin descuentos por marca.</span>@endforelse</div></div>
                             <div class="expo-detail-section"><h6><i class="fa fa-users mr-1"></i>Usuarios autorizados</h6><table class="expo-detail-users"><tbody>@forelse($expoDetalle['usuarios'] as $usuario)<tr><td><strong>{{ $usuario['name'] }}</strong></td><td class="text-muted">{{ $usuario['email'] }}</td></tr>@empty<tr><td class="text-muted">Sin usuarios autorizados.</td></tr>@endforelse</tbody></table></div>
+                            <div class="expo-detail-section">
+                                <h6><i class="fa fa-exchange mr-1"></i>Control de facturación</h6>
+                                @if($detalle['estado'] === 'Activo')
+                                    <textarea wire:model.defer="motivoCierre" class="form-control form-control-sm mb-2" maxlength="500" rows="2" placeholder="Motivo obligatorio para cerrar la Expo"></textarea>
+                                    @error('motivoCierre')<div class="text-danger small mb-2">{{ $message }}</div>@enderror
+                                    <button type="button" wire:click="cerrarExpo({{ $detalle['id'] }})" wire:loading.attr="disabled" class="btn btn-danger btn-sm">
+                                        <i class="fa fa-lock mr-1"></i>Cerrar Expo y liquidar flujos
+                                    </button>
+                                @elseif($detalle['estado'] === 'Cerrada')
+                                    <textarea wire:model.defer="motivoReapertura" class="form-control form-control-sm mb-2" maxlength="500" rows="2" placeholder="Motivo obligatorio para la reapertura"></textarea>
+                                    @error('motivoReapertura')<div class="text-danger small mb-2">{{ $message }}</div>@enderror
+                                    <button type="button" wire:click="reabrirExpo({{ $detalle['id'] }})" wire:loading.attr="disabled" class="btn btn-success btn-sm mb-2">
+                                        <i class="fa fa-unlock mr-1"></i>Reabrir Expo completa
+                                    </button>
+                                    <div class="table-responsive mt-2">
+                                        <table class="table table-sm table-bordered mb-0">
+                                            <thead><tr><th>Flujo</th><th>Oferta</th><th>Estado</th><th class="text-right">Aumento</th><th></th></tr></thead>
+                                            <tbody>
+                                            @forelse($expoDetalle['flujos'] as $flujo)
+                                                <tr>
+                                                    <td>#{{ $flujo['flujo_id'] ?: '-' }}</td>
+                                                    <td>#{{ $flujo['cotizacion_id'] }}</td>
+                                                    <td>{{ $flujo['estado'] }}</td>
+                                                    <td class="text-right">L {{ number_format($flujo['aumento_aplicado'] ?? 0, 2) }}</td>
+                                                    <td class="text-right">
+                                                        @if(in_array($flujo['estado'], ['LIQUIDADA', 'PENDIENTE_LIQUIDACION'], true))
+                                                            <button type="button" wire:click="reabrirFlujo({{ $flujo['id'] }})" wire:loading.attr="disabled" class="btn btn-xs btn-outline-success" title="Reabrir solo este flujo">
+                                                                <i class="fa fa-unlock"></i>
+                                                            </button>
+                                                        @endif
+                                                    </td>
+                                                </tr>
+                                            @empty
+                                                <tr><td colspan="5" class="text-muted text-center">Esta Expo no tiene flujos registrados.</td></tr>
+                                            @endforelse
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                @endif
+                            </div>
                         </div>
                     </div>
                 </div>
             @endif
         </div>
+        @include('livewire.flujodeventa.partials.modal-descuento-marca')
     </div>

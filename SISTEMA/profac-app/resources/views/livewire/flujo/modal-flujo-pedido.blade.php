@@ -2238,7 +2238,7 @@
                     <div style="padding:10px 12px; background:#e3f2fd; color:#0d47a1; display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:8px;">
                         <strong style="font-size:12px;"><i class="fa fa-calculator mr-1"></i>Liquidación Expo pendiente de confirmación</strong>
                         <button type="button" class="btn btn-sm btn-primary" onclick='confirmarLiquidacionExpoFlujo(@json($liq))'>
-                            <i class="fa fa-file-text-o mr-1"></i>Revisar y generar nota
+                            <i class="fa fa-plus-circle mr-1"></i>Revisar y aplicar aumento
                         </button>
                     </div>
                     <div style="padding:10px 12px; font-size:11px; color:#455a64;">
@@ -2246,13 +2246,15 @@
                             <span>Subtotal facturado: <strong>L {{ number_format($liq['total_facturado'] ?? 0, 2) }}</strong></span>
                             <span>Descuento por marca: <strong>L {{ number_format($liq['descuento_marca_total'] ?? 0, 2) }}</strong></span>
                             <span>Descuento general: <strong>{{ number_format($liq['porcentaje_descuento'] ?? 0, 2) }}% · L {{ number_format($liq['descuento_general'] ?? 0, 2) }}</strong></span>
-                            <span>Total descuento: <strong style="color:#0d47a1;">L {{ number_format($liq['descuento_calculado'] ?? 0, 2) }}</strong></span>
+                            <span>Descuento otorgado: <strong>L {{ number_format($liq['descuento_otorgado'] ?? 0, 2) }}</strong></span>
+                            <span>Descuento ganado: <strong>L {{ number_format($liq['descuento_ganado'] ?? 0, 2) }}</strong></span>
+                            <span>Aumento: <strong style="color:#0d47a1;">L {{ number_format($liq['aumento_calculado'] ?? 0, 2) }}</strong></span>
                         </div>
                         @if(!empty($liq['descuentos_marca']))
                         <div class="table-responsive">
                             <table style="width:100%; border-collapse:collapse;">
-                                <thead><tr style="color:#607d8b;"><th style="padding:3px 5px; text-align:left;">Factura</th><th style="padding:3px 5px; text-align:left;">Marca</th><th style="padding:3px 5px; text-align:right;">Subtotal</th><th style="padding:3px 5px; text-align:center;">Regla</th><th style="padding:3px 5px; text-align:right;">Descuento</th></tr></thead>
-                                <tbody>@foreach($liq['descuentos_marca'] as $marca)<tr style="border-top:1px solid #e3f2fd;"><td style="padding:3px 5px;">{{ $marca['factura'] }}</td><td style="padding:3px 5px;">{{ $marca['marca'] }}</td><td style="padding:3px 5px; text-align:right;">L {{ number_format($marca['subtotal_bruto'], 2) }}</td><td style="padding:3px 5px; text-align:center;">{{ $marca['cumple'] ? 'Cumple' : 'No cumple' }}</td><td style="padding:3px 5px; text-align:right;">L {{ number_format($marca['descuento'], 2) }}</td></tr>@endforeach</tbody>
+                                <thead><tr style="color:#607d8b;"><th style="padding:3px 5px; text-align:left;">Marca</th><th style="padding:3px 5px; text-align:right;">Escalón alcanzado</th></tr></thead>
+                                <tbody>@foreach($liq['descuentos_marca'] as $marca)<tr style="border-top:1px solid #e3f2fd;"><td style="padding:3px 5px;">{{ $marca['marca'] }}</td><td style="padding:3px 5px; text-align:right;">{{ number_format($marca['porcentaje_descuento'], 2) }}%</td></tr>@endforeach</tbody>
                             </table>
                         </div>
                         @endif
@@ -2674,22 +2676,17 @@
         var moneda = function(valor) {
             return 'L ' + Number(valor || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         };
-        var aplicaciones = (resumen.aplicaciones || []).map(function(aplicacion) {
-            return '<tr><td>' + (aplicacion.factura || ('#' + aplicacion.factura_id)) + '</td><td style="text-align:right">' + moneda(aplicacion.monto) + '</td></tr>';
-        }).join('');
-
         Swal.fire({
             icon: 'warning',
-            title: 'Generar nota de crédito',
+            title: 'Aplicar aumento Expo',
             width: 680,
             showCancelButton: true,
-            confirmButtonText: 'Confirmar y generar',
+            confirmButtonText: 'Confirmar aumento',
             cancelButtonText: 'Más tarde',
             showLoaderOnConfirm: true,
             allowOutsideClick: function() { return !Swal.isLoading(); },
-            html: '<p style="font-size:13px">La nota se aplicará únicamente a las facturas activas de este flujo.</p>'
-                + '<div style="display:flex;justify-content:space-around;margin:12px 0"><span>Descuento<br><strong>' + moneda(resumen.descuento_calculado) + '</strong></span><span>Aplicable<br><strong>' + moneda(resumen.saldo_aplicable) + '</strong></span><span>Diferencia<br><strong>' + moneda(resumen.diferencia) + '</strong></span></div>'
-                + '<table class="table table-sm table-bordered"><thead><tr><th>Factura</th><th style="text-align:right">Aplicación propuesta</th></tr></thead><tbody>' + aplicaciones + '</tbody></table>',
+            html: '<p style="font-size:13px">El aumento se registrará como otro movimiento en las facturas de este flujo.</p>'
+                + '<div style="display:flex;justify-content:space-around;margin:12px 0"><span>Otorgado<br><strong>' + moneda(resumen.descuento_otorgado) + '</strong></span><span>Ganado<br><strong>' + moneda(resumen.descuento_ganado) + '</strong></span><span>Aumento<br><strong>' + moneda(resumen.aumento_calculado) + '</strong></span></div>',
             preConfirm: function() {
                 return axios.post('/expo/liquidacion/confirmar', {
                     cotizacion_id: resumen.cotizacion_id,
@@ -2698,7 +2695,7 @@
                     return response.data.liquidacionExpo;
                 }).catch(function(error) {
                     var data = error.response ? error.response.data : {};
-                    Swal.showValidationMessage(data.text || data.message || 'No se pudo generar la nota de crédito.');
+                    Swal.showValidationMessage(data.text || data.message || 'No se pudo aplicar el aumento.');
                 });
             }
         }).then(function(result) {
@@ -2706,8 +2703,8 @@
             var liquidacion = result.value;
             Swal.fire({
                 icon: liquidacion.estado === 'LIQUIDADA' ? 'success' : 'warning',
-                title: liquidacion.estado === 'LIQUIDADA' ? 'Oferta liquidada' : 'Revisión contable pendiente',
-                text: liquidacion.mensaje || 'La nota de crédito fue generada y aplicada.',
+                title: liquidacion.estado === 'LIQUIDADA' ? 'Oferta liquidada' : 'Liquidación pendiente',
+                text: liquidacion.mensaje || 'El aumento fue registrado y aplicado.',
                 confirmButtonText: 'Aceptar'
             }).then(function() {
                 Livewire.emit('recargarFlujo');

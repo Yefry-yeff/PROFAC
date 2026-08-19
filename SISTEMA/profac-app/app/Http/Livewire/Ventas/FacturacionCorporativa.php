@@ -890,7 +890,7 @@ class FacturacionCorporativa extends Component
             return response()->json([
                 'icon' => 'error',
                 'title' => 'Error de liquidación',
-                'text' => 'No se generó la nota de crédito.',
+                'text' => 'No se pudo aplicar el aumento de la Oferta Expo.',
             ], 500);
         }
     }

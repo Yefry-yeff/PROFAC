@@ -132,7 +132,7 @@ class ExpoConfigTest extends TestCase
         $this->assertSame($fechaFinNueva->format('Y-m-d H:i:00'), $expo->fecha_fin);
     }
 
-    public function test_el_historial_inactiva_automaticamente_una_expo_vencida(): void
+    public function test_el_historial_cierra_automaticamente_una_expo_vencida(): void
     {
         DB::table('expo')->where('estado', 'Activo')->update(['estado' => 'Inactivo']);
         $userId = (int) DB::table('users')->min('id');
@@ -151,7 +151,7 @@ class ExpoConfigTest extends TestCase
         $this->actingAs(User::findOrFail($userId));
         Livewire::test(ExpoComponent::class)->assertSee('Expo vencida');
 
-        $this->assertSame('Inactivo', DB::table('expo')->where('id', $expoId)->value('estado'));
+        $this->assertSame('Cerrada', DB::table('expo')->where('id', $expoId)->value('estado'));
     }
 
     public function test_una_expo_finalizada_no_se_edita_pero_puede_duplicarse(): void
