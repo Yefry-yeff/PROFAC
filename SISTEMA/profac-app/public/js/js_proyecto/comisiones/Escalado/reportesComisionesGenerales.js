@@ -1146,15 +1146,12 @@ function exportarFacturasProyectadasExcel(){
 }
 
 function exportarProyeccionesExcel15(){
-    // Variante "Fijo 15%" — misma data/estructura que Excel Proyectadas,
-    // pero el calculo se recalcula en backend al 15% fijo (uso restringido).
     if(!proyeccionesDataActual || !proyeccionesDataActual.length){
         Swal.fire({icon:'info',title:'Sin datos',text:'No hay proyecciones para exportar.'});
         return;
     }
 
-    var filtros = getFiltrosProyecciones ? getFiltrosProyecciones() : {};
-    var periodoTexto = (filtros.fechaInicio || '') + ' al ' + (filtros.fechaFin || '');
+    var filtros = Object.assign({}, proyeccionesFiltrosActuales || getFiltrosProyecciones());
 
     var token = 'proy_dl15_' + Date.now();
     var form  = document.createElement('form');
@@ -1169,8 +1166,10 @@ function exportarProyeccionesExcel15(){
     }
 
     addInput('_token', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
-    addInput('rows', JSON.stringify(proyeccionesDataActual));
-    addInput('periodo', periodoTexto);
+    addInput('fechaInicio', filtros.fechaInicio);
+    addInput('fechaFin', filtros.fechaFin);
+    addInput('usuario_id', filtros.usuario_id);
+    if(filtros.rol_id) addInput('rol_id', filtros.rol_id);
     addInput('download_token', token);
 
     document.body.appendChild(form);
