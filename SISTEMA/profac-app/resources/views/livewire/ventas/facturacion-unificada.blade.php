@@ -848,8 +848,8 @@
                                                     <th style="min-width:90px;">P. Unitario</th>
                                                     <th style="min-width:70px;">Cantidad</th>
                                                     <th style="min-width:90px;">Unidad</th>
+                                                    @if(!empty($expoConfig))<th style="min-width:190px;">Descuento Expo</th>@endif
                                                     <th style="min-width:90px;">Subtotal</th>
-                                                    @if(!empty($expoConfig))<th style="min-width:155px;">Descuento Expo</th>@endif
                                                     <th style="min-width:80px;">ISV</th>
                                                     <th style="min-width:90px; background:linear-gradient(135deg,#e65100,#f9a826); color:#fff;">Total</th>
                                                 </tr>
@@ -3190,11 +3190,11 @@
                             ${htmlSelectUnidades}
                         </select>
                     </td>
+                    ${expoConfig ? `<td style="vertical-align:middle; padding:4px 6px;"><div id="descuentoExpoProducto${numeroInputs}" style="font-size:10px; line-height:1.35;"></div></td>` : ''}
                     <td style="vertical-align:middle; padding:4px 6px; text-align:right;">
                         <input type="text" id="subTotalMostrar${numeroInputs}" name="subTotalMostrar${numeroInputs}" placeholder="0.00" readonly autocomplete="off"
                             style="border:none; background:#f1f8e9; border-radius:5px; font-weight:700; color:#2e7d32; font-size:12px; padding:2px 6px; text-align:right; width:100%; min-width:75px;">
                     </td>
-                    ${expoConfig ? `<td style="vertical-align:middle; padding:4px 6px;"><div id="descuentoExpoProducto${numeroInputs}" style="font-size:10px; line-height:1.25;"></div></td>` : ''}
                     <td style="vertical-align:middle; padding:4px 6px; text-align:right;">
                         <input type="text" id="isvProductoMostrar${numeroInputs}" name="isvProductoMostrar${numeroInputs}" placeholder="0.00" readonly autocomplete="off"
                             style="border:none; background:#fce4ec; border-radius:5px; font-weight:700; color:#b71c1c; font-size:12px; padding:2px 6px; text-align:right; width:100%; min-width:65px;">
@@ -3373,16 +3373,29 @@
                 }
             }
 
-            var indicador = document.getElementById('descuentoExpoProducto' + id);
-            if (!indicador) {
-                var campoIsv = document.getElementById('isvProductoMostrar' + id);
-                var celdaIsv = campoIsv ? campoIsv.closest('td') : null;
-                if (celdaIsv && celdaIsv.parentNode) {
+            var campoSubtotal = document.getElementById('subTotalMostrar' + id);
+            var celdaSubtotal = campoSubtotal ? campoSubtotal.closest('td') : null;
+            var filaProducto = celdaSubtotal ? celdaSubtotal.parentNode : null;
+            ['descuentoExpoMarcaProducto' + id, 'descuentoExpoSubtotalProducto' + id].forEach(function(legacyId) {
+                var legacy = document.getElementById(legacyId);
+                if (legacy?.closest('td')) legacy.closest('td').remove();
+            });
+
+            var indicadores = filaProducto
+                ? Array.from(filaProducto.querySelectorAll('[id="descuentoExpoProducto' + id + '"]'))
+                : [];
+            indicadores.slice(1).forEach(function(duplicado) {
+                if (duplicado.closest('td')) duplicado.closest('td').remove();
+            });
+            var indicador = indicadores[0] || null;
+            if (!indicador && celdaSubtotal && filaProducto) {
                     var celdaDescuento = document.createElement('td');
                     celdaDescuento.style.cssText = 'vertical-align:middle; padding:4px 6px;';
-                    celdaDescuento.innerHTML = '<div id="descuentoExpoProducto' + id + '" style="font-size:10px; line-height:1.25;"></div>';
-                    celdaIsv.parentNode.insertBefore(celdaDescuento, celdaIsv);
-                }
+                    celdaDescuento.innerHTML = '<div id="descuentoExpoProducto' + id + '" style="font-size:10px; line-height:1.35;"></div>';
+                    filaProducto.insertBefore(celdaDescuento, celdaSubtotal);
+                    indicador = celdaDescuento.firstElementChild;
+            } else if (indicador && celdaSubtotal && indicador.closest('td')?.nextElementSibling !== celdaSubtotal) {
+                filaProducto.insertBefore(indicador.closest('td'), celdaSubtotal);
             }
 
             var marca = document.getElementById('marcaExpoId' + id);
@@ -3532,7 +3545,7 @@
                     + ' &nbsp; <i class="fa fa-list-alt mr-1 text-success"></i>Escala: <strong>' + $('<div>').text(nombreEscala).html() + '</strong>'
                     + ' &nbsp; Precio unitario base: <strong>' + formatoMoneda(precio) + '</strong></small></div>'
                     + '<div class="table-responsive"><table class="table table-sm table-bordered cotizador-expo-tabla mb-2">'
-                        + '<thead><tr><th class="text-center">Desde cantidad</th><th class="text-right">Precio unitario</th><th class="text-right">Subtotal de la compra</th><th class="text-center">Desc. marca</th><th class="text-center">Desc. general</th><th class="text-right">Precio unitario final</th><th class="text-right">ISV</th><th class="text-right">Precio U.F. + ISV</th><th class="text-right">Ahorro por unidad</th><th class="text-right">Ahorro total</th></tr></thead>'
+                        + '<thead><tr><th class="text-center">Desde cantidad</th><th class="text-right">Precio unitario</th><th class="text-right">Subtotal de la compra</th><th class="text-center">Desc. marca</th><th class="text-center">Desc. subtotal</th><th class="text-right">Precio unitario final</th><th class="text-right">ISV</th><th class="text-right">Precio U.F. + ISV</th><th class="text-right">Ahorro por unidad</th><th class="text-right">Ahorro total</th></tr></thead>'
                     + '<tbody>' + filas + '</tbody></table></div>'
                     + '<small class="text-muted">Estimación basada en las reglas vigentes de esta Expo. Marca primero y descuento general después.</small>';
                     resultado.querySelectorAll('.cotizador-expo-cantidad').forEach(recalcularFilaCotizadorExpo);
@@ -3657,14 +3670,14 @@
         }).map(function(marca) {
             return '<tr><td>' + $('<div>').text(marca.nombre).html() + '</td>'
                 + '<td class="text-right">' + formatoMoneda(marca.subtotal) + '</td>'
-                + '<td class="text-right">' + formatoMoneda(marca.descuentoMarca) + '</td>'
-                + '<td class="text-right">' + formatoMoneda(marca.descuentoGeneral) + '</td>'
+                + '<td class="text-right"><small>' + Number(marca.porcentajeMarca || 0).toFixed(2) + '%</small><br>' + formatoMoneda(marca.descuentoMarca) + '</td>'
+                + '<td class="text-right"><small>' + Number(marca.porcentajeGeneral || 0).toFixed(2) + '%</small><br>' + formatoMoneda(marca.descuentoGeneral) + '</td>'
                 + '<td class="text-right"><strong>' + formatoMoneda(marca.descuentoTotal) + '</strong></td></tr>';
         }).join('');
 
         panel.style.display = filas ? 'block' : 'none';
         detalle.innerHTML = filas
-            ? '<div class="table-responsive"><table class="table table-sm table-bordered mb-2"><thead><tr><th>Marca</th><th class="text-right">Subtotal</th><th class="text-right">Desc. marca</th><th class="text-right">Desc. general</th><th class="text-right">Descuento total</th></tr></thead><tbody>' + filas + '</tbody></table></div>'
+            ? '<div class="table-responsive"><table class="table table-sm table-bordered mb-2"><thead><tr><th>Marca</th><th class="text-right">Subtotal</th><th class="text-right">Desc. marca</th><th class="text-right">Desc. subtotal</th><th class="text-right">Descuento total</th></tr></thead><tbody>' + filas + '</tbody></table></div>'
             : '';
     }
 
@@ -3672,11 +3685,14 @@
         var calculo = calcularDescuentosCarritoExpo();
         if (!calculo) return;
         arregloIdInputs.forEach(function(id) {
-            var indicador = document.getElementById('descuentoExpoProducto' + id);
-            if (!indicador) return;
             var linea = calculo.lineas[id];
-            indicador.style.display = 'block';
-            indicador.innerHTML = '<strong style="color:#1b5e20;">' + formatoMoneda(linea?.descuentoTotal || 0) + '</strong>';
+            var indicador = document.getElementById('descuentoExpoProducto' + id);
+            if (indicador) {
+                indicador.innerHTML = '<div style="white-space:nowrap;"><span style="color:#546e7a;">Marca:</span> '
+                    + '<strong style="color:#1b5e20;">' + formatoMoneda(linea?.descuentoMarca || 0) + '</strong></div>'
+                    + '<div style="white-space:nowrap;"><span style="color:#546e7a;">Subtotal:</span> '
+                    + '<strong style="color:#1565c0;">' + formatoMoneda(linea?.descuentoGeneral || 0) + '</strong></div>';
+            }
         });
     }
 
@@ -3740,6 +3756,8 @@
                 || reglaMarca?.marca || reglaMarca?.marca_nombre || (datos.marcaId ? 'Marca ' + datos.marcaId : 'SIN MARCA');
 
             resultado.lineas[id] = {
+                porcentajeMarca: porcentajeMarca,
+                porcentajeGeneral: porcentajeGeneral,
                 descuentoMarca: descuentoMarca,
                 descuentoGeneral: descuentoGeneral,
                 descuentoTotal: descuentoTotal,
@@ -3748,7 +3766,7 @@
                 total: redondearMoneda(subtotalNeto + isv)
             };
             if (!resultado.marcas[datos.marcaId]) {
-                resultado.marcas[datos.marcaId] = { nombre: nombreMarca, porcentajeMarca: porcentajeMarca, cantidad: 0, subtotal: 0, descuentoMarca: 0, descuentoGeneral: 0, descuentoTotal: 0 };
+                resultado.marcas[datos.marcaId] = { nombre: nombreMarca, porcentajeMarca: porcentajeMarca, porcentajeGeneral: porcentajeGeneral, cantidad: 0, subtotal: 0, descuentoMarca: 0, descuentoGeneral: 0, descuentoTotal: 0 };
             }
             var marca = resultado.marcas[datos.marcaId];
             marca.cantidad += datos.cantidad * datos.unidad;
@@ -3789,12 +3807,12 @@
                 return '<tr><td>' + $('<div>').text(marca.nombre).html() + '</td>'
                     + '<td class="text-right">' + Number(marca.cantidad).toLocaleString('es-HN', { maximumFractionDigits: 2 }) + '</td>'
                     + '<td class="text-right">' + formatoMoneda(marca.subtotal) + '</td>'
-                    + '<td class="text-right">' + formatoMoneda(marca.descuentoMarca) + '</td>'
-                    + '<td class="text-right">' + formatoMoneda(marca.descuentoGeneral) + '</td>'
+                    + '<td class="text-right"><small class="text-muted">' + Number(marca.porcentajeMarca || 0).toFixed(2) + '%</small><br>' + formatoMoneda(marca.descuentoMarca) + '</td>'
+                    + '<td class="text-right"><small class="text-muted">' + Number(marca.porcentajeGeneral || 0).toFixed(2) + '%</small><br>' + formatoMoneda(marca.descuentoGeneral) + '</td>'
                     + '<td class="text-right"><strong class="text-success">' + formatoMoneda(marca.descuentoTotal) + '</strong></td></tr>';
             }).join('');
             contenido.innerHTML = '<div class="table-responsive"><table class="table table-sm table-bordered mb-0" style="background:#fff; font-size:12px;">'
-                + '<thead style="background:#e6f1eb; color:#245c46;"><tr><th>Marca</th><th class="text-right">Cantidad</th><th class="text-right">Subtotal</th><th class="text-right">Desc. marca</th><th class="text-right">Desc. general</th><th class="text-right">Descuento total</th></tr></thead>'
+                + '<thead style="background:#e6f1eb; color:#245c46;"><tr><th>Marca</th><th class="text-right">Cantidad</th><th class="text-right">Subtotal</th><th class="text-right">Desc. marca</th><th class="text-right">Desc. subtotal</th><th class="text-right">Descuento total</th></tr></thead>'
                 + '<tbody>' + filas + '</tbody></table></div>';
         }
         $('#modalResumenMarcasCarritoExpo').modal('show');
@@ -5270,11 +5288,11 @@
                             <option value="1" data-id="${idUnidadVenta}" selected>U.</option>
                         </select>
                     </td>
+                    ${expoConfig ? `<td style="vertical-align:middle; padding:4px 6px;"><div id="descuentoExpoProducto${idx}" style="font-size:10px; line-height:1.35;"></div></td>` : ''}
                     <td style="vertical-align:middle; padding:4px 6px; text-align:right;">
                         <input type="text" id="subTotalMostrar${idx}" name="subTotalMostrar${idx}" value="${formatoMoneda(subTotalUsar)}" readonly autocomplete="off"
                             style="border:none; background:#f1f8e9; border-radius:5px; font-weight:700; color:#2e7d32; font-size:12px; padding:2px 6px; text-align:right; width:100%; min-width:75px;">
                     </td>
-                    ${expoConfig ? `<td style="vertical-align:middle; padding:4px 6px;"><div id="descuentoExpoProducto${idx}" style="font-size:10px; line-height:1.25;"></div></td>` : ''}
                     <td style="vertical-align:middle; padding:4px 6px; text-align:right;">
                         <input type="text" id="isvProductoMostrar${idx}" name="isvProductoMostrar${idx}" value="${formatoMoneda(isvUsar)}" readonly autocomplete="off"
                             style="border:none; background:#fce4ec; border-radius:5px; font-weight:700; color:#b71c1c; font-size:12px; padding:2px 6px; text-align:right; width:100%; min-width:65px;">
@@ -5422,11 +5440,11 @@
                                 ${htmlSelectUnidades}
                             </select>
                         </td>
+                        ${expoConfig ? `<td style="vertical-align:middle; padding:4px 6px;"><div id="descuentoExpoProducto${idx}" style="font-size:10px; line-height:1.35;"></div></td>` : ''}
                         <td style="vertical-align:middle; padding:4px 6px; text-align:right;">
                             <input type="text" id="subTotalMostrar${idx}" name="subTotalMostrar${idx}" placeholder="0.00" readonly autocomplete="off"
                                 style="border:none; background:#f1f8e9; border-radius:5px; font-weight:700; color:#2e7d32; font-size:12px; padding:2px 6px; text-align:right; width:100%; min-width:75px;">
                         </td>
-                        ${expoConfig ? `<td style="vertical-align:middle; padding:4px 6px;"><div id="descuentoExpoProducto${idx}" style="font-size:10px; line-height:1.25;"></div></td>` : ''}
                         <td style="vertical-align:middle; padding:4px 6px; text-align:right;">
                             <input type="text" id="isvProductoMostrar${idx}" name="isvProductoMostrar${idx}" placeholder="0.00" readonly autocomplete="off"
                                 style="border:none; background:#fce4ec; border-radius:5px; font-weight:700; color:#b71c1c; font-size:12px; padding:2px 6px; text-align:right; width:100%; min-width:65px;">

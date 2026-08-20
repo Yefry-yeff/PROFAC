@@ -604,7 +604,7 @@
 
             <div class="ibox expo-panel">
                 <div class="ibox-title">
-                    <h5><i class="fa fa-history mr-2"></i>Historial de Expos</h5>
+                    <h5><i class="fa fa-list mr-2"></i>Expos configuradas</h5>
                     <small>{{ count($expos) }} configuración(es) registrada(s)</small>
                     <div class="ibox-tools">
                         @unless ($mostrarFormulario)
@@ -632,7 +632,7 @@
                                         $totalDescuentosMarca = DB::table('expo_descuento_marca')->where('expo_id', $expo->id)->count();
                                         $expoFinalizada = $expo->fecha_fin && strtotime($expo->fecha_fin) <= time();
                                     @endphp
-                                    <tr class="expo-clickable" wire:click="verDetalle({{ $expo->id }})" title="Ver detalle completo">
+                                    <tr class="expo-clickable" wire:click="verDetalle({{ $expo->id }})" title="Ver detalle e historial de cambios">
                                         <td><span class="expo-name">{{ $expo->nombre }}</span><br><span class="expo-version">Versión #{{ $expo->id }}</span></td>
                                         <td>
                                             <span class="expo-state {{ $expo->estado === 'Activo' ? 'expo-state-active' : 'expo-state-inactive' }}">
@@ -694,6 +694,26 @@
                             <div class="expo-detail-section"><h6><i class="fa fa-percent mr-1"></i>Reglas de descuento</h6><div class="expo-detail-tags">@forelse($expoDetalle['descuentos'] as $regla)<span class="expo-detail-tag">Desde L {{ number_format($regla['venta_minima'], 2) }}: <strong>{{ number_format($regla['porcentaje_descuento'], 2) }}%</strong></span>@empty<span class="text-muted small">Sin descuentos.</span>@endforelse</div></div>
                             <div class="expo-detail-section"><h6><i class="fa fa-tags mr-1"></i>Descuentos por marca</h6><div class="expo-detail-tags">@forelse($expoDetalle['descuentos_marca'] as $regla)<span class="expo-detail-tag">{{ $regla['marca'] }} desde L {{ number_format($regla['venta_minima'], 2) }}: <strong>{{ number_format($regla['porcentaje_descuento'], 2) }}%</strong></span>@empty<span class="text-muted small">Sin descuentos por marca.</span>@endforelse</div></div>
                             <div class="expo-detail-section"><h6><i class="fa fa-users mr-1"></i>Usuarios autorizados</h6><table class="expo-detail-users"><tbody>@forelse($expoDetalle['usuarios'] as $usuario)<tr><td><strong>{{ $usuario['name'] }}</strong></td><td class="text-muted">{{ $usuario['email'] }}</td></tr>@empty<tr><td class="text-muted">Sin usuarios autorizados.</td></tr>@endforelse</tbody></table></div>
+                            <div class="expo-detail-section">
+                                <h6><i class="fa fa-history mr-1"></i>Historial de cambios de esta Expo</h6>
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-bordered mb-0">
+                                        <thead><tr><th>Fecha</th><th>Cambio</th><th>Detalle</th><th>Usuario</th></tr></thead>
+                                        <tbody>
+                                            @forelse($expoDetalle['historial_cambios'] as $cambio)
+                                                <tr>
+                                                    <td style="white-space:nowrap;">{{ date('d/m/Y H:i:s', strtotime($cambio['created_at'])) }}</td>
+                                                    <td><span class="expo-state expo-state-inactive">{{ str_replace('_', ' ', $cambio['accion']) }}</span></td>
+                                                    <td>{{ $cambio['detalle'] }}</td>
+                                                    <td>{{ $cambio['usuario'] }}</td>
+                                                </tr>
+                                            @empty
+                                                <tr><td colspan="4" class="text-muted text-center">Esta Expo aún no tiene cambios registrados.</td></tr>
+                                            @endforelse
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
                             <div class="expo-detail-section">
                                 <h6><i class="fa fa-exchange mr-1"></i>Control de facturación</h6>
                                 @if($detalle['estado'] === 'Activo')

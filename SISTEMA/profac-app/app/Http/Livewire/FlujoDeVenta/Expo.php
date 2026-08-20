@@ -8,6 +8,7 @@ use Carbon\Carbon;
 use Livewire\Component;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 
 class Expo extends Component
@@ -321,6 +322,7 @@ class Expo extends Component
             $expoExistente = $this->expoEditandoId
                 ? DB::table('expo')->where('id', $this->expoEditandoId)->lockForUpdate()->first()
                 : null;
+            $snapshotAnterior = $expoExistente ? $this->snapshotExpo((int) $expoExistente->id) : null;
 
             if ($this->estado === 'Activo') {
                 $activa = DB::table('expo')->where('estado', 'Activo')
@@ -399,6 +401,16 @@ class Expo extends Component
                 ]);
             }
 
+            $snapshotNuevo = $this->snapshotExpo($expoId);
+            $this->registrarHistorial(
+                $expoId,
+                $expoExistente ? 'ACTUALIZACION' : 'CREACION',
+                $expoExistente ? $this->resumirCambios($snapshotAnterior, $snapshotNuevo) : 'Se creó la configuración de la Expo.',
+                $snapshotAnterior,
+                $snapshotNuevo,
+                (int) Auth::id()
+            );
+
             DB::commit();
             session()->flash('success', $expoExistente ? 'Expo actualizada correctamente.' : 'Expo creada correctamente.');
             $this->resetForm();
@@ -424,6 +436,13 @@ class Expo extends Component
             ->first();
         abort_unless($expo, 404);
 
+        $columnasFlujo = ['ec.id', 'ec.cotizacion_id'];
+        foreach (['flujo_id', 'estado', 'aumento_aplicado', 'reapertura_autorizada'] as $columna) {
+            if (Schema::hasColumn('expo_cotizacion', $columna)) {
+                $columnasFlujo[] = 'ec.' . $columna;
+            }
+        }
+
         $this->expoDetalle = [
             'expo' => (array) $expo,
             'bodegas' => DB::table('expo_bodega as eb')->join('bodega as b', 'b.id', '=', 'eb.bodega_id')
@@ -443,11 +462,23 @@ class Expo extends Component
                 ->orderBy('edm.orden')
                 ->get(['m.nombre as marca', 'edm.venta_minima', 'edm.porcentaje_descuento'])
                 ->map(fn ($regla) => (array) $regla)->all(),
+            'historial_cambios' => DB::table('expo_historial_cambios as ehc')
+                ->join('users as u', 'u.id', '=', 'ehc.user_id')
+                ->where('ehc.expo_id', $id)
+                ->orderByDesc('ehc.created_at')
+                ->orderByDesc('ehc.id')
+                ->get(['ehc.accion', 'ehc.detalle', 'ehc.created_at', 'u.name as usuario'])
+                ->map(fn ($cambio) => (array) $cambio)->all(),
             'flujos' => DB::table('expo_cotizacion as ec')
                 ->where('ec.expo_id', $id)
                 ->orderByDesc('ec.id')
-                ->get(['ec.id', 'ec.cotizacion_id', 'ec.flujo_id', 'ec.estado', 'ec.aumento_aplicado', 'ec.reapertura_autorizada'])
-                ->map(fn ($flujo) => (array) $flujo)->all(),
+                ->get($columnasFlujo)
+                ->map(fn ($flujo) => array_merge([
+                    'flujo_id' => null,
+                    'estado' => 'PENDIENTE_FACTURACION',
+                    'aumento_aplicado' => 0,
+                    'reapertura_autorizada' => false,
+                ], (array) $flujo))->all(),
         ];
         $this->mostrarDetalle = true;
     }
@@ -486,6 +517,7 @@ class Expo extends Component
             DB::transaction(function () use ($expoId) {
                 $expo = DB::table('expo')->where('id', $expoId)->lockForUpdate()->first();
                 abort_unless($expo, 404);
+                $snapshotAnterior = $this->snapshotExpo($expoId);
                 if (DB::table('expo')->where('estado', 'Activo')->where('id', '<>', $expoId)->exists()) {
                     throw new \RuntimeException('Existe otra Expo activa. Ciérrela antes de reabrir esta Expo.');
                 }
@@ -502,6 +534,15 @@ class Expo extends Component
                     'updated_by' => Auth::id(),
                     'updated_at' => now(),
                 ]);
+                $snapshotNuevo = $this->snapshotExpo($expoId);
+                $this->registrarHistorial(
+                    $expoId,
+                    'REAPERTURA',
+                    'Se reabrió la Expo completa y se revirtieron sus aumentos mediante disminuciones.',
+                    $snapshotAnterior,
+                    $snapshotNuevo,
+                    (int) Auth::id()
+                );
             }, 3);
 
             $this->motivoReapertura = '';
@@ -522,7 +563,16 @@ class Expo extends Component
             DB::transaction(function () use ($expoCotizacionId) {
                 $oferta = DB::table('expo_cotizacion')->where('id', $expoCotizacionId)->lockForUpdate()->first();
                 abort_unless($oferta, 404);
+                $snapshotAnterior = $this->snapshotExpo((int) $oferta->expo_id);
                 $this->reabrirOferta($oferta, trim($this->motivoReapertura));
+                $this->registrarHistorial(
+                    (int) $oferta->expo_id,
+                    'REAPERTURA_FLUJO',
+                    "Se reabrió únicamente el flujo #{$oferta->flujo_id} de la oferta #{$oferta->cotizacion_id}.",
+                    $snapshotAnterior,
+                    $this->snapshotExpo((int) $oferta->expo_id),
+                    (int) Auth::id()
+                );
             }, 3);
 
             $this->motivoReapertura = '';
@@ -712,6 +762,7 @@ class Expo extends Component
         if ($expo->estado !== 'Activo') {
             return;
         }
+        $snapshotAnterior = $this->snapshotExpo($expoId);
 
         DB::table('expo')->where('id', $expoId)->update([
             'estado' => 'Cerrada',
@@ -740,5 +791,81 @@ class Expo extends Component
                 );
             }
         }
+
+        $this->registrarHistorial(
+            $expoId,
+            str_contains($motivo, 'vencimiento') ? 'CIERRE_AUTOMATICO' : 'CIERRE',
+            $motivo,
+            $snapshotAnterior,
+            $this->snapshotExpo($expoId),
+            $usuarioId
+        );
+    }
+
+    private function snapshotExpo(int $expoId): array
+    {
+        $expo = DB::table('expo')->where('id', $expoId)->first();
+
+        return [
+            'nombre' => $expo->nombre,
+            'descripcion' => $expo->descripcion,
+            'estado' => $expo->estado,
+            'fecha_inicio' => $expo->fecha_inicio,
+            'fecha_fin' => $expo->fecha_fin,
+            'bodegas' => DB::table('expo_bodega')->where('expo_id', $expoId)->orderBy('bodega_id')->pluck('bodega_id')->all(),
+            'escalas' => DB::table('expo_escala')->where('expo_id', $expoId)->orderBy('escala_id')->pluck('escala_id')->all(),
+            'usuarios' => DB::table('expo_usuario')->where('expo_id', $expoId)->orderBy('usuario_id')->pluck('usuario_id')->all(),
+            'descuentos_totales' => DB::table('expo_descuento')->where('expo_id', $expoId)->orderBy('orden')
+                ->get(['venta_minima', 'porcentaje_descuento'])->map(fn ($regla) => (array) $regla)->all(),
+            'descuentos_marcas' => DB::table('expo_descuento_marca')->where('expo_id', $expoId)->orderBy('orden')
+                ->get(['marca_id', 'venta_minima', 'porcentaje_descuento'])->map(fn ($regla) => (array) $regla)->all(),
+        ];
+    }
+
+    private function resumirCambios(?array $anterior, array $nuevo): string
+    {
+        if (!$anterior) {
+            return 'Se creó la configuración de la Expo.';
+        }
+
+        $etiquetas = [
+            'descripcion' => 'descripción',
+            'estado' => 'estado',
+            'fecha_fin' => 'fecha final',
+            'bodegas' => 'bodegas',
+            'escalas' => 'escalas',
+            'usuarios' => 'usuarios autorizados',
+            'descuentos_totales' => 'descuentos por total',
+            'descuentos_marcas' => 'descuentos por marca',
+        ];
+        $cambios = [];
+        foreach ($etiquetas as $campo => $etiqueta) {
+            if (($anterior[$campo] ?? null) != ($nuevo[$campo] ?? null)) {
+                $cambios[] = $etiqueta;
+            }
+        }
+
+        return $cambios
+            ? 'Se modificó: ' . implode(', ', $cambios) . '.'
+            : 'Se guardó la configuración sin cambios funcionales.';
+    }
+
+    private function registrarHistorial(
+        int $expoId,
+        string $accion,
+        string $detalle,
+        ?array $anterior,
+        ?array $nuevo,
+        int $usuarioId
+    ): void {
+        DB::table('expo_historial_cambios')->insert([
+            'expo_id' => $expoId,
+            'accion' => $accion,
+            'detalle' => $detalle,
+            'datos_anteriores' => $anterior ? json_encode($anterior) : null,
+            'datos_nuevos' => $nuevo ? json_encode($nuevo) : null,
+            'user_id' => $usuarioId,
+            'created_at' => now(),
+        ]);
     }
 }

@@ -178,61 +178,30 @@ class Ajustes extends Component
 
      public function listarProducto(Request $request){
        try {
+        $request->validate(['idProducto' => 'required|integer|min:1']);
 
-        $listaProductos = DB::SELECT("
-
-        select
-            A.id as 'idRecibido',
-            B.id as 'idProducto',
-            B.nombre,
-            C.nombre as 'simbolo',
-            A.cantidad_disponible,
-            bodega.nombre as bodega,
-            seccion.id as 'idSeccion',
-            seccion.descripcion,
-            A.created_at
-        from recibido_bodega A
-            inner join producto B
-            on A.producto_id = B.id
-            inner join seccion
-            on A.seccion_id = seccion.id
-            inner join segmento
-            on seccion.segmento_id = segmento.id
-            inner join bodega
-            on segmento.bodega_id = bodega.id
-            inner join unidad_medida C
-            on B.unidad_medida_compra_id = C.id
-            inner join compra
-            on A.compra_id = compra.id
-            where A.cantidad_disponible <> 0 and compra.estado_compra_id = 1 and bodega.id = ".$request->idBodega." and A.producto_id = ".$request->idProducto."
-
-            union
-
+        $listaProductos = DB::select("
             select
-                A.id as 'idRecibido',
-                B.id as 'idProducto',
+                A.id as idRecibido,
+                B.id as idProducto,
                 B.nombre,
-                C.nombre as 'simbolo',
+                C.nombre as simbolo,
                 A.cantidad_disponible,
+                bodega.id as idBodega,
                 bodega.nombre as bodega,
-                seccion.id as 'idSeccion',
+                seccion.id as idSeccion,
                 seccion.descripcion,
                 A.created_at
             from recibido_bodega A
-                inner join producto B
-                on A.producto_id = B.id
-                inner join seccion
-                on A.seccion_id = seccion.id
-                inner join segmento
-                on seccion.segmento_id = segmento.id
-                inner join bodega
-                on segmento.bodega_id = bodega.id
-                inner join unidad_medida C
-                on B.unidad_medida_compra_id = C.id
-                 where A.cantidad_disponible <> 0 and bodega.id = ".$request->idBodega." and A.producto_id = ".$request->idProducto
-
-
-        );
+                inner join producto B on A.producto_id = B.id
+                inner join seccion on A.seccion_id = seccion.id
+                inner join segmento on seccion.segmento_id = segmento.id
+                inner join bodega on segmento.bodega_id = bodega.id
+                inner join unidad_medida C on B.unidad_medida_compra_id = C.id
+            where A.cantidad_disponible <> 0
+                and A.producto_id = ?
+            order by bodega.nombre, seccion.descripcion, A.created_at
+        ", [(int) $request->idProducto]);
 
         return Datatables::of($listaProductos)
         ->addColumn('opciones', function ($producto) {
@@ -240,8 +209,8 @@ class Ajustes extends Component
             return
 
             '<div class="text-center">
-                <button class="btn btn-warning" onclick="datosProducto('.$producto->idProducto.','.$producto->idRecibido.','.$producto->cantidad_disponible.')">
-                    Realizar Ajuste
+                <button class="btn btn-sm btn-primary" onclick="datosProducto('.$producto->idProducto.','.$producto->idRecibido.','.$producto->cantidad_disponible.')">
+                    <i class="fa fa-check mr-1"></i> Seleccionar
                 </button>
 
             </div>';
