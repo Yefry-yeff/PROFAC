@@ -5,6 +5,7 @@ namespace App\Http\Livewire\Ventas;
 use App\Support\ExpoConfig;
 use App\Support\ClienteActoresAsignados;
 use App\Services\Expo\LiquidacionOfertaExpo;
+use App\Services\Expo\RecalculadorFacturaExpo;
 use App\Services\Expo\SaldoLineasOferta;
 use Livewire\Component;
 
@@ -371,6 +372,18 @@ class FacturacionCorporativa extends Component
                 $row->esSinExistencia = 0;
                 return $row;
             }, $results);
+
+            $expoId = (int) $request->input('expo_id', 0);
+            if ($expoId > 0) {
+                $expo = ExpoConfig::detalleActivaParaUsuario($expoId, Auth::id());
+                if (!$expo) {
+                    return response()->json(['message' => 'La Expo no está activa o está fuera de vigencia.'], 422);
+                }
+                $results = array_values(array_filter(
+                    $results,
+                    fn ($row) => in_array((int) $row->idBodega, $expo['bodegas'], true)
+                ));
+            }
 
             $permitirSinExistencia = (int) ($request->permitir_sin_existencia ?? 0) === 1;
             if ($permitirSinExistencia) {
@@ -1180,7 +1193,7 @@ class FacturacionCorporativa extends Component
 
             $lineasExpoPorIndice = app(SaldoLineasOferta::class)
                 ->validarSolicitudFactura($request, $arrayInputs);
-            $this->aplicarImportesFirmadosExpo($request, $arrayInputs, $lineasExpoPorIndice);
+            app(RecalculadorFacturaExpo::class)->aplicar($request, $arrayInputs);
 
 
 
@@ -1390,7 +1403,7 @@ class FacturacionCorporativa extends Component
 
                 // dd($factura);
 
-                $this->restarUnidadesInventario($precios_producto_carga_id, $idPrecioSeleccionado, $precioSeleccionado, $restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $arrayInputs[$i], $tipoPrecio, $lineasExpoPorIndice[(string) $arrayInputs[$i]] ?? null);
+                $this->restarUnidadesInventario($precios_producto_carga_id, $idPrecioSeleccionado, $precioSeleccionado, $restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $arrayInputs[$i], $tipoPrecio, $lineasExpoPorIndice[(string) $arrayInputs[$i]] ?? null, (float) $request->input('cantidadOfertaAplicada' . $arrayInputs[$i], 0));
             };
 
             if ($request->tipoPagoVenta == 2) { //si el tipo de pago es credito
@@ -1984,7 +1997,7 @@ class FacturacionCorporativa extends Component
         }
     }
 
-    public function restarUnidadesInventario($precios_producto_carga_id,$idPrecioSeleccionado,$precioSeleccionado , $unidadesRestarInv, $idProducto, $idSeccion, $idFactura, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $indice, $tipoPrecio = '2', $cotizacionLineaId = null)
+    public function restarUnidadesInventario($precios_producto_carga_id,$idPrecioSeleccionado,$precioSeleccionado , $unidadesRestarInv, $idProducto, $idSeccion, $idFactura, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $indice, $tipoPrecio = '2', $cotizacionLineaId = null, $cantidadOfertaAplicada = 0)
     {
         try {
 
@@ -2059,11 +2072,15 @@ class FacturacionCorporativa extends Component
                     $cantidadSeccion = $registroResta / $unidad;
                 };
 
+                $cantidadOfertaSeccion = min((float) $cantidadOfertaAplicada, (float) $cantidadSeccion);
+                $cantidadOfertaAplicada -= $cantidadOfertaSeccion;
+
 
 
                 array_push($this->arrayProductos, [
                     "factura_id" => $idFactura,
                     "cotizacion_has_producto_id" => $cotizacionLineaId,
+                    "cantidad_oferta_aplicada" => $cotizacionLineaId ? $cantidadOfertaSeccion : 0,
                     "producto_id" => $idProducto,
                     "lote" => $unidadesDisponibles->id,
                     "indice" => $indice,

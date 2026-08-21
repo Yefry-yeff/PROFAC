@@ -110,6 +110,7 @@
                 <th>Precio</th>
                 <th>Exento</th>
                 <th>Cantidad</th>
+                <th>Descuento</th>
                 <th>Importe</th>
             </tr>
         </thead>
@@ -122,6 +123,7 @@
                 <td>{{ $producto->precio }}</td>
                 <td>{{ $producto->excento }}</td>
                 <td>{{ $producto->cantidad }}</td>
+                <td>{{ $producto->descuento ?? '0.00' }}</td>
                 <td>{{ $producto->importe }}</td>
             </tr>
             @endforeach
@@ -165,7 +167,7 @@
                             <td style="border:none; padding:1px 0; text-align:right;">L. {{ $importesConCentavos->sub_total_excento }}</td>
                         </tr>
                         <tr>
-                            <td style="border:none; padding:1px 0;">Desc. y Rebajas {{ $importes->porc_descuento }}%:</td>
+                            <td style="border:none; padding:1px 0;">{{ !empty($esExpo) ? 'Descuento Expo:' : 'Desc. y Rebajas '.$importes->porc_descuento.'%:' }}</td>
                             <td style="border:none; padding:1px 0; text-align:right;">L. {{ $importesConCentavos->monto_descuento }}</td>
                         </tr>
                         <tr>

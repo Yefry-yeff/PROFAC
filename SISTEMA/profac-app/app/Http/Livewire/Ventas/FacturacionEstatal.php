@@ -7,6 +7,7 @@ namespace App\Http\Livewire\Ventas;
 use App\Support\ExpoConfig;
 use App\Support\ClienteActoresAsignados;
 use App\Services\Expo\LiquidacionOfertaExpo;
+use App\Services\Expo\RecalculadorFacturaExpo;
 use App\Services\Expo\SaldoLineasOferta;
 use Livewire\Component;
 
@@ -956,6 +957,7 @@ class FacturacionEstatal extends Component
 
             $lineasExpoPorIndice = app(SaldoLineasOferta::class)
                 ->validarSolicitudFactura($request, $arrayInputs);
+            app(RecalculadorFacturaExpo::class)->aplicar($request, $arrayInputs);
 
             $cai = DB::SELECTONE("select
                     id,
@@ -1125,7 +1127,7 @@ class FacturacionEstatal extends Component
                 $total = $request->$keyTotal;
                 $tipoPrecio = ($ivsProducto > 0) ? '2' : '1'; // '1' = Excento (producto sin ISV, isv = 0) | '2' = Gravado (producto con ISV, isv > 0)
 
-                $this->restarUnidadesInventario($precios_producto_carga_id, $idPrecioSeleccionado,$precioSeleccionado ,$restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $arrayInputs[$i], $tipoPrecio, $lineasExpoPorIndice[(string) $arrayInputs[$i]] ?? null);
+                $this->restarUnidadesInventario($precios_producto_carga_id, $idPrecioSeleccionado,$precioSeleccionado ,$restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $arrayInputs[$i], $tipoPrecio, $lineasExpoPorIndice[(string) $arrayInputs[$i]] ?? null, (float) $request->input('cantidadOfertaAplicada' . $arrayInputs[$i], 0));
             };
 
 
@@ -1236,7 +1238,7 @@ class FacturacionEstatal extends Component
         }
     }
 
-    public function restarUnidadesInventario($precios_producto_carga_id,$idPrecioSeleccionado,$precioSeleccionado ,$unidadesRestarInv, $idProducto, $idSeccion, $idFactura, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $indice, $tipoPrecio = '2', $cotizacionLineaId = null)
+    public function restarUnidadesInventario($precios_producto_carga_id,$idPrecioSeleccionado,$precioSeleccionado ,$unidadesRestarInv, $idProducto, $idSeccion, $idFactura, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $indice, $tipoPrecio = '2', $cotizacionLineaId = null, $cantidadOfertaAplicada = 0)
     {
         //dd("Categoria Cliente primer producto : ".$categoriaClientePrecio);
         try {
@@ -1313,9 +1315,13 @@ class FacturacionEstatal extends Component
                     $cantidadSeccion = $registroResta / $unidad;
                 };
 
+                $cantidadOfertaSeccion = min((float) $cantidadOfertaAplicada, (float) $cantidadSeccion);
+                $cantidadOfertaAplicada -= $cantidadOfertaSeccion;
+
                 array_push($this->arrayProductos, [
                     "factura_id" => $idFactura,
                     "cotizacion_has_producto_id" => $cotizacionLineaId,
+                    "cantidad_oferta_aplicada" => $cotizacionLineaId ? $cantidadOfertaSeccion : 0,
                     "producto_id" => $idProducto,
                     "lote" => $unidadesDisponibles->id,
                     "indice" => $indice,

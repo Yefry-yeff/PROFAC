@@ -18,7 +18,7 @@ class SaldoLineasOferta
             ->where('f.estado_venta_id', 1)
             ->whereNotNull('vhp.cotizacion_has_producto_id')
             ->groupBy('vhp.cotizacion_has_producto_id')
-            ->selectRaw('vhp.cotizacion_has_producto_id, SUM(vhp.cantidad_s) as cantidad_facturada');
+            ->selectRaw('vhp.cotizacion_has_producto_id, SUM(COALESCE(vhp.cantidad_oferta_aplicada, vhp.cantidad_s)) as cantidad_facturada');
 
         return DB::table('cotizacion_has_producto as chp')
             ->leftJoinSub($facturado, 'facturado', function ($join) {
@@ -65,14 +65,18 @@ class SaldoLineasOferta
             $cantidad = (float) $request->input('cantidad' . $indice, 0);
 
             if ($lineaId <= 0) {
-                throw ValidationException::withMessages([
-                    'productos' => 'Todos los productos de una factura Expo deben proceder de la oferta vinculada.',
-                ]);
+                continue;
             }
 
             $lineasPorIndice[(string) $indice] = $lineaId;
             $cantidades[$lineaId] = ($cantidades[$lineaId] ?? 0) + $cantidad;
             $productos[$lineaId] = (int) $request->input('idProducto' . $indice, 0);
+        }
+
+        if (empty($cantidades)) {
+            throw ValidationException::withMessages([
+                'productos' => 'La factura Expo debe incluir al menos una línea de la oferta vinculada.',
+            ]);
         }
 
         $lineas = $this->validarYBloquear($cotizacionId, $cantidades);
@@ -84,6 +88,20 @@ class SaldoLineasOferta
                 ]);
             }
         }
+
+        $cantidadesAplicadas = [];
+        $restantePorLinea = $lineas->mapWithKeys(
+            fn ($linea) => [(int) $linea->id => (float) $linea->cantidad_aplicada]
+        )->all();
+        foreach ($lineasPorIndice as $indice => $lineaId) {
+            $cantidadAplicada = min(
+                (float) $request->input('cantidad' . $indice, 0),
+                (float) ($restantePorLinea[$lineaId] ?? 0)
+            );
+            $cantidadesAplicadas['cantidadOfertaAplicada' . $indice] = $cantidadAplicada;
+            $restantePorLinea[$lineaId] = max(0, ($restantePorLinea[$lineaId] ?? 0) - $cantidadAplicada);
+        }
+        $request->merge($cantidadesAplicadas);
 
         return $lineasPorIndice;
     }
@@ -141,22 +159,18 @@ class SaldoLineasOferta
             ->where('f.estado_venta_id', 1)
             ->whereIn('vhp.cotizacion_has_producto_id', $cantidades->keys())
             ->groupBy('vhp.cotizacion_has_producto_id')
-            ->pluck(DB::raw('SUM(vhp.cantidad_s)'), 'vhp.cotizacion_has_producto_id');
+            ->selectRaw('vhp.cotizacion_has_producto_id, SUM(COALESCE(vhp.cantidad_oferta_aplicada, vhp.cantidad_s)) as cantidad_facturada')
+            ->pluck('cantidad_facturada', 'vhp.cotizacion_has_producto_id');
 
         foreach ($cantidades as $lineaId => $solicitada) {
             $ofertada = (float) $lineas[$lineaId]->cantidad;
             $consumida = (float) ($facturado[$lineaId] ?? 0);
             $pendiente = max(0.0, $ofertada - $consumida);
 
-            if ($solicitada - $pendiente > self::TOLERANCIA) {
-                throw ValidationException::withMessages([
-                    'productos' => "La cantidad solicitada para la línea {$lineaId} supera el saldo pendiente ({$pendiente}).",
-                ]);
-            }
-
             $lineas[$lineaId]->cantidad_facturada = $consumida;
             $lineas[$lineaId]->cantidad_pendiente = $pendiente;
             $lineas[$lineaId]->cantidad_solicitada = $solicitada;
+            $lineas[$lineaId]->cantidad_aplicada = min($solicitada, $pendiente);
         }
 
         return $lineas;

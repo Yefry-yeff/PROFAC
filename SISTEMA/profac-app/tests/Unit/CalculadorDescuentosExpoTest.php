@@ -43,4 +43,27 @@ class CalculadorDescuentosExpoTest extends TestCase
         $this->assertSame(10.0, $resultado['porcentaje_general']);
         $this->assertSame(1900.0, $resultado['descuento_ganado']);
     }
+
+    public function test_recalcula_cada_marca_y_el_total_al_agregar_productos(): void
+    {
+        $resultado = (new CalculadorDescuentosExpo())->calcular([
+            ['marca_id' => 102, 'subtotal_bruto' => 10000.00],
+            ['marca_id' => 102, 'subtotal_bruto' => 30000.00],
+            ['marca_id' => 74, 'subtotal_bruto' => 10000.00],
+        ], [
+            'marcas' => [
+                ['marca_id' => 102, 'venta_minima' => 10000, 'porcentaje_descuento' => 2],
+                ['marca_id' => 102, 'venta_minima' => 40000, 'porcentaje_descuento' => 5],
+                ['marca_id' => 74, 'venta_minima' => 10000, 'porcentaje_descuento' => 1],
+            ],
+            'generales' => [
+                ['venta_minima' => 10000, 'porcentaje_descuento' => 2],
+            ],
+        ]);
+
+        $this->assertSame(5.0, $resultado['porcentajes_marca'][102]);
+        $this->assertSame(1.0, $resultado['porcentajes_marca'][74]);
+        $this->assertSame(2.0, $resultado['porcentaje_general']);
+        $this->assertSame(3058.0, $resultado['descuento_ganado']);
+    }
 }

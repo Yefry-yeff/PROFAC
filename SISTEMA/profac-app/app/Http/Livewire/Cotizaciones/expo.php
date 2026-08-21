@@ -554,6 +554,7 @@ class expo extends Component
             IF(COALESCE(NULLIF(B.tipo_precio,''), IF(B.isv_producto > 0,'2','1')) = '1', 'SI', 'NO') as excento,
             FORMAT(B.precio_unidad,2) as precio,
             FORMAT(B.cantidad,2) as cantidad,
+            FORMAT(GREATEST((B.precio_unidad * B.cantidad) - B.sub_total,0),2) as descuento,
             FORMAT(B.sub_total,2) as importe,
             J.nombre as medida
 
@@ -595,6 +596,14 @@ class expo extends Component
             from cotizacion where id = ".$idFactura
         );
 
+        $esExpo = true;
+        $descuentoExpo = (float) DB::table('cotizacion_has_producto')
+            ->where('cotizacion_id', $idFactura)
+            ->selectRaw('COALESCE(SUM(GREATEST((precio_unidad * cantidad) - sub_total, 0)), 0) as descuento')
+            ->value('descuento');
+        $importes->monto_descuento = $descuentoExpo;
+        $importesConCentavos->monto_descuento = number_format($descuentoExpo, 2);
+
         $tipoCot = 4;
         if( fmod($importes->total, 1) == 0.0 ){
             $flagCentavos = false;
@@ -607,7 +616,7 @@ class expo extends Component
         $formatter->apocope = true;
         $numeroLetras = $formatter->toMoney($importes->total, 2, 'LEMPIRAS', 'CENTAVOS');
 
-        $pdf = PDF::loadView('/pdf/cotizacion',compact('datos','productos','importes','importesConCentavos','flagCentavos','numeroLetras', 'tipoCot'))->setPaper('letter');
+        $pdf = PDF::loadView('/pdf/cotizacion',compact('datos','productos','importes','importesConCentavos','flagCentavos','numeroLetras', 'tipoCot', 'esExpo'))->setPaper('letter');
 
         return $pdf->stream("Pedido_NO_".$datos->codigo.".pdf");
 

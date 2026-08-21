@@ -39,13 +39,20 @@ class LiquidacionOfertaExpo
             ->get(['id', 'cai', 'fecha_emision', 'fecha_vencimiento', 'sub_total', 'sub_total_grabado', 'sub_total_excento', 'isv', 'total']);
 
         $detallesFacturados = DB::table('venta_has_producto as vhp')
-            ->join('cotizacion_has_producto as chp', 'chp.id', '=', 'vhp.cotizacion_has_producto_id')
+            ->join('producto as p', 'p.id', '=', 'vhp.producto_id')
+            ->leftJoin('cotizacion_has_producto as chp', 'chp.id', '=', 'vhp.cotizacion_has_producto_id')
             ->whereIn('vhp.factura_id', $facturaIds)
-            ->where('chp.cotizacion_id', $cotizacionId)
+            ->where(function ($query) use ($cotizacionId) {
+                $query->where('chp.cotizacion_id', $cotizacionId)
+                    ->orWhereNull('vhp.cotizacion_has_producto_id');
+            })
             ->get([
                 'vhp.factura_id',
                 'vhp.cotizacion_has_producto_id as linea_id',
                 'vhp.cantidad_s',
+                'vhp.precio_unidad as precio_facturado',
+                'vhp.sub_total_s as subtotal_neto_facturado',
+                'p.marca_id as marca_producto_id',
                 'chp.cantidad as cantidad_ofertada',
                 'chp.precio_unidad as precio_ofertado',
                 'chp.monto_descProducto as descuento_linea_oferta',
@@ -53,7 +60,7 @@ class LiquidacionOfertaExpo
         $subtotalesBrutos = $detallesFacturados
             ->groupBy('factura_id')
             ->map(fn($detalles) => (float) $detalles->sum(
-                fn($detalle) => (float) $detalle->precio_ofertado * (float) $detalle->cantidad_s
+                fn($detalle) => (float) $detalle->precio_facturado * (float) $detalle->cantidad_s
             ));
 
         $totalFacturado = round((float) $subtotalesBrutos->sum(), 2);
@@ -63,18 +70,15 @@ class LiquidacionOfertaExpo
         $descuentoOtorgado = 0.0;
         $descuentosOtorgadosFactura = [];
         foreach ($detallesFacturados as $detalle) {
-            $marcaId = (int) ($lineasSnapshot[(int) $detalle->linea_id]['marca_id'] ?? 0);
-            $subtotalBruto = round((float) $detalle->precio_ofertado * (float) $detalle->cantidad_s, 4);
+            $lineaSnapshot = $lineasSnapshot->get((int) $detalle->linea_id, []);
+            $marcaId = (int) ($lineaSnapshot['marca_id'] ?? $detalle->marca_producto_id ?? 0);
+            $subtotalBruto = round((float) $detalle->precio_facturado * (float) $detalle->cantidad_s, 4);
             $lineasCalculo[] = ['marca_id' => $marcaId, 'subtotal_bruto' => $subtotalBruto];
-            $cantidadOfertada = (float) $detalle->cantidad_ofertada;
-            if ($cantidadOfertada > 0) {
-                $descuentoLinea = (float) $detalle->descuento_linea_oferta
-                    * (float) $detalle->cantidad_s / $cantidadOfertada;
-                $descuentoOtorgado += $descuentoLinea;
-                $facturaId = (int) $detalle->factura_id;
-                $descuentosOtorgadosFactura[$facturaId] = ($descuentosOtorgadosFactura[$facturaId] ?? 0)
-                    + $descuentoLinea;
-            }
+            $descuentoLinea = max($subtotalBruto - (float) $detalle->subtotal_neto_facturado, 0);
+            $descuentoOtorgado += $descuentoLinea;
+            $facturaId = (int) $detalle->factura_id;
+            $descuentosOtorgadosFactura[$facturaId] = ($descuentosOtorgadosFactura[$facturaId] ?? 0)
+                + $descuentoLinea;
         }
         $descuentoOtorgado = round($descuentoOtorgado, 2);
         $calculo = $this->calculador->calcular($lineasCalculo, $reglas);

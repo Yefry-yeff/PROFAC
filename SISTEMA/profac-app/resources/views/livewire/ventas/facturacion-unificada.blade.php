@@ -153,6 +153,74 @@
             font-size: 11px; font-weight: 700; padding: 2px 10px;
         }
 
+        /* ── Selector compacto de líneas pendientes Expo ─────────────── */
+        .expo-pendientes-card { padding: 0; overflow: hidden; border-color: #ffd59a; }
+        .expo-pendientes-encabezado {
+            padding: 15px 20px; display: flex; flex-wrap: wrap;
+            align-items: center; justify-content: space-between; gap: 12px;
+            background: linear-gradient(135deg,#fff8ed,#fffdf8); border-bottom: 1px solid #ffe2b8;
+        }
+        .expo-pendientes-titulo { min-width: 220px; }
+        .expo-pendientes-titulo .of-card-title { color: #7c4a12; margin-bottom: 3px !important; }
+        .expo-pendientes-titulo small { color: #8a8178; font-size: 11px; }
+        .expo-pendientes-contadores { display: flex; flex-wrap: wrap; gap: 6px; }
+        .expo-contador {
+            padding: 3px 9px; border-radius: 12px; background: #fff;
+            border: 1px solid #eadfce; color: #6b6258; font-size: 10px; font-weight: 800;
+        }
+        .expo-contador.seleccionado { background: #e8f5e9; border-color: #a5d6a7; color: #1b5e20; }
+        .expo-pendientes-herramientas {
+            padding: 12px 20px; display: grid;
+            grid-template-columns: minmax(240px,2fr) minmax(170px,1fr) minmax(160px,1fr);
+            gap: 9px; border-bottom: 1px solid #eef0f3; background: #fff;
+        }
+        .expo-buscador { position: relative; }
+        .expo-buscador i { position: absolute; left: 11px; top: 10px; color: #9aa3ab; }
+        .expo-buscador input { padding-left: 34px; }
+        .expo-pendientes-acciones {
+            padding: 10px 20px; display: flex; flex-wrap: wrap;
+            justify-content: space-between; align-items: center; gap: 8px;
+            background: #fafbfc; border-bottom: 1px solid #eef0f3;
+        }
+        .expo-pendientes-lista {
+            max-height: 390px; overflow-y: auto; padding: 10px 14px;
+            display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 7px;
+            background: #f7f8fa;
+        }
+        .expo-linea-item {
+            min-width: 0; margin: 0; padding: 9px 11px; display: flex;
+            align-items: flex-start; gap: 9px; border: 1px solid #e2e6ea;
+            border-radius: 7px; background: #fff; cursor: pointer;
+        }
+        .expo-linea-item:hover { border-color: #f0ad4e; box-shadow: 0 2px 8px rgba(70,55,35,.08); }
+        .expo-linea-item.seleccionada { border-color: #43a047; background: #f1f8f2; }
+        .expo-linea-item.en-carrito { border-color: #90caf9; background: #f1f7fc; cursor: default; }
+        .expo-linea-item input { margin-top: 3px; flex-shrink: 0; accent-color: #2e7d32; }
+        .expo-linea-info { min-width: 0; flex: 1; }
+        .expo-linea-nombre {
+            display: block; color: #37474f; font-size: 11px; font-weight: 700;
+            line-height: 1.35; overflow-wrap: anywhere;
+        }
+        .expo-linea-meta { margin-top: 5px; display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+        .expo-linea-chip { padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 800; }
+        .expo-linea-chip.marca { color: #795548; background: #fff3e0; }
+        .expo-linea-chip.codigo { color: #455a64; background: #eceff1; }
+        .expo-linea-pendiente { margin-left: auto; color: #e65100; font-size: 10px; font-weight: 800; }
+        .expo-pendientes-vacio { grid-column: 1/-1; padding: 34px 18px; text-align: center; color: #78909c; }
+        .expo-pendientes-paginacion {
+            padding: 10px 20px; display: flex; justify-content: space-between;
+            align-items: center; gap: 10px; border-top: 1px solid #eef0f3; background: #fff;
+        }
+        @media (max-width: 767.5px) {
+            .expo-pendientes-herramientas { grid-template-columns: 1fr; }
+            .expo-pendientes-lista { grid-template-columns: 1fr; max-height: 440px; }
+            .expo-pendientes-acciones > div {
+                display: grid !important; grid-template-columns: repeat(2,minmax(0,1fr)); width: 100%;
+            }
+            .expo-pendientes-acciones .btn { min-width: 0; width: 100%; white-space: normal; }
+            .expo-pendientes-acciones .btn:last-child { grid-column: 1/-1; }
+        }
+
         /* ── Collapsible of-cards ─────────────────────────────────────── */
         .of-card-title { cursor: pointer; user-select: none; }
         .of-card-title .of-chevron {
@@ -179,8 +247,94 @@
         #modal_gestor_entrega .modal-dialog { overflow: visible !important; }
         #modal_gestor_entrega .modal-content { overflow: visible !important; }
         #modal_gestor_entrega .modal-body { overflow: visible !important; }
+        #cargandoTemporales {
+            position: fixed; inset: 0; z-index: 9998;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(255,255,255,.88);
+        }
+        html.temporales-cargados #cargandoTemporales { display: none !important; }
+        #cargandoTemporales .carga-temporales-contenido {
+            display: flex; flex-direction: column; align-items: center; gap: 12px;
+            color: #00897b; font-size: 14px; font-weight: 700;
+        }
+        #cargandoTemporales .fa { font-size: 42px; }
+
+        /* ── Resumen compacto de liquidación Expo ──────────────────── */
+        .swal2-container.liquidacion-expo-container { align-items: center !important; padding: 16px !important; }
+        .swal2-popup.liquidacion-expo-popup {
+            width: min(680px, calc(100vw - 32px)) !important;
+            max-height: calc(100vh - 32px); padding: 18px 20px 14px !important;
+            border-radius: 8px !important; overflow: hidden;
+        }
+        .liquidacion-expo-popup .swal2-icon { width: 46px; height: 46px; margin: 0 auto 8px; }
+        .liquidacion-expo-popup .swal2-icon .swal2-icon-content { font-size: 30px; }
+        .liquidacion-expo-popup .swal2-title {
+            padding: 0; color: #263238; font-size: 20px; line-height: 1.25;
+        }
+        .liquidacion-expo-popup .swal2-html-container {
+            max-height: calc(100vh - 190px); margin: 12px 0 0; padding: 0 2px 2px;
+            overflow-y: auto; overflow-x: hidden; color: #37474f;
+        }
+        .liquidacion-expo-popup .swal2-actions { margin: 12px 0 0; }
+        .liquidacion-expo-popup .swal2-styled { margin: 0 4px; padding: 8px 18px; font-size: 13px; }
+        .expo-liquidacion-estado {
+            display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+            padding: 8px 10px; border: 1px solid #b8dfc5; border-radius: 6px;
+            background: #edf8f0; color: #25633a; font-size: 12px; text-align: left;
+        }
+        .expo-liquidacion-estado.info { border-color: #b7d7ef; background: #eef7fd; color: #245a7a; }
+        .expo-liquidacion-metricas {
+            display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 7px; margin-bottom: 10px;
+        }
+        .expo-liquidacion-metrica {
+            min-width: 0; padding: 8px 9px; border: 1px solid #e1e7e5;
+            border-radius: 6px; background: #f8faf9; text-align: left;
+        }
+        .expo-liquidacion-metrica.destacada { border-color: #f2c98d; background: #fff8ed; }
+        .expo-liquidacion-metrica span {
+            display: block; margin-bottom: 2px; overflow: hidden; color: #718079;
+            font-size: 9px; font-weight: 700; line-height: 1.2; text-overflow: ellipsis;
+            text-transform: uppercase; white-space: nowrap;
+        }
+        .expo-liquidacion-metrica strong { display: block; color: #263832; font-size: 13px; line-height: 1.25; }
+        .expo-liquidacion-metrica.destacada strong { color: #9a5800; }
+        .expo-liquidacion-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 10px; align-items: start; }
+        .expo-liquidacion-seccion { min-width: 0; }
+        .expo-liquidacion-seccion.completa { grid-column: 1 / -1; }
+        .expo-liquidacion-titulo {
+            margin: 0 0 5px; color: #52615b; font-size: 10px; font-weight: 800;
+            letter-spacing: 0; text-align: left; text-transform: uppercase;
+        }
+        .expo-liquidacion-tabla { width: 100%; margin: 0; border-collapse: collapse; font-size: 11px; }
+        .expo-liquidacion-tabla th {
+            padding: 6px 7px; border-bottom: 1px solid #dce5e1; background: #f1f5f3;
+            color: #607069; font-size: 9px; font-weight: 800; text-transform: uppercase;
+        }
+        .expo-liquidacion-tabla td { padding: 6px 7px; border-bottom: 1px solid #edf1ef; color: #394943; }
+        .expo-liquidacion-tabla tbody tr:last-child td { border-bottom: 0; }
+        .expo-liquidacion-tabla-contenedor { border: 1px solid #dfe7e3; border-radius: 6px; overflow-x: auto; }
+        @media (max-width: 575.5px) {
+            .swal2-container.liquidacion-expo-container { padding: 8px !important; }
+            .swal2-popup.liquidacion-expo-popup {
+                width: calc(100vw - 16px) !important; max-height: calc(100vh - 16px);
+                padding: 14px 12px 12px !important;
+            }
+            .liquidacion-expo-popup .swal2-title { font-size: 17px; }
+            .liquidacion-expo-popup .swal2-html-container { max-height: calc(100vh - 172px); }
+            .expo-liquidacion-metricas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .expo-liquidacion-grid { grid-template-columns: 1fr; }
+            .expo-liquidacion-seccion.completa { grid-column: auto; }
+        }
     </style>
     @endpush
+
+    <div id="cargandoTemporales" role="status" aria-live="polite" aria-label="Cargando registros temporales">
+        <div class="carga-temporales-contenido">
+            <i class="fa fa-spinner fa-spin" aria-hidden="true"></i>
+            <span>Cargando registros temporales...</span>
+        </div>
+    </div>
 
     {{-- ===== PAGE HEADING (solo en flujo) ===== --}}
     @if($fromFlujo && ($config->codigo ?? '') === 'cotizacion_clientes_a')
@@ -674,7 +828,6 @@
                             </div>{{-- /of-card cliente --}}
 
                             {{-- ── SECCIÓN 2: Agregar Producto ─────────────────────────── --}}
-                            @unless($esOfertaExpo)
                             <span id="ico_sec_producto" style="display:none;"></span>
                             <div class="of-card">
                             <div class="of-card-title d-flex align-items-center" onclick="toggleOfCard('body_producto', this)">
@@ -780,37 +933,54 @@
                             </div>{{-- /sec_producto --}}
                             </div>{{-- /body_producto --}}
                             </div>{{-- /of-card producto --}}
-                            @endunless
 
                             @if($esOfertaExpo && (!$fromPrefactura || request()->boolean('expo_parcial')) && count($productosParaCarrito) > 0)
-                            <div class="of-card" style="padding:16px 20px;">
-                                <div class="d-flex flex-wrap justify-content-between align-items-center mb-2" style="gap:8px;">
-                                    <span class="of-card-title mb-0"><i class="fa fa-tags text-warning"></i> Líneas pendientes de la Oferta Expo</span>
-                                    <div class="d-flex" style="gap:6px;">
-                                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="expoAlternarTodas(false)"><i class="fa fa-times mr-1"></i>Limpiar</button>
-                                        <button type="button" class="btn btn-sm btn-outline-warning" onclick="expoAlternarTodas(true)"><i class="fa fa-check-square-o mr-1"></i>Todas las marcas</button>
-                                        <button type="button" class="btn btn-sm btn-warning" onclick="expoAgregarSeleccionados()"><i class="fa fa-cart-plus mr-1"></i>Agregar selección</button>
+                            <div class="of-card expo-pendientes-card">
+                                <div class="expo-pendientes-encabezado">
+                                    <div class="expo-pendientes-titulo">
+                                        <span class="of-card-title"><i class="fa fa-tags text-warning"></i> Líneas pendientes de la Oferta Expo</span>
+                                        <small>Busque, filtre y seleccione únicamente los productos que desea facturar.</small>
+                                    </div>
+                                    <div class="expo-pendientes-contadores">
+                                        <span class="expo-contador"><span id="expoTotalLineas">{{ count($productosParaCarrito) }}</span> pendientes</span>
+                                        <span class="expo-contador"><span id="expoResultadosLineas">{{ count($productosParaCarrito) }}</span> resultados</span>
+                                        <span class="expo-contador seleccionado"><span id="expoSeleccionadasLineas">0</span> seleccionadas</span>
                                     </div>
                                 </div>
-                                @foreach(collect($productosParaCarrito)->groupBy('marca_id') as $marcaId => $lineasMarca)
-                                <div style="border-top:1px solid #eef0f3; padding-top:8px; margin-top:8px;">
-                                    <label style="display:flex; align-items:center; gap:7px; margin-bottom:6px; font-size:12px; font-weight:800; color:#455a64;">
-                                        <input type="checkbox" onchange="expoAlternarMarca({{ (int)$marcaId }}, this.checked)">
-                                        {{ $lineasMarca->first()['marca_nombre'] ?? 'SIN MARCA' }}
-                                    </label>
-                                    <div class="row">
-                                        @foreach($lineasMarca as $indiceProducto => $linea)
-                                        @php $indiceGlobal = collect($productosParaCarrito)->search(fn($item) => (int)($item['cotizacion_has_producto_id'] ?? 0) === (int)($linea['cotizacion_has_producto_id'] ?? 0)); @endphp
-                                        <div class="col-12 col-md-6 mb-1">
-                                            <label style="display:flex; align-items:flex-start; gap:7px; margin:0; font-size:11px; font-weight:600; color:#37474f;">
-                                                <input type="checkbox" class="expo-linea-selector" data-producto-indice="{{ $indiceGlobal }}" data-marca-id="{{ (int)$marcaId }}">
-                                                <span>{{ $linea['nombre_producto'] }} <small class="text-muted">Pendiente: {{ number_format((float)$linea['cantidad'], 2) }}</small></span>
-                                            </label>
-                                        </div>
+                                <div class="expo-pendientes-herramientas">
+                                    <div class="expo-buscador">
+                                        <i class="fa fa-search" aria-hidden="true"></i>
+                                        <input type="search" id="expoBuscarLinea" class="form-control form-control-sm"
+                                            placeholder="Buscar por código, producto o marca..." autocomplete="off">
+                                    </div>
+                                    <select id="expoFiltrarMarca" class="form-control form-control-sm" aria-label="Filtrar por marca">
+                                        <option value="">Todas las marcas</option>
+                                        @foreach(collect($productosParaCarrito)->groupBy('marca_id')->sortBy(fn($lineas) => $lineas->first()['marca_nombre'] ?? 'SIN MARCA') as $marcaId => $lineasMarca)
+                                        <option value="{{ (int)$marcaId }}">{{ $lineasMarca->first()['marca_nombre'] ?? 'SIN MARCA' }} ({{ $lineasMarca->count() }})</option>
                                         @endforeach
+                                    </select>
+                                    <select id="expoFiltrarEstado" class="form-control form-control-sm" aria-label="Filtrar por estado">
+                                        <option value="todos">Todos los estados</option>
+                                        <option value="sin_carrito">Sin agregar al carrito</option>
+                                        <option value="parciales">Agregados parcialmente</option>
+                                        <option value="seleccionados">Seleccionados</option>
+                                    </select>
+                                </div>
+                                <div class="expo-pendientes-acciones">
+                                    <small id="expoRangoLineas" class="text-muted"></small>
+                                    <div class="d-flex flex-wrap" style="gap:6px;">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="expoAlternarTodas(false)"><i class="fa fa-times mr-1"></i>Limpiar selección</button>
+                                        <button type="button" class="btn btn-sm btn-outline-warning" onclick="expoAlternarTodas(true)" title="Selecciona todos los productos que coinciden con los filtros"><i class="fa fa-check-square-o mr-1"></i>Seleccionar resultados</button>
+                                        <button type="button" class="btn btn-sm btn-outline-success" onclick="expoSeleccionarMarca()" title="Selecciona todos los productos pendientes de la marca filtrada"><i class="fa fa-tags mr-1"></i>Seleccionar marca</button>
+                                        <button type="button" class="btn btn-sm btn-warning" onclick="expoAgregarSeleccionados()"><i class="fa fa-cart-plus mr-1"></i>Agregar <span id="expoCantidadAgregar">0</span></button>
                                     </div>
                                 </div>
-                                @endforeach
+                                <div id="expoPendientesLista" class="expo-pendientes-lista"></div>
+                                <div class="expo-pendientes-paginacion">
+                                    <button id="expoPaginaAnterior" type="button" class="btn btn-sm btn-outline-secondary" onclick="expoCambiarPagina(-1)" aria-label="Página anterior"><i class="fa fa-chevron-left"></i></button>
+                                    <small id="expoPaginaEstado" class="text-muted"></small>
+                                    <button id="expoPaginaSiguiente" type="button" class="btn btn-sm btn-outline-secondary" onclick="expoCambiarPagina(1)" aria-label="Página siguiente"><i class="fa fa-chevron-right"></i></button>
+                                </div>
                             </div>
                             @endif
 
@@ -2083,7 +2253,14 @@
         return elemento.innerHTML;
     }
 
+    function ocultarCargaTemporales() {
+        document.documentElement.classList.add('temporales-cargados');
+        var cargando = document.getElementById('cargandoTemporales');
+        if (cargando) cargando.style.display = 'none';
+    }
+
     function iniciarNuevaVentaTemporal() {
+        ocultarCargaTemporales();
         ventaTemporalId = null;
         var url = new URL(window.location.href);
         url.searchParams.delete('temporal_id');
@@ -2132,6 +2309,7 @@
             denyButtonColor: '#e65100',
             allowOutsideClick: false,
             allowEscapeKey: false,
+            didOpen: ocultarCargaTemporales,
             preConfirm: function() {
                 var opcion = document.querySelector('input[name="temporal_seleccionado"]:checked');
                 if (!opcion) {
@@ -2913,10 +3091,6 @@
                     }
                     $('#categoria_cliente_venta_id').prop('disabled', false);
 
-                    if (expoConfig && expoConfig.escalas.length === 1 && expoConfig.bodegas.length === 1 && categorias.length === 1) {
-                        $('#categoria_cliente_venta_id').val(String(categorias[0].id)).trigger('change');
-                        seleccionarBodegaExpoUnica(productoId);
-                    }
                 } else {
                     $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>No hay categorías disponibles</option>');
                     Swal.fire({ icon: 'warning', title: 'Advertencia', text: 'Este producto no tiene escalas de precio.' });
@@ -2999,34 +3173,9 @@
                     // prefactura_id: necesario para excluir su reserva del cálculo de stock
                     var _prefacturaId = _urlParams.get('prefactura_id') || document.getElementById('prefactura_vinculada_id')?.value || '';
                     var _permitirSinExistencia = (codigoActual === 'cotizacion_clientes_a') ? 1 : 0;
-                    return { search: params.term, type: 'public', page: params.page || 1, idProducto: id, flujo_id: _flujoId, modo: _modo, prefactura_id: _prefacturaId, permitir_sin_existencia: _permitirSinExistencia, expo_id: expoConfig ? expoConfig.id : null };
+                    return { search: params.term, type: 'public', page: params.page || 1, idProducto: id, flujo_id: _flujoId, modo: _modo, prefactura_id: _prefacturaId, permitir_sin_existencia: _permitirSinExistencia };
                 }
             }
-        });
-    }
-
-    function seleccionarBodegaExpoUnica(productoId) {
-        obtenerBodegas(productoId);
-        var url = urls.bodegas.replace('{idProducto}', productoId);
-        axios.get(url, {
-            params: {
-                idProducto: productoId,
-                permitir_sin_existencia: 1,
-                expo_id: expoConfig.id
-            }
-        }).then(function(response) {
-            if (String($('#seleccionarProducto').val() || '') !== String(productoId)) return;
-            var opciones = response.data.results || [];
-            var bodega = opciones.find(function(item) { return !item.esSinExistencia; })
-                || opciones.find(function(item) { return item.esSinExistencia; });
-            if (!bodega) return;
-
-            var option = new Option(bodega.text, bodega.id, true, true);
-            $('#bodega').append(option).trigger('change');
-            agregarProductoCarrito(bodega);
-        }).catch(function(error) {
-            var mensaje = error.response?.data?.message || 'No se pudo consultar la bodega configurada para la Expo.';
-            Swal.fire({ icon: 'error', title: 'Error', text: mensaje });
         });
     }
 
@@ -3613,6 +3762,9 @@
             : totalCantidad.toFixed(2);
 
         badge.textContent = cantidadTexto + ' producto(s)';
+        if (typeof window.expoActualizarPendientes === 'function') {
+            window.expoActualizarPendientes();
+        }
     }
 
     function totalesGenerales() {
@@ -3713,67 +3865,6 @@
 
     function calcularDescuentosCarritoExpo() {
         if (!expoConfig) return null;
-        if (esOfertaExpo) {
-            var resultadoFirmado = { lineas: {}, marcas: {}, totalDescuento: 0, totalBruto: 0, porcentajeGeneral: 0 };
-            var redondearMoneda = function(valor) { return Math.round((valor + Number.EPSILON) * 100) / 100; };
-
-            arregloIdInputs.forEach(function(id) {
-                var precio = Number(document.getElementById('precio' + id)?.value || 0);
-                var cantidad = Number(document.getElementById('cantidad' + id)?.value || 0);
-                var unidad = Number(document.getElementById('unidad' + id)?.value || 0);
-                var cantidadOfertada = Number(document.getElementById('cantidadOfertaExpo' + id)?.value || 0);
-                var descuentoOferta = Number(document.getElementById('descuentoOfertaExpo' + id)?.value || 0);
-                var marcaId = Number(document.getElementById('marcaExpoId' + id)?.value || 0);
-                var lineaOfertaId = Number(document.getElementById('cotizacionLineaId' + id)?.value || 0);
-                var atribucion = atribucionesDescuentoExpo[lineaOfertaId] || {};
-                var importe = redondearMoneda(precio * cantidad * unidad);
-                var cantidadFacturada = cantidad;
-                var descuentoTotal = cantidadOfertada > 0
-                    ? redondearMoneda(descuentoOferta * cantidadFacturada / cantidadOfertada)
-                    : 0;
-                descuentoTotal = Math.min(descuentoTotal, importe);
-                var subtotalNeto = redondearMoneda(importe - descuentoTotal);
-                var porcentajeIsv = tipoFacturaConfig && !tipoFacturaConfig.aplica_isv
-                    ? 0
-                    : Number(document.getElementById('isv' + id)?.value || 0);
-                var isv = redondearMoneda(subtotalNeto * porcentajeIsv / 100);
-                var nombreMarca = document.getElementById('marcaExpoNombre' + id)?.value
-                    || (marcaId ? 'Marca ' + marcaId : 'SIN MARCA');
-                var porcentajeMarca = Number(atribucion.porcentaje_marca || 0);
-                var porcentajeGeneral = Number(atribucion.porcentaje_general || 0);
-                var descuentoMarca = redondearMoneda(descuentoTotal * Number(atribucion.proporcion_marca || 0));
-                var descuentoGeneral = redondearMoneda(descuentoTotal - descuentoMarca);
-
-                resultadoFirmado.lineas[id] = {
-                    porcentajeMarca: porcentajeMarca,
-                    porcentajeGeneral: porcentajeGeneral,
-                    descuentoMarca: descuentoMarca,
-                    descuentoGeneral: descuentoGeneral,
-                    descuentoTotal: descuentoTotal,
-                    subtotalNeto: subtotalNeto,
-                    isv: isv,
-                    total: redondearMoneda(subtotalNeto + isv)
-                };
-                if (!resultadoFirmado.marcas[marcaId]) {
-                    resultadoFirmado.marcas[marcaId] = { nombre: nombreMarca, porcentajeMarca: porcentajeMarca, porcentajeGeneral: porcentajeGeneral, cantidad: 0, subtotal: 0, descuentoMarca: 0, descuentoGeneral: 0, descuentoTotal: 0 };
-                }
-                var marca = resultadoFirmado.marcas[marcaId];
-                marca.cantidad += cantidadFacturada;
-                marca.subtotal += importe;
-                marca.descuentoMarca += descuentoMarca;
-                marca.descuentoGeneral += descuentoGeneral;
-                marca.descuentoTotal += descuentoTotal;
-                resultadoFirmado.totalBruto += importe;
-                resultadoFirmado.totalDescuento += descuentoTotal;
-            });
-
-            resultadoFirmado.porcentajeGeneral = Math.max.apply(null, [0].concat(
-                Object.values(resultadoFirmado.marcas).map(function(marca) { return Number(marca.porcentajeGeneral || 0); })
-            ));
-
-            return resultadoFirmado;
-        }
-
         var configuracion = esOfertaExpo ? reglasExpoOferta : expoConfig;
         var reglasMarca = esOfertaExpo
             ? (Array.isArray(configuracion.marcas) ? configuracion.marcas : [])
@@ -5131,12 +5222,23 @@
         }).join('');
         var requiereConfirmacion = resumen.estado === 'PENDIENTE_LIQUIDACION';
         var alerta = requiereConfirmacion
-            ? '<div class="alert alert-info text-left">Este cierre pendiente aplicará el aumento mediante otros movimientos.</div>'
-            : '<div class="alert alert-success text-left">La Oferta Expo quedó liquidada y el aumento correspondiente fue aplicado.</div>';
+            ? '<div class="expo-liquidacion-estado info"><i class="fa fa-info-circle"></i><span>Este cierre pendiente aplicará el aumento mediante otros movimientos.</span></div>'
+            : '<div class="expo-liquidacion-estado"><i class="fa fa-check-circle"></i><span>Oferta liquidada. El aumento correspondiente fue aplicado.</span></div>';
+        var metrica = function(etiqueta, valor, destacada) {
+            return '<div class="expo-liquidacion-metrica' + (destacada ? ' destacada' : '') + '"><span title="' + escapar(etiqueta) + '">' + escapar(etiqueta) + '</span><strong>' + valor + '</strong></div>';
+        };
+        var tabla = function(titulo, encabezado, filas, completa) {
+            if (!filas) return '';
+            return '<section class="expo-liquidacion-seccion' + (completa ? ' completa' : '') + '"><h3 class="expo-liquidacion-titulo">' + escapar(titulo) + '</h3><div class="expo-liquidacion-tabla-contenedor"><table class="expo-liquidacion-tabla"><thead>' + encabezado + '</thead><tbody>' + filas + '</tbody></table></div></section>';
+        };
         return Swal.fire({
             icon: resumen.estado === 'LIQUIDADA' ? 'success' : 'warning',
             title: 'Liquidación final de la Oferta Expo',
-            width: 800,
+            position: 'center',
+            customClass: {
+                container: 'liquidacion-expo-container',
+                popup: 'liquidacion-expo-popup'
+            },
             confirmButtonText: requiereConfirmacion ? 'Aplicar aumento' : 'Continuar',
             showCancelButton: requiereConfirmacion,
             cancelButtonText: 'Más tarde',
@@ -5157,17 +5259,21 @@
                 });
             } : undefined,
             html: alerta
-                + '<div class="row text-left mb-3"><div class="col-4"><small>Total original</small><br><strong>' + moneda(resumen.total_oferta) + '</strong></div>'
-                + '<div class="col-4"><small>Subtotal bruto facturado</small><br><strong>' + moneda(resumen.total_facturado) + '</strong></div>'
-                + '<div class="col-4"><small>Aumento aplicado</small><br><strong>' + moneda(resumen.aumento_calculado) + '</strong></div></div>'
-                + '<div class="row text-left mb-3"><div class="col-4"><small>Descuento por marca</small><br><strong>' + moneda(resumen.descuento_marca_total) + '</strong></div>'
-                + '<div class="col-4"><small>Base general</small><br><strong>' + moneda(resumen.base_general) + '</strong></div>'
-                + '<div class="col-4"><small>Descuento general</small><br><strong>' + Number(resumen.porcentaje_descuento || 0).toFixed(2) + '% · ' + moneda(resumen.descuento_general) + '</strong></div></div>'
-                + '<div class="row text-left mb-3"><div class="col-6"><small>Descuento otorgado</small><br><strong>' + moneda(resumen.descuento_otorgado) + '</strong></div><div class="col-6"><small>Descuento ganado</small><br><strong>' + moneda(resumen.descuento_ganado) + '</strong></div></div>'
-                + '<div class="table-responsive"><table class="table table-sm table-bordered"><thead><tr><th>ID</th><th>Factura</th><th class="text-right">Subtotal bruto</th><th class="text-right">Total</th></tr></thead><tbody>' + facturas + '</tbody></table></div>'
-                + (marcas ? '<h6 class="text-left">Escalón alcanzado por marca</h6><div class="table-responsive"><table class="table table-sm table-bordered"><thead><tr><th>Marca</th><th class="text-right">Porcentaje</th></tr></thead><tbody>' + marcas + '</tbody></table></div>' : '')
-                + (pendientes ? '<h6 class="text-left">Productos no facturados</h6><div class="table-responsive"><table class="table table-sm table-bordered"><thead><tr><th>Línea</th><th>Producto</th><th class="text-right">Facturado</th><th class="text-right">Pendiente</th></tr></thead><tbody>' + pendientes + '</tbody></table></div>' : '')
-                + (aplicaciones ? '<h6 class="text-left">Aumentos realizados</h6><div class="table-responsive"><table class="table table-sm table-bordered"><thead><tr><th>Factura</th><th class="text-right">Monto</th></tr></thead><tbody>' + aplicaciones + '</tbody></table></div>' : '')
+                + '<div class="expo-liquidacion-metricas">'
+                + metrica('Total original', moneda(resumen.total_oferta))
+                + metrica('Subtotal facturado', moneda(resumen.total_facturado))
+                + metrica('Aumento aplicado', moneda(resumen.aumento_calculado), Number(resumen.aumento_calculado || 0) > 0)
+                + metrica('Descuento por marca', moneda(resumen.descuento_marca_total))
+                + metrica('Base general', moneda(resumen.base_general))
+                + metrica('Descuento general', Number(resumen.porcentaje_descuento || 0).toFixed(2) + '% · ' + moneda(resumen.descuento_general))
+                + metrica('Descuento otorgado', moneda(resumen.descuento_otorgado))
+                + metrica('Descuento ganado', moneda(resumen.descuento_ganado))
+                + '</div><div class="expo-liquidacion-grid">'
+                + tabla('Facturas', '<tr><th>ID</th><th>Factura</th><th class="text-right">Subtotal</th><th class="text-right">Total</th></tr>', facturas)
+                + tabla('Escalón por marca', '<tr><th>Marca</th><th class="text-right">%</th></tr>', marcas)
+                + tabla('Productos no facturados', '<tr><th>Línea</th><th>Producto</th><th class="text-right">Facturado</th><th class="text-right">Pendiente</th></tr>', pendientes, true)
+                + tabla('Aumentos realizados', '<tr><th>Factura</th><th class="text-right">Monto</th></tr>', aplicaciones, true)
+                + '</div>'
         }).then(function(result) {
             if (requiereConfirmacion && result.isConfirmed && result.value) {
                 return mostrarResumenLiquidacionExpo(result.value);
@@ -5514,7 +5620,7 @@
                                 oninput="calcularTotales(precio${idx},cantidad${idx},${producto.isv},unidad${idx},${idx},restaInventario${idx})">
                         </td>
                         <td style="vertical-align:middle; padding:4px 6px;">
-                            <input type="number" id="cantidad${idx}" name="cantidad${idx}" value="${cantidadUsar}" class="form-control form-control-sm" min="1" max="${cantidadUsar}" step="any" inputmode="decimal" data-parsley-required autocomplete="off" style="min-width:60px; font-size:11px;"
+                            <input type="number" id="cantidad${idx}" name="cantidad${idx}" value="${cantidadUsar}" class="form-control form-control-sm" min="1" step="any" inputmode="decimal" data-parsley-required autocomplete="off" style="min-width:60px; font-size:11px;"
                                 oninput="calcularTotales(precio${idx},cantidad${idx},${producto.isv},unidad${idx},${idx},restaInventario${idx})">
                         </td>
                         <td style="vertical-align:middle; padding:4px 6px;">
@@ -5560,25 +5666,170 @@
             });
         }
 
-        window.expoAlternarMarca = function(marcaId, seleccionado) {
-            document.querySelectorAll('.expo-linea-selector[data-marca-id="' + marcaId + '"]').forEach(function(input) {
-                input.checked = seleccionado;
+        var expoSeleccionIndices = new Set();
+        var expoPaginaActual = 1;
+        var expoLineasPorPagina = 50;
+
+        function expoNormalizarTexto(valor) {
+            return String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        }
+
+        function expoEscaparHtml(valor) {
+            var elemento = document.createElement('div');
+            elemento.textContent = valor == null ? '' : String(valor);
+            return elemento.innerHTML;
+        }
+
+        function expoCantidadesCarritoPorLinea() {
+            var cantidades = new Map();
+            document.querySelectorAll('input[id^="cotizacionLineaId"]').forEach(function(inputLinea) {
+                var lineaId = Number(inputLinea.value);
+                if (!(lineaId > 0)) return;
+                var indiceFila = inputLinea.id.replace('cotizacionLineaId', '');
+                var cantidad = Number(document.getElementById('cantidad' + indiceFila)?.value || 0);
+                var unidad = Number(document.getElementById('unidad' + indiceFila)?.value || 1);
+                var cantidadBase = cantidad > 0 ? cantidad * (unidad > 0 ? unidad : 1) : 0;
+                cantidades.set(lineaId, (cantidades.get(lineaId) || 0) + cantidadBase);
             });
+            return cantidades;
+        }
+
+        function expoLineasConSaldo() {
+            var cantidadesCarrito = expoCantidadesCarritoPorLinea();
+
+            return _productosDisponibles.map(function(producto, indice) {
+                var cantidadOriginal = Number(producto.cantidad || 0);
+                var cantidadCarrito = cantidadesCarrito.get(Number(producto.cotizacion_has_producto_id)) || 0;
+                return {
+                    producto: producto,
+                    indice: indice,
+                    cantidadCarrito: cantidadCarrito,
+                    cantidadPendiente: Math.max(0, cantidadOriginal - cantidadCarrito)
+                };
+            }).filter(function(item) {
+                if (item.cantidadPendiente <= 0.0001) {
+                    expoSeleccionIndices.delete(item.indice);
+                    return false;
+                }
+                return true;
+            });
+        }
+
+        function expoProductosFiltrados(lineasConSaldo) {
+            var busqueda = expoNormalizarTexto((document.getElementById('expoBuscarLinea') || {}).value);
+            var marca = String((document.getElementById('expoFiltrarMarca') || {}).value || '');
+            var estado = String((document.getElementById('expoFiltrarEstado') || {}).value || 'todos');
+
+            return (lineasConSaldo || expoLineasConSaldo()).filter(function(item) {
+                var producto = item.producto;
+                var coincideTexto = !busqueda || expoNormalizarTexto([
+                    producto.producto_id,
+                    producto.cotizacion_has_producto_id,
+                    producto.nombre_producto,
+                    producto.marca_nombre
+                ].join(' ')).indexOf(busqueda) !== -1;
+                var coincideMarca = !marca || String(producto.marca_id || 0) === marca;
+                var seleccionado = expoSeleccionIndices.has(item.indice);
+                var coincideEstado = estado === 'todos'
+                    || (estado === 'sin_carrito' && item.cantidadCarrito <= 0.0001)
+                    || (estado === 'parciales' && item.cantidadCarrito > 0.0001)
+                    || (estado === 'seleccionados' && seleccionado)
+                    ;
+                return coincideTexto && coincideMarca && coincideEstado;
+            });
+        }
+
+        function expoRenderizarPendientes() {
+            var lista = document.getElementById('expoPendientesLista');
+            if (!lista) return;
+            var lineasConSaldo = expoLineasConSaldo();
+            var filtrados = expoProductosFiltrados(lineasConSaldo);
+            var totalPaginas = Math.max(1, Math.ceil(filtrados.length / expoLineasPorPagina));
+            expoPaginaActual = Math.min(expoPaginaActual, totalPaginas);
+            var inicio = (expoPaginaActual - 1) * expoLineasPorPagina;
+            var pagina = filtrados.slice(inicio, inicio + expoLineasPorPagina);
+
+            if (pagina.length === 0) {
+                lista.innerHTML = '<div class="expo-pendientes-vacio"><i class="fa fa-search fa-2x mb-2"></i><br>No hay líneas que coincidan con los filtros.</div>';
+            } else {
+                lista.innerHTML = pagina.map(function(item) {
+                    var producto = item.producto;
+                    var seleccionado = expoSeleccionIndices.has(item.indice);
+                    var enCarrito = item.cantidadCarrito > 0.0001;
+                    var clases = 'expo-linea-item' + (seleccionado ? ' seleccionada' : '') + (enCarrito ? ' en-carrito' : '');
+                    var pendiente = item.cantidadPendiente.toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    var cantidadCarrito = item.cantidadCarrito.toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    return '<label class="' + clases + '">'
+                        + '<input type="checkbox" class="expo-linea-selector" data-producto-indice="' + item.indice + '" '
+                        + (seleccionado ? 'checked ' : '') + (enCarrito ? 'disabled ' : '')
+                        + 'onchange="expoCambiarSeleccion(' + item.indice + ', this.checked)">'
+                        + '<span class="expo-linea-info"><span class="expo-linea-nombre">' + expoEscaparHtml(producto.nombre_producto) + '</span>'
+                        + '<span class="expo-linea-meta"><span class="expo-linea-chip codigo">#' + expoEscaparHtml(producto.producto_id) + '</span>'
+                        + '<span class="expo-linea-chip marca">' + expoEscaparHtml(producto.marca_nombre || 'SIN MARCA') + '</span>'
+                        + (enCarrito ? '<span class="expo-linea-chip" style="background:#e3f2fd;color:#1565c0;">EN CARRITO: ' + cantidadCarrito + '</span>' : '')
+                        + '<span class="expo-linea-pendiente">Pendiente: ' + pendiente + '</span></span></span></label>';
+                }).join('');
+            }
+
+            document.getElementById('expoTotalLineas').textContent = lineasConSaldo.length;
+            document.getElementById('expoResultadosLineas').textContent = filtrados.length;
+            document.getElementById('expoSeleccionadasLineas').textContent = expoSeleccionIndices.size;
+            document.getElementById('expoCantidadAgregar').textContent = expoSeleccionIndices.size;
+            document.getElementById('expoRangoLineas').textContent = filtrados.length
+                ? 'Mostrando ' + (inicio + 1) + '-' + Math.min(inicio + expoLineasPorPagina, filtrados.length) + ' de ' + filtrados.length
+                : 'Sin resultados';
+            document.getElementById('expoPaginaEstado').textContent = 'Página ' + expoPaginaActual + ' de ' + totalPaginas;
+            document.getElementById('expoPaginaAnterior').disabled = expoPaginaActual <= 1;
+            document.getElementById('expoPaginaSiguiente').disabled = expoPaginaActual >= totalPaginas;
+        }
+
+        window.expoCambiarSeleccion = function(indice, seleccionado) {
+            if (seleccionado) expoSeleccionIndices.add(Number(indice));
+            else expoSeleccionIndices.delete(Number(indice));
+            expoRenderizarPendientes();
+        };
+
+        window.expoCambiarPagina = function(direccion) {
+            expoPaginaActual += Number(direccion);
+            expoRenderizarPendientes();
+            var lista = document.getElementById('expoPendientesLista');
+            if (lista) lista.scrollTop = 0;
         };
 
         window.expoAlternarTodas = function(seleccionado) {
-            document.querySelectorAll('.expo-linea-selector').forEach(function(input) {
-                input.checked = seleccionado;
+            if (!seleccionado) {
+                expoSeleccionIndices.clear();
+                expoRenderizarPendientes();
+                return;
+            }
+            expoProductosFiltrados().forEach(function(item) {
+                if (item.cantidadCarrito <= 0.0001) expoSeleccionIndices.add(item.indice);
             });
+            expoRenderizarPendientes();
+        };
+
+        window.expoSeleccionarMarca = function() {
+            var filtroMarca = document.getElementById('expoFiltrarMarca');
+            var marcaId = String(filtroMarca?.value || '');
+            if (!marcaId) {
+                Swal.fire({ icon: 'info', title: 'Seleccione una marca', text: 'Use el filtro de marca y luego presione Seleccionar marca.' });
+                return;
+            }
+            expoLineasConSaldo().forEach(function(item) {
+                if (String(item.producto.marca_id || 0) === marcaId && item.cantidadCarrito <= 0.0001) {
+                    expoSeleccionIndices.add(item.indice);
+                }
+            });
+            expoRenderizarPendientes();
         };
 
         window.expoAgregarSeleccionados = function() {
-            var seleccionados = Array.from(document.querySelectorAll('.expo-linea-selector:checked'))
-                .map(function(input) { return _productosDisponibles[Number(input.dataset.productoIndice)]; })
+            var cantidadesCarrito = expoCantidadesCarritoPorLinea();
+            var seleccionados = Array.from(expoSeleccionIndices)
+                .map(function(indice) { return _productosDisponibles[indice]; })
                 .filter(function(prod) {
                     if (!prod) return false;
-                    return !Array.from(document.querySelectorAll('input[id^="cotizacionLineaId"]'))
-                        .some(function(input) { return Number(input.value) === Number(prod.cotizacion_has_producto_id); });
+                    return !(cantidadesCarrito.get(Number(prod.cotizacion_has_producto_id)) > 0.0001);
                 });
 
             if (seleccionados.length === 0) {
@@ -5591,7 +5842,9 @@
                 chain = chain.then(function() { return agregarProductoDesdeOferta(prod); });
             });
             chain.then(function() {
-                expoAlternarTodas(false);
+                expoSeleccionIndices.clear();
+                expoPaginaActual = 1;
+                expoRenderizarPendientes();
                 Swal.fire({
                     icon: 'success',
                     title: 'Selección agregada',
@@ -5603,6 +5856,20 @@
                 });
             });
         };
+
+        function inicializarExpoPendientes() {
+            var buscador = document.getElementById('expoBuscarLinea');
+            var filtroMarca = document.getElementById('expoFiltrarMarca');
+            var filtroEstado = document.getElementById('expoFiltrarEstado');
+            if (!buscador || !filtroMarca || !filtroEstado) return;
+            buscador.addEventListener('input', function() { expoPaginaActual = 1; expoRenderizarPendientes(); });
+            filtroMarca.addEventListener('change', function() { expoPaginaActual = 1; expoRenderizarPendientes(); });
+            filtroEstado.addEventListener('change', function() { expoPaginaActual = 1; expoRenderizarPendientes(); });
+            expoRenderizarPendientes();
+        }
+
+        window.expoActualizarPendientes = expoRenderizarPendientes;
+        inicializarExpoPendientes();
 
         // Disparar auto-carga cuando el cliente esté completamente cargado
         window.addEventListener('cliente-datos-cargados', function onClienteListo() {
