@@ -93,6 +93,13 @@ class FacturacionCorporativa extends Component
 
     private function resolveTeleAsesorId(Request $request): int
     {
+        ClienteActoresAsignados::validar(
+            (int) $request->seleccionarCliente,
+            (int) $request->vendedor,
+            ClienteActoresAsignados::ROL_ASESOR_COMERCIAL,
+            'vendedor'
+        );
+
         $teleAsesorId = $request->tele_asesor ? (int) $request->tele_asesor : Auth::id();
         ClienteActoresAsignados::validar(
             (int) $request->seleccionarCliente,
@@ -2755,12 +2762,21 @@ class FacturacionCorporativa extends Component
     public function listadoVendedores(Request $request)
     {
         $search = trim($request->get('search', ''));
+        $clienteId = (int) $request->get('cliente_id');
 
-        $query = DB::table('users')->where('estado_id', 1);
+        $query = DB::table('cliente_usuario as cu')
+            ->join('users as u', 'u.id', '=', 'cu.usuario_id')
+            ->where('cu.cliente_id', $clienteId)
+            ->where('cu.rol_id', ClienteActoresAsignados::ROL_ASESOR_COMERCIAL)
+            ->where('u.estado_id', 1);
         if ($search !== '') {
-            $query->where('name', 'like', '%' . $search . '%');
+            $query->where('u.name', 'like', '%' . $search . '%');
         }
-        $listadoVendedores = $query->select('id', DB::raw('name as text'))->get();
+        $listadoVendedores = $query
+            ->select('u.id', DB::raw('u.name as text'))
+            ->distinct()
+            ->orderBy('u.name')
+            ->get();
 
         return response()->json([
             'results' => $listadoVendedores,

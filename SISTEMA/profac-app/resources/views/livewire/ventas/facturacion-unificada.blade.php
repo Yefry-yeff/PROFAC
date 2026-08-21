@@ -285,7 +285,7 @@
         @endif
 
         {{-- ===== PANEL: VINCULAR A UNA PREFACTURA (modo facturación desde prefactura) ===== --}}
-        @if($fromPrefactura)
+        @if($fromPrefactura && !$esOfertaExpo)
         <div class="pedido-link-panel {{ $prefacturaVinculada ? 'linked' : '' }}" style="border-color:#a5d6a7; background:#f1f8e9;">
             @if(!$prefacturaVinculada)
             <div class="mb-3">
@@ -910,21 +910,6 @@
                                             </div>
                                         </div>
                                     </div>
-
-                                    @if($esOfertaExpo)
-                                    <div style="background:#fff8e1; border:1px solid #ffe082; border-radius:8px; padding:12px 14px; margin-bottom:12px;">
-                                        <label style="display:flex; align-items:center; gap:8px; margin:0; font-size:13px; font-weight:700; color:#7b4f00; cursor:pointer;">
-                                            <input type="checkbox" id="ultima_factura" name="ultima_factura" value="1"
-                                                onchange="document.getElementById('bloque_motivo_cierre').style.display=this.checked?'block':'none'">
-                                            Esta es la última factura que el cliente solicitará
-                                        </label>
-                                        <div id="bloque_motivo_cierre" style="display:none; margin-top:10px;">
-                                            <label class="ofr-label">Motivo de cierre parcial <span class="req">*</span></label>
-                                            <textarea class="form-control form-control-sm" id="motivo_cierre" name="motivo_cierre" rows="2" maxlength="500"
-                                                placeholder="Indique por qué no se facturarán las cantidades restantes"></textarea>
-                                        </div>
-                                    </div>
-                                    @endif
 
                                     <button id="btn_venta_coorporativa"
                                             style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; border:none;
@@ -2048,6 +2033,7 @@
     function aplicarControlTemporal(controlGuardado) {
         var control = document.getElementById(controlGuardado.id);
         if (!control) return;
+        if (control.id === 'vendedor') return;
         if (control.tagName === 'SELECT') {
             (controlGuardado.options || []).forEach(function(optionGuardada) {
                 if (!Array.from(control.options).some(function(option) { return option.value == optionGuardada.value; })) {
@@ -2073,7 +2059,13 @@
         arregloIdInputs = Array.isArray(instantanea.arreglo_id_inputs)
             ? instantanea.arreglo_id_inputs.map(function(id) { return parseInt(id, 10); })
             : [];
-        (instantanea.controles || []).forEach(aplicarControlTemporal);
+        var controlesTemporales = instantanea.controles || [];
+        controlesTemporales.forEach(aplicarControlTemporal);
+        var asesorTemporal = controlesTemporales.find(function(control) { return control.id === 'vendedor'; });
+        var clienteTemporal = document.getElementById('seleccionarCliente');
+        if (clienteTemporal && clienteTemporal.value) {
+            aplicarAsesorAsignado(clienteTemporal.value, asesorTemporal ? asesorTemporal.value : null);
+        }
         normalizarFilasCarritoExpo();
 
         var tieneProductos = arregloIdInputs.length > 0;
@@ -2667,14 +2659,14 @@
     // ASESOR COMERCIAL ASIGNADO (solo modo "Nueva Oferta" / cotizacion_clientes_a)
     // Carga únicamente los asesores comerciales asignados al cliente en la cartera.
     // ================================================================
-    function aplicarAsesorAsignado(idCliente) {
-        if (codigoActual !== 'cotizacion_clientes_a' || !idCliente) return;
+    function aplicarAsesorAsignado(idCliente, asesorPreferido) {
+        if (!idCliente) return Promise.resolve();
         if (modoEditarFactura) {
             bloquearCamposEdicionFactura();
-            return;
+            return Promise.resolve();
         }
 
-        axios.post('/cotizacion/asesor-asignado', { cliente_id: idCliente })
+        return axios.post('/cotizacion/asesor-asignado', { cliente_id: idCliente })
             .then(response => {
                 var data = response.data;
                 var vendedorSelect = $('#vendedor');
@@ -2688,7 +2680,8 @@
                         vendedorSelect.append(new Option('-- Seleccionar asesor --', '', true, false));
                     }
                     asesores.forEach(function(asesor) {
-                        var seleccionado = asesores.length === 1;
+                        var seleccionado = String(asesor.id) === String(asesorPreferido)
+                            || (asesores.length === 1 && !asesorPreferido);
                         vendedorSelect.append(new Option(asesor.text, asesor.id, seleccionado, seleccionado));
                     });
                 }
