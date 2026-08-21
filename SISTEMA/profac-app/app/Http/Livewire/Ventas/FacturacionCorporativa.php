@@ -683,7 +683,8 @@ class FacturacionCorporativa extends Component
     }
 
     /**
-     * Al guardar la factura: avanza el flujo al trámite "Flujo conjunto" (tipo 7)
+    * Al guardar la factura completa: avanza el flujo al trámite "Flujo conjunto" (tipo 7).
+    * Una Oferta Expo con saldo permanece en Factura (tipo 3).
      * e inserta registros en historico_flujo:
      *   – Registro Factura:  tipo_tramite_id=3, tramite_id=factura.id,       estado_id=1
      *   – Registro Entrega:  tipo_tramite_id=5, tramite_id=NULL,             estado_id=5
@@ -696,9 +697,23 @@ class FacturacionCorporativa extends Component
         $flujoId   = (int) $request->input('flujo_id');
         $facturaId = (int) $request->input('factura_id');
         $pedidoIdReq = (int) $request->input('pedido_id');
+        $esExpoParcial = $request->boolean('expo_parcial');
 
         if (!$facturaId) {
             return response()->json(['ok' => false, 'message' => 'Datos incompletos.'], 422);
+        }
+
+        $prefacturaId = (int) $request->input('prefactura_id');
+        if ($prefacturaId > 0) {
+            $cotizacionExpoId = (int) DB::table('prefactura')
+                ->where('id', $prefacturaId)
+                ->value('cotizacion_id');
+
+            if ($cotizacionExpoId > 0 && DB::table('expo_cotizacion')->where('cotizacion_id', $cotizacionExpoId)->exists()) {
+                $esExpoParcial = app(SaldoLineasOferta::class)
+                    ->pendientes($cotizacionExpoId)
+                    ->contains(fn ($linea) => (float) $linea->cantidad_pendiente > 0);
+            }
         }
 
         // IDs según nuevo modelo de tipos de trámite:
@@ -769,9 +784,9 @@ class FacturacionCorporativa extends Component
                 ->where('id', $facturaId)
                 ->first(['nombre_cliente', 'rtn']);
 
-            // 1. Actualizar flujo al estado Flujo conjunto (Entrega + Cobro)
+            // 1. Una Expo parcial permanece en Factura hasta completar la oferta.
             DB::table('flujo')->where('id', $flujoId)->update([
-                'tipo_tramite_id' => $TIPO_FLUJO_CONJUNTO,
+                'tipo_tramite_id' => $esExpoParcial ? $TIPO_FACTURA : $TIPO_FLUJO_CONJUNTO,
                 'nombre'          => $facturaClienteData->nombre_cliente ?? null,
                 'cliente_rtn'     => $facturaClienteData->rtn ?? null,
                 'updated_by'      => Auth::id(),
@@ -794,7 +809,9 @@ class FacturacionCorporativa extends Component
                     'tipo_tramite_id' => $TIPO_FACTURA,
                     'tramite_id'      => $facturaId,
                     'estado_id'       => $ESTADO_ACTIVO,
-                    'observaciones'   => 'Factura #' . $facturaId . ' confirmada. Paso actual: Entregas y Cobros',
+                    'observaciones'   => $esExpoParcial
+                        ? 'Factura #' . $facturaId . ' confirmada. Estado: Factura parcial'
+                        : 'Factura #' . $facturaId . ' confirmada. Paso actual: Entregas y Cobros',
                     'created_by'      => Auth::id(),
                     'updated_by'      => Auth::id(),
                     'created_at'      => now(),
@@ -803,6 +820,7 @@ class FacturacionCorporativa extends Component
             }
 
             // 3. Registro de Entrega (tramite_id = NULL, estado Pendiente)
+            if (!$esExpoParcial) {
             $entregaExiste = DB::table('historico_flujo')
                 ->where('flujo_id', $flujoId)
                 ->where('tipo_tramite_id', $TIPO_ENTREGA)
@@ -824,8 +842,10 @@ class FacturacionCorporativa extends Component
                     'updated_at'      => now(),
                 ]);
             }
+            }
 
             // 4. Registro de Cobro (tramite_id = aplicacion_pagos.id para esta factura, estado Pendiente)
+            if (!$esExpoParcial) {
             $aplicacionPagoId = DB::table('aplicacion_pagos')
                 ->where('factura_id', $facturaId)
                 ->orderByDesc('id')
@@ -868,11 +888,12 @@ class FacturacionCorporativa extends Component
                     'updated_at'      => now(),
                 ]);
             }
+            }
 
             // 5. Cerrar prefactura activa vinculada al flujo (si existe).
             // Cuando la factura se genera manualmente (guardarVenta + confirmarFacturaFlujo),
             // la prefactura queda en 'activo' y sigue descontando stock disponible.
-            if ($flujoId && $request->filled('prefactura_id') && !$request->boolean('expo_parcial')) {
+            if ($flujoId && $request->filled('prefactura_id') && !$esExpoParcial) {
                 DB::table('prefactura')
                     ->where('flujo_id', $flujoId)
                     ->where('id', (int) $request->input('prefactura_id'))
@@ -882,8 +903,9 @@ class FacturacionCorporativa extends Component
 
             DB::commit();
 
-            // Notificar a los responsables de Entrega y Cobro (tipo 7 = Flujo conjunto)
-            try {
+            // Notificar solo cuando la oferta ya puede avanzar a Entrega y Cobro.
+            if (!$esExpoParcial) {
+                try {
                 $facturaCtx = DB::table('factura')
                     ->where('id', $facturaId)
                     ->first(['nombre_cliente', 'total', 'cai']);
@@ -896,11 +918,12 @@ class FacturacionCorporativa extends Component
                         'referencia' => 'Factura #' . ($facturaCtx?->cai ?? $facturaId),
                     ]
                 ));
-            } catch (\Throwable $notifEx) {
-                \Log::error('NotificacionFlujo dispatch failed (FacturacionCorporativa tipo=7)', [
-                    'flujo_id' => $flujoId,
-                    'error'    => $notifEx->getMessage(),
-                ]);
+                } catch (\Throwable $notifEx) {
+                    \Log::error('NotificacionFlujo dispatch failed (FacturacionCorporativa tipo=7)', [
+                        'flujo_id' => $flujoId,
+                        'error'    => $notifEx->getMessage(),
+                    ]);
+                }
             }
 
             return response()->json(['ok' => true, 'flujoId' => $flujoId]);

@@ -264,6 +264,9 @@ class ModalFlujoPedido extends Component
             $this->cargarHistorialEntregasFactura();
         }
         $this->cargarEstadoCobroFactura();
+        if ($this->expoConSaldoPendiente) {
+            $this->pasoActivo = 'factura';
+        }
         $this->showModal               = true;
         $this->dispatchBrowserEvent('fmp-show');
     }
@@ -425,6 +428,9 @@ class ModalFlujoPedido extends Component
             $this->cargarHistorialEntregasFactura();
         }
         $this->cargarEstadoCobroFactura();
+        if ($this->expoConSaldoPendiente) {
+            $this->pasoActivo = 'factura';
+        }
         $this->showModal               = true;
         $this->dispatchBrowserEvent('fmp-show');
     }
@@ -544,6 +550,10 @@ class ModalFlujoPedido extends Component
 
     public function seleccionarPaso(string $paso): void
     {
+        if ($this->expoConSaldoPendiente && $paso === 'finalizado') {
+            $paso = 'factura';
+        }
+
         $this->pasoActivo           = $paso;
         $this->ofertaSeleccionada   = null;
         $this->confirmAccion        = null;
@@ -580,9 +590,11 @@ class ModalFlujoPedido extends Component
             $this->cargarFactura();
         }
         if ($paso === 'cobro') {
+            $this->cargarFactura();
             $this->cargarEstadoCobroFactura();
         }
         if ($paso === 'entrega') {
+            $this->cargarFactura();
             $this->cargarHistorialEntregasFactura();
         }
         $this->tiposFacturacion  = [];
@@ -2234,6 +2246,17 @@ class ModalFlujoPedido extends Component
             && app(SaldoLineasOferta::class)->pendientes($cotizacionId)
                 ->contains(fn($linea) => (float) $linea->cantidad_pendiente > 0);
 
+        if ($this->expoConSaldoPendiente) {
+            DB::table('flujo')
+                ->where('id', $this->flujoId)
+                ->where('tipo_tramite_id', '!=', 3)
+                ->update([
+                    'tipo_tramite_id' => 3,
+                    'updated_by' => Auth::id(),
+                    'updated_at' => now(),
+                ]);
+        }
+
         // Regla todo-o-nada de reserva: si no cubre cantidades completas, no debe apartar.
         $this->prefacturaReservaFaltante = $this->obtenerFaltantesInventarioPrefactura((int) $pref->id, true);
         $this->prefacturaReservaCompleta = empty($this->prefacturaReservaFaltante);
@@ -2424,9 +2447,8 @@ class ModalFlujoPedido extends Component
                 . '&flujoId=' . (int) $this->flujoId
                 . '&cotizacionId=' . $cotizacionId;
 
-            $this->dispatchBrowserEvent('fmp-facturar-expo', [
-                'url_completa' => $urlBase,
-                'url_parcial' => $urlBase . '&expo_parcial=1',
+            $this->dispatchBrowserEvent('fmp-redirigir', [
+                'url' => $urlBase . '&expo_parcial=1',
             ]);
             return;
         }
@@ -2861,6 +2883,12 @@ class ModalFlujoPedido extends Component
             ->toArray();
 
         $this->historialPagosFactura = $historial;
+
+        if ($this->expoConSaldoPendiente) {
+            $this->estadoEntrega = null;
+            $this->estadoCobro = null;
+            return;
+        }
 
         // Sincronizar Cobro en historico_flujo con aplicacion_pagos:
         // - tramite_id del Cobro = aplicacion_pagos.id
