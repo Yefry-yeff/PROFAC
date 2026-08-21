@@ -7,24 +7,24 @@ use Illuminate\Support\Facades\DB;
 
 class AjustadorComisionNotaCredito
 {
-    public function aplicar(int $notaCreditoId): array
+    public function aplicar(int $notaCreditoId, array $facturasComisionBaseNeta = []): array
     {
-        return DB::transaction(fn() => $this->aplicarEnTransaccion($notaCreditoId));
+        return DB::transaction(fn() => $this->aplicarEnTransaccion($notaCreditoId, $facturasComisionBaseNeta));
     }
 
-    private function aplicarEnTransaccion(int $notaCreditoId): array
+    private function aplicarEnTransaccion(int $notaCreditoId, array $facturasComisionBaseNeta): array
     {
         $nota = DB::table('nota_credito')->where('id', $notaCreditoId)->lockForUpdate()->first();
         if (!$nota || (int) $nota->estado_nota_id !== 1) {
             return [];
         }
 
-        $comentario = json_decode((string) $nota->comentario, true);
-        $facturaIds = collect($comentario['factura_ids'] ?? [$nota->factura_id])
-            ->map(fn($id) => (int) $id)->filter()->unique()->values();
         $comisiones = DB::table('facturas_comision')
-            ->whereIn('factura_id', $facturaIds)
+            ->where('factura_id', $nota->factura_id)
             ->where('estado_id', 1)
+            ->when(!empty($facturasComisionBaseNeta), function ($query) use ($facturasComisionBaseNeta) {
+                $query->whereNotIn('id', array_map('intval', $facturasComisionBaseNeta));
+            })
             ->lockForUpdate()
             ->get();
 
@@ -32,17 +32,13 @@ class AjustadorComisionNotaCredito
             return [];
         }
 
-        $totalFacturadoConsolidado = (float) DB::table('factura')->whereIn('id', $facturaIds)->sum('total');
+        $factura = DB::table('factura')->where('id', $nota->factura_id)->first();
         $lineasNota = DB::table('nota_credito_has_producto')
             ->where('nota_credito_id', $notaCreditoId)
             ->get();
         $resultado = [];
 
         foreach ($comisiones as $comision) {
-            $factura = DB::table('factura')->where('id', $comision->factura_id)->first();
-            if (!$factura) {
-                continue;
-            }
             $existente = DB::table('nota_credito_ajustes_comision')
                 ->where('nota_credito_id', $notaCreditoId)
                 ->where('facturas_comision_id', $comision->id)
@@ -52,13 +48,7 @@ class AjustadorComisionNotaCredito
                 continue;
             }
 
-            [$montoCalculado, $detalle] = $this->calcularMonto(
-                $nota,
-                $factura,
-                $comision,
-                $lineasNota,
-                $facturaIds->count() > 1 ? $totalFacturadoConsolidado : null
-            );
+            [$montoCalculado, $detalle] = $this->calcularMonto($nota, $factura, $comision, $lineasNota);
             $ajustadoAnterior = (float) DB::table('nota_credito_ajustes_comision')
                 ->where('facturas_comision_id', $comision->id)
                 ->sum('monto');
@@ -89,7 +79,7 @@ class AjustadorComisionNotaCredito
             DB::table('nota_credito_ajustes_comision')->insert([
                 'nota_credito_id' => $notaCreditoId,
                 'facturas_comision_id' => $comision->id,
-                'factura_id' => $comision->factura_id,
+                'factura_id' => $nota->factura_id,
                 'user_id' => $userId,
                 'rol_id' => $comision->rol_id,
                 'periodo_original' => $periodoOriginal->toDateString(),
@@ -115,14 +105,14 @@ class AjustadorComisionNotaCredito
         return $resultado;
     }
 
-    private function calcularMonto(object $nota, object $factura, object $comision, $lineasNota, ?float $totalConsolidado = null): array
+    private function calcularMonto(object $nota, object $factura, object $comision, $lineasNota): array
     {
         if ($lineasNota->isEmpty()) {
-            $base = $totalConsolidado ?: max((float) $factura->sub_total, 0.01);
-            $proporcion = min(1, max(0, (float) $nota->total / max($base, 0.01)));
+            $baseFactura = max((float) $factura->sub_total, 0.01);
+            $proporcion = min(1, max(0, (float) $nota->sub_total / $baseFactura));
             return [
                 (float) $comision->monto_rol * $proporcion,
-                ['tipo' => $totalConsolidado ? 'descuento_expo_consolidado' : 'descuento', 'proporcion' => $proporcion],
+                ['tipo' => 'descuento', 'proporcion' => $proporcion],
             ];
         }
 

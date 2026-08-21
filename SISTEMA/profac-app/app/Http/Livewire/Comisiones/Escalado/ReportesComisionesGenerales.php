@@ -13,11 +13,15 @@ use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\ProyeccionComisionesExport;
 use App\Exports\ProyeccionComisiones15Export;
 use App\Exports\Comisiones\ProyeccionNominaSheet;
+use App\Exports\Comisiones\ProyeccionEspecial15NominaSheet;
 use App\Exports\Comisiones\PoliticaAnteriorDetalleSheet;
+use App\Exports\Comisiones\FacturasProyectadasExport;
+use App\Http\Livewire\Reportes\ComisionPoliticaAnterior;
 use App\Models\Comisiones\ModelComisionPeriodo;
 use App\Services\Comisiones\GeneradorFacturasComision;
 use App\Services\Comisiones\AplicadorRetencionesMora;
 use App\Services\Comisiones\ProcesadorComisiones;
+use App\Support\Comisiones\ProyeccionEspecial15;
 
 class ReportesComisionesGenerales extends Component
 {
@@ -1099,6 +1103,48 @@ class ReportesComisionesGenerales extends Component
      * - Base comisionable: cantidad * COALESCE(precioSeleccionado, precio_unidad).
      * - Excluir y reportar facturas no aplicables por faltantes de escala o líneas inválidas.
      */
+    private function indexarCantidadesDevueltas($lineas): array
+    {
+        $cantidades = ['exactas' => [], 'por_precio' => []];
+
+        foreach ($lineas as $linea) {
+            $base = $linea->producto_id . '|' . $linea->seccion_id . '|' . $linea->unidad_medida_venta_id;
+            if (!empty($linea->precios_producto_carga_id)) {
+                $clave = $base . '|' . $linea->precios_producto_carga_id;
+                $cantidades['exactas'][$clave] = ($cantidades['exactas'][$clave] ?? 0) + (float) $linea->cantidad;
+                continue;
+            }
+
+            $clave = $base . '|' . number_format((float) $linea->precio_unidad, 4, '.', '');
+            $cantidades['por_precio'][$clave] = ($cantidades['por_precio'][$clave] ?? 0) + (float) $linea->cantidad;
+        }
+
+        return $cantidades;
+    }
+
+    private function cantidadComisionableTrasDevoluciones(object $linea, array &$cantidades): float
+    {
+        $cantidadVendida = max((float) ($linea->cantidad ?? 0), 0);
+        $base = $linea->producto_id . '|' . $linea->seccion_id . '|' . $linea->unidad_medida_venta_id;
+        $claveExacta = $base . '|' . $linea->precios_producto_carga_id;
+        $clavePrecio = $base . '|' . number_format((float) $linea->precio_unidad, 4, '.', '');
+
+        $devueltaExacta = min($cantidadVendida, (float) ($cantidades['exactas'][$claveExacta] ?? 0));
+        $cantidades['exactas'][$claveExacta] = max(
+            0,
+            (float) ($cantidades['exactas'][$claveExacta] ?? 0) - $devueltaExacta
+        );
+
+        $pendiente = $cantidadVendida - $devueltaExacta;
+        $devueltaPorPrecio = min($pendiente, (float) ($cantidades['por_precio'][$clavePrecio] ?? 0));
+        $cantidades['por_precio'][$clavePrecio] = max(
+            0,
+            (float) ($cantidades['por_precio'][$clavePrecio] ?? 0) - $devueltaPorPrecio
+        );
+
+        return max($cantidadVendida - $devueltaExacta - $devueltaPorPrecio, 0);
+    }
+
     public function reporteProyecciones(Request $request)
     {
         [$fi, $ff] = $this->resolveDateRange($request);
@@ -1113,10 +1159,23 @@ class ReportesComisionesGenerales extends Component
             })
             ->where('ap.estado', 1)
             ->where('ap.estado_cerrado', 2)
-            ->groupBy('ap.id', 'ap.factura_id', 'ap.fecha_cierre_factura')
-            ->selectRaw("ap.id as aplicacion_pagos_id,
-                         ap.factura_id,
-                         COALESCE(MAX(DATE(ac.fecha_pago)), DATE(ap.fecha_cierre_factura)) as fecha_pago_cierre")
+            ->where('ap.saldo', '<=', 0.0001)
+            ->groupBy('ap.factura_id')
+            ->selectRaw("ap.factura_id,
+                         CASE
+                             WHEN DATE(MAX(ap.fecha_cierre_factura)) > COALESCE(MAX(DATE(ac.fecha_pago)), '1000-01-01')
+                              AND COALESCE(MAX(ap.total_notas_credito), 0) > 0
+                              AND EXISTS (
+                                  SELECT 1
+                                  FROM nota_credito nc_cierre
+                                  WHERE nc_cierre.factura_id = ap.factura_id
+                                    AND nc_cierre.estado_nota_id = 1
+                                    AND nc_cierre.estado_rebajado IN (1, 3)
+                                    AND DATE(nc_cierre.fecha_rebajado) = DATE(MAX(ap.fecha_cierre_factura))
+                              )
+                                 THEN DATE(MAX(ap.fecha_cierre_factura))
+                             ELSE COALESCE(MAX(DATE(ac.fecha_pago)), DATE(MAX(ap.fecha_cierre_factura)))
+                         END as fecha_pago_cierre")
             ->havingRaw('fecha_pago_cierre IS NOT NULL')
             ->havingBetween('fecha_pago_cierre', [$fi, $ff])
             ->get();
@@ -1163,6 +1222,7 @@ class ReportesComisionesGenerales extends Component
                          cl.cliente_categoria_escala_id,
                          cce.nombre_categoria as escala_cliente,
                          f.tipo_pago_id,
+                         DATE(f.fecha_emision) as fecha_emision,
                          DATE(f.fecha_vencimiento) as fecha_vencimiento,
                          tf.codigo as tipo_factura_codigo")
             ->get();
@@ -1189,9 +1249,11 @@ class ReportesComisionesGenerales extends Component
             ->leftJoin('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')
             ->leftJoin('producto as p', 'p.id', '=', 'vhp.producto_id')
             ->whereIn('vhp.factura_id', $facturaIds)
-            ->groupBy('vhp.factura_id', 'vhp.producto_id', 'vhp.precios_producto_carga_id', 'vhp.precio_unidad', 'vhp.precioSeleccionado', 'ppc.categoria_precios_id', 'p.nombre', 'cp.nombre')
+            ->groupBy('vhp.factura_id', 'vhp.producto_id', 'vhp.seccion_id', 'vhp.unidad_medida_venta_id', 'vhp.precios_producto_carga_id', 'vhp.precio_unidad', 'vhp.precioSeleccionado', 'ppc.categoria_precios_id', 'p.nombre', 'cp.nombre')
             ->selectRaw("vhp.factura_id,
                          vhp.producto_id,
+                         vhp.seccion_id,
+                         vhp.unidad_medida_venta_id,
                          p.nombre as producto,
                          COALESCE(SUM(vhp.cantidad_s), SUM(vhp.cantidad)) as cantidad,
                          vhp.precio_unidad,
@@ -1199,6 +1261,21 @@ class ReportesComisionesGenerales extends Component
                          vhp.precios_producto_carga_id,
                          ppc.categoria_precios_id,
                          cp.nombre as categoria_precio")
+            ->get()
+            ->groupBy('factura_id');
+
+        $cantidadesDevueltas = DB::table('nota_credito_has_producto as ncp')
+            ->join('nota_credito as nc', 'nc.id', '=', 'ncp.nota_credito_id')
+            ->whereIn('nc.factura_id', $facturaIds)
+            ->where('nc.estado_nota_id', 1)
+            ->groupBy('nc.factura_id', 'ncp.producto_id', 'ncp.seccion_id', 'ncp.unidad_medida_venta_id', 'ncp.precios_producto_carga_id', 'ncp.precio_unidad')
+            ->selectRaw('nc.factura_id,
+                         ncp.producto_id,
+                         ncp.seccion_id,
+                         ncp.unidad_medida_venta_id,
+                         ncp.precios_producto_carga_id,
+                         ncp.precio_unidad,
+                         SUM(ncp.cantidad) as cantidad')
             ->get()
             ->groupBy('factura_id');
 
@@ -1294,13 +1371,21 @@ class ReportesComisionesGenerales extends Component
         }
         // ─────────────────────────────────────────────────────────────────────
 
-        // Cargar configuración de días de gracia para crédito (1% por período)
+        $rolesDesactivados = DB::table('comision_rol_config')
+            ->whereIn('rol_id', [2, 3, 16])
+            ->where('calcular', 0)
+            ->pluck('rol_id')
+            ->map(fn($rolId) => (int) $rolId)
+            ->flip()
+            ->all();
+
+        // Cargar configuración de mora aplicada por el generador definitivo.
         $diasGraciaMap = DB::table('dias_gracia_comision')
             ->whereIn('rol_id', [2, 3, 16])
-            ->where('tipo_factura', 'credito')
+            ->whereIn('tipo_factura', ['contado', 'credito'])
             ->where('dias_gracia', '>', 0)
             ->get()
-            ->keyBy('rol_id');
+            ->keyBy(fn($config) => (int) $config->rol_id . '|' . (string) $config->tipo_factura);
 
         $filas = [];
         $excluidas = [];
@@ -1311,6 +1396,16 @@ class ReportesComisionesGenerales extends Component
             $facturaId = (int) $factura->id;
             $cierre = $cierresPorFactura->get($facturaId);
             $lineas = collect($lineasFactura->get($facturaId, collect([])))->values();
+            $devueltasFactura = $this->indexarCantidadesDevueltas(
+                collect($cantidadesDevueltas->get($facturaId, collect([])))
+            );
+            $lineas = $lineas
+                ->map(function ($linea) use (&$devueltasFactura) {
+                    $linea->cantidad = $this->cantidadComisionableTrasDevoluciones($linea, $devueltasFactura);
+                    return $linea;
+                })
+                ->filter(fn($linea) => (float) $linea->cantidad > 0.005)
+                ->values();
 
             $targets = [
                 [
@@ -1337,6 +1432,10 @@ class ReportesComisionesGenerales extends Component
             ];
 
             foreach ($targets as $target) {
+                if (isset($rolesDesactivados[(int) $target['rol_id']])) {
+                    continue;
+                }
+
                 if ((int) $target['user_id'] <= 0) {
                     continue;
                 }
@@ -1386,6 +1485,13 @@ class ReportesComisionesGenerales extends Component
                     $baseUnitaria = round($cantidad * $precioUnitario, 4);
                     $baseComisionable = round($cantidad * $precioParaComision, 4);
                     $categoriaPrecioId = (int) ($linea->categoria_precios_id ?? 0);
+                    $lineaKey = implode('|', [
+                        $facturaId,
+                        (int) ($linea->producto_id ?? 0),
+                        (int) ($linea->precios_producto_carga_id ?? 0),
+                        number_format($precioUnitario, 4, '.', ''),
+                        number_format($precioSeleccionado, 4, '.', ''),
+                    ]);
 
                     // ── Regla SR: solo forzar categoría más baja si precio vendido > precio_a de esa categoría ──
                     $esSR = in_array((string) ($factura->tipo_factura_codigo ?? ''), $tiposSR, true);
@@ -1471,32 +1577,43 @@ class ReportesComisionesGenerales extends Component
                     $porcentaje = (float) ($escalaMap[$escalaKey]->porcentaje_comision ?? 0);
                     $comisionLinea = round($baseComisionable * ($porcentaje / 100), 4);
 
-                    // ── Retención por mora de crédito (1% por período vencido) ──────
+                    // ── Retención por mora: contado pierde todo; crédito es acumulativo ──
                     $retencionMoraAplicada  = 0.0;
                     $periodosVencidosMora   = 0;
                     $diasGracia             = 0;
                     if ($comisionLinea > 0) {
                         $tipoPagoId = (int) ($factura->tipo_pago_id ?? 0);
-                        if ($tipoPagoId === 2 && !empty($factura->fecha_vencimiento) && !empty($cierre->fecha_pago_cierre)) {
-                            $fechaVenc  = \Carbon\Carbon::parse($factura->fecha_vencimiento)->startOfDay();
+                        $tipoMora = $tipoPagoId === 1 ? 'contado' : ($tipoPagoId === 2 ? 'credito' : null);
+                        $fechaReferencia = $tipoPagoId === 1
+                            ? ($factura->fecha_emision ?? null)
+                            : ($factura->fecha_vencimiento ?? null);
+
+                        if ($tipoMora && !empty($fechaReferencia) && !empty($cierre->fecha_pago_cierre)) {
+                            $fechaVenc  = \Carbon\Carbon::parse($fechaReferencia)->startOfDay();
                             $fechaPago  = \Carbon\Carbon::parse($cierre->fecha_pago_cierre)->startOfDay();
                             $diasTransc = (int) $fechaVenc->diffInDays($fechaPago, false);
-                            $confGracia = $diasGraciaMap->get($target['rol_id']);
+                            $confGracia = $diasGraciaMap->get((int) $target['rol_id'] . '|' . $tipoMora);
                             if ($confGracia && $diasTransc > 0) {
                                 $diasGracia = (int) $confGracia->dias_gracia;
                                 if ($diasTransc > $diasGracia) {
-                                    $pct              = (float) $confGracia->porcentaje_retencion;
-                                    $periodosVencidosMora = (int) ceil(($diasTransc - $diasGracia) / $diasGracia);
-                                    $montoPorPeriodo  = $comisionLinea * ($pct / 100);
-                                    $retencionMoraAplicada = min($comisionLinea, round($periodosVencidosMora * $montoPorPeriodo, 4));
-                                    $comisionLinea    = round(max(0, $comisionLinea - $retencionMoraAplicada), 4);
+                                    if ($tipoMora === 'contado') {
+                                        $periodosVencidosMora = 1;
+                                        $retencionMoraAplicada = $comisionLinea;
+                                        $comisionLinea = 0.0;
+                                    } else {
+                                        $pct = (float) $confGracia->porcentaje_retencion;
+                                        $periodosVencidosMora = (int) ceil(($diasTransc - $diasGracia) / $diasGracia);
+                                        $montoPorPeriodo = $comisionLinea * ($pct / 100);
+                                        $retencionMoraAplicada = min($comisionLinea, round($periodosVencidosMora * $montoPorPeriodo, 4));
+                                        $comisionLinea = round(max(0, $comisionLinea - $retencionMoraAplicada), 4);
+                                    }
                                 }
                             }
                         }
                     }
                     // ─────────────────────────────────────────────────────────────
 
-                    if ($comisionLinea <= 0) {
+                    if (($comisionLinea + $retencionMoraAplicada) <= 0) {
                         $excluidas[] = [
                             'factura_id' => $facturaId,
                             'factura' => (string) ($factura->cai ?? ('#' . $facturaId)),
@@ -1540,6 +1657,7 @@ class ReportesComisionesGenerales extends Component
                     }
 
                     $filas[] = [
+                        'linea_key' => $lineaKey,
                         'factura_id' => $facturaId,
                         'factura' => (string) ($factura->cai ?? ('#' . $facturaId)),
                         'fecha_pago' => (string) ($cierre->fecha_pago_cierre ?? ''),
@@ -1620,7 +1738,7 @@ class ReportesComisionesGenerales extends Component
         $baseComisionableUnica = 0.0;
         $lineasContadas        = [];
         foreach ($filas as $fila) {
-            $lineaKey = ($fila['factura_id'] ?? '') . '|' . ($fila['producto'] ?? '') . '|' . ($fila['escala_precio_vendida'] ?? '');
+            $lineaKey = (string) ($fila['linea_key'] ?? '');
             if (!isset($lineasContadas[$lineaKey])) {
                 $lineasContadas[$lineaKey] = true;
                 $baseUnitariaUnica     += (float) ($fila['base_comisionable_unitaria'] ?? 0);
@@ -2532,10 +2650,266 @@ class ReportesComisionesGenerales extends Component
         return $response;
     }
 
+    public function exportarFacturasProyectadasExcel(Request $request)
+    {
+        $request->validate([
+            'fechaInicio' => ['required', 'date'],
+            'fechaFin' => ['required', 'date', 'after_or_equal:fechaInicio'],
+            'usuario_id' => ['required', 'integer', 'min:1'],
+            'rol_id' => ['nullable', 'integer', 'min:1'],
+        ]);
+
+        $payload = json_decode($this->reporteProyecciones($request)->getContent(), true);
+        $rows = collect($payload['data'] ?? []);
+        $facturaIdsEscala = $rows
+            ->filter(fn($row) => (int) ($row['factura_id'] ?? 0) > 0)
+            ->pluck('factura_id')
+            ->map(fn($facturaId) => (int) $facturaId)
+            ->unique()
+            ->values()
+            ->all();
+
+        $cantidadEscalaEsperada = (int) ($payload['totales']['facturas_proyectadas'] ?? 0);
+
+        if (count($facturaIdsEscala) !== $cantidadEscalaEsperada) {
+            abort(409, 'El conjunto de facturas proyectadas no es congruente con el resumen. Genere nuevamente el reporte.');
+        }
+
+        $usuarioId = (int) $request->input('usuario_id');
+        $filasExcluidas = collect($payload['excluidas'] ?? []);
+        $filasPolitica = $filasExcluidas
+            ->filter(function ($row) use ($usuarioId) {
+                $capacidad = mb_strtoupper(trim((string) ($row['capacidad'] ?? '')), 'UTF-8');
+
+                return (int) ($row['usuario_id'] ?? 0) === $usuarioId
+                    && in_array($capacidad, ['ASESOR', 'VENDEDOR', 'VENTAS'], true);
+            })
+            ->unique('factura_id')
+            ->values();
+
+        $facturaIdsPolitica = [];
+        $estadoPoliticaPorFactura = [];
+        if ($filasPolitica->isNotEmpty()) {
+            $requestPolitica = Request::create('/comision/politica-anterior/calcular-comisiones', 'POST', [
+                'factura_ids' => $filasPolitica->pluck('factura_id')->all(),
+                'filas' => $filasPolitica->all(),
+                'usuario_id' => $usuarioId,
+                'fecha_inicio' => $request->input('fechaInicio'),
+                'fecha_final' => $request->input('fechaFin'),
+            ]);
+            $respuestaPolitica = app(ComisionPoliticaAnterior::class)->calcularComisionesFacturas($requestPolitica);
+
+            if ($respuestaPolitica->getStatusCode() !== 200) {
+                abort(409, 'No fue posible validar las facturas elegibles de política anterior.');
+            }
+
+            $payloadPolitica = json_decode($respuestaPolitica->getContent(), true);
+            $facturaIdsPolitica = collect($payloadPolitica['factura_ids_elegibles'] ?? [])
+                ->map(fn($facturaId) => (int) $facturaId)
+                ->filter(fn($facturaId) => $facturaId > 0)
+                ->unique()
+                ->values()
+                ->all();
+
+            $estadoPoliticaPorFactura = collect($payloadPolitica['detalle'] ?? [])
+                ->groupBy(fn($linea) => (int) ($linea['factura_id'] ?? 0))
+                ->map(function ($lineas) {
+                    $fueraPolitica = $lineas->contains(function ($linea) {
+                        return trim((string) ($linea['motivo_no_comision'] ?? '')) !== '';
+                    });
+
+                    return $fueraPolitica ? 'FUERA DE POLÍTICA' : 'COMISIONA';
+                })
+                ->all();
+        }
+
+        $motivosExclusionPorFactura = $filasExcluidas
+            ->filter(fn($row) => (int) ($row['factura_id'] ?? 0) > 0)
+            ->groupBy(fn($row) => (int) $row['factura_id'])
+            ->map(function ($lineas) {
+                $motivos = $lineas
+                    ->flatMap(function ($linea) {
+                        $motivos = $linea['motivos'] ?? [];
+                        if (!is_array($motivos) || empty($motivos)) {
+                            $motivos = [(string) ($linea['razon_no_comisionable'] ?? 'Sin motivo registrado')];
+                        }
+
+                        return $motivos;
+                    })
+                    ->map(fn($motivo) => trim((string) $motivo))
+                    ->filter()
+                    ->unique();
+
+                $capacidades = $lineas
+                    ->pluck('capacidad')
+                    ->map(fn($capacidad) => mb_strtoupper(trim((string) $capacidad), 'UTF-8'))
+                    ->unique();
+                $rolesSinPoliticaAnterior = collect();
+
+                if ($capacidades->contains('TELEASESOR')) {
+                    $rolesSinPoliticaAnterior->push('Teleasesor');
+                }
+                if ($capacidades->contains(fn($capacidad) => in_array($capacidad, ['GESTOR_ENTREGA', 'GESTOR DE ENTREGA'], true))) {
+                    $rolesSinPoliticaAnterior->push('Gestor de Entrega');
+                }
+
+                if ($rolesSinPoliticaAnterior->isNotEmpty()) {
+                    $descripcionRoles = $rolesSinPoliticaAnterior->count() === 1
+                        ? 'el rol ' . $rolesSinPoliticaAnterior->first()
+                        : 'los roles ' . $rolesSinPoliticaAnterior->implode(' y ');
+                    $motivos->push('No entra en Política Anterior porque no existen parámetros para ' . $descripcionRoles);
+                }
+
+                return $motivos->unique()->implode(' | ');
+            })
+            ->all();
+
+        $facturaIdsExcluidas = array_values(array_diff(
+            array_map('intval', array_keys($motivosExclusionPorFactura)),
+            $facturaIdsEscala,
+            $facturaIdsPolitica
+        ));
+
+        $facturaIds = array_values(array_unique(array_merge(
+            $facturaIdsEscala,
+            $facturaIdsPolitica,
+            $facturaIdsExcluidas
+        )));
+        $cantidadEsperada = count($facturaIds);
+        $origenPorFactura = [];
+        foreach ($facturaIdsEscala as $facturaId) {
+            $origenPorFactura[$facturaId] = 'ESCALA (NUEVA POLITICA)';
+        }
+        foreach ($facturaIdsPolitica as $facturaId) {
+            $origenPorFactura[$facturaId] = isset($origenPorFactura[$facturaId])
+                ? 'ESCALA / POLITICA ANTERIOR'
+                : 'POLITICA ANTERIOR';
+        }
+            foreach ($facturaIdsExcluidas as $facturaId) {
+                $origenPorFactura[$facturaId] = 'EXCLUIDA';
+            }
+
+        $pagosPorFactura = empty($facturaIds)
+            ? collect()
+            : DB::table('aplicacion_pagos as ap')
+                ->leftJoin('abonos_creditos as ac', function ($join) {
+                    $join->on('ac.aplicacion_pagos_id', '=', 'ap.id')
+                        ->where('ac.estado_abono', 1);
+                })
+                ->whereIn('ap.factura_id', $facturaIds)
+                ->where('ap.estado', 1)
+                ->where('ap.estado_cerrado', 2)
+                ->where('ap.saldo', '<=', 0.0001)
+                ->groupBy('ap.factura_id')
+                ->selectRaw('ap.factura_id,
+                             COUNT(DISTINCT ac.id) as cantidad_abonos,
+                             MIN(DATE(ac.fecha_pago)) as fecha_primer_abono,
+                             CASE
+                                 WHEN DATE(MAX(ap.fecha_cierre_factura)) > COALESCE(MAX(DATE(ac.fecha_pago)), "1000-01-01")
+                                  AND COALESCE(MAX(ap.total_notas_credito), 0) > 0
+                                  AND EXISTS (
+                                      SELECT 1
+                                      FROM nota_credito nc_cierre
+                                      WHERE nc_cierre.factura_id = ap.factura_id
+                                        AND nc_cierre.estado_nota_id = 1
+                                        AND nc_cierre.estado_rebajado IN (1, 3)
+                                        AND DATE(nc_cierre.fecha_rebajado) = DATE(MAX(ap.fecha_cierre_factura))
+                                  )
+                                     THEN DATE(MAX(ap.fecha_cierre_factura))
+                                 ELSE COALESCE(MAX(DATE(ac.fecha_pago)), DATE(MAX(ap.fecha_cierre_factura)))
+                             END as fecha_cierre')
+                ->get()
+                ->keyBy(fn($row) => (int) $row->factura_id);
+
+        $bancosCierre = empty($facturaIds)
+            ? collect()
+            : DB::table('abonos_creditos as ac')
+                ->join('aplicacion_pagos as ap', 'ap.id', '=', 'ac.aplicacion_pagos_id')
+                ->leftJoin('banco as b', 'b.id', '=', 'ac.banco_id')
+                ->whereIn('ac.factura_id', $facturaIds)
+                ->where('ac.estado_abono', 1)
+                ->where('ap.estado', 1)
+                ->where('ap.estado_cerrado', 2)
+                ->where('ap.saldo', '<=', 0.0001)
+                ->orderBy('ac.factura_id')
+                ->orderByDesc('ac.fecha_pago')
+                ->orderByDesc('ac.id')
+                ->get([
+                    'ac.factura_id',
+                    'b.nombre',
+                    'b.cuenta',
+                ])
+                ->unique('factura_id')
+                ->keyBy('factura_id');
+
+        $facturas = empty($facturaIds)
+            ? collect()
+            : DB::table('factura as f')
+                ->leftJoin('cliente as cl', 'cl.id', '=', 'f.cliente_id')
+                ->whereIn('f.id', $facturaIds)
+                ->selectRaw('f.id as factura_id,
+                             DATE(f.fecha_emision) as fecha_emision,
+                             f.tipo_pago_id,
+                             COALESCE(f.sub_total, 0) as subtotal,
+                             COALESCE(f.isv, 0) as isv,
+                             COALESCE(f.total, 0) as total,
+                             COALESCE(f.monto_descuento, 0) as descuento,
+                             COALESCE(cl.nombre, f.nombre_cliente, "") as cliente,
+                             COALESCE(f.cai, "") as cai')
+                ->orderBy('f.id')
+                ->get()
+                ->map(function ($factura) use ($pagosPorFactura, $bancosCierre, $origenPorFactura, $estadoPoliticaPorFactura, $motivosExclusionPorFactura, $facturaIdsExcluidas) {
+                    $bancoCierre = $bancosCierre->get((int) $factura->factura_id);
+                    $banco = trim((string) ($bancoCierre->nombre ?? ''));
+                    $cuenta = trim((string) ($bancoCierre->cuenta ?? ''));
+                    $facturaId = (int) $factura->factura_id;
+                    $pagos = $pagosPorFactura->get($facturaId);
+                    $esExcluida = in_array($facturaId, $facturaIdsExcluidas, true);
+
+                    return [
+                        'factura_id' => $facturaId,
+                        'fecha_emision' => (string) ($factura->fecha_emision ?? ''),
+                        'tipo_factura' => match ((int) ($factura->tipo_pago_id ?? 0)) {
+                            1 => 'CONTADO',
+                            2 => 'CRÉDITO',
+                            default => 'SIN DEFINIR',
+                        },
+                        'cantidad_abonos' => (int) ($pagos->cantidad_abonos ?? 0),
+                        'fecha_primer_abono' => (string) ($pagos->fecha_primer_abono ?? ''),
+                        'fecha_cierre' => (string) ($pagos->fecha_cierre ?? ''),
+                        'correlativo' => str_pad(substr(preg_replace('/[^0-9]/', '', (string) $factura->cai), -5), 5, '0', STR_PAD_LEFT),
+                        'politica_comision' => $origenPorFactura[$facturaId] ?? '',
+                        'estado_comision' => $esExcluida
+                            ? 'EXCLUIDA - ' . ($motivosExclusionPorFactura[$facturaId] ?? 'Sin motivo registrado')
+                            : ($estadoPoliticaPorFactura[$facturaId] ?? 'COMISIONA'),
+                        'subtotal' => (float) $factura->subtotal,
+                        'isv' => (float) $factura->isv,
+                        'total' => (float) $factura->total,
+                        'descuento' => (float) $factura->descuento,
+                        'cliente' => (string) $factura->cliente,
+                        'cai' => (string) $factura->cai,
+                        'banco_cierre' => $banco !== ''
+                            ? $banco . ($cuenta !== '' ? ' - ' . $cuenta : '')
+                            : 'SIN BANCO REGISTRADO',
+                    ];
+                });
+
+        if ($facturas->count() !== $cantidadEsperada) {
+            abort(409, 'No fue posible recuperar todas las facturas incluidas en la proyección.');
+        }
+
+        $periodo = Carbon::parse($request->input('fechaInicio'))->format('d/m/Y')
+            . ' al ' . Carbon::parse($request->input('fechaFin'))->format('d/m/Y');
+
+        return Excel::download(
+            new FacturasProyectadasExport($facturas->all(), $periodo, Auth::user()->name ?? 'Sistema'),
+            'facturas_proyectadas_' . now()->format('Ymd_His') . '.xlsx'
+        );
+    }
+
     /**
-     * Variante "Fijo 15%" del Excel de Proyecciones: misma estructura y estilo,
-     * pero recalcula la comisión de cada línea al 15% fijo sobre la base
-     * comisionable, sin usar la escala parametrizada.
+     * Variante especial del Excel de Proyecciones: aplica 15% fijo a clientes
+     * específicos y conserva la comisión normal por escala para los demás.
      *
      * Acceso restringido exclusivamente al usuario Yefry Ortiz (id=2).
      */
@@ -2548,18 +2922,59 @@ class ReportesComisionesGenerales extends Component
         @set_time_limit(0);
         @ini_set('memory_limit', '512M');
 
-        $rows = $request->input('rows', []);
-        if (!is_array($rows)) {
-            $rows = json_decode($rows, true) ?? [];
+        $request->validate([
+            'fechaInicio' => ['required', 'date'],
+            'fechaFin' => ['required', 'date', 'after_or_equal:fechaInicio'],
+            'usuario_id' => ['required', 'integer', 'min:1', 'exists:users,id'],
+            'rol_id' => ['nullable', 'integer', 'min:1'],
+        ]);
+
+        $payload = json_decode($this->reporteProyecciones($request)->getContent(), true);
+        $rows = $payload['data'] ?? [];
+
+        $clienteIdsPorFactura = DB::table('factura')
+            ->whereIn('id', collect($rows)->pluck('factura_id')->filter()->unique()->all())
+            ->pluck('cliente_id', 'id');
+        $rows = array_map(function ($row) use ($clienteIdsPorFactura) {
+            $row['cliente_id'] = (int) ($clienteIdsPorFactura->get((int) ($row['factura_id'] ?? 0)) ?? 0);
+            return $row;
+        }, $rows);
+
+        $facturasEnFilas = collect($rows)
+            ->pluck('factura_id')
+            ->filter(fn($facturaId) => (int) $facturaId > 0)
+            ->map(fn($facturaId) => (int) $facturaId)
+            ->unique()
+            ->count();
+        $facturasEsperadas = (int) ($payload['totales']['facturas_proyectadas'] ?? 0);
+
+        if ($facturasEnFilas !== $facturasEsperadas) {
+            abort(409, 'El conjunto de facturas proyectadas no es congruente con el resumen. Genere nuevamente el reporte.');
         }
 
-        $periodo     = $request->input('periodo', now()->format('d/m/Y'));
+        [$fi, $ff] = $this->resolveDateRange($request);
+        $periodo = Carbon::parse($fi)->format('d/m/Y') . ' al ' . Carbon::parse($ff)->format('d/m/Y');
         $generadoPor = Auth::user()->name ?? 'Sistema';
         $empresa     = 'DISTRIBUCIONES VALENCIA   |   RTN: 08011986138652';
+        $politicaAnterior = $this->calcularPoliticaAnteriorEspecial15(
+            $payload['excluidas'] ?? [],
+            (int) $request->input('usuario_id'),
+            $fi,
+            $ff
+        );
+        $nominaSheet = $this->construirNominaEspecial15(
+            $rows,
+            $payload['totales'] ?? [],
+            $politicaAnterior,
+            $fi,
+            $ff,
+            (int) $request->input('usuario_id'),
+            $generadoPor
+        );
 
         $response = Excel::download(
-            new ProyeccionComisiones15Export($rows, $empresa, $periodo, $generadoPor),
-            'proyeccion_comisiones_fijo15_' . now()->format('Ymd_His') . '.xlsx'
+            new ProyeccionComisiones15Export($rows, $empresa, $periodo, $generadoPor, $nominaSheet),
+            'proyeccion_comisiones_especial15_' . now()->format('Ymd_His') . '.xlsx'
         );
 
         $token = (string) $request->input('download_token', '');
@@ -2568,6 +2983,186 @@ class ReportesComisionesGenerales extends Component
         }
 
         return $response;
+    }
+
+    private function calcularPoliticaAnteriorEspecial15(array $filasExcluidas, int $usuarioId, string $fi, string $ff): array
+    {
+        $filas = collect($filasExcluidas)
+            ->filter(function ($row) use ($usuarioId) {
+                $capacidad = mb_strtoupper(trim((string) ($row['capacidad'] ?? '')), 'UTF-8');
+                $rolId = (int) ($row['rol_id'] ?? 0);
+
+                return (int) ($row['usuario_id'] ?? 0) === $usuarioId
+                    && ($rolId === 2 || in_array($capacidad, ['ASESOR', 'VENDEDOR', 'VENTAS'], true));
+            })
+            ->unique('factura_id')
+            ->values();
+
+        if ($filas->isEmpty()) {
+            $filasFallback = collect($filasExcluidas)
+                ->filter(fn($row) => (int) ($row['usuario_id'] ?? 0) === $usuarioId)
+                ->unique('factura_id')
+                ->values();
+            $facturaIdsFallback = $filasFallback->pluck('factura_id')
+                ->map(fn($facturaId) => (int) $facturaId)
+                ->filter(fn($facturaId) => $facturaId > 0)
+                ->values()
+                ->all();
+
+            $basePolitica = 0.0;
+            if (!empty($facturaIdsFallback)) {
+                $lineas = DB::table('venta_has_producto as vhp')
+                    ->whereIn('vhp.factura_id', $facturaIdsFallback)
+                    ->groupBy('vhp.factura_id', 'vhp.producto_id', 'vhp.precios_producto_carga_id', 'vhp.precio_unidad', 'vhp.precioSeleccionado')
+                    ->selectRaw('COALESCE(SUM(vhp.cantidad_s), SUM(vhp.cantidad)) as cantidad,
+                                 COALESCE(vhp.precioSeleccionado, vhp.precio_unidad) as precio')
+                    ->get();
+
+                foreach ($lineas as $linea) {
+                    $basePolitica += (float) $linea->cantidad * (float) $linea->precio;
+                }
+            }
+
+            return [
+                'factura_ids' => $facturaIdsFallback,
+                'filas' => $filasFallback->all(),
+                'totales' => [
+                    'total_subtotal' => round($basePolitica, 2),
+                    'total_comision' => 0.0,
+                ],
+            ];
+        }
+
+        $facturaIds = $filas->pluck('factura_id')
+            ->map(fn($facturaId) => (int) $facturaId)
+            ->filter(fn($facturaId) => $facturaId > 0)
+            ->values()
+            ->all();
+
+        $request = Request::create('/comision/politica-anterior/calcular-comisiones', 'POST', [
+            'factura_ids' => $facturaIds,
+            'filas' => $filas->all(),
+            'usuario_id' => $usuarioId,
+            'fecha_inicio' => $fi,
+            'fecha_final' => $ff,
+        ]);
+        $response = app(ComisionPoliticaAnterior::class)->calcularComisionesFacturas($request);
+        $payload = json_decode($response->getContent(), true) ?? [];
+
+        if ($response->getStatusCode() >= 400) {
+            abort(409, $payload['message'] ?? 'No fue posible calcular la Política Anterior para la nómina proyectada.');
+        }
+
+        return [
+            'factura_ids' => array_values($payload['factura_ids_elegibles'] ?? []),
+            'filas' => $filas->all(),
+            'totales' => $payload['totales'] ?? [],
+        ];
+    }
+
+    private function construirNominaEspecial15(array $rows, array $totales, array $politicaAnterior, string $fi, string $ff, int $usuarioId, string $generadoPor): ProyeccionNominaSheet
+    {
+        $empleado = (string) (DB::table('users')->where('id', $usuarioId)->value('name') ?? ('Usuario #' . $usuarioId));
+        $comisionesPorRol = [2 => 0.0, 3 => 0.0, 16 => 0.0];
+        $facturasPorMes = [];
+        $mesPorFactura = [];
+
+        foreach ($rows as $item) {
+            $row = (array) $item;
+            $rolId = (int) ($row['rol_id'] ?? 0);
+            if (array_key_exists($rolId, $comisionesPorRol)) {
+                $comisionesPorRol[$rolId] += (float) ProyeccionEspecial15::calcular($row)['comision'];
+            }
+
+            $facturaId = (int) ($row['factura_id'] ?? 0);
+            $fechaPago = (string) ($row['fecha_pago'] ?? '');
+            if ($facturaId <= 0 || $fechaPago === '' || isset($mesPorFactura[$facturaId])) {
+                continue;
+            }
+
+            $fecha = Carbon::parse($fechaPago);
+            $mesKey = $fecha->format('Y-m');
+            $mesPorFactura[$facturaId] = $mesKey;
+
+            if (!isset($facturasPorMes[$mesKey])) {
+                $mesLabel = $fecha->locale('es')->isoFormat('MMMM YYYY');
+                $facturasPorMes[$mesKey] = [
+                    'mes_label' => mb_convert_case($mesLabel, MB_CASE_TITLE, 'UTF-8'),
+                    'cantidad' => 0,
+                    'total' => 0.0,
+                ];
+            }
+            $facturasPorMes[$mesKey]['cantidad']++;
+        }
+
+        $filasPoliticaPorFactura = collect($politicaAnterior['filas'] ?? [])->keyBy('factura_id');
+        foreach ($politicaAnterior['factura_ids'] ?? [] as $facturaId) {
+            $facturaId = (int) $facturaId;
+            if ($facturaId <= 0 || isset($mesPorFactura[$facturaId])) {
+                continue;
+            }
+
+            $filaPolitica = $filasPoliticaPorFactura->get($facturaId);
+            $fechaPago = (string) ($filaPolitica['fecha_pago'] ?? '');
+            if ($fechaPago === '') {
+                continue;
+            }
+
+            $fecha = Carbon::parse($fechaPago);
+            $mesKey = $fecha->format('Y-m');
+            $mesPorFactura[$facturaId] = $mesKey;
+            if (!isset($facturasPorMes[$mesKey])) {
+                $mesLabel = $fecha->locale('es')->isoFormat('MMMM YYYY');
+                $facturasPorMes[$mesKey] = [
+                    'mes_label' => mb_convert_case($mesLabel, MB_CASE_TITLE, 'UTF-8'),
+                    'cantidad' => 0,
+                    'total' => 0.0,
+                ];
+            }
+            $facturasPorMes[$mesKey]['cantidad']++;
+        }
+
+        $facturaIds = array_keys($mesPorFactura);
+        if (!empty($facturaIds)) {
+            $cobros = DB::table('abonos_creditos as ac')
+                ->whereIn('ac.factura_id', $facturaIds)
+                ->where('ac.estado_abono', 1)
+                ->whereNotIn('ac.banco_id', [12, 13])
+                ->whereBetween(DB::raw('DATE(ac.fecha_pago)'), [$fi, $ff])
+                ->groupBy('ac.factura_id')
+                ->selectRaw('ac.factura_id, SUM(ac.monto_abonado) as cobrado')
+                ->get()
+                ->keyBy('factura_id');
+
+            foreach ($mesPorFactura as $facturaId => $mesKey) {
+                $facturasPorMes[$mesKey]['total'] += (float) ($cobros->get($facturaId)->cobrado ?? 0);
+            }
+        }
+
+        ksort($facturasPorMes);
+        $mesesCobrados = array_values(array_map(function (array $mes) {
+            return [
+                'mes_label' => $mes['mes_label'],
+                'cantidad' => $mes['cantidad'],
+                'total' => round($mes['total'], 2),
+            ];
+        }, $facturasPorMes));
+        $totalesPolitica = $politicaAnterior['totales'] ?? [];
+
+        return new ProyeccionEspecial15NominaSheet(
+            $empleado,
+            Carbon::parse($fi)->format('d/m/Y') . ' - ' . Carbon::parse($ff)->format('d/m/Y'),
+            count($facturaIds),
+            (float) ($totales['base_comisionable_total'] ?? 0),
+            round($comisionesPorRol[2], 4),
+            round($comisionesPorRol[3], 4),
+            round($comisionesPorRol[16], 4),
+            (float) ($totalesPolitica['total_subtotal'] ?? 0),
+            (float) ($totalesPolitica['total_comision'] ?? 0),
+            $mesesCobrados,
+            round(array_sum(array_column($mesesCobrados, 'total')), 2),
+            $generadoPor
+        );
     }
 
     /**

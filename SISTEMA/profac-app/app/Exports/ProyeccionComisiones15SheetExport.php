@@ -2,6 +2,7 @@
 
 namespace App\Exports;
 
+use App\Support\Comisiones\ProyeccionEspecial15;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Concerns\WithStyles;
@@ -15,24 +16,22 @@ use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 
 /**
- * Una pestaña del export de Proyección de Comisiones — variante "Fijo 15%".
+ * Una pestaña del export de Proyección de Comisiones con regla especial por cliente.
  *
- * Estructura idéntica a ProyeccionComisionesSheetExport, pero el % y la
- * comisión de cada línea se recalculan de forma fija al 15% de la base
- * comisionable, ignorando la escala parametrizada.
+ * Aplica 15% fijo a clientes especiales y conserva la comisión normal por
+ * escala para el resto.
  *
- * Columnas (A–N, 14 cols):
+ * Columnas (A–O, 15 cols):
  *  A Fecha Pago          B Fecha Creación Factura   C Factura
  *  D Producto            E Cliente                  F Escala Cliente
  *  G Escala Precio       H Cantidad                 I Rol Comisión
  *  J Usuario             K Base Unit. Comisionable  L Base Comisionable
- *  M % Fijo Aplicado     N Comisión (Fijo 15%)
+ *  M Regla Aplicada      N % Aplicado               O Comisión Calculada
  */
 class ProyeccionComisiones15SheetExport implements FromArray, WithTitle, WithStyles, WithEvents, WithStrictNullComparison, WithColumnWidths
 {
-    const LAST_COL  = 'N';
-    const COL_COUNT = 14;
-    const PORCENTAJE_FIJO = 15.0;
+    const LAST_COL  = 'O';
+    const COL_COUNT = 15;
 
     protected array  $rows;
     protected string $sheetTitle;
@@ -67,7 +66,7 @@ class ProyeccionComisiones15SheetExport implements FromArray, WithTitle, WithSty
 
         // Fila 2 — título
         $r2    = array_fill(0, $nc, '');
-        $r2[0] = 'PROYECCIÓN DE COMISIONES (FIJO 15%) — ' . strtoupper($this->sheetTitle);
+        $r2[0] = 'PROYECCIÓN DE COMISIONES (REGLA ESPECIAL 15%) — ' . strtoupper($this->sheetTitle);
         $out[] = $r2;
 
         // Fila 3 — período, generado y quién descargó
@@ -80,7 +79,7 @@ class ProyeccionComisiones15SheetExport implements FromArray, WithTitle, WithSty
             'FECHA PAGO', 'FECHA CREACIÓN FACTURA', 'FACTURA',
             'PRODUCTO', 'CLIENTE', 'ESCALA CLIENTE', 'ESCALA PRECIO VENDIDA',
             'CANTIDAD', 'ROL COMISIÓN', 'USUARIO',
-            'BASE UNIT. COMISIONABLE', 'BASE COMISIONABLE', '% FIJO APLICADO', 'COMISIÓN (FIJO 15%)',
+            'BASE UNIT. COMISIONABLE', 'BASE COMISIONABLE', 'REGLA APLICADA', '% APLICADO', 'COMISIÓN CALCULADA',
         ];
 
         $totBase = $totCom = 0.0;
@@ -90,9 +89,10 @@ class ProyeccionComisiones15SheetExport implements FromArray, WithTitle, WithSty
             $base = (float) ($r['base_comisionable']          ?? 0);
             $buni = (float) ($r['base_comisionable_unitaria'] ?? 0);
             $cant = (float) ($r['cantidad']                   ?? 0);
-
-            // Recalculo fijo: 15% sobre la base comisionable, ignora la escala parametrizada.
-            $com  = round($base * (self::PORCENTAJE_FIJO / 100), 4);
+            $calculo = ProyeccionEspecial15::calcular($r);
+            $regla = $calculo['regla'];
+            $pct = $calculo['porcentaje'];
+            $com = $calculo['comision'];
 
             $totBase += $base;
             $totCom  += $com;
@@ -110,7 +110,8 @@ class ProyeccionComisiones15SheetExport implements FromArray, WithTitle, WithSty
                 $r['usuario']                  ?? '',
                 $buni,
                 $base,
-                self::PORCENTAJE_FIJO,
+                $regla,
+                $pct,
                 $com,
             ];
         }
@@ -119,7 +120,7 @@ class ProyeccionComisiones15SheetExport implements FromArray, WithTitle, WithSty
         $tot     = array_fill(0, $nc, '');
         $tot[0]  = 'TOTALES (' . count($this->rows) . ' registros)';
         $tot[11] = $totBase;
-        $tot[13] = $totCom;
+        $tot[14] = $totCom;
         $out[]   = $tot;
 
         return $out;
@@ -132,7 +133,7 @@ class ProyeccionComisiones15SheetExport implements FromArray, WithTitle, WithSty
             'D' => 42, 'E' => 36, 'F' => 18,
             'G' => 46, 'H' => 10, 'I' => 20,
             'J' => 24, 'K' => 22, 'L' => 20,
-            'M' => 13, 'N' => 20,
+            'M' => 18, 'N' => 13, 'O' => 20,
         ];
     }
 
@@ -210,7 +211,7 @@ class ProyeccionComisiones15SheetExport implements FromArray, WithTitle, WithSty
                             ->setBorderStyle(Border::BORDER_MEDIUM)->getColor()->setRGB('e07000');
                         $sheet->getStyle("A{$row}:{$lc}{$row}")->getBorders()->getBottom()
                             ->setBorderStyle(Border::BORDER_MEDIUM)->getColor()->setRGB('e07000');
-                        foreach (['K', 'L', 'N'] as $c) {
+                        foreach (['K', 'L', 'O'] as $c) {
                             $sheet->getStyle("{$c}{$row}")->getNumberFormat()->setFormatCode($currency);
                             $sheet->getStyle("{$c}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
                         }
@@ -226,7 +227,7 @@ class ProyeccionComisiones15SheetExport implements FromArray, WithTitle, WithSty
                         ->setVertical(Alignment::VERTICAL_CENTER);
 
                     // Texto a la izquierda
-                    foreach (['A', 'B', 'C', 'D', 'E', 'F', 'G', 'I', 'J'] as $c) {
+                    foreach (['A', 'B', 'C', 'D', 'E', 'F', 'G', 'I', 'J', 'M'] as $c) {
                         $sheet->getStyle("{$c}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
                     }
 
@@ -237,11 +238,11 @@ class ProyeccionComisiones15SheetExport implements FromArray, WithTitle, WithSty
                     $sheet->getStyle("K{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
                     $sheet->getStyle("L{$row}")->getNumberFormat()->setFormatCode($currency);
                     $sheet->getStyle("L{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-                    $sheet->getStyle("M{$row}")->getNumberFormat()->setFormatCode($percent);
-                    $sheet->getStyle("M{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-                    $sheet->getStyle("N{$row}")->getNumberFormat()->setFormatCode($currency);
+                    $sheet->getStyle("N{$row}")->getNumberFormat()->setFormatCode($percent);
                     $sheet->getStyle("N{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-                    $sheet->getStyle("N{$row}")->getFont()->setBold(true);
+                    $sheet->getStyle("O{$row}")->getNumberFormat()->setFormatCode($currency);
+                    $sheet->getStyle("O{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+                    $sheet->getStyle("O{$row}")->getFont()->setBold(true);
 
                     // Color por rol en columna I
                     $rol = (string) ($sheet->getCell("I{$row}")->getValue() ?? '');
