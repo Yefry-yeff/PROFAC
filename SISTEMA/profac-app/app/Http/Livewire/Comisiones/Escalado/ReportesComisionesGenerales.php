@@ -25,6 +25,11 @@ use App\Support\Comisiones\ProyeccionEspecial15;
 
 class ReportesComisionesGenerales extends Component
 {
+    private const FACTURA_IDS_OMITIDAS_POLITICA_ANTERIOR = [
+        27811, // 000-001-01-00042727
+        27926, // 000-001-01-00042842
+    ];
+
     private function totalNominaComisionPorRango(string $fechaInicio, string $fechaFin, int $usuarioId = 0, int $rolId = 0): float
     {
         $fi = $fechaInicio . ' 00:00:00';
@@ -1718,6 +1723,11 @@ class ReportesComisionesGenerales extends Component
             ->all();
 
         $excluidas = collect($excluidas)
+            ->reject(fn($fila) => in_array(
+                (int) ($fila['factura_id'] ?? 0),
+                self::FACTURA_IDS_OMITIDAS_POLITICA_ANTERIOR,
+                true
+            ))
             ->sortBy([
                 ['fecha_pago', 'asc'],
                 ['factura', 'asc'],
@@ -1725,6 +1735,14 @@ class ReportesComisionesGenerales extends Component
                 ['capacidad', 'asc'],
             ])
             ->values()
+            ->all();
+
+        $facturasExcluidas = collect($excluidas)
+            ->pluck('factura_id')
+            ->map(fn($facturaId) => (int) $facturaId)
+            ->filter(fn($facturaId) => $facturaId > 0)
+            ->unique()
+            ->flip()
             ->all();
 
         $comisionRecalculadaTotal = round(array_sum(array_map(fn($r) => (float) $r['comision_proyectada'], $filas)), 4);
