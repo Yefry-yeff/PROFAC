@@ -104,6 +104,68 @@ class FacturacionCorporativa extends Component
         return $teleAsesorId;
     }
 
+    private function aplicarImportesFirmadosExpo(Request $request, array $indices, array $lineasPorIndice): void
+    {
+        if (empty($lineasPorIndice)) {
+            return;
+        }
+
+        $lineas = DB::table('cotizacion_has_producto')
+            ->whereIn('id', array_values($lineasPorIndice))
+            ->get(['id', 'cantidad', 'monto_descProducto'])
+            ->keyBy('id');
+        $cambios = [];
+        $subtotalGeneral = 0.0;
+        $subtotalGrabado = 0.0;
+        $subtotalExento = 0.0;
+        $isvGeneral = 0.0;
+        $totalGeneral = 0.0;
+        $descuentoGeneral = 0.0;
+
+        foreach ($indices as $indice) {
+            $lineaId = (int) ($lineasPorIndice[(string) $indice] ?? 0);
+            $linea = $lineas[$lineaId];
+            $cantidad = (float) $request->input('cantidad' . $indice, 0);
+            $unidad = (float) $request->input('unidad' . $indice, 0);
+            $precio = (float) $request->input('precio' . $indice, 0);
+            $cantidadOfertada = (float) $linea->cantidad;
+            $descuento = $cantidadOfertada > 0
+                ? round((float) $linea->monto_descProducto * $cantidad / $cantidadOfertada, 2)
+                : 0.0;
+            $bruto = round($precio * $cantidad * $unidad, 2);
+            $descuento = min($descuento, $bruto);
+            $subtotal = round($bruto - $descuento, 2);
+            $porcentajeIsv = (float) $request->input('isv' . $indice, 0);
+            $isv = round($subtotal * $porcentajeIsv / 100, 2);
+            $total = round($subtotal + $isv, 2);
+
+            $cambios['acumuladoDescuento' . $indice] = $descuento;
+            $cambios['subTotal' . $indice] = $subtotal;
+            $cambios['isvProducto' . $indice] = $isv;
+            $cambios['total' . $indice] = $total;
+            $subtotalGeneral += $subtotal;
+            $isvGeneral += $isv;
+            $totalGeneral += $total;
+            $descuentoGeneral += $descuento;
+
+            if ($porcentajeIsv > 0) {
+                $subtotalGrabado += $subtotal;
+            } else {
+                $subtotalExento += $subtotal;
+            }
+        }
+
+        $request->merge(array_merge($cambios, [
+            'subTotalGeneral' => round($subtotalGeneral, 2),
+            'subTotalGeneralGrabado' => round($subtotalGrabado, 2),
+            'subTotalGeneralExcento' => round($subtotalExento, 2),
+            'isvGeneral' => round($isvGeneral, 2),
+            'totalGeneral' => round($totalGeneral, 2),
+            'porDescuento' => 0,
+            'porDescuentoCalculado' => round($descuentoGeneral, 2),
+        ]));
+    }
+
     // Nota: Este componente solo se usa como controlador API.
     // El render() no se invoca desde ninguna ruta de página.
     public function render()
@@ -1088,6 +1150,7 @@ class FacturacionCorporativa extends Component
 
             $lineasExpoPorIndice = app(SaldoLineasOferta::class)
                 ->validarSolicitudFactura($request, $arrayInputs);
+            $this->aplicarImportesFirmadosExpo($request, $arrayInputs, $lineasExpoPorIndice);
 
 
 

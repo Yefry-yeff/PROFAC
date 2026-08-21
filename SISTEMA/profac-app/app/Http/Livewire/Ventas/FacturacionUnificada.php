@@ -5,6 +5,7 @@ namespace App\Http\Livewire\Ventas;
 use App\Support\ExpoConfig;
 use Livewire\Component;
 use App\Models\TipoFactura;
+use App\Services\Expo\CalculadorDescuentosExpo;
 use App\Services\Expo\SaldoLineasOferta;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -19,6 +20,40 @@ class FacturacionUnificada extends Component
     public $expoConfig = null;
     public $esOfertaExpo = false;
     public array $reglasExpoOferta = [];
+    public array $atribucionesDescuentoExpo = [];
+
+    private function cargarAtribucionesDescuentoExpo(int $cotizacionId): void
+    {
+        $lineas = DB::table('cotizacion_has_producto as chp')
+            ->join('producto as p', 'p.id', '=', 'chp.producto_id')
+            ->where('chp.cotizacion_id', $cotizacionId)
+            ->get(['chp.id', 'chp.cantidad', 'chp.precio_unidad', 'chp.monto_descProducto', 'p.marca_id']);
+
+        $calculo = app(CalculadorDescuentosExpo::class)->calcular(
+            $lineas->map(fn ($linea) => [
+                'marca_id' => (int) $linea->marca_id,
+                'subtotal_bruto' => round((float) $linea->precio_unidad * (float) $linea->cantidad, 2),
+            ])->all(),
+            $this->reglasExpoOferta
+        );
+
+        $this->atribucionesDescuentoExpo = $lineas->mapWithKeys(function ($linea) use ($calculo) {
+            $descuentoFirmado = (float) $linea->monto_descProducto;
+            $porcentajeMarca = (float) ($calculo['porcentajes_marca'][(int) $linea->marca_id] ?? 0);
+            $descuentoMarca = round(
+                (float) $linea->precio_unidad * (float) $linea->cantidad * $porcentajeMarca / 100,
+                2
+            );
+
+            return [(int) $linea->id => [
+                'porcentaje_marca' => (float) ($calculo['porcentajes_marca'][(int) $linea->marca_id] ?? 0),
+                'porcentaje_general' => (float) ($calculo['porcentaje_general'] ?? 0),
+                'proporcion_marca' => $descuentoFirmado > 0
+                    ? min(max($descuentoMarca / $descuentoFirmado, 0), 1)
+                    : 0,
+            ]];
+        })->all();
+    }
 
     // ── Buscador de prefactura ───────────────────────────────────────────
     public $busquedaPrefactura     = '';
@@ -200,12 +235,14 @@ class FacturacionUnificada extends Component
                 $this->reglasExpoOferta = array_key_exists('generales', $snapshot)
                     ? $snapshot
                     : ['version' => 1, 'generales' => $snapshot, 'marcas' => [], 'lineas' => []];
+                $this->cargarAtribucionesDescuentoExpo((int) $cotizId);
             }
             $prods = $esExpo
                 ? app(SaldoLineasOferta::class)->pendientes((int) $cotizId)
                     ->filter(fn($linea) => (float) $linea->cantidad_pendiente > 0)
                     ->map(function ($linea) {
                         $linea->cotizacion_has_producto_id = $linea->id;
+                        $linea->cantidad_ofertada = $linea->cantidad;
                         $linea->cantidad = $linea->cantidad_pendiente;
                         return $linea;
                     })->values()->all()
@@ -632,6 +669,7 @@ class FacturacionUnificada extends Component
             $this->reglasExpoOferta = array_key_exists('generales', $snapshot)
                 ? $snapshot
                 : ['version' => 1, 'generales' => $snapshot, 'marcas' => [], 'lineas' => []];
+            $this->cargarAtribucionesDescuentoExpo((int) $pref->cotizacion_id);
         }
         $marcasSnapshot = collect($this->reglasExpoOferta['lineas'] ?? [])->keyBy('linea_id');
 

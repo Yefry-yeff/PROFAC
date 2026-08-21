@@ -2121,11 +2121,27 @@
                 <div style="font-size:12px; color:#607d8b; margin:10px 0 4px;">
                     <i class="fa fa-files-o mr-1"></i>{{ count($facturasData) }} factura(s) registradas en este flujo
                 </div>
+
+                @if ($expoConSaldoPendiente)
+                <div style="margin-top:10px; padding:11px 13px; border:1px solid #a5d6a7; border-radius:10px; background:#f1f8e9; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+                    <div style="font-size:12px; color:#33691e;">
+                        <strong><i class="fa fa-tags mr-1"></i>Oferta Expo con productos pendientes</strong>
+                        <div style="font-size:11px; margin-top:2px;">Puede generar otra factura usando únicamente las cantidades disponibles de la oferta.</div>
+                    </div>
+                    <button type="button" wire:click="facturarPrefacturaDirecta"
+                            wire:loading.attr="disabled" wire:target="facturarPrefacturaDirecta"
+                            style="border-radius:8px; padding:7px 14px; background:#2e7d32; color:#fff; border:none; font-size:12px; font-weight:700; cursor:pointer;">
+                        <span wire:loading.remove wire:target="facturarPrefacturaDirecta"><i class="fa fa-plus-circle mr-1"></i>Continuar facturando</span>
+                        <span wire:loading wire:target="facturarPrefacturaDirecta"><i class="fa fa-spinner fa-spin mr-1"></i>Procesando...</span>
+                    </button>
+                </div>
+                @endif
+
                 @foreach ($facturasData as $fac)
-                <div style="margin-top:12px; background:#fff; border:1px solid #e8eaf0; border-radius:10px; padding:12px;">
-                    <div style="background:#fff; border-radius:10px; border:1px solid #e8eaf0;
-                                padding:12px 14px; margin-bottom:10px; font-size:12px; color:#555;">
-                        <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:center;">
+                <details @if($facturaSeleccionadaId === (int)$fac['id']) open @endif
+                         style="margin-top:12px; background:#fff; border:1px solid #e8eaf0; border-radius:10px; overflow:hidden;">
+                    <summary style="padding:12px 14px; font-size:12px; color:#555; cursor:pointer; list-style:none; background:#f8f9fc;">
+                        <span style="display:flex; flex-wrap:wrap; gap:12px; align-items:center;">
                             <span><i class="mr-1 fa fa-file-text text-primary"></i><strong>Factura #{{ $fac['id'] }}</strong></span>
                             <span><i class="mr-1 fa fa-user text-info"></i>{{ $fac['nombre_cliente'] ?? ($d['cliente'] ?? '—') }}</span>
                             <span><i class="mr-1 fa fa-calendar text-muted"></i>{{ \Carbon\Carbon::parse($fac['fecha_emision'] ?? $fac['created_at'])->format('d/m/Y') }}</span>
@@ -2133,8 +2149,10 @@
                             <span style="background:{{ (int)($fac['estado_venta_id'] ?? 0) === 1 ? '#e8f5e9' : '#ffebee' }}; color:{{ (int)($fac['estado_venta_id'] ?? 0) === 1 ? '#1b5e20' : '#b71c1c' }}; border-radius:8px; padding:2px 9px; font-weight:700;">
                                 {{ (int)($fac['estado_venta_id'] ?? 0) === 1 ? 'Activa' : 'Anulada' }}
                             </span>
-                        </div>
-                    </div>
+                            <span style="margin-left:auto; color:#607d8b; font-weight:700;"><i class="fa fa-chevron-down mr-1"></i>Ver opciones</span>
+                        </span>
+                    </summary>
+                    <div style="padding:12px;">
 
                     @if (!empty($fac['productos']))
                     <div style="border-radius:10px; overflow:hidden; border:1px solid #e8eaf0;
@@ -2229,7 +2247,8 @@
                         </div>
                     </div>
                     @endif
-                </div>
+                    </div>
+                </details>
                 @endforeach
 
                 @if(!empty($liquidacionExpoPendiente))
@@ -2499,20 +2518,6 @@
 
             {{-- ── Footer ─────────────────────────────────────────────── --}}
             <div class="modal-footer fmp-foot" style="border:none; background:#f8f9fc;">
-
-                @if ($facturaCompletada && $expoConSaldoPendiente && $prefacturaPuedeFacturar)
-                <button id="btn-facturar-expo-pendiente" type="button" wire:click="facturarPrefacturaDirecta"
-                        wire:loading.attr="disabled" wire:target="facturarPrefacturaDirecta"
-                        style="border-radius:20px; padding:6px 20px; background:linear-gradient(135deg,#1b5e20,#2e7d32);
-                               color:#fff; border:none; font-size:13px; font-weight:700; cursor:pointer;">
-                    <span wire:loading.remove wire:target="facturarPrefacturaDirecta">
-                        <i class="mr-1 fa fa-file-text"></i> Facturar
-                    </span>
-                    <span wire:loading wire:target="facturarPrefacturaDirecta">
-                        <i class="fa fa-spinner fa-spin mr-1"></i> Procesando...
-                    </span>
-                </button>
-                @endif
 
                 <button type="button" wire:click="cerrar"
                         style="border-radius:20px; padding:6px 20px; background:#f0f0f0;

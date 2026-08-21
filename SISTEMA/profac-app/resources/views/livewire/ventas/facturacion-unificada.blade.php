@@ -674,6 +674,7 @@
                             </div>{{-- /of-card cliente --}}
 
                             {{-- ── SECCIÓN 2: Agregar Producto ─────────────────────────── --}}
+                            @unless($esOfertaExpo)
                             <span id="ico_sec_producto" style="display:none;"></span>
                             <div class="of-card">
                             <div class="of-card-title d-flex align-items-center" onclick="toggleOfCard('body_producto', this)">
@@ -779,6 +780,7 @@
                             </div>{{-- /sec_producto --}}
                             </div>{{-- /body_producto --}}
                             </div>{{-- /of-card producto --}}
+                            @endunless
 
                             @if($esOfertaExpo && (!$fromPrefactura || request()->boolean('expo_parcial')) && count($productosParaCarrito) > 0)
                             <div class="of-card" style="padding:16px 20px;">
@@ -1841,6 +1843,7 @@
     var expoConfig = @json($expoConfig ?? null);
     var esOfertaExpo = {!! $esOfertaExpo ? 'true' : 'false' !!};
     var reglasExpoOferta = @json($reglasExpoOferta ?? []);
+    var atribucionesDescuentoExpo = @json($atribucionesDescuentoExpo ?? []);
     var seleccionandoProductoCotizadorExpo = false;
     var productoCotizadorExpo = null;
     var datosCalculoCotizadorExpo = null;
@@ -2953,6 +2956,8 @@
         var panel = document.getElementById('historialPreciosPanel');
         var cuerpo = document.getElementById('historialPreciosCuerpo');
 
+        if (!panel || !cuerpo) return;
+
         if (!productoId || !clienteId) {
             cuerpo.innerHTML = '<p class="mb-0 text-muted small">Sin ventas previas de este producto a este cliente.</p>';
             return;
@@ -3688,6 +3693,23 @@
             var linea = calculo.lineas[id];
             var indicador = document.getElementById('descuentoExpoProducto' + id);
             if (indicador) {
+                if (esOfertaExpo) {
+                    var detalles = [];
+                    if (Number(linea?.descuentoMarca || 0) > 0.005) {
+                        detalles.push('<div style="white-space:nowrap;"><span style="color:#546e7a;">Marca ('
+                            + Number(linea?.porcentajeMarca || 0).toFixed(2) + '%):</span> <strong style="color:#1b5e20;">'
+                            + formatoMoneda(linea.descuentoMarca) + '</strong></div>');
+                    }
+                    if (Number(linea?.descuentoGeneral || 0) > 0.005) {
+                        detalles.push('<div style="white-space:nowrap;"><span style="color:#546e7a;">General ('
+                            + Number(linea?.porcentajeGeneral || 0).toFixed(2) + '%):</span> <strong style="color:#1565c0;">'
+                            + formatoMoneda(linea.descuentoGeneral) + '</strong></div>');
+                    }
+                    detalles.push('<div style="white-space:nowrap;"><span style="color:#546e7a;">Firmado:</span> '
+                        + '<strong style="color:#1b5e20;">' + formatoMoneda(linea?.descuentoTotal || 0) + '</strong></div>');
+                    indicador.innerHTML = detalles.join('');
+                    return;
+                }
                 indicador.innerHTML = '<div style="white-space:nowrap;"><span style="color:#546e7a;">Marca:</span> '
                     + '<strong style="color:#1b5e20;">' + formatoMoneda(linea?.descuentoMarca || 0) + '</strong></div>'
                     + '<div style="white-space:nowrap;"><span style="color:#546e7a;">Subtotal:</span> '
@@ -3698,6 +3720,67 @@
 
     function calcularDescuentosCarritoExpo() {
         if (!expoConfig) return null;
+        if (esOfertaExpo) {
+            var resultadoFirmado = { lineas: {}, marcas: {}, totalDescuento: 0, totalBruto: 0, porcentajeGeneral: 0 };
+            var redondearMoneda = function(valor) { return Math.round((valor + Number.EPSILON) * 100) / 100; };
+
+            arregloIdInputs.forEach(function(id) {
+                var precio = Number(document.getElementById('precio' + id)?.value || 0);
+                var cantidad = Number(document.getElementById('cantidad' + id)?.value || 0);
+                var unidad = Number(document.getElementById('unidad' + id)?.value || 0);
+                var cantidadOfertada = Number(document.getElementById('cantidadOfertaExpo' + id)?.value || 0);
+                var descuentoOferta = Number(document.getElementById('descuentoOfertaExpo' + id)?.value || 0);
+                var marcaId = Number(document.getElementById('marcaExpoId' + id)?.value || 0);
+                var lineaOfertaId = Number(document.getElementById('cotizacionLineaId' + id)?.value || 0);
+                var atribucion = atribucionesDescuentoExpo[lineaOfertaId] || {};
+                var importe = redondearMoneda(precio * cantidad * unidad);
+                var cantidadFacturada = cantidad;
+                var descuentoTotal = cantidadOfertada > 0
+                    ? redondearMoneda(descuentoOferta * cantidadFacturada / cantidadOfertada)
+                    : 0;
+                descuentoTotal = Math.min(descuentoTotal, importe);
+                var subtotalNeto = redondearMoneda(importe - descuentoTotal);
+                var porcentajeIsv = tipoFacturaConfig && !tipoFacturaConfig.aplica_isv
+                    ? 0
+                    : Number(document.getElementById('isv' + id)?.value || 0);
+                var isv = redondearMoneda(subtotalNeto * porcentajeIsv / 100);
+                var nombreMarca = document.getElementById('marcaExpoNombre' + id)?.value
+                    || (marcaId ? 'Marca ' + marcaId : 'SIN MARCA');
+                var porcentajeMarca = Number(atribucion.porcentaje_marca || 0);
+                var porcentajeGeneral = Number(atribucion.porcentaje_general || 0);
+                var descuentoMarca = redondearMoneda(descuentoTotal * Number(atribucion.proporcion_marca || 0));
+                var descuentoGeneral = redondearMoneda(descuentoTotal - descuentoMarca);
+
+                resultadoFirmado.lineas[id] = {
+                    porcentajeMarca: porcentajeMarca,
+                    porcentajeGeneral: porcentajeGeneral,
+                    descuentoMarca: descuentoMarca,
+                    descuentoGeneral: descuentoGeneral,
+                    descuentoTotal: descuentoTotal,
+                    subtotalNeto: subtotalNeto,
+                    isv: isv,
+                    total: redondearMoneda(subtotalNeto + isv)
+                };
+                if (!resultadoFirmado.marcas[marcaId]) {
+                    resultadoFirmado.marcas[marcaId] = { nombre: nombreMarca, porcentajeMarca: porcentajeMarca, porcentajeGeneral: porcentajeGeneral, cantidad: 0, subtotal: 0, descuentoMarca: 0, descuentoGeneral: 0, descuentoTotal: 0 };
+                }
+                var marca = resultadoFirmado.marcas[marcaId];
+                marca.cantidad += cantidadFacturada;
+                marca.subtotal += importe;
+                marca.descuentoMarca += descuentoMarca;
+                marca.descuentoGeneral += descuentoGeneral;
+                marca.descuentoTotal += descuentoTotal;
+                resultadoFirmado.totalBruto += importe;
+                resultadoFirmado.totalDescuento += descuentoTotal;
+            });
+
+            resultadoFirmado.porcentajeGeneral = Math.max.apply(null, [0].concat(
+                Object.values(resultadoFirmado.marcas).map(function(marca) { return Number(marca.porcentajeGeneral || 0); })
+            ));
+
+            return resultadoFirmado;
+        }
+
         var configuracion = esOfertaExpo ? reglasExpoOferta : expoConfig;
         var reglasMarca = esOfertaExpo
             ? (Array.isArray(configuracion.marcas) ? configuracion.marcas : [])
@@ -3782,13 +3865,14 @@
     function renderizarResumenDescuentoExpo(calculo) {
         var contenedor = document.getElementById('descuentoExpoResumenMarcas');
         if (!contenedor || !calculo) return;
-        var marcas = Object.values(calculo.marcas).filter(function(marca) { return marca.subtotal > 0; });
+        var todasLasMarcas = Object.values(calculo.marcas).filter(function(marca) { return marca.subtotal > 0; });
+        var marcas = todasLasMarcas.filter(function(marca) { return marca.descuentoMarca > 0.005; });
         var filasMarca = marcas.map(function(marca) {
             return '<div class="d-flex justify-content-between" style="gap:12px; color:#546e7a;">'
-                + '<span>' + $('<div>').text(marca.nombre).html() + ' <strong>(' + Number(marca.porcentajeMarca || 0).toFixed(2) + '%)</strong></span>'
+                + '<span>Marca ' + $('<div>').text(marca.nombre).html() + ' <strong>(' + Number(marca.porcentajeMarca || 0).toFixed(2) + '%)</strong></span>'
                 + '<strong>' + formatoMoneda(marca.descuentoMarca) + '</strong></div>';
         }).join('');
-        var totalGeneral = marcas.reduce(function(total, marca) { return total + marca.descuentoGeneral; }, 0);
+        var totalGeneral = todasLasMarcas.reduce(function(total, marca) { return total + marca.descuentoGeneral; }, 0);
         var filaGeneral = '<div class="d-flex justify-content-between" style="gap:12px; color:#546e7a;">'
             + '<span>Descuento general <strong>(' + Number(calculo.porcentajeGeneral || 0).toFixed(2) + '%)</strong></span>'
             + '<strong>' + formatoMoneda(totalGeneral) + '</strong></div>';
@@ -4230,7 +4314,8 @@
     var _revisionFlujoId   = null;
 
     function limpiarFormularioVenta(data) {
-        document.getElementById('bloqueImagenes').innerHTML = '';
+        var bloqueImagenes = document.getElementById('bloqueImagenes');
+        if (bloqueImagenes) bloqueImagenes.innerHTML = '';
         var carritoTbodyEl = document.getElementById('carritoTbody');
         if (carritoTbodyEl) carritoTbodyEl.innerHTML = '';
         document.getElementById("crear_venta").reset();
@@ -4251,12 +4336,17 @@
         if (selectOrden) selectOrden.innerHTML = '<option value="" selected disabled>--Seleccionar--</option>';
 
         // Producto
-        document.getElementById('seleccionarProducto').innerHTML = '<option value="" selected disabled></option>';
-        document.getElementById('codigoProductoBuscar').value = '';
+        var seleccionarProducto = document.getElementById('seleccionarProducto');
+        if (seleccionarProducto) seleccionarProducto.innerHTML = '<option value="" selected disabled></option>';
+        var codigoProductoBuscar = document.getElementById('codigoProductoBuscar');
+        if (codigoProductoBuscar) codigoProductoBuscar.value = '';
         var lblProd = document.getElementById('productoSeleccionadoLabel');
         if (lblProd) { lblProd.classList.add('d-none'); lblProd.textContent = ''; }
-        document.getElementById('bodega').innerHTML = '<option value="" selected disabled>--Seleccione un producto--</option>';
-        document.getElementById("bodega").disabled = true;
+        var bodega = document.getElementById('bodega');
+        if (bodega) {
+            bodega.innerHTML = '<option value="" selected disabled>--Seleccione un producto--</option>';
+            bodega.disabled = true;
+        }
         var botonAddEl = document.getElementById('botonAdd');
         if (botonAddEl) botonAddEl.classList.add('d-none');
 
@@ -4738,10 +4828,8 @@
                 return;
             }
         }
-        // 1. Para facturas normales: mostrar modal de actores antes de guardar.
-        // Las facturas Expo conservan los actores del flujo y no requieren selección manual.
-        var esFacturaExpo = {!! $esOfertaExpo ? 'true' : 'false' !!};
-        if (codigoActual !== 'cotizacion_clientes_a' && !esFacturaExpo) {
+        // 1. Toda factura debe confirmar sus actores antes de guardar.
+        if (codigoActual !== 'cotizacion_clientes_a') {
             var gestorHidden = document.getElementById('gestor_entrega_hidden');
             if (!gestorHidden || !gestorHidden.getAttribute('data-confirmed')) {
                 mostrarModalGestorEntrega();
@@ -5393,6 +5481,8 @@
                         <td style="vertical-align:middle; text-align:center; padding:4px 6px;">
                             <input id="idProducto${idx}" name="idProducto${idx}" type="hidden" value="${producto.id}">
                             <input id="cotizacionLineaId${idx}" name="cotizacionLineaId${idx}" type="hidden" value="${prod.cotizacion_has_producto_id || ''}">
+                            <input id="cantidadOfertaExpo${idx}" type="hidden" value="${prod.cantidad_ofertada || prod.cantidad || 0}">
+                            <input id="descuentoOfertaExpo${idx}" type="hidden" value="${prod.monto_descProducto || 0}">
                             <input id="marcaExpoId${idx}" type="hidden" value="${prod.marca_id || 0}">
                             <input id="marcaExpoNombre${idx}" type="hidden" value="${prod.marca_nombre || producto.marca || 'SIN MARCA'}">
                             <input id="precios_producto_carga_id${idx}" name="precios_producto_carga_id${idx}" type="hidden" value="${producto.precios_producto_carga_id || ''}">

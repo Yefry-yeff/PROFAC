@@ -2521,6 +2521,7 @@ class ModalFlujoPedido extends Component
 
     private function cargarFactura(): void
     {
+        $this->cargarPrefactura();
         $this->cargarLiquidacionExpoPendiente();
         $facturaIds = $this->obtenerFacturaIdsFlujo();
         if (empty($facturaIds)) {
