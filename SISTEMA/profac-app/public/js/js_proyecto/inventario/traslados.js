@@ -5,32 +5,12 @@ var idProductoArray = [];
 var idRecibidoArray = [];
 var idRecibido = null;
 var _trasladoIdActual = null;  // ID del traslado guardado (para impresión)
-window.__traslados_bodega_id = '';   // usado por el buscador-producto para filtrar por bodega
+var secuenciaBusquedaProductoTraslado = 0;
 
 $(document).ready(function() {
     listarBodegas();
 
-    inicializarSelect2Bodega();
-
-    // Delegación de evento — funciona aunque Livewire re-morfee el DOM
-    $(document).on('select2:select', '#selectBodega', function () {
-        obteneProducto();
-    });
 });
-
-function inicializarSelect2Bodega() {
-    var $sel = $('#selectBodega');
-    if (!$sel.length) return;
-    // Destruir instancia previa si ya existe (evita doble init)
-    if ($sel.hasClass('select2-hidden-accessible')) {
-        $sel.select2('destroy');
-    }
-    $sel.select2({
-        ajax: {
-            url: '/translado/lista/bodegas',
-        }
-    });
-}
 
 $(document).on('submit', '#selec_data_form', function(event) {
     event.preventDefault();
@@ -43,37 +23,64 @@ function limpiar(){
 
 
 
-// Al cambiar bodega: actualiza la variable global que usa el buscador y habilita el botón de buscar
-function obteneProducto() {
-    var selectedData = $('#selectBodega').select2('data');
-    var idBodega = (selectedData && selectedData.length > 0) ? selectedData[0].id : document.getElementById('selectBodega').value;
-    if (!idBodega) return;
-    window.__traslados_bodega_id = idBodega;
-    // Limpiar producto seleccionado anterior
-    document.getElementById('selectProducto').value = '';
-    document.getElementById('productoTraslado_nombre').value = '';
-    document.getElementById('btn_abrir_buscador_traslado').disabled = false;
+function abrirBuscadorProductoTraslado() {
+    var termino = document.getElementById('productoTraslado_nombre').value.trim();
+    window['abrirBuscador_buscadorProductoTraslados'](termino);
+}
+
+function prepararNuevaBusquedaProductoTraslado(valorActual) {
+    var seleccionado = document.getElementById('selectProducto');
+    if (!seleccionado.value) return;
+    seleccionado.value = '';
+    document.getElementById('ubicaciones_traslado_panel').style.display = 'none';
+    document.getElementById('productoTraslado_nombre').value = valorActual || '';
+    secuenciaBusquedaProductoTraslado++;
+}
+
+function buscarPorCodigoTraslado(codigo) {
+    codigo = String(codigo || '').trim();
+    if (!codigo) {
+        abrirBuscadorProductoTraslado();
+        return;
+    }
+
+    var secuenciaActual = ++secuenciaBusquedaProductoTraslado;
+    axios.get('/productos/buscar', { params: { q: codigo, page: 1 } })
+        .then(function(response) {
+            if (secuenciaActual !== secuenciaBusquedaProductoTraslado) return;
+            var productos = response.data.data || [];
+            var exacto = productos.find(function(producto) {
+                return String(producto.id) === codigo
+                    || String(producto.codigo_barra || '').trim() === codigo
+                    || String(producto.codigo_estatal || '').trim() === codigo;
+            });
+
+            if (exacto) alSeleccionarProductoTraslado(exacto);
+            else if (productos.length === 1) alSeleccionarProductoTraslado(productos[0]);
+            else window['abrirBuscador_buscadorProductoTraslados'](codigo);
+        })
+        .catch(function() {
+            if (secuenciaActual !== secuenciaBusquedaProductoTraslado) return;
+            window['abrirBuscador_buscadorProductoTraslados'](codigo);
+        });
 }
 
 // Callback invocado por el buscador-producto cuando el usuario selecciona un producto
 function alSeleccionarProductoTraslado(producto) {
     document.getElementById('selectProducto').value = producto.id;
     document.getElementById('productoTraslado_nombre').value = producto.id + ' - ' + producto.nombre;
+    document.getElementById('producto_ubicaciones_traslado_texto').textContent = producto.id + ' - ' + producto.nombre + '.';
+    document.getElementById('ubicaciones_traslado_panel').style.display = 'block';
+    obtenerListaBodega();
 }
 
 function obtenerListaBodega() {
-
-    var selectedData = $('#selectBodega').select2('data');
-    let idBodega = (selectedData && selectedData.length > 0) ? selectedData[0].id : document.getElementById('selectBodega').value;
     let idProducto = document.getElementById('selectProducto').value;
-    //let data = {'idBodega':idBodega, 'idProducto',idProducto};
+    if (!idProducto) return;
 
-    let table = $('#tbl_translados').DataTable();
-    //let table2 = document.getElementById('tbl_translados_destino');
-    table.destroy();
-
-
-    //table2.destroy();
+    if ($.fn.DataTable.isDataTable('#tbl_translados')) {
+        $('#tbl_translados').DataTable().destroy();
+    }
 
     $('#tbl_translados').DataTable({
         "language": {
@@ -81,7 +88,7 @@ function obtenerListaBodega() {
         },
         pageLength: 10,
         responsive: true,
-        "ajax": "/translado/producto/lista/" + idBodega + "/" + idProducto,
+        "ajax": "/translado/producto/ubicaciones/" + idProducto,
         "columns": [{
                 data: 'idProducto'
             },
@@ -112,7 +119,7 @@ function obtenerListaBodega() {
         ],
         drawCallback: function() {
             var sum = $('#tbl_translados').DataTable().column(3).data().sum();
-            let html = 'Cantidad Total en Bodega: ' + sum
+            let html = 'Cantidad total disponible: ' + Number(sum || 0).toLocaleString('es-HN', { maximumFractionDigits: 2 });
             $('#total').html(html);
         }
 
@@ -125,8 +132,8 @@ function obtenerListaBodega() {
     // console.log(suma);
 }
 
-function modalTranslado(idRecibido, cantidadDisponible, idProducto) {
-    this.idRecibido = idRecibido
+function modalTranslado(idsRecibido, cantidadDisponible, idProducto) {
+    this.idRecibido = idsRecibido
     document.getElementById('cantidad').max = cantidadDisponible;
 
     //console.log(idProducto);

@@ -182,16 +182,17 @@ class Ajustes extends Component
 
         $listaProductos = DB::select("
             select
-                A.id as idRecibido,
+                min(A.id) as idRecibido,
+                group_concat(A.id order by A.created_at, A.id separator ',') as idsRecibido,
                 B.id as idProducto,
                 B.nombre,
                 C.nombre as simbolo,
-                A.cantidad_disponible,
+                sum(A.cantidad_disponible) as cantidad_disponible,
                 bodega.id as idBodega,
                 bodega.nombre as bodega,
                 seccion.id as idSeccion,
                 seccion.descripcion,
-                A.created_at
+                min(A.created_at) as created_at
             from recibido_bodega A
                 inner join producto B on A.producto_id = B.id
                 inner join seccion on A.seccion_id = seccion.id
@@ -200,7 +201,8 @@ class Ajustes extends Component
                 inner join unidad_medida C on B.unidad_medida_compra_id = C.id
             where A.cantidad_disponible <> 0
                 and A.producto_id = ?
-            order by bodega.nombre, seccion.descripcion, A.created_at
+            group by B.id, B.nombre, C.nombre, bodega.id, bodega.nombre, seccion.id, seccion.descripcion
+            order by bodega.nombre, seccion.descripcion
         ", [(int) $request->idProducto]);
 
         return Datatables::of($listaProductos)
@@ -209,7 +211,7 @@ class Ajustes extends Component
             return
 
             '<div class="text-center">
-                <button class="btn btn-sm btn-primary" onclick="datosProducto('.$producto->idProducto.','.$producto->idRecibido.','.$producto->cantidad_disponible.')">
+                <button class="btn btn-sm btn-primary" onclick="datosProducto('.$producto->idProducto.',\''.$producto->idsRecibido.'\','.$producto->cantidad_disponible.')">
                     <i class="fa fa-check mr-1"></i> Seleccionar
                 </button>
 
@@ -268,7 +270,7 @@ class Ajustes extends Component
                         $keyTotal_unidades = "total_unidades".$arregloIdInputs[$i];
 
 
-                        $idRecibido = $request->$keyIdRecibido;
+                        $idsRecibido = array_values(array_filter(array_map('intval', explode(',', (string) $request->$keyIdRecibido))));
                         $aritmetica = $request->$keyAritmetica;
                         $idProducto = $request->$keyIdProducto;
                         $nombre_producto = $request->$keyNombre_producto;
@@ -276,12 +278,14 @@ class Ajustes extends Component
                         $total_unidades = $request->$keyTotal_unidades;
 
 
-                        $lote = ModelRecibirBodega::find($idRecibido);
+                        $lotes = ModelRecibirBodega::whereIn('id', $idsRecibido)
+                            ->where('producto_id', $idProducto)
+                            ->get();
 
                         if($aritmetica==1){
-                            $operacion = $lote->cantidad_disponible + $total_unidades;
+                            $operacion = $lotes->sum('cantidad_disponible') + $total_unidades;
                         }else{
-                            $operacion = $lote->cantidad_disponible - $total_unidades;
+                            $operacion = $lotes->sum('cantidad_disponible') - $total_unidades;
                             if($operacion<0){
                                 $msjCantidadRestarCuerpo = "<p> <b>".$msjCantidadRestarCuerpo.$idProducto ."-".$nombre_producto.".</b> </p> <br>";
                             }
@@ -334,7 +338,7 @@ class Ajustes extends Component
 
 
 
-                        $idRecibido = $request->$keyIdRecibido;
+                        $idsRecibido = array_values(array_filter(array_map('intval', explode(',', (string) $request->$keyIdRecibido))));
                         $aritmetica = $request->$keyAritmetica;
                         $idProducto = $request->$keyIdProducto;
                         $nombre_producto = $request->$keyNombre_producto;
@@ -347,50 +351,65 @@ class Ajustes extends Component
 
 
 
-                        $lote = ModelRecibirBodega::find($idRecibido);
-
-
+                        $lotes = ModelRecibirBodega::whereIn('id', $idsRecibido)
+                            ->where('producto_id', $idProducto)
+                            ->orderBy('created_at')
+                            ->orderBy('id')
+                            ->lockForUpdate()
+                            ->get();
 
                         if($aritmetica==1){
-                            $operacion = $lote->cantidad_disponible +  $total_unidades;
                             $ajusteTipoAritmetica = "Ajuste de tipo suma de unidades";
+                            $distribucion = [[$lotes->first(), $total_unidades]];
                         }elseif($aritmetica==2){
-
-                            $operacion = $lote->cantidad_disponible -  $total_unidades;
                             $ajusteTipoAritmetica = "Ajuste de tipo resta de unidades";
+                            $distribucion = [];
+                            $unidadesPendientes = $total_unidades;
+
+                            foreach ($lotes as $lote) {
+                                if ($unidadesPendientes <= 0) {
+                                    break;
+                                }
+
+                                $unidadesLote = min($lote->cantidad_disponible, $unidadesPendientes);
+                                $distribucion[] = [$lote, $unidadesLote];
+                                $unidadesPendientes -= $unidadesLote;
+                            }
 
                         }
 
+                        foreach ($distribucion as [$lote, $unidadesLote]) {
+                        $cantidadLote = $total_unidades > 0
+                            ? $cantidad * ($unidadesLote / $total_unidades)
+                            : 0;
 
 
                         $ajusteProducto = new ModelAjusteProducto;
                         $ajusteProducto->ajuste_id = $ajuste->id;
                         $ajusteProducto->producto_id = $idProducto;
-                        $ajusteProducto->recibido_bodega_id = $idRecibido;
+                        $ajusteProducto->recibido_bodega_id = $lote->id;
                         $ajusteProducto->tipo_aritmetica = $aritmetica;
                         $ajusteProducto->precio_producto = $precio_producto;
                         $ajusteProducto->cantidad_inicial = $lote->cantidad_disponible;
-                        $ajusteProducto->cantidad = $cantidad;
-                        $ajusteProducto->cantidad_total = $total_unidades;
+                        $ajusteProducto->cantidad = $cantidadLote;
+                        $ajusteProducto->cantidad_total = $unidadesLote;
                         $ajusteProducto->unidad_medida_venta_id = $idUnidadVenta;
                         $ajusteProducto->save();
 
-                        $lote->cantidad_disponible = $operacion;
+                        $lote->cantidad_disponible += $aritmetica == 1 ? $unidadesLote : -$unidadesLote;
                         $lote->save();
 
 
                         $logRegistro = new ModelLogTranslados;
-                        $logRegistro->origen=$idRecibido;
-                        $logRegistro->cantidad= $total_unidades;
+                        $logRegistro->origen=$lote->id;
+                        $logRegistro->cantidad= $unidadesLote;
                         $logRegistro->unidad_medida_venta_id = $idUnidadVenta;
                         $logRegistro->users_id=Auth::user()->id;
                         $logRegistro->descripcion=$ajusteTipoAritmetica;
                         $logRegistro->ajuste_id=$ajuste->id;
                         $logRegistro->save();
 
-
-
-
+                        }
                     }
 
 

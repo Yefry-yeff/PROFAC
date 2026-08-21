@@ -737,6 +737,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/translado/lista/productos', [Translados::class, 'listarProductos']);
     Route::get('/translado/lista/bodegas', [Translados::class, 'listarBodegas']);
     Route::get('/translado/producto/lista/{idBodega}/{idProducto}', [Translados::class, 'productoBodega']);
+    Route::get('/translado/producto/ubicaciones/{idProducto}', [Translados::class, 'ubicacionesProducto']);
     Route::get('/translado/destino/lista/{numeroFilas}', [Translados::class, 'productoGeneralBodega']);
     Route::post('/translado/producto/bodega', [Translados::class, 'ejectarTranslado']);
     // Endpoints optimizados del buscador de productos (filtrados por bodega, solo vista traslados)
