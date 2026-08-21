@@ -12,7 +12,7 @@ class GestorAumentoExpo
     /**
      * @param array<int, array{id:int, descuento_otorgado:float}> $facturas
      */
-    public function aplicar(int $expoCotizacionId, array $facturas, float $monto, int $usuarioId): array
+    public function aplicar(int $expoCotizacionId, array $facturas, float $monto, int $usuarioId, array $facturasExcluidas = []): array
     {
         $existentes = DB::table('expo_cotizacion_aumento')
             ->where('expo_cotizacion_id', $expoCotizacionId)
@@ -27,10 +27,24 @@ class GestorAumentoExpo
             ])->all();
         }
 
-        $distribucion = $this->distribuir($facturas, $monto);
+        $distribucion = $this->prepararDistribucion($facturas, $monto, $facturasExcluidas);
+        foreach ($distribucion['exclusiones'] as $asignacion) {
+            DB::table('expo_cotizacion_aumento_exclusion')->updateOrInsert(
+                [
+                    'expo_cotizacion_id' => $expoCotizacionId,
+                    'factura_id' => $asignacion['factura_id'],
+                ],
+                [
+                    'monto_exonerado' => $asignacion['monto'],
+                    'excluido_por' => $usuarioId,
+                    'created_at' => now(),
+                    'anulada_at' => null,
+                ]
+            );
+        }
         $movimientos = [];
 
-        foreach ($distribucion as $asignacion) {
+        foreach ($distribucion['movimientos'] as $asignacion) {
             $cuenta = DB::table('aplicacion_pagos')
                 ->where('factura_id', $asignacion['factura_id'])
                 ->orderByDesc('id')
@@ -87,6 +101,11 @@ class GestorAumentoExpo
 
     public function revertir(int $expoCotizacionId, int $usuarioId): array
     {
+        DB::table('expo_cotizacion_aumento_exclusion')
+            ->where('expo_cotizacion_id', $expoCotizacionId)
+            ->whereNull('anulada_at')
+            ->update(['anulada_at' => now()]);
+
         $aumentos = DB::table('expo_cotizacion_aumento')
             ->where('expo_cotizacion_id', $expoCotizacionId)
             ->whereNull('disminucion_movimiento_id')
@@ -180,5 +199,22 @@ class GestorAumentoExpo
                 'monto' => $asignado,
             ];
         }, $facturas, array_keys($facturas));
+    }
+
+    public function prepararDistribucion(array $facturas, float $monto, array $facturasExcluidas): array
+    {
+        $distribucion = $this->distribuir($facturas, $monto);
+        $facturasExcluidas = array_map('intval', $facturasExcluidas);
+
+        return [
+            'movimientos' => array_values(array_filter(
+                $distribucion,
+                fn (array $asignacion) => !in_array($asignacion['factura_id'], $facturasExcluidas, true)
+            )),
+            'exclusiones' => array_values(array_filter(
+                $distribucion,
+                fn (array $asignacion) => in_array($asignacion['factura_id'], $facturasExcluidas, true)
+            )),
+        ];
     }
 }

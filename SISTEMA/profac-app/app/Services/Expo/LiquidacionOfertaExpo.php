@@ -30,13 +30,21 @@ class LiquidacionOfertaExpo
         }
 
         $facturaIds = $this->facturasActivasFlujo($flujoId, $facturaAdicionalId);
-        $facturas = DB::table('factura')
-            ->whereIn('id', $facturaIds)
-            ->where('estado_venta_id', 1)
-            ->orderBy('fecha_vencimiento')
-            ->orderBy('fecha_emision')
-            ->orderBy('id')
-            ->get(['id', 'cai', 'fecha_emision', 'fecha_vencimiento', 'sub_total', 'sub_total_grabado', 'sub_total_excento', 'isv', 'total']);
+        $facturas = DB::table('factura as f')
+            ->leftJoin('users as asesor', 'asesor.id', '=', 'f.vendedor')
+            ->leftJoin('users as teleasesor', 'teleasesor.id', '=', 'f.users_id')
+            ->leftJoin('users as gestor', 'gestor.id', '=', 'f.gestor_entrega')
+            ->whereIn('f.id', $facturaIds)
+            ->where('f.estado_venta_id', 1)
+            ->orderBy('f.fecha_vencimiento')
+            ->orderBy('f.fecha_emision')
+            ->orderBy('f.id')
+            ->get([
+                'f.id', 'f.cai', 'f.fecha_emision', 'f.fecha_vencimiento', 'f.sub_total',
+                'f.sub_total_grabado', 'f.sub_total_excento', 'f.isv', 'f.total',
+                'f.cliente_id', 'f.nombre_cliente', 'asesor.name as asesor',
+                'teleasesor.name as teleasesor', 'gestor.name as gestor',
+            ]);
 
         $detallesFacturados = DB::table('venta_has_producto as vhp')
             ->join('producto as p', 'p.id', '=', 'vhp.producto_id')
@@ -69,6 +77,7 @@ class LiquidacionOfertaExpo
         $lineasCalculo = [];
         $descuentoOtorgado = 0.0;
         $descuentosOtorgadosFactura = [];
+        $descuentosOtorgadosMarca = [];
         foreach ($detallesFacturados as $detalle) {
             $lineaSnapshot = $lineasSnapshot->get((int) $detalle->linea_id, []);
             $marcaId = (int) ($lineaSnapshot['marca_id'] ?? $detalle->marca_producto_id ?? 0);
@@ -78,6 +87,8 @@ class LiquidacionOfertaExpo
             $descuentoOtorgado += $descuentoLinea;
             $facturaId = (int) $detalle->factura_id;
             $descuentosOtorgadosFactura[$facturaId] = ($descuentosOtorgadosFactura[$facturaId] ?? 0)
+                + $descuentoLinea;
+            $descuentosOtorgadosMarca[$marcaId] = ($descuentosOtorgadosMarca[$marcaId] ?? 0)
                 + $descuentoLinea;
         }
         $descuentoOtorgado = round($descuentoOtorgado, 2);
@@ -94,6 +105,16 @@ class LiquidacionOfertaExpo
                 'porcentaje_descuento' => (float) $porcentajeMarca,
             ];
         }
+        $detalleMarcas = collect($calculo['detalle_marcas'])->map(function (array $detalle) use ($reglas, $descuentosOtorgadosMarca) {
+            $marcaId = (int) $detalle['marca_id'];
+            $reglaMarca = collect($reglas['marcas'])->first(fn($regla) => (int) $regla['marca_id'] === $marcaId);
+            $lineaMarca = collect($reglas['lineas'])->first(fn($linea) => (int) ($linea['marca_id'] ?? 0) === $marcaId);
+
+            return array_merge($detalle, [
+                'marca' => $reglaMarca['marca'] ?? $lineaMarca['marca'] ?? ('Marca ' . $marcaId),
+                'descuento_otorgado' => round((float) ($descuentosOtorgadosMarca[$marcaId] ?? 0), 2),
+            ]);
+        })->values()->all();
 
         $lineas = $this->saldosLineas->pendientes($cotizacionId);
         $cantidadPendiente = (float) $lineas->sum('cantidad_pendiente');
@@ -113,12 +134,17 @@ class LiquidacionOfertaExpo
                 'subtotal_bruto' => round((float) ($subtotalesBrutos[$factura->id] ?? 0), 2),
                 'total' => round((float) $factura->total, 2),
                 'descuento_otorgado' => round((float) ($descuentosOtorgadosFactura[$factura->id] ?? 0), 2),
+                'cliente' => $factura->nombre_cliente,
+                'asesor' => $factura->asesor ?: 'Sin asignar',
+                'teleasesor' => $factura->teleasesor ?: 'Sin asignar',
+                'gestor' => $factura->gestor ?: 'Sin asignar',
             ])->values()->all(),
             'total_facturado' => $totalFacturado,
             'base_general' => round($totalFacturado - (float) $calculo['descuento_marca'], 2),
             'porcentaje_descuento' => (float) $calculo['porcentaje_general'],
             'descuento_general' => (float) $calculo['descuento_general'],
             'descuentos_marca' => $descuentosMarca,
+            'detalle_marcas' => $detalleMarcas,
             'descuento_marca_total' => (float) $calculo['descuento_marca'],
             'descuento_otorgado' => $descuentoOtorgado,
             'descuento_ganado' => $descuentoGanado,
@@ -144,7 +170,8 @@ class LiquidacionOfertaExpo
         bool $ultimaFactura,
         ?string $motivoCierre,
         int $usuarioId,
-        bool $confirmarLiquidacion = false
+        bool $confirmarLiquidacion = false,
+        array $facturasExcluidas = []
     ): array {
         if (!DB::transactionLevel()) {
             return DB::transaction(fn() => $this->procesar(
@@ -154,7 +181,8 @@ class LiquidacionOfertaExpo
                 $ultimaFactura,
                 $motivoCierre,
                 $usuarioId,
-                $confirmarLiquidacion
+                $confirmarLiquidacion,
+                $facturasExcluidas
             ), 3);
         }
 
@@ -227,17 +255,29 @@ class LiquidacionOfertaExpo
             (int) $expoCotizacion->id,
             $resumen['facturas'],
             (float) $resumen['aumento_calculado'],
-            $usuarioId
+            $usuarioId,
+            $facturasExcluidas
         );
+        $aumentoAplicado = round((float) collect($movimientos)->sum('monto'), 2);
+        $exclusiones = DB::table('expo_cotizacion_aumento_exclusion')
+            ->where('expo_cotizacion_id', $expoCotizacion->id)
+            ->whereNull('anulada_at')
+            ->get(['factura_id', 'monto_exonerado'])
+            ->map(fn ($exclusion) => [
+                'factura_id' => (int) $exclusion->factura_id,
+                'monto' => (float) $exclusion->monto_exonerado,
+            ])->all();
         DB::table('expo_cotizacion')->where('id', $expoCotizacion->id)->update([
             'estado' => 'LIQUIDADA',
-            'aumento_aplicado' => $resumen['aumento_calculado'],
+            'aumento_aplicado' => $aumentoAplicado,
             'liquidado_por' => $usuarioId,
             'liquidado_at' => now(),
         ]);
 
         $resumen['estado'] = 'LIQUIDADA';
         $resumen['aumentos_realizados'] = $movimientos;
+        $resumen['facturas_excluidas'] = $exclusiones;
+        $resumen['aumento_aplicado'] = $aumentoAplicado;
 
         return $resumen;
     }

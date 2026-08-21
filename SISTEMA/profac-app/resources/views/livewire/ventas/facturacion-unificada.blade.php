@@ -1984,7 +1984,11 @@
     @endif
 
     {{-- Buscador de producto reutilizable --}}
-    <x-buscador-producto id-modal="buscadorProductoUnificado" callback="alSeleccionarProducto" />
+    <x-buscador-producto
+        id-modal="buscadorProductoUnificado"
+        callback="alSeleccionarProducto"
+        :expo-id="$filtrarProductosExpo && $expoConfig ? $expoConfig['id'] : null"
+    />
 
     {{-- Modal global de flujo (escucha abrirFlujoPedido / abrirFlujoCotizacion) --}}
     <livewire:flujo.modal-flujo-pedido />
@@ -1997,11 +2001,15 @@
     var tipoFacturaConfig = @json($config);
     var expoConfig = @json($expoConfig ?? null);
     var esOfertaExpo = {!! $esOfertaExpo ? 'true' : 'false' !!};
+    var filtrarProductosExpo = {!! $filtrarProductosExpo ? 'true' : 'false' !!};
     var reglasExpoOferta = @json($reglasExpoOferta ?? []);
     var atribucionesDescuentoExpo = @json($atribucionesDescuentoExpo ?? []);
     var seleccionandoProductoCotizadorExpo = false;
     var productoCotizadorExpo = null;
     var datosCalculoCotizadorExpo = null;
+    var productoExpoAgregandoAutomaticamente = null;
+    var datosProductoExpoPrecargados = null;
+    var bodegaExpoCapturaRapida = null;
 
     // Mapa de URLs por código de tipo de factura
     var urlsPorTipo = {
@@ -2787,6 +2795,9 @@
             cotizarDescuentosProductoExpo(producto);
             return;
         }
+        productoExpoAgregandoAutomaticamente = null;
+        datosProductoExpoPrecargados = null;
+        bodegaExpoCapturaRapida = null;
         var select = document.getElementById('seleccionarProducto');
         select.innerHTML = '<option value="' + producto.id + '" selected>' + producto.nombre + '</option>';
         var campoBusqueda = document.getElementById('codigoProductoBuscar');
@@ -2801,6 +2812,10 @@
     function buscarPorCodigo(cod) {
         cod = String(cod).trim();
         if (!cod) { window['abrirBuscador_buscadorProductoUnificado'](''); return; }
+        if (esCapturaRapidaExpo()) {
+            capturarProductoExpoPorCodigo(cod);
+            return;
+        }
         var secuenciaActual = ++secuenciaBusquedaProducto;
         axios.get('/productos/buscar', { params: { q: cod, page: 1 } })
             .then(function(r) {
@@ -3054,6 +3069,11 @@
 
         $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>Cargando categorías...</option>');
 
+        if (esCapturaRapidaExpo()) {
+            cargarProductoExpoCapturaRapida(productoId);
+            return;
+        }
+
         axios.post('/producto/categorias-disponibles', {
             producto_id: productoId,
             cliente_categoria_escala_id: categoriaEscalaId,
@@ -3090,6 +3110,8 @@
                         $('#categoria_cliente_venta_id option:nth-child(2)').prop('selected', true);
                     }
                     $('#categoria_cliente_venta_id').prop('disabled', false);
+                    precargarDatosProductoExpo(productoId);
+                    intentarAgregarProductoExpoAutomaticamente();
 
                 } else {
                     $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>No hay categorías disponibles</option>');
@@ -3157,26 +3179,183 @@
     // BODEGAS
     // ================================================================
     function obtenerBodegas(id) {
-        document.getElementById('bodega').innerHTML = "<option selected disabled>--Seleccione una bodega--</option>";
+        document.getElementById('bodega').innerHTML = "<option selected disabled>--Cargando bodega--</option>";
         $('#bodega').prop('disabled', false);
         var urlBase = urls.bodegas;
         var url = urlBase.replace('{idProducto}', id);
 
+        function parametrosBodega(params) {
+            var _urlParams = new URLSearchParams(window.location.search);
+            var _modo = _urlParams.get('modo') || '';
+            var _flujoId = _urlParams.get('flujoId') || document.getElementById('flujo_vinculado_id')?.value || '';
+            var _prefacturaId = _urlParams.get('prefactura_id') || document.getElementById('prefactura_vinculada_id')?.value || '';
+            return {
+                search: params?.term || '',
+                type: 'public',
+                page: params?.page || 1,
+                idProducto: id,
+                flujo_id: _flujoId,
+                modo: _modo,
+                prefactura_id: _prefacturaId,
+                permitir_sin_existencia: codigoActual === 'cotizacion_clientes_a' && !filtrarProductosExpo ? 1 : 0,
+                expo_id: filtrarProductosExpo && expoConfig ? expoConfig.id : null
+            };
+        }
+
         $('#bodega').select2({
             ajax: {
                 url: url,
-                data: function(params) {
-                    var _urlParams = new URLSearchParams(window.location.search);
-                    var _modo         = _urlParams.get('modo') || '';
-                    // Priorizar flujoId de la URL (en editar_factura el campo oculto puede estar vacío)
-                    var _flujoId      = _urlParams.get('flujoId') || document.getElementById('flujo_vinculado_id')?.value || '';
-                    // prefactura_id: necesario para excluir su reserva del cálculo de stock
-                    var _prefacturaId = _urlParams.get('prefactura_id') || document.getElementById('prefactura_vinculada_id')?.value || '';
-                    var _permitirSinExistencia = (codigoActual === 'cotizacion_clientes_a') ? 1 : 0;
-                    return { search: params.term, type: 'public', page: params.page || 1, idProducto: id, flujo_id: _flujoId, modo: _modo, prefactura_id: _prefacturaId, permitir_sin_existencia: _permitirSinExistencia };
-                }
+                data: parametrosBodega
             }
         });
+
+        if (filtrarProductosExpo) {
+            axios.get(url, { params: parametrosBodega() })
+                .then(function(response) {
+                    if (String($('#seleccionarProducto').val() || '') !== String(id)) return;
+                    var primeraBodega = response.data?.results?.[0] || null;
+                    $('#bodega').empty();
+
+                    if (!primeraBodega) {
+                        $('#bodega').append(new Option('No hay existencia en las bodegas de la Expo', '', true, true));
+                        $('#bodega').prop('disabled', true);
+                        document.getElementById('botonAdd').classList.add('d-none');
+                        return;
+                    }
+
+                    var opcion = new Option(primeraBodega.text, primeraBodega.id, true, true);
+                    $(opcion).data('data', primeraBodega);
+                    $('#bodega').append(opcion).trigger('change');
+                    if ($('#categoria_cliente_venta_id').val()) {
+                        prueba();
+                        intentarAgregarProductoExpoAutomaticamente();
+                    }
+                })
+                .catch(function() {
+                    $('#bodega').empty().append(new Option('No se pudo cargar la bodega', '', true, true));
+                    document.getElementById('botonAdd').classList.add('d-none');
+                });
+        }
+    }
+
+    function intentarAgregarProductoExpoAutomaticamente() {
+        if (!esCapturaRapidaExpo()) return;
+
+        var productoId = String($('#seleccionarProducto').val() || '');
+        var categoriaId = String($('#categoria_cliente_venta_id').val() || '');
+        var bodega = $('#bodega').hasClass('select2-hidden-accessible')
+            ? $('#bodega').select2('data')[0]
+            : bodegaExpoCapturaRapida;
+
+        if (!productoId || !categoriaId || !bodega || !bodega.idBodega || !bodega.id) return;
+
+        var clave = productoId + '|' + categoriaId + '|' + bodega.idBodega + '|' + bodega.id;
+        if (productoExpoAgregandoAutomaticamente === clave) return;
+
+        productoExpoAgregandoAutomaticamente = clave;
+        document.getElementById('botonAdd').classList.add('d-none');
+        agregarProductoCarrito(bodega, clave);
+    }
+
+    function esCapturaRapidaExpo() {
+        return filtrarProductosExpo && expoConfig && expoConfig.bodegas.length === 1;
+    }
+
+    function cargarProductoExpoCapturaRapida(productoId) {
+        var categoriaPreferidaId = $('#categoria_cliente_venta_id').data('categoria-precio-id') || null;
+        axios.get('/expo/captura-rapida/producto/' + productoId, {
+            params: {
+                expo_id: expoConfig.id,
+                categoria_precio_id: categoriaPreferidaId
+            }
+        }).then(function(response) {
+            if (String($('#seleccionarProducto').val() || '') !== String(productoId)) return;
+
+            procesarProductoExpoCapturaRapida(response.data, productoId);
+        }).catch(mostrarErrorCapturaRapidaExpo);
+    }
+
+    function capturarProductoExpoPorCodigo(codigo) {
+        var secuenciaActual = ++secuenciaBusquedaProducto;
+        var categoriaPreferidaId = $('#categoria_cliente_venta_id').data('categoria-precio-id') || null;
+        axios.get('/expo/captura-rapida/producto/' + encodeURIComponent(codigo), {
+            params: {
+                expo_id: expoConfig.id,
+                categoria_precio_id: categoriaPreferidaId
+            }
+        }).then(function(response) {
+            if (secuenciaActual !== secuenciaBusquedaProducto) return;
+            var producto = response.data.producto;
+            productoExpoAgregandoAutomaticamente = null;
+            datosProductoExpoPrecargados = null;
+            bodegaExpoCapturaRapida = null;
+            document.getElementById('seleccionarProducto').innerHTML = '<option value="' + producto.id + '" selected>' + producto.nombre + '</option>';
+            document.getElementById('productoSeleccionadoLabel').textContent = '✓ ' + producto.nombre;
+            document.getElementById('productoSeleccionadoLabel').classList.remove('d-none');
+            procesarProductoExpoCapturaRapida(response.data, producto.id);
+        }).catch(mostrarErrorCapturaRapidaExpo);
+    }
+
+    function procesarProductoExpoCapturaRapida(datos, productoId) {
+            var response = { data: datos };
+
+            var categorias = response.data.categorias || [];
+            var categoriaSeleccionadaId = String(response.data.categoria_id || '');
+            $('#categoria_cliente_venta_id').empty();
+            categorias.forEach(function(categoria) {
+                var precio = Number(categoria.precio_a || 0).toLocaleString('es-HN', {
+                    style: 'currency', currency: 'HNL', minimumFractionDigits: 2
+                });
+                var seleccionada = String(categoria.id) === categoriaSeleccionadaId;
+                $('#categoria_cliente_venta_id').append(new Option(
+                    categoria.nombre_categoria + ' - ' + precio,
+                    categoria.id,
+                    seleccionada,
+                    seleccionada
+                ));
+            });
+            $('#categoria_cliente_venta_id').prop('disabled', false);
+
+            var bodega = response.data.bodega;
+            bodegaExpoCapturaRapida = bodega;
+            var opcion = new Option(bodega.text, bodega.id, true, true);
+            $(opcion).data('data', bodega);
+            $('#bodega').empty().append(opcion).trigger('change');
+
+            datosProductoExpoPrecargados = {
+                clave: String(productoId) + '|' + categoriaSeleccionadaId,
+                promesa: Promise.resolve({
+                    data: {
+                        producto: response.data.producto,
+                        unidades: response.data.unidades
+                    }
+                })
+            };
+            intentarAgregarProductoExpoAutomaticamente();
+    }
+
+    function mostrarErrorCapturaRapidaExpo(error) {
+        document.getElementById('botonAdd').classList.add('d-none');
+        Swal.fire({
+            icon: 'warning',
+            title: 'Producto no disponible',
+            text: error.response?.data?.message || 'No se pudo preparar el producto para la Oferta Expo.'
+        });
+    }
+
+    function precargarDatosProductoExpo(productoId) {
+        if (!esCapturaRapidaExpo()) return;
+        var categoriaId = String($('#categoria_cliente_venta_id').val() || '');
+        if (!productoId || !categoriaId) return;
+
+        var clave = String(productoId) + '|' + categoriaId;
+        datosProductoExpoPrecargados = {
+            clave: clave,
+            promesa: axios.post(urls.datos_producto, {
+                idProducto: productoId,
+                categoria_cliente_venta_id: categoriaId
+            })
+        };
     }
 
     // ================================================================
@@ -3217,7 +3396,7 @@
     // ================================================================
     // AGREGAR PRODUCTO AL CARRITO
     // ================================================================
-    function agregarProductoCarrito(bodegaExpo) {
+    function agregarProductoCarrito(bodegaExpo, claveAgregadoAutomatico) {
         let idProducto = document.getElementById('seleccionarProducto').value;
         let categoria_cliente_venta_id = document.getElementById('categoria_cliente_venta_id').value;
         let data = bodegaExpo || $("#bodega").select2('data')[0];
@@ -3231,8 +3410,15 @@
         let idSeccion = esSinExistencia ? '' : data.id;
 
         var urlDatosProducto = urls.datos_producto;
+        var claveDatosProducto = String(idProducto) + '|' + String(categoria_cliente_venta_id);
+        var solicitudDatosProducto = datosProductoExpoPrecargados?.clave === claveDatosProducto
+            ? datosProductoExpoPrecargados.promesa
+            : axios.post(urlDatosProducto, {
+                idProducto: idProducto,
+                categoria_cliente_venta_id: categoria_cliente_venta_id
+            });
 
-        axios.post(urlDatosProducto, { idProducto: idProducto, categoria_cliente_venta_id: categoria_cliente_venta_id })
+        solicitudDatosProducto
             .then(response => {
                 // Verificar duplicados
                 let flag = false;
@@ -3248,6 +3434,9 @@
                 });
 
                 if (flag) {
+                    if (productoExpoAgregandoAutomaticamente === claveAgregadoAutomatico) {
+                        productoExpoAgregandoAutomaticamente = null;
+                    }
                     Swal.fire({
                         icon: 'warning', title: 'Advertencia!',
                         html: '<p class="text-left">La sección de bodega y producto ha sido agregada anteriormente.<br><br>Por favor verificar la sección de bodega y producto sea distinto a los ya existentes.</p>'
@@ -3363,6 +3552,9 @@
                 enfocarCantidadCarrito(numeroInputs);
             })
             .catch(err => {
+                if (productoExpoAgregandoAutomaticamente === claveAgregadoAutomatico) {
+                    productoExpoAgregandoAutomaticamente = null;
+                }
                 const mensaje = err.response?.data?.message || 'Error al agregar producto';
                 Swal.fire({ icon: 'error', title: 'Error', html: mensaje });
             });
@@ -3865,11 +4057,12 @@
 
     function calcularDescuentosCarritoExpo() {
         if (!expoConfig) return null;
-        var configuracion = esOfertaExpo ? reglasExpoOferta : expoConfig;
-        var reglasMarca = esOfertaExpo
+        var usarReglasFirmadas = esOfertaExpo && !filtrarProductosExpo;
+        var configuracion = usarReglasFirmadas ? reglasExpoOferta : expoConfig;
+        var reglasMarca = usarReglasFirmadas
             ? (Array.isArray(configuracion.marcas) ? configuracion.marcas : [])
             : (Array.isArray(configuracion.descuentos_marca) ? configuracion.descuentos_marca : []);
-        var reglasGenerales = esOfertaExpo
+        var reglasGenerales = usarReglasFirmadas
             ? (Array.isArray(configuracion.generales) ? configuracion.generales : [])
             : (Array.isArray(configuracion.descuentos) ? configuracion.descuentos : []);
         var totalBruto = 0;
@@ -3881,8 +4074,20 @@
             var cantidad = Number(document.getElementById('cantidad' + id)?.value || 0);
             var unidad = Number(document.getElementById('unidad' + id)?.value || 0);
             var marcaId = Number(document.getElementById('marcaExpoId' + id)?.value || 0);
+            var lineaId = Number(document.getElementById('cotizacionLineaId' + id)?.value || 0);
+            var cantidadOfertada = Number(document.getElementById('cantidadOfertaExpo' + id)?.value || 0);
+            var descuentoFirmado = Number(document.getElementById('descuentoOfertaExpo' + id)?.value || 0);
             var importe = precio * cantidad * unidad;
-            importes[id] = { precio: precio, cantidad: cantidad, unidad: unidad, marcaId: marcaId, importe: importe };
+            importes[id] = {
+                precio: precio,
+                cantidad: cantidad,
+                unidad: unidad,
+                marcaId: marcaId,
+                lineaId: lineaId,
+                cantidadOfertada: cantidadOfertada,
+                descuentoFirmado: descuentoFirmado,
+                importe: importe
+            };
             totalBruto += importe;
             subtotalesMarca[marcaId] = (subtotalesMarca[marcaId] || 0) + importe;
         });
@@ -3914,6 +4119,22 @@
             var descuentoMarca = redondearMoneda(datos.importe * porcentajeMarca / 100);
             var descuentoGeneral = redondearMoneda((datos.importe - descuentoMarca) * porcentajeGeneral / 100);
             var descuentoTotal = redondearMoneda(descuentoMarca + descuentoGeneral);
+
+            if (usarReglasFirmadas) {
+                var proporcionCantidad = datos.cantidadOfertada > 0
+                    ? Math.min(Math.max(datos.cantidad / datos.cantidadOfertada, 0), 1)
+                    : 0;
+                descuentoTotal = redondearMoneda(datos.descuentoFirmado * proporcionCantidad);
+
+                var atribucion = atribucionesDescuentoExpo[datos.lineaId] || {};
+                var proporcionMarca = Math.min(Math.max(Number(atribucion.proporcion_marca || 0), 0), 1);
+                descuentoMarca = redondearMoneda(descuentoTotal * proporcionMarca);
+                descuentoGeneral = redondearMoneda(descuentoTotal - descuentoMarca);
+                porcentajeMarca = datos.importe > 0 ? descuentoMarca * 100 / datos.importe : 0;
+                porcentajeGeneral = datos.importe - descuentoMarca > 0
+                    ? descuentoGeneral * 100 / (datos.importe - descuentoMarca)
+                    : 0;
+            }
             var subtotalNeto = redondearMoneda(datos.importe - descuentoTotal);
             var porcentajeIsv = tipoFacturaConfig && !tipoFacturaConfig.aplica_isv
                 ? 0
@@ -5428,6 +5649,8 @@
                     <td style="vertical-align:middle; text-align:center; padding:4px 6px;">
                         <input id="idProducto${idx}" name="idProducto${idx}" type="hidden" value="${prod.producto_id || ''}">
                         <input id="cotizacionLineaId${idx}" name="cotizacionLineaId${idx}" type="hidden" value="${prod.cotizacion_has_producto_id || ''}">
+                        <input id="cantidadOfertaExpo${idx}" type="hidden" value="${prod.cantidad_ofertada || prod.cantidad || 0}">
+                        <input id="descuentoOfertaExpo${idx}" type="hidden" value="${prod.monto_descProducto || 0}">
                         <input id="marcaExpoId${idx}" type="hidden" value="${prod.marca_id || 0}">
                         <input id="marcaExpoNombre${idx}" type="hidden" value="${prod.marca_nombre || 'SIN MARCA'}">
                         <input id="precios_producto_carga_id${idx}" name="precios_producto_carga_id${idx}" type="hidden" value="${prod.precios_producto_carga_id || ''}">

@@ -163,17 +163,19 @@
 
             // Evento para cargar categorías cuando se selecciona un producto
             $('#seleccionarProducto').on('select2:select', function(e) {
+                bodegaOfertaSeleccionada = null;
+                $('#bodega').empty().append(new Option('-- Se asignará automáticamente --', '', true, true));
+                document.getElementById('botonAdd').classList.add('d-none');
                 cargarCategoriasProducto();
             });
+
+            let bodegaOfertaSeleccionada = null;
 
             function listaCategoríaClientes() {
                 let categoriaId = $('#categoria_cliente_venta_id').val();
                 let productoId = $('#seleccionarProducto').val();
 
                 if (categoriaId && productoId) {
-                    // Habilitar bodega
-                    $('#bodega').prop('disabled', false);
-                    // Cargar bodegas del producto
                     obtenerBodegas(productoId);
                 }
             }
@@ -186,41 +188,41 @@
             }
 
             function obtenerBodegas(id) {
-
-                document.getElementById('bodega').innerHTML = "<option  selected disabled>--Seleccione una bodega--</option>";
                 let idProducto = id;
-                $('#bodega').select2({
-                    ajax: {
-                        url: '/cotizacion/listar/bodegas/' + idProducto,
-                        processResults: function(data) {
-                            let results = Array.isArray(data?.results) ? data.results.slice() : [];
-                            const sinExistenciaText = 'SIN EXISTENCIA - Cotizar sin reserva de inventario';
+                bodegaOfertaSeleccionada = null;
+                $('#bodega').empty().append(new Option('Asignando bodega...', '', true, true));
+                document.getElementById('botonAdd').classList.add('d-none');
 
-                            const hayBodegasConStock = results.some(function(item) {
-                                const text = String(item?.text || '').toUpperCase();
-                                return text.includes('CANTIDAD') && !text.includes('SIN EXISTENCIA');
-                            });
+                axios.get('/cotizacion/listar/bodegas/' + idProducto, {
+                    params: { idProducto: idProducto }
+                }).then(function(response) {
+                    const results = Array.isArray(response.data?.results) ? response.data.results : [];
+                    bodegaOfertaSeleccionada = results[0] || null;
 
-                            if (hayBodegasConStock) {
-                                results = results.filter(function(item) {
-                                    return String(item?.text || '').trim() !== sinExistenciaText;
-                                });
-                            }
-
-                            return { results: results };
-                        },
-                        data: function(params) {
-                            var query = {
-                                search: params.term,
-                                type: 'public',
-                                page: params.page || 1,
-                                idProducto: idProducto
-                            }
-
-                            // Query parameters will be ?search=[term]&type=public
-                            return query;
-                        }
+                    if (!bodegaOfertaSeleccionada) {
+                        $('#bodega').empty().append(new Option('No hay una bodega disponible', '', true, true));
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Bodega no disponible',
+                            text: 'No se encontró una ubicación para agregar este producto a la oferta.'
+                        });
+                        return;
                     }
+
+                    $('#bodega').empty().append(new Option(
+                        bodegaOfertaSeleccionada.text,
+                        bodegaOfertaSeleccionada.id,
+                        true,
+                        true
+                    ));
+                    prueba();
+                }).catch(function() {
+                    $('#bodega').empty().append(new Option('No se pudo asignar la bodega', '', true, true));
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'No se pudo asignar automáticamente la bodega del producto.'
+                    });
                 });
 
             }
@@ -435,7 +437,15 @@
                 let idProducto = document.getElementById('seleccionarProducto').value;
                 let categoria_cliente_venta_id = document.getElementById('categoria_cliente_venta_id').value;
 
-                let data = $("#bodega").select2('data')[0];
+                let data = bodegaOfertaSeleccionada;
+                if (!data) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Bodega pendiente',
+                        text: 'Espere mientras se asigna la bodega del producto.'
+                    });
+                    return;
+                }
                 let bodega = data.bodegaSeccion;
                 let idBodega = data.idBodega;
                 let idSeccion = data.id

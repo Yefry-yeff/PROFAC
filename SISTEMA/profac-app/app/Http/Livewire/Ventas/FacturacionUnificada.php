@@ -7,6 +7,7 @@ use Livewire\Component;
 use App\Models\TipoFactura;
 use App\Services\Expo\CalculadorDescuentosExpo;
 use App\Services\Expo\SaldoLineasOferta;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 
@@ -19,8 +20,120 @@ class FacturacionUnificada extends Component
     public $fromPrefactura = false;
     public $expoConfig = null;
     public $esOfertaExpo = false;
+    public $filtrarProductosExpo = false;
     public array $reglasExpoOferta = [];
     public array $atribucionesDescuentoExpo = [];
+
+    public function capturaRapidaExpo(Request $request, string $identificador)
+    {
+        $expo = ExpoConfig::detalleActivaParaUsuario((int) $request->input('expo_id'), Auth::id());
+        abort_unless($expo && count($expo['bodegas']) === 1, 422, 'La captura rápida requiere una Expo activa con una sola bodega.');
+
+        $productoBase = DB::table('producto')
+            ->where('estado_producto_id', 1)
+            ->where(function ($query) use ($identificador) {
+                if (ctype_digit($identificador)) {
+                    $query->where('id', (int) $identificador);
+                }
+                $query->orWhere('codigo_barra', $identificador)
+                    ->orWhere('codigo_estatal', $identificador);
+            })
+            ->when(ctype_digit($identificador), fn ($query) => $query->orderByRaw('id = ? DESC', [(int) $identificador]))
+            ->first(['id']);
+        abort_unless($productoBase, 404, 'No se encontró un producto activo con el código escaneado.');
+        $productoId = (int) $productoBase->id;
+
+        $categorias = DB::table('categoria_precios as cp')
+            ->join('cliente_categoria_escala as cce', 'cce.id', '=', 'cp.cliente_categoria_escala_id')
+            ->join('precios_producto_carga as ppc', function ($join) use ($productoId) {
+                $join->on('ppc.categoria_precios_id', '=', 'cp.id')
+                    ->where('ppc.producto_id', $productoId)
+                    ->where('ppc.estado_id', 1);
+            })
+            ->whereIn('cp.id', $expo['escalas'])
+            ->where('cp.estado_id', 1)
+            ->orderByDesc('ppc.precio_a')
+            ->get(['cp.id', DB::raw("CONCAT(cce.nombre_categoria, ' - ', cp.nombre) as nombre_categoria"), 'ppc.precio_a']);
+
+        abort_if($categorias->isEmpty(), 422, 'El producto no tiene una escala de precio permitida en la Expo.');
+        $categoriaPreferidaId = (int) $request->input('categoria_precio_id', 0);
+        $categoriaSeleccionada = $categorias->first(fn ($categoria) => (int) $categoria->id === $categoriaPreferidaId)
+            ?? $categorias->first();
+        $categoriaId = (int) $categoriaSeleccionada->id;
+        $bodegaId = (int) $expo['bodegas'][0];
+
+        $ubicaciones = DB::table('recibido_bodega as rb')
+            ->join('seccion as s', 's.id', '=', 'rb.seccion_id')
+            ->join('segmento as sg', 'sg.id', '=', 's.segmento_id')
+            ->join('bodega as b', 'b.id', '=', 'sg.bodega_id')
+            ->where('rb.producto_id', $productoId)
+            ->where('sg.bodega_id', $bodegaId)
+            ->groupBy('rb.seccion_id', 'b.id', 'b.nombre', 's.descripcion')
+            ->orderBy('rb.seccion_id')
+            ->get([
+                'rb.seccion_id',
+                'b.id as bodega_id',
+                'b.nombre as bodega_nombre',
+                's.descripcion as seccion_nombre',
+                DB::raw('SUM(rb.cantidad_disponible) as disponible'),
+            ]);
+
+        $reservas = DB::table('prefactura_has_producto as php')
+            ->join('prefactura as pf', 'pf.id', '=', 'php.prefactura_id')
+            ->where('pf.estado', 'activo')
+            ->whereRaw("TIMESTAMPADD(DAY, COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7), COALESCE(pf.created_at, CONCAT(COALESCE(pf.fecha_emision, CURDATE()), ' 00:00:00'))) > NOW()")
+            ->where('php.producto_id', $productoId)
+            ->where('php.resta_inventario', 1)
+            ->whereIn('php.seccion_id', $ubicaciones->pluck('seccion_id'))
+            ->groupBy('php.seccion_id')
+            ->pluck(DB::raw('SUM(php.cantidad)'), 'php.seccion_id');
+
+        $ubicacion = $ubicaciones->first(function ($item) use ($reservas) {
+            $item->stock_neto = max(0, (float) $item->disponible - (float) ($reservas[$item->seccion_id] ?? 0));
+            return $item->stock_neto > 0;
+        });
+        abort_unless($ubicacion, 422, 'El producto ya no tiene existencia disponible en la bodega de la Expo.');
+
+        $producto = DB::table('producto as p')
+            ->leftJoin('marca as m', 'm.id', '=', 'p.marca_id')
+            ->join('precios_producto_carga as ppc', function ($join) use ($categoriaId) {
+                $join->on('ppc.producto_id', '=', 'p.id')
+                    ->where('ppc.categoria_precios_id', $categoriaId)
+                    ->where('ppc.estado_id', 1);
+            })
+            ->where('p.id', $productoId)
+            ->first([
+                'p.id', DB::raw("CONCAT(p.id, ' - ', p.nombre) as nombre"), 'p.marca_id',
+                DB::raw("COALESCE(m.nombre, 'SIN MARCA') as marca"), 'p.isv',
+                'p.ultimo_costo_compra', 'ppc.precio_base_venta as precio_base',
+                'ppc.precio_a as precio1', 'ppc.precio_b as precio2', 'ppc.precio_c as precio3',
+                'ppc.precio_d as precio4', 'ppc.id as precios_producto_carga_id',
+            ]);
+        abort_unless($producto, 422, 'No se encontró el precio activo del producto para la Expo.');
+
+        $unidades = DB::table('unidad_medida_venta as uv')
+            ->join('unidad_medida as um', 'um.id', '=', 'uv.unidad_medida_id')
+            ->where('uv.estado_id', 1)
+            ->where('uv.producto_id', $productoId)
+            ->get([
+                'uv.unidad_venta as id', DB::raw("CONCAT(um.nombre, '-', uv.unidad_venta) as nombre"),
+                'uv.unidad_venta_defecto as valor_defecto', 'uv.id as idUnidadVenta',
+            ]);
+
+        return response()->json([
+            'categorias' => $categorias,
+            'categoria_id' => $categoriaId,
+            'bodega' => [
+                'id' => (int) $ubicacion->seccion_id,
+                'idBodega' => (int) $ubicacion->bodega_id,
+                'bodegaSeccion' => $ubicacion->bodega_nombre . ' ' . str_replace('Seccion', '', $ubicacion->seccion_nombre),
+                'text' => $ubicacion->bodega_nombre . ' - ' . str_replace('Seccion', '', $ubicacion->seccion_nombre) . ' - cantidad ' . floor($ubicacion->stock_neto),
+                'esSinExistencia' => 0,
+            ],
+            'producto' => $producto,
+            'unidades' => $unidades,
+        ]);
+    }
 
     private function cargarAtribucionesDescuentoExpo(int $cotizacionId): void
     {
@@ -170,6 +283,8 @@ class FacturacionUnificada extends Component
             abort_unless(($this->tipoFactura->codigo ?? '') === 'cotizacion_clientes_a', 404);
             $this->expoConfig = ExpoConfig::detalleActivaParaUsuario($expoId, Auth::id());
             abort_unless($this->expoConfig, 403, 'No tiene autorización para acceder a esta Expo.');
+            $this->esOfertaExpo = true;
+            $this->filtrarProductosExpo = true;
 
             $tipoVentaExpo = ExpoConfig::tipoVentaId();
             abort_unless($tipoVentaExpo, 500, 'No existe el tipo de venta Expo. Ejecute las migraciones.');
@@ -674,25 +789,28 @@ class FacturacionUnificada extends Component
         $marcasSnapshot = collect($this->reglasExpoOferta['lineas'] ?? [])->keyBy('linea_id');
 
         // Carrito exacto desde prefactura (sin recalcular valores)
-        $this->productosParaCarrito = DB::table('prefactura_has_producto')
-            ->where('prefactura_id', $prefacturaId)
-            ->orderBy('indice')
+        $this->productosParaCarrito = DB::table('prefactura_has_producto as php')
+            ->leftJoin('cotizacion_has_producto as chp', 'chp.id', '=', 'php.cotizacion_has_producto_id')
+            ->where('php.prefactura_id', $prefacturaId)
+            ->orderBy('php.indice')
             ->get([
-                'cotizacion_has_producto_id',
-                'producto_id',
-                'nombre_producto',
-                'nombre_bodega',
-                'precio_unidad',
-                'cantidad',
-                'sub_total',
-                'isv',
-                'total',
-                'isv_producto',
-                'unidad_medida_venta_id',
-                'Bodega_id',
-                'seccion_id',
-                'resta_inventario',
-                'precios_producto_carga_id',
+                'php.cotizacion_has_producto_id',
+                'php.producto_id',
+                'php.nombre_producto',
+                'php.nombre_bodega',
+                'php.precio_unidad',
+                'php.cantidad',
+                'php.sub_total',
+                'php.isv',
+                'php.total',
+                'php.isv_producto',
+                'php.unidad_medida_venta_id',
+                'php.Bodega_id',
+                'php.seccion_id',
+                'php.resta_inventario',
+                'php.precios_producto_carga_id',
+                'chp.cantidad as cantidad_ofertada',
+                'chp.monto_descProducto',
             ])
             ->map(function ($r) use ($marcasSnapshot) {
                 $producto = (array) $r;

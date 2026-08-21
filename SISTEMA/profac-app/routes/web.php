@@ -792,6 +792,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/productos/buscar/categorias', [BusquedaProductoController::class, 'categorias']);
     Route::get('/productos/buscar/marcas', [BusquedaProductoController::class, 'marcas']);
     Route::get('/productos/buscar/top-vendidos', [BusquedaProductoController::class, 'topVendidos']);
+    Route::get('/expo/captura-rapida/producto/{identificador}', [FacturacionUnificada::class, 'capturaRapidaExpo']);
 
     Route::post('/ventas/datos/producto', [FacturacionCorporativa::class, 'obtenerDatosProducto']);
     Route::post('/producto/categorias-disponibles', [FacturacionCorporativa::class, 'obtenerCategoriasProducto']);
@@ -1658,6 +1659,10 @@ Route::post('/reporte/ventas-cobros/actualizar-f01/{facturaId}',                
 
     // Ruta auto-generada para: FlujoDeVenta\Expo
     Route::get('/flujo_de_venta/expo', \App\Http\Livewire\FlujoDeVenta\Expo::class);
+
+
+    // Ruta auto-generada para: Expo\ReporteDeExpo
+    Route::get('/expo/reporte_de_expo', \App\Http\Livewire\Expo\ReporteDeExpo::class);
 
     // [auto-routes-anchor]
 });

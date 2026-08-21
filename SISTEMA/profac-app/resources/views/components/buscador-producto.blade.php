@@ -6,6 +6,7 @@
     'urlTop'      => '/productos/buscar/top-vendidos',
     'urlFiltros'  => '/productos/buscar',
     'topLabel'    => '',
+    'expoId'      => null,
 ])
 @php
     $suf = preg_replace('/[^a-zA-Z0-9]/', '_', $idModal);
@@ -193,6 +194,7 @@
     var URL_TOP       = '{{ $urlTop }}';
     var URL_FILTROS   = '{{ $urlFiltros }}';
     var TOP_LABEL     = '{{ $topLabel }}';
+    var EXPO_ID       = @json($expoId);
 
     var page          = 1;
     var query         = '';
@@ -240,6 +242,9 @@
 
     /* ── helpers ────────────────────────────── */
     function el(id) { return document.getElementById(id); }
+    function contextParams() {
+        return EXPO_ID ? { expo_id: EXPO_ID } : {};
+    }
     function esc(s) {
         return String(s == null ? '' : s)
             .replace(/&/g,'&amp;').replace(/</g,'&lt;')
@@ -249,7 +254,7 @@
     /* ── cargar filtros (una sola vez) ──────── */
     function loadFilters() {
         if (filtersLoaded) return;
-        var filterParams = {};
+        var filterParams = contextParams();
         if (BVAR) { var bvId = window[BVAR]; if (bvId) filterParams.bodega_id = bvId; }
         Promise.all([
             axios.get(URL_FILTROS + '/categorias', { params: filterParams }),
@@ -291,7 +296,7 @@
         isPreview = true;
         var mySeq = ++reqSeq;
         showLoading();
-        var tvParams = {};
+        var tvParams = contextParams();
         if (BVAR) { var bvId = window[BVAR]; if (bvId) tvParams.bodega_id = bvId; }
         axios.get(URL_TOP, { params: tvParams })
             .then(function (r) {
@@ -348,7 +353,8 @@
             categoria_id: catId,
             marca_id:     marcaId,
             con_stock:    conStock ? 1 : 0,
-            page:         page
+            page:         page,
+            expo_id:      EXPO_ID || undefined
         };
         if (BVAR) { var bvId2 = window[BVAR]; if (bvId2) srchParams.bodega_id = bvId2; }
         axios.get(URL_BUSCAR, { params: srchParams }).then(function (r) {

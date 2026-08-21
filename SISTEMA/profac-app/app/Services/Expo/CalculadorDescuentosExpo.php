@@ -33,14 +33,36 @@ class CalculadorDescuentosExpo
 
         $descuentoMarca = 0.0;
         $descuentoGeneral = 0.0;
+        $detalleMarcas = [];
         foreach ($lineas as $linea) {
+            $marcaId = (int) $linea['marca_id'];
             $subtotal = (float) $linea['subtotal_bruto'];
-            $porcentajeMarca = $porcentajesMarca[(int) $linea['marca_id']] ?? 0.0;
+            $porcentajeMarca = $porcentajesMarca[$marcaId] ?? 0.0;
             $marca = round($subtotal * $porcentajeMarca / 100, 2);
             $general = round(($subtotal - $marca) * $porcentajeGeneral / 100, 2);
             $descuentoMarca += $marca;
             $descuentoGeneral += $general;
+            $detalleMarcas[$marcaId] ??= [
+                'marca_id' => $marcaId,
+                'subtotal_bruto' => 0.0,
+                'porcentaje_marca' => $porcentajeMarca,
+                'descuento_marca' => 0.0,
+                'descuento_general' => 0.0,
+                'descuento_ganado' => 0.0,
+            ];
+            $detalleMarcas[$marcaId]['subtotal_bruto'] += $subtotal;
+            $detalleMarcas[$marcaId]['descuento_marca'] += $marca;
+            $detalleMarcas[$marcaId]['descuento_general'] += $general;
+            $detalleMarcas[$marcaId]['descuento_ganado'] += $marca + $general;
         }
+
+        $detalleMarcas = array_map(function (array $detalle) {
+            foreach (['subtotal_bruto', 'descuento_marca', 'descuento_general', 'descuento_ganado'] as $campo) {
+                $detalle[$campo] = round($detalle[$campo], 2);
+            }
+
+            return $detalle;
+        }, array_values($detalleMarcas));
 
         return [
             'total_bruto' => $totalBruto,
@@ -49,6 +71,7 @@ class CalculadorDescuentosExpo
             'descuento_marca' => round($descuentoMarca, 2),
             'descuento_general' => round($descuentoGeneral, 2),
             'descuento_ganado' => round($descuentoMarca + $descuentoGeneral, 2),
+            'detalle_marcas' => $detalleMarcas,
         ];
     }
 

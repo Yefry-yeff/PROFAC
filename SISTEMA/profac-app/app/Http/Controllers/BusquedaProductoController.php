@@ -2,11 +2,26 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\ExpoConfig;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class BusquedaProductoController extends Controller
 {
+    private function bodegasExpo(Request $request): array
+    {
+        $expoId = (int) $request->get('expo_id', 0);
+        if ($expoId <= 0) {
+            return [];
+        }
+
+        $expo = ExpoConfig::detalleActivaParaUsuario($expoId, Auth::id());
+        abort_unless($expo, 403, 'No tiene autorización para consultar productos de esta Expo.');
+
+        return $expo['bodegas'];
+    }
+
     /**
      * Búsqueda rápida de productos con soporte multi-palabra.
      * Ejemplo: "pegamento cola blanca" encuentra "pegamento blanco cola blanca"
@@ -20,6 +35,7 @@ class BusquedaProductoController extends Controller
         $marcaId  = $request->get('marca_id', '');
         $conStock = (bool) $request->get('con_stock', 0);
         $bodegaId = $request->get('bodega_id', '');
+        $bodegasExpo = $this->bodegasExpo($request);
         $page     = max(1, (int) $request->get('page', 1));
         $perPage  = 12;
 
@@ -84,6 +100,18 @@ class BusquedaProductoController extends Controller
             });
         }
 
+        if ($bodegasExpo) {
+            $query->whereExists(function ($sub) use ($bodegasExpo) {
+                $sub->select(DB::raw(1))
+                    ->from('recibido_bodega as rb_expo')
+                    ->join('seccion as sc_expo', 'sc_expo.id', '=', 'rb_expo.seccion_id')
+                    ->join('segmento as sg_expo', 'sg_expo.id', '=', 'sc_expo.segmento_id')
+                    ->whereColumn('rb_expo.producto_id', 'p.id')
+                    ->whereRaw('rb_expo.cantidad_disponible > 0')
+                    ->whereIn('sg_expo.bodega_id', $bodegasExpo);
+            });
+        }
+
         // ── COUNT simple: sin subquery envuelta, sin GROUP BY ──────────────
         $total = (clone $query)->count('p.id');
 
@@ -111,6 +139,11 @@ class BusquedaProductoController extends Controller
                 $stockQ->join('seccion as sc_sk', 'sc_sk.id', '=', 'recibido_bodega.seccion_id')
                        ->join('segmento as sg_sk', 'sg_sk.id', '=', 'sc_sk.segmento_id')
                        ->where('sg_sk.bodega_id', (int) $bodegaId);
+            }
+            if ($bodegasExpo) {
+                $stockQ->join('seccion as sc_expo_sk', 'sc_expo_sk.id', '=', 'recibido_bodega.seccion_id')
+                    ->join('segmento as sg_expo_sk', 'sg_expo_sk.id', '=', 'sc_expo_sk.segmento_id')
+                    ->whereIn('sg_expo_sk.bodega_id', $bodegasExpo);
             }
             $stockMap = $stockQ->groupBy('producto_id')->get()->keyBy('producto_id');
 
@@ -170,6 +203,7 @@ class BusquedaProductoController extends Controller
     {
         session()->save();
         $bodegaId = $request->get('bodega_id', '');
+        $bodegasExpo = $this->bodegasExpo($request);
 
         // Solo JOIN con venta_has_producto (necesario para SUM+GROUP BY de ventas)
         // recibido_bodega e img_producto se consultan aparte para evitar producto
@@ -199,6 +233,18 @@ class BusquedaProductoController extends Controller
             });
         }
 
+        if ($bodegasExpo) {
+            $tvQuery->whereExists(function ($sub) use ($bodegasExpo) {
+                $sub->select(DB::raw(1))
+                    ->from('recibido_bodega as rb_expo_tv')
+                    ->join('seccion as sc_expo_tv', 'sc_expo_tv.id', '=', 'rb_expo_tv.seccion_id')
+                    ->join('segmento as sg_expo_tv', 'sg_expo_tv.id', '=', 'sc_expo_tv.segmento_id')
+                    ->whereColumn('rb_expo_tv.producto_id', 'p.id')
+                    ->whereRaw('rb_expo_tv.cantidad_disponible > 0')
+                    ->whereIn('sg_expo_tv.bodega_id', $bodegasExpo);
+            });
+        }
+
         $items = $tvQuery->get();
 
         if ($items->isNotEmpty()) {
@@ -207,8 +253,13 @@ class BusquedaProductoController extends Controller
             $stockMap = DB::table('recibido_bodega')
                 ->select('producto_id', DB::raw('SUM(cantidad_disponible) as stock'))
                 ->whereIn('producto_id', $ids)
-                ->groupBy('producto_id')
-                ->get()->keyBy('producto_id');
+                ->whereRaw('cantidad_disponible > 0');
+            if ($bodegasExpo) {
+                $stockMap->join('seccion as sc_expo_tv_sk', 'sc_expo_tv_sk.id', '=', 'recibido_bodega.seccion_id')
+                    ->join('segmento as sg_expo_tv_sk', 'sg_expo_tv_sk.id', '=', 'sc_expo_tv_sk.segmento_id')
+                    ->whereIn('sg_expo_tv_sk.bodega_id', $bodegasExpo);
+            }
+            $stockMap = $stockMap->groupBy('producto_id')->get()->keyBy('producto_id');
 
             $imgMap = DB::table('img_producto')
                 ->select('producto_id', 'url_img')

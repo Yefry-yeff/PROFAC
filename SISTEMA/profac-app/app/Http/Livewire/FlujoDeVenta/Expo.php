@@ -38,6 +38,13 @@ class Expo extends Component
     public $mostrarDetalle = false;
     public $motivoCierre = '';
     public $motivoReapertura = '';
+    public $mostrarCierreExpo = false;
+    public $expoCierre = [];
+    public $cierreCandidatos = [];
+    public $facturasExcluidasCierre = [];
+    public $filtroCierre = '';
+    public $ofertasCierreSinAumento = 0;
+    public $flujoDetalleCierreId;
 
     public function nueva(): void
     {
@@ -469,6 +476,20 @@ class Expo extends Component
                 ->orderByDesc('ehc.id')
                 ->get(['ehc.accion', 'ehc.detalle', 'ehc.created_at', 'u.name as usuario'])
                 ->map(fn ($cambio) => (array) $cambio)->all(),
+            'exclusiones_aumento' => Schema::hasTable('expo_cotizacion_aumento_exclusion')
+                ? DB::table('expo_cotizacion_aumento_exclusion as ex')
+                    ->join('expo_cotizacion as ec', 'ec.id', '=', 'ex.expo_cotizacion_id')
+                    ->join('factura as f', 'f.id', '=', 'ex.factura_id')
+                    ->join('users as u', 'u.id', '=', 'ex.excluido_por')
+                    ->where('ec.expo_id', $id)
+                    ->whereNull('ex.anulada_at')
+                    ->orderByDesc('ex.id')
+                    ->get([
+                        'ec.cotizacion_id', 'f.id as factura_id', 'f.cai as factura',
+                        'f.nombre_cliente as cliente', 'ex.monto_exonerado',
+                        'u.name as excluido_por', 'ex.created_at',
+                    ])->map(fn ($exclusion) => (array) $exclusion)->all()
+                : [],
             'flujos' => DB::table('expo_cotizacion as ec')
                 ->where('ec.expo_id', $id)
                 ->orderByDesc('ec.id')
@@ -489,20 +510,127 @@ class Expo extends Component
         $this->expoDetalle = [];
     }
 
+    public function abrirCierreExpo(int $expoId): void
+    {
+        $expo = DB::table('expo')->where('id', $expoId)->first();
+        abort_unless($expo, 404);
+        if ($expo->estado !== 'Activo') {
+            session()->flash('error', 'Solo una Expo activa puede finalizar su período de facturación.');
+            return;
+        }
+
+        $this->expoCierre = (array) $expo;
+        $this->cierreCandidatos = [];
+        $this->facturasExcluidasCierre = [];
+        $this->filtroCierre = '';
+        $this->motivoCierre = '';
+        $this->ofertasCierreSinAumento = 0;
+        $this->flujoDetalleCierreId = null;
+
+        $ofertas = DB::table('expo_cotizacion')
+            ->where('expo_id', $expoId)
+            ->whereIn('estado', ['PENDIENTE_FACTURACION', 'FACTURACION_PARCIAL'])
+            ->get();
+        foreach ($ofertas as $oferta) {
+            $flujoId = $this->resolverFlujoId((int) $oferta->cotizacion_id, $oferta->flujo_id);
+            if (!$flujoId) {
+                $this->ofertasCierreSinAumento++;
+                continue;
+            }
+
+            $resumen = app(LiquidacionOfertaExpo::class)->previsualizar((int) $oferta->cotizacion_id, $flujoId);
+            if ((float) $resumen['aumento_calculado'] <= 0.005) {
+                $this->ofertasCierreSinAumento++;
+                continue;
+            }
+
+            $facturas = collect($resumen['facturas'])->keyBy('id');
+            $distribucion = app(GestorAumentoExpo::class)->distribuir(
+                $resumen['facturas'],
+                (float) $resumen['aumento_calculado']
+            );
+            foreach ($distribucion as $asignacion) {
+                $factura = $facturas->get($asignacion['factura_id']);
+                if (!$factura || (float) $asignacion['monto'] <= 0.005) {
+                    continue;
+                }
+                $this->cierreCandidatos[] = array_merge($factura, [
+                    'expo_cotizacion_id' => (int) $oferta->id,
+                    'cotizacion_id' => (int) $oferta->cotizacion_id,
+                    'flujo_id' => $flujoId,
+                    'monto_aumento' => (float) $asignacion['monto'],
+                    'detalle_aumento' => [
+                        'total_facturado' => (float) $resumen['total_facturado'],
+                        'base_general' => (float) $resumen['base_general'],
+                        'porcentaje_general' => (float) $resumen['porcentaje_descuento'],
+                        'descuento_general' => (float) $resumen['descuento_general'],
+                        'descuento_marca' => (float) $resumen['descuento_marca_total'],
+                        'descuentos_marca' => $resumen['descuentos_marca'],
+                        'detalle_marcas' => $resumen['detalle_marcas'],
+                        'descuento_otorgado_oferta' => (float) $resumen['descuento_otorgado'],
+                        'descuento_ganado' => (float) $resumen['descuento_ganado'],
+                        'aumento_oferta' => (float) $resumen['aumento_calculado'],
+                        'descuento_otorgado_factura' => (float) $factura['descuento_otorgado'],
+                        'proporcion_factura' => (float) $resumen['descuento_otorgado'] > 0
+                            ? (float) $factura['descuento_otorgado'] / (float) $resumen['descuento_otorgado']
+                            : 0,
+                    ],
+                ]);
+            }
+        }
+
+        $this->mostrarDetalle = false;
+        $this->mostrarCierreExpo = true;
+        $this->resetValidation(['motivoCierre', 'facturasExcluidasCierre']);
+    }
+
+    public function alternarDetalleFlujoCierre(int $flujoId): void
+    {
+        $esCandidato = collect($this->cierreCandidatos)->contains(
+            fn (array $factura) => (int) $factura['flujo_id'] === $flujoId
+        );
+
+        $this->flujoDetalleCierreId = $esCandidato && (int) $this->flujoDetalleCierreId !== $flujoId
+            ? $flujoId
+            : null;
+    }
+
+    public function cerrarModalCierreExpo(): void
+    {
+        $this->mostrarCierreExpo = false;
+        $this->expoCierre = [];
+        $this->cierreCandidatos = [];
+        $this->facturasExcluidasCierre = [];
+        $this->filtroCierre = '';
+        $this->motivoCierre = '';
+        $this->flujoDetalleCierreId = null;
+        $this->resetValidation(['motivoCierre', 'facturasExcluidasCierre']);
+    }
+
     public function cerrarExpo(int $expoId): void
     {
         $this->validate(['motivoCierre' => 'required|string|min:5|max:500']);
+
+        $facturasPermitidas = collect($this->cierreCandidatos)->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $facturasExcluidas = array_values(array_unique(array_map('intval', $this->facturasExcluidasCierre)));
+        if (array_diff($facturasExcluidas, $facturasPermitidas)) {
+            $this->addError('facturasExcluidasCierre', 'Una de las facturas seleccionadas ya no pertenece a esta revisión.');
+            return;
+        }
 
         try {
             DB::transaction(fn () => $this->cerrarExpoInternamente(
                 $expoId,
                 trim($this->motivoCierre),
-                (int) Auth::id()
+                (int) Auth::id(),
+                $facturasExcluidas
             ), 3);
 
-            $this->motivoCierre = '';
+            $totalExcluidas = count($facturasExcluidas);
+            $this->cerrarModalCierreExpo();
             $this->cerrarDetalle();
-            session()->flash('success', 'La Expo fue cerrada y sus flujos incompletos fueron liquidados.');
+            session()->flash('success', 'La Expo fue cerrada y sus flujos incompletos fueron liquidados.'
+                . ($totalExcluidas ? " Se exoneraron {$totalExcluidas} factura(s) del aumento." : ''));
         } catch (\Throwable $e) {
             report($e);
             session()->flash('error', 'No se pudo cerrar la Expo: ' . $e->getMessage());
@@ -755,7 +883,7 @@ class Expo extends Component
         ]);
     }
 
-    private function cerrarExpoInternamente(int $expoId, string $motivo, int $usuarioId): void
+    private function cerrarExpoInternamente(int $expoId, string $motivo, int $usuarioId, array $facturasExcluidas = []): void
     {
         $expo = DB::table('expo')->where('id', $expoId)->lockForUpdate()->first();
         abort_unless($expo, 404);
@@ -787,15 +915,35 @@ class Expo extends Component
                     null,
                     true,
                     $motivo,
-                    $usuarioId
+                    $usuarioId,
+                    false,
+                    $facturasExcluidas
                 );
+            } else {
+                DB::table('expo_cotizacion')->where('id', $oferta->id)->update([
+                    'estado' => 'LIQUIDADA',
+                    'cierre_manual' => true,
+                    'motivo_cierre' => $motivo,
+                    'cerrado_por' => $usuarioId,
+                    'cerrado_at' => now(),
+                    'total_facturado' => 0,
+                    'aumento_calculado' => 0,
+                    'aumento_aplicado' => 0,
+                    'liquidado_por' => $usuarioId,
+                    'liquidado_at' => now(),
+                ]);
             }
         }
 
+        $facturasExcluidas = array_values(array_unique(array_map('intval', $facturasExcluidas)));
+        $detalleCierre = $motivo;
+        if ($facturasExcluidas) {
+            $detalleCierre .= ' Facturas exoneradas del aumento: #' . implode(', #', $facturasExcluidas) . '.';
+        }
         $this->registrarHistorial(
             $expoId,
             str_contains($motivo, 'vencimiento') ? 'CIERRE_AUTOMATICO' : 'CIERRE',
-            $motivo,
+            $detalleCierre,
             $snapshotAnterior,
             $this->snapshotExpo($expoId),
             $usuarioId

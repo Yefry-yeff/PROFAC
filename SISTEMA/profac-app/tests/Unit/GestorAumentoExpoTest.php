@@ -38,4 +38,15 @@ class GestorAumentoExpoTest extends TestCase
             ['id' => 301, 'descuento_otorgado' => 50.00],
         ], 0.00));
     }
+
+    public function test_excluir_factura_no_redistribuye_su_aumento_a_las_demas(): void
+    {
+        $resultado = (new GestorAumentoExpo())->prepararDistribucion([
+            ['id' => 401, 'descuento_otorgado' => 100.00],
+            ['id' => 402, 'descuento_otorgado' => 200.00],
+        ], 75.00, [401]);
+
+        $this->assertSame([['factura_id' => 402, 'monto' => 50.00]], $resultado['movimientos']);
+        $this->assertSame([['factura_id' => 401, 'monto' => 25.00]], $resultado['exclusiones']);
+    }
 }

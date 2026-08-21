@@ -438,9 +438,9 @@
                                 </div>
 
                                 <div class="col-12 col-md-4 mb-3">
-                                    <label class="ofr-label">Bodega <span class="req">*</span></label>
-                                    <select id="bodega" name="bodega" class="form-control ofr-input" onchange="prueba()">
-                                        <option value="" selected disabled>-- Seleccione una categoría primero --</option>
+                                    <label class="ofr-label">Bodega asignada</label>
+                                    <select id="bodega" name="bodega" class="form-control ofr-input" disabled>
+                                        <option value="" selected>-- Se asignará automáticamente --</option>
                                     </select>
                                 </div>
                             </div>

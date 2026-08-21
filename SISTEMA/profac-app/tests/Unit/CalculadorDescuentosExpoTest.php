@@ -66,4 +66,30 @@ class CalculadorDescuentosExpoTest extends TestCase
         $this->assertSame(2.0, $resultado['porcentaje_general']);
         $this->assertSame(3058.0, $resultado['descuento_ganado']);
     }
+
+    public function test_desglosa_por_marca_y_conserva_el_total_ganado(): void
+    {
+        $resultado = (new CalculadorDescuentosExpo())->calcular([
+            ['marca_id' => 10, 'subtotal_bruto' => 1000.00],
+            ['marca_id' => 10, 'subtotal_bruto' => 500.00],
+            ['marca_id' => 20, 'subtotal_bruto' => 500.00],
+        ], [
+            'marcas' => [
+                ['marca_id' => 10, 'venta_minima' => 1000, 'porcentaje_descuento' => 10],
+                ['marca_id' => 20, 'venta_minima' => 500, 'porcentaje_descuento' => 5],
+            ],
+            'generales' => [
+                ['venta_minima' => 2000, 'porcentaje_descuento' => 2],
+            ],
+        ]);
+
+        $marcas = collect($resultado['detalle_marcas'])->keyBy('marca_id');
+
+        $this->assertSame(1500.0, $marcas[10]['subtotal_bruto']);
+        $this->assertSame(150.0, $marcas[10]['descuento_marca']);
+        $this->assertSame(27.0, $marcas[10]['descuento_general']);
+        $this->assertSame(177.0, $marcas[10]['descuento_ganado']);
+        $this->assertSame(34.5, $marcas[20]['descuento_ganado']);
+        $this->assertSame($resultado['descuento_ganado'], collect($resultado['detalle_marcas'])->sum('descuento_ganado'));
+    }
 }

@@ -115,14 +115,21 @@ class SaldoLineasOferta
             throw new \LogicException('La validación de cantidades Expo requiere una transacción activa.');
         }
 
-        $expoCotizacion = DB::table('expo_cotizacion')
-            ->where('cotizacion_id', $cotizacionId)
+        $expoCotizacion = DB::table('expo_cotizacion as ec')
+            ->join('expo as e', 'e.id', '=', 'ec.expo_id')
+            ->where('ec.cotizacion_id', $cotizacionId)
             ->lockForUpdate()
-            ->first(['id', 'estado']);
+            ->first(['ec.id', 'ec.estado', 'e.estado as expo_estado']);
 
         if (!$expoCotizacion) {
             throw ValidationException::withMessages([
                 'cotizacion_id' => 'La oferta Expo vinculada no existe.',
+            ]);
+        }
+
+        if ($expoCotizacion->expo_estado !== 'Activo') {
+            throw ValidationException::withMessages([
+                'cotizacion_id' => 'La Expo finalizó y ya no permite generar nuevas facturas.',
             ]);
         }
 
