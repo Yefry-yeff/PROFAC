@@ -53,20 +53,26 @@ class EstadoCuentaVendedor extends Component
 
         if ($this->esAdmin()) {
             $clientes = DB::select(
-                "SELECT id, CONCAT(id,' - ',nombre) AS text
+                "SELECT c.id, CONCAT(c.id,' - ',c.nombre) AS text
                  FROM cliente
                  WHERE (id LIKE ? OR nombre LIKE ?)
                  LIMIT 15",
                 [$like, $like]
             );
-        } else {
-            // Solo clientes asignados directamente al usuario (campo vendedor del cliente)
+                } else {
             $uid = Auth::id();
             $clientes = DB::select(
                 "SELECT id, CONCAT(id,' - ',nombre) AS text
-                 FROM cliente
-                 WHERE vendedor = ?
-                   AND (id LIKE ? OR nombre LIKE ?)
+                                 FROM cliente c
+                                 WHERE EXISTS (
+                                         SELECT 1
+                                         FROM cliente_usuario cu
+                                         WHERE cu.cliente_id = c.id
+                                             AND cu.usuario_id = ?
+                                             AND cu.rol_id IN (2, 3)
+                                 )
+                                     AND (c.id LIKE ? OR c.nombre LIKE ?)
+                                 ORDER BY c.nombre
                  LIMIT 15",
                 [$uid, $like, $like]
             );
