@@ -1418,7 +1418,7 @@ class ModalFlujoPedido extends Component
         }
 
         // Todo válido: abrir formulario de nueva oferta con el cliente pre-seleccionado
-        $url = '/proforma/cotizacion/2?from=flujo&cotizacionId=' . $cotizacionId
+        $url = '/proforma/cotizacion/2?from=flujo&duplicar=1&cotizacionId=' . $cotizacionId
              . '&clienteId=' . $this->clienteDuplicarId;
 
         $this->mostrarSelectorClienteDuplicar = false;
@@ -1941,7 +1941,7 @@ class ModalFlujoPedido extends Component
         $facturaCompletada = in_array(3, $this->flujoTipos) || in_array(5, $this->flujoTipos);
 
         // Construir URL base
-        $url = '/proforma/cotizacion/2?from=flujo&cotizacionId=' . $cotizacionId;
+        $url = '/proforma/cotizacion/2?from=flujo&duplicar=1&cotizacionId=' . $cotizacionId;
 
         if ($mismoCliente) {
             if ($facturaCompletada) {

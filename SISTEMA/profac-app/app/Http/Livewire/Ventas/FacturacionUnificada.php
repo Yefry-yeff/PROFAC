@@ -20,6 +20,7 @@ class FacturacionUnificada extends Component
     public $fromPrefactura = false;
     public $expoConfig = null;
     public $esOfertaExpo = false;
+    public bool $duplicandoOferta = false;
     public $filtrarProductosExpo = false;
     public array $reglasExpoOferta = [];
     public array $atribucionesDescuentoExpo = [];
@@ -266,6 +267,7 @@ class FacturacionUnificada extends Component
         $from = request()->get('from');
         $this->fromFlujo = $from === 'flujo';
         $this->fromPrefactura = $from === 'prefactura';
+        $this->duplicandoOferta = request()->boolean('duplicar');
         $this->tiposFactura = TipoFactura::activos()->where('codigo', '!=', 'cotizacion_clientes_a')->get();
 
         if ($codigo) {
@@ -344,15 +346,22 @@ class FacturacionUnificada extends Component
             $esExpo = !empty($expoCotizacionId);
             $this->esOfertaExpo = $esExpo;
             if ($esExpo) {
-                $this->expoConfig = ExpoConfig::detalleParaFacturacion((int) $expoCotizacionId, (int) $cotizId, Auth::id());
-                abort_unless($this->expoConfig, 403, 'No tiene autorización para facturar esta Oferta Expo.');
+                $this->expoConfig = $this->duplicandoOferta
+                    ? ExpoConfig::detalleActivaParaUsuario((int) $expoCotizacionId, Auth::id())
+                    : ExpoConfig::detalleParaFacturacion((int) $expoCotizacionId, (int) $cotizId, Auth::id());
+                abort_unless($this->expoConfig, 403, $this->duplicandoOferta
+                    ? 'No tiene autorización para duplicar esta Oferta Expo.'
+                    : 'No tiene autorización para facturar esta Oferta Expo.');
+                $tipoVentaExpo = ExpoConfig::tipoVentaId();
+                abort_unless($tipoVentaExpo, 500, 'No existe el tipo de venta Expo. Ejecute las migraciones.');
+                $this->tipoFactura->tipo_venta_id = $tipoVentaExpo;
                 $snapshot = json_decode((string) ($expoCotizacion->reglas_descuento_snapshot ?? ''), true) ?: [];
                 $this->reglasExpoOferta = array_key_exists('generales', $snapshot)
                     ? $snapshot
                     : ['version' => 1, 'generales' => $snapshot, 'marcas' => [], 'lineas' => []];
                 $this->cargarAtribucionesDescuentoExpo((int) $cotizId);
             }
-            $prods = $esExpo
+            $prods = $esExpo && !$this->duplicandoOferta
                 ? app(SaldoLineasOferta::class)->pendientes((int) $cotizId)
                     ->filter(fn($linea) => (float) $linea->cantidad_pendiente > 0)
                     ->map(function ($linea) {
@@ -379,6 +388,7 @@ class FacturacionUnificada extends Component
                     'seccion_id',
                     'resta_inventario',
                     'precios_producto_carga_id',
+                    'monto_descProducto',
                     ])->all();
 
             $productosResueltos = [];
@@ -393,8 +403,13 @@ class FacturacionUnificada extends Component
 
             foreach ($prods as $p) {
                 $prod = (array) $p;
+                $lineaExpoOrigenId = (int) ($prod['cotizacion_has_producto_id'] ?? 0);
+                $marcaCongelada = $marcasSnapshot[$lineaExpoOrigenId] ?? [];
+                if ($this->duplicandoOferta) {
+                    $prod['linea_expo_origen_id'] = $lineaExpoOrigenId;
+                    $prod['cotizacion_has_producto_id'] = null;
+                }
                 $marca = $marcasPorProducto[(int) ($prod['producto_id'] ?? 0)] ?? null;
-                $marcaCongelada = $marcasSnapshot[(int) ($prod['cotizacion_has_producto_id'] ?? 0)] ?? [];
                 $prod['marca_id'] = (int) ($marcaCongelada['marca_id'] ?? $marca->marca_id ?? 0);
                 $prod['marca_nombre'] = $marcaCongelada['marca'] ?? $marca->marca_nombre ?? 'SIN MARCA';
 
@@ -1034,8 +1049,18 @@ class FacturacionUnificada extends Component
 
     private function usuarioPuedeAccederFlujo(int $flujoId): bool
     {
+        if (in_array((int) (Auth::user()->rol_id ?? 0), [1, 3, 5, 16], true)) {
+            return DB::table('flujo')->where('id', $flujoId)->exists();
+        }
+
         $query = DB::table('flujo as f')->where('f.id', $flujoId);
-        $this->aplicarAlcanceUsuarioFlujo($query);
+        $query->where(function ($acceso) {
+            $acceso->where('f.created_by', Auth::id())
+                ->orWhere('f.updated_by', Auth::id())
+                ->orWhere(function ($alcance) {
+                    $this->aplicarAlcanceUsuarioFlujo($alcance);
+                });
+        });
 
         return $query->exists();
     }

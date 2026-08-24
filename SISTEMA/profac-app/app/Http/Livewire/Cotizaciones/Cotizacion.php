@@ -479,7 +479,19 @@ class Cotizacion extends Component
 
                 $restaInventario = (float) $request->input('restaInventario' . $indice, 0);
                 $bodegaId = (int) $request->input('idBodega' . $indice, 0);
-                if ($restaInventario > 0 && !in_array($bodegaId, $expoConfig['bodegas'], true)) {
+                $bodegaOriginalDuplicada = false;
+                $cotizacionOrigenId = (int) $request->input('duplicar_cotizacion_id', 0);
+                if ($cotizacionOrigenId > 0) {
+                    $bodegaOriginalDuplicada = DB::table('cotizacion_has_producto as chp')
+                        ->join('expo_cotizacion as ec', 'ec.cotizacion_id', '=', 'chp.cotizacion_id')
+                        ->where('chp.cotizacion_id', $cotizacionOrigenId)
+                        ->where('ec.expo_id', $expoId)
+                        ->where('chp.producto_id', (int) $request->input('idProducto' . $indice, 0))
+                        ->where('chp.Bodega_id', $bodegaId)
+                        ->where('chp.seccion_id', (int) $request->input('idSeccion' . $indice, 0))
+                        ->exists();
+                }
+                if ($restaInventario > 0 && !in_array($bodegaId, $expoConfig['bodegas'], true) && !$bodegaOriginalDuplicada) {
                     return response()->json([
                         'icon' => 'error', 'title' => 'Bodega no permitida',
                         'text' => 'Uno de los productos utiliza una bodega que no pertenece a la Expo.',

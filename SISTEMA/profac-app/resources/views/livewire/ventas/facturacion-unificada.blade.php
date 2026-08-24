@@ -663,7 +663,8 @@
                             <input type="hidden" id="pedido_vinculado_id" name="pedido_id"          value="{{ $pedidoId ?? '' }}"> {{-- vinculación a pedido --}}
                             <input type="hidden" id="flujo_vinculado_id"  name="flujo_id"           value="{{ $flujoVinculadoId ?? '' }}"> {{-- flujo directo (sin pedido) --}}
                             <input type="hidden" id="prefactura_vinculada_id" name="prefactura_id"   value="{{ $prefacturaVinculadaId ?? '' }}"> {{-- prefactura vinculada --}}
-                            <input type="hidden" id="cotizacion_vinculada_id" name="cotizacion_id" value="{{ $prefacturaVinculada['cotizacion_id'] ?? request()->get('cotizacionId', '') }}">
+                            <input type="hidden" id="cotizacion_vinculada_id" name="cotizacion_id" value="{{ $prefacturaVinculada['cotizacion_id'] ?? ($duplicandoOferta ? '' : request()->get('cotizacionId', '')) }}">
+                            <input type="hidden" name="duplicar_cotizacion_id" value="{{ $duplicandoOferta ? request()->get('cotizacionId', '') : '' }}">
 
                             {{-- ── SECCIÓN 1: Datos del Cliente ────────────────────────── --}}
                             <span id="ico_sec_cliente" style="display:none;"></span>
@@ -934,7 +935,7 @@
                             </div>{{-- /body_producto --}}
                             </div>{{-- /of-card producto --}}
 
-                            @if($esOfertaExpo && (!$fromPrefactura || request()->boolean('expo_parcial')) && count($productosParaCarrito) > 0)
+                            @if(!$duplicandoOferta && $esOfertaExpo && (!$fromPrefactura || request()->boolean('expo_parcial')) && count($productosParaCarrito) > 0)
                             <div class="of-card expo-pendientes-card">
                                 <div class="expo-pendientes-encabezado">
                                     <div class="expo-pendientes-titulo">
@@ -4074,7 +4075,8 @@
             var cantidad = Number(document.getElementById('cantidad' + id)?.value || 0);
             var unidad = Number(document.getElementById('unidad' + id)?.value || 0);
             var marcaId = Number(document.getElementById('marcaExpoId' + id)?.value || 0);
-            var lineaId = Number(document.getElementById('cotizacionLineaId' + id)?.value || 0);
+            var lineaId = Number(document.getElementById('lineaExpoOrigenId' + id)?.value
+                || document.getElementById('cotizacionLineaId' + id)?.value || 0);
             var cantidadOfertada = Number(document.getElementById('cantidadOfertaExpo' + id)?.value || 0);
             var descuentoFirmado = Number(document.getElementById('descuentoOfertaExpo' + id)?.value || 0);
             var importe = precio * cantidad * unidad;
@@ -5585,7 +5587,7 @@
     (function () {
         var _productosAutoAgregados = false;
         var _modoPrefactura = {!! ($fromPrefactura && !$esOfertaExpo) ? 'true' : 'false' !!};
-        var _seleccionExpo = {!! ($esOfertaExpo && (!$fromPrefactura || request()->boolean('expo_parcial'))) ? 'true' : 'false' !!};
+        var _seleccionExpo = {!! (!$duplicandoOferta && $esOfertaExpo && (!$fromPrefactura || request()->boolean('expo_parcial'))) ? 'true' : 'false' !!};
         var _productosDisponibles = @json($productosParaCarrito);
 
         function cargarProductosIniciales() {
@@ -5803,6 +5805,7 @@
                         <td style="vertical-align:middle; text-align:center; padding:4px 6px;">
                             <input id="idProducto${idx}" name="idProducto${idx}" type="hidden" value="${producto.id}">
                             <input id="cotizacionLineaId${idx}" name="cotizacionLineaId${idx}" type="hidden" value="${prod.cotizacion_has_producto_id || ''}">
+                            <input id="lineaExpoOrigenId${idx}" type="hidden" value="${prod.linea_expo_origen_id || ''}">
                             <input id="cantidadOfertaExpo${idx}" type="hidden" value="${prod.cantidad_ofertada || prod.cantidad || 0}">
                             <input id="descuentoOfertaExpo${idx}" type="hidden" value="${prod.monto_descProducto || 0}">
                             <input id="marcaExpoId${idx}" type="hidden" value="${prod.marca_id || 0}">
