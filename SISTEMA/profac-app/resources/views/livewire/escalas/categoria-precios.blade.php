@@ -1193,6 +1193,10 @@ a.btn.btn-pf-primary:hover {
                 <div id="cargandoModalFiltrosProductos" class="text-center text-muted py-4" style="display:none;">
                     <i class="fa fa-spinner fa-spin mr-1"></i> Cargando opciones...
                 </div>
+                <div class="mt-3">
+                    <div class="small font-weight-bold text-muted mb-1">Seleccionadas</div>
+                    <div id="chipsFiltrosProductos" class="d-flex flex-wrap" style="gap:5px;"></div>
+                </div>
             </div>
             <div class="modal-footer">
                 <span id="conteoFiltrosProductos" class="text-muted small mr-auto">0 seleccionadas</span>
@@ -1596,21 +1600,34 @@ a.btn.btn-pf-primary:hover {
         const msgImportPrecios = $('#msgImportPrecios');
         const formSubirExcel = $('#formSubirExcel');
         let opcionesFiltroProductos = [];
+        let seleccionTemporalFiltros = new Set();
+
+        function renderizarChipsFiltros() {
+            const chips = Array.from(seleccionTemporalFiltros).map(function(id) {
+                const item = opcionesFiltroProductos.find(function(opcion) { return String(opcion.id) === String(id); });
+                if (!item) return '';
+                return '<span class="badge badge-light border py-1 px-2" style="font-size:.75rem;">' +
+                    $('<div>').text(item.nombre).html() +
+                    ' <button type="button" class="btn-quitar-chip border-0 bg-transparent p-0 ml-1 text-danger" data-id="' + id + '" aria-label="Quitar">&times;</button>' +
+                '</span>';
+            }).join('');
+            $('#chipsFiltrosProductos').html(chips || '<span class="text-muted small">Ninguna selección</span>');
+        }
 
         function actualizarConteoFiltros() {
-            const cantidad = $('#listaModalFiltrosProductos .filtro-producto-check:checked').length;
+            const cantidad = seleccionTemporalFiltros.size;
             $('#conteoFiltrosProductos').text(cantidad + (cantidad === 1 ? ' seleccionada' : ' seleccionadas'));
+            renderizarChipsFiltros();
         }
 
         function renderizarFiltrosProductos() {
             const termino = $('#buscarFiltroProductos').val().trim().toLowerCase();
-            const seleccionados = ($('#listaTipoFiltro').val() || []).map(String);
             const visibles = opcionesFiltroProductos.filter(function(item) {
                 return !termino || item.nombre.toLowerCase().indexOf(termino) !== -1;
             });
             const html = visibles.map(function(item) {
                 const id = String(item.id);
-                const checked = seleccionados.indexOf(id) !== -1 ? ' checked' : '';
+                const checked = seleccionTemporalFiltros.has(id) ? ' checked' : '';
                 return '<div class="custom-control custom-checkbox py-1">' +
                     '<input type="checkbox" class="custom-control-input filtro-producto-check" id="filtro-producto-' + id + '" value="' + id + '"' + checked + '>' +
                     '<label class="custom-control-label" for="filtro-producto-' + id + '">' + $('<div>').text(item.nombre).html() + '</label>' +
@@ -1627,6 +1644,7 @@ a.btn.btn-pf-primary:hover {
             $('#tituloModalFiltrosProductos').text(esMarca ? 'Seleccionar marcas' : 'Seleccionar categorías de producto');
             $('#buscarFiltroProductos').val('');
             $('#seleccionarTodosFiltrosProductos').prop('checked', false);
+            seleccionTemporalFiltros = new Set(($('#listaTipoFiltro').val() || []).map(String));
             $('#listaModalFiltrosProductos').empty();
             $('#cargandoModalFiltrosProductos').show();
             $('#modalSeleccionFiltrosProductos').modal('show');
@@ -1644,13 +1662,25 @@ a.btn.btn-pf-primary:hover {
 
         $('#btnAbrirFiltroProductos').on('click', abrirModalFiltrosProductos);
         $('#buscarFiltroProductos').on('input', renderizarFiltrosProductos);
-        $('#listaModalFiltrosProductos').on('change', '.filtro-producto-check', actualizarConteoFiltros);
+        $('#listaModalFiltrosProductos').on('change', '.filtro-producto-check', function() {
+            if (this.checked) seleccionTemporalFiltros.add(String(this.value));
+            else seleccionTemporalFiltros.delete(String(this.value));
+            actualizarConteoFiltros();
+        });
+        $('#chipsFiltrosProductos').on('click', '.btn-quitar-chip', function() {
+            seleccionTemporalFiltros.delete(String($(this).data('id')));
+            renderizarFiltrosProductos();
+        });
         $('#seleccionarTodosFiltrosProductos').on('change', function() {
-            $('#listaModalFiltrosProductos .filtro-producto-check').prop('checked', this.checked);
+            $('#listaModalFiltrosProductos .filtro-producto-check').each(function() {
+                this.checked = $('#seleccionarTodosFiltrosProductos').prop('checked');
+                if (this.checked) seleccionTemporalFiltros.add(String(this.value));
+                else seleccionTemporalFiltros.delete(String(this.value));
+            });
             actualizarConteoFiltros();
         });
         $('#btnConfirmarFiltrosProductos').on('click', function() {
-            const seleccionados = $('#listaModalFiltrosProductos .filtro-producto-check:checked').map(function() { return this.value; }).get();
+            const seleccionados = Array.from(seleccionTemporalFiltros);
             if (!seleccionados.length) {
                 Swal.fire({ icon: 'warning', title: 'Selección requerida', text: 'Seleccione al menos una opción.' });
                 return;

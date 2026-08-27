@@ -122,20 +122,7 @@ $(document).ready(function () {
   $('#listaTipoFiltroCatPrecios').select2({
     theme: 'bootstrap4',
     placeholder: 'Seleccione Categoría de precio',
-    allowClear: true,
-    ajax: {
-      url: '/filtros/categoria/precios',
-      dataType: 'json',
-      delay: 250,
-      processResults: function (data) {
-        return {
-          results: data.map(function (item) {
-            return { id: item.id, text: item.nombre };
-          })
-        };
-      },
-      cache: true
-    }
+    allowClear: true
   });
 
   // === Select2 dentro del modal (categoría de cliente)
