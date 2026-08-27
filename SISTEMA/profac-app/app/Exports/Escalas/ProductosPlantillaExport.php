@@ -46,6 +46,16 @@ class ProductosPlantillaExport implements FromQuery, WithHeadings, WithMapping, 
      */
     public function query()
     {
+        $preciosCoDistribuidorA = DB::table('precios_producto_carga as ppc')
+            ->join('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')
+            ->join('cliente_categoria_escala as cce', 'cce.id', '=', 'cp.cliente_categoria_escala_id')
+            ->where('ppc.estado_id', 1)
+            ->where('cp.estado_id', 1)
+            ->where('cce.estado_id', 1)
+            ->where('cce.nombre_categoria', 'Co-Distribuidor')
+            ->where('cp.nombre', 'A')
+            ->select('ppc.producto_id', 'ppc.precio_base_venta');
+
         /**
          * Estructura principal de la consulta:
          * Se realiza un join entre producto, marca, subcategoría, categoría y unidad de medida.
@@ -56,10 +66,8 @@ class ProductosPlantillaExport implements FromQuery, WithHeadings, WithMapping, 
             ->join('sub_categoria as C', 'C.id', '=', 'A.sub_categoria_id')
             ->join('categoria_producto as D', 'D.id', '=', 'C.categoria_producto_id')
             ->join('unidad_medida as E', 'E.id', '=', 'A.unidad_medida_compra_id')
-            ->leftJoin('precios_producto_carga as F', function($join) {
-                $join->on('F.producto_id', '=', 'A.id')
-                     ->where('F.estado_id', '=', 1)
-                     ->where('F.categoria_precios_id', '=', $this->valorCategoria);
+            ->leftJoinSub($preciosCoDistribuidorA, 'F', function($join) {
+                $join->on('F.producto_id', '=', 'A.id');
             })
             ->selectRaw("
                 1 as idtipocategoria,                             -- Tipo de categoría por defecto (1 = Escalable)
@@ -77,7 +85,7 @@ class ProductosPlantillaExport implements FromQuery, WithHeadings, WithMapping, 
                 C.descripcion as subcategoriaProducto,             -- Nombre de la subcategoría
                 IF(A.isv > 0,'SI','NO') as isv,                   -- Indicador de ISV (Impuesto sobre ventas)
                 A.ultimo_costo_compra as costoProducto,            -- Último costo de compra registrado
-                COALESCE(F.precio_base_venta, A.precio_base) as precioBase  -- Precio base: primero de precios_producto_carga activo, si no existe toma de producto
+                F.precio_base_venta as precioBase              -- Precio base de Co-Distribuidor, categoría de precio A
             ")
             ->where('A.estado_producto_id','=', 1)
             ->orderBy('A.id', 'asc');
@@ -200,6 +208,18 @@ class ProductosPlantillaExport implements FromQuery, WithHeadings, WithMapping, 
                 foreach ($columnasEditables as $columna) {
                     $rango = $columna . '2:' . $columna . $highestRow;
                     $sheet->getStyle($rango)->getProtection()->setLocked(Protection::PROTECTION_UNPROTECTED);
+                }
+
+                // Las filas sin precio base en Co-Distribuidor/A requieren atención antes de importar.
+                for ($fila = 2; $fila <= $highestRow; $fila++) {
+                    $precioBase = $sheet->getCell('Q' . $fila)->getValue();
+                    if ($precioBase === null || $precioBase === '' || (float) $precioBase <= 0) {
+                        $sheet->getStyle('A' . $fila . ':Y' . $fila)->getFill()
+                            ->setFillType(Fill::FILL_SOLID)
+                            ->getStartColor()->setARGB('FFFFC7CE');
+                        $sheet->getStyle('A' . $fila . ':Y' . $fila)->getFont()
+                            ->getColor()->setARGB('FF9C0006');
+                    }
                 }
 
                 // Proteger también los encabezados (fila 1 completa)

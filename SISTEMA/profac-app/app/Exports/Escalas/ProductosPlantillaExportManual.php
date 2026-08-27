@@ -5,8 +5,11 @@ namespace App\Exports\Escalas;
 use Maatwebsite\Excel\Concerns\FromQuery;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
+use Maatwebsite\Excel\Concerns\WithEvents;
+use Maatwebsite\Excel\Events\AfterSheet;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\Exportable;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 
 /**
  * Clase: ProductosPlantillaExportManual
@@ -26,7 +29,7 @@ use Maatwebsite\Excel\Concerns\Exportable;
  *   a diferencia del modo "Escalable".
  */
 
-class ProductosPlantillaExportManual implements FromQuery, WithHeadings, WithMapping
+class ProductosPlantillaExportManual implements FromQuery, WithHeadings, WithMapping, WithEvents
 {
     use Exportable; // Permite ejecutar métodos como ->download() o ->store() del paquete Excel
 
@@ -58,11 +61,24 @@ class ProductosPlantillaExportManual implements FromQuery, WithHeadings, WithMap
      */
     public function query()
     {
+        $preciosCoDistribuidorA = DB::table('precios_producto_carga as ppc')
+            ->join('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')
+            ->join('cliente_categoria_escala as cce', 'cce.id', '=', 'cp.cliente_categoria_escala_id')
+            ->where('ppc.estado_id', 1)
+            ->where('cp.estado_id', 1)
+            ->where('cce.estado_id', 1)
+            ->where('cce.nombre_categoria', 'Co-Distribuidor')
+            ->where('cp.nombre', 'A')
+            ->select('ppc.producto_id', 'ppc.precio_base_venta');
+
         $query = DB::table('producto as A')
             ->join('marca as B', 'B.id', '=', 'A.marca_id')
             ->join('sub_categoria as C', 'C.id', '=', 'A.sub_categoria_id')
             ->join('categoria_producto as D', 'D.id', '=', 'C.categoria_producto_id')
             ->join('unidad_medida as E', 'E.id', '=', 'A.unidad_medida_compra_id')
+            ->leftJoinSub($preciosCoDistribuidorA, 'F', function($join) {
+                $join->on('F.producto_id', '=', 'A.id');
+            })
             ->selectRaw("
                 2 as idtipocategoria,                          -- Identificador del tipo de categoría (2 = Manual)
                 'Manual' as tipocategoriaprecio,               -- Descripción del tipo de categoría
@@ -79,7 +95,7 @@ class ProductosPlantillaExportManual implements FromQuery, WithHeadings, WithMap
                 C.descripcion as subcategoriaProducto,         -- Descripción de la subcategoría
                 IF(A.isv > 0,'SI','NO') as isv,                -- Indicador si el producto aplica ISV
                 A.ultimo_costo_compra as costoProducto,        -- Último costo de compra del producto
-                A.precio_base as precioBase                    -- Precio base actual del producto
+                F.precio_base_venta as precioBase              -- Precio base de Co-Distribuidor, categoría de precio A
             ")
             ->orderBy('A.id', 'asc'); // Orden ascendente por ID de producto
 
@@ -173,6 +189,27 @@ class ProductosPlantillaExportManual implements FromQuery, WithHeadings, WithMap
             '',                        // % Flete
             '',                        // % Arancel
             '',                        // Comentario adicional
+        ];
+    }
+
+    public function registerEvents(): array
+    {
+        return [
+            AfterSheet::class => function (AfterSheet $event) {
+                $sheet = $event->sheet->getDelegate();
+                $highestRow = $sheet->getHighestRow();
+
+                for ($fila = 2; $fila <= $highestRow; $fila++) {
+                    $precioBase = $sheet->getCell('Q' . $fila)->getValue();
+                    if ($precioBase === null || $precioBase === '' || (float) $precioBase <= 0) {
+                        $sheet->getStyle('A' . $fila . ':AC' . $fila)->getFill()
+                            ->setFillType(Fill::FILL_SOLID)
+                            ->getStartColor()->setARGB('FFFFC7CE');
+                        $sheet->getStyle('A' . $fila . ':AC' . $fila)->getFont()
+                            ->getColor()->setARGB('FF9C0006');
+                    }
+                }
+            },
         ];
     }
 }
