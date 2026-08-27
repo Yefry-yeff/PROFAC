@@ -346,6 +346,64 @@ function limpiarTablas() {
     $('#tbl_productos').DataTable().clear().destroy();
 }
 
+function obtenerProductosEnCarrito() {
+    return arrayInputs.map(function (indice) {
+        return {
+            productoId: Number(document.getElementById('IdProducto' + indice).value),
+            seccionId: Number(document.getElementById('IdSeccion' + indice).value),
+            cantidad: Number(document.getElementById('cantidad' + indice).value)
+        };
+    });
+}
+
+function recargarTablaProductos() {
+    if ($.fn.DataTable.isDataTable('#tbl_productos')) {
+        $('#tbl_productos').DataTable().ajax.reload(null, false);
+    }
+}
+
+function cargarProductoEnFormulario(data, mostrarModal) {
+    document.getElementById('nombre').value = data.producto;
+    document.getElementById('idFactura').value = data.factura_id;
+    document.getElementById('idProducto').value = data.producto_id;
+    document.getElementById('idMedidaVenta').value = data.idUnidadVenta;
+    document.getElementById('unidad_venta').value = data.unidad_venta;
+    document.getElementById('unidad').value = data.unidad_medida;
+    document.getElementById('precio').value = data.precio_unidad;
+    document.getElementById('subtotalproducto').value = data.sub_total;
+    document.getElementById('porc_descuento').value = data.porc_descuento;
+    document.getElementById('isvPorcentaje').value = data.porcentajeISV;
+    document.getElementById('cantidadMaxima').value = data.cantidad;
+    document.getElementById('precioMostrar').value = monedaLempiras(data.precio_unidad);
+    document.getElementById('cantidad').value = 0;
+    document.getElementById('cantidad').max = data.cantidad;
+    document.getElementById('cantidad').min = 1;
+    document.getElementById('isvVenta').value = data.isVenta;
+    document.getElementById('totalVenta').value = data.totalVenta;
+
+    let descuentoInfo = document.getElementById('descuentoInfo');
+    let porcDescuento = +data.porc_descuento;
+    if (porcDescuento > 0) {
+        let precioConDescuento = data.precio_unidad * (1 - (porcDescuento / 100));
+        document.getElementById('descuentoInfoPorcentaje').innerText = porcDescuento + '%';
+        document.getElementById('descuentoInfoPrecio').innerText = monedaLempiras(precioConDescuento);
+        descuentoInfo.style.display = 'block';
+    } else {
+        descuentoInfo.style.display = 'none';
+    }
+
+    document.getElementById('bodega').innerHTML =
+        `<option value="${data.bodegaId}" selected disabled>${data.nombreBodega}</option>`;
+    document.getElementById('segmento').innerHTML =
+        `<option value="${data.segmentoId}" selected disabled>${data.segmento}</option>`;
+    document.getElementById('seccion').innerHTML =
+        `<option value="${data.seccionId}" selected disabled>${data.seccion}</option>`;
+
+    if (mostrarModal) {
+        abrirModal('modal_devolver_producto');
+    }
+}
+
 function infoProducto(facturaId, productoId, seccionId) {
 
 
@@ -358,51 +416,7 @@ function infoProducto(facturaId, productoId, seccionId) {
 
 
 
-            let data = response.data.datos;
-            let cantidadMax = data.cantidad;
-
-            document.getElementById('nombre').value = data.producto;
-            document.getElementById('idFactura').value = data.factura_id;
-            document.getElementById('idProducto').value = data.producto_id;
-            document.getElementById('idMedidaVenta').value = data.idUnidadVenta;
-            document.getElementById('unidad_venta').value = data.unidad_venta;
-            document.getElementById('unidad').value = data.unidad_medida;
-            document.getElementById('precio').value = data.precio_unidad;
-            document.getElementById('subtotalproducto').value = data.sub_total;
-            document.getElementById('porc_descuento').value = data.porc_descuento;
-            document.getElementById('isvPorcentaje').value = data.porcentajeISV;
-            document.getElementById('cantidadMaxima').value = cantidadMax;
-            document.getElementById('precioMostrar').value = monedaLempiras(data.precio_unidad);
-            document.getElementById("cantidad").value = 0;
-            document.getElementById('cantidad').max = cantidadMax;
-            document.getElementById('cantidad').min = 1;
-
-            document.getElementById('isvVenta').value = data.isVenta;
-            document.getElementById('totalVenta').value = data.totalVenta;
-
-            let descuentoInfo = document.getElementById('descuentoInfo');
-            let porcDescuento = +data.porc_descuento;
-            if (porcDescuento > 0) {
-                let precioConDescuento = data.precio_unidad * (1 - (porcDescuento / 100));
-                document.getElementById('descuentoInfoPorcentaje').innerText = porcDescuento + '%';
-                document.getElementById('descuentoInfoPrecio').innerText = monedaLempiras(precioConDescuento);
-                descuentoInfo.style.display = 'block';
-            } else {
-                descuentoInfo.style.display = 'none';
-            }
-
-            let htmlBodega =
-                `<option value="${data.bodegaId}" selected="" disabled="">${data.nombreBodega}</option>`;
-            let htmlSegmento =
-                `<option value="${data.segmentoId}" selected="" disabled="">${data.segmento}</option>`;
-            let htmlSeccion =
-                `<option value="${data.seccionId}" selected="" disabled="">${data.seccion}</option>`;
-
-            document.getElementById('bodega').innerHTML = htmlBodega;
-            document.getElementById('segmento').innerHTML = htmlSegmento;
-            document.getElementById('seccion').innerHTML = htmlSeccion;
-
-            abrirModal('modal_devolver_producto');
+            cargarProductoEnFormulario(response.data.datos, true);
 
         })
         .catch(err => {
@@ -417,7 +431,58 @@ function infoProducto(facturaId, productoId, seccionId) {
 
 }
 
-function agregarProductoLista() {
+function agregarTodosLosProductos() {
+    let idFactura = document.getElementById('factura').value;
+    if (!idFactura) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Advertencia',
+            text: 'Primero solicite una factura.'
+        });
+        return;
+    }
+
+    let boton = document.getElementById('btnDevolverTodos');
+    boton.disabled = true;
+
+    axios.post('/nota/credito/obtener/productos-devolucion', { idFactura: idFactura })
+        .then(function (response) {
+            let agregados = 0;
+            response.data.productos.forEach(function (producto) {
+                let yaAgregado = productoSeccion.some(function (item) {
+                    return item[0] == producto.producto_id && item[1] == producto.seccionId;
+                });
+
+                if (!yaAgregado && Number(producto.cantidad) > 0) {
+                    cargarProductoEnFormulario(producto, false);
+                    document.getElementById('cantidad').value = producto.cantidad;
+                    agregarProductoLista({ recargarTabla: false, cerrarModal: false });
+                    agregados++;
+                }
+            });
+
+            recargarTablaProductos();
+            if (agregados === 0) {
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Sin productos disponibles',
+                    text: 'Todos los productos disponibles ya están en el carrito.'
+                });
+            }
+        })
+        .catch(function (error) {
+            let mensaje = error.response && error.response.data && error.response.data.message
+                ? error.response.data.message
+                : 'No fue posible cargar todos los productos.';
+            Swal.fire({ icon: 'error', title: 'Error', text: mensaje });
+        })
+        .finally(function () {
+            boton.disabled = false;
+        });
+}
+
+function agregarProductoLista(opciones) {
+    opciones = opciones || {};
     let cantidad = document.getElementById('cantidad').value;
     let cantidadMaxima = document.getElementById('cantidadMaxima').value;
     let subtotalproducto = document.getElementById('subtotalproducto').value;
@@ -425,13 +490,14 @@ function agregarProductoLista() {
     console.log(subtotalproducto);
     let idProducto = document.getElementById('idProducto').value;
     let seccion = document.getElementById('seccion');
+    let seccionId = seccion.value;
 
 
     let repetidoFlag = false;
 
     //****************Comprueba si el producto con la seccion se repite************************/
     productoSeccion.forEach(array => {
-        if (array[0] == idProducto && array[1] == seccion.value) {
+        if (array[0] == idProducto && array[1] == seccionId) {
             repetidoFlag = true;
             return;
         }
@@ -524,7 +590,7 @@ function agregarProductoLista() {
                         <td>
                             ${nombre}
                             <input type="hidden" id="IdProducto${contador}" name="IdProducto${contador}" value="${idProducto}" form="guardar_devolucion">
-                            <input type="hidden" id="IdSeccion${contador}" name="IdSeccion${contador}" value="${seccion.value}" form="guardar_devolucion">
+                            <input type="hidden" id="IdSeccion${contador}" name="IdSeccion${contador}" value="${seccionId}" form="guardar_devolucion">
                             <input type="hidden" id="nombreProducto${contador}" name="nombreProducto${contador}" value="${nombre}" form="guardar_devolucion">
                             <input type="hidden" id="precio${contador}" name="precio${contador}" value="${precio}" form="guardar_devolucion">
                         </td>
@@ -556,7 +622,9 @@ function agregarProductoLista() {
 
     let idCuerpoLista = document.getElementById("cuerpoLista");
 
-    cerrarModal('modal_devolver_producto');
+    if (opciones.cerrarModal !== false) {
+        cerrarModal('modal_devolver_producto');
+    }
     idCuerpoLista.insertAdjacentHTML('beforeend', html);
     document.getElementById("form_producto_devolver").reset();
     $('#form_producto_devolver').parsley().reset();
@@ -630,8 +698,11 @@ function agregarProductoLista() {
 
     arrayInputs.push(contador);
     contador++;
-    productoSeccion.push([idProducto, seccion.value]);
+    productoSeccion.push([idProducto, seccionId]);
     actualizarDestinoCreditoCrear();
+    if (opciones.recargarTabla !== false) {
+        recargarTablaProductos();
+    }
 
     return;
 }
@@ -746,6 +817,7 @@ function eliminarFila(id, subtotal, isv, total) {
         minimumFractionDigits: 2,
     }).format(totalInput);
     actualizarDestinoCreditoCrear();
+    recargarTablaProductos();
 
 }
 

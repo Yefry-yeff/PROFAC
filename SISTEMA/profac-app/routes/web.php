@@ -1051,6 +1051,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::post('/nota/credito/datos/factura', [CrearNotaCredito::class, 'obtenerDetalleFactura']);
     Route::post('/nota/credito/previsualizar-aplicacion', [CrearNotaCredito::class, 'previsualizarAplicacion']);
     Route::post('/nota/credito/obtener/productos', [CrearNotaCredito::class, 'obtenerProductos']);
+    Route::post('/nota/credito/obtener/productos-devolucion', [CrearNotaCredito::class, 'obtenerProductosParaDevolucion']);
     Route::post('/nota/credito/datos/producto', [CrearNotaCredito::class, 'datosProducto']);
     Route::post('/nota/credito/guardar', [CrearNotaCredito::class, 'guardarNotaCredito']);
     Route::get('/nota/credito/gobierno', ListadoNotasND::class);

@@ -231,6 +231,12 @@
                         <div class="tab-content">
                             {{-- ===== TAB: POR PRODUCTO ===== --}}
                             <div class="tab-pane fade show active" id="tab_productos_factura" role="tabpanel">
+                                <div class="d-flex justify-content-end mt-3">
+                                    <button type="button" id="btnDevolverTodos" class="btn btn-nc-primary"
+                                        onclick="agregarTodosLosProductos()">
+                                        <i class="fa fa-cart-plus mr-1"></i> Crear devolución de todos los productos
+                                    </button>
+                                </div>
                                 <div class="table-responsive mt-3">
                                     <table id="tbl_productos" class="table table-striped table-bordered table-hover">
                                         <thead class="">
@@ -1106,9 +1112,10 @@
             responsive: true,
             'ajax': {
                 'url': "/nota/credito/obtener/productos",
-                'data': {
-                    'idFactura': idFactura,
-                    "_token": "{{ csrf_token() }}"
+                'data': function (data) {
+                    data.idFactura = idFactura;
+                    data.productosCarrito = JSON.stringify(obtenerProductosEnCarrito());
+                    data._token = "{{ csrf_token() }}";
                 },
                 'type': 'post'
             },
