@@ -88,9 +88,9 @@ class ProductosPlantillaExport implements FromQuery, WithHeadings, WithMapping, 
          *  - tipoFiltro = 2 → Filtra por categoría
          */
         if ($this->tipoFiltro == 1 && $this->valorFiltro) {
-            $query->where('A.marca_id', $this->valorFiltro);
+            $query->whereIn('A.marca_id', (array) $this->valorFiltro);
         } elseif ($this->tipoFiltro == 2 && $this->valorFiltro) {
-            $query->where('D.id', $this->valorFiltro);
+            $query->whereIn('D.id', (array) $this->valorFiltro);
         }
 
         return $query;

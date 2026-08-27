@@ -855,6 +855,10 @@ a.btn.btn-pf-primary:hover {
                 <span class="tab-num">2</span>
                 <i class="fa fa-upload mr-1"></i> Importar Plantilla
             </button>
+            <button class="pf-wizard-tab" id="tabEditar" onclick="switchWizardTab('editar')">
+                <span class="tab-num">3</span>
+                <i class="fa fa-pencil-square-o mr-1"></i> Editar precios base
+            </button>
         </div>
     </div>
 
@@ -877,7 +881,7 @@ a.btn.btn-pf-primary:hover {
                 </div>
 
                 {{-- Tipo de categoría --}}
-                <div class="filtro-item" id="containerTipoCategoria" style="display:none;">
+                <div class="filtro-item" id="containerTipoCategoria">
                     <select id="tipoCategoria" name="tipoCategoria" class="form-control select2bs4 filtro-select">
                         <option value="">Tipo de categoría</option>
                         <option value="escalable">Escalable</option>
@@ -886,7 +890,7 @@ a.btn.btn-pf-primary:hover {
                 </div>
 
                 {{-- Filtrar por --}}
-                <div class="filtro-item" id="containerTipoFiltro" style="display:none;">
+                <div class="filtro-item" id="containerTipoFiltro">
                     <select id="tipoFiltro" name="tipoFiltro" class="form-control select2bs4 filtro-select">
                         <option value="">Filtrar por</option>
                         <option value="1">Marca</option>
@@ -896,9 +900,11 @@ a.btn.btn-pf-primary:hover {
 
                 {{-- Lista dinámica --}}
                 <div class="filtro-item" id="containerListaFiltro" style="display:none;">
-                    <select id="listaTipoFiltro" name="listaTipoFiltro" class="form-control select2bs4 filtro-select">
-                        <option value="">Seleccione...</option>
-                    </select>
+                    <select id="listaTipoFiltro" name="listaTipoFiltro[]" multiple style="display:none;"></select>
+                    <button type="button" id="btnAbrirFiltroProductos" class="btn btn-outline-secondary btn-block filtro-select text-left">
+                        <i class="fa fa-list mr-1"></i>
+                        <span id="resumenFiltroProductos">Seleccionar opciones</span>
+                    </button>
                 </div>
 
                 {{-- Categoría de cliente --}}
@@ -1041,17 +1047,15 @@ a.btn.btn-pf-primary:hover {
             </div>
         </div>
 
-    </div>{{-- /pf-wizard-body --}}
-</div>{{-- /pf-wizard-card --}}
-
 {{-- ═══════════════════════════════════════════════════════
      EDITOR MANUAL DE PRECIOS BASE
 ═══════════════════════════════════════════════════════ --}}
-<div class="pf-wizard-card mt-3" id="cardEditorPrecios">
-    <div class="pf-wizard-header">
-        <h6><i class="fa fa-pencil-square-o mr-2"></i>Editar Precios Base Manualmente</h6>
+<div class="pf-wizard-pane" id="paneEditar">
+<div id="cardEditorPrecios">
+    <div class="pf-step-label">
+        <i class="fa fa-pencil-square-o mr-1"></i> Editar precios base manualmente
     </div>
-    <div class="pf-wizard-body">
+    <div>
 
         {{-- PASO 1: Categoría de cliente --}}
         <div class="pf-step-label"><i class="fa fa-users"></i> Paso 1 — Categoría de cliente</div>
@@ -1162,6 +1166,42 @@ a.btn.btn-pf-primary:hover {
             Seleccione una categoría de cliente para comenzar.
         </div>
 
+    </div>
+</div>
+</div>
+
+    </div>{{-- /pf-wizard-body --}}
+</div>{{-- /pf-wizard-card --}}
+
+<div class="modal fade" id="modalSeleccionFiltrosProductos" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document" style="max-width:620px;">
+        <div class="modal-content">
+            <div class="modal-header" style="background:var(--pf-grad);color:#fff;">
+                <h6 class="modal-title mb-0" id="tituloModalFiltrosProductos">Seleccionar opciones</h6>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Cerrar"><span aria-hidden="true">&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <div class="input-group input-group-sm mb-2">
+                    <div class="input-group-prepend"><span class="input-group-text"><i class="fa fa-search"></i></span></div>
+                    <input type="text" id="buscarFiltroProductos" class="form-control" placeholder="Buscar...">
+                </div>
+                <div class="custom-control custom-checkbox mb-2">
+                    <input type="checkbox" class="custom-control-input" id="seleccionarTodosFiltrosProductos">
+                    <label class="custom-control-label font-weight-bold" for="seleccionarTodosFiltrosProductos">Seleccionar todas</label>
+                </div>
+                <div id="listaModalFiltrosProductos" class="border rounded p-2" style="max-height:360px;overflow-y:auto;"></div>
+                <div id="cargandoModalFiltrosProductos" class="text-center text-muted py-4" style="display:none;">
+                    <i class="fa fa-spinner fa-spin mr-1"></i> Cargando opciones...
+                </div>
+            </div>
+            <div class="modal-footer">
+                <span id="conteoFiltrosProductos" class="text-muted small mr-auto">0 seleccionadas</span>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-pf-primary" id="btnConfirmarFiltrosProductos">
+                    <i class="fa fa-check mr-1"></i> Aplicar selección
+                </button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -1555,6 +1595,75 @@ a.btn.btn-pf-primary:hover {
         const barProgressPrecios = $('#barImportPrecios');
         const msgImportPrecios = $('#msgImportPrecios');
         const formSubirExcel = $('#formSubirExcel');
+        let opcionesFiltroProductos = [];
+
+        function actualizarConteoFiltros() {
+            const cantidad = $('#listaModalFiltrosProductos .filtro-producto-check:checked').length;
+            $('#conteoFiltrosProductos').text(cantidad + (cantidad === 1 ? ' seleccionada' : ' seleccionadas'));
+        }
+
+        function renderizarFiltrosProductos() {
+            const termino = $('#buscarFiltroProductos').val().trim().toLowerCase();
+            const seleccionados = ($('#listaTipoFiltro').val() || []).map(String);
+            const visibles = opcionesFiltroProductos.filter(function(item) {
+                return !termino || item.nombre.toLowerCase().indexOf(termino) !== -1;
+            });
+            const html = visibles.map(function(item) {
+                const id = String(item.id);
+                const checked = seleccionados.indexOf(id) !== -1 ? ' checked' : '';
+                return '<div class="custom-control custom-checkbox py-1">' +
+                    '<input type="checkbox" class="custom-control-input filtro-producto-check" id="filtro-producto-' + id + '" value="' + id + '"' + checked + '>' +
+                    '<label class="custom-control-label" for="filtro-producto-' + id + '">' + $('<div>').text(item.nombre).html() + '</label>' +
+                '</div>';
+            }).join('');
+            $('#listaModalFiltrosProductos').html(html || '<div class="text-muted text-center py-3">Sin resultados</div>');
+            actualizarConteoFiltros();
+        }
+
+        function abrirModalFiltrosProductos() {
+            const tipo = $('#tipoFiltro').val();
+            if (!tipo) return;
+            const esMarca = tipo === '1';
+            $('#tituloModalFiltrosProductos').text(esMarca ? 'Seleccionar marcas' : 'Seleccionar categorías de producto');
+            $('#buscarFiltroProductos').val('');
+            $('#seleccionarTodosFiltrosProductos').prop('checked', false);
+            $('#listaModalFiltrosProductos').empty();
+            $('#cargandoModalFiltrosProductos').show();
+            $('#modalSeleccionFiltrosProductos').modal('show');
+
+            $.getJSON(esMarca ? '/filtros/marca' : '/filtros/categoria')
+                .done(function(data) {
+                    opcionesFiltroProductos = data || [];
+                    renderizarFiltrosProductos();
+                })
+                .fail(function() {
+                    $('#listaModalFiltrosProductos').html('<div class="text-danger text-center py-3">No se pudieron cargar las opciones.</div>');
+                })
+                .always(function() { $('#cargandoModalFiltrosProductos').hide(); });
+        }
+
+        $('#btnAbrirFiltroProductos').on('click', abrirModalFiltrosProductos);
+        $('#buscarFiltroProductos').on('input', renderizarFiltrosProductos);
+        $('#listaModalFiltrosProductos').on('change', '.filtro-producto-check', actualizarConteoFiltros);
+        $('#seleccionarTodosFiltrosProductos').on('change', function() {
+            $('#listaModalFiltrosProductos .filtro-producto-check').prop('checked', this.checked);
+            actualizarConteoFiltros();
+        });
+        $('#btnConfirmarFiltrosProductos').on('click', function() {
+            const seleccionados = $('#listaModalFiltrosProductos .filtro-producto-check:checked').map(function() { return this.value; }).get();
+            if (!seleccionados.length) {
+                Swal.fire({ icon: 'warning', title: 'Selección requerida', text: 'Seleccione al menos una opción.' });
+                return;
+            }
+            const $lista = $('#listaTipoFiltro').empty();
+            seleccionados.forEach(function(id) {
+                const item = opcionesFiltroProductos.find(function(opcion) { return String(opcion.id) === String(id); });
+                if (item) $lista.append(new Option(item.nombre, item.id, true, true));
+            });
+            $('#resumenFiltroProductos').text(seleccionados.length + (seleccionados.length === 1 ? ' opción seleccionada' : ' opciones seleccionadas'));
+            $lista.trigger('change');
+            $('#modalSeleccionFiltrosProductos').modal('hide');
+        });
 
         // Gestión dinámica de filtros según tipo de plantilla
         $('#tipoPlantilla').on('change', function() {
@@ -1574,6 +1683,7 @@ a.btn.btn-pf-primary:hover {
             $('#containerCatCliente').hide();
             $('#catClienteSelect').val(null).trigger('change');
             $('#containerCatPrecios').hide();
+            $('#containerTipoCategoria, #containerTipoFiltro').show();
 
             // Limpiar archivo y mensajes
             fileInputPrecios.val('');
@@ -1610,10 +1720,8 @@ a.btn.btn-pf-primary:hover {
 
         // Al cambiar tipo de categoría
         $('#tipoCategoria').on('change', function() {
-            if ($(this).val()) {
-                $('#containerTipoFiltro').show();
-            } else {
-                $('#containerTipoFiltro').hide();
+            $('#containerTipoFiltro').show();
+            if (!$(this).val()) {
                 $('#containerListaFiltro').hide();
                 $('#catClienteSelect').val(null).trigger('change');
                 $('#containerCatCliente').hide();
@@ -1627,6 +1735,9 @@ a.btn.btn-pf-primary:hover {
         $('#tipoFiltro').on('change', function() {
             if ($(this).val()) {
                 $('#containerListaFiltro').show();
+                $('#listaTipoFiltro').empty().trigger('change');
+                $('#resumenFiltroProductos').text('Seleccionar opciones');
+                abrirModalFiltrosProductos();
             } else {
                 $('#containerListaFiltro').hide();
                 $('#catClienteSelect').val(null).trigger('change');
@@ -2192,7 +2303,7 @@ a.btn.btn-pf-primary:hover {
     <script>
     // ── Wizard tab switcher (global, usado por onclick en el HTML) ──
     function switchWizardTab(tab) {
-        var tabs = ['descargar', 'importar'];
+        var tabs = ['descargar', 'importar', 'editar'];
         tabs.forEach(function(t) {
             var key  = t.charAt(0).toUpperCase() + t.slice(1);
             var btn  = document.getElementById('tab'  + key);

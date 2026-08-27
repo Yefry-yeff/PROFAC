@@ -69,16 +69,19 @@ $(document).ready(function () {
     width: 'resolve'
   });
 
-  $('#listaTipoFiltro').select2({
-    theme: 'bootstrap4',
-    placeholder: 'Seleccione una opción',
-    width: 'resolve'
-  });
+  if (!$('#modalSeleccionFiltrosProductos').length) {
+    $('#listaTipoFiltro').select2({
+      theme: 'bootstrap4',
+      placeholder: 'Seleccione una opción',
+      width: 'resolve'
+    });
+  }
 
   // === Cargar opciones dinámicas de #listaTipoFiltro según el valor de #tipoFiltro
   // Si el usuario elige filtrar por Marca (1) o Categoría (2), se consulta el endpoint correspondiente
   // y se pobla el select con los resultados.
   $('#tipoFiltro').on('change', function () {
+    if ($('#modalSeleccionFiltrosProductos').length) return;
     let tipo = $(this).val();
     let $listaTipo = $('#listaTipoFiltro');
 

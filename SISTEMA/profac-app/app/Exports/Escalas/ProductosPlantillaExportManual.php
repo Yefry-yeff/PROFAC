@@ -89,9 +89,9 @@ class ProductosPlantillaExportManual implements FromQuery, WithHeadings, WithMap
          * Si es de tipo 2, se filtra por categoría.
          */
         if ($this->tipoFiltro == 1 && $this->valorFiltro) {
-            $query->where('A.marca_id', $this->valorFiltro);
+            $query->whereIn('A.marca_id', (array) $this->valorFiltro);
         } elseif ($this->tipoFiltro == 2 && $this->valorFiltro) {
-            $query->where('D.id', $this->valorFiltro);
+            $query->whereIn('D.id', (array) $this->valorFiltro);
         }
 
         // Se retorna la consulta lista para ser procesada por Maatwebsite Excel
