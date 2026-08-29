@@ -7,17 +7,18 @@
         body { font-family: DejaVu Sans, sans-serif; color: #263238; font-size: 8px; }
         .header { display: table; width: 100%; margin-bottom: 8px; }
         .logo, .title { display: table-cell; vertical-align: middle; }
-        .logo { width: 150px; }
-        .logo img { width: 130px; }
-        .title { text-align: center; padding-right: 150px; }
+        .logo { width: 120px; text-align: center; }
+        .logo img { width: 95px; height: auto; }
+        .title { text-align: center; padding-right: 120px; }
         .title h1 { margin: 0; color: #1f6f50; font-size: 16px; }
         .title p { margin: 2px 0; }
         .filters { padding: 6px 8px; background: #eef6f2; border: 1px solid #bdd8ca; margin-bottom: 10px; }
-        .invoice { margin-bottom: 13px; page-break-inside: avoid; }
-        .invoice-header { background: #1f6f50; color: #fff; padding: 6px 8px; }
+        .invoice { margin-bottom: 13px; page-break-inside: auto; }
+        .invoice-header { background: #1f6f50; color: #fff; padding: 6px 8px; page-break-after: avoid; }
         .invoice-meta { width: 100%; border-collapse: collapse; margin-bottom: 3px; }
         .invoice-meta td { border: 1px solid #cfd8dc; padding: 4px 6px; background: #f8faf9; }
         table.products { width: 100%; border-collapse: collapse; }
+        .products thead { display: table-header-group; }
         .products th { background: #e67e22; color: #fff; border: 1px solid #bf650f; padding: 4px; }
         .products td { border: 1px solid #cfd8dc; padding: 4px; }
         .products tr:nth-child(even) td { background: #fff8ee; }
@@ -44,11 +45,11 @@
     @endphp
 
     <div class="header">
-        <div class="logo"><img src="{{ public_path('img/membrete/Logo3.png') }}" alt="Logo"></div>
+        <div class="logo"><img src="{{ public_path('img/LOGO_VALENCIA.jpg') }}" alt="Logo"></div>
         <div class="title">
             <h1>DISTRIBUCIONES VALENCIA</h1>
             <p><strong>{{ strtoupper($tipoLabel) }} - DETALLE DE FACTURAS POR PRODUCTO</strong></p>
-            <p>{{ count($facturas) }} factura(s) | Generado {{ now()->format('d/m/Y H:i') }}</p>
+            <p>{{ count($facturas) }} factura(s) | Generado {{ now()->format('d/m/Y H:i') }} | Usuario: <strong>{{ optional(Auth::user())->name ?? 'Sistema' }}</strong></p>
         </div>
     </div>
     <div class="filters"><strong>Filtros:</strong> {{ $partes ? implode(' | ', $partes) : 'Sin filtros adicionales' }}</div>
@@ -98,7 +99,6 @@
                 </tbody>
             </table>
         </div>
-        @if(!$loop->last)<div style="page-break-after: always;"></div>@endif
     @empty
         <div class="empty">No se encontraron facturas con los filtros seleccionados.</div>
     @endforelse
