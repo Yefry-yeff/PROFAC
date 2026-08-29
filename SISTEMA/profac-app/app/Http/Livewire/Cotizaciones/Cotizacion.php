@@ -472,7 +472,6 @@ class Cotizacion extends Component
             }
 
             $ventaBruta = 0.0;
-            $cantidadesExpo = [];
             foreach ($arrayInputs as $indice) {
                 $precioCargaId = (int) $request->input('precios_producto_carga_id' . $indice, 0);
                 $escalaId = (int) (DB::table('precios_producto_carga')->where('id', $precioCargaId)->value('categoria_precios_id') ?? 0);
@@ -492,19 +491,8 @@ class Cotizacion extends Component
                         'text' => 'Todos los productos de la Oferta Expo deben tener una cantidad válida.',
                     ], 422);
                 }
-                $cantidadesExpo[$productoId] = ($cantidadesExpo[$productoId] ?? 0) + $cantidadBase;
-
                 $ventaBruta += (float) $request->input('precio' . $indice, 0)
                     * $cantidadBase;
-            }
-
-            foreach ($cantidadesExpo as $productoId => $cantidadSolicitada) {
-                if ($cantidadSolicitada > ExpoStock::disponible((int) $productoId, $expoConfig['bodegas']) + 0.00001) {
-                    return response()->json([
-                        'icon' => 'error', 'title' => 'Existencia insuficiente',
-                        'text' => 'La cantidad solicitada supera la existencia agrupada disponible en las bodegas de la Expo.',
-                    ], 422);
-                }
             }
 
             $ubicacionVirtualExpo = ExpoStock::ubicacionVirtual();

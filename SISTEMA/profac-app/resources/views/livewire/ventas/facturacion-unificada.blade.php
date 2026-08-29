@@ -2244,6 +2244,7 @@
             aplicarAsesorAsignado(clienteTemporal.value, asesorTemporal ? asesorTemporal.value : null);
         }
         normalizarFilasCarritoExpo();
+        actualizarStocksDisponiblesExpo();
 
         var tieneProductos = arregloIdInputs.length > 0;
         var tabla = document.getElementById('carritoTablaWrapper');
@@ -2258,6 +2259,43 @@
         var elemento = document.createElement('div');
         elemento.textContent = texto || '';
         return elemento.innerHTML;
+    }
+
+    function mostrarStockDisponibleExpo(indice, disponible) {
+        if (!filtrarProductosExpo) return;
+        var nombreProducto = document.getElementById('nombre' + indice);
+        if (!nombreProducto) return;
+
+        var indicador = document.getElementById('stockExpoProducto' + indice);
+        if (!indicador) {
+            indicador = document.createElement('small');
+            indicador.id = 'stockExpoProducto' + indice;
+            indicador.className = 'd-block mt-1';
+            indicador.style.cssText = 'font-size:10px;font-weight:700;color:#1565c0;';
+            nombreProducto.insertAdjacentElement('afterend', indicador);
+        }
+
+        var stock = Math.max(0, Number(disponible || 0));
+        indicador.textContent = 'Stock disponible: ' + stock.toLocaleString('es-HN', { maximumFractionDigits: 2 });
+    }
+
+    function consultarStockDisponibleExpo(indice) {
+        if (!filtrarProductosExpo || !expoConfig) return Promise.resolve();
+        var productoId = document.getElementById('idProducto' + indice)?.value;
+        if (!productoId) return Promise.resolve();
+
+        return axios.get('/expo/oferta/listar-bodega/' + productoId, {
+            params: { expo_id: expoConfig.id }
+        }).then(function(response) {
+            mostrarStockDisponibleExpo(indice, response.data?.results?.[0]?.disponible || 0);
+        }).catch(function() {
+            mostrarStockDisponibleExpo(indice, 0);
+        });
+    }
+
+    function actualizarStocksDisponiblesExpo() {
+        if (!filtrarProductosExpo) return;
+        arregloIdInputs.forEach(consultarStockDisponibleExpo);
     }
 
     function ocultarCargaTemporales() {
@@ -3546,6 +3584,7 @@
 
                 arregloIdInputs.splice(numeroInputs, 0, numeroInputs);
                 document.getElementById('carritoTbody').insertAdjacentHTML('beforeend', html);
+                mostrarStockDisponibleExpo(numeroInputs, data.disponible || 0);
                 // Mostrar tabla, ocultar mensaje vacío
                 document.getElementById('carritoVacio').classList.add('d-none');
                 document.getElementById('carritoTablaWrapper').classList.remove('d-none');
@@ -5760,6 +5799,7 @@
 
                 arregloIdInputs.splice(idx, 0, idx);
                 document.getElementById('carritoTbody').insertAdjacentHTML('beforeend', html);
+                consultarStockDisponibleExpo(idx);
                 document.getElementById('carritoVacio').classList.add('d-none');
                 document.getElementById('carritoTablaWrapper').classList.remove('d-none');
                 totalesGenerales();
@@ -5915,6 +5955,7 @@
 
                     arregloIdInputs.splice(idx, 0, idx);
                     document.getElementById('carritoTbody').insertAdjacentHTML('beforeend', html);
+                    consultarStockDisponibleExpo(idx);
                     document.getElementById('carritoVacio').classList.add('d-none');
                     document.getElementById('carritoTablaWrapper').classList.remove('d-none');
                     actualizarContadorCarrito();

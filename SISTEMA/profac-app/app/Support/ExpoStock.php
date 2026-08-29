@@ -33,9 +33,14 @@ class ExpoStock
 
     public static function disponible(int $productoId, array $bodegaIds): float
     {
+        return self::resumen($productoId, $bodegaIds)['disponible'];
+    }
+
+    public static function resumen(int $productoId, array $bodegaIds): array
+    {
         $bodegaIds = array_values(array_unique(array_filter(array_map('intval', $bodegaIds), fn ($id) => $id > 0)));
         if ($productoId <= 0 || !$bodegaIds) {
-            return 0.0;
+            return ['existencia' => 0.0, 'reservado' => 0.0, 'disponible' => 0.0];
         }
 
         $existencia = (float) DB::table('recibido_bodega as rb')
@@ -56,7 +61,11 @@ class ExpoStock
             ->whereIn('sg.bodega_id', $bodegaIds)
             ->sum('php.cantidad');
 
-        return max(0.0, $existencia - $reservado);
+        return [
+            'existencia' => $existencia,
+            'reservado' => $reservado,
+            'disponible' => max(0.0, $existencia - $reservado),
+        ];
     }
 
     public static function opcion(int $productoId, array $bodegaIds): ?array

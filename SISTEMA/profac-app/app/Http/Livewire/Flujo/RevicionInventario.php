@@ -2,6 +2,7 @@
 
 namespace App\Http\Livewire\Flujo;
 
+use App\Support\ExpoStock;
 use Livewire\Component;
 use App\Events\FlujoAvanzadoEvent;
 use Illuminate\Support\Facades\DB;
@@ -384,9 +385,13 @@ class RevicionInventario extends Component
             return;
         }
 
-        $this->esOfertaExpo = DB::table('expo_cotizacion')
+        $expoId = (int) (DB::table('expo_cotizacion')
             ->where('cotizacion_id', $this->cotizacionId)
-            ->exists();
+            ->value('expo_id') ?? 0);
+        $this->esOfertaExpo = $expoId > 0;
+        $bodegasExpo = $this->esOfertaExpo
+            ? DB::table('expo_bodega')->where('expo_id', $expoId)->pluck('bodega_id')->map(fn ($id) => (int) $id)->all()
+            : [];
 
         $cotizacionInfo = DB::table('cotizacion as c')
             ->leftJoin('cliente as cl', 'cl.id', '=', 'c.cliente_id')
@@ -432,7 +437,10 @@ class RevicionInventario extends Component
             ->get();
 
         $destinosExpo = $this->esOfertaExpo
-            ? $this->obtenerDestinosBodegaExpo($prods->pluck('producto_id')->filter()->unique()->values()->toArray())
+            ? $this->obtenerDestinosBodegaExpo(
+                $prods->pluck('producto_id')->filter()->unique()->values()->toArray(),
+                $bodegasExpo
+            )
             : [];
 
         $this->productos   = [];
@@ -490,15 +498,21 @@ class RevicionInventario extends Component
 
             // Para registros ya devueltos no recalcular stock (solo mostrar datos)
             if (!$this->devuelto && !$sinExistencia && $prod->producto_id && $prod->seccion_id) {
-                $rawStock  = (float) DB::table('recibido_bodega')
-                    ->where('producto_id', $prod->producto_id)
-                    ->where('seccion_id',  $prod->seccion_id)
-                    ->where('cantidad_disponible', '>', 0)
-                    ->sum('cantidad_disponible');
+                if ($this->esOfertaExpo) {
+                    $stockExpo = ExpoStock::resumen((int) $prod->producto_id, $bodegasExpo);
+                    $rawStock = $stockExpo['existencia'];
+                    $reservado = $stockExpo['reservado'];
+                    $disponible = $stockExpo['disponible'];
+                } else {
+                    $rawStock  = (float) DB::table('recibido_bodega')
+                        ->where('producto_id', $prod->producto_id)
+                        ->where('seccion_id',  $prod->seccion_id)
+                        ->where('cantidad_disponible', '>', 0)
+                        ->sum('cantidad_disponible');
 
-                $reservado = (float) ($reservadoPorProdSec[$prod->producto_id . '_' . $prod->seccion_id] ?? 0.0);
-
-                $disponible = max(0.0, $rawStock - $reservado);
+                    $reservado = (float) ($reservadoPorProdSec[$prod->producto_id . '_' . $prod->seccion_id] ?? 0.0);
+                    $disponible = max(0.0, $rawStock - $reservado);
+                }
                 $faltaStock = $disponible < (float) $prod->cantidad;
 
                 // ── Disponible Global: suma de todas las bodegas excepto Paperland (ID 18) ──
@@ -719,9 +733,9 @@ class RevicionInventario extends Component
         }
     }
 
-    private function obtenerDestinosBodegaExpo(array $productoIds): array
+    private function obtenerDestinosBodegaExpo(array $productoIds, array $bodegaIds): array
     {
-        if (empty($productoIds)) {
+        if (empty($productoIds) || empty($bodegaIds)) {
             return [];
         }
 
@@ -730,6 +744,7 @@ class RevicionInventario extends Component
             ->join('segmento as sg', 'sg.id', '=', 's.segmento_id')
             ->join('bodega as b', 'b.id', '=', 'sg.bodega_id')
             ->whereIn('rb.producto_id', $productoIds)
+            ->whereIn('sg.bodega_id', $bodegaIds)
             ->where('rb.cantidad_disponible', '>', 0)
             ->select(
                 'rb.producto_id',

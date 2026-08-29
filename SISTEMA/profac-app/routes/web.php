@@ -860,6 +860,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
 
     Route::get('/facturas/estatal', ListadoFacturasUnificado::class)->defaults('tipo', 'estatal');
     Route::get('/lista/facturas/estatal', [ListadoFacturaEstatal::class, 'listarFacturas']);
+    Route::post('/lista/facturas/estatal/exportar-pdf-detalle', [ListadoFacturaEstatal::class, 'exportarPdfDetalle']);
     Route::post('/factura/estatal/anular', [ListadoFacturaEstatal::class, 'anularVentaRegistro']);
 
 
