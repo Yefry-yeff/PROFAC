@@ -1947,10 +1947,8 @@
                             </div>
                             <div class="col-12 col-md-4">
                                 <label class="ofr-label">Escala de precio</label>
-                                <select id="cotizadorExpoEscala" class="form-control" onchange="recalcularCotizadorDescuentosExpo()">
-                                    @foreach(($expoConfig['escalas_detalle'] ?? []) as $escala)
-                                    <option value="{{ $escala['id'] }}">{{ $escala['nombre'] }}</option>
-                                    @endforeach
+                                <select id="cotizadorExpoEscala" class="form-control" onchange="recalcularCotizadorDescuentosExpo()" disabled>
+                                    <option value="">Seleccione un producto</option>
                                 </select>
                             </div>
                         </div>
@@ -3784,6 +3782,8 @@
         document.getElementById('cotizadorExpoCodigoProducto').value = '';
         document.getElementById('cotizadorExpoProductoLabel').textContent = '';
         document.getElementById('cotizadorExpoProductoLabel').classList.add('d-none');
+        document.getElementById('cotizadorExpoEscala').innerHTML = '<option value="">Seleccione un producto</option>';
+        document.getElementById('cotizadorExpoEscala').disabled = true;
         document.getElementById('cotizadorExpoResultado').innerHTML = '<div class="text-center text-muted py-4"><i class="fa fa-tags fa-2x mb-2 d-block"></i>Seleccione un producto para consultar sus descuentos.</div>';
         $('#modalCotizadorDescuentosExpo').modal('show');
     }
@@ -3800,6 +3800,8 @@
         datosCalculoCotizadorExpo = null;
         document.getElementById('cotizadorExpoProductoLabel').textContent = '';
         document.getElementById('cotizadorExpoProductoLabel').classList.add('d-none');
+        document.getElementById('cotizadorExpoEscala').innerHTML = '<option value="">Seleccione un producto</option>';
+        document.getElementById('cotizadorExpoEscala').disabled = true;
         document.getElementById('cotizadorExpoResultado').innerHTML = '<div class="text-center text-muted py-4"><i class="fa fa-tags fa-2x mb-2 d-block"></i>Presione Enter para buscar el producto.</div>';
     }
 
@@ -3810,7 +3812,7 @@
             return;
         }
 
-        axios.get('/productos/buscar', { params: { q: codigo, page: 1 } }).then(function(response) {
+        axios.get('/productos/buscar', { params: { q: codigo, page: 1, expo_id: expoConfig?.id } }).then(function(response) {
             var productos = response.data.data || [];
             var producto = productos.find(function(item) {
                 return String(item.id) === codigo
@@ -3832,20 +3834,35 @@
     function cotizarDescuentosProductoExpo(productoSeleccionado) {
         var productoId = productoSeleccionado?.id;
         var selectorEscala = document.getElementById('cotizadorExpoEscala');
-        var categoriaId = selectorEscala?.value;
         var resultado = document.getElementById('cotizadorExpoResultado');
-        if (!productoId || !categoriaId || !resultado) return;
+        if (!productoId || !selectorEscala || !resultado) return;
+
+        var mismoProducto = Number(productoCotizadorExpo?.id || 0) === Number(productoId);
+        var categoriaPreferidaId = mismoProducto ? selectorEscala.value : null;
 
         productoCotizadorExpo = productoSeleccionado;
         document.getElementById('cotizadorExpoCodigoProducto').value = '';
         var productoLabel = document.getElementById('cotizadorExpoProductoLabel');
         productoLabel.textContent = (productoSeleccionado.nombre || 'Producto') + ' (ID: ' + productoId + ')';
         productoLabel.classList.remove('d-none');
+        selectorEscala.innerHTML = '<option value="">Consultando escalas...</option>';
+        selectorEscala.disabled = true;
         resultado.innerHTML = '<div class="text-center text-muted py-4"><i class="fa fa-spinner fa-spin mr-1"></i> Calculando descuentos...</div>';
-        axios.post(urls.datos_producto, {
-            idProducto: productoId,
-            categoria_cliente_venta_id: categoriaId
+        axios.get('/expo/captura-rapida/producto/' + encodeURIComponent(productoId), {
+            params: {
+                expo_id: expoConfig.id,
+                categoria_precio_id: categoriaPreferidaId
+            }
         }).then(function(response) {
+            var categorias = Array.isArray(response.data.categorias) ? response.data.categorias : [];
+            selectorEscala.innerHTML = '';
+            categorias.forEach(function(categoria) {
+                selectorEscala.add(new Option(categoria.nombre_categoria, categoria.id));
+            });
+            selectorEscala.value = String(response.data.categoria_id || '');
+            selectorEscala.disabled = categorias.length <= 1;
+
+            var categoriaId = selectorEscala.value;
             var producto = response.data.producto || {};
             var precio = Number(producto.precio1 || 0);
             var porcentajeIsv = Number(producto.isv || 0);
@@ -3901,8 +3918,11 @@
                     + '<tbody>' + filas + '</tbody></table></div>'
                     + '<small class="text-muted">Estimación basada en las reglas vigentes de esta Expo. Marca primero y descuento general después.</small>';
                     resultado.querySelectorAll('.cotizador-expo-cantidad').forEach(recalcularFilaCotizadorExpo);
-        }).catch(function() {
-            resultado.innerHTML = '<div class="alert alert-danger mb-0">No fue posible consultar el precio y los descuentos del producto.</div>';
+        }).catch(function(error) {
+            selectorEscala.innerHTML = '<option value="">Sin escalas disponibles</option>';
+            selectorEscala.disabled = true;
+            var mensaje = error.response?.data?.message || 'No fue posible consultar el precio y los descuentos del producto.';
+            resultado.innerHTML = '<div class="alert alert-danger mb-0">' + $('<div>').text(mensaje).html() + '</div>';
         });
     }
 
