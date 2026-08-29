@@ -1665,5 +1665,9 @@ Route::post('/reporte/ventas-cobros/actualizar-f01/{facturaId}',                
     // Ruta auto-generada para: Expo\ReporteDeExpo
     Route::get('/expo/reporte_de_expo', \App\Http\Livewire\Expo\ReporteDeExpo::class);
 
+
+    // Ruta auto-generada para: Expo\ListaDeAsistencia
+    Route::get('/expo/lista_de_asistencia', \App\Http\Livewire\Expo\ListaDeAsistencia::class);
+
     // [auto-routes-anchor]
 });

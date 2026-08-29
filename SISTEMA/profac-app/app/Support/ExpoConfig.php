@@ -32,7 +32,7 @@ class ExpoConfig
         return self::construirDetalle($expo);
     }
 
-    public static function detalleActivaParaUsuario(?int $expoId, ?int $usuarioId): ?array
+    public static function detalleActivaParaUsuario(?int $expoId, ?int $usuarioId, ?int $clienteId = null): ?array
     {
         if (!$usuarioId) {
             return null;
@@ -48,7 +48,11 @@ class ExpoConfig
             ->where('usuario_id', $usuarioId)
             ->exists();
 
-        return $autorizado ? $detalle : null;
+        if (!$autorizado) {
+            return null;
+        }
+
+        return $clienteId === null ? $detalle : self::aplicarElegibilidadCliente($detalle, $clienteId);
     }
 
     public static function detalleParaFacturacion(int $expoId, int $cotizacionId, ?int $usuarioId): ?array
@@ -102,14 +106,29 @@ class ExpoConfig
             'descuentos_marca' => DB::table('expo_descuento_marca as edm')
                 ->join('marca as m', 'm.id', '=', 'edm.marca_id')
                 ->where('edm.expo_id', $expo->id)->orderBy('edm.orden')
-                ->get(['edm.marca_id', 'm.nombre as marca', 'edm.venta_minima', 'edm.porcentaje_descuento', 'edm.orden'])
+                ->get(['edm.marca_id', 'm.nombre as marca', 'edm.venta_minima', 'edm.porcentaje_descuento', 'edm.requiere_asistencia', 'edm.orden'])
                 ->map(fn ($regla) => [
                     'marca_id' => (int) $regla->marca_id,
                     'marca' => $regla->marca,
                     'venta_minima' => (float) $regla->venta_minima,
                     'porcentaje_descuento' => (float) $regla->porcentaje_descuento,
+                    'requiere_asistencia' => (bool) $regla->requiere_asistencia,
                     'orden' => (int) $regla->orden,
                 ])->all(),
+            'clientes_asistentes' => DB::table('expo_asistencia')->where('expo_id', $expo->id)
+                ->pluck('cliente_id')->map(fn ($id) => (int) $id)->all(),
         ];
+    }
+
+    private static function aplicarElegibilidadCliente(array $detalle, int $clienteId): array
+    {
+        $asistio = in_array($clienteId, $detalle['clientes_asistentes'] ?? [], true);
+        $detalle['cliente_asistio'] = $asistio;
+        $detalle['descuentos_marca'] = array_values(array_filter(
+            $detalle['descuentos_marca'],
+            fn (array $regla) => empty($regla['requiere_asistencia']) || $asistio
+        ));
+
+        return $detalle;
     }
 }

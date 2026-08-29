@@ -214,4 +214,192 @@ class ExpoConfigTest extends TestCase
         $this->assertSame(1, DB::table('expo_usuario')->where('expo_id', $copia->id)->count());
         $this->assertSame(1, DB::table('expo_descuento')->where('expo_id', $copia->id)->count());
     }
+
+    public function test_descuento_condicionado_exige_asistencia_en_la_misma_expo(): void
+    {
+        DB::table('expo')->where('estado', 'Activo')->update(['estado' => 'Inactivo']);
+
+        $userId = (int) DB::table('users')->min('id');
+        $clienteIds = DB::table('cliente')->where('id', '<>', 1)->orderBy('id')->limit(2)->pluck('id');
+        $marcaIds = DB::table('marca')->orderBy('id')->limit(2)->pluck('id');
+        $this->assertCount(2, $clienteIds);
+        $this->assertCount(2, $marcaIds);
+
+        $expoId = DB::table('expo')->insertGetId([
+            'nombre' => 'Expo asistencia vigente',
+            'estado' => 'Activo',
+            'fecha_inicio' => now()->subMinute(),
+            'fecha_fin' => now()->addDay(),
+            'created_by' => $userId,
+            'updated_by' => $userId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $otraExpoId = DB::table('expo')->insertGetId([
+            'nombre' => 'Expo asistencia ajena',
+            'estado' => 'Inactivo',
+            'fecha_inicio' => now()->subDays(2),
+            'fecha_fin' => now()->subDay(),
+            'created_by' => $userId,
+            'updated_by' => $userId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('expo_usuario')->insert([
+            'expo_id' => $expoId,
+            'usuario_id' => $userId,
+            'created_at' => now(),
+        ]);
+        DB::table('expo_descuento_marca')->insert([
+            [
+                'expo_id' => $expoId,
+                'marca_id' => $marcaIds[0],
+                'venta_minima' => 1,
+                'porcentaje_descuento' => 20,
+                'requiere_asistencia' => true,
+                'orden' => 1,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'expo_id' => $expoId,
+                'marca_id' => $marcaIds[0],
+                'venta_minima' => 500000,
+                'porcentaje_descuento' => 25,
+                'requiere_asistencia' => false,
+                'orden' => 2,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'expo_id' => $expoId,
+                'marca_id' => $marcaIds[1],
+                'venta_minima' => 100,
+                'porcentaje_descuento' => 5,
+                'requiere_asistencia' => false,
+                'orden' => 3,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+        DB::table('expo_asistencia')->insert([
+            'expo_id' => $otraExpoId,
+            'cliente_id' => $clienteIds[0],
+            'registrado_por' => $userId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $detalleOtraExpo = ExpoConfig::detalleActivaParaUsuario($expoId, $userId, (int) $clienteIds[0]);
+        $detalleNoAsistente = ExpoConfig::detalleActivaParaUsuario($expoId, $userId, (int) $clienteIds[1]);
+
+        $this->assertFalse($detalleOtraExpo['cliente_asistio']);
+        $this->assertFalse($detalleNoAsistente['cliente_asistio']);
+        $this->assertSame(
+            [(int) $marcaIds[0], (int) $marcaIds[1]],
+            array_column($detalleOtraExpo['descuentos_marca'], 'marca_id')
+        );
+        $this->assertSame(
+            [500000.0, 100.0],
+            array_column($detalleNoAsistente['descuentos_marca'], 'venta_minima')
+        );
+        $this->assertSame(
+            [25.0, 5.0],
+            array_column($detalleNoAsistente['descuentos_marca'], 'porcentaje_descuento')
+        );
+
+        DB::table('expo_asistencia')->insert([
+            'expo_id' => $expoId,
+            'cliente_id' => $clienteIds[0],
+            'registrado_por' => $userId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $detalleAsistente = ExpoConfig::detalleActivaParaUsuario($expoId, $userId, (int) $clienteIds[0]);
+
+        $this->assertTrue($detalleAsistente['cliente_asistio']);
+        $this->assertSame(
+            [(int) $marcaIds[0], (int) $marcaIds[0], (int) $marcaIds[1]],
+            array_column($detalleAsistente['descuentos_marca'], 'marca_id')
+        );
+    }
+
+    public function test_asistencia_no_se_duplica_y_regla_nueva_es_libre_por_defecto(): void
+    {
+        $userId = (int) DB::table('users')->min('id');
+        $clienteId = (int) DB::table('cliente')->where('id', '<>', 1)->min('id');
+        $marcaId = (int) DB::table('marca')->min('id');
+        $expoId = DB::table('expo')->insertGetId([
+            'nombre' => 'Expo restricciones de asistencia',
+            'estado' => 'Inactivo',
+            'fecha_inicio' => now(),
+            'created_by' => $userId,
+            'updated_by' => $userId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $asistencia = [
+            'expo_id' => $expoId,
+            'cliente_id' => $clienteId,
+            'registrado_por' => $userId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        $this->assertSame(1, DB::table('expo_asistencia')->insertOrIgnore($asistencia));
+        $this->assertSame(0, DB::table('expo_asistencia')->insertOrIgnore($asistencia));
+        $this->assertSame(1, DB::table('expo_asistencia')->where('expo_id', $expoId)->count());
+
+        DB::table('expo_descuento_marca')->insert([
+            'expo_id' => $expoId,
+            'marca_id' => $marcaId,
+            'venta_minima' => 100,
+            'porcentaje_descuento' => 5,
+            'orden' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->assertSame(0, (int) DB::table('expo_descuento_marca')
+            ->where('expo_id', $expoId)
+            ->value('requiere_asistencia'));
+    }
+
+    public function test_editor_expo_reemplaza_los_escalones_de_la_marca_seleccionada(): void
+    {
+        $marcaIds = DB::table('marca')->orderBy('id')->limit(2)->pluck('id');
+        $this->assertCount(2, $marcaIds);
+
+        $componente = Livewire::test(ExpoComponent::class)
+            ->set('descuentosMarca', [
+                ['marca_id' => (string) $marcaIds[0], 'venta_minima' => '100', 'porcentaje_descuento' => '5', 'requiere_asistencia' => false],
+                ['marca_id' => (string) $marcaIds[0], 'venta_minima' => '500', 'porcentaje_descuento' => '10', 'requiere_asistencia' => false],
+                ['marca_id' => (string) $marcaIds[1], 'venta_minima' => '200', 'porcentaje_descuento' => '8', 'requiere_asistencia' => false],
+            ])
+            ->set('marcaDescuentoGestionId', (string) $marcaIds[0])
+            ->call('editarDescuentoMarcaSeleccionado')
+            ->assertSet('mostrarModalDescuentoMarca', true)
+            ->assertSet('marcaDescuentoEditandoId', (int) $marcaIds[0]);
+
+        $this->assertCount(2, $componente->get('escalonesMarcaModal'));
+
+        $componente
+            ->set('escalonesMarcaModal', [
+                ['venta_minima' => '250', 'porcentaje_descuento' => '7.5', 'requiere_asistencia' => true],
+                ['venta_minima' => '1000', 'porcentaje_descuento' => '15', 'requiere_asistencia' => false],
+            ])
+            ->call('guardarDescuentoMarcaModal')
+            ->assertHasNoErrors()
+            ->assertSet('mostrarModalDescuentoMarca', false)
+            ->assertSet('marcaDescuentoGestionId', (string) $marcaIds[0]);
+
+        $reglas = collect($componente->get('descuentosMarca'));
+        $reglasEditadas = $reglas->where('marca_id', (string) $marcaIds[0])->values();
+        $this->assertCount(3, $reglas);
+        $this->assertSame(['250', '1000'], $reglasEditadas->pluck('venta_minima')->all());
+        $this->assertSame(['7.5', '15'], $reglasEditadas->pluck('porcentaje_descuento')->all());
+        $this->assertSame([true, false], $reglasEditadas->pluck('requiere_asistencia')->all());
+        $this->assertCount(1, $reglas->where('marca_id', (string) $marcaIds[1]));
+    }
+
 }

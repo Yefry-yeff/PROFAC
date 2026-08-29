@@ -312,16 +312,25 @@ class LiquidacionOfertaExpo
                 'venta_minima' => (float) $regla->venta_minima,
                 'porcentaje_descuento' => (float) $regla->porcentaje_descuento,
             ])->all();
+        $clienteId = DB::table('cotizacion')
+            ->where('id', $expoCotizacion->cotizacion_id)
+            ->value('cliente_id');
+        $clienteAsistio = $clienteId && DB::table('expo_asistencia')
+            ->where('expo_id', $expoCotizacion->expo_id)
+            ->where('cliente_id', $clienteId)
+            ->exists();
         $marcas = DB::table('expo_descuento_marca as edm')
             ->join('marca as m', 'm.id', '=', 'edm.marca_id')
             ->where('edm.expo_id', $expoCotizacion->expo_id)
+            ->when(!$clienteAsistio, fn ($query) => $query->where('edm.requiere_asistencia', false))
             ->orderBy('edm.orden')
-            ->get(['edm.marca_id', 'm.nombre as marca', 'edm.venta_minima', 'edm.porcentaje_descuento', 'edm.orden'])
+            ->get(['edm.marca_id', 'm.nombre as marca', 'edm.venta_minima', 'edm.porcentaje_descuento', 'edm.requiere_asistencia', 'edm.orden'])
             ->map(fn($regla) => [
                 'marca_id' => (int) $regla->marca_id,
                 'marca' => $regla->marca,
                 'venta_minima' => (float) $regla->venta_minima,
                 'porcentaje_descuento' => (float) $regla->porcentaje_descuento,
+                'requiere_asistencia' => (bool) $regla->requiere_asistencia,
                 'orden' => (int) $regla->orden,
             ])->all();
         $lineas = DB::table('cotizacion_has_producto as chp')

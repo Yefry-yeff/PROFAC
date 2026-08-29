@@ -2,6 +2,7 @@
 
 namespace App\Http\Livewire\FlujoDeVenta;
 
+use App\Exports\ArrayExport;
 use App\Services\Expo\GestorAumentoExpo;
 use App\Services\Expo\LiquidacionOfertaExpo;
 use Carbon\Carbon;
@@ -10,6 +11,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
+use Maatwebsite\Excel\Facades\Excel;
 
 class Expo extends Component
 {
@@ -29,6 +31,8 @@ class Expo extends Component
     public $descuentosMarca = [];
     public $mostrarModalDescuentoMarca = false;
     public $marcaDescuentoSeleccionada = '';
+    public $marcaDescuentoGestionId = '';
+    public $marcaDescuentoEditandoId;
     public $escalonesMarcaModal = [];
     public $busquedaDescuentoMarca = '';
     public $ordenDescuentoMarca = 'marca';
@@ -82,6 +86,8 @@ class Expo extends Component
                 'porcentaje_descuento' => (string) $regla->porcentaje_descuento,
             ])->all();
         $this->descuentosMarca = $this->cargarDescuentosMarca($id);
+        $this->marcaDescuentoGestionId = '';
+        $this->busquedaDescuentoMarca = '';
         $this->mostrarFormulario = true;
     }
 
@@ -164,8 +170,13 @@ class Expo extends Component
 
     public function abrirModalDescuentoMarca(): void
     {
+        $this->marcaDescuentoEditandoId = null;
         $this->marcaDescuentoSeleccionada = '';
-        $this->escalonesMarcaModal = [['venta_minima' => '', 'porcentaje_descuento' => '']];
+        $this->escalonesMarcaModal = [[
+            'venta_minima' => '',
+            'porcentaje_descuento' => '',
+            'requiere_asistencia' => false,
+        ]];
         $this->mostrarModalDescuentoMarca = true;
         $this->resetValidation(['marcaDescuentoSeleccionada', 'escalonesMarcaModal']);
     }
@@ -173,14 +184,73 @@ class Expo extends Component
     public function cerrarModalDescuentoMarca(): void
     {
         $this->mostrarModalDescuentoMarca = false;
+        $this->marcaDescuentoEditandoId = null;
         $this->marcaDescuentoSeleccionada = '';
         $this->escalonesMarcaModal = [];
         $this->resetValidation(['marcaDescuentoSeleccionada', 'escalonesMarcaModal']);
     }
 
+    public function editarDescuentoMarcaSeleccionado(): void
+    {
+        $marcaId = (int) $this->marcaDescuentoGestionId;
+        $reglas = collect($this->descuentosMarca)
+            ->where('marca_id', $marcaId)
+            ->sortBy(fn ($regla) => (float) str_replace(',', '', (string) ($regla['venta_minima'] ?? 0)))
+            ->values();
+
+        if (!$marcaId || $reglas->isEmpty()) {
+            $this->addError('marcaDescuentoGestionId', 'Seleccione una marca con descuento configurado.');
+            return;
+        }
+
+        $this->marcaDescuentoEditandoId = $marcaId;
+        $this->marcaDescuentoSeleccionada = (string) $marcaId;
+        $this->escalonesMarcaModal = $reglas->map(fn ($regla) => [
+            'venta_minima' => (string) ($regla['venta_minima'] ?? ''),
+            'porcentaje_descuento' => (string) ($regla['porcentaje_descuento'] ?? ''),
+            'requiere_asistencia' => (bool) ($regla['requiere_asistencia'] ?? false),
+        ])->all();
+        $this->mostrarModalDescuentoMarca = true;
+        $this->resetValidation(['marcaDescuentoGestionId', 'marcaDescuentoSeleccionada', 'escalonesMarcaModal']);
+    }
+
+    public function descargarDescuentosMarcaExcel(bool $todas = false)
+    {
+        abort_unless($this->expoEditandoId, 404, 'Debe editar una Expo para descargar sus descuentos.');
+        $marcaId = $todas ? null : (int) $this->marcaDescuentoGestionId;
+        $reglas = collect($this->descuentosMarca)
+            ->when($marcaId, fn ($items) => $items->where('marca_id', $marcaId));
+        abort_if($reglas->isEmpty(), 404, 'No hay descuentos por marca para descargar.');
+
+        $nombresMarca = DB::table('marca')
+            ->whereIn('id', $reglas->pluck('marca_id')->map(fn ($id) => (int) $id)->unique())
+            ->pluck('nombre', 'id');
+        $filas = $reglas
+            ->sortBy(fn ($regla) => sprintf(
+                '%s-%015.2f',
+                $nombresMarca[(int) ($regla['marca_id'] ?? 0)] ?? '',
+                (float) str_replace(',', '', (string) ($regla['venta_minima'] ?? 0))
+            ))
+            ->map(fn ($regla) => [
+                $this->nombre,
+                $nombresMarca[(int) $regla['marca_id']] ?? ('Marca #' . $regla['marca_id']),
+                (float) str_replace(',', '', (string) $regla['venta_minima']),
+                (float) $regla['porcentaje_descuento'],
+                !empty($regla['requiere_asistencia']) ? 'Sí' : 'No',
+            ])->values()->all();
+
+        return Excel::download(new ArrayExport([
+            'Exposición', 'Marca', 'Venta mínima', 'Descuento (%)', 'Requiere asistencia',
+        ], $filas), 'descuentos_marca_expo_' . $this->expoEditandoId . ($marcaId ? '_marca_' . $marcaId : '') . '.xlsx');
+    }
+
     public function agregarEscalonMarcaModal(): void
     {
-        $this->escalonesMarcaModal[] = ['venta_minima' => '', 'porcentaje_descuento' => ''];
+        $this->escalonesMarcaModal[] = [
+            'venta_minima' => '',
+            'porcentaje_descuento' => '',
+            'requiere_asistencia' => false,
+        ];
     }
 
     public function eliminarEscalonMarcaModal(int $indice): void
@@ -205,6 +275,7 @@ class Expo extends Component
             'escalonesMarcaModal' => 'required|array|min:1',
             'escalonesMarcaModal.*.venta_minima' => 'required|numeric|min:0',
             'escalonesMarcaModal.*.porcentaje_descuento' => 'required|numeric|min:0|max:100',
+            'escalonesMarcaModal.*.requiere_asistencia' => 'boolean',
         ], [
             'marcaDescuentoSeleccionada.required' => 'Seleccione una marca.',
             'escalonesMarcaModal.*.venta_minima.required' => 'Ingrese la venta mínima.',
@@ -214,6 +285,7 @@ class Expo extends Component
         $marcaId = (int) $this->marcaDescuentoSeleccionada;
         $minimosExistentes = collect($this->descuentosMarca)
             ->where('marca_id', $marcaId)
+            ->when($this->marcaDescuentoEditandoId, fn ($reglas) => $reglas->where('marca_id', '!=', $this->marcaDescuentoEditandoId))
             ->pluck('venta_minima')
             ->map(fn ($valor) => (string) (float) str_replace(',', '', (string) $valor));
         $minimosNuevos = collect($this->escalonesMarcaModal)
@@ -225,22 +297,35 @@ class Expo extends Component
             return;
         }
 
+        if ($this->marcaDescuentoEditandoId) {
+            $this->descuentosMarca = collect($this->descuentosMarca)
+                ->reject(fn ($regla) => (int) ($regla['marca_id'] ?? 0) === (int) $this->marcaDescuentoEditandoId)
+                ->values()->all();
+        }
+
         foreach ($this->escalonesMarcaModal as $escalon) {
             $this->descuentosMarca[] = [
                 'marca_id' => (string) $marcaId,
                 'venta_minima' => (string) $escalon['venta_minima'],
                 'porcentaje_descuento' => (string) $escalon['porcentaje_descuento'],
+                'requiere_asistencia' => (bool) ($escalon['requiere_asistencia'] ?? false),
             ];
         }
 
+        $this->marcaDescuentoGestionId = (string) $marcaId;
         $this->cerrarModalDescuentoMarca();
     }
 
     public function eliminarDescuentoMarca(int $indice): void
     {
         if (isset($this->descuentosMarca[$indice])) {
+            $marcaEliminadaId = (int) ($this->descuentosMarca[$indice]['marca_id'] ?? 0);
             unset($this->descuentosMarca[$indice]);
             $this->descuentosMarca = array_values($this->descuentosMarca);
+            if ($marcaEliminadaId === (int) $this->marcaDescuentoGestionId
+                && !collect($this->descuentosMarca)->contains(fn ($regla) => (int) ($regla['marca_id'] ?? 0) === $marcaEliminadaId)) {
+                $this->marcaDescuentoGestionId = '';
+            }
         }
     }
 
@@ -304,6 +389,7 @@ class Expo extends Component
             'descuentosMarca.*.marca_id' => 'required|integer|exists:marca,id',
             'descuentosMarca.*.venta_minima' => 'required|numeric|min:0',
             'descuentosMarca.*.porcentaje_descuento' => 'required|numeric|min:0|max:100',
+            'descuentosMarca.*.requiere_asistencia' => 'boolean',
         ], [
             'bodegasSeleccionadas.required' => 'Seleccione al menos una bodega.',
             'escalasSeleccionadas.required' => 'Seleccione al menos una escala.',
@@ -402,6 +488,7 @@ class Expo extends Component
                     'marca_id' => (int) $regla['marca_id'],
                     'venta_minima' => $regla['venta_minima'],
                     'porcentaje_descuento' => $regla['porcentaje_descuento'],
+                    'requiere_asistencia' => (bool) ($regla['requiere_asistencia'] ?? false),
                     'orden' => $orden + 1,
                     'created_at' => now(),
                     'updated_at' => now(),
@@ -467,7 +554,7 @@ class Expo extends Component
                 ->join('marca as m', 'm.id', '=', 'edm.marca_id')
                 ->where('edm.expo_id', $id)
                 ->orderBy('edm.orden')
-                ->get(['m.nombre as marca', 'edm.venta_minima', 'edm.porcentaje_descuento'])
+                ->get(['m.nombre as marca', 'edm.venta_minima', 'edm.porcentaje_descuento', 'edm.requiere_asistencia'])
                 ->map(fn ($regla) => (array) $regla)->all(),
             'historial_cambios' => DB::table('expo_historial_cambios as ehc')
                 ->join('users as u', 'u.id', '=', 'ehc.user_id')
@@ -719,6 +806,7 @@ class Expo extends Component
             'bodegasSeleccionadas', 'escalasSeleccionadas', 'usuariosSeleccionados',
             'busquedaUsuario', 'descuentos', 'descuentosMarca', 'mostrarFormulario',
             'mostrarModalDescuentoMarca', 'marcaDescuentoSeleccionada', 'escalonesMarcaModal',
+            'marcaDescuentoGestionId', 'marcaDescuentoEditandoId',
             'busquedaDescuentoMarca', 'ordenDescuentoMarca', 'direccionDescuentoMarca',
         ]);
         $this->estado = 'Inactivo';
@@ -758,6 +846,7 @@ class Expo extends Component
                     'marca' => (string) ($nombresMarca[(int) ($regla['marca_id'] ?? 0)] ?? ('Marca #' . ($regla['marca_id'] ?? ''))),
                     'venta_minima' => (float) str_replace(',', '', (string) ($regla['venta_minima'] ?? 0)),
                     'porcentaje_descuento' => (float) ($regla['porcentaje_descuento'] ?? 0),
+                    'requiere_asistencia' => (bool) ($regla['requiere_asistencia'] ?? false),
                 ];
             })
             ->when($busquedaMarca !== '', fn ($reglas) => $reglas->filter(
@@ -766,6 +855,16 @@ class Expo extends Component
         $descuentosMarcaTabla = $this->direccionDescuentoMarca === 'desc'
             ? $descuentosMarcaTabla->sortByDesc($this->ordenDescuentoMarca)
             : $descuentosMarcaTabla->sortBy($this->ordenDescuentoMarca);
+        $marcasConDescuento = $descuentosMarcaTabla
+            ->groupBy('marca_id')
+            ->map(fn ($reglas) => [
+                'marca_id' => (int) $reglas->first()['marca_id'],
+                'marca' => (string) $reglas->first()['marca'],
+                'total_escalones' => $reglas->count(),
+            ])->sortBy('marca')->values();
+        $descuentosMarcaSeleccionada = $this->marcaDescuentoGestionId === ''
+            ? collect()
+            : $descuentosMarcaTabla->where('marca_id', (int) $this->marcaDescuentoGestionId)->values();
 
         $usuariosAgregados = DB::table('users')
             ->whereIn('id', array_map('intval', $this->usuariosSeleccionados))
@@ -789,7 +888,7 @@ class Expo extends Component
 
         return view('livewire.flujodeventa.expo', compact(
             'expos', 'bodegas', 'escalas', 'marcas', 'descuentosMarcaTabla',
-            'usuariosAgregados', 'usuariosEncontrados'
+            'marcasConDescuento', 'descuentosMarcaSeleccionada', 'usuariosAgregados', 'usuariosEncontrados'
         ));
     }
 
@@ -798,11 +897,12 @@ class Expo extends Component
         return DB::table('expo_descuento_marca')
             ->where('expo_id', $expoId)
             ->orderBy('orden')
-            ->get(['marca_id', 'venta_minima', 'porcentaje_descuento'])
+            ->get(['marca_id', 'venta_minima', 'porcentaje_descuento', 'requiere_asistencia'])
             ->map(fn ($regla) => [
                 'marca_id' => (string) $regla->marca_id,
                 'venta_minima' => (string) $regla->venta_minima,
                 'porcentaje_descuento' => (string) $regla->porcentaje_descuento,
+                'requiere_asistencia' => (bool) $regla->requiere_asistencia,
             ])->all();
     }
 
@@ -966,7 +1066,7 @@ class Expo extends Component
             'descuentos_totales' => DB::table('expo_descuento')->where('expo_id', $expoId)->orderBy('orden')
                 ->get(['venta_minima', 'porcentaje_descuento'])->map(fn ($regla) => (array) $regla)->all(),
             'descuentos_marcas' => DB::table('expo_descuento_marca')->where('expo_id', $expoId)->orderBy('orden')
-                ->get(['marca_id', 'venta_minima', 'porcentaje_descuento'])->map(fn ($regla) => (array) $regla)->all(),
+                ->get(['marca_id', 'venta_minima', 'porcentaje_descuento', 'requiere_asistencia'])->map(fn ($regla) => (array) $regla)->all(),
         ];
     }
 

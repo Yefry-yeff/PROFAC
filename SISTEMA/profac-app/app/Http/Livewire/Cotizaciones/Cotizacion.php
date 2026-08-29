@@ -457,7 +457,11 @@ class Cotizacion extends Component
         }
 
         if ($expoId > 0) {
-            $expoConfig = ExpoConfig::detalleActivaParaUsuario($expoId, Auth::id());
+            $expoConfig = ExpoConfig::detalleActivaParaUsuario(
+                $expoId,
+                Auth::id(),
+                (int) $request->seleccionarCliente
+            );
             if (!$expoConfig || !$tipoVentaExpoId) {
                 return response()->json([
                     'icon' => 'error',
@@ -514,6 +518,36 @@ class Cotizacion extends Component
                 'tipo_venta_id' => $tipoVentaExpoId,
                 'porDescuento' => $porcentajeExpo,
             ]);
+
+            $lineasDescuento = [];
+            foreach ($arrayInputs as $indice) {
+                $productoId = (int) $request->input('idProducto' . $indice, 0);
+                $marcaId = (int) (DB::table('producto')->where('id', $productoId)->value('marca_id') ?? 0);
+                $lineasDescuento[$indice] = [
+                    'marca_id' => $marcaId,
+                    'subtotal_bruto' => (float) $request->input('precio' . $indice, 0)
+                        * (float) $request->input('cantidad' . $indice, 0)
+                        * (float) $request->input('unidad' . $indice, 0),
+                ];
+            }
+            $calculoServidor = app(\App\Services\Expo\CalculadorDescuentosExpo::class)->calcular(
+                array_values($lineasDescuento),
+                ['generales' => $expoConfig['descuentos'], 'marcas' => $expoConfig['descuentos_marca']]
+            );
+            $porcentajesMarca = $calculoServidor['porcentajes_marca'];
+            foreach ($lineasDescuento as $indice => $linea) {
+                $descuentoMarca = round($linea['subtotal_bruto'] * ($porcentajesMarca[$linea['marca_id']] ?? 0) / 100, 2);
+                $descuentoGeneral = round(($linea['subtotal_bruto'] - $descuentoMarca) * $calculoServidor['porcentaje_general'] / 100, 2);
+                $maximoPermitido = $descuentoMarca + $descuentoGeneral;
+                $descuentoEnviado = (float) $request->input('acumuladoDescuento' . $indice, 0);
+                if ($descuentoEnviado > $maximoPermitido + 0.01) {
+                    return response()->json([
+                        'icon' => 'error',
+                        'title' => 'Descuento Expo no permitido',
+                        'text' => 'La oferta contiene un descuento que el cliente no cumple. Verifique monto, marca y asistencia al evento.',
+                    ], 422);
+                }
+            }
         }
 
         DB::beginTransaction();

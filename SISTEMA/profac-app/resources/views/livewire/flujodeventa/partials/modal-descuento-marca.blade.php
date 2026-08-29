@@ -3,15 +3,15 @@
         <div class="expo-detail-modal" style="max-width:760px;" role="dialog" aria-modal="true" aria-labelledby="expo-descuento-marca-titulo">
             <div class="expo-detail-head">
                 <div>
-                    <h4 id="expo-descuento-marca-titulo"><i class="fa fa-tags mr-2"></i>Descuento por marca</h4>
-                    <small>Seleccione una marca y configure sus escalones.</small>
+                    <h4 id="expo-descuento-marca-titulo"><i class="fa fa-tags mr-2"></i>{{ $marcaDescuentoEditandoId ? 'Editar descuento por marca' : 'Descuento por marca' }}</h4>
+                    <small>{{ $marcaDescuentoEditandoId ? 'Actualice los escalones de la marca seleccionada.' : 'Seleccione una marca y configure sus escalones.' }}</small>
                 </div>
                 <button type="button" wire:click="cerrarModalDescuentoMarca" class="expo-detail-close" title="Cerrar"><i class="fa fa-times"></i></button>
             </div>
             <div class="expo-detail-body">
                 <div class="form-group">
                     <label class="expo-label">Marca <span class="text-danger">*</span></label>
-                    <select wire:model.defer="marcaDescuentoSeleccionada" class="form-control">
+                    <select wire:model.defer="marcaDescuentoSeleccionada" class="form-control" @if($marcaDescuentoEditandoId) disabled @endif>
                         <option value="">Seleccione una marca</option>
                         @foreach($marcas as $marca)
                             <option value="{{ $marca->id }}">{{ $marca->nombre }}</option>
@@ -27,7 +27,7 @@
                 @error('escalonesMarcaModal') <div class="alert alert-danger py-2">{{ $message }}</div> @enderror
                 <div class="table-responsive expo-discount-wrap">
                     <table class="table table-sm expo-discount-table mb-0">
-                        <thead><tr><th>Venta mínima (L.)</th><th>Descuento (%)</th><th style="width:60px;">Acción</th></tr></thead>
+                        <thead><tr><th>Venta mínima (L.)</th><th>Descuento (%)</th><th style="width:150px;">Requiere asistencia</th><th style="width:60px;">Acción</th></tr></thead>
                         <tbody>
                             @foreach($escalonesMarcaModal as $indice => $escalon)
                                 <tr wire:key="expo-modal-escalon-{{ $indice }}">
@@ -43,6 +43,12 @@
                                         <input type="number" step="0.01" min="0" max="100" wire:model.defer="escalonesMarcaModal.{{ $indice }}.porcentaje_descuento" class="form-control form-control-sm" placeholder="0.00">
                                         @error('escalonesMarcaModal.'.$indice.'.porcentaje_descuento') <small class="text-danger">{{ $message }}</small> @enderror
                                     </td>
+                                    <td class="align-middle">
+                                        <div class="custom-control custom-checkbox">
+                                            <input type="checkbox" id="requiere-asistencia-escalon-{{ $indice }}" wire:model.defer="escalonesMarcaModal.{{ $indice }}.requiere_asistencia" class="custom-control-input">
+                                            <label class="custom-control-label" for="requiere-asistencia-escalon-{{ $indice }}">Sí, exigir lista</label>
+                                        </div>
+                                    </td>
                                     <td class="text-center">
                                         <button type="button" wire:click="eliminarEscalonMarcaModal({{ $indice }})" class="btn btn-xs btn-white" title="Eliminar escalón" @if(count($escalonesMarcaModal) <= 1) disabled @endif><i class="fa fa-trash text-danger"></i></button>
                                     </td>
@@ -51,10 +57,11 @@
                         </tbody>
                     </table>
                 </div>
+                <small class="text-muted d-block mt-2"><i class="fa fa-info-circle mr-1"></i>La asistencia se valida únicamente en los escalones marcados. Los demás se aplican al alcanzar su venta mínima.</small>
             </div>
             <div class="p-3 border-top d-flex justify-content-end" style="gap:8px;">
                 <button type="button" wire:click="cerrarModalDescuentoMarca" class="btn btn-default">Cancelar</button>
-                <button type="button" wire:click="guardarDescuentoMarcaModal" wire:loading.attr="disabled" class="btn expo-save-btn"><i class="fa fa-check mr-1"></i>Agregar descuentos</button>
+                <button type="button" wire:click="guardarDescuentoMarcaModal" wire:loading.attr="disabled" class="btn expo-save-btn"><i class="fa {{ $marcaDescuentoEditandoId ? 'fa-save' : 'fa-check' }} mr-1"></i>{{ $marcaDescuentoEditandoId ? 'Actualizar descuentos' : 'Agregar descuentos' }}</button>
             </div>
         </div>
     </div>

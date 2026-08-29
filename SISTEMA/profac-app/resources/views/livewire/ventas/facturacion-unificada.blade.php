@@ -2952,6 +2952,8 @@
                 }
             })
             .then(() => {
+                calcularTotalesInicioPagina();
+                recalcularCotizadorDescuentosExpo();
                 window.dispatchEvent(new CustomEvent('cliente-datos-cargados'));
             })
             .catch(err => {
@@ -3846,10 +3848,18 @@
             var precio = Number(producto.precio1 || 0);
             var porcentajeIsv = Number(producto.isv || 0);
             var generales = Array.isArray(expoConfig?.descuentos) ? expoConfig.descuentos : [];
-            var reglaMarca = (Array.isArray(expoConfig?.descuentos_marca) ? expoConfig.descuentos_marca : [])
-                .find(function(regla) { return Number(regla.marca_id) === Number(producto.marca_id); });
+            var clienteExpoId = Number(document.getElementById('seleccionarCliente')?.value || 0);
+            var asistentesExpo = Array.isArray(expoConfig?.clientes_asistentes) ? expoConfig.clientes_asistentes.map(Number) : [];
+            var reglasMarcaElegibles = (Array.isArray(expoConfig?.descuentos_marca) ? expoConfig.descuentos_marca : [])
+                .filter(function(regla) {
+                    return !regla.requiere_asistencia || asistentesExpo.includes(clienteExpoId);
+                });
+            var reglasMarcaProducto = reglasMarcaElegibles
+                .filter(function(regla) { return Number(regla.marca_id) === Number(producto.marca_id); });
             var umbrales = generales.map(function(regla) { return Number(regla.venta_minima || 0); });
-            if (reglaMarca) umbrales.push(Number(reglaMarca.venta_minima || 0));
+            reglasMarcaProducto.forEach(function(regla) {
+                umbrales.push(Number(regla.venta_minima || 0));
+            });
             umbrales = Array.from(new Set(umbrales.filter(function(valor) { return valor > 0; }))).sort(function(a, b) { return a - b; });
 
             if (!(precio > 0) || umbrales.length === 0) {
@@ -3861,7 +3871,7 @@
                 precio: precio,
                 porcentajeIsv: porcentajeIsv,
                 generales: generales,
-                reglaMarca: reglaMarca || null
+                reglasMarca: reglasMarcaProducto
             };
 
             var filas = umbrales.map(function(umbral, indice) {
@@ -3902,10 +3912,14 @@
         var fila = campoCantidad.closest('tr');
         var precio = datosCalculoCotizadorExpo.precio;
         var compra = cantidad * precio;
-        var reglaMarca = datosCalculoCotizadorExpo.reglaMarca;
-        var porcentajeMarca = reglaMarca && compra + 0.005 >= Number(reglaMarca.venta_minima || 0)
-            ? Number(reglaMarca.porcentaje_descuento || 0)
-            : 0;
+        var reglaMarca = datosCalculoCotizadorExpo.reglasMarca
+            .filter(function(regla) {
+                return compra + 0.005 >= Number(regla.venta_minima || 0);
+            })
+            .sort(function(a, b) {
+                return Number(b.venta_minima || 0) - Number(a.venta_minima || 0);
+            })[0] || null;
+        var porcentajeMarca = reglaMarca ? Number(reglaMarca.porcentaje_descuento || 0) : 0;
         var porcentajeGeneral = 0;
         var minimoGeneral = -1;
         datosCalculoCotizadorExpo.generales.forEach(function(regla) {
@@ -4063,6 +4077,13 @@
         var reglasMarca = usarReglasFirmadas
             ? (Array.isArray(configuracion.marcas) ? configuracion.marcas : [])
             : (Array.isArray(configuracion.descuentos_marca) ? configuracion.descuentos_marca : []);
+        if (!usarReglasFirmadas) {
+            var clienteExpoId = Number(document.getElementById('seleccionarCliente')?.value || 0);
+            var asistentesExpo = Array.isArray(expoConfig.clientes_asistentes) ? expoConfig.clientes_asistentes.map(Number) : [];
+            reglasMarca = reglasMarca.filter(function(regla) {
+                return !regla.requiere_asistencia || asistentesExpo.includes(clienteExpoId);
+            });
+        }
         var reglasGenerales = usarReglasFirmadas
             ? (Array.isArray(configuracion.generales) ? configuracion.generales : [])
             : (Array.isArray(configuracion.descuentos) ? configuracion.descuentos : []);
