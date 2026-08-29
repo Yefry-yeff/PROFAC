@@ -3184,7 +3184,9 @@
     function obtenerBodegas(id) {
         document.getElementById('bodega').innerHTML = "<option selected disabled>--Cargando bodega--</option>";
         $('#bodega').prop('disabled', false);
-        var urlBase = urls.bodegas;
+        var urlBase = filtrarProductosExpo
+            ? '/expo/oferta/listar-bodega/{idProducto}'
+            : urls.bodegas;
         var url = urlBase.replace('{idProducto}', id);
 
         function parametrosBodega(params) {
@@ -3250,7 +3252,7 @@
             ? $('#bodega').select2('data')[0]
             : bodegaExpoCapturaRapida;
 
-        if (!productoId || !categoriaId || !bodega || !bodega.idBodega || !bodega.id) return;
+        if (!productoId || !categoriaId || !bodega || bodega.idBodega === undefined || !bodega.id) return;
 
         var clave = productoId + '|' + categoriaId + '|' + bodega.idBodega + '|' + bodega.id;
         if (productoExpoAgregandoAutomaticamente === clave) return;
@@ -3261,7 +3263,7 @@
     }
 
     function esCapturaRapidaExpo() {
-        return filtrarProductosExpo && expoConfig && expoConfig.bodegas.length === 1;
+        return filtrarProductosExpo && expoConfig && expoConfig.bodegas.length > 0;
     }
 
     function cargarProductoExpoCapturaRapida(productoId) {
@@ -5660,7 +5662,7 @@
                 if (esSinExistencia) {
                     bodegaTexto = 'SIN EXISTENCIA';
                 }
-                var idBodega     = esSinExistencia ? '' : (prod.Bodega_id || '');
+                var idBodega     = esSinExistencia ? '' : (prod.Bodega_id ?? '');
                 var idSeccion    = esSinExistencia ? '' : (prod.seccion_id || '');
                 var idUnidadVenta = prod.unidad_medida_venta_id || '';
                 var bodegaBadgeBg = esSinExistencia ? '#ffebee' : '#e3f2fd';
@@ -5815,7 +5817,7 @@
                     var cantidadUsar = prod.cantidad || 1;
                     var esSinExistencia = !(parseFloat(prod.resta_inventario || 0) > 0);
                     var bodegaTexto = esSinExistencia ? 'SIN EXISTENCIA' : (prod.nombre_bodega || '');
-                    var idBodega = esSinExistencia ? '' : (prod['Bodega_id'] || '');
+                    var idBodega = esSinExistencia ? '' : (prod['Bodega_id'] ?? '');
                     var idSeccion = esSinExistencia ? '' : (prod.seccion_id || '');
                     var bodegaBadgeBg = esSinExistencia ? '#ffebee' : '#e3f2fd';
                     var bodegaBadgeColor = esSinExistencia ? '#c62828' : '#1565c0';

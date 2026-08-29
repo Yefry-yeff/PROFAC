@@ -3,6 +3,7 @@
 namespace App\Http\Livewire\Ventas;
 
 use App\Support\ExpoConfig;
+use App\Support\ExpoStock;
 use Livewire\Component;
 use App\Models\TipoFactura;
 use App\Services\Expo\CalculadorDescuentosExpo;
@@ -28,7 +29,7 @@ class FacturacionUnificada extends Component
     public function capturaRapidaExpo(Request $request, string $identificador)
     {
         $expo = ExpoConfig::detalleActivaParaUsuario((int) $request->input('expo_id'), Auth::id());
-        abort_unless($expo && count($expo['bodegas']) === 1, 422, 'La captura rápida requiere una Expo activa con una sola bodega.');
+        abort_unless($expo && !empty($expo['bodegas']), 422, 'La captura rápida requiere una Expo activa con bodegas configuradas.');
 
         $productoBase = DB::table('producto')
             ->where('estado_producto_id', 1)
@@ -61,39 +62,8 @@ class FacturacionUnificada extends Component
         $categoriaSeleccionada = $categorias->first(fn ($categoria) => (int) $categoria->id === $categoriaPreferidaId)
             ?? $categorias->first();
         $categoriaId = (int) $categoriaSeleccionada->id;
-        $bodegaId = (int) $expo['bodegas'][0];
-
-        $ubicaciones = DB::table('recibido_bodega as rb')
-            ->join('seccion as s', 's.id', '=', 'rb.seccion_id')
-            ->join('segmento as sg', 'sg.id', '=', 's.segmento_id')
-            ->join('bodega as b', 'b.id', '=', 'sg.bodega_id')
-            ->where('rb.producto_id', $productoId)
-            ->where('sg.bodega_id', $bodegaId)
-            ->groupBy('rb.seccion_id', 'b.id', 'b.nombre', 's.descripcion')
-            ->orderBy('rb.seccion_id')
-            ->get([
-                'rb.seccion_id',
-                'b.id as bodega_id',
-                'b.nombre as bodega_nombre',
-                's.descripcion as seccion_nombre',
-                DB::raw('SUM(rb.cantidad_disponible) as disponible'),
-            ]);
-
-        $reservas = DB::table('prefactura_has_producto as php')
-            ->join('prefactura as pf', 'pf.id', '=', 'php.prefactura_id')
-            ->where('pf.estado', 'activo')
-            ->whereRaw("TIMESTAMPADD(DAY, COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7), COALESCE(pf.created_at, CONCAT(COALESCE(pf.fecha_emision, CURDATE()), ' 00:00:00'))) > NOW()")
-            ->where('php.producto_id', $productoId)
-            ->where('php.resta_inventario', 1)
-            ->whereIn('php.seccion_id', $ubicaciones->pluck('seccion_id'))
-            ->groupBy('php.seccion_id')
-            ->pluck(DB::raw('SUM(php.cantidad)'), 'php.seccion_id');
-
-        $ubicacion = $ubicaciones->first(function ($item) use ($reservas) {
-            $item->stock_neto = max(0, (float) $item->disponible - (float) ($reservas[$item->seccion_id] ?? 0));
-            return $item->stock_neto > 0;
-        });
-        abort_unless($ubicacion, 422, 'El producto ya no tiene existencia disponible en la bodega de la Expo.');
+        $ubicacion = ExpoStock::opcion($productoId, $expo['bodegas']);
+        abort_unless($ubicacion, 422, 'El producto ya no tiene existencia disponible en las bodegas de la Expo.');
 
         $producto = DB::table('producto as p')
             ->leftJoin('marca as m', 'm.id', '=', 'p.marca_id')
@@ -124,16 +94,20 @@ class FacturacionUnificada extends Component
         return response()->json([
             'categorias' => $categorias,
             'categoria_id' => $categoriaId,
-            'bodega' => [
-                'id' => (int) $ubicacion->seccion_id,
-                'idBodega' => (int) $ubicacion->bodega_id,
-                'bodegaSeccion' => $ubicacion->bodega_nombre . ' ' . str_replace('Seccion', '', $ubicacion->seccion_nombre),
-                'text' => $ubicacion->bodega_nombre . ' - ' . str_replace('Seccion', '', $ubicacion->seccion_nombre) . ' - cantidad ' . floor($ubicacion->stock_neto),
-                'esSinExistencia' => 0,
-            ],
+            'bodega' => $ubicacion,
             'producto' => $producto,
             'unidades' => $unidades,
         ]);
+    }
+
+    public function listarBodegasExpo(Request $request, int $idProducto)
+    {
+        $expo = ExpoConfig::detalleActivaParaUsuario((int) $request->input('expo_id'), Auth::id());
+        abort_unless($expo && !empty($expo['bodegas']), 422, 'La Expo no está disponible o no tiene bodegas configuradas.');
+
+        $opcion = ExpoStock::opcion($idProducto, $expo['bodegas']);
+
+        return response()->json(['results' => $opcion ? [$opcion] : []]);
     }
 
     private function cargarAtribucionesDescuentoExpo(int $cotizacionId): void

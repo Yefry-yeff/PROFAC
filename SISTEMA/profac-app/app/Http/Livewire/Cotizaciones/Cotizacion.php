@@ -4,6 +4,7 @@ namespace App\Http\Livewire\Cotizaciones;
 
 use App\Support\ClienteActoresAsignados;
 use App\Support\ExpoConfig;
+use App\Support\ExpoStock;
 use Livewire\Component;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\File;
@@ -471,6 +472,7 @@ class Cotizacion extends Component
             }
 
             $ventaBruta = 0.0;
+            $cantidadesExpo = [];
             foreach ($arrayInputs as $indice) {
                 $precioCargaId = (int) $request->input('precios_producto_carga_id' . $indice, 0);
                 $escalaId = (int) (DB::table('precios_producto_carga')->where('id', $precioCargaId)->value('categoria_precios_id') ?? 0);
@@ -481,30 +483,38 @@ class Cotizacion extends Component
                     ], 422);
                 }
 
-                $restaInventario = (float) $request->input('restaInventario' . $indice, 0);
-                $bodegaId = (int) $request->input('idBodega' . $indice, 0);
-                $bodegaOriginalDuplicada = false;
-                $cotizacionOrigenId = (int) $request->input('duplicar_cotizacion_id', 0);
-                if ($cotizacionOrigenId > 0) {
-                    $bodegaOriginalDuplicada = DB::table('cotizacion_has_producto as chp')
-                        ->join('expo_cotizacion as ec', 'ec.cotizacion_id', '=', 'chp.cotizacion_id')
-                        ->where('chp.cotizacion_id', $cotizacionOrigenId)
-                        ->where('ec.expo_id', $expoId)
-                        ->where('chp.producto_id', (int) $request->input('idProducto' . $indice, 0))
-                        ->where('chp.Bodega_id', $bodegaId)
-                        ->where('chp.seccion_id', (int) $request->input('idSeccion' . $indice, 0))
-                        ->exists();
-                }
-                if ($restaInventario > 0 && !in_array($bodegaId, $expoConfig['bodegas'], true) && !$bodegaOriginalDuplicada) {
+                $productoId = (int) $request->input('idProducto' . $indice, 0);
+                $cantidadBase = (float) $request->input('cantidad' . $indice, 0)
+                    * (float) $request->input('unidad' . $indice, 0);
+                if ($productoId <= 0 || $cantidadBase <= 0) {
                     return response()->json([
-                        'icon' => 'error', 'title' => 'Bodega no permitida',
-                        'text' => 'Uno de los productos utiliza una bodega que no pertenece a la Expo.',
+                        'icon' => 'error', 'title' => 'Cantidad no válida',
+                        'text' => 'Todos los productos de la Oferta Expo deben tener una cantidad válida.',
                     ], 422);
                 }
+                $cantidadesExpo[$productoId] = ($cantidadesExpo[$productoId] ?? 0) + $cantidadBase;
 
                 $ventaBruta += (float) $request->input('precio' . $indice, 0)
-                    * (float) $request->input('cantidad' . $indice, 0)
-                    * (float) $request->input('unidad' . $indice, 0);
+                    * $cantidadBase;
+            }
+
+            foreach ($cantidadesExpo as $productoId => $cantidadSolicitada) {
+                if ($cantidadSolicitada > ExpoStock::disponible((int) $productoId, $expoConfig['bodegas']) + 0.00001) {
+                    return response()->json([
+                        'icon' => 'error', 'title' => 'Existencia insuficiente',
+                        'text' => 'La cantidad solicitada supera la existencia agrupada disponible en las bodegas de la Expo.',
+                    ], 422);
+                }
+            }
+
+            $ubicacionVirtualExpo = ExpoStock::ubicacionVirtual();
+            foreach ($arrayInputs as $indice) {
+                $request->merge([
+                    'idBodega' . $indice => $ubicacionVirtualExpo['bodega_id'],
+                    'idSeccion' . $indice => $ubicacionVirtualExpo['seccion_id'],
+                    'bodega' . $indice => $ubicacionVirtualExpo['nombre_bodega'],
+                    'restaInventario' . $indice => 1,
+                ]);
             }
 
             $porcentajeExpo = 0.0;
