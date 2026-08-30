@@ -226,7 +226,7 @@ class ProductosPlantillaExport implements FromQuery, WithHeadings, WithMapping, 
                 $sheet->getStyle('A1:Y1')->getProtection()->setLocked(Protection::PROTECTION_PROTECTED);
 
                 // Activar la protección de la hoja
-                $sheet->getProtection()->setPassword(''); // Sin contraseña para que puedan desproteger si necesitan
+                $sheet->getProtection()->setPassword('profac2026');
                 $sheet->getProtection()->setSheet(true);
                 $sheet->getProtection()->setSort(false);
                 $sheet->getProtection()->setInsertRows(false);
