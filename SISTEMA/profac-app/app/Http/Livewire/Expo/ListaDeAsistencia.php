@@ -75,6 +75,8 @@ class ListaDeAsistencia extends Component
             'expo_id' => $expo->id,
             'cliente_id' => $clienteId,
             'registrado_por' => Auth::id(),
+            'tickets' => 0,
+            'recibio_regalo' => false,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -90,6 +92,30 @@ class ListaDeAsistencia extends Component
         session()->flash('success', 'Cliente eliminado de la lista de asistencia.');
     }
 
+    public function actualizarTickets(int $clienteId, $tickets): void
+    {
+        if (filter_var($tickets, FILTER_VALIDATE_INT) === false || (int) $tickets < 0) {
+            session()->flash('error', 'La cantidad de tickets debe ser un número entero igual o mayor que cero.');
+            return;
+        }
+
+        $this->actualizarAsistencia($clienteId, ['tickets' => (int) $tickets]);
+    }
+
+    public function actualizarRegalo(int $clienteId): void
+    {
+        $expo = $this->expoActivaSeleccionada();
+        $asistencia = DB::table('expo_asistencia')
+            ->where('expo_id', $expo->id)
+            ->where('cliente_id', $clienteId)
+            ->first(['recibio_regalo']);
+        abort_unless($asistencia, 404, 'El cliente no está registrado en esta Expo.');
+
+        $this->actualizarAsistencia($clienteId, [
+            'recibio_regalo' => !(bool) $asistencia->recibio_regalo,
+        ]);
+    }
+
     public function descargarExcel()
     {
         $expo = $this->expoActivaSeleccionada();
@@ -103,12 +129,14 @@ class ListaDeAsistencia extends Component
             $cliente->telefono_empresa,
             $cliente->correo,
             $cliente->registrado_at,
+            $cliente->tickets,
+            $cliente->recibio_regalo ? 'Sí' : 'No',
             $cliente->registrado_por,
         ])->all();
 
         return Excel::download(new ArrayExport([
             'Exposición', 'Inicio', 'Fin', 'ID cliente', 'Cliente', 'RTN', 'Teléfono',
-            'Correo', 'Fecha de registro', 'Registrado por',
+            'Correo', 'Fecha de asistencia', 'Tickets', 'Recibió regalo', 'Registrado por',
         ], $filas), 'asistencia_expo_' . $expo->id . '.xlsx');
     }
 
@@ -136,6 +164,16 @@ class ListaDeAsistencia extends Component
         return $expo;
     }
 
+    private function actualizarAsistencia(int $clienteId, array $valores): void
+    {
+        $expo = $this->expoActivaSeleccionada();
+        $actualizados = DB::table('expo_asistencia')
+            ->where('expo_id', $expo->id)
+            ->where('cliente_id', $clienteId)
+            ->update(array_merge($valores, ['updated_at' => now()]));
+        abort_unless($actualizados, 404, 'El cliente no está registrado en esta Expo.');
+    }
+
     private function consultaAsistentes(int $expoId)
     {
         return DB::table('expo_asistencia as ea')
@@ -143,6 +181,7 @@ class ListaDeAsistencia extends Component
             ->join('users as u', 'u.id', '=', 'ea.registrado_por')
             ->where('ea.expo_id', $expoId)->orderBy('c.nombre')
             ->select('c.id', 'c.nombre', 'c.rtn', 'c.telefono_empresa', 'c.correo',
-                'ea.created_at as registrado_at', 'u.name as registrado_por');
+                'ea.created_at as registrado_at', 'ea.tickets', 'ea.recibio_regalo',
+                'u.name as registrado_por');
     }
 }

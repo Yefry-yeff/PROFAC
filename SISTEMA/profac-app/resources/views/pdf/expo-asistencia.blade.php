@@ -20,12 +20,12 @@
         Total: {{ $asistentes->count() }} cliente(s)
     </div>
     <table>
-        <thead><tr><th>ID</th><th>Cliente</th><th>RTN</th><th>Teléfono</th><th>Correo</th><th>Registrado</th><th>Usuario</th></tr></thead>
+        <thead><tr><th>ID</th><th>Cliente</th><th>RTN</th><th>Teléfono</th><th>Correo</th><th>Fecha de asistencia</th><th>Tickets</th><th>Regalo</th><th>Usuario</th></tr></thead>
         <tbody>
             @forelse($asistentes as $cliente)
-                <tr><td>{{ $cliente->id }}</td><td>{{ $cliente->nombre }}</td><td>{{ $cliente->rtn }}</td><td>{{ $cliente->telefono_empresa }}</td><td>{{ $cliente->correo }}</td><td>{{ date('d/m/Y H:i', strtotime($cliente->registrado_at)) }}</td><td>{{ $cliente->registrado_por }}</td></tr>
+                <tr><td>{{ $cliente->id }}</td><td>{{ $cliente->nombre }}</td><td>{{ $cliente->rtn }}</td><td>{{ $cliente->telefono_empresa }}</td><td>{{ $cliente->correo }}</td><td>{{ date('d/m/Y H:i', strtotime($cliente->registrado_at)) }}</td><td>{{ $cliente->tickets }}</td><td>{{ $cliente->recibio_regalo ? 'Sí' : 'No' }}</td><td>{{ $cliente->registrado_por }}</td></tr>
             @empty
-                <tr><td colspan="7">No hay clientes registrados.</td></tr>
+                <tr><td colspan="9">No hay clientes registrados.</td></tr>
             @endforelse
         </tbody>
     </table>

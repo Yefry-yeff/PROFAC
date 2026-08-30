@@ -58,6 +58,9 @@
         .attendance-client-id { color:#7c8e97; font-size:9px; }
         .attendance-contact { color:#607d8b; }
         .attendance-registered { line-height:1.35; white-space:nowrap; }
+        .attendance-tickets { width:76px; height:32px; margin:auto; border:1.5px solid #d7dee3; border-radius:6px; text-align:center; }
+        .attendance-tickets:focus { border-color:var(--attendance-orange); box-shadow:0 0 0 3px rgba(230,81,0,.11); }
+        .attendance-gift { width:18px; height:18px; cursor:pointer; accent-color:var(--attendance-orange); }
         .attendance-remove { width:30px; height:30px; padding:0; border:1px solid #e2b8b8; border-radius:7px; background:#fff; color:#ad3d3d; box-shadow:0 1px 3px rgba(0,0,0,.06); }
         .attendance-remove:hover { background:#fff1f1; color:#8f2929; }
         .attendance-empty { padding:40px 20px!important; color:#84949c!important; text-align:center; }
@@ -193,7 +196,9 @@
                                     <th>RTN</th>
                                     <th>Teléfono</th>
                                     <th>Correo</th>
-                                    <th>Registrado</th>
+                                    <th>Fecha de asistencia</th>
+                                    <th class="text-center">Tickets</th>
+                                    <th class="text-center">Regalo</th>
                                     <th class="text-center">Acción</th>
                                 </tr>
                             </thead>
@@ -206,11 +211,17 @@
                                         <td class="attendance-contact">{{ $cliente->correo ?: 'Sin correo' }}</td>
                                         <td class="attendance-registered">{{ date('d/m/Y H:i', strtotime($cliente->registrado_at)) }}<br><small class="text-muted">Por {{ $cliente->registrado_por }}</small></td>
                                         <td class="text-center">
+                                            <input type="number" min="0" step="1" value="{{ $cliente->tickets }}" wire:change="actualizarTickets({{ $cliente->id }}, $event.target.value)" class="form-control form-control-sm attendance-tickets" aria-label="Tickets de {{ $cliente->nombre }}">
+                                        </td>
+                                        <td class="text-center">
+                                            <input type="checkbox" id="regalo-asistente-{{ $cliente->id }}" wire:change="actualizarRegalo({{ $cliente->id }})" class="attendance-gift" title="Marcar si recibió regalo" aria-label="Regalo entregado a {{ $cliente->nombre }}" @checked($cliente->recibio_regalo)>
+                                        </td>
+                                        <td class="text-center">
                                             <button type="button" wire:click="eliminarCliente({{ $cliente->id }})" wire:loading.attr="disabled" onclick="return confirm('¿Eliminar este cliente de la asistencia?')" class="attendance-remove" title="Eliminar de asistencia" aria-label="Eliminar de asistencia"><i class="fa fa-trash"></i></button>
                                         </td>
                                     </tr>
                                 @empty
-                                    <tr><td colspan="6" class="attendance-empty"><i class="fa fa-user-plus"></i>Aún no hay clientes registrados en esta Expo.</td></tr>
+                                    <tr><td colspan="8" class="attendance-empty"><i class="fa fa-user-plus"></i>Aún no hay clientes registrados en esta Expo.</td></tr>
                                 @endforelse
                             </tbody>
                         </table>
