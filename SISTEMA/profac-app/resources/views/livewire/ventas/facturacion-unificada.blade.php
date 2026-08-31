@@ -2105,6 +2105,7 @@
     var ventaTemporalTimer = null;
     var ventaTemporalObserver = null;
     var ventaTemporalAutosaveActivo = false;
+    var esDuplicandoOferta = {!! $duplicandoOferta ? 'true' : 'false' !!};
     var retencionEstado = false;
     var diasCredito = 0;
     var diasCreditoAprobadosFlujo = null;
@@ -2240,11 +2241,12 @@
         controlesTemporales.forEach(aplicarControlTemporal);
         var asesorTemporal = controlesTemporales.find(function(control) { return control.id === 'vendedor'; });
         var clienteTemporal = document.getElementById('seleccionarCliente');
+        var cargaAsesor = Promise.resolve();
         if (clienteTemporal && clienteTemporal.value) {
-            aplicarAsesorAsignado(clienteTemporal.value, asesorTemporal ? asesorTemporal.value : null);
+            cargaAsesor = aplicarAsesorAsignado(clienteTemporal.value, asesorTemporal ? asesorTemporal.value : null);
         }
         normalizarFilasCarritoExpo();
-        actualizarStocksDisponiblesExpo();
+        var cargaStocks = actualizarStocksDisponiblesExpo();
 
         var tieneProductos = arregloIdInputs.length > 0;
         var tabla = document.getElementById('carritoTablaWrapper');
@@ -2252,7 +2254,9 @@
         if (tabla) tabla.classList.toggle('d-none', !tieneProductos);
         if (vacio) vacio.classList.toggle('d-none', tieneProductos);
         actualizarContadorCarrito();
-        ventaTemporalRestaurando = false;
+        return Promise.all([cargaAsesor, cargaStocks]).finally(function() {
+            ventaTemporalRestaurando = false;
+        });
     }
 
     function escaparHtmlTemporal(texto) {
@@ -2294,8 +2298,8 @@
     }
 
     function actualizarStocksDisponiblesExpo() {
-        if (!filtrarProductosExpo) return;
-        arregloIdInputs.forEach(consultarStockDisponibleExpo);
+        if (!filtrarProductosExpo) return Promise.resolve();
+        return Promise.all(arregloIdInputs.map(consultarStockDisponibleExpo));
     }
 
     function ocultarCargaTemporales() {
@@ -2322,11 +2326,20 @@
 
         ventaTemporalId = temporal.id;
         axios.get('/ventas/temporales/' + temporal.id).then(function(response) {
-            restaurarVentaTemporal(response.data.data.contenido || {});
-            var url = new URL(window.location.href);
-            url.searchParams.set('temporal_id', temporal.id);
-            window.history.replaceState({}, '', url.toString());
-            activarAutosaveTemporal();
+            return restaurarVentaTemporal(response.data.data.contenido || {}).then(function() {
+                var url = new URL(window.location.href);
+                url.searchParams.set('temporal_id', temporal.id);
+                window.history.replaceState({}, '', url.toString());
+                activarAutosaveTemporal();
+            });
+        }).catch(function(error) {
+            console.warn('No se pudo recuperar el registro temporal:', error);
+            iniciarNuevaVentaTemporal();
+            Swal.fire({
+                icon: 'error',
+                title: 'No se pudo continuar la oferta',
+                text: 'El registro temporal ya no está disponible. Se inició una oferta nueva.'
+            });
         });
     }
 
@@ -2387,7 +2400,7 @@
         }
     }
 
-    function inicializarVentaTemporal() {
+    function consultarVentasTemporales() {
         axios.get('/ventas/temporales', { params: { tipo: ventaTemporalTipo } }).then(function(response) {
             var temporales = (response.data.data || []).filter(function(item) {
                 return item.tipo === ventaTemporalTipo;
@@ -2399,6 +2412,35 @@
             }
         }).catch(function() {
             iniciarNuevaVentaTemporal();
+        });
+    }
+
+    function inicializarVentaTemporal() {
+        if (esDuplicandoOferta) {
+            iniciarNuevaVentaTemporal();
+            return;
+        }
+
+        if (!ventaTemporalId) {
+            consultarVentasTemporales();
+            return;
+        }
+
+        axios.get('/ventas/temporales/' + ventaTemporalId).then(function(response) {
+            var temporal = response.data.data;
+            if (temporal.tipo !== ventaTemporalTipo || temporal.codigo_tipo !== codigoActual) {
+                throw new Error('El registro temporal no corresponde al formulario actual.');
+            }
+            return restaurarVentaTemporal(temporal.contenido || {}).then(function() {
+                ocultarCargaTemporales();
+                activarAutosaveTemporal();
+            });
+        }).catch(function() {
+            ventaTemporalId = null;
+            var url = new URL(window.location.href);
+            url.searchParams.delete('temporal_id');
+            window.history.replaceState({}, '', url.toString());
+            consultarVentasTemporales();
         });
     }
 
@@ -3026,7 +3068,7 @@
     function obtenerTipoPago() {
         var urlTipoPago = urls.tipo_pago;
 
-        axios.get(urlTipoPago)
+        return axios.get(urlTipoPago)
             .then(response => {
                 let tipoDePago = response.data.tipos;
                 let numeroVenta = response.data.numeroVenta.numero;
