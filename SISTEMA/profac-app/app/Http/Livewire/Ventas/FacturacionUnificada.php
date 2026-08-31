@@ -320,6 +320,7 @@ class FacturacionUnificada extends Component
             $esExpo = !empty($expoCotizacionId);
             $this->esOfertaExpo = $esExpo;
             if ($esExpo) {
+                $this->filtrarProductosExpo = true;
                 $this->expoConfig = $this->duplicandoOferta
                     ? ExpoConfig::detalleActivaParaUsuario((int) $expoCotizacionId, Auth::id())
                     : ExpoConfig::detalleParaFacturacion((int) $expoCotizacionId, (int) $cotizId, Auth::id());
@@ -365,6 +366,9 @@ class FacturacionUnificada extends Component
                     'monto_descProducto',
                     ])->all();
 
+            $ubicacionExpoDuplicada = $esExpo && $this->duplicandoOferta
+                ? ExpoStock::ubicacionVirtual()
+                : null;
             $productosResueltos = [];
             $productosSugeridos = [];
             $productosSinEscala = [];
@@ -377,6 +381,12 @@ class FacturacionUnificada extends Component
 
             foreach ($prods as $p) {
                 $prod = (array) $p;
+                if ($ubicacionExpoDuplicada) {
+                    $prod['Bodega_id'] = $ubicacionExpoDuplicada['bodega_id'];
+                    $prod['seccion_id'] = $ubicacionExpoDuplicada['seccion_id'];
+                    $prod['nombre_bodega'] = $ubicacionExpoDuplicada['nombre_bodega'];
+                    $prod['resta_inventario'] = 1;
+                }
                 $lineaExpoOrigenId = (int) ($prod['cotizacion_has_producto_id'] ?? 0);
                 $marcaCongelada = $marcasSnapshot[$lineaExpoOrigenId] ?? [];
                 if ($this->duplicandoOferta) {

@@ -13,6 +13,41 @@ class FacturacionUnificadaAlcanceTest extends TestCase
 {
     use DatabaseTransactions;
 
+    public function test_duplicar_oferta_expo_normaliza_productos_a_bodega_virtual(): void
+    {
+        $oferta = DB::table('expo_cotizacion as ec')
+            ->join('expo as e', 'e.id', '=', 'ec.expo_id')
+            ->join('expo_usuario as eu', 'eu.expo_id', '=', 'ec.expo_id')
+            ->join('expo_bodega as eb', 'eb.expo_id', '=', 'ec.expo_id')
+            ->join('expo_escala as ee', 'ee.expo_id', '=', 'ec.expo_id')
+            ->join('cotizacion_has_producto as chp', 'chp.cotizacion_id', '=', 'ec.cotizacion_id')
+            ->join('precios_producto_carga as ppc', 'ppc.id', '=', 'chp.precios_producto_carga_id')
+            ->where('e.estado', 'Activo')
+            ->where('ppc.estado_id', 1)
+            ->select('ec.cotizacion_id', 'eu.usuario_id')
+            ->first();
+
+        $this->assertNotNull($oferta, 'No existe una oferta Expo activa para probar su duplicación.');
+        $this->actingAs(User::findOrFail($oferta->usuario_id));
+
+        $componente = Livewire::withQueryParams([
+            'from' => 'flujo',
+            'duplicar' => 1,
+            'cotizacionId' => $oferta->cotizacion_id,
+        ])->test(FacturacionUnificada::class, ['codigo' => 'cotizacion_clientes_a'])
+            ->assertSet('esOfertaExpo', true)
+            ->assertSet('filtrarProductosExpo', true);
+
+        $productos = collect($componente->get('productosParaCarrito'));
+        $this->assertNotEmpty($productos);
+        $this->assertTrue($productos->every(fn ($producto) =>
+            (int) $producto['Bodega_id'] === 0
+            && (int) $producto['seccion_id'] === 461
+            && $producto['nombre_bodega'] === 'EXPO - DISPONIBLE AGRUPADO'
+            && (int) $producto['resta_inventario'] === 1
+        ));
+    }
+
     public function test_buscador_y_url_solo_permiten_flujos_involucrados_o_clientes_asignados(): void
     {
         $flujo = DB::table('flujo as f')
