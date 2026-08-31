@@ -424,6 +424,14 @@ class CategoriaPrecios extends Component
                     return response()->json(['error' => 'Categoría requerida'], 422);
                 }
 
+                $categoria = DB::table('categoria_precios')
+                    ->where('id', $categoriaId)
+                    ->where('estado_id', 1)
+                    ->first(['porc_precio_a', 'porc_precio_b', 'porc_precio_c', 'porc_precio_d']);
+                if (!$categoria) {
+                    return response()->json(['error' => 'Categoría no disponible'], 404);
+                }
+
                 $params = [$categoriaId];
                 $where  = "p.categoria_precios_id = ? AND p.estado_id = 1";
 
@@ -462,15 +470,12 @@ class CategoriaPrecios extends Component
                     LIMIT ? OFFSET ?
                 ", array_merge($params, [$length, $start]));
 
-                $porc = null;
-                if (count($datos)) {
-                    $porc = [
-                        'a' => $datos[0]->porc_precio_a,
-                        'b' => $datos[0]->porc_precio_b,
-                        'c' => $datos[0]->porc_precio_c,
-                        'd' => $datos[0]->porc_precio_d,
-                    ];
-                }
+                $porc = [
+                    'a' => $categoria->porc_precio_a,
+                    'b' => $categoria->porc_precio_b,
+                    'c' => $categoria->porc_precio_c,
+                    'd' => $categoria->porc_precio_d,
+                ];
 
                 return response()->json([
                     'recordsTotal'    => (int) $total,
@@ -481,6 +486,114 @@ class CategoriaPrecios extends Component
             } catch (\Exception $e) {
                 return response()->json(['error' => $e->getMessage()], 500);
             }
+        }
+
+        public function agregarProductoPrecio(Request $request)
+        {
+            $categoriaId = (int) $request->categoria_id;
+            $productoId = (int) $request->producto_id;
+            $precioBase = (float) $request->precio_base;
+            if (!$categoriaId || !$productoId || $precioBase <= 0) {
+                return response()->json(['icon' => 'error', 'text' => 'Seleccione un producto e indique un precio base mayor que cero.'], 422);
+            }
+
+            try {
+                DB::beginTransaction();
+                $categoria = DB::table('categoria_precios')
+                    ->where('id', $categoriaId)->where('estado_id', 1)
+                    ->lockForUpdate()->first();
+                $producto = DB::table('producto as prod')
+                    ->join('sub_categoria as sc', 'sc.id', '=', 'prod.sub_categoria_id')
+                    ->where('prod.id', $productoId)->where('prod.estado_producto_id', 1)
+                    ->first([
+                        'prod.id', 'prod.marca_id', 'prod.sub_categoria_id',
+                        'prod.unidad_medida_compra_id', 'prod.ultimo_costo_compra',
+                        'sc.categoria_producto_id',
+                    ]);
+                if (!$categoria || !$producto) {
+                    DB::rollBack();
+                    return response()->json(['icon' => 'error', 'text' => 'La categoría o el producto ya no está disponible.'], 404);
+                }
+
+                $yaExiste = DB::table('precios_producto_carga')
+                    ->where('categoria_precios_id', $categoriaId)
+                    ->where('producto_id', $productoId)
+                    ->where('estado_id', 1)
+                    ->lockForUpdate()->exists();
+                if ($yaExiste) {
+                    DB::rollBack();
+                    return response()->json(['icon' => 'info', 'text' => 'El producto ya pertenece a esta categoría de precio.'], 422);
+                }
+
+                $anterior = DB::table('precios_producto_carga')
+                    ->where('categoria_precios_id', $categoriaId)
+                    ->where('producto_id', $productoId)
+                    ->orderByDesc('id')->first();
+                $calcular = fn ($porcentaje) => round($precioBase * (1 + ((float) $porcentaje / 100)), 2);
+                $nuevoId = DB::table('precios_producto_carga')->insertGetId([
+                    'categoria_precios_id' => $categoriaId,
+                    'comentario' => $anterior->comentario ?? 'Agregado desde editor de precios base',
+                    'producto_id' => $productoId,
+                    'estado_id' => 1,
+                    'precio_base_venta' => $precioBase,
+                    'precio_a' => $calcular($categoria->porc_precio_a),
+                    'precio_b' => $calcular($categoria->porc_precio_b),
+                    'precio_c' => $calcular($categoria->porc_precio_c),
+                    'precio_d' => $calcular($categoria->porc_precio_d),
+                    'tipo_categoria_precio_id' => $anterior->tipo_categoria_precio_id ?? 1,
+                    'users_id_creador' => Auth::id(),
+                    'users_id_actualizador' => Auth::id(),
+                    'fecha_ultima_actualizacion' => now(),
+                    'precio_compra_usd' => $anterior->precio_compra_usd ?? null,
+                    'tipo_cambio_usd' => $anterior->tipo_cambio_usd ?? null,
+                    'precio_hnl' => $anterior->precio_hnl ?? null,
+                    'flete' => $anterior->flete ?? null,
+                    'arancel' => $anterior->arancel ?? null,
+                    'porc_flete' => $anterior->porc_flete ?? null,
+                    'porc_arancel' => $anterior->porc_arancel ?? null,
+                    'categoria_producto_id' => $producto->categoria_producto_id,
+                    'sub_categoria_id' => $producto->sub_categoria_id,
+                    'marca_id' => $producto->marca_id,
+                    'costoproducto' => $producto->ultimo_costo_compra,
+                    'unidad_medida_compra_id' => $producto->unidad_medida_compra_id,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+                DB::commit();
+
+                return response()->json([
+                    'icon' => 'success', 'text' => 'Producto agregado a la categoría de precio.',
+                    'nuevo_id' => $nuevoId,
+                ]);
+            } catch (\Throwable $e) {
+                DB::rollBack();
+                return response()->json(['icon' => 'error', 'text' => 'No se pudo agregar el producto.'], 500);
+            }
+        }
+
+        public function eliminarProductoPrecio(Request $request)
+        {
+            $precioId = (int) $request->precio_id;
+            $categoriaId = (int) $request->categoria_id;
+            $registro = DB::table('precios_producto_carga')
+                ->where('id', $precioId)->where('categoria_precios_id', $categoriaId)
+                ->where('estado_id', 1)->first(['producto_id']);
+            if (!$registro) {
+                return response()->json(['icon' => 'error', 'text' => 'El producto ya no está activo en esta categoría.'], 404);
+            }
+
+            DB::table('precios_producto_carga')
+                ->where('categoria_precios_id', $categoriaId)
+                ->where('producto_id', $registro->producto_id)
+                ->where('estado_id', 1)
+                ->update([
+                    'estado_id' => 2,
+                    'users_id_actualizador' => Auth::id(),
+                    'fecha_ultima_actualizacion' => now(),
+                    'updated_at' => now(),
+                ]);
+
+            return response()->json(['icon' => 'success', 'text' => 'Producto eliminado de la categoría de precio.']);
         }
 
         public function actualizarPrecioBase(Request $request)

@@ -7,6 +7,9 @@
     'urlFiltros'  => '/productos/buscar',
     'topLabel'    => '',
     'expoId'      => null,
+    'extraParamsCallback' => '',
+    'conStockDefault' => true,
+    'useTopPreview' => true,
 ])
 @php
     $suf = preg_replace('/[^a-zA-Z0-9]/', '_', $idModal);
@@ -101,7 +104,7 @@
 
                     {{-- Solo con stock --}}
                     <div class="custom-control custom-switch ml-1">
-                        <input type="checkbox" class="custom-control-input" checked
+                        <input type="checkbox" class="custom-control-input" @checked($conStockDefault)
                                id="{{ $suf }}_conStock">
                         <label class="custom-control-label"
                                for="{{ $suf }}_conStock"
@@ -165,7 +168,6 @@
 <style>
 /* Buscador de producto: z-index por encima del sidebar (max z-index sidebar = 10000) */
 #{{ $idModal }}  { z-index: 20050 !important; }
-.modal-backdrop  { z-index: 20040 !important; }
 /* Barra de carga animada — @@keyframes evita que Blade interprete el @ */
 @@keyframes bsp_loadbar {
     0%   { background-position: 100% 0; }
@@ -195,12 +197,14 @@
     var URL_FILTROS   = '{{ $urlFiltros }}';
     var TOP_LABEL     = '{{ $topLabel }}';
     var EXPO_ID       = @json($expoId);
+    var EXTRA_PARAMS_CB = '{{ $extraParamsCallback }}';
+    var USE_TOP_PREVIEW = @json((bool) $useTopPreview);
 
     var page          = 1;
     var query         = '';
     var catId         = '';
     var marcaId       = '';
-    var conStock      = true;
+    var conStock      = @json((bool) $conStockDefault);
     var timer         = null;
     var filtersLoaded        = false;
     var filtersLoadedBodega  = '';   // rastrea para qué bodega se cargaron los filtros
@@ -243,7 +247,11 @@
     /* ── helpers ────────────────────────────── */
     function el(id) { return document.getElementById(id); }
     function contextParams() {
-        return EXPO_ID ? { expo_id: EXPO_ID } : {};
+        var params = EXPO_ID ? { expo_id: EXPO_ID } : {};
+        if (EXTRA_PARAMS_CB && typeof window[EXTRA_PARAMS_CB] === 'function') {
+            Object.assign(params, window[EXTRA_PARAMS_CB]() || {});
+        }
+        return params;
     }
     function esc(s) {
         return String(s == null ? '' : s)
@@ -285,7 +293,7 @@
         clearTimeout(timer);
         page = 1;
         // Si hay query o filtros activos → búsqueda normal; si no → top vendidos
-        if (query === '' && catId === '' && marcaId === '' && !conStock) {
+        if (USE_TOP_PREVIEW && query === '' && catId === '' && marcaId === '' && !conStock) {
             loadTopVendidos();
         } else {
             doSearch();
@@ -348,14 +356,14 @@
         var mySeq = ++reqSeq;   // incrementar ANTES de lanzar la petición
         showLoading();
 
-        var srchParams = {
+        var srchParams = Object.assign(contextParams(), {
             q:            query,
             categoria_id: catId,
             marca_id:     marcaId,
             con_stock:    conStock ? 1 : 0,
             page:         page,
             expo_id:      EXPO_ID || undefined
-        };
+        });
         if (BVAR) { var bvId2 = window[BVAR]; if (bvId2) srchParams.bodega_id = bvId2; }
         axios.get(URL_BUSCAR, { params: srchParams }).then(function (r) {
             if (reqSeq !== mySeq) return;   // el usuario ya escribió algo más, ignorar
@@ -514,7 +522,7 @@
         el(S + '_clearBtn').classList.toggle('d-none', query === '');
         el(S + '_spinner').classList.remove('d-none');
         el(S + '_info').textContent = '…';
-        if (query === '' && catId === '' && marcaId === '' && !conStock) {
+        if (USE_TOP_PREVIEW && query === '' && catId === '' && marcaId === '' && !conStock) {
             // Volver a mostrar los más vendidos si se borraron todos los filtros
             timer = setTimeout(loadTopVendidos, 300);
         } else {
@@ -561,7 +569,7 @@
         if (filtersLoadedBodega !== currentBodega) filtersLoaded = false;
         loadFilters();
         // Si no hay query ni filtros activos → mostrar top preview
-        if (query === '' && catId === '' && marcaId === '' && !conStock) {
+        if (USE_TOP_PREVIEW && query === '' && catId === '' && marcaId === '' && !conStock) {
             loadTopVendidos();
         } else {
             doSearch();

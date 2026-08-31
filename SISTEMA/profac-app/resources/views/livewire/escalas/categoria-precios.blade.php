@@ -1110,6 +1110,12 @@ a.btn.btn-pf-primary:hover {
                         onclick="cargarEditorPrecios(1)">
                     <i class="fa fa-search mr-1"></i> Buscar
                 </button>
+                <button type="button" class="btn btn-sm btn-success" onclick="abrirAgregarProductoPrecio()" style="height:35px;font-size:.8rem;">
+                    <i class="fa fa-plus mr-1"></i> Agregar producto
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-success" onclick="descargarProductosEditor()" style="height:35px;font-size:.8rem;">
+                    <i class="fa fa-file-excel-o mr-1"></i> Descargar Excel
+                </button>
             </div>
         </div>
 
@@ -1172,6 +1178,40 @@ a.btn.btn-pf-primary:hover {
 
     </div>{{-- /pf-wizard-body --}}
 </div>{{-- /pf-wizard-card --}}
+
+<div class="modal fade" id="modalAgregarProductoPrecio" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document" style="max-width:620px;">
+        <div class="modal-content">
+            <div class="modal-header" style="background:var(--pf-grad);color:#fff;">
+                <h6 class="modal-title mb-0"><i class="fa fa-plus-circle mr-1"></i>Agregar producto a la categoría de precio</h6>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Cerrar"><span aria-hidden="true">&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <div id="editorAgregarSeleccion" class="alert alert-light border mb-3" style="font-size:.8rem;"></div>
+                <div class="form-group mb-0">
+                    <label for="editorAgregarBase" class="font-weight-bold small">Precio base</label>
+                    <input type="number" id="editorAgregarBase" min="0.01" step="0.01" class="form-control" placeholder="0.00">
+                    <div id="editorUltimoPrecioBase" class="mt-2 px-2 py-1 border rounded" style="display:none;background:#f8fafc;color:#52616b;font-size:.76rem;"></div>
+                    <small class="text-muted">Los precios A, B, C y D se calcularán con los porcentajes de la categoría seleccionada.</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Cancelar</button>
+                <button type="button" id="btnConfirmarAgregarPrecio" class="btn btn-success" onclick="confirmarAgregarProductoPrecio()" disabled>
+                    <i class="fa fa-plus mr-1"></i>Agregar producto
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<x-buscador-producto
+    id-modal="buscadorProductoPrecio"
+    callback="seleccionarProductoParaPrecio"
+    extra-params-callback="parametrosBuscadorProductoPrecio"
+    :con-stock-default="false"
+    :use-top-preview="false"
+/>
 
 <div class="modal fade" id="modalSeleccionFiltrosProductos" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered" role="document" style="max-width:620px;">
@@ -2356,6 +2396,7 @@ a.btn.btn-pf-primary:hover {
     var _editorTotal  = 0;
     var _editorCatId  = null;
     var _editorBuscar = '';
+    var _editorProductoAgregar = null;
 
     $(document).ready(function() {
 
@@ -2427,6 +2468,7 @@ a.btn.btn-pf-primary:hover {
         $('#editorBuscarProd').on('keydown', function(e) {
             if (e.key === 'Enter') cargarEditorPrecios(1);
         });
+
     });
 
     /* ─── Cargar tabla de productos ─── */
@@ -2510,11 +2552,95 @@ a.btn.btn-pf-primary:hover {
             tr.append($('<td class="td-pc text-right">').css('color','#c0392b').text(_calc(row.precio_base_venta, row.porc_precio_c)));
             tr.append($('<td class="td-pd text-right">').css('color','#7d3c98').text(_calc(row.precio_base_venta, row.porc_precio_d)));
 
-            var btnSave = $('<button class="btn-editor-save">').html('<i class="fa fa-save"></i> Guardar')
+            var btnSave = $('<button class="btn-editor-save mr-1">').html('<i class="fa fa-save"></i> Guardar')
                 .on('click', function() { _guardarBase(row.id, tr); });
-            tr.append($('<td class="text-center">').append(btnSave));
+            var btnDelete = $('<button class="btn btn-sm btn-outline-danger" title="Eliminar de esta categoría">').html('<i class="fa fa-trash"></i>')
+                .on('click', function() { _eliminarProductoPrecio(row.id, row.nombre); });
+            tr.append($('<td class="text-center" style="white-space:nowrap;">').append(btnSave, btnDelete));
             tbody.append(tr);
         });
+    }
+
+    window.abrirAgregarProductoPrecio = function() {
+        if (!_editorCatId) return;
+        _editorProductoAgregar = null;
+        window.abrirBuscador_buscadorProductoPrecio('', true);
+    };
+
+    window.parametrosBuscadorProductoPrecio = function() {
+        return { excluir_categoria_precio_id: _editorCatId };
+    };
+
+    window.seleccionarProductoParaPrecio = function(producto) {
+        _editorProductoAgregar = producto;
+        $('#editorAgregarSeleccion').html('<strong>' + _escaparHtml(producto.nombre) + '</strong><br><small>ID ' + producto.id + ' · Código ' + _escaparHtml(producto.codigo_barra || 'Sin código') + '</small>');
+        var ultimoPrecioBase = parseFloat(producto.ultimo_precio_base || 0);
+        $('#editorAgregarBase').val(ultimoPrecioBase > 0 ? ultimoPrecioBase.toFixed(2) : '');
+        $('#editorUltimoPrecioBase')
+            .toggle(ultimoPrecioBase > 0)
+            .html(ultimoPrecioBase > 0
+                ? '<i class="fa fa-history mr-1"></i>Último precio base registrado: <strong>L. ' + ultimoPrecioBase.toFixed(2) + '</strong>'
+                : '');
+        $('#btnConfirmarAgregarPrecio').prop('disabled', false);
+        $('#buscadorProductoPrecio').one('hidden.bs.modal', function() {
+            $('#modalAgregarProductoPrecio').modal('show');
+            setTimeout(function() { $('#editorAgregarBase').trigger('focus'); }, 200);
+        });
+    };
+
+    window.confirmarAgregarProductoPrecio = function() {
+        var precioBase = parseFloat($('#editorAgregarBase').val());
+        if (!_editorProductoAgregar || !precioBase || precioBase <= 0) {
+            Swal.fire({ icon: 'warning', title: 'Datos incompletos', text: 'Seleccione un producto e indique un precio base mayor que cero.', confirmButtonColor: '#e67e22' });
+            return;
+        }
+        var $btn = $('#btnConfirmarAgregarPrecio').prop('disabled', true).html('<i class="fa fa-spinner fa-spin mr-1"></i>Agregando...');
+        $.post('/precios/producto/agregar', {
+            _token: $('meta[name="csrf-token"]').attr('content'),
+            categoria_id: _editorCatId,
+            producto_id: _editorProductoAgregar.id,
+            precio_base: precioBase
+        }).done(function(res) {
+            $('#modalAgregarProductoPrecio').modal('hide');
+            cargarEditorPrecios(1);
+            Swal.fire({ icon: 'success', title: 'Producto agregado', text: res.text, confirmButtonColor: '#27ae60' });
+        }).fail(function(xhr) {
+            Swal.fire({ icon: 'error', title: 'No se pudo agregar', text: xhr.responseJSON?.text || 'Ocurrió un error al agregar el producto.', confirmButtonColor: '#e67e22' });
+        }).always(function() {
+            $btn.prop('disabled', false).html('<i class="fa fa-plus mr-1"></i>Agregar producto');
+        });
+    };
+
+    function _eliminarProductoPrecio(precioId, nombre) {
+        Swal.fire({
+            icon: 'warning', title: 'Eliminar producto',
+            text: '¿Eliminar "' + nombre + '" de esta categoría de precio?',
+            showCancelButton: true, confirmButtonText: 'Sí, eliminar', cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#c0392b'
+        }).then(function(result) {
+            if (!result.value) return;
+            $.post('/precios/producto/eliminar', {
+                _token: $('meta[name="csrf-token"]').attr('content'),
+                categoria_id: _editorCatId,
+                precio_id: precioId
+            }).done(function(res) {
+                cargarEditorPrecios(_editorPage);
+                Swal.fire({ icon: 'success', title: 'Producto eliminado', text: res.text, confirmButtonColor: '#27ae60' });
+            }).fail(function(xhr) {
+                Swal.fire({ icon: 'error', title: 'No se pudo eliminar', text: xhr.responseJSON?.text || 'Ocurrió un error.', confirmButtonColor: '#e67e22' });
+            });
+        });
+    }
+
+    window.descargarProductosEditor = function() {
+        var categoriaClienteId = $('#editorCatClienteSel').val();
+        if (!_editorCatId || !categoriaClienteId) return;
+        window.location.href = '/descargar/productos/filtros?cat_cliente_id=' + encodeURIComponent(categoriaClienteId)
+            + '&cat_precio_id=' + encodeURIComponent(_editorCatId);
+    };
+
+    function _escaparHtml(valor) {
+        return $('<div>').text(valor == null ? '' : String(valor)).html();
     }
 
     function _calc(base, porc) {

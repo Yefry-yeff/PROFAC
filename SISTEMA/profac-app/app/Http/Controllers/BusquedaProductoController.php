@@ -35,6 +35,7 @@ class BusquedaProductoController extends Controller
         $marcaId  = $request->get('marca_id', '');
         $conStock = (bool) $request->get('con_stock', 0);
         $bodegaId = $request->get('bodega_id', '');
+        $excluirCategoriaPrecioId = (int) $request->get('excluir_categoria_precio_id', 0);
         $expo = $this->configuracionExpo($request);
         $bodegasExpo = $expo['bodegas'] ?? [];
         $page     = max(1, (int) $request->get('page', 1));
@@ -76,6 +77,24 @@ class BusquedaProductoController extends Controller
         // Filtro por marca
         if ($marcaId !== '' && $marcaId !== null && $marcaId !== '0') {
             $query->where('p.marca_id', (int) $marcaId);
+        }
+
+        if ($excluirCategoriaPrecioId > 0) {
+            $query->whereNotExists(function ($sub) use ($excluirCategoriaPrecioId) {
+                $sub->select(DB::raw(1))
+                    ->from('precios_producto_carga as ppc_excluir')
+                    ->whereColumn('ppc_excluir.producto_id', 'p.id')
+                    ->where('ppc_excluir.categoria_precios_id', $excluirCategoriaPrecioId)
+                    ->where('ppc_excluir.estado_id', 1);
+            });
+            $query->addSelect([
+                'ultimo_precio_base' => DB::table('precios_producto_carga as ppc_ultimo')
+                    ->select('ppc_ultimo.precio_base_venta')
+                    ->whereColumn('ppc_ultimo.producto_id', 'p.id')
+                    ->orderByRaw('ppc_ultimo.categoria_precios_id = ? DESC', [$excluirCategoriaPrecioId])
+                    ->orderByDesc('ppc_ultimo.id')
+                    ->limit(1),
+            ]);
         }
 
         // Filtro de stock: WHERE EXISTS (más rápido que JOIN+GROUP BY+HAVING)
