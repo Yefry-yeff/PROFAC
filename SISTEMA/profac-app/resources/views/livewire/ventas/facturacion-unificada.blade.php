@@ -3928,18 +3928,27 @@
             datosCalculoCotizadorExpo = {
                 precio: precio,
                 porcentajeIsv: porcentajeIsv,
+                marcaId: Number(producto.marca_id || 0),
                 generales: generales,
                 reglasMarca: reglasMarcaProducto
             };
 
             var filas = umbrales.map(function(umbral, indice) {
-                var cantidad = Math.max(1, Math.ceil((umbral - 0.005) / precio));
+                var porcentajeMarcaUmbral = porcentajeExpoAlcanzado(umbral, reglasMarcaProducto);
+                var porcentajeGeneralUmbral = porcentajeExpoAlcanzado(umbral, generales);
+                var precioNetoUmbral = precio
+                    * (1 - porcentajeMarcaUmbral / 100)
+                    * (1 - porcentajeGeneralUmbral / 100);
+                var cantidad = precioNetoUmbral > 0
+                    ? Math.max(1, Math.ceil((umbral - 0.005) / precioNetoUmbral))
+                    : 1;
                 return '<tr data-cotizador-fila="' + indice + '"><td style="min-width:105px;">'
                     + '<input type="number" min="1" step="1" inputmode="numeric" value="' + cantidad + '" class="form-control form-control-sm text-center cotizador-expo-cantidad" oninput="recalcularFilaCotizadorExpo(this)"></td>'
                     + '<td class="text-right" data-campo="precio"></td>'
                     + '<td class="text-right" data-campo="compra"></td>'
                     + '<td class="text-center" data-campo="marca"></td>'
                     + '<td class="text-center" data-campo="general"></td>'
+                    + '<td class="text-right" data-campo="subtotal-neto"></td>'
                     + '<td class="text-right" data-campo="final-sin-isv"></td>'
                     + '<td class="text-right" data-campo="isv"></td>'
                     + '<td class="text-right" data-campo="final"></td>'
@@ -3953,9 +3962,9 @@
                     + ' &nbsp; <i class="fa fa-list-alt mr-1 text-success"></i>Escala: <strong>' + $('<div>').text(nombreEscala).html() + '</strong>'
                     + ' &nbsp; Precio unitario base: <strong>' + formatoMoneda(precio) + '</strong></small></div>'
                     + '<div class="table-responsive"><table class="table table-sm table-bordered cotizador-expo-tabla mb-2">'
-                        + '<thead><tr><th class="text-center">Desde cantidad</th><th class="text-right">Precio unitario</th><th class="text-right">Subtotal de la compra</th><th class="text-center">Desc. marca</th><th class="text-center">Desc. subtotal</th><th class="text-right">Precio unitario final</th><th class="text-right">ISV</th><th class="text-right">Precio U.F. + ISV</th><th class="text-right">Ahorro por unidad</th><th class="text-right">Ahorro total</th></tr></thead>'
+                        + '<thead><tr><th class="text-center">Desde cantidad</th><th class="text-right">Precio unitario</th><th class="text-right">Subtotal bruto</th><th class="text-center">Desc. marca</th><th class="text-center">Desc. subtotal</th><th class="text-right">Subtotal neto</th><th class="text-right">Precio unitario final</th><th class="text-right">ISV</th><th class="text-right">Precio U.F. + ISV</th><th class="text-right">Ahorro por unidad</th><th class="text-right">Ahorro total</th></tr></thead>'
                     + '<tbody>' + filas + '</tbody></table></div>'
-                    + '<small class="text-muted">Estimación basada en las reglas vigentes de esta Expo. Marca primero y descuento general después.</small>';
+                    + '<small class="text-muted">El subtotal neto después de descuentos determina el escalón. Se aplica primero el descuento de marca y después el general.</small>';
                     resultado.querySelectorAll('.cotizador-expo-cantidad').forEach(recalcularFilaCotizadorExpo);
         }).catch(function(error) {
             selectorEscala.innerHTML = '<option value="">Sin escalas disponibles</option>';
@@ -3973,26 +3982,18 @@
         var fila = campoCantidad.closest('tr');
         var precio = datosCalculoCotizadorExpo.precio;
         var compra = cantidad * precio;
-        var reglaMarca = datosCalculoCotizadorExpo.reglasMarca
-            .filter(function(regla) {
-                return compra + 0.005 >= Number(regla.venta_minima || 0);
-            })
-            .sort(function(a, b) {
-                return Number(b.venta_minima || 0) - Number(a.venta_minima || 0);
-            })[0] || null;
-        var porcentajeMarca = reglaMarca ? Number(reglaMarca.porcentaje_descuento || 0) : 0;
-        var porcentajeGeneral = 0;
-        var minimoGeneral = -1;
-        datosCalculoCotizadorExpo.generales.forEach(function(regla) {
-            var minimo = Number(regla.venta_minima || 0);
-            if (compra + 0.005 >= minimo && minimo >= minimoGeneral) {
-                minimoGeneral = minimo;
-                porcentajeGeneral = Number(regla.porcentaje_descuento || 0);
+        var escalones = resolverEscalonesNetosExpo({
+            cotizador: {
+                marcaId: datosCalculoCotizadorExpo.marcaId,
+                importe: compra
             }
-        });
+        }, datosCalculoCotizadorExpo.reglasMarca, datosCalculoCotizadorExpo.generales);
+        var porcentajeMarca = Number(escalones.porcentajesMarca[datosCalculoCotizadorExpo.marcaId] || 0);
+        var porcentajeGeneral = Number(escalones.porcentajeGeneral || 0);
 
         var precioTrasMarca = precio * (1 - porcentajeMarca / 100);
         var precioConDescuento = precioTrasMarca * (1 - porcentajeGeneral / 100);
+        var subtotalNeto = precioConDescuento * cantidad;
         var isvUnitario = precioConDescuento * datosCalculoCotizadorExpo.porcentajeIsv / 100;
         var precioFinal = precioConDescuento + isvUnitario;
 
@@ -4000,6 +4001,7 @@
         fila.querySelector('[data-campo="precio"]').textContent = formatoMoneda(precio);
         fila.querySelector('[data-campo="marca"]').textContent = porcentajeMarca.toFixed(2) + '%';
         fila.querySelector('[data-campo="general"]').textContent = porcentajeGeneral.toFixed(2) + '%';
+        fila.querySelector('[data-campo="subtotal-neto"]').innerHTML = '<strong class="text-success">' + formatoMoneda(subtotalNeto) + '</strong>';
         fila.querySelector('[data-campo="final-sin-isv"]').innerHTML = '<strong class="text-success">' + formatoMoneda(precioConDescuento) + '</strong>';
         fila.querySelector('[data-campo="isv"]').innerHTML = formatoMoneda(isvUnitario) + '<small class="d-block text-muted">' + datosCalculoCotizadorExpo.porcentajeIsv.toFixed(2) + '%</small>';
         fila.querySelector('[data-campo="final"]').innerHTML = '<strong class="text-success">' + formatoMoneda(precioFinal) + '</strong>';
@@ -4131,6 +4133,50 @@
         });
     }
 
+    function porcentajeExpoAlcanzado(baseEscalon, reglas) {
+        return (reglas || []).filter(function(regla) {
+            return baseEscalon + 0.005 >= Number(regla.venta_minima || 0);
+        }).sort(function(a, b) {
+            return Number(b.venta_minima || 0) - Number(a.venta_minima || 0);
+        }).reduce(function(porcentaje, regla) {
+            return porcentaje === null ? Number(regla.porcentaje_descuento || 0) : porcentaje;
+        }, null) || 0;
+    }
+
+    function resolverEscalonesNetosExpo(importes, reglasMarca, reglasGenerales) {
+        var valores = Object.values(importes);
+        var marcaIds = Array.from(new Set(valores.map(function(datos) { return datos.marcaId; })));
+        var candidatos = [0].concat((reglasGenerales || []).map(function(regla) {
+            return Number(regla.venta_minima || 0);
+        }));
+        (reglasMarca || []).forEach(function(regla) {
+            if (marcaIds.includes(Number(regla.marca_id))) candidatos.push(Number(regla.venta_minima || 0));
+        });
+        candidatos = Array.from(new Set(candidatos)).sort(function(a, b) { return b - a; });
+
+        for (var indice = 0; indice < candidatos.length; indice++) {
+            var baseEscalon = candidatos[indice];
+            var porcentajeGeneral = porcentajeExpoAlcanzado(baseEscalon, reglasGenerales);
+            var porcentajesMarca = {};
+            marcaIds.forEach(function(marcaId) {
+                porcentajesMarca[marcaId] = porcentajeExpoAlcanzado(
+                    baseEscalon,
+                    (reglasMarca || []).filter(function(regla) { return Number(regla.marca_id) === marcaId; })
+                );
+            });
+            var subtotalNeto = valores.reduce(function(total, datos) {
+                var descuentoMarca = Math.round(datos.importe * Number(porcentajesMarca[datos.marcaId] || 0)) / 100;
+                var descuentoGeneral = Math.round((datos.importe - descuentoMarca) * porcentajeGeneral) / 100;
+                return total + datos.importe - descuentoMarca - descuentoGeneral;
+            }, 0);
+            if (subtotalNeto + 0.005 >= baseEscalon) {
+                return { baseEscalon: baseEscalon, porcentajeGeneral: porcentajeGeneral, porcentajesMarca: porcentajesMarca };
+            }
+        }
+
+        return { baseEscalon: 0, porcentajeGeneral: 0, porcentajesMarca: {} };
+    }
+
     function calcularDescuentosCarritoExpo() {
         if (!expoConfig) return null;
         var usarReglasFirmadas = esOfertaExpo && !filtrarProductosExpo;
@@ -4174,33 +4220,34 @@
             totalBruto += importe;
         });
 
-        var porcentajeGeneral = 0;
-        var minimoGeneral = -1;
-        reglasGenerales.forEach(function(regla) {
-            var minimo = Number(regla.venta_minima || 0);
-            if (totalBruto + 0.005 >= minimo && minimo >= minimoGeneral) {
-                minimoGeneral = minimo;
-                porcentajeGeneral = Number(regla.porcentaje_descuento || 0);
-            }
-        });
+        var versionReglas = usarReglasFirmadas ? Number(configuracion.version || 2) : 4;
+        var escalonesNetos = versionReglas >= 4
+            ? resolverEscalonesNetosExpo(importes, reglasMarca, reglasGenerales)
+            : null;
+        var porcentajeGeneral = escalonesNetos
+            ? escalonesNetos.porcentajeGeneral
+            : porcentajeExpoAlcanzado(totalBruto, reglasGenerales);
 
         var resultado = { lineas: {}, marcas: {}, totalDescuento: 0, totalBruto: totalBruto, porcentajeGeneral: porcentajeGeneral };
         Object.keys(importes).forEach(function(id) {
             var datos = importes[id];
             var redondearMoneda = function(valor) { return Math.round((valor + Number.EPSILON) * 100) / 100; };
-            var baseEscalonMarca = usarReglasFirmadas && Number(configuracion.version || 2) < 3
+            var baseEscalonMarca = versionReglas < 3
                 ? Object.values(importes).filter(function(importe) { return importe.marcaId === datos.marcaId; })
                     .reduce(function(total, importe) { return total + importe.importe; }, 0)
                 : totalBruto;
-            var reglaMarca = reglasMarca
-                .filter(function(regla) {
-                    return Number(regla.marca_id) === datos.marcaId
-                        && baseEscalonMarca + 0.005 >= Number(regla.venta_minima || 0);
-                })
-                .sort(function(a, b) {
-                    return Number(b.venta_minima || 0) - Number(a.venta_minima || 0);
-                })[0] || null;
-            var porcentajeMarca = reglaMarca ? Number(reglaMarca.porcentaje_descuento || 0) : 0;
+            var reglasDeMarca = reglasMarca.filter(function(regla) {
+                return Number(regla.marca_id) === datos.marcaId;
+            });
+            var baseReglaMarca = escalonesNetos ? escalonesNetos.baseEscalon : baseEscalonMarca;
+            var reglaMarca = reglasDeMarca.filter(function(regla) {
+                return baseReglaMarca + 0.005 >= Number(regla.venta_minima || 0);
+            }).sort(function(a, b) {
+                return Number(b.venta_minima || 0) - Number(a.venta_minima || 0);
+            })[0] || null;
+            var porcentajeMarca = escalonesNetos
+                ? Number(escalonesNetos.porcentajesMarca[datos.marcaId] || 0)
+                : (reglaMarca ? Number(reglaMarca.porcentaje_descuento || 0) : 0);
             var descuentoMarca = redondearMoneda(datos.importe * porcentajeMarca / 100);
             var descuentoGeneral = redondearMoneda((datos.importe - descuentoMarca) * porcentajeGeneral / 100);
             var descuentoTotal = redondearMoneda(descuentoMarca + descuentoGeneral);

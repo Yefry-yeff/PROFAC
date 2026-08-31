@@ -530,7 +530,7 @@ class Cotizacion extends Component
             }
             $calculoServidor = app(\App\Services\Expo\CalculadorDescuentosExpo::class)->calcular(
                 array_values($lineasDescuento),
-                ['version' => 3, 'generales' => $expoConfig['descuentos'], 'marcas' => $expoConfig['descuentos_marca']]
+                ['version' => 4, 'generales' => $expoConfig['descuentos'], 'marcas' => $expoConfig['descuentos_marca']]
             );
             $porcentajesMarca = $calculoServidor['porcentajes_marca'];
             foreach ($lineasDescuento as $indice => $linea) {
@@ -593,7 +593,7 @@ class Cotizacion extends Component
                     'created_by' => Auth::id(),
                     'estado' => 'PENDIENTE_FACTURACION',
                     'reglas_descuento_snapshot' => json_encode([
-                        'version' => 3,
+                        'version' => 4,
                         'generales' => $expoConfig['descuentos'],
                         'marcas' => $expoConfig['descuentos_marca'],
                     ]),
@@ -881,7 +881,7 @@ class Cotizacion extends Component
 
             DB::table('expo_cotizacion')->where('cotizacion_id', $cotizacion->id)->update([
                 'reglas_descuento_snapshot' => json_encode([
-                    'version' => 3,
+                    'version' => 4,
                     'generales' => $expoConfig['descuentos'],
                     'marcas' => $expoConfig['descuentos_marca'],
                     'lineas' => $lineasSnapshot,

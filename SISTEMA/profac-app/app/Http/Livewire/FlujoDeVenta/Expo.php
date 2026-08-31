@@ -240,7 +240,7 @@ class Expo extends Component
             ])->values()->all();
 
         return Excel::download(new ArrayExport([
-            'Exposición', 'Marca', 'Subtotal total oferta desde', 'Descuento (%)', 'Requiere asistencia',
+            'Exposición', 'Marca', 'Subtotal neto oferta desde', 'Descuento (%)', 'Requiere asistencia',
         ], $filas), 'descuentos_marca_expo_' . $this->expoEditandoId . ($marcaId ? '_marca_' . $marcaId : '') . '.xlsx');
     }
 
@@ -278,7 +278,7 @@ class Expo extends Component
             'escalonesMarcaModal.*.requiere_asistencia' => 'boolean',
         ], [
             'marcaDescuentoSeleccionada.required' => 'Seleccione una marca.',
-            'escalonesMarcaModal.*.venta_minima.required' => 'Ingrese la venta mínima.',
+            'escalonesMarcaModal.*.venta_minima.required' => 'Ingrese el subtotal neto mínimo.',
             'escalonesMarcaModal.*.porcentaje_descuento.required' => 'Ingrese el porcentaje.',
         ]);
 
@@ -293,7 +293,7 @@ class Expo extends Component
             ->map(fn ($valor) => (string) (float) $valor);
 
         if ($minimosNuevos->duplicates()->isNotEmpty() || $minimosNuevos->intersect($minimosExistentes)->isNotEmpty()) {
-            $this->addError('escalonesMarcaModal', 'La marca no puede repetir el mismo monto mínimo en dos escalones.');
+            $this->addError('escalonesMarcaModal', 'La marca no puede repetir el mismo subtotal neto mínimo en dos escalones.');
             return;
         }
 
@@ -402,7 +402,7 @@ class Expo extends Component
         foreach ($escalonesMarca as $reglas) {
             $minimos = $reglas->pluck('venta_minima')->map(fn ($valor) => (string) (float) $valor);
             if ($minimos->duplicates()->isNotEmpty()) {
-                $this->addError('descuentosMarca', 'Una marca no puede repetir el mismo monto mínimo en dos escalones.');
+                $this->addError('descuentosMarca', 'Una marca no puede repetir el mismo subtotal neto mínimo en dos escalones.');
                 return;
             }
         }

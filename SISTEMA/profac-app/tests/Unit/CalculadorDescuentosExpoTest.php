@@ -40,6 +40,25 @@ class CalculadorDescuentosExpoTest extends TestCase
         $this->assertSame(350000.0, $resultado['subtotal_neto']);
     }
 
+    public function test_suma_todas_las_marcas_para_alcanzar_el_subtotal_neto_requerido(): void
+    {
+        $resultado = (new CalculadorDescuentosExpo())->calcular([
+            ['marca_id' => 10, 'subtotal_bruto' => 500000.00],
+            ['marca_id' => 20, 'subtotal_bruto' => 750000.00],
+        ], [
+            'version' => 4,
+            'marcas' => [
+                ['marca_id' => 10, 'venta_minima' => 1000000, 'porcentaje_descuento' => 20],
+                ['marca_id' => 20, 'venta_minima' => 1000000, 'porcentaje_descuento' => 20],
+            ],
+            'generales' => [],
+        ]);
+
+        $this->assertSame(20.0, $resultado['porcentajes_marca'][10]);
+        $this->assertSame(20.0, $resultado['porcentajes_marca'][20]);
+        $this->assertSame(1000000.0, $resultado['subtotal_neto']);
+    }
+
     public function test_el_total_ofertado_activa_el_escalon_de_cada_marca_parametrizada(): void
     {
         $resultado = (new CalculadorDescuentosExpo())->calcular([
