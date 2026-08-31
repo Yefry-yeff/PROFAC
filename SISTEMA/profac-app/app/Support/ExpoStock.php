@@ -71,10 +71,6 @@ class ExpoStock
     public static function opcion(int $productoId, array $bodegaIds): ?array
     {
         $disponible = self::disponible($productoId, $bodegaIds);
-        if ($disponible <= 0) {
-            return null;
-        }
-
         $ubicacion = self::ubicacionVirtual();
 
         return [

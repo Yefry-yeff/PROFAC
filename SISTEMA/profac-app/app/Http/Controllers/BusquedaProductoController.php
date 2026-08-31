@@ -9,17 +9,17 @@ use Illuminate\Support\Facades\DB;
 
 class BusquedaProductoController extends Controller
 {
-    private function bodegasExpo(Request $request): array
+    private function configuracionExpo(Request $request): ?array
     {
         $expoId = (int) $request->get('expo_id', 0);
         if ($expoId <= 0) {
-            return [];
+            return null;
         }
 
         $expo = ExpoConfig::detalleActivaParaUsuario($expoId, Auth::id());
         abort_unless($expo, 403, 'No tiene autorización para consultar productos de esta Expo.');
 
-        return $expo['bodegas'];
+        return $expo;
     }
 
     /**
@@ -35,7 +35,8 @@ class BusquedaProductoController extends Controller
         $marcaId  = $request->get('marca_id', '');
         $conStock = (bool) $request->get('con_stock', 0);
         $bodegaId = $request->get('bodega_id', '');
-        $bodegasExpo = $this->bodegasExpo($request);
+        $expo = $this->configuracionExpo($request);
+        $bodegasExpo = $expo['bodegas'] ?? [];
         $page     = max(1, (int) $request->get('page', 1));
         $perPage  = 12;
 
@@ -78,7 +79,7 @@ class BusquedaProductoController extends Controller
         }
 
         // Filtro de stock: WHERE EXISTS (más rápido que JOIN+GROUP BY+HAVING)
-        if ($conStock) {
+        if ($conStock && !$expo) {
             $query->whereExists(function ($sub) {
                 $sub->select(DB::raw(1))
                     ->from('recibido_bodega')
@@ -88,7 +89,7 @@ class BusquedaProductoController extends Controller
         }
 
         // Filtro por bodega (opcional — solo cuando se pasa bodega_id explícitamente)
-        if ($bodegaId !== '' && $bodegaId !== null) {
+        if (!$expo && $bodegaId !== '' && $bodegaId !== null) {
             $query->whereExists(function ($sub) use ($bodegaId) {
                 $sub->select(DB::raw(1))
                     ->from('recibido_bodega as rb_bq')
@@ -100,15 +101,15 @@ class BusquedaProductoController extends Controller
             });
         }
 
-        if ($bodegasExpo) {
-            $query->whereExists(function ($sub) use ($bodegasExpo) {
+        if ($expo) {
+            $query->whereExists(function ($sub) use ($expo) {
                 $sub->select(DB::raw(1))
-                    ->from('recibido_bodega as rb_expo')
-                    ->join('seccion as sc_expo', 'sc_expo.id', '=', 'rb_expo.seccion_id')
-                    ->join('segmento as sg_expo', 'sg_expo.id', '=', 'sc_expo.segmento_id')
-                    ->whereColumn('rb_expo.producto_id', 'p.id')
-                    ->whereRaw('rb_expo.cantidad_disponible > 0')
-                    ->whereIn('sg_expo.bodega_id', $bodegasExpo);
+                    ->from('precios_producto_carga as ppc_expo')
+                    ->join('categoria_precios as cp_expo', 'cp_expo.id', '=', 'ppc_expo.categoria_precios_id')
+                    ->whereColumn('ppc_expo.producto_id', 'p.id')
+                    ->where('ppc_expo.estado_id', 1)
+                    ->where('cp_expo.estado_id', 1)
+                    ->whereIn('ppc_expo.categoria_precios_id', $expo['escalas']);
             });
         }
 
