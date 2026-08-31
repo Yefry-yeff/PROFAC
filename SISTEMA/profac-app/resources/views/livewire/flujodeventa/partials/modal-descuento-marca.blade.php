@@ -4,7 +4,7 @@
             <div class="expo-detail-head">
                 <div>
                     <h4 id="expo-descuento-marca-titulo"><i class="fa fa-tags mr-2"></i>{{ $marcaDescuentoEditandoId ? 'Editar descuento por marca' : 'Descuento por marca' }}</h4>
-                    <small>{{ $marcaDescuentoEditandoId ? 'Actualice los escalones de la marca seleccionada.' : 'Seleccione una marca y configure sus escalones.' }}</small>
+                    <small>{{ $marcaDescuentoEditandoId ? 'Actualice los escalones por subtotal total de la oferta.' : 'Seleccione una marca y configure sus escalones por subtotal total de la oferta.' }}</small>
                 </div>
                 <button type="button" wire:click="cerrarModalDescuentoMarca" class="expo-detail-close" title="Cerrar"><i class="fa fa-times"></i></button>
             </div>
@@ -27,7 +27,7 @@
                 @error('escalonesMarcaModal') <div class="alert alert-danger py-2">{{ $message }}</div> @enderror
                 <div class="table-responsive expo-discount-wrap">
                     <table class="table table-sm expo-discount-table mb-0">
-                        <thead><tr><th>Venta mínima (L.)</th><th>Descuento (%)</th><th style="width:150px;">Requiere asistencia</th><th style="width:60px;">Acción</th></tr></thead>
+                        <thead><tr><th>Subtotal total desde (L.)</th><th>Descuento (%)</th><th style="width:150px;">Requiere asistencia</th><th style="width:60px;">Acción</th></tr></thead>
                         <tbody>
                             @foreach($escalonesMarcaModal as $indice => $escalon)
                                 <tr wire:key="expo-modal-escalon-{{ $indice }}">
@@ -57,7 +57,7 @@
                         </tbody>
                     </table>
                 </div>
-                <small class="text-muted d-block mt-2"><i class="fa fa-info-circle mr-1"></i>La asistencia se valida únicamente en los escalones marcados. Los demás se aplican al alcanzar su venta mínima.</small>
+                <small class="text-muted d-block mt-2"><i class="fa fa-info-circle mr-1"></i>El subtotal total de la oferta determina el escalón. El porcentaje se aplica a los productos de esta marca; la asistencia se valida únicamente cuando está marcada.</small>
             </div>
             <div class="p-3 border-top d-flex justify-content-end" style="gap:8px;">
                 <button type="button" wire:click="cerrarModalDescuentoMarca" class="btn btn-default">Cancelar</button>

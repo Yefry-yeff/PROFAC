@@ -8,12 +8,11 @@ class CalculadorDescuentosExpo
 
     /**
      * @param array<int, array{marca_id:int, subtotal_bruto:float}> $lineas
-     * @param array{generales?:array, marcas?:array} $reglas
+    * @param array{version?:int, generales?:array, marcas?:array} $reglas
      */
     public function calcular(array $lineas, array $reglas): array
     {
         $totalBruto = round(array_sum(array_column($lineas, 'subtotal_bruto')), 2);
-        $porcentajeGeneral = $this->porcentajeAlcanzado($totalBruto, $reglas['generales'] ?? []);
         $subtotalesMarca = [];
 
         foreach ($lineas as $linea) {
@@ -22,13 +21,24 @@ class CalculadorDescuentosExpo
                 + (float) $linea['subtotal_bruto'];
         }
 
-        $porcentajesMarca = [];
-        foreach ($subtotalesMarca as $marcaId => $subtotal) {
-            $reglasMarca = array_values(array_filter(
-                $reglas['marcas'] ?? [],
-                fn (array $regla) => (int) ($regla['marca_id'] ?? 0) === $marcaId
-            ));
-            $porcentajesMarca[$marcaId] = $this->porcentajeAlcanzado($subtotal, $reglasMarca);
+        $version = (int) ($reglas['version'] ?? 4);
+        if ($version >= 4) {
+            [$porcentajeGeneral, $porcentajesMarca] = $this->resolverEscalonesNetos(
+                $lineas,
+                array_keys($subtotalesMarca),
+                $reglas
+            );
+        } else {
+            $porcentajeGeneral = $this->porcentajeAlcanzado($totalBruto, $reglas['generales'] ?? []);
+            $porcentajesMarca = [];
+            foreach ($subtotalesMarca as $marcaId => $subtotal) {
+                $reglasMarca = array_values(array_filter(
+                    $reglas['marcas'] ?? [],
+                    fn (array $regla) => (int) ($regla['marca_id'] ?? 0) === $marcaId
+                ));
+                $baseEscalonMarca = $version >= 3 ? $totalBruto : $subtotal;
+                $porcentajesMarca[$marcaId] = $this->porcentajeAlcanzado($baseEscalonMarca, $reglasMarca);
+            }
         }
 
         $descuentoMarca = 0.0;
@@ -66,6 +76,7 @@ class CalculadorDescuentosExpo
 
         return [
             'total_bruto' => $totalBruto,
+            'subtotal_neto' => round($totalBruto - $descuentoMarca - $descuentoGeneral, 2),
             'porcentaje_general' => $porcentajeGeneral,
             'porcentajes_marca' => $porcentajesMarca,
             'descuento_marca' => round($descuentoMarca, 2),
@@ -91,5 +102,59 @@ class CalculadorDescuentosExpo
         }
 
         return $alcanzada['porcentaje'] ?? 0.0;
+    }
+
+    /**
+     * @param array<int, array{marca_id:int, subtotal_bruto:float}> $lineas
+     * @param array<int, int> $marcaIds
+     * @return array{0:float, 1:array<int, float>}
+     */
+    private function resolverEscalonesNetos(array $lineas, array $marcaIds, array $reglas): array
+    {
+        $reglasGenerales = $reglas['generales'] ?? [];
+        $reglasPorMarca = [];
+        foreach ($marcaIds as $marcaId) {
+            $reglasPorMarca[$marcaId] = array_values(array_filter(
+                $reglas['marcas'] ?? [],
+                fn (array $regla) => (int) ($regla['marca_id'] ?? 0) === $marcaId
+            ));
+        }
+
+        $candidatos = [0.0];
+        foreach ($reglasGenerales as $regla) {
+            $candidatos[] = (float) ($regla['venta_minima'] ?? 0);
+        }
+        foreach ($reglasPorMarca as $reglasMarca) {
+            foreach ($reglasMarca as $regla) {
+                $candidatos[] = (float) ($regla['venta_minima'] ?? 0);
+            }
+        }
+        $candidatos = array_values(array_unique($candidatos));
+        rsort($candidatos, SORT_NUMERIC);
+
+        foreach ($candidatos as $baseEscalon) {
+            $porcentajeGeneral = $this->porcentajeAlcanzado($baseEscalon, $reglasGenerales);
+            $porcentajesMarca = [];
+            $subtotalNeto = 0.0;
+
+            foreach ($marcaIds as $marcaId) {
+                $porcentajesMarca[$marcaId] = $this->porcentajeAlcanzado(
+                    $baseEscalon,
+                    $reglasPorMarca[$marcaId]
+                );
+            }
+            foreach ($lineas as $linea) {
+                $subtotal = (float) $linea['subtotal_bruto'];
+                $descuentoMarca = round($subtotal * ($porcentajesMarca[(int) $linea['marca_id']] ?? 0) / 100, 2);
+                $descuentoGeneral = round(($subtotal - $descuentoMarca) * $porcentajeGeneral / 100, 2);
+                $subtotalNeto += $subtotal - $descuentoMarca - $descuentoGeneral;
+            }
+
+            if ($subtotalNeto + self::TOLERANCIA >= $baseEscalon) {
+                return [$porcentajeGeneral, $porcentajesMarca];
+            }
+        }
+
+        return [0.0, array_fill_keys($marcaIds, 0.0)];
     }
 }

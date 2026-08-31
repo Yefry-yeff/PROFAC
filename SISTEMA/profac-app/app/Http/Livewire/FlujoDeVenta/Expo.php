@@ -240,7 +240,7 @@ class Expo extends Component
             ])->values()->all();
 
         return Excel::download(new ArrayExport([
-            'Exposición', 'Marca', 'Venta mínima', 'Descuento (%)', 'Requiere asistencia',
+            'Exposición', 'Marca', 'Subtotal total oferta desde', 'Descuento (%)', 'Requiere asistencia',
         ], $filas), 'descuentos_marca_expo_' . $this->expoEditandoId . ($marcaId ? '_marca_' . $marcaId : '') . '.xlsx');
     }
 

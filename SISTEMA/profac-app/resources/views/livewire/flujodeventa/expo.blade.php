@@ -612,7 +612,7 @@
                                                 </th>
                                                 <th>
                                                     <button type="button" wire:click="ordenarDescuentosMarca('venta_minima')" class="expo-sort-button {{ $ordenDescuentoMarca === 'venta_minima' ? 'active' : '' }}">
-                                                        Venta mínima (L.) <i class="fa {{ $ordenDescuentoMarca === 'venta_minima' ? ($direccionDescuentoMarca === 'asc' ? 'fa-sort-asc' : 'fa-sort-desc') : 'fa-sort' }}"></i>
+                                                        Subtotal total desde (L.) <i class="fa {{ $ordenDescuentoMarca === 'venta_minima' ? ($direccionDescuentoMarca === 'asc' ? 'fa-sort-asc' : 'fa-sort-desc') : 'fa-sort' }}"></i>
                                                     </button>
                                                 </th>
                                                 <th>
@@ -652,7 +652,7 @@
                                 </div>
                                 <div class="table-responsive expo-discount-wrap mb-3">
                                     <table class="table table-sm expo-discount-table">
-                                        <thead><tr><th>Venta mínima (L.)</th><th>Descuento (%)</th><th style="width:60px;">Acción</th></tr></thead>
+                                        <thead><tr><th>Subtotal total desde (L.)</th><th>Descuento (%)</th><th style="width:60px;">Acción</th></tr></thead>
                                         <tbody>
                                             @forelse ($descuentos as $indice => $regla)
                                                 <tr wire:key="expo-descuento-{{ $indice }}">
@@ -789,7 +789,7 @@
                             <div class="expo-detail-section"><h6><i class="fa fa-archive mr-1"></i>Bodegas</h6><div class="expo-detail-tags">@forelse($expoDetalle['bodegas'] as $item)<span class="expo-detail-tag">{{ $item }}</span>@empty<span class="text-muted small">Sin bodegas.</span>@endforelse</div></div>
                             <div class="expo-detail-section"><h6><i class="fa fa-tags mr-1"></i>Escalas</h6><div class="expo-detail-tags">@forelse($expoDetalle['escalas'] as $item)<span class="expo-detail-tag">{{ $item }}</span>@empty<span class="text-muted small">Sin escalas.</span>@endforelse</div></div>
                             <div class="expo-detail-section"><h6><i class="fa fa-percent mr-1"></i>Reglas de descuento</h6><div class="expo-detail-tags">@forelse($expoDetalle['descuentos'] as $regla)<span class="expo-detail-tag">Desde L {{ number_format($regla['venta_minima'], 2) }}: <strong>{{ number_format($regla['porcentaje_descuento'], 2) }}%</strong></span>@empty<span class="text-muted small">Sin descuentos.</span>@endforelse</div></div>
-                            <div class="expo-detail-section"><h6><i class="fa fa-tags mr-1"></i>Descuentos por marca</h6><div class="expo-detail-tags">@forelse($expoDetalle['descuentos_marca'] as $regla)<span class="expo-detail-tag">{{ $regla['marca'] }} desde L {{ number_format($regla['venta_minima'], 2) }}: <strong>{{ number_format($regla['porcentaje_descuento'], 2) }}%</strong>{{ $regla['requiere_asistencia'] ? ' · Requiere asistencia' : '' }}</span>@empty<span class="text-muted small">Sin descuentos por marca.</span>@endforelse</div></div>
+                            <div class="expo-detail-section"><h6><i class="fa fa-tags mr-1"></i>Descuentos por marca</h6><div class="expo-detail-tags">@forelse($expoDetalle['descuentos_marca'] as $regla)<span class="expo-detail-tag">{{ $regla['marca'] }} con subtotal total desde L {{ number_format($regla['venta_minima'], 2) }}: <strong>{{ number_format($regla['porcentaje_descuento'], 2) }}%</strong>{{ $regla['requiere_asistencia'] ? ' · Requiere asistencia' : '' }}</span>@empty<span class="text-muted small">Sin descuentos por marca.</span>@endforelse</div></div>
                             <div class="expo-detail-section"><h6><i class="fa fa-users mr-1"></i>Usuarios autorizados</h6><table class="expo-detail-users"><tbody>@forelse($expoDetalle['usuarios'] as $usuario)<tr><td><strong>{{ $usuario['name'] }}</strong></td><td class="text-muted">{{ $usuario['email'] }}</td></tr>@empty<tr><td class="text-muted">Sin usuarios autorizados.</td></tr>@endforelse</tbody></table></div>
                             <div class="expo-detail-section">
                                 <h6><i class="fa fa-history mr-1"></i>Historial de cambios de esta Expo</h6>
@@ -917,7 +917,7 @@
                         <div class="expo-close-body">
                             <div class="expo-close-warning">
                                 <i class="fa fa-exclamation-triangle mt-1"></i>
-                                <span>Al confirmar, la Expo quedará cerrada y sus ofertas ya no admitirán nuevas facturas. Solo se crearán aumentos cuando el descuento otorgado supere al ganado según el monto total comprado y los escalones por marca.</span>
+                                <span>Al confirmar, la Expo quedará cerrada y sus ofertas ya no admitirán nuevas facturas. Solo se crearán aumentos cuando el descuento otorgado supere al ganado según el monto total comprado y los escalones de subtotal total configurados para cada marca.</span>
                             </div>
 
                             <div class="expo-close-summary">

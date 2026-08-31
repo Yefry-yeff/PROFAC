@@ -4150,7 +4150,6 @@
             : (Array.isArray(configuracion.descuentos) ? configuracion.descuentos : []);
         var totalBruto = 0;
         var importes = {};
-        var subtotalesMarca = {};
 
         arregloIdInputs.forEach(function(id) {
             var precio = Number(document.getElementById('precio' + id)?.value || 0);
@@ -4173,7 +4172,6 @@
                 importe: importe
             };
             totalBruto += importe;
-            subtotalesMarca[marcaId] = (subtotalesMarca[marcaId] || 0) + importe;
         });
 
         var porcentajeGeneral = 0;
@@ -4190,11 +4188,14 @@
         Object.keys(importes).forEach(function(id) {
             var datos = importes[id];
             var redondearMoneda = function(valor) { return Math.round((valor + Number.EPSILON) * 100) / 100; };
-            var subtotalMarca = Number(subtotalesMarca[datos.marcaId] || 0);
+            var baseEscalonMarca = usarReglasFirmadas && Number(configuracion.version || 2) < 3
+                ? Object.values(importes).filter(function(importe) { return importe.marcaId === datos.marcaId; })
+                    .reduce(function(total, importe) { return total + importe.importe; }, 0)
+                : totalBruto;
             var reglaMarca = reglasMarca
                 .filter(function(regla) {
                     return Number(regla.marca_id) === datos.marcaId
-                        && subtotalMarca + 0.005 >= Number(regla.venta_minima || 0);
+                        && baseEscalonMarca + 0.005 >= Number(regla.venta_minima || 0);
                 })
                 .sort(function(a, b) {
                     return Number(b.venta_minima || 0) - Number(a.venta_minima || 0);
