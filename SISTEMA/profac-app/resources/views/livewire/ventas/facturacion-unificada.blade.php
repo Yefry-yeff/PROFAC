@@ -2105,6 +2105,9 @@
     var ventaTemporalTimer = null;
     var ventaTemporalObserver = null;
     var ventaTemporalAutosaveActivo = false;
+    var ventaTemporalCambiosPendientes = false;
+    var ventaTemporalGuardando = false;
+    var ventaTemporalRevision = 0;
     var esDuplicandoOferta = {!! $duplicandoOferta ? 'true' : 'false' !!};
     var retencionEstado = false;
     var diasCredito = 0;
@@ -2174,30 +2177,63 @@
 
     function programarGuardadoTemporal() {
         if (ventaTemporalRestaurando || ventaTemporalFinalizada) return;
+        ventaTemporalCambiosPendientes = true;
+        ventaTemporalRevision += 1;
         clearTimeout(ventaTemporalTimer);
         ventaTemporalTimer = setTimeout(guardarVentaTemporal, 600);
     }
 
-    function guardarVentaTemporal() {
-        if (ventaTemporalRestaurando || ventaTemporalFinalizada) return;
-        var instantanea = crearInstantaneaTemporal();
-
-        axios.post('/ventas/temporales', {
+    function datosVentaTemporal() {
+        return {
             id: ventaTemporalId || null,
             tipo: ventaTemporalTipo,
             codigo_tipo: codigoActual,
             titulo: tituloVentaTemporal(),
             url_reanudacion: urlReanudacionTemporal(),
-            contenido: instantanea
-        }).then(function(response) {
+            contenido: crearInstantaneaTemporal()
+        };
+    }
+
+    function guardarVentaTemporal() {
+        if (ventaTemporalRestaurando || ventaTemporalFinalizada) return Promise.resolve();
+        if (ventaTemporalGuardando) return Promise.resolve();
+        clearTimeout(ventaTemporalTimer);
+        ventaTemporalGuardando = true;
+        var revisionEnviada = ventaTemporalRevision;
+        return axios.post('/ventas/temporales', datosVentaTemporal()).then(function(response) {
             ventaTemporalId = response.data.id;
+            ventaTemporalCambiosPendientes = ventaTemporalRevision !== revisionEnviada;
             var url = new URL(window.location.href);
             url.searchParams.set('temporal_id', ventaTemporalId);
             window.history.replaceState({}, '', url.toString());
         }).catch(function(error) {
             console.warn('No se pudo guardar el registro temporal:', error);
+        }).finally(function() {
+            ventaTemporalGuardando = false;
+            if (ventaTemporalCambiosPendientes) guardarVentaTemporal();
         });
     }
+
+    document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'hidden' && ventaTemporalCambiosPendientes) {
+            guardarVentaTemporal();
+        }
+    });
+
+    window.addEventListener('pagehide', function() {
+        if (!ventaTemporalCambiosPendientes || ventaTemporalRestaurando || ventaTemporalFinalizada) return;
+        clearTimeout(ventaTemporalTimer);
+        fetch('/ventas/temporales', {
+            method: 'POST',
+            credentials: 'same-origin',
+            keepalive: true,
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+            },
+            body: JSON.stringify(datosVentaTemporal())
+        });
+    });
 
     function eliminarVentaTemporal() {
         ventaTemporalFinalizada = true;
@@ -2396,7 +2432,7 @@
         var carrito = document.getElementById('carritoTbody');
         if (carrito) {
             ventaTemporalObserver = new MutationObserver(programarGuardadoTemporal);
-            ventaTemporalObserver.observe(carrito, { childList: true, subtree: true });
+            ventaTemporalObserver.observe(carrito, { childList: true });
         }
     }
 
@@ -2416,7 +2452,7 @@
     }
 
     function inicializarVentaTemporal() {
-        if (esDuplicandoOferta) {
+        if (esDuplicandoOferta && !ventaTemporalId) {
             iniciarNuevaVentaTemporal();
             return;
         }
@@ -5765,6 +5801,7 @@
         function cargarProductosIniciales() {
             if (_productosAutoAgregados) return;
             if (_seleccionExpo) return;
+            if (ventaTemporalId) return;
             _productosAutoAgregados = true;
 
             var productos = _productosDisponibles;
@@ -5777,6 +5814,7 @@
                 });
             });
             chain.then(function () {
+                if (esDuplicandoOferta) guardarVentaTemporal();
                 Swal.fire({
                     icon: 'success',
                     title: 'Productos cargados',
