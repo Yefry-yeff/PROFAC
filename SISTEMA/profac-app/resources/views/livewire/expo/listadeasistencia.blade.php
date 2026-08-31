@@ -50,7 +50,7 @@
         .attendance-section-head h3 { margin:0; color:var(--attendance-ink); font-size:14px; font-weight:800; }
         .attendance-count { display:inline-flex; align-items:center; gap:5px; border:1px solid #bbf7d0; border-radius:12px; padding:4px 9px; background:#f0fdf4; color:#1a7a4e; font-size:9px; font-weight:800; }
         .attendance-table-wrap { overflow:auto; border:1px solid var(--attendance-line); border-radius:0 0 7px 7px; }
-        .attendance-table { min-width:850px; margin:0; font-size:11px; }
+        .attendance-table { min-width:1100px; margin:0; font-size:11px; }
         .attendance-table th { padding:8px 10px!important; border-bottom:2px solid #f2d49a!important; background:#fffaf3; color:#7d3f00; font-size:9px; font-weight:800; text-transform:uppercase; white-space:nowrap; }
         .attendance-table td { padding:9px 10px!important; vertical-align:middle!important; border-color:#edf1f3!important; color:#344b56; }
         .attendance-table tbody tr:hover { background:#fffcf5; }
@@ -61,6 +61,8 @@
         .attendance-tickets { width:76px; height:32px; margin:auto; border:1.5px solid #d7dee3; border-radius:6px; text-align:center; }
         .attendance-tickets:focus { border-color:var(--attendance-orange); box-shadow:0 0 0 3px rgba(230,81,0,.11); }
         .attendance-gift { width:18px; height:18px; cursor:pointer; accent-color:var(--attendance-orange); }
+        .attendance-comment { min-width:210px; height:34px; resize:vertical; border:1.5px solid #d7dee3; border-radius:6px; font-size:11px; }
+        .attendance-comment:focus { border-color:var(--attendance-orange); box-shadow:0 0 0 3px rgba(230,81,0,.11); }
         .attendance-remove { width:30px; height:30px; padding:0; border:1px solid #e2b8b8; border-radius:7px; background:#fff; color:#ad3d3d; box-shadow:0 1px 3px rgba(0,0,0,.06); }
         .attendance-remove:hover { background:#fff1f1; color:#8f2929; }
         .attendance-empty { padding:40px 20px!important; color:#84949c!important; text-align:center; }
@@ -199,6 +201,7 @@
                                     <th>Fecha de asistencia</th>
                                     <th class="text-center">Tickets</th>
                                     <th class="text-center">Regalo</th>
+                                    <th>Comentario</th>
                                     <th class="text-center">Acción</th>
                                 </tr>
                             </thead>
@@ -216,12 +219,15 @@
                                         <td class="text-center">
                                             <input type="checkbox" id="regalo-asistente-{{ $cliente->id }}" wire:change="actualizarRegalo({{ $cliente->id }})" class="attendance-gift" title="Marcar si recibió regalo" aria-label="Regalo entregado a {{ $cliente->nombre }}" @checked($cliente->recibio_regalo)>
                                         </td>
+                                        <td>
+                                            <textarea maxlength="1000" wire:change="actualizarComentario({{ $cliente->id }}, $event.target.value)" class="form-control form-control-sm attendance-comment" placeholder="Agregar comentario" aria-label="Comentario de {{ $cliente->nombre }}">{{ $cliente->comentario }}</textarea>
+                                        </td>
                                         <td class="text-center">
                                             <button type="button" wire:click="eliminarCliente({{ $cliente->id }})" wire:loading.attr="disabled" onclick="return confirm('¿Eliminar este cliente de la asistencia?')" class="attendance-remove" title="Eliminar de asistencia" aria-label="Eliminar de asistencia"><i class="fa fa-trash"></i></button>
                                         </td>
                                     </tr>
                                 @empty
-                                    <tr><td colspan="8" class="attendance-empty"><i class="fa fa-user-plus"></i>Aún no hay clientes registrados en esta Expo.</td></tr>
+                                    <tr><td colspan="9" class="attendance-empty"><i class="fa fa-user-plus"></i>Aún no hay clientes registrados en esta Expo.</td></tr>
                                 @endforelse
                             </tbody>
                         </table>

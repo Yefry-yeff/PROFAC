@@ -116,6 +116,19 @@ class ListaDeAsistencia extends Component
         ]);
     }
 
+    public function actualizarComentario(int $clienteId, $comentario): void
+    {
+        $comentario = trim((string) $comentario);
+        if (mb_strlen($comentario) > 1000) {
+            session()->flash('error', 'El comentario no puede superar los 1,000 caracteres.');
+            return;
+        }
+
+        $this->actualizarAsistencia($clienteId, [
+            'comentario' => $comentario !== '' ? $comentario : null,
+        ]);
+    }
+
     public function descargarExcel()
     {
         $expo = $this->expoActivaSeleccionada();
@@ -131,12 +144,14 @@ class ListaDeAsistencia extends Component
             $cliente->registrado_at,
             $cliente->tickets,
             $cliente->recibio_regalo ? 'Sí' : 'No',
+            $cliente->comentario,
             $cliente->registrado_por,
         ])->all();
 
         return Excel::download(new ArrayExport([
             'Exposición', 'Inicio', 'Fin', 'ID cliente', 'Cliente', 'RTN', 'Teléfono',
-            'Correo', 'Fecha de asistencia', 'Tickets', 'Recibió regalo', 'Registrado por',
+            'Correo', 'Fecha de asistencia', 'Tickets', 'Recibió regalo', 'Comentario',
+            'Registrado por',
         ], $filas), 'asistencia_expo_' . $expo->id . '.xlsx');
     }
 
@@ -182,6 +197,7 @@ class ListaDeAsistencia extends Component
             ->where('ea.expo_id', $expoId)->orderBy('c.nombre')
             ->select('c.id', 'c.nombre', 'c.rtn', 'c.telefono_empresa', 'c.correo',
                 'ea.created_at as registrado_at', 'ea.tickets', 'ea.recibio_regalo',
+                'ea.comentario',
                 'u.name as registrado_por');
     }
 }
