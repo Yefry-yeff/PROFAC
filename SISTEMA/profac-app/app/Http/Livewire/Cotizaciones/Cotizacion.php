@@ -1188,10 +1188,13 @@ class Cotizacion extends Component
             C.nombre,
             C.descripcion,
             IF(COALESCE(NULLIF(B.tipo_precio,''), IF(B.isv_producto > 0,'2','1')) = '1', 'SI', 'NO') as excento,
-            FORMAT(B.precio_unidad,2) as precio,
+            FORMAT(CASE WHEN B.cantidad > 0 THEN B.sub_total / B.cantidad ELSE B.precio_unidad END,2) as precio,
             FORMAT(B.cantidad,2) as cantidad,
-            FORMAT(GREATEST((B.precio_unidad * B.cantidad) - B.sub_total,0),2) as descuento,
-            FORMAT(B.sub_total,2) as importe,
+            FORMAT(ROUND(CASE WHEN B.cantidad > 0 THEN B.sub_total / B.cantidad ELSE B.precio_unidad END,2) * B.cantidad,2) as importe,
+            ROUND(CASE WHEN B.cantidad > 0 THEN B.sub_total / B.cantidad ELSE B.precio_unidad END,2) as precio_calculo,
+            B.cantidad as cantidad_calculo,
+            B.precio_unidad as precio_original,
+            B.isv_producto as porcentaje_isv,
             J.nombre as medida
 
             from cotizacion A
@@ -1235,12 +1238,44 @@ class Cotizacion extends Component
 
         $esExpo = DB::table('expo_cotizacion')->where('cotizacion_id', $idFactura)->exists();
         if ($esExpo) {
-            $descuentoExpo = (float) DB::table('cotizacion_has_producto')
-                ->where('cotizacion_id', $idFactura)
-                ->selectRaw('COALESCE(SUM(GREATEST((precio_unidad * cantidad) - sub_total, 0)), 0) as descuento')
-                ->value('descuento');
+            $subtotalExpo = 0.0;
+            $subtotalGrabadoExpo = 0.0;
+            $subtotalExentoExpo = 0.0;
+            $isvExpo = 0.0;
+            $ventaBrutaExpo = 0.0;
+
+            foreach ($productos as $producto) {
+                $importeLinea = round((float) $producto->precio_calculo * (float) $producto->cantidad_calculo, 2);
+                $isvLinea = round($importeLinea * (float) $producto->porcentaje_isv / 100, 2);
+                $subtotalExpo += $importeLinea;
+                $isvExpo += $isvLinea;
+                $ventaBrutaExpo += (float) $producto->precio_original * (float) $producto->cantidad_calculo;
+                if ($producto->excento === 'SI') {
+                    $subtotalExentoExpo += $importeLinea;
+                } else {
+                    $subtotalGrabadoExpo += $importeLinea;
+                }
+            }
+
+            $subtotalExpo = round($subtotalExpo, 2);
+            $subtotalGrabadoExpo = round($subtotalGrabadoExpo, 2);
+            $subtotalExentoExpo = round($subtotalExentoExpo, 2);
+            $isvExpo = round($isvExpo, 2);
+            $descuentoExpo = round($ventaBrutaExpo - $subtotalExpo, 2);
+            $totalExpo = round($subtotalExpo + $isvExpo, 2);
+
             $importes->monto_descuento = $descuentoExpo;
+            $importes->sub_total = $subtotalExpo;
+            $importes->sub_total_grabado = $subtotalGrabadoExpo;
+            $importes->sub_total_excento = $subtotalExentoExpo;
+            $importes->isv = $isvExpo;
+            $importes->total = $totalExpo;
             $importesConCentavos->monto_descuento = number_format($descuentoExpo, 2);
+            $importesConCentavos->sub_total = number_format($subtotalExpo, 2);
+            $importesConCentavos->sub_total_grabado = number_format($subtotalGrabadoExpo, 2);
+            $importesConCentavos->sub_total_excento = number_format($subtotalExentoExpo, 2);
+            $importesConCentavos->isv = number_format($isvExpo, 2);
+            $importesConCentavos->total = number_format($totalExpo, 2);
         }
 
 

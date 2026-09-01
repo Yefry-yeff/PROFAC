@@ -6,7 +6,7 @@
     <style>
         /* ── Márgenes de página ── */
         @page {
-            margin-top: 310px;
+            margin-top: 235px;
             margin-bottom: 35px;
             margin-left: 0;
             margin-right: 0;
@@ -15,7 +15,7 @@
         /* ── Header fijo (repite en todas las páginas) ── */
         #pdf-header {
             position: fixed;
-            top: -310px;
+            top: -235px;
             left: 0;
             right: 0;
             width: 100%;
@@ -110,7 +110,6 @@
                 <th>Precio</th>
                 <th>Exento</th>
                 <th>Cantidad</th>
-                <th>Descuento</th>
                 <th>Importe</th>
             </tr>
         </thead>
@@ -123,7 +122,6 @@
                 <td>{{ $producto->precio }}</td>
                 <td>{{ $producto->excento }}</td>
                 <td>{{ $producto->cantidad }}</td>
-                <td>{{ $producto->descuento ?? '0.00' }}</td>
                 <td>{{ $producto->importe }}</td>
             </tr>
             @endforeach
