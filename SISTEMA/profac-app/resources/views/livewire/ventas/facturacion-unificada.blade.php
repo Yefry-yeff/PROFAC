@@ -1969,10 +1969,14 @@
         <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
             <div class="modal-content" style="border:0; border-radius:8px; overflow:hidden;">
                 <div class="modal-header" style="background:#1f6f50; color:#fff; border:0;">
-                    <h5 class="modal-title" id="tituloResumenMarcasCarritoExpo"><i class="fa fa-tags mr-2"></i>Resumen del carrito por marca</h5>
+                    <h5 class="modal-title" id="tituloResumenMarcasCarritoExpo"><i class="fa fa-tags mr-2"></i>Resumen por marca y escala</h5>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar" style="color:#fff; opacity:.9; text-shadow:none;"><span aria-hidden="true">&times;</span></button>
                 </div>
                 <div class="modal-body" style="background:#f7faf8;">
+                    <div class="input-group input-group-sm mb-3">
+                        <div class="input-group-prepend"><span class="input-group-text"><i class="fa fa-search"></i></span></div>
+                        <input id="buscarProductoResumenMarcasExpo" type="search" class="form-control" placeholder="Buscar producto..." autocomplete="off" oninput="filtrarProductosResumenMarcasExpo(this.value)">
+                    </div>
                     <div id="resumenMarcasCarritoExpoContenido"></div>
                 </div>
                 <div class="modal-footer">
@@ -4313,6 +4317,9 @@
             var cantidad = Number(document.getElementById('cantidad' + id)?.value || 0);
             var unidad = Number(document.getElementById('unidad' + id)?.value || 0);
             var marcaId = Number(document.getElementById((usarEscalas ? 'escalaExpoId' : 'marcaExpoId') + id)?.value || 0);
+            var marcaProductoId = Number(document.getElementById('marcaExpoId' + id)?.value || 0);
+            var marcaProductoNombre = document.getElementById('marcaExpoNombre' + id)?.value || 'SIN MARCA';
+            var productoNombre = document.getElementById('nombre' + id)?.value || ('Producto #' + id);
             var lineaId = Number(document.getElementById('lineaExpoOrigenId' + id)?.value
                 || document.getElementById('cotizacionLineaId' + id)?.value || 0);
             var cantidadOfertada = Number(document.getElementById('cantidadOfertaExpo' + id)?.value || 0);
@@ -4323,6 +4330,9 @@
                 cantidad: cantidad,
                 unidad: unidad,
                 marcaId: marcaId,
+                marcaProductoId: marcaProductoId,
+                marcaProductoNombre: marcaProductoNombre,
+                productoNombre: productoNombre,
                 lineaId: lineaId,
                 cantidadOfertada: cantidadOfertada,
                 descuentoFirmado: descuentoFirmado,
@@ -4397,15 +4407,37 @@
                 isv: isv,
                 total: redondearMoneda(subtotalNeto + isv)
             };
-            if (!resultado.marcas[datos.marcaId]) {
-                resultado.marcas[datos.marcaId] = { nombre: nombreMarca, porcentajeMarca: porcentajeMarca, porcentajeGeneral: porcentajeGeneral, cantidad: 0, subtotal: 0, descuentoMarca: 0, descuentoGeneral: 0, descuentoTotal: 0 };
+            var grupoId = usarEscalas ? datos.marcaProductoId + '|' + datos.marcaId : String(datos.marcaId);
+            if (!resultado.marcas[grupoId]) {
+                resultado.marcas[grupoId] = {
+                    nombre: nombreMarca,
+                    marcaNombre: datos.marcaProductoNombre,
+                    escalaNombre: usarEscalas ? nombreMarca : '',
+                    porcentajeMarca: porcentajeMarca,
+                    porcentajeGeneral: porcentajeGeneral,
+                    cantidad: 0,
+                    subtotal: 0,
+                    descuentoMarca: 0,
+                    descuentoGeneral: 0,
+                    descuentoTotal: 0,
+                    productos: []
+                };
             }
-            var marca = resultado.marcas[datos.marcaId];
+            var marca = resultado.marcas[grupoId];
             marca.cantidad += datos.cantidad * datos.unidad;
             marca.subtotal += datos.importe;
             marca.descuentoMarca += descuentoMarca;
             marca.descuentoGeneral += descuentoGeneral;
             marca.descuentoTotal += descuentoTotal;
+            marca.productos.push({
+                nombre: datos.productoNombre,
+                cantidad: datos.cantidad * datos.unidad,
+                precio: datos.precio,
+                subtotal: datos.importe,
+                descuentoMarca: descuentoMarca,
+                descuentoGeneral: descuentoGeneral,
+                descuentoTotal: descuentoTotal
+            });
             resultado.totalDescuento += descuentoTotal;
         });
         return resultado;
@@ -4418,7 +4450,11 @@
         var marcas = todasLasMarcas.filter(function(marca) { return marca.descuentoMarca > 0.005; });
         var filasMarca = marcas.map(function(marca) {
             return '<div class="d-flex justify-content-between" style="gap:12px; color:#546e7a;">'
-                + '<span>' + (calculo.tipoGrupo === 'escala' ? 'Escala ' : 'Marca ') + $('<div>').text(marca.nombre).html() + ' <strong>(' + Number(marca.porcentajeMarca || 0).toFixed(2) + '%)</strong></span>'
+                + '<span>' + $('<div>').text(calculo.tipoGrupo === 'escala'
+                    ? marca.marcaNombre + ' - ' + marca.escalaNombre
+                    : marca.nombre).html()
+                + ' <strong>(' + Number(marca.porcentajeMarca || 0).toFixed(2) + '%)</strong>'
+                + '<small class="d-block">Cantidad: ' + Number(marca.cantidad).toLocaleString('es-HN', { maximumFractionDigits: 2 }) + '</small></span>'
                 + '<strong>' + formatoMoneda(marca.descuentoMarca) + '</strong></div>';
         }).join('');
         var totalGeneral = todasLasMarcas.reduce(function(total, marca) { return total + marca.descuentoGeneral; }, 0);
@@ -4431,25 +4467,59 @@
     function abrirResumenMarcasCarritoExpo() {
         var calculo = calcularDescuentosCarritoExpo();
         var contenido = document.getElementById('resumenMarcasCarritoExpoContenido');
+        var buscador = document.getElementById('buscarProductoResumenMarcasExpo');
         if (!contenido || !calculo) return;
+        if (buscador) buscador.value = '';
         var marcas = Object.values(calculo.marcas).filter(function(marca) { return marca.subtotal > 0; });
         if (marcas.length === 0) {
             contenido.innerHTML = '<div class="text-center text-muted py-4">No hay productos en el carrito.</div>';
         } else {
-            var etiquetaGrupo = calculo.tipoGrupo === 'escala' ? 'Escala' : 'Marca';
-            var filas = marcas.map(function(marca) {
-                return '<tr><td>' + $('<div>').text(marca.nombre).html() + '</td>'
-                    + '<td class="text-right">' + Number(marca.cantidad).toLocaleString('es-HN', { maximumFractionDigits: 2 }) + '</td>'
-                    + '<td class="text-right">' + formatoMoneda(marca.subtotal) + '</td>'
-                    + '<td class="text-right"><small class="text-muted">' + Number(marca.porcentajeMarca || 0).toFixed(2) + '%</small><br>' + formatoMoneda(marca.descuentoMarca) + '</td>'
-                    + '<td class="text-right"><small class="text-muted">' + Number(marca.porcentajeGeneral || 0).toFixed(2) + '%</small><br>' + formatoMoneda(marca.descuentoGeneral) + '</td>'
-                    + '<td class="text-right"><strong class="text-success">' + formatoMoneda(marca.descuentoTotal) + '</strong></td></tr>';
+            var escapar = function(valor) { return $('<div>').text(valor == null ? '' : String(valor)).html(); };
+            var normalizarBusqueda = function(valor) {
+                return String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+            };
+            var grupos = marcas.map(function(marca, indice) {
+                var etiqueta = calculo.tipoGrupo === 'escala'
+                    ? marca.marcaNombre + ' - ' + marca.escalaNombre
+                    : marca.nombre;
+                var productos = marca.productos.map(function(producto) {
+                    var busqueda = normalizarBusqueda([producto.nombre, etiqueta].join(' '));
+                    return '<tr class="producto-resumen-marca-expo" data-busqueda="' + escapar(busqueda).replace(/"/g, '&quot;') + '">'
+                        + '<td>' + escapar(producto.nombre) + '</td>'
+                        + '<td class="text-right">' + Number(producto.cantidad).toLocaleString('es-HN', { maximumFractionDigits: 2 }) + '</td>'
+                        + '<td class="text-right">' + formatoMoneda(producto.precio) + '</td>'
+                        + '<td class="text-right">' + formatoMoneda(producto.subtotal) + '</td>'
+                        + '<td class="text-right">' + formatoMoneda(producto.descuentoMarca) + '</td>'
+                        + '<td class="text-right"><strong class="text-success">' + formatoMoneda(producto.descuentoTotal) + '</strong></td></tr>';
+                }).join('');
+                return '<section class="grupo-resumen-marca-expo mb-3" data-grupo="' + indice + '">'
+                    + '<div class="d-flex flex-wrap justify-content-between align-items-center px-3 py-2" style="gap:8px;background:#e6f1eb;color:#245c46;border:1px solid #cfe0d7;border-radius:6px 6px 0 0;">'
+                    + '<strong>' + escapar(etiqueta) + ' (' + Number(marca.porcentajeMarca || 0).toFixed(2) + '%)</strong>'
+                    + '<span>Cantidad: <strong>' + Number(marca.cantidad).toLocaleString('es-HN', { maximumFractionDigits: 2 }) + '</strong> &nbsp; Subtotal: <strong>' + formatoMoneda(marca.subtotal) + '</strong> &nbsp; Descuento: <strong>' + formatoMoneda(marca.descuentoMarca) + '</strong></span></div>'
+                    + '<div class="table-responsive"><table class="table table-sm table-bordered mb-0" style="background:#fff;font-size:12px;">'
+                    + '<thead><tr><th>Producto</th><th class="text-right">Cantidad</th><th class="text-right">Precio</th><th class="text-right">Subtotal</th><th class="text-right">Desc. escala</th><th class="text-right">Descuento total</th></tr></thead>'
+                    + '<tbody>' + productos + '</tbody></table></div></section>';
             }).join('');
-            contenido.innerHTML = '<div class="table-responsive"><table class="table table-sm table-bordered mb-0" style="background:#fff; font-size:12px;">'
-                + '<thead style="background:#e6f1eb; color:#245c46;"><tr><th>' + etiquetaGrupo + '</th><th class="text-right">Cantidad</th><th class="text-right">Subtotal</th><th class="text-right">Desc. ' + etiquetaGrupo.toLowerCase() + '</th><th class="text-right">Desc. subtotal</th><th class="text-right">Descuento total</th></tr></thead>'
-                + '<tbody>' + filas + '</tbody></table></div>';
+            contenido.innerHTML = grupos + '<div id="resumenMarcasExpoSinResultados" class="text-center text-muted py-4 d-none">No se encontraron productos.</div>';
         }
         $('#modalResumenMarcasCarritoExpo').modal('show');
+    }
+
+    function filtrarProductosResumenMarcasExpo(valor) {
+        var termino = String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+        var totalVisibles = 0;
+        document.querySelectorAll('.grupo-resumen-marca-expo').forEach(function(grupo) {
+            var visiblesGrupo = 0;
+            grupo.querySelectorAll('.producto-resumen-marca-expo').forEach(function(fila) {
+                var visible = !termino || (fila.getAttribute('data-busqueda') || '').includes(termino);
+                fila.style.display = visible ? '' : 'none';
+                if (visible) visiblesGrupo += 1;
+            });
+            grupo.style.display = visiblesGrupo > 0 ? '' : 'none';
+            totalVisibles += visiblesGrupo;
+        });
+        var vacio = document.getElementById('resumenMarcasExpoSinResultados');
+        if (vacio) vacio.classList.toggle('d-none', totalVisibles > 0);
     }
 
     function actualizarDescuentoExpo() {
