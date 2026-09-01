@@ -4054,7 +4054,7 @@
                 return '<tr data-cotizador-fila="' + indice + '"><td style="min-width:105px;">'
                     + '<input type="number" min="1" step="1" inputmode="numeric" value="' + cantidad + '" class="form-control form-control-sm text-center cotizador-expo-cantidad" oninput="recalcularFilaCotizadorExpo(this)"></td>'
                     + '<td class="text-right" data-campo="precio"></td>'
-                    + '<td class="text-right" data-campo="compra"></td>'
+                    + '<td class="text-right" data-campo="escalon"></td>'
                     + '<td class="text-center" data-campo="marca"></td>'
                     + '<td class="text-center" data-campo="general"></td>'
                     + '<td class="text-right" data-campo="subtotal-neto"></td>'
@@ -4071,7 +4071,7 @@
                     + ' &nbsp; <i class="fa fa-list-alt mr-1 text-success"></i>Escala: <strong>' + $('<div>').text(nombreEscala).html() + '</strong>'
                     + ' &nbsp; Precio unitario base: <strong>' + formatoMoneda(precio) + '</strong></small></div>'
                     + '<div class="table-responsive"><table class="table table-sm table-bordered cotizador-expo-tabla mb-2">'
-                        + '<thead><tr><th class="text-center">Desde cantidad</th><th class="text-right">Precio unitario</th><th class="text-right">Subtotal bruto</th><th class="text-center">Desc. escala</th><th class="text-center">Desc. subtotal</th><th class="text-right">Subtotal neto</th><th class="text-right">Precio unitario final</th><th class="text-right">ISV</th><th class="text-right">Precio U.F. + ISV</th><th class="text-right">Ahorro por unidad</th><th class="text-right">Ahorro total</th></tr></thead>'
+                        + '<thead><tr><th class="text-center">Desde cantidad</th><th class="text-right">Precio unitario</th><th class="text-right">Escalón del descuento</th><th class="text-center">Desc. escala</th><th class="text-center">Desc. subtotal</th><th class="text-right">Subtotal neto</th><th class="text-right">Precio unitario final</th><th class="text-right">ISV</th><th class="text-right">Precio U.F. + ISV</th><th class="text-right">Ahorro por unidad</th><th class="text-right">Ahorro total</th></tr></thead>'
                     + '<tbody>' + filas + '</tbody></table></div>'
                     + '<small class="text-muted">El subtotal neto después de descuentos determina el escalón. Se aplica primero el descuento de escala y después el general.</small>';
                     resultado.querySelectorAll('.cotizador-expo-cantidad').forEach(recalcularFilaCotizadorExpo);
@@ -4106,7 +4106,7 @@
         var isvUnitario = precioConDescuento * datosCalculoCotizadorExpo.porcentajeIsv / 100;
         var precioFinal = precioConDescuento + isvUnitario;
 
-        fila.querySelector('[data-campo="compra"]').textContent = formatoMoneda(compra);
+        fila.querySelector('[data-campo="escalon"]').textContent = formatoMoneda(escalones.baseEscalon || 0);
         fila.querySelector('[data-campo="precio"]').textContent = formatoMoneda(precio);
         fila.querySelector('[data-campo="marca"]').textContent = porcentajeMarca.toFixed(2) + '%';
         fila.querySelector('[data-campo="general"]').textContent = porcentajeGeneral.toFixed(2) + '%';
