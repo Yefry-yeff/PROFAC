@@ -446,6 +446,7 @@ class Cotizacion extends Component
         $arrayProductos = [];
 
         $expoId = (int) $request->input('expo_id', 0);
+        $continuarOfertaId = (int) $request->input('oferta_id_continuar', 0);
         $tipoVentaExpoId = ExpoConfig::tipoVentaId();
         $expoConfig = null;
 
@@ -667,7 +668,41 @@ class Cotizacion extends Component
                 ], 422);
             }
 
-            $cotizacion = new ModelCotizacion();
+            $esActualizacionExpo = false;
+            $cotizacion = null;
+            if ($continuarOfertaId > 0) {
+                $expoCotizacionEditable = DB::table('expo_cotizacion as ec')
+                    ->where('ec.cotizacion_id', $continuarOfertaId)
+                    ->where('ec.expo_id', $expoId)
+                    ->where('ec.estado', 'PENDIENTE_FACTURACION')
+                    ->whereNotExists(function ($query) {
+                        $query->selectRaw('1')->from('cotizacion_has_producto as chp')
+                            ->join('prefactura_has_producto as php', 'php.cotizacion_has_producto_id', '=', 'chp.id')
+                            ->whereColumn('chp.cotizacion_id', 'ec.cotizacion_id');
+                    })
+                    ->whereNotExists(function ($query) {
+                        $query->selectRaw('1')->from('cotizacion_has_producto as chp')
+                            ->join('venta_has_producto as vhp', 'vhp.cotizacion_has_producto_id', '=', 'chp.id')
+                            ->whereColumn('chp.cotizacion_id', 'ec.cotizacion_id');
+                    })
+                    ->lockForUpdate()
+                    ->first();
+                $cotizacion = $expoCotizacionEditable
+                    ? ModelCotizacion::where('id', $continuarOfertaId)->where('estado_id', 1)->lockForUpdate()->first()
+                    : null;
+
+                if (!$expoConfig || !$cotizacion) {
+                    DB::rollBack();
+                    return response()->json([
+                        'icon' => 'error',
+                        'title' => 'Oferta no editable',
+                        'text' => 'La oferta Expo ya no está disponible para continuarla.',
+                    ], 422);
+                }
+                $esActualizacionExpo = true;
+            }
+
+            $cotizacion ??= new ModelCotizacion();
             $cotizacion->nombre_cliente = $request->nombre_cliente_ventas;
             $cotizacion->RTN = $request->rtn_ventas;
             $cotizacion->fecha_emision = $request->fecha_emision;
@@ -688,10 +723,12 @@ class Cotizacion extends Component
             $cotizacion->nota = $request->nota_comen ?? $request->nota;
             $cotizacion->tipo_pago_id = $request->tipoPagoVenta ?: null;
             $cotizacion->estado_id  = 1;
-            $cotizacion->created_by = Auth::id();
+            if (!$esActualizacionExpo) {
+                $cotizacion->created_by = Auth::id();
+            }
             $cotizacion->save();
 
-            if ($expoConfig) {
+            if ($expoConfig && !$esActualizacionExpo) {
                 DB::table('expo_cotizacion')->insert([
                     'expo_id' => $expoId,
                     'cotizacion_id' => $cotizacion->id,
@@ -724,7 +761,16 @@ class Cotizacion extends Component
             // ID del estado "cancelado" para verificar flujos cancelados
             $canceladoEstadoId = (int) (DB::table('estado_venta')->where('descripcion', 'cancelado')->value('id') ?? 4);
 
-            if ($pedidoIdVinculado) {
+            if ($esActualizacionExpo) {
+                $flujoActual = DB::table('historico_flujo')
+                    ->where('tipo_tramite_id', 2)
+                    ->where('tramite_id', $cotizacion->id)
+                    ->orderByDesc('id')
+                    ->value('flujo_id');
+                $flujoIdDirecto = $flujoActual ? (int) $flujoActual : $flujoIdDirecto;
+                $flujoIdVinculado = null;
+                $flujoNuevo = null;
+            } elseif ($pedidoIdVinculado) {
                 // Flujo con pedido: buscar el flujo del pedido y agregar historico
                 $flujoExistente = DB::table('flujo')
                     ->where('identificacion', (string) $pedidoIdVinculado)
@@ -884,6 +930,10 @@ class Cotizacion extends Component
                 ]);
             }
 
+            if ($esActualizacionExpo) {
+                DB::table('cotizacion_has_producto')->where('cotizacion_id', $cotizacion->id)->delete();
+            }
+
             for ($i = 0; $i < count($arrayInputs); $i++) {
 
                 $keyRestaInventario = "restaInventario" . $arrayInputs[$i];
@@ -1005,6 +1055,7 @@ class Cotizacion extends Component
             'text'      => 'Cotización guardada con éxito.',
             'title'     => 'Exito!',
             'idFactura' => $cotizacion->id,
+            'actualizada' => $esActualizacionExpo,
             'pedidoId'  => $pedidoIdVinculado ?: null,
             'flujoId'   => $flujoIdVinculado ?? $flujoIdDirecto ?? $flujoNuevo ?? null,
         ],200);

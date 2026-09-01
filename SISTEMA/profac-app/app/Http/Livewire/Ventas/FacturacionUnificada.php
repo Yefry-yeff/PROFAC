@@ -22,6 +22,7 @@ class FacturacionUnificada extends Component
     public $expoConfig = null;
     public $esOfertaExpo = false;
     public bool $duplicandoOferta = false;
+    public bool $continuandoOfertaExpo = false;
     public $filtrarProductosExpo = false;
     public array $reglasExpoOferta = [];
     public array $atribucionesDescuentoExpo = [];
@@ -249,6 +250,7 @@ class FacturacionUnificada extends Component
         $this->fromFlujo = $from === 'flujo';
         $this->fromPrefactura = $from === 'prefactura';
         $this->duplicandoOferta = request()->boolean('duplicar');
+        $this->continuandoOfertaExpo = request()->boolean('continuar_expo');
         $this->tiposFactura = TipoFactura::activos()->where('codigo', '!=', 'cotizacion_clientes_a')->get();
 
         if ($codigo) {
@@ -325,15 +327,18 @@ class FacturacionUnificada extends Component
                 ->first(['expo_id', 'reglas_descuento_snapshot']);
             $expoCotizacionId = $expoCotizacion?->expo_id;
             $esExpo = !empty($expoCotizacionId);
+            abort_if($this->continuandoOfertaExpo && !$esExpo, 404, 'Solo las ofertas Expo pueden continuarse.');
             $this->esOfertaExpo = $esExpo;
             if ($esExpo) {
                 $this->filtrarProductosExpo = true;
-                $this->expoConfig = $this->duplicandoOferta
+                $this->expoConfig = ($this->duplicandoOferta || $this->continuandoOfertaExpo)
                     ? ExpoConfig::detalleActivaParaUsuario((int) $expoCotizacionId, Auth::id())
                     : ExpoConfig::detalleParaFacturacion((int) $expoCotizacionId, (int) $cotizId, Auth::id());
-                abort_unless($this->expoConfig, 403, $this->duplicandoOferta
-                    ? 'No tiene autorización para duplicar esta Oferta Expo.'
-                    : 'No tiene autorización para facturar esta Oferta Expo.');
+                abort_unless($this->expoConfig, 403, $this->continuandoOfertaExpo
+                    ? 'No tiene autorización para continuar esta Oferta Expo.'
+                    : ($this->duplicandoOferta
+                        ? 'No tiene autorización para duplicar esta Oferta Expo.'
+                        : 'No tiene autorización para facturar esta Oferta Expo.'));
                 $tipoVentaExpo = ExpoConfig::tipoVentaId();
                 abort_unless($tipoVentaExpo, 500, 'No existe el tipo de venta Expo. Ejecute las migraciones.');
                 $this->tipoFactura->tipo_venta_id = $tipoVentaExpo;
@@ -343,7 +348,7 @@ class FacturacionUnificada extends Component
                     : ['version' => 1, 'generales' => $snapshot, 'marcas' => [], 'lineas' => []];
                 $this->cargarAtribucionesDescuentoExpo((int) $cotizId);
             }
-            $prods = $esExpo && !$this->duplicandoOferta
+            $prods = $esExpo && !$this->duplicandoOferta && !$this->continuandoOfertaExpo
                 ? app(SaldoLineasOferta::class)->pendientes((int) $cotizId)
                     ->filter(fn($linea) => (float) $linea->cantidad_pendiente > 0)
                     ->map(function ($linea) {
@@ -353,6 +358,8 @@ class FacturacionUnificada extends Component
                         return $linea;
                     })->values()->all()
                 : DB::table('cotizacion_has_producto')
+                    ->leftJoin('unidad_medida_venta as uv', 'uv.id', '=', 'cotizacion_has_producto.unidad_medida_venta_id')
+                    ->leftJoin('unidad_medida as um', 'um.id', '=', 'uv.unidad_medida_id')
                     ->where('cotizacion_id', (int) $cotizId)
                     ->orderBy('indice')
                     ->get([
@@ -366,6 +373,8 @@ class FacturacionUnificada extends Component
                     'cantidad',
                     'isv_producto',
                     'unidad_medida_venta_id',
+                    'uv.unidad_venta',
+                    'um.nombre as unidad_nombre',
                     'Bodega_id',
                     'seccion_id',
                     'resta_inventario',
@@ -459,7 +468,9 @@ class FacturacionUnificada extends Component
                 $prod['precios_producto_carga_id'] = (int) $ppcActivo->id;
                 $prod['idPrecioSeleccionado'] = 'p1';
                 $prod['precioSeleccionado'] = $precioA;
-                $prod['precio_unidad'] = $precioA;
+                if (!$this->continuandoOfertaExpo) {
+                    $prod['precio_unidad'] = $precioA;
+                }
                 $prod['categoria_precios_id'] = (int) $ppcActivo->categoria_precios_id;
                 $prod['categoria_precios_nombre'] = $ppcActivo->categoria_nombre ?? 'Categoria sin nombre';
 
@@ -488,9 +499,11 @@ class FacturacionUnificada extends Component
             // Cargar datos de cabecera de la oferta original para pre-llenar el formulario
             $cotizOrig = DB::table('cotizacion as c')
                 ->leftJoin('users as uv', 'uv.id', '=', 'c.vendedor')
+                ->leftJoin('cliente as cl', 'cl.id', '=', 'c.cliente_id')
                 ->where('c.id', (int) $cotizId)
                 ->select('c.tipo_pago_id', 'c.fecha_vencimiento', 'c.porc_descuento', 'c.nota',
-                         'c.vendedor', 'uv.name as vendedor_nombre')
+                         'c.vendedor', 'uv.name as vendedor_nombre', 'c.cliente_id',
+                         'cl.nombre as cliente_nombre', 'cl.rtn as cliente_rtn')
                 ->first();
             if ($cotizOrig) {
                 $this->datosOfertaDuplicada = [
@@ -510,6 +523,13 @@ class FacturacionUnificada extends Component
                     $this->vendedorDefault = [
                         'id'   => $cotizOrig->vendedor,
                         'name' => $cotizOrig->vendedor_nombre ?? '',
+                    ];
+                }
+                if ($this->continuandoOfertaExpo && $cotizOrig->cliente_id) {
+                    $this->clientePedido = [
+                        'id' => (int) $cotizOrig->cliente_id,
+                        'nombre' => $cotizOrig->cliente_nombre,
+                        'rtn' => $cotizOrig->cliente_rtn ?? '',
                     ];
                 }
             }
