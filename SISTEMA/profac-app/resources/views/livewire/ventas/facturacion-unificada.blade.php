@@ -2111,6 +2111,7 @@
     var ventaTemporalRevision = 0;
     var esDuplicandoOferta = {!! $duplicandoOferta ? 'true' : 'false' !!};
     var esContinuandoOfertaExpo = {!! $continuandoOfertaExpo ? 'true' : 'false' !!};
+    var cambiosPrecioExpoConfirmados = false;
     var retencionEstado = false;
     var diasCredito = 0;
     var diasCreditoAprobadosFlujo = null;
@@ -5372,6 +5373,13 @@
 
     $(document).on('submit', '#crear_venta', function(event) {
         event.preventDefault();
+        if (expoConfig && !cambiosPrecioExpoConfirmados) {
+            var cambiosPrecioExpo = obtenerCambiosPrecioExpo();
+            if (cambiosPrecioExpo.length > 0) {
+                mostrarAdvertenciaCambiosPrecioExpo(cambiosPrecioExpo);
+                return;
+            }
+        }
         // 0. Facturas con restricción (no Oferta, no Factura SR): bloquear si algún precio
         //    ingresado quedó por debajo del precio de la escala seleccionada.
         if (codigoActual !== 'cotizacion_clientes_a' && !(tipoFacturaConfig && tipoFacturaConfig.multiples_precios)) {
@@ -5399,6 +5407,66 @@
         }
         guardarVenta();
     });
+
+    function obtenerCambiosPrecioExpo() {
+        var calculo = calcularDescuentosCarritoExpo();
+        if (!calculo) return [];
+
+        return arregloIdInputs.map(function(indice) {
+            var precioActual = Number(document.getElementById('precio' + indice)?.value || 0);
+            var cantidad = Number(document.getElementById('cantidad' + indice)?.value || 0);
+            var unidad = Number(document.getElementById('unidad' + indice)?.value || 0);
+            var unidadesTotales = cantidad * unidad;
+            var linea = calculo.lineas[indice];
+            var precioNuevo = unidadesTotales > 0 && linea
+                ? Number(linea.subtotalNeto || 0) / unidadesTotales
+                : precioActual;
+            if (Math.abs(precioActual - precioNuevo) <= 0.005) return null;
+
+            return {
+                producto: document.getElementById('nombre' + indice)?.value || ('Producto #' + indice),
+                precio_actual: precioActual,
+                precio_nuevo: precioNuevo
+            };
+        }).filter(Boolean);
+    }
+
+    function mostrarAdvertenciaCambiosPrecioExpo(cambios) {
+        var escapar = function(valor) { return $('<div>').text(valor == null ? '' : String(valor)).html(); };
+        var moneda = function(valor) {
+            return 'L ' + Number(valor || 0).toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        };
+        var filas = cambios.map(function(cambio) {
+            return '<tr style="border-top:1px solid #eceff1;">'
+                + '<td style="padding:8px;text-align:left;">' + escapar(cambio.producto) + '</td>'
+                + '<td style="padding:8px;text-align:right;white-space:nowrap;">' + moneda(cambio.precio_actual) + '</td>'
+                + '<td style="padding:8px;text-align:right;white-space:nowrap;color:#2e7d32;font-weight:700;">' + moneda(cambio.precio_nuevo) + '</td>'
+                + '</tr>';
+        }).join('');
+
+        Swal.fire({
+            icon: 'warning',
+            title: 'Se detectaron cambios de precio',
+            width: 820,
+            html: '<p style="color:#546e7a;font-size:13px;text-align:left;">Los siguientes productos tendrán cambios en su precio al guardar esta oferta de Expo. ¿Desea continuar?</p>'
+                + '<div style="max-height:320px;overflow:auto;border:1px solid #e0e0e0;border-radius:7px;">'
+                + '<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="background:#f5f7f8;color:#546e7a;">'
+                + '<th style="padding:8px;text-align:left;">Producto</th><th style="padding:8px;text-align:right;">Precio actual</th><th style="padding:8px;text-align:right;">Nuevo precio</th>'
+                + '</tr></thead><tbody>' + filas + '</tbody></table></div>',
+            showCancelButton: true,
+            cancelButtonText: 'Cancelar',
+            confirmButtonText: 'Guardar Oferta',
+            confirmButtonColor: '#00897b'
+        }).then(function(result) {
+            if (!result.isConfirmed) {
+                cambiosPrecioExpoConfirmados = false;
+                document.getElementById('btn_venta_coorporativa').disabled = false;
+                return;
+            }
+            cambiosPrecioExpoConfirmados = true;
+            guardarVenta();
+        });
+    }
 
     function mostrarModalSrAutorizacion() {
         var tbody = document.getElementById('srTableBody');
@@ -5525,11 +5593,11 @@
         }).join('');
 
         return Swal.fire({
-            icon: 'info',
-            title: 'Productos con cambio de escala',
+            icon: 'warning',
+            title: 'Se detectaron cambios de precio',
             width: 880,
             html: '<p style="color:#546e7a;font-size:13px;text-align:left;margin-bottom:10px;">'
-                + 'Los siguientes <strong>' + ajustes.length + ' producto(s)</strong> cambiaron de escala. Se utilizará el precio vigente al guardar.</p>'
+                + 'Los siguientes productos tendrán cambios en su precio al guardar esta oferta de Expo. ¿Desea continuar?</p>'
                 + '<div style="max-height:300px;overflow:auto;border:1px solid #e0e0e0;border-radius:7px;">'
                 + '<table style="width:100%;border-collapse:collapse;font-size:12px;">'
                 + '<thead><tr style="background:#f5f7f8;color:#546e7a;">'
@@ -5539,10 +5607,13 @@
                 + '<th style="padding:7px 8px;text-align:right;">Precio anterior</th>'
                 + '<th style="padding:7px 8px;text-align:right;">Precio vigente</th>'
                 + '</tr></thead><tbody>' + filas + '</tbody></table></div>',
-            confirmButtonText: 'Entendido, guardar oferta',
+            showCancelButton: true,
+            cancelButtonText: 'Cancelar',
+            confirmButtonText: 'Guardar Oferta',
             confirmButtonColor: '#00897b'
         }).then(function(result) {
             if (!result.isConfirmed) {
+                cambiosPrecioExpoConfirmados = false;
                 document.getElementById('btn_venta_coorporativa').disabled = false;
                 return;
             }
@@ -5565,6 +5636,7 @@
                 }
             });
             totalesGenerales();
+            cambiosPrecioExpoConfirmados = true;
             guardarVenta();
         });
     }
@@ -5648,6 +5720,7 @@
                     confirmarAjustesEscalaAlGuardar(data.ajustes_escala || []);
                     return;
                 }
+                cambiosPrecioExpoConfirmados = false;
 
                 // Para tipos con código de autorización
                 if (tipoFacturaConfig && tipoFacturaConfig.requiere_codigo_autorizacion) {
@@ -5741,6 +5814,7 @@
                 document.getElementById('codigo_autorizacion').value = '';
             })
             .catch(err => {
+                cambiosPrecioExpoConfirmados = false;
                 document.getElementById("btn_venta_coorporativa").disabled = false;
                 var gestorH = document.getElementById('gestor_entrega_hidden');
                 if (gestorH) { gestorH.removeAttribute('data-confirmed'); }
@@ -6002,6 +6076,7 @@
         var _modoContinuacionExpo = {!! $continuandoOfertaExpo ? 'true' : 'false' !!};
         var _seleccionExpo = {!! (!$duplicandoOferta && !$continuandoOfertaExpo && $esOfertaExpo && (!$fromPrefactura || request()->boolean('expo_parcial'))) ? 'true' : 'false' !!};
         var _productosDisponibles = @json($productosParaCarrito);
+        var _cargaInicialEnLote = false;
 
         function cargarProductosIniciales() {
             if (_productosAutoAgregados) return;
@@ -6016,15 +6091,18 @@
                 return;
             }
 
-            var chain = Promise.resolve();
-            productos.forEach(function (prod) {
-                chain = chain.then(function () {
-                    return (_modoPrefactura || _modoContinuacionExpo)
-                        ? agregarProductoDesdePrefactura(prod)
-                        : agregarProductoDesdeOferta(prod);
-                });
-            });
-            chain.then(function () {
+            _cargaInicialEnLote = true;
+            Promise.all(productos.map(function (prod) {
+                return (_modoPrefactura || _modoContinuacionExpo)
+                    ? agregarProductoDesdePrefactura(prod)
+                    : agregarProductoDesdeOferta(prod);
+            })).then(function () {
+                normalizarFilasCarritoExpo();
+                calcularTotalesInicioPagina();
+                actualizarContadorCarrito();
+                return actualizarStocksDisponiblesExpo();
+            }).then(function () {
+                _cargaInicialEnLote = false;
                 ventaTemporalRestaurando = false;
                 if (esDuplicandoOferta || esContinuandoOfertaExpo) guardarVentaTemporal();
                 Swal.fire({
@@ -6037,6 +6115,7 @@
                     position: 'top-end'
                 });
             }).catch(function(error) {
+                _cargaInicialEnLote = false;
                 ventaTemporalRestaurando = false;
                 console.error('No se pudieron cargar todos los productos de la oferta:', error);
             });
@@ -6145,13 +6224,15 @@
 
                 arregloIdInputs.splice(idx, 0, idx);
                 document.getElementById('carritoTbody').insertAdjacentHTML('beforeend', html);
-                consultarStockDisponibleExpo(idx);
                 document.getElementById('carritoVacio').classList.add('d-none');
                 document.getElementById('carritoTablaWrapper').classList.remove('d-none');
-                totalesGenerales();
-                actualizarContadorCarrito();
-                programarGuardadoTemporal();
-                enfocarCantidadCarrito(idx);
+                if (!_cargaInicialEnLote) {
+                    consultarStockDisponibleExpo(idx);
+                    totalesGenerales();
+                    actualizarContadorCarrito();
+                    programarGuardadoTemporal();
+                    enfocarCantidadCarrito(idx);
+                }
                 resolve();
             });
         }
@@ -6302,22 +6383,22 @@
 
                     arregloIdInputs.splice(idx, 0, idx);
                     document.getElementById('carritoTbody').insertAdjacentHTML('beforeend', html);
-                    consultarStockDisponibleExpo(idx);
                     document.getElementById('carritoVacio').classList.add('d-none');
                     document.getElementById('carritoTablaWrapper').classList.remove('d-none');
-                    actualizarContadorCarrito();
-
-                    // Calcular totales para esta fila
-                    calcularTotales(
-                        document.getElementById('precio' + idx),
-                        document.getElementById('cantidad' + idx),
-                        producto.isv,
-                        document.getElementById('unidad' + idx),
-                        idx,
-                        document.getElementById('restaInventario' + idx)
-                    );
-                    programarGuardadoTemporal();
-                    enfocarCantidadCarrito(idx);
+                    if (!_cargaInicialEnLote) {
+                        consultarStockDisponibleExpo(idx);
+                        actualizarContadorCarrito();
+                        calcularTotales(
+                            document.getElementById('precio' + idx),
+                            document.getElementById('cantidad' + idx),
+                            producto.isv,
+                            document.getElementById('unidad' + idx),
+                            idx,
+                            document.getElementById('restaInventario' + idx)
+                        );
+                        programarGuardadoTemporal();
+                        enfocarCantidadCarrito(idx);
+                    }
                     resolve();
                 }).catch(function () { resolve(); });
             });
