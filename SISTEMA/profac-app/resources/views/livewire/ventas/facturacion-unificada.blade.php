@@ -5411,18 +5411,12 @@
     });
 
     function obtenerCambiosPrecioExpo() {
-        var calculo = calcularDescuentosCarritoExpo();
-        if (!calculo) return [];
-
         return arregloIdInputs.map(function(indice) {
             var precioActual = Number(document.getElementById('precio' + indice)?.value || 0);
-            var cantidad = Number(document.getElementById('cantidad' + indice)?.value || 0);
-            var unidad = Number(document.getElementById('unidad' + indice)?.value || 0);
-            var unidadesTotales = cantidad * unidad;
-            var linea = calculo.lineas[indice];
-            var precioNuevo = unidadesTotales > 0 && linea
-                ? Number(linea.subtotalNeto || 0) / unidadesTotales
-                : precioActual;
+            var selectorPrecio = document.getElementById('precios' + indice);
+            var precioNuevo = Number(selectorPrecio?.value
+                || document.getElementById('precio' + indice)?.getAttribute('data-precio-escala')
+                || precioActual);
             if (Math.abs(precioActual - precioNuevo) <= 0.005) return null;
 
             return {
