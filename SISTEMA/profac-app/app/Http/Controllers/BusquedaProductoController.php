@@ -87,14 +87,6 @@ class BusquedaProductoController extends Controller
                     ->where('ppc_excluir.categoria_precios_id', $excluirCategoriaPrecioId)
                     ->where('ppc_excluir.estado_id', 1);
             });
-            $query->addSelect([
-                'ultimo_precio_base' => DB::table('precios_producto_carga as ppc_ultimo')
-                    ->select('ppc_ultimo.precio_base_venta')
-                    ->whereColumn('ppc_ultimo.producto_id', 'p.id')
-                    ->orderByRaw('ppc_ultimo.categoria_precios_id = ? DESC', [$excluirCategoriaPrecioId])
-                    ->orderByDesc('ppc_ultimo.id')
-                    ->limit(1),
-            ]);
         }
 
         // Filtro de stock: WHERE EXISTS (más rápido que JOIN+GROUP BY+HAVING)

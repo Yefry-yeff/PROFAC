@@ -1191,7 +1191,6 @@ a.btn.btn-pf-primary:hover {
                 <div class="form-group mb-0">
                     <label for="editorAgregarBase" class="font-weight-bold small">Precio base</label>
                     <input type="number" id="editorAgregarBase" min="0.01" step="0.01" class="form-control" placeholder="0.00">
-                    <div id="editorUltimoPrecioBase" class="mt-2 px-2 py-1 border rounded" style="display:none;background:#f8fafc;color:#52616b;font-size:.76rem;"></div>
                     <small class="text-muted">Los precios A, B, C y D se calcularán con los porcentajes de la categoría seleccionada.</small>
                 </div>
             </div>
@@ -2574,13 +2573,7 @@ a.btn.btn-pf-primary:hover {
     window.seleccionarProductoParaPrecio = function(producto) {
         _editorProductoAgregar = producto;
         $('#editorAgregarSeleccion').html('<strong>' + _escaparHtml(producto.nombre) + '</strong><br><small>ID ' + producto.id + ' · Código ' + _escaparHtml(producto.codigo_barra || 'Sin código') + '</small>');
-        var ultimoPrecioBase = parseFloat(producto.ultimo_precio_base || 0);
-        $('#editorAgregarBase').val(ultimoPrecioBase > 0 ? ultimoPrecioBase.toFixed(2) : '');
-        $('#editorUltimoPrecioBase')
-            .toggle(ultimoPrecioBase > 0)
-            .html(ultimoPrecioBase > 0
-                ? '<i class="fa fa-history mr-1"></i>Último precio base registrado: <strong>L. ' + ultimoPrecioBase.toFixed(2) + '</strong>'
-                : '');
+        $('#editorAgregarBase').val('');
         $('#btnConfirmarAgregarPrecio').prop('disabled', false);
         $('#buscadorProductoPrecio').one('hidden.bs.modal', function() {
             $('#modalAgregarProductoPrecio').modal('show');
