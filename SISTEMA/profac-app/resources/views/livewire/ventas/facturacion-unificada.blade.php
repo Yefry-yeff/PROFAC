@@ -329,10 +329,10 @@
     </style>
     @endpush
 
-    <div id="cargandoTemporales" role="status" aria-live="polite" aria-label="Cargando registros temporales">
+    <div id="cargandoTemporales" role="status" aria-live="polite" aria-label="{{ ($duplicandoOferta || $continuandoOfertaExpo) ? 'Cargando oferta' : 'Cargando registros temporales' }}">
         <div class="carga-temporales-contenido">
             <i class="fa fa-spinner fa-spin" aria-hidden="true"></i>
-            <span>Cargando registros temporales...</span>
+            <span>{{ ($duplicandoOferta || $continuandoOfertaExpo) ? 'Cargando oferta...' : 'Cargando registros temporales...' }}</span>
         </div>
     </div>
 
@@ -2348,7 +2348,9 @@
     }
 
     function iniciarNuevaVentaTemporal() {
-        ocultarCargaTemporales();
+        if (!esDuplicandoOferta && !esContinuandoOfertaExpo) {
+            ocultarCargaTemporales();
+        }
         ventaTemporalId = null;
         var url = new URL(window.location.href);
         url.searchParams.delete('temporal_id');
@@ -6077,6 +6079,29 @@
         var _seleccionExpo = {!! (!$duplicandoOferta && !$continuandoOfertaExpo && $esOfertaExpo && (!$fromPrefactura || request()->boolean('expo_parcial'))) ? 'true' : 'false' !!};
         var _productosDisponibles = @json($productosParaCarrito);
         var _cargaInicialEnLote = false;
+        var _carritoCargaInicial = null;
+
+        function mostrarCargaOferta() {
+            if (!esDuplicandoOferta && !esContinuandoOfertaExpo) return;
+            var cargando = document.getElementById('cargandoTemporales');
+            document.documentElement.classList.remove('temporales-cargados');
+            if (!cargando) return;
+            cargando.style.display = 'flex';
+            cargando.setAttribute('aria-label', 'Cargando oferta');
+            var texto = cargando.querySelector('span');
+            if (texto) texto.textContent = 'Cargando oferta...';
+        }
+
+        function ocultarCargaOferta() {
+            if (!esDuplicandoOferta && !esContinuandoOfertaExpo) return;
+            ocultarCargaTemporales();
+        }
+
+        function carritoDestinoCargaInicial() {
+            return _cargaInicialEnLote && _carritoCargaInicial
+                ? _carritoCargaInicial
+                : document.getElementById('carritoTbody');
+        }
 
         function cargarProductosIniciales() {
             if (_productosAutoAgregados) return;
@@ -6088,15 +6113,23 @@
             var productos = _productosDisponibles;
             if (!productos || productos.length === 0) {
                 ventaTemporalRestaurando = false;
+                ocultarCargaOferta();
                 return;
             }
 
+            mostrarCargaOferta();
             _cargaInicialEnLote = true;
+            _carritoCargaInicial = document.createElement('tbody');
             Promise.all(productos.map(function (prod) {
                 return (_modoPrefactura || _modoContinuacionExpo)
                     ? agregarProductoDesdePrefactura(prod)
                     : agregarProductoDesdeOferta(prod);
             })).then(function () {
+                var carrito = document.getElementById('carritoTbody');
+                if (carrito && _carritoCargaInicial) {
+                    carrito.insertAdjacentHTML('beforeend', _carritoCargaInicial.innerHTML);
+                }
+                _carritoCargaInicial = null;
                 normalizarFilasCarritoExpo();
                 calcularTotalesInicioPagina();
                 actualizarContadorCarrito();
@@ -6105,6 +6138,7 @@
                 _cargaInicialEnLote = false;
                 ventaTemporalRestaurando = false;
                 if (esDuplicandoOferta || esContinuandoOfertaExpo) guardarVentaTemporal();
+                ocultarCargaOferta();
                 Swal.fire({
                     icon: 'success',
                     title: 'Productos cargados',
@@ -6116,7 +6150,9 @@
                 });
             }).catch(function(error) {
                 _cargaInicialEnLote = false;
+                _carritoCargaInicial = null;
                 ventaTemporalRestaurando = false;
+                ocultarCargaOferta();
                 console.error('No se pudieron cargar todos los productos de la oferta:', error);
             });
         }
@@ -6223,7 +6259,7 @@
                 </tr>`;
 
                 arregloIdInputs.splice(idx, 0, idx);
-                document.getElementById('carritoTbody').insertAdjacentHTML('beforeend', html);
+                carritoDestinoCargaInicial().insertAdjacentHTML('beforeend', html);
                 document.getElementById('carritoVacio').classList.add('d-none');
                 document.getElementById('carritoTablaWrapper').classList.remove('d-none');
                 if (!_cargaInicialEnLote) {
@@ -6382,7 +6418,7 @@
                     </tr>`;
 
                     arregloIdInputs.splice(idx, 0, idx);
-                    document.getElementById('carritoTbody').insertAdjacentHTML('beforeend', html);
+                    carritoDestinoCargaInicial().insertAdjacentHTML('beforeend', html);
                     document.getElementById('carritoVacio').classList.add('d-none');
                     document.getElementById('carritoTablaWrapper').classList.remove('d-none');
                     if (!_cargaInicialEnLote) {
