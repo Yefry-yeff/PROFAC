@@ -4495,7 +4495,7 @@
                 return '<section class="grupo-resumen-marca-expo mb-3" data-grupo="' + indice + '">'
                     + '<div class="d-flex flex-wrap justify-content-between align-items-center px-3 py-2" style="gap:8px;background:#e6f1eb;color:#245c46;border:1px solid #cfe0d7;border-radius:6px 6px 0 0;">'
                     + '<strong>' + escapar(etiqueta) + ' (' + Number(marca.porcentajeMarca || 0).toFixed(2) + '%)</strong>'
-                    + '<span>Cantidad: <strong>' + Number(marca.cantidad).toLocaleString('es-HN', { maximumFractionDigits: 2 }) + '</strong> &nbsp; Subtotal: <strong>' + formatoMoneda(marca.subtotal) + '</strong> &nbsp; Descuento: <strong>' + formatoMoneda(marca.descuentoMarca) + '</strong></span></div>'
+                    + '<span>Cantidad: <strong>' + Number(marca.cantidad).toLocaleString('es-HN', { maximumFractionDigits: 2 }) + '</strong> &nbsp; Subtotal sin descuento: <strong>' + formatoMoneda(marca.subtotal) + '</strong> &nbsp; Descuento: <strong>' + formatoMoneda(marca.descuentoMarca) + '</strong> &nbsp; Subtotal con descuento: <strong>' + formatoMoneda(marca.subtotal - marca.descuentoMarca) + '</strong></span></div>'
                     + '<div class="table-responsive"><table class="table table-sm table-bordered mb-0" style="background:#fff;font-size:12px;">'
                     + '<thead><tr><th>Producto</th><th class="text-right">Cantidad</th><th class="text-right">Precio</th><th class="text-right">Subtotal</th><th class="text-right">Desc. escala</th><th class="text-right">Descuento total</th></tr></thead>'
                     + '<tbody>' + productos + '</tbody></table></div></section>';
