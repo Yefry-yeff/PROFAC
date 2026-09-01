@@ -4454,7 +4454,7 @@
                     ? marca.marcaNombre + ' - ' + marca.escalaNombre
                     : marca.nombre).html()
                 + ' <strong>(' + Number(marca.porcentajeMarca || 0).toFixed(2) + '%)</strong>'
-                + '<small class="d-block">Cantidad: ' + Number(marca.cantidad).toLocaleString('es-HN', { maximumFractionDigits: 2 }) + '</small></span>'
+                + ' - Cantidad de Prod = ' + Number(marca.cantidad).toLocaleString('es-HN', { maximumFractionDigits: 2 }) + '</span>'
                 + '<strong>' + formatoMoneda(marca.descuentoMarca) + '</strong></div>';
         }).join('');
         var totalGeneral = todasLasMarcas.reduce(function(total, marca) { return total + marca.descuentoGeneral; }, 0);
