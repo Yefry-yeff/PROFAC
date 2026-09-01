@@ -199,7 +199,7 @@ class Expo extends Component
             ->values();
 
         if (!$marcaId || $reglas->isEmpty()) {
-            $this->addError('marcaDescuentoGestionId', 'Seleccione una marca con descuento configurado.');
+            $this->addError('marcaDescuentoGestionId', 'Seleccione una escala con descuento configurado.');
             return;
         }
 
@@ -220,11 +220,12 @@ class Expo extends Component
         $marcaId = $todas ? null : (int) $this->marcaDescuentoGestionId;
         $reglas = collect($this->descuentosMarca)
             ->when($marcaId, fn ($items) => $items->where('marca_id', $marcaId));
-        abort_if($reglas->isEmpty(), 404, 'No hay descuentos por marca para descargar.');
+        abort_if($reglas->isEmpty(), 404, 'No hay descuentos por escala para descargar.');
 
-        $nombresMarca = DB::table('marca')
-            ->whereIn('id', $reglas->pluck('marca_id')->map(fn ($id) => (int) $id)->unique())
-            ->pluck('nombre', 'id');
+        $nombresMarca = DB::table('categoria_precios as cp')
+            ->join('cliente_categoria_escala as cce', 'cce.id', '=', 'cp.cliente_categoria_escala_id')
+            ->whereIn('cp.id', $reglas->pluck('marca_id')->map(fn ($id) => (int) $id)->unique())
+            ->pluck(DB::raw("CONCAT(cce.nombre_categoria, ' - ', cp.nombre)"), 'cp.id');
         $filas = $reglas
             ->sortBy(fn ($regla) => sprintf(
                 '%s-%015.2f',
@@ -233,15 +234,15 @@ class Expo extends Component
             ))
             ->map(fn ($regla) => [
                 $this->nombre,
-                $nombresMarca[(int) $regla['marca_id']] ?? ('Marca #' . $regla['marca_id']),
+                $nombresMarca[(int) $regla['marca_id']] ?? ('Escala #' . $regla['marca_id']),
                 (float) str_replace(',', '', (string) $regla['venta_minima']),
                 (float) $regla['porcentaje_descuento'],
                 !empty($regla['requiere_asistencia']) ? 'Sí' : 'No',
             ])->values()->all();
 
         return Excel::download(new ArrayExport([
-            'Exposición', 'Marca', 'Subtotal neto oferta desde', 'Descuento (%)', 'Requiere asistencia',
-        ], $filas), 'descuentos_marca_expo_' . $this->expoEditandoId . ($marcaId ? '_marca_' . $marcaId : '') . '.xlsx');
+            'Exposición', 'Escala de precios', 'Subtotal neto oferta desde', 'Descuento (%)', 'Requiere asistencia',
+        ], $filas), 'descuentos_escala_expo_' . $this->expoEditandoId . ($marcaId ? '_escala_' . $marcaId : '') . '.xlsx');
     }
 
     public function agregarEscalonMarcaModal(): void
@@ -271,13 +272,13 @@ class Expo extends Component
         unset($escalon);
 
         $this->validate([
-            'marcaDescuentoSeleccionada' => 'required|integer|exists:marca,id',
+            'marcaDescuentoSeleccionada' => ['required', 'integer', Rule::in(array_map('intval', $this->escalasSeleccionadas))],
             'escalonesMarcaModal' => 'required|array|min:1',
             'escalonesMarcaModal.*.venta_minima' => 'required|numeric|min:0',
             'escalonesMarcaModal.*.porcentaje_descuento' => 'required|numeric|min:0|max:100',
             'escalonesMarcaModal.*.requiere_asistencia' => 'boolean',
         ], [
-            'marcaDescuentoSeleccionada.required' => 'Seleccione una marca.',
+            'marcaDescuentoSeleccionada.required' => 'Seleccione una escala de precios.',
             'escalonesMarcaModal.*.venta_minima.required' => 'Ingrese el subtotal neto mínimo.',
             'escalonesMarcaModal.*.porcentaje_descuento.required' => 'Ingrese el porcentaje.',
         ]);
@@ -293,7 +294,7 @@ class Expo extends Component
             ->map(fn ($valor) => (string) (float) $valor);
 
         if ($minimosNuevos->duplicates()->isNotEmpty() || $minimosNuevos->intersect($minimosExistentes)->isNotEmpty()) {
-            $this->addError('escalonesMarcaModal', 'La marca no puede repetir el mismo subtotal neto mínimo en dos escalones.');
+            $this->addError('escalonesMarcaModal', 'La escala no puede repetir el mismo subtotal neto mínimo en dos escalones.');
             return;
         }
 
@@ -386,7 +387,7 @@ class Expo extends Component
             'descuentos.*.venta_minima' => 'required|numeric|min:0|distinct',
             'descuentos.*.porcentaje_descuento' => 'required|numeric|min:0|max:100',
             'descuentosMarca' => 'array',
-            'descuentosMarca.*.marca_id' => 'required|integer|exists:marca,id',
+            'descuentosMarca.*.marca_id' => ['required', 'integer', Rule::in(array_map('intval', $this->escalasSeleccionadas))],
             'descuentosMarca.*.venta_minima' => 'required|numeric|min:0',
             'descuentosMarca.*.porcentaje_descuento' => 'required|numeric|min:0|max:100',
             'descuentosMarca.*.requiere_asistencia' => 'boolean',
@@ -402,7 +403,7 @@ class Expo extends Component
         foreach ($escalonesMarca as $reglas) {
             $minimos = $reglas->pluck('venta_minima')->map(fn ($valor) => (string) (float) $valor);
             if ($minimos->duplicates()->isNotEmpty()) {
-                $this->addError('descuentosMarca', 'Una marca no puede repetir el mismo subtotal neto mínimo en dos escalones.');
+                $this->addError('descuentosMarca', 'Una escala no puede repetir el mismo subtotal neto mínimo en dos escalones.');
                 return;
             }
         }
@@ -443,7 +444,7 @@ class Expo extends Component
                 DB::table('expo_escala')->where('expo_id', $expoId)->delete();
                 DB::table('expo_usuario')->where('expo_id', $expoId)->delete();
                 DB::table('expo_descuento')->where('expo_id', $expoId)->delete();
-                DB::table('expo_descuento_marca')->where('expo_id', $expoId)->delete();
+                DB::table('expo_descuento_escala')->where('expo_id', $expoId)->delete();
             } else {
                 $expoId = DB::table('expo')->insertGetId([
                     'nombre' => $this->nombre,
@@ -483,9 +484,9 @@ class Expo extends Component
             }
 
             foreach (array_values($this->descuentosMarca) as $orden => $regla) {
-                DB::table('expo_descuento_marca')->insert([
+                DB::table('expo_descuento_escala')->insert([
                     'expo_id' => $expoId,
-                    'marca_id' => (int) $regla['marca_id'],
+                    'escala_id' => (int) $regla['marca_id'],
                     'venta_minima' => $regla['venta_minima'],
                     'porcentaje_descuento' => $regla['porcentaje_descuento'],
                     'requiere_asistencia' => (bool) ($regla['requiere_asistencia'] ?? false),
@@ -550,11 +551,11 @@ class Expo extends Component
                 ->where('eu.expo_id', $id)->orderBy('u.name')->get(['u.name', 'u.email'])->map(fn ($usuario) => (array) $usuario)->all(),
             'descuentos' => DB::table('expo_descuento')->where('expo_id', $id)->orderBy('orden')
                 ->get(['venta_minima', 'porcentaje_descuento'])->map(fn ($regla) => (array) $regla)->all(),
-            'descuentos_marca' => DB::table('expo_descuento_marca as edm')
-                ->join('marca as m', 'm.id', '=', 'edm.marca_id')
+            'descuentos_escala' => DB::table('expo_descuento_escala as edm')
+                ->join('categoria_precios as cp', 'cp.id', '=', 'edm.escala_id')
                 ->where('edm.expo_id', $id)
                 ->orderBy('edm.orden')
-                ->get(['m.nombre as marca', 'edm.venta_minima', 'edm.porcentaje_descuento', 'edm.requiere_asistencia'])
+                ->get(['cp.nombre as escala', 'edm.venta_minima', 'edm.porcentaje_descuento', 'edm.requiere_asistencia'])
                 ->map(fn ($regla) => (array) $regla)->all(),
             'historial_cambios' => DB::table('expo_historial_cambios as ehc')
                 ->join('users as u', 'u.id', '=', 'ehc.user_id')
@@ -651,6 +652,7 @@ class Expo extends Component
                         'base_general' => (float) $resumen['base_general'],
                         'porcentaje_general' => (float) $resumen['porcentaje_descuento'],
                         'descuento_general' => (float) $resumen['descuento_general'],
+                        'tipo_descuento' => $resumen['tipo_descuento'] ?? 'marca',
                         'descuento_marca' => (float) $resumen['descuento_marca_total'],
                         'descuentos_marca' => $resumen['descuentos_marca'],
                         'detalle_marcas' => $resumen['detalle_marcas'],
@@ -835,7 +837,7 @@ class Expo extends Component
             ->where('cce.estado_id', 1)
             ->orderBy('cce.nombre_categoria')->orderBy('cp.nombre')
             ->get(['cp.id', DB::raw("CONCAT(cce.nombre_categoria, ' - ', cp.nombre) as nombre")]);
-        $marcas = DB::table('marca')->orderBy('nombre')->get(['id', 'nombre']);
+        $marcas = $escalas;
         $nombresMarca = $marcas->pluck('nombre', 'id');
         $busquedaMarca = mb_strtolower(trim($this->busquedaDescuentoMarca));
         $descuentosMarcaTabla = collect($this->descuentosMarca)
@@ -843,7 +845,7 @@ class Expo extends Component
                 return [
                     'indice' => (int) $indice,
                     'marca_id' => (int) ($regla['marca_id'] ?? 0),
-                    'marca' => (string) ($nombresMarca[(int) ($regla['marca_id'] ?? 0)] ?? ('Marca #' . ($regla['marca_id'] ?? ''))),
+                    'marca' => (string) ($nombresMarca[(int) ($regla['marca_id'] ?? 0)] ?? ('Escala #' . ($regla['marca_id'] ?? ''))),
                     'venta_minima' => (float) str_replace(',', '', (string) ($regla['venta_minima'] ?? 0)),
                     'porcentaje_descuento' => (float) ($regla['porcentaje_descuento'] ?? 0),
                     'requiere_asistencia' => (bool) ($regla['requiere_asistencia'] ?? false),
@@ -894,12 +896,12 @@ class Expo extends Component
 
     private function cargarDescuentosMarca(int $expoId): array
     {
-        return DB::table('expo_descuento_marca')
+        return DB::table('expo_descuento_escala')
             ->where('expo_id', $expoId)
             ->orderBy('orden')
-            ->get(['marca_id', 'venta_minima', 'porcentaje_descuento', 'requiere_asistencia'])
+            ->get(['escala_id', 'venta_minima', 'porcentaje_descuento', 'requiere_asistencia'])
             ->map(fn ($regla) => [
-                'marca_id' => (string) $regla->marca_id,
+                'marca_id' => (string) $regla->escala_id,
                 'venta_minima' => (string) $regla->venta_minima,
                 'porcentaje_descuento' => (string) $regla->porcentaje_descuento,
                 'requiere_asistencia' => (bool) $regla->requiere_asistencia,
@@ -1065,8 +1067,8 @@ class Expo extends Component
             'usuarios' => DB::table('expo_usuario')->where('expo_id', $expoId)->orderBy('usuario_id')->pluck('usuario_id')->all(),
             'descuentos_totales' => DB::table('expo_descuento')->where('expo_id', $expoId)->orderBy('orden')
                 ->get(['venta_minima', 'porcentaje_descuento'])->map(fn ($regla) => (array) $regla)->all(),
-            'descuentos_marcas' => DB::table('expo_descuento_marca')->where('expo_id', $expoId)->orderBy('orden')
-                ->get(['marca_id', 'venta_minima', 'porcentaje_descuento', 'requiere_asistencia'])->map(fn ($regla) => (array) $regla)->all(),
+            'descuentos_escalas' => DB::table('expo_descuento_escala')->where('expo_id', $expoId)->orderBy('orden')
+                ->get(['escala_id', 'venta_minima', 'porcentaje_descuento', 'requiere_asistencia'])->map(fn ($regla) => (array) $regla)->all(),
         ];
     }
 
@@ -1084,7 +1086,7 @@ class Expo extends Component
             'escalas' => 'escalas',
             'usuarios' => 'usuarios autorizados',
             'descuentos_totales' => 'descuentos por total',
-            'descuentos_marcas' => 'descuentos por marca',
+            'descuentos_escalas' => 'descuentos por escala de precios',
         ];
         $cambios = [];
         foreach ($etiquetas as $campo => $etiqueta) {

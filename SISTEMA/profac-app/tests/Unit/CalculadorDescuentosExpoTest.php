@@ -7,6 +7,44 @@ use PHPUnit\Framework\TestCase;
 
 class CalculadorDescuentosExpoTest extends TestCase
 {
+    public function test_marcas_distintas_en_la_misma_escala_comparten_descuento(): void
+    {
+        $resultado = (new CalculadorDescuentosExpo())->calcular([
+            ['marca_id' => 10, 'escala_id' => 7, 'subtotal_bruto' => 1000.00],
+            ['marca_id' => 20, 'escala_id' => 7, 'subtotal_bruto' => 1000.00],
+        ], [
+            'version' => 5,
+            'tipo' => 'escala',
+            'escalas' => [
+                ['escala_id' => 7, 'venta_minima' => 1800, 'porcentaje_descuento' => 10],
+            ],
+            'generales' => [],
+        ]);
+
+        $this->assertSame(10.0, $resultado['porcentajes_escala'][7]);
+        $this->assertSame(200.0, $resultado['descuento_ganado']);
+    }
+
+    public function test_una_misma_marca_en_escalas_distintas_recibe_descuentos_distintos(): void
+    {
+        $resultado = (new CalculadorDescuentosExpo())->calcular([
+            ['marca_id' => 10, 'escala_id' => 7, 'subtotal_bruto' => 1000.00],
+            ['marca_id' => 10, 'escala_id' => 8, 'subtotal_bruto' => 1000.00],
+        ], [
+            'version' => 5,
+            'tipo' => 'escala',
+            'escalas' => [
+                ['escala_id' => 7, 'venta_minima' => 1700, 'porcentaje_descuento' => 10],
+                ['escala_id' => 8, 'venta_minima' => 1700, 'porcentaje_descuento' => 20],
+            ],
+            'generales' => [],
+        ]);
+
+        $this->assertSame(10.0, $resultado['porcentajes_escala'][7]);
+        $this->assertSame(20.0, $resultado['porcentajes_escala'][8]);
+        $this->assertSame(300.0, $resultado['descuento_ganado']);
+    }
+
     public function test_el_escalon_se_evalua_con_el_subtotal_neto_despues_del_descuento(): void
     {
         $resultado = (new CalculadorDescuentosExpo())->calcular([

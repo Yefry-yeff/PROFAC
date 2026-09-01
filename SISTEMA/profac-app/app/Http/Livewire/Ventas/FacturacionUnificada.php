@@ -114,27 +114,34 @@ class FacturacionUnificada extends Component
     {
         $lineas = DB::table('cotizacion_has_producto as chp')
             ->join('producto as p', 'p.id', '=', 'chp.producto_id')
+            ->leftJoin('precios_producto_carga as ppc', 'ppc.id', '=', 'chp.precios_producto_carga_id')
             ->where('chp.cotizacion_id', $cotizacionId)
-            ->get(['chp.id', 'chp.cantidad', 'chp.precio_unidad', 'chp.monto_descProducto', 'p.marca_id']);
+            ->get(['chp.id', 'chp.cantidad', 'chp.precio_unidad', 'chp.monto_descProducto', 'p.marca_id', 'ppc.categoria_precios_id']);
+
+        $usaEscalas = ($this->reglasExpoOferta['tipo'] ?? null) === 'escala'
+            || (int) ($this->reglasExpoOferta['version'] ?? 0) >= 5;
 
         $calculo = app(CalculadorDescuentosExpo::class)->calcular(
             $lineas->map(fn ($linea) => [
                 'marca_id' => (int) $linea->marca_id,
+                'escala_id' => (int) $linea->categoria_precios_id,
                 'subtotal_bruto' => round((float) $linea->precio_unidad * (float) $linea->cantidad, 2),
             ])->all(),
             $this->reglasExpoOferta
         );
 
-        $this->atribucionesDescuentoExpo = $lineas->mapWithKeys(function ($linea) use ($calculo) {
+        $this->atribucionesDescuentoExpo = $lineas->mapWithKeys(function ($linea) use ($calculo, $usaEscalas) {
             $descuentoFirmado = (float) $linea->monto_descProducto;
-            $porcentajeMarca = (float) ($calculo['porcentajes_marca'][(int) $linea->marca_id] ?? 0);
+            $grupoId = (int) ($usaEscalas ? $linea->categoria_precios_id : $linea->marca_id);
+            $porcentajesGrupo = $usaEscalas ? ($calculo['porcentajes_escala'] ?? []) : $calculo['porcentajes_marca'];
+            $porcentajeMarca = (float) ($porcentajesGrupo[$grupoId] ?? 0);
             $descuentoMarca = round(
                 (float) $linea->precio_unidad * (float) $linea->cantidad * $porcentajeMarca / 100,
                 2
             );
 
             return [(int) $linea->id => [
-                'porcentaje_marca' => (float) ($calculo['porcentajes_marca'][(int) $linea->marca_id] ?? 0),
+                'porcentaje_marca' => $porcentajeMarca,
                 'porcentaje_general' => (float) ($calculo['porcentaje_general'] ?? 0),
                 'proporcion_marca' => $descuentoFirmado > 0
                     ? min(max($descuentoMarca / $descuentoFirmado, 0), 1)
@@ -162,7 +169,7 @@ class FacturacionUnificada extends Component
     public $productosSugeridos    = [];     // [['nombre_pedido','cantidad','similares':[...]]]
     public $productosParaCarrito  = [];     // Productos del duplicado para auto-agregar al carrito
     public $datosOfertaDuplicada  = null;   // ['tipo_pago_id','fecha_vencimiento','porc_descuento','nota']
-    public $errorEscalaDuplicado  = null;   // Mensaje cuando un producto no tiene escala activa
+    public $errorEscalaDuplicado  = null;   // Productos que no tienen una escala activa al duplicar
 
     // ── Vendedor actual ──────────────────────────────────────────────────
     public $vendedorDefault    = [];
@@ -371,7 +378,7 @@ class FacturacionUnificada extends Component
                 : null;
             $productosResueltos = [];
             $productosSugeridos = [];
-            $productosSinEscala = [];
+            $productosConCambioEscala = [];
             $marcasPorProducto = DB::table('producto as p')
                 ->leftJoin('marca as m', 'm.id', '=', 'p.marca_id')
                 ->whereIn('p.id', collect($prods)->pluck('producto_id')->filter()->unique()->all())
@@ -398,6 +405,7 @@ class FacturacionUnificada extends Component
                 $prod['marca_nombre'] = $marcaCongelada['marca'] ?? $marca->marca_nombre ?? 'SIN MARCA';
 
                 $ppcActivo = null;
+                $ppcReferencia = null;
                 $precioCargaId = isset($prod['precios_producto_carga_id']) ? (int) $prod['precios_producto_carga_id'] : 0;
 
                 if ($precioCargaId > 0) {
@@ -430,7 +438,15 @@ class FacturacionUnificada extends Component
                 }
 
                 if (!$ppcActivo) {
-                    $productosSinEscala[] = $prod['nombre_producto'] ?? ('Producto ID ' . ($prod['producto_id'] ?? 'N/A'));
+                    $productosConCambioEscala[] = [
+                        'producto' => $prod['nombre_producto'] ?? ('Producto ID ' . ($prod['producto_id'] ?? 'N/A')),
+                        'precio_anterior' => (float) ($prod['precio_unidad'] ?? 0),
+                        'precio_nuevo' => null,
+                        'categoria' => isset($ppcReferencia) && $ppcReferencia
+                            ? (DB::table('categoria_precios')->where('id', $ppcReferencia->categoria_precios_id)->value('nombre') ?? 'Sin categoria')
+                            : 'Escala eliminada',
+                        'accion' => 'eliminar',
+                    ];
                     continue;
                 }
 
@@ -443,9 +459,19 @@ class FacturacionUnificada extends Component
                 $prod['precios_producto_carga_id'] = (int) $ppcActivo->id;
                 $prod['idPrecioSeleccionado'] = 'p1';
                 $prod['precioSeleccionado'] = $precioA;
-                $prod['precio_unidad'] = $precioUnidadOriginal;
+                $prod['precio_unidad'] = $precioA;
                 $prod['categoria_precios_id'] = (int) $ppcActivo->categoria_precios_id;
                 $prod['categoria_precios_nombre'] = $ppcActivo->categoria_nombre ?? 'Categoria sin nombre';
+
+                if (abs($precioUnidadOriginal - $precioA) > 0.005) {
+                    $productosConCambioEscala[] = [
+                        'producto' => $prod['nombre_producto'] ?? ('Producto ID ' . ($prod['producto_id'] ?? 'N/A')),
+                        'precio_anterior' => $precioUnidadOriginal,
+                        'precio_nuevo' => $precioA,
+                        'categoria' => $prod['categoria_precios_nombre'],
+                        'accion' => 'cargar',
+                    ];
+                }
 
                 $productosResueltos[] = $prod;
                 $productosSugeridos[] = [
@@ -455,15 +481,9 @@ class FacturacionUnificada extends Component
                 ];
             }
 
-            if (!empty($productosSinEscala)) {
-                $this->errorEscalaDuplicado = 'Uno de los productos ya no cuenta con una escala de precios asignada.';
-                $this->productosParaCarrito = [];
-                $this->productosSugeridos = [];
-            } else {
-                $this->errorEscalaDuplicado = null;
-                $this->productosParaCarrito = $productosResueltos;
-                $this->productosSugeridos = $productosSugeridos;
-            }
+            $this->errorEscalaDuplicado = $productosConCambioEscala ?: null;
+            $this->productosParaCarrito = $productosResueltos;
+            $this->productosSugeridos = $productosSugeridos;
 
             // Cargar datos de cabecera de la oferta original para pre-llenar el formulario
             $cotizOrig = DB::table('cotizacion as c')

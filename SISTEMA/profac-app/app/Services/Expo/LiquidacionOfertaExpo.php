@@ -48,6 +48,7 @@ class LiquidacionOfertaExpo
 
         $detallesFacturados = DB::table('venta_has_producto as vhp')
             ->join('producto as p', 'p.id', '=', 'vhp.producto_id')
+            ->leftJoin('precios_producto_carga as ppc', 'ppc.id', '=', 'vhp.precios_producto_carga_id')
             ->leftJoin('cotizacion_has_producto as chp', 'chp.id', '=', 'vhp.cotizacion_has_producto_id')
             ->whereIn('vhp.factura_id', $facturaIds)
             ->where(function ($query) use ($cotizacionId) {
@@ -61,6 +62,7 @@ class LiquidacionOfertaExpo
                 'vhp.precio_unidad as precio_facturado',
                 'vhp.sub_total_s as subtotal_neto_facturado',
                 'p.marca_id as marca_producto_id',
+                'ppc.categoria_precios_id as escala_producto_id',
                 'chp.cantidad as cantidad_ofertada',
                 'chp.precio_unidad as precio_ofertado',
                 'chp.monto_descProducto as descuento_linea_oferta',
@@ -73,6 +75,7 @@ class LiquidacionOfertaExpo
 
         $totalFacturado = round((float) $subtotalesBrutos->sum(), 2);
         $reglas = $this->reglas($expoCotizacion);
+        $usaEscalas = ($reglas['tipo'] ?? null) === 'escala' || (int) ($reglas['version'] ?? 0) >= 5;
         $lineasSnapshot = collect($reglas['lineas'])->keyBy('linea_id');
         $lineasCalculo = [];
         $descuentoOtorgado = 0.0;
@@ -80,9 +83,14 @@ class LiquidacionOfertaExpo
         $descuentosOtorgadosMarca = [];
         foreach ($detallesFacturados as $detalle) {
             $lineaSnapshot = $lineasSnapshot->get((int) $detalle->linea_id, []);
-            $marcaId = (int) ($lineaSnapshot['marca_id'] ?? $detalle->marca_producto_id ?? 0);
+            $marcaId = (int) ($usaEscalas
+                ? ($lineaSnapshot['escala_id'] ?? $detalle->escala_producto_id ?? 0)
+                : ($lineaSnapshot['marca_id'] ?? $detalle->marca_producto_id ?? 0));
             $subtotalBruto = round((float) $detalle->precio_facturado * (float) $detalle->cantidad_s, 4);
-            $lineasCalculo[] = ['marca_id' => $marcaId, 'subtotal_bruto' => $subtotalBruto];
+            $lineasCalculo[] = [
+                $usaEscalas ? 'escala_id' : 'marca_id' => $marcaId,
+                'subtotal_bruto' => $subtotalBruto,
+            ];
             $descuentoLinea = max($subtotalBruto - (float) $detalle->subtotal_neto_facturado, 0);
             $descuentoOtorgado += $descuentoLinea;
             $facturaId = (int) $detalle->factura_id;
@@ -97,21 +105,28 @@ class LiquidacionOfertaExpo
         $aumento = round(max($descuentoOtorgado - $descuentoGanado, 0), 2);
 
         $descuentosMarca = [];
-        foreach ($calculo['porcentajes_marca'] as $marcaId => $porcentajeMarca) {
-            $reglaMarca = collect($reglas['marcas'])->first(fn($regla) => (int) $regla['marca_id'] === (int) $marcaId);
+        $porcentajesGrupo = $usaEscalas ? ($calculo['porcentajes_escala'] ?? []) : $calculo['porcentajes_marca'];
+        $reglasGrupo = $usaEscalas ? ($reglas['escalas'] ?? []) : ($reglas['marcas'] ?? []);
+        foreach ($porcentajesGrupo as $marcaId => $porcentajeMarca) {
+            $reglaMarca = collect($reglasGrupo)->first(fn($regla) => (int) ($regla[$usaEscalas ? 'escala_id' : 'marca_id'] ?? 0) === (int) $marcaId);
+            $nombreGrupo = $reglaMarca[$usaEscalas ? 'escala' : 'marca'] ?? (($usaEscalas ? 'Escala ' : 'Marca ') . $marcaId);
             $descuentosMarca[] = [
                 'marca_id' => (int) $marcaId,
-                'marca' => $reglaMarca['marca'] ?? ('Marca ' . $marcaId),
+                'marca' => $nombreGrupo,
+                'escala_id' => $usaEscalas ? (int) $marcaId : null,
+                'escala' => $usaEscalas ? $nombreGrupo : null,
                 'porcentaje_descuento' => (float) $porcentajeMarca,
             ];
         }
-        $detalleMarcas = collect($calculo['detalle_marcas'])->map(function (array $detalle) use ($reglas, $descuentosOtorgadosMarca) {
+        $detalleMarcas = collect($calculo['detalle_marcas'])->map(function (array $detalle) use ($reglas, $reglasGrupo, $descuentosOtorgadosMarca, $usaEscalas) {
             $marcaId = (int) $detalle['marca_id'];
-            $reglaMarca = collect($reglas['marcas'])->first(fn($regla) => (int) $regla['marca_id'] === $marcaId);
-            $lineaMarca = collect($reglas['lineas'])->first(fn($linea) => (int) ($linea['marca_id'] ?? 0) === $marcaId);
+            $claveGrupo = $usaEscalas ? 'escala_id' : 'marca_id';
+            $nombreGrupo = $usaEscalas ? 'escala' : 'marca';
+            $reglaMarca = collect($reglasGrupo)->first(fn($regla) => (int) ($regla[$claveGrupo] ?? 0) === $marcaId);
+            $lineaMarca = collect($reglas['lineas'])->first(fn($linea) => (int) ($linea[$claveGrupo] ?? 0) === $marcaId);
 
             return array_merge($detalle, [
-                'marca' => $reglaMarca['marca'] ?? $lineaMarca['marca'] ?? ('Marca ' . $marcaId),
+                'marca' => $reglaMarca[$nombreGrupo] ?? $lineaMarca[$nombreGrupo] ?? (($usaEscalas ? 'Escala ' : 'Marca ') . $marcaId),
                 'descuento_otorgado' => round((float) ($descuentosOtorgadosMarca[$marcaId] ?? 0), 2),
             ]);
         })->values()->all();
@@ -124,6 +139,7 @@ class LiquidacionOfertaExpo
             'cotizacion_id' => $cotizacionId,
             'flujo_id' => $flujoId,
             'estado' => $expoCotizacion->estado,
+            'tipo_descuento' => $usaEscalas ? 'escala' : 'marca',
             'total_oferta' => round($totalOferta, 2),
             'reglas' => $reglas,
             'factura_ids' => $facturaIds,
@@ -294,8 +310,10 @@ class LiquidacionOfertaExpo
             if (array_key_exists('generales', $snapshot)) {
                 return [
                     'version' => (int) ($snapshot['version'] ?? 2),
+                    'tipo' => $snapshot['tipo'] ?? 'marca',
                     'generales' => $snapshot['generales'] ?? [],
                     'marcas' => $snapshot['marcas'] ?? [],
+                    'escalas' => $snapshot['escalas'] ?? [],
                     'lineas' => $snapshot['lineas'] ?? [],
                 ];
             }

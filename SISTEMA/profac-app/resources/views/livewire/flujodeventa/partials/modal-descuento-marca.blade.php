@@ -3,16 +3,16 @@
         <div class="expo-detail-modal" style="max-width:760px;" role="dialog" aria-modal="true" aria-labelledby="expo-descuento-marca-titulo">
             <div class="expo-detail-head">
                 <div>
-                    <h4 id="expo-descuento-marca-titulo"><i class="fa fa-tags mr-2"></i>{{ $marcaDescuentoEditandoId ? 'Editar descuento por marca' : 'Descuento por marca' }}</h4>
-                    <small>{{ $marcaDescuentoEditandoId ? 'Actualice los escalones por subtotal neto de la oferta.' : 'Seleccione una marca y configure sus escalones por subtotal neto de la oferta.' }}</small>
+                    <h4 id="expo-descuento-marca-titulo"><i class="fa fa-list-alt mr-2"></i>{{ $marcaDescuentoEditandoId ? 'Editar descuento por escala' : 'Descuento por escala de precios' }}</h4>
+                    <small>{{ $marcaDescuentoEditandoId ? 'Actualice los escalones por subtotal neto de la oferta.' : 'Seleccione una escala de precios y configure sus escalones por subtotal neto de la oferta.' }}</small>
                 </div>
                 <button type="button" wire:click="cerrarModalDescuentoMarca" class="expo-detail-close" title="Cerrar"><i class="fa fa-times"></i></button>
             </div>
             <div class="expo-detail-body">
                 <div class="form-group">
-                    <label class="expo-label">Marca <span class="text-danger">*</span></label>
+                    <label class="expo-label">Escala de precios <span class="text-danger">*</span></label>
                     <select wire:model.defer="marcaDescuentoSeleccionada" class="form-control" @if($marcaDescuentoEditandoId) disabled @endif>
-                        <option value="">Seleccione una marca</option>
+                        <option value="">Seleccione una escala</option>
                         @foreach($marcas as $marca)
                             <option value="{{ $marca->id }}">{{ $marca->nombre }}</option>
                         @endforeach
@@ -57,7 +57,7 @@
                         </tbody>
                     </table>
                 </div>
-                <small class="text-muted d-block mt-2"><i class="fa fa-info-circle mr-1"></i>El subtotal neto de la oferta, después de descuentos, determina el escalón. El porcentaje se aplica a los productos de esta marca; la asistencia se valida únicamente cuando está marcada.</small>
+                <small class="text-muted d-block mt-2"><i class="fa fa-info-circle mr-1"></i>El subtotal neto de la oferta, después de descuentos, determina el escalón. El porcentaje se aplica a los productos cotizados con esta escala; la marca real del producto no interviene.</small>
             </div>
             <div class="p-3 border-top d-flex justify-content-end" style="gap:8px;">
                 <button type="button" wire:click="cerrarModalDescuentoMarca" class="btn btn-default">Cancelar</button>

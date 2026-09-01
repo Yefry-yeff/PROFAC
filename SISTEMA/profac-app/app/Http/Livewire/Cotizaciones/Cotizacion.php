@@ -471,6 +471,63 @@ class Cotizacion extends Component
                 ], 422);
             }
 
+            $ajustesEscala = [];
+            $productosSinEscala = [];
+            foreach ($arrayInputs as $indice) {
+                $precioCargaId = (int) $request->input('precios_producto_carga_id' . $indice, 0);
+                $productoId = (int) $request->input('idProducto' . $indice, 0);
+                $precioAnterior = (float) $request->input('precio' . $indice, 0);
+                $referencia = DB::table('precios_producto_carga')
+                    ->where('id', $precioCargaId)
+                    ->first(['producto_id', 'categoria_precios_id']);
+                $precioActivo = $referencia
+                    ? DB::table('precios_producto_carga as ppc')
+                        ->leftJoin('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')
+                        ->where('ppc.producto_id', $productoId ?: (int) $referencia->producto_id)
+                        ->where('ppc.categoria_precios_id', (int) $referencia->categoria_precios_id)
+                        ->where('ppc.estado_id', 1)
+                        ->orderByDesc('ppc.id')
+                        ->first(['ppc.id', 'ppc.precio_a', 'cp.nombre as categoria'])
+                    : null;
+
+                if (!$precioActivo) {
+                    $productosSinEscala[] = (string) $request->input('nombre' . $indice, 'Producto ID ' . $productoId);
+                    continue;
+                }
+
+                $precioNuevo = (float) $precioActivo->precio_a;
+                if ((int) $precioActivo->id !== $precioCargaId || abs($precioAnterior - $precioNuevo) > 0.005) {
+                    $ajustesEscala[] = [
+                        'indice' => (int) $indice,
+                        'producto' => (string) $request->input('nombre' . $indice, 'Producto ID ' . $productoId),
+                        'precio_anterior' => $precioAnterior,
+                        'precio_nuevo' => $precioNuevo,
+                        'precio_carga_id' => (int) $precioActivo->id,
+                        'categoria_anterior' => (string) (DB::table('categoria_precios')
+                            ->where('id', (int) $referencia->categoria_precios_id)
+                            ->value('nombre') ?? 'Escala anterior'),
+                        'categoria' => $precioActivo->categoria ?? 'Escala vigente',
+                        'accion' => 'cargar',
+                    ];
+                }
+            }
+
+            if (!empty($productosSinEscala)) {
+                return response()->json([
+                    'icon' => 'error',
+                    'title' => 'Escala no disponible',
+                    'text' => 'No se puede guardar porque estos productos no tienen una escala vigente: '
+                        . implode(', ', $productosSinEscala),
+                ], 422);
+            }
+
+            if (!empty($ajustesEscala)) {
+                return response()->json([
+                    'requiere_ajuste_escala' => true,
+                    'ajustes_escala' => $ajustesEscala,
+                ]);
+            }
+
             $ventaBruta = 0.0;
             foreach ($arrayInputs as $indice) {
                 $precioCargaId = (int) $request->input('precios_producto_carga_id' . $indice, 0);
@@ -520,9 +577,19 @@ class Cotizacion extends Component
             $lineasDescuento = [];
             foreach ($arrayInputs as $indice) {
                 $productoId = (int) $request->input('idProducto' . $indice, 0);
-                $marcaId = (int) (DB::table('producto')->where('id', $productoId)->value('marca_id') ?? 0);
+                $precioCargaId = (int) $request->input('precios_producto_carga_id' . $indice, 0);
+                $escala = DB::table('precios_producto_carga as ppc')
+                    ->leftJoin('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')
+                    ->where('ppc.id', $precioCargaId)
+                    ->first(['ppc.categoria_precios_id', 'cp.nombre as escala']);
                 $lineasDescuento[$indice] = [
-                    'marca_id' => $marcaId,
+                    'producto_id' => $productoId,
+                    'producto' => (string) $request->input('nombre' . $indice, 'Producto ID ' . $productoId),
+                    'escala_id' => (int) ($escala->categoria_precios_id ?? 0),
+                    'escala' => (string) ($escala->escala ?? 'SIN ESCALA'),
+                    'precio_unitario' => (float) $request->input('precio' . $indice, 0),
+                    'cantidad' => (float) $request->input('cantidad' . $indice, 0),
+                    'unidad' => (float) $request->input('unidad' . $indice, 0),
                     'subtotal_bruto' => (float) $request->input('precio' . $indice, 0)
                         * (float) $request->input('cantidad' . $indice, 0)
                         * (float) $request->input('unidad' . $indice, 0),
@@ -530,21 +597,59 @@ class Cotizacion extends Component
             }
             $calculoServidor = app(\App\Services\Expo\CalculadorDescuentosExpo::class)->calcular(
                 array_values($lineasDescuento),
-                ['version' => 4, 'generales' => $expoConfig['descuentos'], 'marcas' => $expoConfig['descuentos_marca']]
+                ['version' => 5, 'tipo' => 'escala', 'generales' => $expoConfig['descuentos'], 'escalas' => $expoConfig['descuentos_escala']]
             );
-            $porcentajesMarca = $calculoServidor['porcentajes_marca'];
+            $porcentajesEscala = $calculoServidor['porcentajes_escala'];
+            $detallesNoPermitidos = [];
             foreach ($lineasDescuento as $indice => $linea) {
-                $descuentoMarca = round($linea['subtotal_bruto'] * ($porcentajesMarca[$linea['marca_id']] ?? 0) / 100, 2);
-                $descuentoGeneral = round(($linea['subtotal_bruto'] - $descuentoMarca) * $calculoServidor['porcentaje_general'] / 100, 2);
-                $maximoPermitido = $descuentoMarca + $descuentoGeneral;
+                $porcentajeEscala = (float) ($porcentajesEscala[$linea['escala_id']] ?? 0);
+                $porcentajeGeneral = (float) $calculoServidor['porcentaje_general'];
+                $descuentoEscala = round($linea['subtotal_bruto'] * $porcentajeEscala / 100, 2);
+                $descuentoGeneral = round(($linea['subtotal_bruto'] - $descuentoEscala) * $porcentajeGeneral / 100, 2);
+                $maximoPermitido = $descuentoEscala + $descuentoGeneral;
                 $descuentoEnviado = (float) $request->input('acumuladoDescuento' . $indice, 0);
                 if ($descuentoEnviado > $maximoPermitido + 0.01) {
-                    return response()->json([
-                        'icon' => 'error',
-                        'title' => 'Descuento Expo no permitido',
-                        'text' => 'La oferta contiene un descuento que el cliente no cumple. Verifique monto, marca y asistencia al evento.',
-                    ], 422);
+                    $detallesNoPermitidos[] = [
+                        'indice' => (int) $indice,
+                        'producto_id' => $linea['producto_id'],
+                        'producto' => $linea['producto'],
+                        'escala_id' => $linea['escala_id'],
+                        'escala' => $linea['escala'],
+                        'precio_unitario' => round($linea['precio_unitario'], 2),
+                        'cantidad' => $linea['cantidad'],
+                        'unidad' => $linea['unidad'],
+                        'subtotal_bruto' => round($linea['subtotal_bruto'], 2),
+                        'porcentaje_escala_permitido' => $porcentajeEscala,
+                        'porcentaje_general_permitido' => $porcentajeGeneral,
+                        'descuento_enviado' => round($descuentoEnviado, 2),
+                        'descuento_maximo_permitido' => round($maximoPermitido, 2),
+                        'exceso' => round($descuentoEnviado - $maximoPermitido, 2),
+                        'motivo' => 'El descuento enviado supera el permitido por monto, escala de precios y asistencia.',
+                    ];
                 }
+            }
+
+            if (!empty($detallesNoPermitidos)) {
+                \Log::warning('Oferta Expo rechazada por descuentos no permitidos', [
+                    'usuario_id' => Auth::id(),
+                    'expo_id' => $expoId,
+                    'cliente_id' => (int) $request->seleccionarCliente,
+                    'subtotal_bruto' => $calculoServidor['total_bruto'],
+                    'subtotal_neto_permitido' => $calculoServidor['subtotal_neto'],
+                    'productos' => $detallesNoPermitidos,
+                ]);
+
+                return response()->json([
+                    'icon' => 'error',
+                    'title' => 'Descuento Expo no permitido',
+                    'text' => count($detallesNoPermitidos) . ' producto(s) tienen un descuento mayor al permitido.',
+                    'detalles_descuento_expo' => $detallesNoPermitidos,
+                    'resumen_descuento_expo' => [
+                        'subtotal_bruto' => $calculoServidor['total_bruto'],
+                        'subtotal_neto_permitido' => $calculoServidor['subtotal_neto'],
+                        'porcentaje_general_permitido' => $calculoServidor['porcentaje_general'],
+                    ],
+                ], 422);
             }
         }
 
@@ -593,9 +698,10 @@ class Cotizacion extends Component
                     'created_by' => Auth::id(),
                     'estado' => 'PENDIENTE_FACTURACION',
                     'reglas_descuento_snapshot' => json_encode([
-                        'version' => 4,
+                        'version' => 5,
+                        'tipo' => 'escala',
                         'generales' => $expoConfig['descuentos'],
-                        'marcas' => $expoConfig['descuentos_marca'],
+                        'escalas' => $expoConfig['descuentos_escala'],
                     ]),
                     'created_at' => now(),
                 ]);
@@ -867,23 +973,24 @@ class Cotizacion extends Component
 
         if ($expoConfig) {
             $lineasSnapshot = DB::table('cotizacion_has_producto as chp')
-                ->join('producto as p', 'p.id', '=', 'chp.producto_id')
-                ->join('marca as m', 'm.id', '=', 'p.marca_id')
+                ->join('precios_producto_carga as ppc', 'ppc.id', '=', 'chp.precios_producto_carga_id')
+                ->leftJoin('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')
                 ->where('chp.cotizacion_id', $cotizacion->id)
                 ->orderBy('chp.indice')
-                ->get(['chp.id as linea_id', 'chp.producto_id', 'p.marca_id', 'm.nombre as marca'])
+                ->get(['chp.id as linea_id', 'chp.producto_id', 'ppc.categoria_precios_id', 'cp.nombre as escala'])
                 ->map(fn ($linea) => [
                     'linea_id' => (int) $linea->linea_id,
                     'producto_id' => (int) $linea->producto_id,
-                    'marca_id' => (int) $linea->marca_id,
-                    'marca' => $linea->marca,
+                    'escala_id' => (int) $linea->categoria_precios_id,
+                    'escala' => $linea->escala,
                 ])->all();
 
             DB::table('expo_cotizacion')->where('cotizacion_id', $cotizacion->id)->update([
                 'reglas_descuento_snapshot' => json_encode([
-                    'version' => 4,
+                    'version' => 5,
+                    'tipo' => 'escala',
                     'generales' => $expoConfig['descuentos'],
-                    'marcas' => $expoConfig['descuentos_marca'],
+                    'escalas' => $expoConfig['descuentos_escala'],
                     'lineas' => $lineasSnapshot,
                 ]),
             ]);

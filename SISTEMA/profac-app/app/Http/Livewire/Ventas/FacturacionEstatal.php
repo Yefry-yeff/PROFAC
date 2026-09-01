@@ -705,7 +705,8 @@ class FacturacionEstatal extends Component
                     ppc.precio_b AS precio2,
                     ppc.precio_c AS precio3,
                     ppc.precio_d AS precio4,
-                    ppc.id AS precios_producto_carga_id
+                    ppc.id AS precios_producto_carga_id,
+                    ppc.categoria_precios_id
                 FROM producto p
                 LEFT JOIN marca m ON m.id = p.marca_id
                 JOIN precios_producto_carga ppc
@@ -737,7 +738,8 @@ class FacturacionEstatal extends Component
                         ppc.precio_b AS precio2,
                         ppc.precio_c AS precio3,
                         ppc.precio_d AS precio4,
-                        ppc.id AS precios_producto_carga_id
+                        ppc.id AS precios_producto_carga_id,
+                        ppc.categoria_precios_id
                     FROM producto p
                     LEFT JOIN marca m ON m.id = p.marca_id
                     JOIN precios_producto_carga ppc ON ppc.producto_id = p.id AND ppc.id = :ppc_id
