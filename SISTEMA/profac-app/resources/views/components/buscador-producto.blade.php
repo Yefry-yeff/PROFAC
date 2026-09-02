@@ -361,8 +361,7 @@
             categoria_id: catId,
             marca_id:     marcaId,
             con_stock:    conStock ? 1 : 0,
-            page:         page,
-            expo_id:      EXPO_ID || undefined
+            page:         page
         });
         if (BVAR) { var bvId2 = window[BVAR]; if (bvId2) srchParams.bodega_id = bvId2; }
         axios.get(URL_BUSCAR, { params: srchParams }).then(function (r) {

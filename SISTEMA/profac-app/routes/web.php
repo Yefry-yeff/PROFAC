@@ -1673,5 +1673,27 @@ Route::post('/reporte/ventas-cobros/actualizar-f01/{facturaId}',                
     // Ruta auto-generada para: Expo\ListaDeAsistencia
     Route::get('/expo/lista_de_asistencia', \App\Http\Livewire\Expo\ListaDeAsistencia::class);
 
+
+    // Ruta auto-generada para: Reportes\ReporteExpo
+    Route::get('/reportes/reporte_expo', \App\Http\Livewire\Reportes\ReporteExpo::class);
+
+    // Reporte BI de Expo - endpoints AJAX (JSON) del dashboard dinámico
+    Route::get('/reporte/expo/kpis',              [\App\Http\Livewire\Reportes\ReporteExpo::class, 'kpis']);
+    Route::get('/reporte/expo/estado-ofertas',     [\App\Http\Livewire\Reportes\ReporteExpo::class, 'estadoOfertas']);
+    Route::get('/reporte/expo/ventas-por-marca',   [\App\Http\Livewire\Reportes\ReporteExpo::class, 'ventasPorMarca']);
+    Route::get('/reporte/expo/ventas-por-asesor',  [\App\Http\Livewire\Reportes\ReporteExpo::class, 'ventasPorAsesor']);
+    Route::get('/reporte/expo/ventas-por-teleasesor', [\App\Http\Livewire\Reportes\ReporteExpo::class, 'ventasPorTeleasesor']);
+    Route::get('/reporte/expo/evolucion-diaria',   [\App\Http\Livewire\Reportes\ReporteExpo::class, 'evolucionDiaria']);
+    Route::get('/reporte/expo/tabla-productos',    [\App\Http\Livewire\Reportes\ReporteExpo::class, 'tablaProductos']);
+    Route::get('/reporte/expo/tabla-ofertas',      [\App\Http\Livewire\Reportes\ReporteExpo::class, 'tablaOfertas']);
+    Route::get('/reporte/expo/exportar-productos', [\App\Http\Livewire\Reportes\ReporteExpo::class, 'exportarProductos']);
+    Route::get('/reporte/expo/exportar-ofertas',   [\App\Http\Livewire\Reportes\ReporteExpo::class, 'exportarOfertas']);
+    Route::get('/reporte/expo/catalogo-filtros',   [\App\Http\Livewire\Reportes\ReporteExpo::class, 'catalogoFiltros']);
+    Route::get('/reporte/expo/buscar-productos',   [\App\Http\Livewire\Reportes\ReporteExpo::class, 'buscarProductos']);
+    Route::get('/reporte/expo/detalle-oferta',     [\App\Http\Livewire\Reportes\ReporteExpo::class, 'detalleOferta']);
+    Route::get('/reporte/expo/detalle-producto',   [\App\Http\Livewire\Reportes\ReporteExpo::class, 'detalleProducto']);
+    Route::get('/reporte/expo/exportar-oferta',    [\App\Http\Livewire\Reportes\ReporteExpo::class, 'exportarOferta']);
+    Route::get('/reporte/expo/imprimir-oferta',    [\App\Http\Livewire\Reportes\ReporteExpo::class, 'imprimirOferta']);
+
     // [auto-routes-anchor]
 });
