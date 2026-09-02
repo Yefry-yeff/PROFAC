@@ -339,6 +339,33 @@
 
         /* Spinner overlay */
         #modalSpinnerLoading .modal-content { background: transparent; border: none; box-shadow: none; }
+        #modal_producto_carga_masiva { z-index: 4010 !important; }
+        body .swal2-container { z-index: 4020 !important; }
+        #modal_producto_carga_masiva .modal-dialog { max-width: 98vw; }
+        #modal_producto_carga_masiva .modal-body { max-height: 78vh; overflow-y: auto; background:#f8fafc; }
+        .pcm-toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; padding:12px; border:1px solid #e2e8f0; background:#fff; border-radius:6px; }
+        .pcm-file { min-width:280px; flex:1; }
+        .pcm-counters { display:grid; grid-template-columns:repeat(5,minmax(130px,1fr)); gap:8px; margin:12px 0; }
+        .pcm-counter { padding:9px 11px; border:1px solid #dfe5ec; background:#fff; border-radius:6px; }
+        .pcm-counter small { display:block; color:#64748b; font-size:.68rem; font-weight:700; text-transform:uppercase; }
+        .pcm-counter strong { display:block; margin-top:2px; font-size:1.05rem; }
+        .pcm-preview-wrap { overflow:auto; max-height:52vh; border:1px solid #dfe5ec; background:#fff; }
+        #tabla_carga_masiva { min-width:2850px; margin:0; font-size:.72rem; }
+        #tabla_carga_masiva thead th { position:sticky; top:0; z-index:2; background:#edf2f7; white-space:nowrap; }
+        #tabla_carga_masiva td { vertical-align:top; padding:5px; }
+        #tabla_carga_masiva input, #tabla_carga_masiva select { min-width:115px; height:30px; padding:3px 5px; font-size:.72rem; }
+        #tabla_carga_masiva .pcm-wide { min-width:210px; }
+        #tabla_carga_masiva .pcm-description { min-width:280px; }
+        #tabla_carga_masiva tr.pcm-error { background:#fff1f0; }
+        #tabla_carga_masiva tr.pcm-warning { background:#fffbeb; }
+        #tabla_carga_masiva tr.pcm-created { background:#ecfdf3; }
+        .pcm-status { min-width:240px; max-width:300px; }
+        .pcm-status ul { padding-left:16px; margin:4px 0 0; }
+        .pcm-badge { display:inline-block; padding:3px 7px; border-radius:4px; font-weight:700; }
+        .pcm-badge-listo, .pcm-badge-creado { color:#08783e; background:#dcfce7; }
+        .pcm-badge-error { color:#b42318; background:#fee2e2; }
+        .pcm-badge-advertencia { color:#92400e; background:#fef3c7; }
+        @media (max-width: 767px) { .pcm-counters { grid-template-columns:repeat(2,minmax(120px,1fr)); } }
         .spinner-overlay-box {
             background: rgba(255,255,255,.97);
             border-radius: 16px;
@@ -394,6 +421,9 @@
         @if (Auth::user()->rol_id == '1')
         <button class="btn-register" data-toggle="modal" data-target="#modal_producto_crear">
             <i class="fa fa-plus mr-1"></i> Nuevo Producto
+        </button>
+        <button class="btn-excel" data-toggle="modal" data-target="#modal_producto_carga_masiva">
+            <i class="fa fa-upload mr-1"></i> Carga Masiva
         </button>
         @endif
         @if (Auth::user()->rol_id == '1' || Auth::user()->rol_id == '7')
@@ -930,6 +960,64 @@
         </div>
     </div>
 
+    @if (Auth::user()->rol_id == '1')
+    {{-- ══ MODAL: CARGA MASIVA DE PRODUCTOS ═══════════════════════ --}}
+    <div class="modal fade" id="modal_producto_carga_masiva" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header" style="background:#1f2937; color:#fff;">
+                    <h5 class="modal-title"><i class="fa fa-upload mr-2"></i>Carga Masiva de Productos</h5>
+                    <button type="button" class="close" data-dismiss="modal" style="color:#fff; opacity:.9;"><span>&times;</span></button>
+                </div>
+                <div class="modal-body">
+                    <div class="pcm-toolbar">
+                        <a href="/producto/carga-masiva/plantilla" class="btn btn-outline-success">
+                            <i class="fa fa-download mr-1"></i> Descargar Plantilla
+                        </a>
+                        <input type="file" id="pcm_archivo" class="form-control pcm-file" accept=".xlsx,.xls">
+                        <button type="button" id="pcm_procesar" class="btn btn-primary">
+                            <i class="fa fa-search mr-1"></i> Procesar Archivo
+                        </button>
+                        <span id="pcm_mensaje" class="text-muted small"></span>
+                    </div>
+
+                    <div id="pcm_previsualizacion" style="display:none;">
+                        <div class="pcm-counters">
+                            <div class="pcm-counter"><small>Registros cargados</small><strong id="pcm_total">0</strong></div>
+                            <div class="pcm-counter"><small>Listos para crear</small><strong id="pcm_listos" class="text-success">0</strong></div>
+                            <div class="pcm-counter"><small>Con errores</small><strong id="pcm_errores" class="text-danger">0</strong></div>
+                            <div class="pcm-counter"><small>Con advertencias</small><strong id="pcm_advertencias" class="text-warning">0</strong></div>
+                            <div class="pcm-counter"><small>Seleccionados</small><strong id="pcm_seleccionados">0</strong></div>
+                        </div>
+                        <div class="d-flex align-items-center flex-wrap mb-2" style="gap:8px;">
+                            <button type="button" class="btn btn-sm btn-outline-success" id="pcm_seleccionar_validos">Seleccionar todos los válidos</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="pcm_deseleccionar">Deseleccionar todos</button>
+                            <span class="ml-auto small text-muted">Edite cualquier fila; la validación se actualizará automáticamente.</span>
+                        </div>
+                        <div class="pcm-preview-wrap">
+                            <table class="table table-bordered table-sm" id="tabla_carga_masiva">
+                                <thead><tr>
+                                    <th>Seleccionar</th><th>Fila</th><th>Código barras</th><th>Código estatal</th><th>Nombre</th><th>Descripción</th><th>ISV</th>
+                                    <th>Marca</th><th>Categoría</th><th>Subcategoría</th><th>Unidad compra</th><th>Cant. compra</th>
+                                    <th>Unidad venta</th><th>Cant. venta</th><th>Precio base</th><th>Costo promedio</th><th>Último costo</th>
+                                    <th>Recup. meses</th><th>Origen</th><th>Estado / observación</th>
+                                </tr></thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Cerrar</button>
+                    <button type="button" class="btn btn-success" id="pcm_guardar" disabled>
+                        <i class="fa fa-save mr-1"></i> Guardar Productos
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
     {{-- ══ MODAL: SPINNER ══════════════════════════════════════════ --}}
     <div class="modal" id="modalSpinnerLoading" data-backdrop="static" tabindex="-1" role="dialog" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered" role="document" style="max-width:320px;">
@@ -983,6 +1071,9 @@
         });
     </script>
     <script src="{{ asset('js/js_proyecto/inventario/producto.js') }}"></script>
+    @if (Auth::user()->rol_id == '1')
+    <script src="{{ asset('js/js_proyecto/inventario/producto-carga-masiva.js') }}"></script>
+    @endif
     @endpush
 </div>
 

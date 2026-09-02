@@ -672,6 +672,10 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
 
     Route::get('/producto/registro', Producto::class);
     Route::post('/producto/registrar', [Producto::class, 'crearProducto']);
+    Route::get('/producto/carga-masiva/plantilla', [Producto::class, 'descargarPlantillaCargaMasiva']);
+    Route::post('/producto/carga-masiva/previsualizar', [Producto::class, 'previsualizarCargaMasiva']);
+    Route::post('/producto/carga-masiva/revalidar', [Producto::class, 'revalidarCargaMasiva']);
+    Route::post('/producto/carga-masiva/guardar', [Producto::class, 'guardarCargaMasiva']);
     Route::post('/producto/editar', [Producto::class, 'editarProducto']);
     Route::post('/producto/eliminar', [Producto::class, 'eliminarImagen']);
     Route::get('/producto/marca/listar', [Marca::class, 'listarMarcas']);
