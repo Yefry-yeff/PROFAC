@@ -322,13 +322,12 @@ class ReporteExpoDetalleService
     private function normalizarLineaOferta(object $linea): array
     {
         $cantidad = (float) $linea->cantidad;
-        $precioAntesDescuento = (float) ($linea->precioSeleccionado ?: $linea->precio_unidad);
-        $subtotalFinal = (float) $linea->sub_total;
+        $precioAntesDescuento = (float) $linea->precio_unidad;
+        $precioFinal = $cantidad > 0 ? round((float) $linea->sub_total / $cantidad, 2) : $precioAntesDescuento;
+        $subtotalFinal = round($precioFinal * $cantidad, 2);
         $subtotalOriginal = $precioAntesDescuento * $cantidad;
-        $descuento = (float) $linea->monto_descProducto;
-        if ($descuento <= 0) {
-            $descuento = max($subtotalOriginal - $subtotalFinal, 0);
-        }
+        $descuento = max($subtotalOriginal - $subtotalFinal, 0);
+        $isv = round($subtotalFinal * (float) $linea->isv_producto / 100, 2);
         $costoUnitario = (float) $linea->precio_base_venta;
         $costoTotal = $costoUnitario * $cantidad;
         $utilidad = $subtotalFinal - $costoTotal;
@@ -347,12 +346,12 @@ class ReporteExpoDetalleService
             'precio_antes_descuento' => round($precioAntesDescuento, 4),
             'descuento' => round($descuento, 2),
             'descuento_pct' => $subtotalOriginal > 0 ? round(($descuento / $subtotalOriginal) * 100, 2) : 0,
-            'precio_final' => $cantidad > 0 ? round($subtotalFinal / $cantidad, 4) : 0,
+            'precio_final' => $precioFinal,
             'subtotal_original' => round($subtotalOriginal, 2),
             'subtotal_final' => round($subtotalFinal, 2),
             'isv_pct' => round((float) $linea->isv_producto, 2),
-            'isv' => round((float) $linea->isv, 2),
-            'total' => round((float) $linea->total, 2),
+            'isv' => $isv,
+            'total' => round($subtotalFinal + $isv, 2),
             'costo_unitario' => round($costoUnitario, 4),
             'costo_total' => round($costoTotal, 2),
             'utilidad' => round($utilidad, 2),

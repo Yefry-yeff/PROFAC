@@ -155,6 +155,10 @@ class ReporteExpo extends Component
     {
         return 'COALESCE(ppc_vhp.costoproducto, ppc.costoproducto, p.costo_promedio, 0)';
     }
+    private function netoOfertaExpr(string $alias = 'chp'): string
+    {
+        return "ROUND(ROUND(CASE WHEN {$alias}.cantidad > 0 THEN {$alias}.sub_total / {$alias}.cantidad ELSE {$alias}.precio_unidad END, 2) * {$alias}.cantidad, 2)";
+    }
 
     private function idsDesdeRequest(Request $r, string $plural, string $singular): array
     {
@@ -248,14 +252,14 @@ class ReporteExpo extends Component
     {
         $expoId = $this->expoIdDesdeRequest($r);
         $extra = $this->filtrosExtra($r);
+        $netoOfertaExpr = $this->netoOfertaExpr();
 
         $rowOfertado = DB::selectOne("
             SELECT
                 COUNT(DISTINCT c.id) AS num_ofertas,
                 COUNT(DISTINCT COALESCE(c.cliente_id, c.nombre_cliente)) AS clientes_unicos,
                 COALESCE(SUM(chp.precio_unidad * chp.cantidad), 0) AS total_ofertado,
-                COALESCE(SUM(chp.sub_total), 0) AS total_neto,
-                COALESCE(SUM(GREATEST((chp.precio_unidad * chp.cantidad) - chp.sub_total, 0)), 0) AS total_descuento,
+                COALESCE(SUM($netoOfertaExpr), 0) AS total_neto,
                 COALESCE(SUM(COALESCE(ppc.precio_base_venta, 0) * chp.cantidad), 0) AS total_costo
             {$this->joinsOfertado()}
             {$this->joinExpoCotizacion($expoId)}
@@ -289,7 +293,7 @@ class ReporteExpo extends Component
             'clientes_unicos' => (int) $rowOfertado->clientes_unicos,
             'num_facturas' => (int) $rowFacturado->num_facturas,
             'total_ofertado' => round($totalOfertado, 2),
-            'total_descuento' => round((float) $rowOfertado->total_descuento, 2),
+            'total_descuento' => round($totalOfertado - $totalNeto, 2),
             'total_facturado' => round($totalFacturado, 2),
             'total_costo' => round($totalCosto, 2),
             'total_utilidad' => round($utilidad, 2),
@@ -458,9 +462,10 @@ class ReporteExpo extends Component
     {
         $expoId = $this->expoIdDesdeRequest($r);
         $extra = $this->filtrosExtra($r);
+        $netoOfertaExpr = $this->netoOfertaExpr();
 
         $ofertado = DB::select("
-            SELECT DATE(c.fecha_emision) AS fecha, SUM(chp.precio_unidad * chp.cantidad) AS ofertado
+            SELECT DATE(c.fecha_emision) AS fecha, SUM($netoOfertaExpr) AS ofertado
             {$this->joinsOfertado()}
             {$this->joinExpoCotizacion($expoId)}
             {$this->whereVigentes($expoId)}
@@ -505,6 +510,7 @@ class ReporteExpo extends Component
     {
         $expoId = $this->expoIdDesdeRequest($r);
         $extra = $this->filtrosExtra($r);
+        $netoOfertaExpr = $this->netoOfertaExpr();
 
         $ofertado = DB::select("
              SELECT p.id AS producto_id, p.codigo_barra AS codigo, p.nombre AS producto,
@@ -512,8 +518,8 @@ class ReporteExpo extends Component
                  COALESCE(cat.descripcion,'Sin categoria') AS categoria,
                  COUNT(DISTINCT c.id) AS numero_ofertas,
                  SUM(chp.cantidad) AS cantidad_ofertada,
-                 SUM(chp.sub_total) AS total_ofertado,
-                 SUM(chp.monto_descProducto) AS descuento,
+                 SUM($netoOfertaExpr) AS total_ofertado,
+                 SUM((chp.precio_unidad * chp.cantidad) - ($netoOfertaExpr)) AS descuento,
                   SUM(COALESCE(ppc.precio_base_venta, 0) * chp.cantidad) AS costo_ofertado
             {$this->joinsOfertado()}
             {$this->joinExpoCotizacion($expoId)}
@@ -599,6 +605,7 @@ class ReporteExpo extends Component
     {
         $expoId = $this->expoIdDesdeRequest($r);
         $extra = $this->filtrosExtra($r);
+        $netoOfertaExpr = $this->netoOfertaExpr();
 
         $rows = DB::select("
             SELECT
@@ -609,8 +616,8 @@ class ReporteExpo extends Component
                 c.fecha_emision,
                 COALESCE(ec.estado, 'SIN_REGISTRO') AS estado,
                 COALESCE(ec.flujo_id, (SELECT hf.flujo_id FROM historico_flujo hf WHERE hf.tipo_tramite_id = 2 AND hf.tramite_id = c.id ORDER BY hf.id DESC LIMIT 1)) AS flujo_id,
-                SUM(chp.sub_total) AS total_ofertado,
-                SUM(chp.monto_descProducto) AS descuento,
+                SUM($netoOfertaExpr) AS total_ofertado,
+                SUM((chp.precio_unidad * chp.cantidad) - ($netoOfertaExpr)) AS descuento,
                 SUM(COALESCE(ppc.precio_base_venta, 0) * chp.cantidad) AS total_costo_oferta,
                 SUM(chp.cantidad) AS cantidad_ofertada,
                 COALESCE(fact.total_facturado, 0) AS total_facturado,
