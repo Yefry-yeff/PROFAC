@@ -413,6 +413,16 @@ class FacturacionUnificada extends Component
                 $prod['marca_id'] = (int) ($marcaCongelada['marca_id'] ?? $marca->marca_id ?? 0);
                 $prod['marca_nombre'] = $marcaCongelada['marca'] ?? $marca->marca_nombre ?? 'SIN MARCA';
 
+                if (!$esExpo && $this->duplicandoOferta) {
+                    $productosResueltos[] = $prod;
+                    $productosSugeridos[] = [
+                        'nombre_pedido' => $p->nombre_producto,
+                        'cantidad' => $p->cantidad,
+                        'similares' => $this->buscarSimilares($p->nombre_producto),
+                    ];
+                    continue;
+                }
+
                 $ppcActivo = null;
                 $ppcReferencia = null;
                 $precioCargaId = isset($prod['precios_producto_carga_id']) ? (int) $prod['precios_producto_carga_id'] : 0;

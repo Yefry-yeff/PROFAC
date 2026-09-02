@@ -158,7 +158,7 @@
                     <div class="col-12 col-md-4">
                         <label class="ofr-label">Nota <span class="req">*</span></label>
                         <textarea class="form-control form-control-sm" id="comentario" name="comentario"
-                                  rows="1" maxlength="250" data-parsley-required></textarea>
+                                  rows="4" data-parsley-required style="min-height:100px; resize:vertical;"></textarea>
                     </div>
                 </div>
                 </div>{{-- /body_cliente --}}

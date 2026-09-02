@@ -2857,9 +2857,14 @@
                         placeholder: '-- Sin gestor --',
                         allowClear: true,
                         ajax: {
-                            url: '/ventas/corporativo/vendedores',
+                            url: '/cotizacion/actores-asignados',
                             data: function(params) {
-                                return { search: params.term || '', type: 'public', page: params.page || 1 };
+                                return {
+                                    cliente_id: detail.cliente_id,
+                                    rol_id: 3,
+                                    todos_activos: 1,
+                                    search: params.term || ''
+                                };
                             },
                             processResults: function(data) {
                                 return { results: [{ id: '', text: '-- Sin gestor --' }].concat(data.results || []) };
@@ -2873,7 +2878,8 @@
                     });
                     $.get('/cotizacion/actores-asignados', {
                         cliente_id: detail.cliente_id,
-                        rol_id: 3
+                        rol_id: 3,
+                        todos_activos: 1
                     }).done(function(data) {
                         var teleasesores = data.results || [];
                         var actualAsignado = teleasesores.some(function(usuario) {

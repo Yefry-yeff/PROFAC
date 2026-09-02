@@ -3801,7 +3801,9 @@
             this.totalesGenerales();
         }
 
-        idPrecio.value = valorInputPrecio;
+        if (!(codigoActual === 'cotizacion_clientes_a' && !expoConfig)) {
+            idPrecio.value = valorInputPrecio;
+        }
         actualizarContadorCarrito();
     }
 

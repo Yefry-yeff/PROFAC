@@ -266,11 +266,22 @@ class Cotizacion extends Component
             'cliente_id' => 'required|integer|exists:cliente,id',
             'rol_id' => 'required|integer|in:2,3',
             'search' => 'nullable|string|max:150',
+            'todos_activos' => 'nullable|boolean',
         ]);
 
-        $usuarios = ClienteActoresAsignados::usuarios((int) $datos['cliente_id'], (int) $datos['rol_id']);
         $busqueda = trim((string) ($datos['search'] ?? ''));
-        if ($busqueda !== '') {
+        if (!empty($datos['todos_activos'])) {
+            $usuarios = DB::table('users')
+                ->where('estado_id', 1)
+                ->when($busqueda !== '', function ($query) use ($busqueda) {
+                    $query->where('name', 'like', '%' . $busqueda . '%');
+                })
+                ->orderBy('name')
+                ->get(['id', DB::raw('name as text')]);
+        } else {
+            $usuarios = ClienteActoresAsignados::usuarios((int) $datos['cliente_id'], (int) $datos['rol_id']);
+        }
+        if (empty($datos['todos_activos']) && $busqueda !== '') {
             $usuarios = $usuarios->filter(function ($usuario) use ($busqueda) {
                 return stripos($usuario->text, $busqueda) !== false;
             })->values();

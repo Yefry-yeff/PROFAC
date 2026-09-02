@@ -2,7 +2,6 @@
 
 namespace App\Http\Livewire\Flujo;
 
-use App\Support\ClienteActoresAsignados;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -989,12 +988,17 @@ class PrefacturaController
             ], 409);
         }
 
-        ClienteActoresAsignados::validar(
-            (int) $pf->cliente_id,
-            (int) $request->tele_asesor,
-            ClienteActoresAsignados::ROL_TELE_ASESOR,
-            'tele_asesor'
-        );
+        if (!DB::table('users')->where('id', (int) $request->tele_asesor)->where('estado_id', 1)->exists()) {
+            return response()->json([
+                'error' => 'El usuario seleccionado no está activo.',
+            ], 422);
+        }
+        if ($request->gestor_entrega
+            && !DB::table('users')->where('id', (int) $request->gestor_entrega)->where('estado_id', 1)->exists()) {
+            return response()->json([
+                'error' => 'El gestor de entrega seleccionado no está activo.',
+            ], 422);
+        }
 
         try {
             // Si la prefactura ya venció, su reserva se considera liberada y debe
