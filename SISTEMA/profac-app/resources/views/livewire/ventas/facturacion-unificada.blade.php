@@ -88,6 +88,8 @@
         .cart-item-card { transition: box-shadow .15s; }
         .cart-item-card:hover { box-shadow: 0 4px 18px rgba(27,94,32,.14) !important; }
         .cart-field-label { font-size:10px; color:#78909c; font-weight:700; text-transform:uppercase; letter-spacing:.3px; margin-bottom:3px; }
+        #carritoTbody input[id^="nombre"] { cursor: pointer; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px; }
+        #carritoTbody input[id^="nombre"]:focus { outline: 2px solid #2e7d32; outline-offset: 2px; }
 
         /* ── of-card system ────────────────────────────────────────────── */
         .ofr-main-ibox { border: none !important; box-shadow: none !important; background: transparent !important; }
@@ -1199,6 +1201,28 @@
             </div>
         </div>
 
+        <div class="modal fade" id="modalDescripcionProducto" tabindex="-1" role="dialog" aria-labelledby="tituloDescripcionProducto" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered" role="document">
+                <div class="modal-content">
+                    <div class="modal-header" style="background:#1f6f50; border:none; padding:14px 20px;">
+                        <h5 class="modal-title" id="tituloDescripcionProducto" style="color:#fff; font-size:15px; font-weight:700; margin:0;">
+                            Descripción del producto
+                        </h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar" style="color:#fff; opacity:1;">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body" style="padding:20px;">
+                        <strong id="nombreDescripcionProducto" class="d-block mb-2" style="color:#1b5e20;"></strong>
+                        <p id="textoDescripcionProducto" class="mb-0" style="white-space:pre-wrap; color:#455a64; line-height:1.6;"></p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cerrar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         {{-- ============================================================== --}}
         {{-- MODAL: Seleccionar Gestor de Entrega y Tele Asesor            --}}
         {{-- ============================================================== --}}
@@ -2014,6 +2038,44 @@
     var productoExpoAgregandoAutomaticamente = null;
     var datosProductoExpoPrecargados = null;
     var bodegaExpoCapturaRapida = null;
+    var solicitudDescripcionProducto = 0;
+
+    function abrirDescripcionProducto(indice) {
+        var productoId = document.getElementById('idProducto' + indice)?.value;
+        var nombreInput = document.getElementById('nombre' + indice);
+        if (!productoId || !nombreInput) return;
+
+        var solicitudActual = ++solicitudDescripcionProducto;
+        document.getElementById('nombreDescripcionProducto').textContent = nombreInput.value;
+        document.getElementById('textoDescripcionProducto').textContent = 'Cargando descripción...';
+        $('#modalDescripcionProducto').modal('show');
+
+        axios.get('/productos/' + encodeURIComponent(productoId) + '/descripcion')
+            .then(function(response) {
+                if (solicitudActual !== solicitudDescripcionProducto) return;
+                var producto = response.data.producto || {};
+                document.getElementById('nombreDescripcionProducto').textContent = producto.nombre || nombreInput.value;
+                document.getElementById('textoDescripcionProducto').textContent = String(producto.descripcion || '').trim()
+                    || 'Este producto no tiene una descripción registrada.';
+            })
+            .catch(function() {
+                if (solicitudActual !== solicitudDescripcionProducto) return;
+                document.getElementById('textoDescripcionProducto').textContent = 'No fue posible cargar la descripción del producto.';
+            });
+    }
+
+    document.addEventListener('click', function(event) {
+        var nombreProducto = event.target.closest('#carritoTbody input[id^="nombre"]');
+        if (nombreProducto) abrirDescripcionProducto(nombreProducto.id.substring(6));
+    });
+
+    document.addEventListener('keydown', function(event) {
+        var nombreProducto = event.target.closest('#carritoTbody input[id^="nombre"]');
+        if (nombreProducto && (event.key === 'Enter' || event.key === ' ')) {
+            event.preventDefault();
+            abrirDescripcionProducto(nombreProducto.id.substring(6));
+        }
+    });
 
     // Mapa de URLs por código de tipo de factura
     var urlsPorTipo = {
@@ -3630,7 +3692,7 @@
                         </button>
                     </td>
                     <td style="vertical-align:middle; padding:4px 6px;">
-                        <input type="text" id="nombre${numeroInputs}" name="nombre${numeroInputs}" value='${producto.nombre}' readonly data-parsley-required
+                        <input type="text" id="nombre${numeroInputs}" name="nombre${numeroInputs}" value='${producto.nombre}' readonly role="button" title="Ver descripción del producto" data-parsley-required
                             style="border:none; background:transparent; font-size:12px; font-weight:700; color:#1b5e20; width:100%; min-width:130px;">
                     </td>
                     <td style="vertical-align:middle; padding:4px 6px; white-space:nowrap;">
@@ -6280,7 +6342,7 @@
                         </button>
                     </td>
                     <td style="vertical-align:middle; padding:4px 6px;">
-                        <input type="text" id="nombre${idx}" name="nombre${idx}" value='${prod.nombre_producto || ''}' readonly data-parsley-required
+                        <input type="text" id="nombre${idx}" name="nombre${idx}" value='${prod.nombre_producto || ''}' readonly role="button" title="Ver descripción del producto" data-parsley-required
                             style="border:none; background:transparent; font-size:12px; font-weight:700; color:#1b5e20; width:100%; min-width:130px;">
                     </td>
                     <td style="vertical-align:middle; padding:4px 6px; white-space:nowrap;">
@@ -6439,7 +6501,7 @@
                             </button>
                         </td>
                         <td style="vertical-align:middle; padding:4px 6px;">
-                            <input type="text" id="nombre${idx}" name="nombre${idx}" value='${producto.nombre}' readonly data-parsley-required
+                            <input type="text" id="nombre${idx}" name="nombre${idx}" value='${producto.nombre}' readonly role="button" title="Ver descripción del producto" data-parsley-required
                                 style="border:none; background:transparent; font-size:12px; font-weight:700; color:#1b5e20; width:100%; min-width:130px;">
                         </td>
                         <td style="vertical-align:middle; padding:4px 6px; white-space:nowrap;">

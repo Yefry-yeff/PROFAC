@@ -13,6 +13,26 @@ class FacturacionUnificadaAlcanceTest extends TestCase
 {
     use DatabaseTransactions;
 
+    public function test_descripcion_producto_devuelve_el_detalle_solicitado(): void
+    {
+        $producto = DB::table('producto')->select('id', 'nombre')->first();
+
+        $this->assertNotNull($producto, 'No existe un producto para probar la consulta de descripción.');
+        $descripcion = 'Descripción para prueba del modal';
+        DB::table('producto')->where('id', $producto->id)->update(['descripcion' => $descripcion]);
+
+        $usuario = User::query()->first();
+        $this->assertNotNull($usuario, 'No existe un usuario para probar la consulta de descripción.');
+        $this->actingAs($usuario)
+            ->getJson('/productos/' . $producto->id . '/descripcion')
+            ->assertOk()
+            ->assertJsonPath('producto.id', $producto->id)
+            ->assertJsonPath('producto.nombre', $producto->nombre)
+            ->assertJsonPath('producto.descripcion', $descripcion);
+
+        $this->getJson('/productos/2147483647/descripcion')->assertNotFound();
+    }
+
     public function test_duplicar_oferta_expo_normaliza_productos_a_bodega_virtual(): void
     {
         $oferta = DB::table('expo_cotizacion as ec')

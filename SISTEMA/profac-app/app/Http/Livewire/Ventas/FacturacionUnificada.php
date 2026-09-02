@@ -111,6 +111,17 @@ class FacturacionUnificada extends Component
         return response()->json(['results' => $opcion ? [$opcion] : []]);
     }
 
+    public function descripcionProducto(int $idProducto)
+    {
+        $producto = DB::table('producto')
+            ->where('id', $idProducto)
+            ->first(['id', 'nombre', 'descripcion']);
+
+        abort_unless($producto, 404, 'No se encontró el producto solicitado.');
+
+        return response()->json(['producto' => $producto]);
+    }
+
     private function cargarAtribucionesDescuentoExpo(int $cotizacionId): void
     {
         $lineas = DB::table('cotizacion_has_producto as chp')
