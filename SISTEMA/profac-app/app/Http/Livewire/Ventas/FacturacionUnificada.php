@@ -22,6 +22,7 @@ class FacturacionUnificada extends Component
     public $expoConfig = null;
     public $esOfertaExpo = false;
     public bool $duplicandoOferta = false;
+    public bool $continuandoOfertaExpo = false;
     public $filtrarProductosExpo = false;
     public array $reglasExpoOferta = [];
     public array $atribucionesDescuentoExpo = [];
@@ -114,27 +115,34 @@ class FacturacionUnificada extends Component
     {
         $lineas = DB::table('cotizacion_has_producto as chp')
             ->join('producto as p', 'p.id', '=', 'chp.producto_id')
+            ->leftJoin('precios_producto_carga as ppc', 'ppc.id', '=', 'chp.precios_producto_carga_id')
             ->where('chp.cotizacion_id', $cotizacionId)
-            ->get(['chp.id', 'chp.cantidad', 'chp.precio_unidad', 'chp.monto_descProducto', 'p.marca_id']);
+            ->get(['chp.id', 'chp.cantidad', 'chp.precio_unidad', 'chp.monto_descProducto', 'p.marca_id', 'ppc.categoria_precios_id']);
+
+        $usaEscalas = ($this->reglasExpoOferta['tipo'] ?? null) === 'escala'
+            || (int) ($this->reglasExpoOferta['version'] ?? 0) >= 5;
 
         $calculo = app(CalculadorDescuentosExpo::class)->calcular(
             $lineas->map(fn ($linea) => [
                 'marca_id' => (int) $linea->marca_id,
+                'escala_id' => (int) $linea->categoria_precios_id,
                 'subtotal_bruto' => round((float) $linea->precio_unidad * (float) $linea->cantidad, 2),
             ])->all(),
             $this->reglasExpoOferta
         );
 
-        $this->atribucionesDescuentoExpo = $lineas->mapWithKeys(function ($linea) use ($calculo) {
+        $this->atribucionesDescuentoExpo = $lineas->mapWithKeys(function ($linea) use ($calculo, $usaEscalas) {
             $descuentoFirmado = (float) $linea->monto_descProducto;
-            $porcentajeMarca = (float) ($calculo['porcentajes_marca'][(int) $linea->marca_id] ?? 0);
+            $grupoId = (int) ($usaEscalas ? $linea->categoria_precios_id : $linea->marca_id);
+            $porcentajesGrupo = $usaEscalas ? ($calculo['porcentajes_escala'] ?? []) : $calculo['porcentajes_marca'];
+            $porcentajeMarca = (float) ($porcentajesGrupo[$grupoId] ?? 0);
             $descuentoMarca = round(
                 (float) $linea->precio_unidad * (float) $linea->cantidad * $porcentajeMarca / 100,
                 2
             );
 
             return [(int) $linea->id => [
-                'porcentaje_marca' => (float) ($calculo['porcentajes_marca'][(int) $linea->marca_id] ?? 0),
+                'porcentaje_marca' => $porcentajeMarca,
                 'porcentaje_general' => (float) ($calculo['porcentaje_general'] ?? 0),
                 'proporcion_marca' => $descuentoFirmado > 0
                     ? min(max($descuentoMarca / $descuentoFirmado, 0), 1)
@@ -162,7 +170,7 @@ class FacturacionUnificada extends Component
     public $productosSugeridos    = [];     // [['nombre_pedido','cantidad','similares':[...]]]
     public $productosParaCarrito  = [];     // Productos del duplicado para auto-agregar al carrito
     public $datosOfertaDuplicada  = null;   // ['tipo_pago_id','fecha_vencimiento','porc_descuento','nota']
-    public $errorEscalaDuplicado  = null;   // Mensaje cuando un producto no tiene escala activa
+    public $errorEscalaDuplicado  = null;   // Productos que no tienen una escala activa al duplicar
 
     // ── Vendedor actual ──────────────────────────────────────────────────
     public $vendedorDefault    = [];
@@ -242,6 +250,7 @@ class FacturacionUnificada extends Component
         $this->fromFlujo = $from === 'flujo';
         $this->fromPrefactura = $from === 'prefactura';
         $this->duplicandoOferta = request()->boolean('duplicar');
+        $this->continuandoOfertaExpo = request()->boolean('continuar_expo');
         $this->tiposFactura = TipoFactura::activos()->where('codigo', '!=', 'cotizacion_clientes_a')->get();
 
         if ($codigo) {
@@ -318,15 +327,18 @@ class FacturacionUnificada extends Component
                 ->first(['expo_id', 'reglas_descuento_snapshot']);
             $expoCotizacionId = $expoCotizacion?->expo_id;
             $esExpo = !empty($expoCotizacionId);
+            abort_if($this->continuandoOfertaExpo && !$esExpo, 404, 'Solo las ofertas Expo pueden continuarse.');
             $this->esOfertaExpo = $esExpo;
             if ($esExpo) {
                 $this->filtrarProductosExpo = true;
-                $this->expoConfig = $this->duplicandoOferta
+                $this->expoConfig = ($this->duplicandoOferta || $this->continuandoOfertaExpo)
                     ? ExpoConfig::detalleActivaParaUsuario((int) $expoCotizacionId, Auth::id())
                     : ExpoConfig::detalleParaFacturacion((int) $expoCotizacionId, (int) $cotizId, Auth::id());
-                abort_unless($this->expoConfig, 403, $this->duplicandoOferta
-                    ? 'No tiene autorización para duplicar esta Oferta Expo.'
-                    : 'No tiene autorización para facturar esta Oferta Expo.');
+                abort_unless($this->expoConfig, 403, $this->continuandoOfertaExpo
+                    ? 'No tiene autorización para continuar esta Oferta Expo.'
+                    : ($this->duplicandoOferta
+                        ? 'No tiene autorización para duplicar esta Oferta Expo.'
+                        : 'No tiene autorización para facturar esta Oferta Expo.'));
                 $tipoVentaExpo = ExpoConfig::tipoVentaId();
                 abort_unless($tipoVentaExpo, 500, 'No existe el tipo de venta Expo. Ejecute las migraciones.');
                 $this->tipoFactura->tipo_venta_id = $tipoVentaExpo;
@@ -336,7 +348,7 @@ class FacturacionUnificada extends Component
                     : ['version' => 1, 'generales' => $snapshot, 'marcas' => [], 'lineas' => []];
                 $this->cargarAtribucionesDescuentoExpo((int) $cotizId);
             }
-            $prods = $esExpo && !$this->duplicandoOferta
+            $prods = $esExpo && !$this->duplicandoOferta && !$this->continuandoOfertaExpo
                 ? app(SaldoLineasOferta::class)->pendientes((int) $cotizId)
                     ->filter(fn($linea) => (float) $linea->cantidad_pendiente > 0)
                     ->map(function ($linea) {
@@ -346,6 +358,8 @@ class FacturacionUnificada extends Component
                         return $linea;
                     })->values()->all()
                 : DB::table('cotizacion_has_producto')
+                    ->leftJoin('unidad_medida_venta as uv', 'uv.id', '=', 'cotizacion_has_producto.unidad_medida_venta_id')
+                    ->leftJoin('unidad_medida as um', 'um.id', '=', 'uv.unidad_medida_id')
                     ->where('cotizacion_id', (int) $cotizId)
                     ->orderBy('indice')
                     ->get([
@@ -359,6 +373,8 @@ class FacturacionUnificada extends Component
                     'cantidad',
                     'isv_producto',
                     'unidad_medida_venta_id',
+                    'uv.unidad_venta',
+                    'um.nombre as unidad_nombre',
                     'Bodega_id',
                     'seccion_id',
                     'resta_inventario',
@@ -371,7 +387,7 @@ class FacturacionUnificada extends Component
                 : null;
             $productosResueltos = [];
             $productosSugeridos = [];
-            $productosSinEscala = [];
+            $productosConCambioEscala = [];
             $marcasPorProducto = DB::table('producto as p')
                 ->leftJoin('marca as m', 'm.id', '=', 'p.marca_id')
                 ->whereIn('p.id', collect($prods)->pluck('producto_id')->filter()->unique()->all())
@@ -398,6 +414,7 @@ class FacturacionUnificada extends Component
                 $prod['marca_nombre'] = $marcaCongelada['marca'] ?? $marca->marca_nombre ?? 'SIN MARCA';
 
                 $ppcActivo = null;
+                $ppcReferencia = null;
                 $precioCargaId = isset($prod['precios_producto_carga_id']) ? (int) $prod['precios_producto_carga_id'] : 0;
 
                 if ($precioCargaId > 0) {
@@ -430,7 +447,15 @@ class FacturacionUnificada extends Component
                 }
 
                 if (!$ppcActivo) {
-                    $productosSinEscala[] = $prod['nombre_producto'] ?? ('Producto ID ' . ($prod['producto_id'] ?? 'N/A'));
+                    $productosConCambioEscala[] = [
+                        'producto' => $prod['nombre_producto'] ?? ('Producto ID ' . ($prod['producto_id'] ?? 'N/A')),
+                        'precio_anterior' => (float) ($prod['precio_unidad'] ?? 0),
+                        'precio_nuevo' => null,
+                        'categoria' => isset($ppcReferencia) && $ppcReferencia
+                            ? (DB::table('categoria_precios')->where('id', $ppcReferencia->categoria_precios_id)->value('nombre') ?? 'Sin categoria')
+                            : 'Escala eliminada',
+                        'accion' => 'eliminar',
+                    ];
                     continue;
                 }
 
@@ -443,9 +468,21 @@ class FacturacionUnificada extends Component
                 $prod['precios_producto_carga_id'] = (int) $ppcActivo->id;
                 $prod['idPrecioSeleccionado'] = 'p1';
                 $prod['precioSeleccionado'] = $precioA;
-                $prod['precio_unidad'] = $precioUnidadOriginal;
+                if (!$this->continuandoOfertaExpo) {
+                    $prod['precio_unidad'] = $precioA;
+                }
                 $prod['categoria_precios_id'] = (int) $ppcActivo->categoria_precios_id;
                 $prod['categoria_precios_nombre'] = $ppcActivo->categoria_nombre ?? 'Categoria sin nombre';
+
+                if (abs($precioUnidadOriginal - $precioA) > 0.005) {
+                    $productosConCambioEscala[] = [
+                        'producto' => $prod['nombre_producto'] ?? ('Producto ID ' . ($prod['producto_id'] ?? 'N/A')),
+                        'precio_anterior' => $precioUnidadOriginal,
+                        'precio_nuevo' => $precioA,
+                        'categoria' => $prod['categoria_precios_nombre'],
+                        'accion' => 'cargar',
+                    ];
+                }
 
                 $productosResueltos[] = $prod;
                 $productosSugeridos[] = [
@@ -455,22 +492,18 @@ class FacturacionUnificada extends Component
                 ];
             }
 
-            if (!empty($productosSinEscala)) {
-                $this->errorEscalaDuplicado = 'Uno de los productos ya no cuenta con una escala de precios asignada.';
-                $this->productosParaCarrito = [];
-                $this->productosSugeridos = [];
-            } else {
-                $this->errorEscalaDuplicado = null;
-                $this->productosParaCarrito = $productosResueltos;
-                $this->productosSugeridos = $productosSugeridos;
-            }
+            $this->errorEscalaDuplicado = $productosConCambioEscala ?: null;
+            $this->productosParaCarrito = $productosResueltos;
+            $this->productosSugeridos = $productosSugeridos;
 
             // Cargar datos de cabecera de la oferta original para pre-llenar el formulario
             $cotizOrig = DB::table('cotizacion as c')
                 ->leftJoin('users as uv', 'uv.id', '=', 'c.vendedor')
+                ->leftJoin('cliente as cl', 'cl.id', '=', 'c.cliente_id')
                 ->where('c.id', (int) $cotizId)
                 ->select('c.tipo_pago_id', 'c.fecha_vencimiento', 'c.porc_descuento', 'c.nota',
-                         'c.vendedor', 'uv.name as vendedor_nombre')
+                         'c.vendedor', 'uv.name as vendedor_nombre', 'c.cliente_id',
+                         'cl.nombre as cliente_nombre', 'cl.rtn as cliente_rtn')
                 ->first();
             if ($cotizOrig) {
                 $this->datosOfertaDuplicada = [
@@ -490,6 +523,13 @@ class FacturacionUnificada extends Component
                     $this->vendedorDefault = [
                         'id'   => $cotizOrig->vendedor,
                         'name' => $cotizOrig->vendedor_nombre ?? '',
+                    ];
+                }
+                if ($this->continuandoOfertaExpo && $cotizOrig->cliente_id) {
+                    $this->clientePedido = [
+                        'id' => (int) $cotizOrig->cliente_id,
+                        'nombre' => $cotizOrig->cliente_nombre,
+                        'rtn' => $cotizOrig->cliente_rtn ?? '',
                     ];
                 }
             }

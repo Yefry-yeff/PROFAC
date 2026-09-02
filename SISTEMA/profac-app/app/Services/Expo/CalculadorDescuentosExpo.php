@@ -12,6 +12,18 @@ class CalculadorDescuentosExpo
      */
     public function calcular(array $lineas, array $reglas): array
     {
+        $porEscala = ($reglas['tipo'] ?? 'marca') === 'escala';
+        if ($porEscala) {
+            $lineas = array_map(function (array $linea) {
+                $linea['marca_id'] = (int) ($linea['escala_id'] ?? 0);
+                return $linea;
+            }, $lineas);
+            $reglas['marcas'] = array_map(function (array $regla) {
+                $regla['marca_id'] = (int) ($regla['escala_id'] ?? 0);
+                return $regla;
+            }, $reglas['escalas'] ?? []);
+        }
+
         $totalBruto = round(array_sum(array_column($lineas, 'subtotal_bruto')), 2);
         $subtotalesMarca = [];
 
@@ -74,7 +86,7 @@ class CalculadorDescuentosExpo
             return $detalle;
         }, array_values($detalleMarcas));
 
-        return [
+        $resultado = [
             'total_bruto' => $totalBruto,
             'subtotal_neto' => round($totalBruto - $descuentoMarca - $descuentoGeneral, 2),
             'porcentaje_general' => $porcentajeGeneral,
@@ -84,6 +96,17 @@ class CalculadorDescuentosExpo
             'descuento_ganado' => round($descuentoMarca + $descuentoGeneral, 2),
             'detalle_marcas' => $detalleMarcas,
         ];
+
+        if ($porEscala) {
+            $resultado['porcentajes_escala'] = $resultado['porcentajes_marca'];
+            $resultado['detalle_escalas'] = array_map(function (array $detalle) {
+                $detalle['escala_id'] = $detalle['marca_id'];
+                unset($detalle['marca_id']);
+                return $detalle;
+            }, $resultado['detalle_marcas']);
+        }
+
+        return $resultado;
     }
 
     /** @param array<int, array{venta_minima:mixed, porcentaje_descuento:mixed}> $reglas */

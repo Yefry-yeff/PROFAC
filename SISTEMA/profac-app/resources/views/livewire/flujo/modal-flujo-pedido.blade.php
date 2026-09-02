@@ -1137,6 +1137,14 @@
                                        font-size:11px; font-weight:700; cursor:pointer;">
                             <i class="mr-1 fa fa-copy"></i> Duplicar
                         </button>
+                        @if (!empty($ofertaSeleccionada['es_expo']) && !$facturaCompletada && !$esAnuDet && !$esVencDet)
+                        <button type="button" wire:click="continuarOfertaExpo"
+                                style="background:linear-gradient(135deg,#00897b,#00695c); color:#fff;
+                                       border:none; border-radius:8px; padding:5px 10px;
+                                       font-size:11px; font-weight:700; cursor:pointer;">
+                            <i class="mr-1 fa fa-pencil-square-o"></i> Continuar Oferta
+                        </button>
+                        @endif
                     </div>
                     @endif
 

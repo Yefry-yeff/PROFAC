@@ -882,7 +882,8 @@ class ModalFlujoPedido extends Component
                 ->select(
                     'c.id', 'c.nombre_cliente', 'c.RTN', 'c.total', 'c.isv',
                     'c.estado_id as cotizacion_estado_id',
-                    'hf.observaciones as hf_observaciones'
+                    'hf.observaciones as hf_observaciones',
+                    DB::raw('EXISTS(SELECT 1 FROM expo_cotizacion ec WHERE ec.cotizacion_id = c.id) as es_expo')
                 )
                 ->orderByDesc('hf.id')
                 ->first();
@@ -980,6 +981,44 @@ class ModalFlujoPedido extends Component
         $this->motivoEdicionSinExistencia = '';
         $this->mensajeExito        = '';
         $this->mensajeError        = '';
+    }
+
+    public function continuarOfertaExpo(): void
+    {
+        $cotizacionId = (int) ($this->ofertaSeleccionada['id'] ?? 0);
+        $expoId = DB::table('expo_cotizacion')
+            ->where('cotizacion_id', $cotizacionId)
+            ->where('estado', 'PENDIENTE_FACTURACION')
+            ->whereNotExists(function ($query) use ($cotizacionId) {
+                $query->selectRaw('1')->from('cotizacion_has_producto as chp')
+                    ->join('prefactura_has_producto as php', 'php.cotizacion_has_producto_id', '=', 'chp.id')
+                    ->where('chp.cotizacion_id', $cotizacionId);
+            })
+            ->whereNotExists(function ($query) use ($cotizacionId) {
+                $query->selectRaw('1')->from('cotizacion_has_producto as chp')
+                    ->join('venta_has_producto as vhp', 'vhp.cotizacion_has_producto_id', '=', 'chp.id')
+                    ->where('chp.cotizacion_id', $cotizacionId);
+            })
+            ->value('expo_id');
+
+        if (!$cotizacionId || !$expoId) {
+            $this->mensajeError = 'La oferta Expo ya no está disponible para continuarla.';
+            return;
+        }
+
+        $url = '/proforma/cotizacion/2?from=flujo&continuar_expo=1&expo=' . (int) $expoId
+            . '&cotizacionId=' . $cotizacionId;
+        $temporalId = DB::table('venta_temporal')
+            ->where('usuario_id', Auth::id())
+            ->where('tipo', 'oferta')
+            ->where('url_reanudacion', 'like', '%cotizacionId=' . $cotizacionId . '%')
+            ->orderByDesc('updated_at')
+            ->orderByDesc('id')
+            ->value('id');
+        if ($temporalId) {
+            $url .= '&temporal_id=' . (int) $temporalId;
+        }
+        $this->dispatchBrowserEvent('abrir-nueva-pestana', ['url' => $url]);
     }
 
     public function abrirEdicionProductosSinExistencia(): void

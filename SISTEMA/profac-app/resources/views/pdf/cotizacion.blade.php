@@ -6,7 +6,7 @@
     <style>
         /* ── Márgenes de página ── */
         @page {
-            margin-top: 310px;
+            margin-top: 265px;
             margin-bottom: 35px;
             margin-left: 0;
             margin-right: 0;
@@ -15,7 +15,7 @@
         /* ── Header fijo (repite en todas las páginas) ── */
         #pdf-header {
             position: fixed;
-            top: -310px;
+            top: -265px;
             left: 0;
             right: 0;
             width: 100%;
@@ -51,6 +51,7 @@
         }
         th, td { text-align: left; padding: 2px; }
         thead { background-color: #f2f2f2; }
+        .bloque-resumen, .bloque-firmas { page-break-inside: avoid; }
         .letra { font-weight: 800; }
     </style>
     <title>OFERTA</title>
@@ -110,7 +111,6 @@
                 <th>Precio</th>
                 <th>Exento</th>
                 <th>Cantidad</th>
-                <th>Descuento</th>
                 <th>Importe</th>
             </tr>
         </thead>
@@ -123,7 +123,6 @@
                 <td>{{ $producto->precio }}</td>
                 <td>{{ $producto->excento }}</td>
                 <td>{{ $producto->cantidad }}</td>
-                <td>{{ $producto->descuento ?? '0.00' }}</td>
                 <td>{{ $producto->importe }}</td>
             </tr>
             @endforeach
@@ -132,7 +131,7 @@
 </div>
 
 {{-- ── Notas + Totales ── --}}
-<table style="border:none; margin-top:6px; font-size:10px;">
+<table class="bloque-resumen" style="border:none; margin-top:6px; font-size:10px;">
     <tr>
         <td style="width:57%; vertical-align:top; border:none; padding:0 4px 0 0;">
             <div class="card border border-dark">
@@ -201,7 +200,7 @@
 {{-- ── Firmas ── --}}
 <p style="margin:4px 0 0; font-size:8px; text-align:right;">Original: Cliente, Copia obligado tributario emisor.</p>
 
-<div style="margin-top:70px;">
+<div class="bloque-firmas" style="margin-top:70px;">
     <table style="border:none; font-size:9px;">
         <tr>
             <td style="width:50%; border:none; vertical-align:top; padding:0 20px 0 0;">

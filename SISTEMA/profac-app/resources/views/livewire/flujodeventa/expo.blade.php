@@ -569,7 +569,7 @@
 
                             <div class="expo-section">
                                 <div class="d-flex flex-wrap justify-content-between align-items-center mb-3" style="gap:8px;">
-                                    <div class="expo-section-title mb-0" style="flex:1; min-width:200px;"><i class="fa fa-tags"></i>Descuentos por marca</div>
+                                    <div class="expo-section-title mb-0" style="flex:1; min-width:200px;"><i class="fa fa-list-alt"></i>Descuentos por escala de precios</div>
                                     @unless($expoEditandoId)
                                         <button type="button" wire:click="abrirModalDescuentoMarca" class="btn btn-sm btn-outline-warning" style="border-radius:7px; font-weight:700; font-size:11px; white-space:nowrap;">
                                             <i class="fa fa-plus mr-1"></i> Agregar descuento
@@ -579,9 +579,9 @@
                                 @if($expoEditandoId)
                                     <div class="expo-brand-manager mb-3">
                                         <div>
-                                            <label for="expo-marca-descuento">Marca con descuento configurado</label>
+                                            <label for="expo-marca-descuento">Escala con descuento configurado</label>
                                             <select id="expo-marca-descuento" wire:model="marcaDescuentoGestionId" class="form-control">
-                                                <option value="">Seleccione una marca ({{ $marcasConDescuento->count() }})</option>
+                                                <option value="">Seleccione una escala ({{ $marcasConDescuento->count() }})</option>
                                                 @foreach($marcasConDescuento as $marcaDescuento)
                                                     <option value="{{ $marcaDescuento['marca_id'] }}">{{ $marcaDescuento['marca'] }} · {{ $marcaDescuento['total_escalones'] }} escalón(es)</option>
                                                 @endforeach
@@ -589,16 +589,16 @@
                                             @error('marcaDescuentoGestionId') <small class="text-danger">{{ $message }}</small> @enderror
                                         </div>
                                         <div class="expo-brand-manager-actions">
-                                            <button type="button" wire:click="abrirModalDescuentoMarca" class="btn btn-outline-warning"><i class="fa fa-plus mr-1"></i>Nueva marca</button>
+                                            <button type="button" wire:click="abrirModalDescuentoMarca" class="btn btn-outline-warning"><i class="fa fa-plus mr-1"></i>Nueva escala</button>
                                             <button type="button" wire:click="editarDescuentoMarcaSeleccionado" wire:loading.attr="disabled" class="btn btn-warning" @if($descuentosMarcaSeleccionada->isEmpty()) disabled @endif><i class="fa fa-pencil mr-1"></i>Editar</button>
-                                            <button type="button" wire:click="descargarDescuentosMarcaExcel" wire:loading.attr="disabled" class="btn btn-outline-success" @if($descuentosMarcaSeleccionada->isEmpty()) disabled @endif><i class="fa fa-file-excel-o mr-1"></i>Descargar marca</button>
+                                            <button type="button" wire:click="descargarDescuentosMarcaExcel" wire:loading.attr="disabled" class="btn btn-outline-success" @if($descuentosMarcaSeleccionada->isEmpty()) disabled @endif><i class="fa fa-file-excel-o mr-1"></i>Descargar escala</button>
                                             <button type="button" wire:click="descargarDescuentosMarcaExcel(true)" wire:loading.attr="disabled" class="btn btn-outline-success" @if($marcasConDescuento->isEmpty()) disabled @endif><i class="fa fa-download mr-1"></i>Descargar todas</button>
                                         </div>
                                     </div>
                                 @else
                                     <div class="input-group input-group-sm expo-brand-search mb-3">
                                         <div class="input-group-prepend"><span class="input-group-text"><i class="fa fa-search"></i></span></div>
-                                        <input type="search" wire:model.debounce.250ms="busquedaDescuentoMarca" class="form-control" placeholder="Buscar por marca..." autocomplete="off">
+                                        <input type="search" wire:model.debounce.250ms="busquedaDescuentoMarca" class="form-control" placeholder="Buscar por escala..." autocomplete="off">
                                     </div>
                                 @endif
                                 <div class="expo-discount-wrap expo-brand-table-scroll mb-3">
@@ -607,7 +607,7 @@
                                             <tr>
                                                 <th>
                                                     <button type="button" wire:click="ordenarDescuentosMarca('marca')" class="expo-sort-button {{ $ordenDescuentoMarca === 'marca' ? 'active' : '' }}">
-                                                        Marca <i class="fa {{ $ordenDescuentoMarca === 'marca' ? ($direccionDescuentoMarca === 'asc' ? 'fa-sort-asc' : 'fa-sort-desc') : 'fa-sort' }}"></i>
+                                                        Escala de precios <i class="fa {{ $ordenDescuentoMarca === 'marca' ? ($direccionDescuentoMarca === 'asc' ? 'fa-sort-asc' : 'fa-sort-desc') : 'fa-sort' }}"></i>
                                                     </button>
                                                 </th>
                                                 <th>
@@ -632,11 +632,11 @@
                                                     <td>{{ number_format($regla['porcentaje_descuento'], 2) }}%</td>
                                                     <td><span class="badge {{ $regla['requiere_asistencia'] ? 'badge-warning' : 'badge-light' }}">{{ $regla['requiere_asistencia'] ? 'Requerida' : 'No requerida' }}</span></td>
                                                     <td class="text-center">
-                                                        <button type="button" wire:click="eliminarDescuentoMarca({{ $regla['indice'] }})" class="btn btn-xs btn-white" title="Eliminar regla de marca"><i class="fa fa-trash text-danger"></i></button>
+                                                        <button type="button" wire:click="eliminarDescuentoMarca({{ $regla['indice'] }})" class="btn btn-xs btn-white" title="Eliminar regla de escala"><i class="fa fa-trash text-danger"></i></button>
                                                     </td>
                                                 </tr>
                                             @empty
-                                                <tr><td colspan="5" class="text-center text-muted py-3">{{ $expoEditandoId && $marcasConDescuento->isNotEmpty() ? 'Seleccione una marca para consultar y editar sus escalones.' : (trim($busquedaDescuentoMarca) !== '' ? 'No hay marcas que coincidan con la búsqueda.' : 'Sin escalones de descuento por marca.') }}</td></tr>
+                                                <tr><td colspan="5" class="text-center text-muted py-3">{{ $expoEditandoId && $marcasConDescuento->isNotEmpty() ? 'Seleccione una escala para consultar y editar sus escalones.' : (trim($busquedaDescuentoMarca) !== '' ? 'No hay escalas que coincidan con la búsqueda.' : 'Sin escalones de descuento por escala.') }}</td></tr>
                                             @endforelse
                                         </tbody>
                                     </table>
@@ -719,7 +719,7 @@
                                         $totalEscalas = DB::table('expo_escala')->where('expo_id', $expo->id)->count();
                                         $totalUsuarios = DB::table('expo_usuario')->where('expo_id', $expo->id)->count();
                                         $totalDescuentos = DB::table('expo_descuento')->where('expo_id', $expo->id)->count();
-                                        $totalDescuentosMarca = DB::table('expo_descuento_marca')->where('expo_id', $expo->id)->count();
+                                        $totalDescuentosMarca = DB::table('expo_descuento_escala')->where('expo_id', $expo->id)->count();
                                         $expoFinalizada = $expo->fecha_fin && strtotime($expo->fecha_fin) <= time();
                                     @endphp
                                     <tr class="expo-clickable" wire:click="verDetalle({{ $expo->id }})" title="Ver detalle e historial de cambios">
@@ -738,7 +738,7 @@
                                                 <span class="expo-config-chip"><i class="fa fa-tags"></i>{{ $totalEscalas }} escala(s)</span>
                                                 <span class="expo-config-chip"><i class="fa fa-users"></i>{{ $totalUsuarios }} usuario(s)</span>
                                                 <span class="expo-config-chip"><i class="fa fa-percent"></i>{{ $totalDescuentos }} regla(s)</span>
-                                                <span class="expo-config-chip"><i class="fa fa-tags"></i>{{ $totalDescuentosMarca }} marca(s)</span>
+                                                <span class="expo-config-chip"><i class="fa fa-list-alt"></i>{{ $totalDescuentosMarca }} escala(s) con descuento</span>
                                             </div>
                                         </td>
                                         <td class="text-center">
@@ -789,7 +789,7 @@
                             <div class="expo-detail-section"><h6><i class="fa fa-archive mr-1"></i>Bodegas</h6><div class="expo-detail-tags">@forelse($expoDetalle['bodegas'] as $item)<span class="expo-detail-tag">{{ $item }}</span>@empty<span class="text-muted small">Sin bodegas.</span>@endforelse</div></div>
                             <div class="expo-detail-section"><h6><i class="fa fa-tags mr-1"></i>Escalas</h6><div class="expo-detail-tags">@forelse($expoDetalle['escalas'] as $item)<span class="expo-detail-tag">{{ $item }}</span>@empty<span class="text-muted small">Sin escalas.</span>@endforelse</div></div>
                             <div class="expo-detail-section"><h6><i class="fa fa-percent mr-1"></i>Reglas de descuento</h6><div class="expo-detail-tags">@forelse($expoDetalle['descuentos'] as $regla)<span class="expo-detail-tag">Desde L {{ number_format($regla['venta_minima'], 2) }}: <strong>{{ number_format($regla['porcentaje_descuento'], 2) }}%</strong></span>@empty<span class="text-muted small">Sin descuentos.</span>@endforelse</div></div>
-                            <div class="expo-detail-section"><h6><i class="fa fa-tags mr-1"></i>Descuentos por marca</h6><div class="expo-detail-tags">@forelse($expoDetalle['descuentos_marca'] as $regla)<span class="expo-detail-tag">{{ $regla['marca'] }} con subtotal neto desde L {{ number_format($regla['venta_minima'], 2) }}: <strong>{{ number_format($regla['porcentaje_descuento'], 2) }}%</strong>{{ $regla['requiere_asistencia'] ? ' · Requiere asistencia' : '' }}</span>@empty<span class="text-muted small">Sin descuentos por marca.</span>@endforelse</div></div>
+                            <div class="expo-detail-section"><h6><i class="fa fa-list-alt mr-1"></i>Descuentos por escala de precios</h6><div class="expo-detail-tags">@forelse($expoDetalle['descuentos_escala'] as $regla)<span class="expo-detail-tag">{{ $regla['escala'] }} con subtotal neto desde L {{ number_format($regla['venta_minima'], 2) }}: <strong>{{ number_format($regla['porcentaje_descuento'], 2) }}%</strong>{{ $regla['requiere_asistencia'] ? ' · Requiere asistencia' : '' }}</span>@empty<span class="text-muted small">Sin descuentos por escala.</span>@endforelse</div></div>
                             <div class="expo-detail-section"><h6><i class="fa fa-users mr-1"></i>Usuarios autorizados</h6><table class="expo-detail-users"><tbody>@forelse($expoDetalle['usuarios'] as $usuario)<tr><td><strong>{{ $usuario['name'] }}</strong></td><td class="text-muted">{{ $usuario['email'] }}</td></tr>@empty<tr><td class="text-muted">Sin usuarios autorizados.</td></tr>@endforelse</tbody></table></div>
                             <div class="expo-detail-section">
                                 <h6><i class="fa fa-history mr-1"></i>Historial de cambios de esta Expo</h6>
@@ -994,10 +994,11 @@
                                                         </div>
 
                                                         <div class="expo-close-detail-section">
-                                                            <h6>Detalle sumado por marca</h6>
+                                                            @php($detallePorEscala = ($aumento['tipo_descuento'] ?? 'marca') === 'escala')
+                                                            <h6>Detalle sumado por {{ $detallePorEscala ? 'escala de precios' : 'marca' }}</h6>
                                                             <div class="table-responsive">
                                                                 <table class="table table-bordered expo-close-breakdown-table">
-                                                                    <thead><tr><th>Marca</th><th class="text-right">Compra acumulada</th><th class="text-right">% marca</th><th class="text-right">Desc. marca</th><th class="text-right">Desc. general</th><th class="text-right">Total ganado</th><th class="text-right">Total otorgado</th></tr></thead>
+                                                                    <thead><tr><th>{{ $detallePorEscala ? 'Escala' : 'Marca' }}</th><th class="text-right">Compra acumulada</th><th class="text-right">% {{ $detallePorEscala ? 'escala' : 'marca' }}</th><th class="text-right">Desc. {{ $detallePorEscala ? 'escala' : 'marca' }}</th><th class="text-right">Desc. general</th><th class="text-right">Total ganado</th><th class="text-right">Total otorgado</th></tr></thead>
                                                                     <tbody>
                                                                     @foreach($aumento['detalle_marcas'] as $marca)
                                                                         <tr>

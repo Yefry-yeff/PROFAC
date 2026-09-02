@@ -115,6 +115,19 @@ class ExpoConfig
                     'requiere_asistencia' => (bool) $regla->requiere_asistencia,
                     'orden' => (int) $regla->orden,
                 ])->all(),
+            'tipo_descuento' => 'escala',
+            'descuentos_escala' => DB::table('expo_descuento_escala as ede')
+                ->join('categoria_precios as cp', 'cp.id', '=', 'ede.escala_id')
+                ->where('ede.expo_id', $expo->id)->orderBy('ede.orden')
+                ->get(['ede.escala_id', 'cp.nombre as escala', 'ede.venta_minima', 'ede.porcentaje_descuento', 'ede.requiere_asistencia', 'ede.orden'])
+                ->map(fn ($regla) => [
+                    'escala_id' => (int) $regla->escala_id,
+                    'escala' => $regla->escala,
+                    'venta_minima' => (float) $regla->venta_minima,
+                    'porcentaje_descuento' => (float) $regla->porcentaje_descuento,
+                    'requiere_asistencia' => (bool) $regla->requiere_asistencia,
+                    'orden' => (int) $regla->orden,
+                ])->all(),
             'clientes_asistentes' => DB::table('expo_asistencia')->where('expo_id', $expo->id)
                 ->pluck('cliente_id')->map(fn ($id) => (int) $id)->all(),
         ];
@@ -126,6 +139,10 @@ class ExpoConfig
         $detalle['cliente_asistio'] = $asistio;
         $detalle['descuentos_marca'] = array_values(array_filter(
             $detalle['descuentos_marca'],
+            fn (array $regla) => empty($regla['requiere_asistencia']) || $asistio
+        ));
+        $detalle['descuentos_escala'] = array_values(array_filter(
+            $detalle['descuentos_escala'],
             fn (array $regla) => empty($regla['requiere_asistencia']) || $asistio
         ));
 
