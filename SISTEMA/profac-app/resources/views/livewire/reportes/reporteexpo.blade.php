@@ -8,6 +8,8 @@
         #reporteExpoBI .bi-summary-item strong { display: block; margin-top: 3px; font-size: 16px; }
         #reporteExpoBI .bi-profit { color: #08783e; }
         #reporteExpoBI .bi-loss { color: #b42318; }
+        #reporteExpoBI #tabla-expo-ofertas td.bi-profit { color: #08783e !important; }
+        #reporteExpoBI #tabla-expo-ofertas td.bi-loss { color: #b42318 !important; }
         #reporteExpoBI .modal { z-index: 4010 !important; }
         .modal-backdrop { z-index: 4005 !important; }
         #reporteExpoBI .modal-bi-wide { max-width: 96vw; }
@@ -153,6 +155,22 @@
             </div>
         </div>
         <div class="mb-2 col-6 col-md-3">
+            <div class="card h-100 border-left-primary">
+                <div class="px-3 py-2 card-body">
+                    <div class="mb-1 text-xs font-weight-bold text-primary text-uppercase">Total Oferta sin ISV</div>
+                    <div class="mb-0 h5 font-weight-bold" id="kpi-oferta-sin-isv">—</div>
+                </div>
+            </div>
+        </div>
+        <div class="mb-2 col-6 col-md-3">
+            <div class="card h-100 border-left-success">
+                <div class="px-3 py-2 card-body">
+                    <div class="mb-1 text-xs font-weight-bold text-success text-uppercase">Total Oferta con ISV</div>
+                    <div class="mb-0 h5 font-weight-bold" id="kpi-oferta-con-isv">—</div>
+                </div>
+            </div>
+        </div>
+        <div class="mb-2 col-6 col-md-3">
             <div class="card h-100 border-left-dark">
                 <div class="px-3 py-2 card-body">
                     <div class="mb-1 text-xs font-weight-bold text-dark text-uppercase">Costo Oferta</div>
@@ -196,7 +214,7 @@
         </div>
         <div class="mb-3 col-lg-6">
             <div class="card card-body h-100">
-                <h6 class="font-weight-bold">Evolución diaria: Ofertado vs Facturado</h6>
+                <h6 class="font-weight-bold">Evolución acumulada diaria: Oferta sin ISV vs Facturado</h6>
                 <div id="chart-evolucion-expo"></div>
             </div>
         </div>
@@ -242,6 +260,7 @@
                         <th class="text-right">Ofertado</th>
                         <th class="text-right">Facturado</th>
                         <th class="text-right">Margen Oferta %</th>
+                        <th class="text-right">Ganancia</th>
                         <th class="text-right">Avance %</th>
                     </tr>
                 </thead>

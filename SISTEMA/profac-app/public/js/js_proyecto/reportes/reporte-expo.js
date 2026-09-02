@@ -158,7 +158,7 @@ var reporteExpo = (function () {
 
     /* ─────────────────────────── KPIs ─────────────────────────────────── */
     function cargarKpis() {
-        ['kpi-ofertado', 'kpi-avance', 'kpi-ofertas', 'kpi-clientes', 'kpi-utilidad', 'kpi-margen', 'kpi-facturas', 'kpi-descuento', 'kpi-costo']
+        ['kpi-ofertado', 'kpi-avance', 'kpi-ofertas', 'kpi-clientes', 'kpi-utilidad', 'kpi-margen', 'kpi-facturas', 'kpi-descuento', 'kpi-oferta-sin-isv', 'kpi-oferta-con-isv', 'kpi-costo']
             .forEach(function (id) { setText(id, '…'); });
 
         $.get('/reporte/expo/kpis', paramsActuales()).then(function (d) {
@@ -169,6 +169,8 @@ var reporteExpo = (function () {
             setText('kpi-facturas', fmtN(d.num_facturas));
             setText('kpi-utilidad', fmt(d.total_utilidad));
             setText('kpi-descuento', fmt(d.total_descuento));
+            setText('kpi-oferta-sin-isv', fmt(d.total_oferta_sin_isv));
+            setText('kpi-oferta-con-isv', fmt(d.total_oferta_con_isv));
             setText('kpi-costo', fmt(d.total_costo));
             setText('kpi-margen', (d.margen_pct !== null ? d.margen_pct : 'N/D') + (d.margen_pct !== null ? '%' : ''));
         });
@@ -337,7 +339,7 @@ var reporteExpo = (function () {
             charts['chart-evolucion-expo'] = new ApexCharts(get('chart-evolucion-expo'), {
                 chart: { type: 'line', height: 320, toolbar: { show: true } },
                 series: [
-                    { name: 'Ofertado', data: rows.map(function (r) { return r.ofertado; }) },
+                    { name: 'Oferta sin ISV', data: rows.map(function (r) { return r.ofertado; }) },
                     { name: 'Facturado', data: rows.map(function (r) { return r.facturado; }) },
                 ],
                 xaxis: { categories: rows.map(function (r) { return r.fecha; }), type: 'datetime' },
@@ -396,6 +398,7 @@ var reporteExpo = (function () {
             var tbody = $('#tabla-expo-ofertas tbody').empty();
             rows.forEach(function (r) {
                 var estado = etiquetaEstadoFacturacion(r.estado_facturacion);
+                var utilidadClase = r.utilidad >= 0 ? 'bi-profit' : 'bi-loss';
                 tbody.append('<tr class="bi-row-selectable" data-oferta-id="' + r.oferta_id + '" title="Abrir detalle completo de la oferta">' +
                     '<td>' + r.oferta_id + '</td>' +
                     '<td>' + (r.flujo_id || '—') + '</td>' +
@@ -406,7 +409,8 @@ var reporteExpo = (function () {
                     '<td><span class="badge ' + (r.estado_facturacion === 'FACTURADA' ? 'badge-success' : (r.estado_facturacion === 'PARCIALMENTE_FACTURADA' ? 'badge-warning' : 'badge-secondary')) + '">' + esc(estado) + '</span></td>' +
                     '<td class="text-right">' + fmt(r.total_ofertado) + '</td>' +
                     '<td class="text-right">' + fmt(r.total_facturado) + '</td>' +
-                    '<td class="text-right">' + (r.margen_pct !== null ? r.margen_pct + '%' : 'N/D') + '</td>' +
+                    '<td class="text-right font-weight-bold ' + utilidadClase + '">' + (r.margen_pct !== null ? r.margen_pct + '%' : 'N/D') + '</td>' +
+                    '<td class="text-right font-weight-bold ' + utilidadClase + '">' + fmt(r.utilidad) + '</td>' +
                     '<td class="text-right">' + r.avance_pct + '%</td>' +
                     '</tr>');
             });

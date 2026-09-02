@@ -260,6 +260,7 @@ class ReporteExpo extends Component
                 COUNT(DISTINCT COALESCE(c.cliente_id, c.nombre_cliente)) AS clientes_unicos,
                 COALESCE(SUM(chp.precio_unidad * chp.cantidad), 0) AS total_ofertado,
                 COALESCE(SUM($netoOfertaExpr), 0) AS total_neto,
+                COALESCE(SUM(ROUND(($netoOfertaExpr) * chp.isv_producto / 100, 2)), 0) AS total_isv,
                 COALESCE(SUM(COALESCE(ppc.precio_base_venta, 0) * chp.cantidad), 0) AS total_costo
             {$this->joinsOfertado()}
             {$this->joinExpoCotizacion($expoId)}
@@ -283,6 +284,7 @@ class ReporteExpo extends Component
 
         $totalOfertado = (float) $rowOfertado->total_ofertado;
         $totalNeto = (float) $rowOfertado->total_neto;
+        $totalIsv = (float) $rowOfertado->total_isv;
         $totalFacturado = (float) $rowFacturado->total_facturado;
         $totalCosto = (float) $rowOfertado->total_costo;
         $utilidad = $totalNeto - $totalCosto;
@@ -294,6 +296,8 @@ class ReporteExpo extends Component
             'num_facturas' => (int) $rowFacturado->num_facturas,
             'total_ofertado' => round($totalOfertado, 2),
             'total_descuento' => round($totalOfertado - $totalNeto, 2),
+            'total_oferta_sin_isv' => round($totalNeto, 2),
+            'total_oferta_con_isv' => round($totalNeto + $totalIsv, 2),
             'total_facturado' => round($totalFacturado, 2),
             'total_costo' => round($totalCosto, 2),
             'total_utilidad' => round($utilidad, 2),
@@ -690,12 +694,12 @@ class ReporteExpo extends Component
     {
         $data = $this->datosOfertas($r);
 
-        $headings = ['Oferta #', 'Flujo', 'Cliente', 'Asesor', 'Teleasesor', 'Fecha', 'Estado', 'Estado Facturacion', 'Facturas', 'Total Ofertado (L)', 'Total Facturado (L)', 'Margen Oferta %', 'Descuento (L)', 'Utilidad Oferta (L)', 'Avance %'];
+        $headings = ['Oferta #', 'Flujo', 'Cliente', 'Asesor', 'Teleasesor', 'Fecha', 'Estado', 'Estado Facturacion', 'Facturas', 'Total Ofertado (L)', 'Total Facturado (L)', 'Margen Oferta %', 'Ganancia Oferta (L)', 'Descuento (L)', 'Avance %'];
         $rows = array_map(fn ($o) => [
             $o['oferta_id'], $o['flujo_id'], $o['cliente'], $o['asesor'], $o['teleasesor'],
             $o['fecha_emision'], $o['estado'], $o['estado_facturacion'], $o['num_facturas'],
-            $o['total_ofertado'], $o['total_facturado'], $o['margen_pct'], $o['descuento'],
-            $o['utilidad'], $o['avance_pct'],
+            $o['total_ofertado'], $o['total_facturado'], $o['margen_pct'], $o['utilidad'],
+            $o['descuento'], $o['avance_pct'],
         ], $data);
 
         return Excel::download(new AnaliticaProductosExport($headings, $rows), 'reporte_expo_ofertas.xlsx');
