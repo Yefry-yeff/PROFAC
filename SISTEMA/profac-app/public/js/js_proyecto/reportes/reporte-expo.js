@@ -25,10 +25,6 @@ var reporteExpo = (function () {
         fecha_desde: '',
         fecha_hasta: '',
         rentabilidad_base: 'ofertas',
-        utilidad_min: '',
-        utilidad_max: '',
-        margen_min: '',
-        margen_max: '',
     };
 
     function get(id) { return document.getElementById(id); }
@@ -107,28 +103,10 @@ var reporteExpo = (function () {
                         etiquetas[key] + ': ' + texto + ' &times;</span>';
             }
         });
-        var limitesRentabilidad = [filtro.utilidad_min, filtro.utilidad_max, filtro.margen_min, filtro.margen_max];
-        if (limitesRentabilidad.some(function (valor) { return valor !== ''; })) {
-            var detalles = [];
-            if (filtro.utilidad_min !== '') detalles.push('utilidad ≥ L. ' + filtro.utilidad_min);
-            if (filtro.utilidad_max !== '') detalles.push('utilidad ≤ L. ' + filtro.utilidad_max);
-            if (filtro.margen_min !== '') detalles.push('margen ≥ ' + filtro.margen_min + '%');
-            if (filtro.margen_max !== '') detalles.push('margen ≤ ' + filtro.margen_max + '%');
-            html += '<span class="badge badge-primary mr-1 mb-1" style="cursor:pointer" onclick="reporteExpo.limpiarFiltro(\'rentabilidad\')">' +
-                (filtro.rentabilidad_base === 'facturas' ? 'Facturas' : 'Ofertas') + ': ' + detalles.join(', ') + ' &times;</span>';
-        }
         cont.innerHTML = html;
     }
 
     function limpiarFiltro(key) {
-        if (key === 'rentabilidad') {
-            ['utilidad_min', 'utilidad_max', 'margen_min', 'margen_max'].forEach(function (campo) {
-                filtro[campo] = '';
-                $('#expo-f-' + campo.replace('_', '-')).val('');
-            });
-            recargarTodo();
-            return;
-        }
         filtro[key] = key === 'teleasesor_ids' ? [] : '';
         var mapId = { marca_id: 'expo-f-marca', escala_id: 'expo-f-escala', vendedor_id: 'expo-f-vendedor', teleasesor_ids: 'expo-f-teleasesor', estado: 'expo-f-estado' };
         if (mapId[key]) $('#' + mapId[key]).val(key === 'teleasesor_ids' ? [] : '').trigger('change.select2');
@@ -145,10 +123,6 @@ var reporteExpo = (function () {
         filtro.fecha_desde = $('#expo-f-desde').val() || '';
         filtro.fecha_hasta = $('#expo-f-hasta').val() || '';
         filtro.rentabilidad_base = $('input[name="expo-f-rentabilidad-base"]:checked').val() || 'ofertas';
-        filtro.utilidad_min = $('#expo-f-utilidad-min').val();
-        filtro.utilidad_max = $('#expo-f-utilidad-max').val();
-        filtro.margen_min = $('#expo-f-margen-min').val();
-        filtro.margen_max = $('#expo-f-margen-max').val();
         recargarTodo();
     }
 
@@ -184,12 +158,11 @@ var reporteExpo = (function () {
 
     /* ─────────────────────────── KPIs ─────────────────────────────────── */
     function cargarKpis() {
-        ['kpi-ofertado', 'kpi-facturado', 'kpi-avance', 'kpi-ofertas', 'kpi-clientes', 'kpi-utilidad', 'kpi-margen', 'kpi-facturas', 'kpi-descuento', 'kpi-costo']
+        ['kpi-ofertado', 'kpi-avance', 'kpi-ofertas', 'kpi-clientes', 'kpi-utilidad', 'kpi-margen', 'kpi-facturas', 'kpi-descuento', 'kpi-costo']
             .forEach(function (id) { setText(id, '…'); });
 
         $.get('/reporte/expo/kpis', paramsActuales()).then(function (d) {
             setText('kpi-ofertado', fmt(d.total_ofertado));
-            setText('kpi-facturado', fmt(d.total_facturado));
             setText('kpi-avance', (d.avance_pct !== null ? d.avance_pct : 0) + '%');
             setText('kpi-ofertas', fmtN(d.num_ofertas));
             setText('kpi-clientes', fmtN(d.clientes_unicos));
@@ -381,6 +354,14 @@ var reporteExpo = (function () {
     /* ─────────────────────────── Tabla: productos ─────────────────────── */
     function cargarTablaProductos() {
         $.get('/reporte/expo/tabla-productos', paramsActuales()).then(function (rows) {
+            var esFactura = filtro.rentabilidad_base === 'facturas';
+            setText('titulo-analitica-productos', esFactura ? 'Analítica de Productos por Facturas' : 'Analítica de Productos por Ofertas');
+            setText('th-productos-cantidad-base', esFactura ? 'Cant. Facturada' : 'Cant. Ofertada');
+            setText('th-productos-venta-base', esFactura ? 'Venta Factura' : 'Venta Oferta');
+            setText('th-productos-descuento-base', esFactura ? 'Descuento Factura' : 'Descuento Oferta');
+            setText('th-productos-costo-base', esFactura ? 'Costo Factura' : 'Costo Oferta');
+            setText('th-productos-utilidad-base', esFactura ? 'Utilidad Factura' : 'Utilidad Oferta');
+            setText('th-productos-margen-base', esFactura ? 'Margen Factura %' : 'Margen Oferta %');
             if (dtProductos) { dtProductos.destroy(); $('#tabla-expo-productos tbody').empty(); }
             var tbody = $('#tabla-expo-productos tbody').empty();
             rows.forEach(function (r) {
@@ -390,10 +371,8 @@ var reporteExpo = (function () {
                     '<td>' + esc(r.marca) + '</td>' +
                     '<td>' + esc(r.categoria) + '</td>' +
                     '<td class="text-right">' + fmtN(r.numero_ofertas) + '</td>' +
-                    '<td class="text-right">' + fmtN(r.cantidad_ofertada) + '</td>' +
-                    '<td class="text-right">' + fmtN(r.cantidad_facturada) + '</td>' +
-                    '<td class="text-right">' + fmt(r.total_ofertado) + '</td>' +
-                    '<td class="text-right">' + fmt(r.total_facturado) + '</td>' +
+                    '<td class="text-right">' + fmtQ(esFactura ? r.cantidad_facturada : r.cantidad_ofertada) + '</td>' +
+                    '<td class="text-right">' + fmt(r.total_base) + '</td>' +
                     '<td class="text-right">' + fmt(r.descuento) + '</td>' +
                     '<td class="text-right">' + fmt(r.total_costo) + '</td>' +
                     '<td class="text-right ' + (r.utilidad >= 0 ? 'bi-profit' : 'bi-loss') + '">' + (r.utilidad >= 0 ? '+' : '-') + ' ' + fmt(Math.abs(r.utilidad)) + '</td>' +
@@ -427,6 +406,7 @@ var reporteExpo = (function () {
                     '<td><span class="badge ' + (r.estado_facturacion === 'FACTURADA' ? 'badge-success' : (r.estado_facturacion === 'PARCIALMENTE_FACTURADA' ? 'badge-warning' : 'badge-secondary')) + '">' + esc(estado) + '</span></td>' +
                     '<td class="text-right">' + fmt(r.total_ofertado) + '</td>' +
                     '<td class="text-right">' + fmt(r.total_facturado) + '</td>' +
+                    '<td class="text-right">' + (r.margen_pct !== null ? r.margen_pct + '%' : 'N/D') + '</td>' +
                     '<td class="text-right">' + r.avance_pct + '%</td>' +
                     '</tr>');
             });
@@ -565,15 +545,25 @@ var reporteExpo = (function () {
 
     function renderProducto(data) {
         var p = data.producto;
+        var esFactura = data.rentabilidad_base === 'facturas';
+        var entidad = esFactura ? 'Factura' : 'Oferta';
         productoSeleccionado = p.id;
         setText('modal-producto-titulo', (p.codigo ? p.codigo + ' · ' : '') + p.producto);
+        setText('titulo-modal-producto-detalle', esFactura ? 'Facturación del producto por oferta' : 'Ofertas donde apareció');
+        setText('th-modal-producto-cantidad', esFactura ? 'Cant. Facturada' : 'Cant. Ofertada');
+        setText('th-modal-producto-precio', esFactura ? 'Precio factura' : 'Precio oferta');
+        setText('th-modal-producto-subtotal', esFactura ? 'Subtotal factura' : 'Subtotal oferta');
+        setText('th-modal-producto-total', esFactura ? 'ISV / Total factura' : 'ISV / Total oferta');
+        setText('th-modal-producto-costo', 'Costo ' + entidad.toLowerCase());
+        setText('th-modal-producto-utilidad', 'Utilidad / Margen ' + entidad.toLowerCase());
         $('#modal-producto-resumen').html(
             resumenItem('Marca', esc(p.marca)) + resumenItem('Categoría', esc(p.categoria)) +
-            resumenItem('Cantidad ofertada', fmtQ(p.cantidad_ofertada)) + resumenItem('Cantidad vendida', fmtQ(p.cantidad_vendida)) +
-            resumenItem('Total ofertado', fmt(p.total_ofertado)) + resumenItem('Total vendido', fmt(p.total_vendido)) +
-            resumenItem('Descuento acumulado', fmt(p.descuento_acumulado)) + resumenItem('Costo vendido', fmt(p.costo_total)) +
-            resumenItem(p.utilidad >= 0 ? 'Ganancia' : 'Pérdida', (p.utilidad >= 0 ? '+ ' : '- ') + fmt(Math.abs(p.utilidad)), p.utilidad >= 0 ? 'bi-profit' : 'bi-loss') +
-            resumenItem('Margen', p.margen_pct === null ? 'N/D' : p.margen_pct + '%') + resumenItem('Ofertas', fmtN(p.numero_ofertas))
+            resumenItem('Cantidad ' + (esFactura ? 'facturada' : 'ofertada'), fmtQ(p.cantidad_base)) +
+            resumenItem('Total ' + entidad, fmt(p.total_base)) +
+            resumenItem('Descuento ' + entidad, fmt(p.descuento_base)) +
+            resumenItem('Costo ' + entidad, fmt(p.costo_base)) +
+            resumenItem(p.utilidad_base >= 0 ? 'Utilidad ' + entidad : 'Pérdida ' + entidad, (p.utilidad_base >= 0 ? '+ ' : '- ') + fmt(Math.abs(p.utilidad_base)), p.utilidad_base >= 0 ? 'bi-profit' : 'bi-loss') +
+            resumenItem('Margen ' + entidad, p.margen_base_pct === null ? 'N/D' : p.margen_base_pct + '%') + resumenItem('Ofertas', fmtN(p.numero_ofertas))
         );
 
         var tbody = $('#modal-producto-ofertas tbody').empty();
@@ -581,13 +571,13 @@ var reporteExpo = (function () {
             tbody.append('<tr class="bi-row-selectable" data-oferta-id="' + o.oferta_id + '" title="Abrir detalle de esta oferta">' +
                 '<td><strong>#' + o.oferta_id + '</strong><br>Flujo ' + (o.flujo_id || '—') + '</td><td>' + esc(o.fecha) + '</td>' +
                 '<td>' + esc(o.cliente) + '</td><td>' + esc(o.asesor) + '</td><td>' + esc(o.teleasesor) + '</td>' +
-                '<td>' + esc(o.escala) + '</td><td class="text-right">' + fmtQ(o.cantidad) + '</td>' +
+                '<td>' + esc(o.escala) + '</td><td class="text-right">' + fmtQ(o.cantidad_base) + '</td>' +
                 '<td class="text-right">' + fmt(o.precio_base) + '</td><td class="text-right">' + fmt(o.precio_antes_descuento) + '</td>' +
-                '<td class="text-right">' + fmt(o.descuento) + '<br><small>' + o.descuento_pct + '%</small></td>' +
-                '<td class="text-right">' + fmt(o.precio_final) + '</td><td class="text-right">' + fmt(o.subtotal_final) + '</td>' +
-                '<td class="text-right">' + fmt(o.isv) + '<br><strong>' + fmt(o.total) + '</strong></td>' +
-                '<td class="text-right">' + fmt(o.costo_total) + '</td><td class="text-right ' + (o.utilidad >= 0 ? 'bi-profit' : 'bi-loss') + '">' +
-                (o.utilidad >= 0 ? '+ ' : '- ') + fmt(Math.abs(o.utilidad)) + '<br><small>' + (o.margen_pct === null ? 'N/D' : o.margen_pct + '%') + '</small></td>' +
+                '<td class="text-right">' + fmt(o.descuento_base) + (esFactura ? '' : '<br><small>' + o.descuento_pct + '%</small>') + '</td>' +
+                '<td class="text-right">' + fmt(o.precio_base_transaccion) + '</td><td class="text-right">' + fmt(o.total_base) + '</td>' +
+                '<td class="text-right">' + fmt(o.isv_base) + '<br><strong>' + fmt(o.total_con_impuesto_base) + '</strong></td>' +
+                '<td class="text-right">' + fmt(o.costo_base) + '</td><td class="text-right ' + (o.utilidad_base >= 0 ? 'bi-profit' : 'bi-loss') + '">' +
+                (o.utilidad_base >= 0 ? '+ ' : '- ') + fmt(Math.abs(o.utilidad_base)) + '<br><small>' + (o.margen_base_pct === null ? 'N/D' : o.margen_base_pct + '%') + '</small></td>' +
                 '<td>' + esc(etiquetaEstadoFacturacion(o.estado_facturacion)) + '</td></tr>');
         });
         tbody.off('click', 'tr').on('click', 'tr', function () {
@@ -616,7 +606,7 @@ var reporteExpo = (function () {
     }
 
     function imprimirOfertaSeleccionada() {
-        if (ofertaSeleccionada) window.open('/oferta/' + ofertaSeleccionada + '/ficha-pdf', '_blank', 'noopener');
+        if (ofertaSeleccionada) window.open('/cotizacion/imprimir/' + ofertaSeleccionada, '_blank', 'noopener');
     }
 
     function abrirBuscadorProductos(origen) {
@@ -670,20 +660,12 @@ var reporteExpo = (function () {
         filtro.fecha_desde = query.get('fecha_desde') || '';
         filtro.fecha_hasta = query.get('fecha_hasta') || '';
         filtro.rentabilidad_base = query.get('rentabilidad_base') === 'facturas' ? 'facturas' : 'ofertas';
-        filtro.utilidad_min = query.get('utilidad_min') || '';
-        filtro.utilidad_max = query.get('utilidad_max') || '';
-        filtro.margen_min = query.get('margen_min') || '';
-        filtro.margen_max = query.get('margen_max') || '';
 
         $('#expo-selector').val(filtro.expo_id);
         $('#expo-f-estado').val(filtro.estado);
         $('#expo-f-desde').val(filtro.fecha_desde);
         $('#expo-f-hasta').val(filtro.fecha_hasta);
         $('input[name="expo-f-rentabilidad-base"][value="' + filtro.rentabilidad_base + '"]').prop('checked', true).closest('label').addClass('active').siblings().removeClass('active');
-        $('#expo-f-utilidad-min').val(filtro.utilidad_min);
-        $('#expo-f-utilidad-max').val(filtro.utilidad_max);
-        $('#expo-f-margen-min').val(filtro.margen_min);
-        $('#expo-f-margen-max').val(filtro.margen_max);
 
         $('#modal-oferta-expo').on('hidden.bs.modal', function () {
             if (volverAOferta) return;

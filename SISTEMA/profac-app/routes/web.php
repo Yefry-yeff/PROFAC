@@ -1693,7 +1693,6 @@ Route::post('/reporte/ventas-cobros/actualizar-f01/{facturaId}',                
     Route::get('/reporte/expo/detalle-oferta',     [\App\Http\Livewire\Reportes\ReporteExpo::class, 'detalleOferta']);
     Route::get('/reporte/expo/detalle-producto',   [\App\Http\Livewire\Reportes\ReporteExpo::class, 'detalleProducto']);
     Route::get('/reporte/expo/exportar-oferta',    [\App\Http\Livewire\Reportes\ReporteExpo::class, 'exportarOferta']);
-    Route::get('/reporte/expo/imprimir-oferta',    [\App\Http\Livewire\Reportes\ReporteExpo::class, 'imprimirOferta']);
 
     // [auto-routes-anchor]
 });

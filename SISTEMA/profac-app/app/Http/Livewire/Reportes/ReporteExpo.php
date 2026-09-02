@@ -164,75 +164,6 @@ class ReporteExpo extends Component
         return collect($valores)->map(fn ($id) => (int) $id)->filter()->unique()->values()->all();
     }
 
-    private function numeroFiltro(Request $r, string $campo): ?float
-    {
-        $valor = $r->input($campo);
-
-        return $valor !== null && $valor !== '' && is_numeric($valor) ? (float) $valor : null;
-    }
-
-    /**
-     * Selecciona ofertas completas según su rentabilidad agregada. La base
-     * "ofertas" usa el costo histórico de las líneas ofertadas; "facturas"
-     * usa únicamente líneas incluidas en facturas activas.
-     */
-    private function filtroRentabilidad(Request $r): string
-    {
-        $limites = [
-            'utilidad_min' => $this->numeroFiltro($r, 'utilidad_min'),
-            'utilidad_max' => $this->numeroFiltro($r, 'utilidad_max'),
-            'margen_min' => $this->numeroFiltro($r, 'margen_min'),
-            'margen_max' => $this->numeroFiltro($r, 'margen_max'),
-        ];
-
-        if (! collect($limites)->contains(fn ($valor) => $valor !== null)) {
-            return '';
-        }
-
-        $baseFacturas = $r->input('rentabilidad_base') === 'facturas';
-        if ($baseFacturas) {
-            $from = '
-                FROM cotizacion_has_producto chp_r
-                INNER JOIN venta_has_producto vhp_r ON vhp_r.cotizacion_has_producto_id = chp_r.id
-                INNER JOIN factura f_r ON f_r.id = vhp_r.factura_id AND f_r.estado_venta_id = 1
-                INNER JOIN producto p_r ON p_r.id = chp_r.producto_id
-                LEFT JOIN precios_producto_carga ppc_r ON ppc_r.id = chp_r.precios_producto_carga_id
-                LEFT JOIN precios_producto_carga ppc_vhp_r ON ppc_vhp_r.id = vhp_r.precios_producto_carga_id
-            ';
-            $venta = 'SUM(vhp_r.sub_total_s)';
-            $costo = 'SUM(COALESCE(ppc_vhp_r.costoproducto, ppc_r.costoproducto, p_r.costo_promedio, 0) * vhp_r.cantidad_s)';
-        } else {
-            $from = '
-                FROM cotizacion_has_producto chp_r
-                INNER JOIN producto p_r ON p_r.id = chp_r.producto_id
-                LEFT JOIN precios_producto_carga ppc_r ON ppc_r.id = chp_r.precios_producto_carga_id
-            ';
-            $venta = 'SUM(chp_r.sub_total)';
-            $costo = 'SUM(COALESCE(ppc_r.costoproducto, p_r.costo_promedio, 0) * chp_r.cantidad)';
-        }
-
-        $utilidad = "(($venta) - ($costo))";
-        $margen = "(($utilidad) / NULLIF(($venta), 0) * 100)";
-        $having = [];
-        foreach ([
-            'utilidad_min' => [$utilidad, '>='],
-            'utilidad_max' => [$utilidad, '<='],
-            'margen_min' => [$margen, '>='],
-            'margen_max' => [$margen, '<='],
-        ] as $campo => [$expresion, $operador]) {
-            if ($limites[$campo] !== null) {
-                $having[] = $expresion . ' ' . $operador . ' ' . sprintf('%.8F', $limites[$campo]);
-            }
-        }
-
-        return " AND c.id IN (
-            SELECT chp_r.cotizacion_id
-            $from
-            GROUP BY chp_r.cotizacion_id
-            HAVING " . implode(' AND ', $having) . '
-        )';
-    }
-
     /** FROM + JOINs comunes al lado "ofertado" (sin facturación). 1 fila = 1 línea ofertada. */
     private function joinsOfertado(): string
     {
@@ -308,8 +239,6 @@ class ReporteExpo extends Component
             $sql .= ' AND c.fecha_emision <= ' . DB::getPdo()->quote($r->fecha_hasta);
         }
 
-        $sql .= $this->filtroRentabilidad($r);
-
         return $sql;
     }
 
@@ -324,8 +253,10 @@ class ReporteExpo extends Component
             SELECT
                 COUNT(DISTINCT c.id) AS num_ofertas,
                 COUNT(DISTINCT COALESCE(c.cliente_id, c.nombre_cliente)) AS clientes_unicos,
-                COALESCE(SUM(chp.sub_total), 0) AS total_ofertado,
-                COALESCE(SUM(chp.monto_descProducto), 0) AS total_descuento
+                COALESCE(SUM(chp.precio_unidad * chp.cantidad), 0) AS total_ofertado,
+                COALESCE(SUM(chp.sub_total), 0) AS total_neto,
+                COALESCE(SUM(GREATEST((chp.precio_unidad * chp.cantidad) - chp.sub_total, 0)), 0) AS total_descuento,
+                COALESCE(SUM(COALESCE(ppc.precio_base_venta, 0) * chp.cantidad), 0) AS total_costo
             {$this->joinsOfertado()}
             {$this->joinExpoCotizacion($expoId)}
             {$this->whereVigentes($expoId)}
@@ -337,6 +268,7 @@ class ReporteExpo extends Component
             SELECT
                 COUNT(DISTINCT f.id) AS num_facturas,
                 COALESCE(SUM(vhp.sub_total_s), 0) AS total_facturado,
+                COALESCE(SUM(GREATEST((vhp.precio_unidad * vhp.cantidad_s) - vhp.sub_total_s, 0)), 0) AS total_descuento,
                 COALESCE(SUM(($costoExpr) * vhp.cantidad_s), 0) AS total_costo
             {$this->joinsOfertado()}
             {$this->joinsFacturado()}
@@ -346,9 +278,10 @@ class ReporteExpo extends Component
         ");
 
         $totalOfertado = (float) $rowOfertado->total_ofertado;
+        $totalNeto = (float) $rowOfertado->total_neto;
         $totalFacturado = (float) $rowFacturado->total_facturado;
-        $totalCosto = (float) $rowFacturado->total_costo;
-        $utilidad = $totalFacturado - $totalCosto;
+        $totalCosto = (float) $rowOfertado->total_costo;
+        $utilidad = $totalNeto - $totalCosto;
 
         return response()->json([
             'expo_id' => $expoId,
@@ -360,8 +293,8 @@ class ReporteExpo extends Component
             'total_facturado' => round($totalFacturado, 2),
             'total_costo' => round($totalCosto, 2),
             'total_utilidad' => round($utilidad, 2),
-            'margen_pct' => $totalFacturado > 0 ? round(($utilidad / $totalFacturado) * 100, 2) : null,
-            'avance_pct' => $totalOfertado > 0 ? round(($totalFacturado / $totalOfertado) * 100, 2) : 0,
+            'margen_pct' => $totalNeto > 0 ? round(($utilidad / $totalNeto) * 100, 2) : null,
+            'avance_pct' => $totalNeto > 0 ? round(($totalFacturado / $totalNeto) * 100, 2) : 0,
         ]);
     }
 
@@ -527,7 +460,7 @@ class ReporteExpo extends Component
         $extra = $this->filtrosExtra($r);
 
         $ofertado = DB::select("
-            SELECT DATE(c.fecha_emision) AS fecha, SUM(chp.sub_total) AS ofertado
+            SELECT DATE(c.fecha_emision) AS fecha, SUM(chp.precio_unidad * chp.cantidad) AS ofertado
             {$this->joinsOfertado()}
             {$this->joinExpoCotizacion($expoId)}
             {$this->whereVigentes($expoId)}
@@ -580,7 +513,8 @@ class ReporteExpo extends Component
                  COUNT(DISTINCT c.id) AS numero_ofertas,
                  SUM(chp.cantidad) AS cantidad_ofertada,
                  SUM(chp.sub_total) AS total_ofertado,
-                 SUM(chp.monto_descProducto) AS descuento
+                 SUM(chp.monto_descProducto) AS descuento,
+                  SUM(COALESCE(ppc.precio_base_venta, 0) * chp.cantidad) AS costo_ofertado
             {$this->joinsOfertado()}
             {$this->joinExpoCotizacion($expoId)}
             {$this->whereVigentes($expoId)}
@@ -593,6 +527,7 @@ class ReporteExpo extends Component
             SELECT p.id AS producto_id,
                      SUM(COALESCE(NULLIF(vhp.cantidad_oferta_aplicada,0), vhp.cantidad_s)) AS cantidad_facturada,
                      SUM(vhp.sub_total_s) AS total_facturado,
+                     SUM(GREATEST((vhp.precio_unidad * vhp.cantidad_s) - vhp.sub_total_s, 0)) AS descuento_facturado,
                      SUM(($costoExpr) * vhp.cantidad_s) AS total_costo
             {$this->joinsOfertado()}
             {$this->joinsFacturado()}
@@ -603,11 +538,20 @@ class ReporteExpo extends Component
         ");
         $fMap = collect($facturado)->keyBy('producto_id');
 
-        return collect($ofertado)->map(function ($row) use ($fMap) {
+        $baseFacturas = $r->input('rentabilidad_base') === 'facturas';
+
+        return collect($ofertado)->map(function ($row) use ($fMap, $baseFacturas) {
             $f = $fMap->get($row->producto_id);
             $totalFacturado = round((float) ($f->total_facturado ?? 0), 2);
-            $totalCosto = round((float) ($f->total_costo ?? 0), 2);
-            $utilidad = round($totalFacturado - $totalCosto, 2);
+            $totalOfertado = round((float) $row->total_ofertado, 2);
+            $costoOfertado = round((float) $row->costo_ofertado, 2);
+            $costoFacturado = round((float) ($f->total_costo ?? 0), 2);
+            $totalBase = $baseFacturas ? $totalFacturado : $totalOfertado;
+            $totalCosto = $baseFacturas ? $costoFacturado : $costoOfertado;
+            $descuento = $baseFacturas
+                ? round((float) ($f->descuento_facturado ?? 0), 2)
+                : round((float) $row->descuento, 2);
+            $utilidad = round($totalBase - $totalCosto, 2);
 
             return [
                 'producto_id' => (int) $row->producto_id,
@@ -618,12 +562,14 @@ class ReporteExpo extends Component
                 'numero_ofertas' => (int) $row->numero_ofertas,
                 'cantidad_ofertada' => (float) $row->cantidad_ofertada,
                 'cantidad_facturada' => (float) ($f->cantidad_facturada ?? 0),
-                'total_ofertado' => round((float) $row->total_ofertado, 2),
+                'rentabilidad_base' => $baseFacturas ? 'facturas' : 'ofertas',
+                'total_ofertado' => $totalOfertado,
                 'total_facturado' => $totalFacturado,
-                'descuento' => round((float) $row->descuento, 2),
+                'descuento' => $descuento,
+                'total_base' => $totalBase,
                 'total_costo' => $totalCosto,
                 'utilidad' => $utilidad,
-                'margen_pct' => $totalFacturado > 0 ? round(($utilidad / $totalFacturado) * 100, 2) : null,
+                'margen_pct' => $totalBase > 0 ? round(($utilidad / $totalBase) * 100, 2) : null,
             ];
         })->sortByDesc('total_ofertado')->values()->all();
     }
@@ -636,12 +582,14 @@ class ReporteExpo extends Component
     public function exportarProductos(Request $r)
     {
         $data = $this->datosProductos($r);
+        $baseFacturas = $r->input('rentabilidad_base') === 'facturas';
+        $entidad = $baseFacturas ? 'Factura' : 'Oferta';
 
-        $headings = ['Codigo', 'Producto', 'Marca', 'Categoria', 'Ofertas', 'Cant. Ofertada', 'Cant. Facturada', 'Venta Ofertado (L)', 'Venta Facturado (L)', 'Descuento (L)', 'Costo (L)', 'Utilidad (L)', 'Margen %'];
+        $headings = ['Codigo', 'Producto', 'Marca', 'Categoria', 'Ofertas', 'Cant. ' . ($baseFacturas ? 'Facturada' : 'Ofertada'), 'Venta ' . $entidad . ' (L)', 'Descuento (L)', 'Costo ' . $entidad . ' (L)', 'Utilidad ' . $entidad . ' (L)', 'Margen ' . $entidad . ' %'];
         $rows = array_map(fn ($p) => [
             $p['codigo'], $p['producto'], $p['marca'], $p['categoria'], $p['numero_ofertas'],
-            $p['cantidad_ofertada'], $p['cantidad_facturada'], $p['total_ofertado'],
-            $p['total_facturado'], $p['descuento'], $p['total_costo'], $p['utilidad'], $p['margen_pct'],
+            $baseFacturas ? $p['cantidad_facturada'] : $p['cantidad_ofertada'], $p['total_base'],
+            $p['descuento'], $p['total_costo'], $p['utilidad'], $p['margen_pct'],
         ], $data);
 
         return Excel::download(new AnaliticaProductosExport($headings, $rows), 'reporte_expo_productos.xlsx');
@@ -663,6 +611,7 @@ class ReporteExpo extends Component
                 COALESCE(ec.flujo_id, (SELECT hf.flujo_id FROM historico_flujo hf WHERE hf.tipo_tramite_id = 2 AND hf.tramite_id = c.id ORDER BY hf.id DESC LIMIT 1)) AS flujo_id,
                 SUM(chp.sub_total) AS total_ofertado,
                 SUM(chp.monto_descProducto) AS descuento,
+                SUM(COALESCE(ppc.precio_base_venta, 0) * chp.cantidad) AS total_costo_oferta,
                 SUM(chp.cantidad) AS cantidad_ofertada,
                 COALESCE(fact.total_facturado, 0) AS total_facturado,
                 COALESCE(fact.total_costo, 0) AS total_costo,
@@ -697,8 +646,8 @@ class ReporteExpo extends Component
         return array_map(function ($row) {
             $totalOfertado = (float) $row->total_ofertado;
             $totalFacturado = (float) $row->total_facturado;
-            $totalCosto = (float) $row->total_costo;
-            $utilidad = $totalFacturado - $totalCosto;
+            $totalCostoOferta = (float) $row->total_costo_oferta;
+            $utilidad = $totalOfertado - $totalCostoOferta;
             $cantidadFacturada = (float) $row->cantidad_facturada;
             $cantidadOfertada = (float) $row->cantidad_ofertada;
             $estadoFacturacion = $cantidadFacturada <= 0.0001
@@ -719,7 +668,7 @@ class ReporteExpo extends Component
                 'total_facturado' => round($totalFacturado, 2),
                 'descuento' => round((float) $row->descuento, 2),
                 'utilidad' => round($utilidad, 2),
-                'margen_pct' => $totalFacturado > 0 ? round(($utilidad / $totalFacturado) * 100, 2) : null,
+                'margen_pct' => $totalOfertado > 0 ? round(($utilidad / $totalOfertado) * 100, 2) : null,
                 'avance_pct' => $totalOfertado > 0 ? round(($totalFacturado / $totalOfertado) * 100, 2) : 0,
             ];
         }, $rows);
@@ -734,12 +683,12 @@ class ReporteExpo extends Component
     {
         $data = $this->datosOfertas($r);
 
-        $headings = ['Oferta #', 'Flujo', 'Cliente', 'Asesor', 'Teleasesor', 'Fecha', 'Estado', 'Estado Facturacion', 'Facturas', 'Total Ofertado (L)', 'Total Facturado (L)', 'Descuento (L)', 'Utilidad (L)', 'Margen %', 'Avance %'];
+        $headings = ['Oferta #', 'Flujo', 'Cliente', 'Asesor', 'Teleasesor', 'Fecha', 'Estado', 'Estado Facturacion', 'Facturas', 'Total Ofertado (L)', 'Total Facturado (L)', 'Margen Oferta %', 'Descuento (L)', 'Utilidad Oferta (L)', 'Avance %'];
         $rows = array_map(fn ($o) => [
             $o['oferta_id'], $o['flujo_id'], $o['cliente'], $o['asesor'], $o['teleasesor'],
             $o['fecha_emision'], $o['estado'], $o['estado_facturacion'], $o['num_facturas'],
-            $o['total_ofertado'], $o['total_facturado'], $o['descuento'], $o['utilidad'],
-            $o['margen_pct'], $o['avance_pct'],
+            $o['total_ofertado'], $o['total_facturado'], $o['margen_pct'], $o['descuento'],
+            $o['utilidad'], $o['avance_pct'],
         ], $data);
 
         return Excel::download(new AnaliticaProductosExport($headings, $rows), 'reporte_expo_ofertas.xlsx');
@@ -910,6 +859,35 @@ class ReporteExpo extends Component
         );
         abort_unless($data, 404);
 
+        $baseFacturas = $r->input('rentabilidad_base') === 'facturas';
+        $data['rentabilidad_base'] = $baseFacturas ? 'facturas' : 'ofertas';
+        $producto = &$data['producto'];
+        $producto['cantidad_base'] = $baseFacturas ? $producto['cantidad_vendida'] : $producto['cantidad_ofertada'];
+        $producto['total_base'] = $baseFacturas ? $producto['total_vendido'] : $producto['total_ofertado'];
+        $producto['descuento_base'] = $baseFacturas ? $producto['descuento_facturado'] : $producto['descuento_acumulado'];
+        $producto['costo_base'] = $baseFacturas ? $producto['costo_facturado'] : $producto['costo_ofertado'];
+        $producto['utilidad_base'] = $baseFacturas ? $producto['utilidad_facturada'] : $producto['utilidad_ofertada'];
+        $producto['margen_base_pct'] = $baseFacturas ? $producto['margen_facturado_pct'] : $producto['margen_ofertado_pct'];
+        unset($producto);
+
+        foreach ($data['ofertas'] as &$oferta) {
+            $totalBase = $baseFacturas ? $oferta['total_facturado'] : $oferta['subtotal_final'];
+            $costoBase = $baseFacturas ? $oferta['costo_facturado'] : $oferta['costo_total'];
+            $utilidadBase = $totalBase - $costoBase;
+            $oferta['cantidad_base'] = $baseFacturas ? $oferta['cantidad_facturada'] : $oferta['cantidad'];
+            $oferta['total_base'] = round($totalBase, 2);
+            $oferta['precio_base_transaccion'] = $oferta['cantidad_base'] > 0
+                ? round($totalBase / $oferta['cantidad_base'], 4)
+                : 0;
+            $oferta['descuento_base'] = $baseFacturas ? $oferta['descuento_facturado'] : $oferta['descuento'];
+            $oferta['isv_base'] = $baseFacturas ? $oferta['isv_facturado'] : $oferta['isv'];
+            $oferta['total_con_impuesto_base'] = $baseFacturas ? $oferta['total_con_impuesto_facturado'] : $oferta['total'];
+            $oferta['costo_base'] = round($costoBase, 2);
+            $oferta['utilidad_base'] = round($utilidadBase, 2);
+            $oferta['margen_base_pct'] = $totalBase > 0 ? round(($utilidadBase / $totalBase) * 100, 2) : null;
+        }
+        unset($oferta);
+
         return response()->json($data);
     }
 
@@ -924,11 +902,4 @@ class ReporteExpo extends Component
         );
     }
 
-    public function imprimirOferta(Request $r, ReporteExpoDetalleService $detalle)
-    {
-        $data = $detalle->oferta((int) $r->oferta_id);
-        abort_unless($data, 404);
-
-        return view('reportes.reporte-expo-oferta-print', $data);
-    }
 }

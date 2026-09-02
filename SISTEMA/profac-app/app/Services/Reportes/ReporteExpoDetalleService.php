@@ -114,7 +114,7 @@ class ReporteExpoDetalleService
             ->where('f.estado_venta_id', 1)
             ->whereNotNull('vhp.cotizacion_has_producto_id')
             ->groupBy('vhp.cotizacion_has_producto_id')
-            ->selectRaw('vhp.cotizacion_has_producto_id, SUM(COALESCE(NULLIF(vhp.cantidad_oferta_aplicada, 0), vhp.cantidad_s)) as cantidad_facturada, SUM(vhp.sub_total_s) as total_facturado, SUM(COALESCE(ppc_fact.costoproducto, ppc_oferta.costoproducto, p_fact.costo_promedio, 0) * vhp.cantidad_s) as costo_facturado');
+            ->selectRaw('vhp.cotizacion_has_producto_id, SUM(COALESCE(NULLIF(vhp.cantidad_oferta_aplicada, 0), vhp.cantidad_s)) as cantidad_facturada, SUM(vhp.sub_total_s) as total_facturado, SUM(GREATEST((vhp.precio_unidad * vhp.cantidad_s) - vhp.sub_total_s, 0)) as descuento_facturado, SUM(vhp.isv_s) as isv_facturado, SUM(vhp.total_s) as total_con_impuesto_facturado, SUM(COALESCE(ppc_fact.costoproducto, ppc_oferta.costoproducto, p_fact.costo_promedio, 0) * vhp.cantidad_s) as costo_facturado');
 
         $rows = DB::table('cotizacion_has_producto as chp')
             ->join('cotizacion as c', 'c.id', '=', 'chp.cotizacion_id')
@@ -146,6 +146,9 @@ class ReporteExpoDetalleService
                 'ppc.costoproducto', 'cp.id as escala_id', 'cp.nombre as escala',
                 DB::raw('COALESCE(facturado.cantidad_facturada, 0) as cantidad_facturada'),
                 DB::raw('COALESCE(facturado.total_facturado, 0) as total_facturado'),
+                DB::raw('COALESCE(facturado.descuento_facturado, 0) as descuento_facturado'),
+                DB::raw('COALESCE(facturado.isv_facturado, 0) as isv_facturado'),
+                DB::raw('COALESCE(facturado.total_con_impuesto_facturado, 0) as total_con_impuesto_facturado'),
                 DB::raw('COALESCE(facturado.costo_facturado, 0) as costo_facturado'),
                 'ec.reglas_descuento_snapshot',
                 DB::raw('COALESCE(ec.flujo_id, (SELECT hf.flujo_id FROM historico_flujo hf WHERE hf.tipo_tramite_id = 2 AND hf.tramite_id = c.id ORDER BY hf.id DESC LIMIT 1)) as flujo_id'),
@@ -166,6 +169,9 @@ class ReporteExpoDetalleService
                 $linea['estado'] = $row->estado;
                 $linea['cantidad_facturada'] = round((float) $row->cantidad_facturada, 4);
                 $linea['total_facturado'] = round((float) $row->total_facturado, 2);
+                $linea['descuento_facturado'] = round((float) $row->descuento_facturado, 2);
+                $linea['isv_facturado'] = round((float) $row->isv_facturado, 2);
+                $linea['total_con_impuesto_facturado'] = round((float) $row->total_con_impuesto_facturado, 2);
                 $linea['costo_facturado'] = round((float) $row->costo_facturado, 2);
                 $linea['estado_facturacion'] = $this->estadoFacturacion((float) $row->cantidad, (float) $row->cantidad_facturada);
 
@@ -177,9 +183,12 @@ class ReporteExpoDetalleService
         }
 
         $primero = $rows->first();
+        $totalOfertado = (float) $rows->sum('subtotal_final');
+        $costoOfertado = (float) $rows->sum('costo_total');
+        $utilidadOfertada = $totalOfertado - $costoOfertado;
         $totalVendido = (float) $rows->sum('total_facturado');
         $costoVendido = (float) $rows->sum('costo_facturado');
-        $utilidad = $totalVendido - $costoVendido;
+        $utilidadFacturada = $totalVendido - $costoVendido;
 
         return [
             'producto' => [
@@ -190,12 +199,16 @@ class ReporteExpoDetalleService
                 'categoria' => $primero['categoria'],
                 'cantidad_ofertada' => round((float) $rows->sum('cantidad'), 4),
                 'cantidad_vendida' => round((float) $rows->sum('cantidad_facturada'), 4),
-                'total_ofertado' => round((float) $rows->sum('subtotal_final'), 2),
+                'total_ofertado' => round($totalOfertado, 2),
                 'total_vendido' => round($totalVendido, 2),
                 'descuento_acumulado' => round((float) $rows->sum('descuento'), 2),
-                'costo_total' => round($costoVendido, 2),
-                'utilidad' => round($utilidad, 2),
-                'margen_pct' => $totalVendido > 0 ? round(($utilidad / $totalVendido) * 100, 2) : null,
+                'descuento_facturado' => round((float) $rows->sum('descuento_facturado'), 2),
+                'costo_ofertado' => round($costoOfertado, 2),
+                'utilidad_ofertada' => round($utilidadOfertada, 2),
+                'margen_ofertado_pct' => $totalOfertado > 0 ? round(($utilidadOfertada / $totalOfertado) * 100, 2) : null,
+                'costo_facturado' => round($costoVendido, 2),
+                'utilidad_facturada' => round($utilidadFacturada, 2),
+                'margen_facturado_pct' => $totalVendido > 0 ? round(($utilidadFacturada / $totalVendido) * 100, 2) : null,
                 'numero_ofertas' => $rows->pluck('oferta_id')->unique()->count(),
             ],
             'ofertas' => $rows->all(),
@@ -316,7 +329,7 @@ class ReporteExpoDetalleService
         if ($descuento <= 0) {
             $descuento = max($subtotalOriginal - $subtotalFinal, 0);
         }
-        $costoUnitario = (float) $linea->costoproducto;
+        $costoUnitario = (float) $linea->precio_base_venta;
         $costoTotal = $costoUnitario * $cantidad;
         $utilidad = $subtotalFinal - $costoTotal;
 

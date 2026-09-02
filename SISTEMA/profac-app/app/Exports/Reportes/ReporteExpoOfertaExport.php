@@ -62,12 +62,30 @@ class ReporteExpoOfertaExport implements FromArray, ShouldAutoSize, WithStyles
     public function styles(Worksheet $sheet): array
     {
         $this->array();
+        $cantidadProductos = count($this->detalle['productos']);
+        $ultimaFilaProducto = 9 + $cantidadProductos;
+        $filaResumen = $cantidadProductos + 11;
         foreach ($this->sectionRows as $row) {
             $sheet->getStyle("A{$row}:Q{$row}")->applyFromArray([
                 'font' => ['bold' => true, 'color' => ['argb' => 'FFFFFFFF']],
                 'fill' => ['fillType' => 'solid', 'startColor' => ['argb' => 'FF1A2035']],
             ]);
         }
+        if ($cantidadProductos > 0) {
+            $sheet->getStyle("E10:E{$ultimaFilaProducto}")->getNumberFormat()->setFormatCode('#,##0.00');
+            foreach (['G', 'H', 'I', 'K', 'L', 'M', 'N', 'O', 'P'] as $columna) {
+                $sheet->getStyle("{$columna}10:{$columna}{$ultimaFilaProducto}")
+                    ->getNumberFormat()->setFormatCode('#,##0.00');
+            }
+            foreach (['J', 'Q'] as $columna) {
+                $sheet->getStyle("{$columna}10:{$columna}{$ultimaFilaProducto}")
+                    ->getNumberFormat()->setFormatCode('#,##0.00');
+            }
+        }
+        $sheet->getStyle('B2')->getNumberFormat()->setFormatCode('#,##0');
+        $sheet->getStyle('D2')->getNumberFormat()->setFormatCode('#,##0');
+        $sheet->getStyle('B' . ($filaResumen + 1) . ':B' . ($filaResumen + 8))
+            ->getNumberFormat()->setFormatCode('#,##0.00');
         $sheet->freezePane('A10');
 
         return [];

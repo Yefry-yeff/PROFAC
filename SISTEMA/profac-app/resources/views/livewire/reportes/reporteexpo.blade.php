@@ -97,31 +97,15 @@
         </div>
         <div class="row g-2 align-items-end mt-2">
             <div class="col-md-2">
-                <label class="small font-weight-bold d-block">Filtrar rentabilidad por</label>
+                <label class="small font-weight-bold d-block">Ver resultados por</label>
                 <div class="btn-group btn-group-toggle w-100" data-toggle="buttons" aria-label="Base de rentabilidad">
                     <label class="btn btn-sm btn-outline-primary active">
-                        <input type="radio" name="expo-f-rentabilidad-base" value="ofertas" checked> Ofertas
+                        <input type="radio" name="expo-f-rentabilidad-base" value="ofertas" onchange="reporteExpo.aplicarFiltroDesdeForm()" checked> Ofertas
                     </label>
                     <label class="btn btn-sm btn-outline-primary">
-                        <input type="radio" name="expo-f-rentabilidad-base" value="facturas"> Facturas
+                        <input type="radio" name="expo-f-rentabilidad-base" value="facturas" onchange="reporteExpo.aplicarFiltroDesdeForm()"> Facturas
                     </label>
                 </div>
-            </div>
-            <div class="col-6 col-md-2">
-                <label class="small font-weight-bold">Utilidad mínima (L.)</label>
-                <input type="number" step="0.01" class="form-control form-control-sm" id="expo-f-utilidad-min" placeholder="Sin límite">
-            </div>
-            <div class="col-6 col-md-2">
-                <label class="small font-weight-bold">Utilidad máxima (L.)</label>
-                <input type="number" step="0.01" class="form-control form-control-sm" id="expo-f-utilidad-max" placeholder="Sin límite">
-            </div>
-            <div class="col-6 col-md-2">
-                <label class="small font-weight-bold">Margen mínimo (%)</label>
-                <input type="number" step="0.01" class="form-control form-control-sm" id="expo-f-margen-min" placeholder="Sin límite">
-            </div>
-            <div class="col-6 col-md-2">
-                <label class="small font-weight-bold">Margen máximo (%)</label>
-                <input type="number" step="0.01" class="form-control form-control-sm" id="expo-f-margen-max" placeholder="Sin límite">
             </div>
         </div>
     </div>
@@ -129,42 +113,18 @@
     {{-- KPI CARDS --}}
     <div class="mb-3 row">
         <div class="mb-2 col-6 col-md-3">
-            <div class="card h-100 border-left-primary">
+            <div class="card h-100 border-left-secondary">
                 <div class="px-3 py-2 card-body">
-                    <div class="mb-1 text-xs font-weight-bold text-primary text-uppercase">Total Ofertado</div>
-                    <div class="mb-0 h5 font-weight-bold" id="kpi-ofertado">—</div>
-                </div>
-            </div>
-        </div>
-        <div class="mb-2 col-6 col-md-3">
-            <div class="card h-100 border-left-success">
-                <div class="px-3 py-2 card-body">
-                    <div class="mb-1 text-xs font-weight-bold text-success text-uppercase">Total Facturado</div>
-                    <div class="mb-0 h5 font-weight-bold" id="kpi-facturado">—</div>
-                </div>
-            </div>
-        </div>
-        <div class="mb-2 col-6 col-md-3">
-            <div class="card h-100 border-left-info">
-                <div class="px-3 py-2 card-body">
-                    <div class="mb-1 text-xs font-weight-bold text-info text-uppercase">% Avance Facturación</div>
-                    <div class="mb-0 h5 font-weight-bold" id="kpi-avance">—</div>
+                    <div class="mb-1 text-xs font-weight-bold text-secondary text-uppercase">Clientes Únicos</div>
+                    <div class="mb-0 h5 font-weight-bold" id="kpi-clientes">—</div>
                 </div>
             </div>
         </div>
         <div class="mb-2 col-6 col-md-3">
             <div class="card h-100 border-left-warning">
                 <div class="px-3 py-2 card-body">
-                    <div class="mb-1 text-xs font-weight-bold text-warning text-uppercase">Ofertas Válidas</div>
+                    <div class="mb-1 text-xs font-weight-bold text-warning text-uppercase">Ofertas Validadas</div>
                     <div class="mb-0 h5 font-weight-bold" id="kpi-ofertas">—</div>
-                </div>
-            </div>
-        </div>
-        <div class="mb-2 col-6 col-md-3">
-            <div class="card h-100 border-left-secondary">
-                <div class="px-3 py-2 card-body">
-                    <div class="mb-1 text-xs font-weight-bold text-secondary text-uppercase">Clientes Únicos</div>
-                    <div class="mb-0 h5 font-weight-bold" id="kpi-clientes">—</div>
                 </div>
             </div>
         </div>
@@ -177,6 +137,30 @@
             </div>
         </div>
         <div class="mb-2 col-6 col-md-3">
+            <div class="card h-100 border-left-primary">
+                <div class="px-3 py-2 card-body">
+                    <div class="mb-1 text-xs font-weight-bold text-primary text-uppercase">Total Ofertado</div>
+                    <div class="mb-0 h5 font-weight-bold" id="kpi-ofertado">—</div>
+                </div>
+            </div>
+        </div>
+        <div class="mb-2 col-6 col-md-3">
+            <div class="card h-100 border-left-warning">
+                <div class="px-3 py-2 card-body">
+                    <div class="mb-1 text-xs font-weight-bold text-warning text-uppercase">Descuento Oferta</div>
+                    <div class="mb-0 h5 font-weight-bold" id="kpi-descuento">—</div>
+                </div>
+            </div>
+        </div>
+        <div class="mb-2 col-6 col-md-3">
+            <div class="card h-100 border-left-dark">
+                <div class="px-3 py-2 card-body">
+                    <div class="mb-1 text-xs font-weight-bold text-dark text-uppercase">Costo Oferta</div>
+                    <div class="mb-0 h5 font-weight-bold" id="kpi-costo">—</div>
+                </div>
+            </div>
+        </div>
+        <div class="mb-2 col-6 col-md-3">
             <div class="card h-100 border-left-danger">
                 <div class="px-3 py-2 card-body">
                     <div class="mb-1 text-xs font-weight-bold text-danger text-uppercase">Utilidad</div>
@@ -185,26 +169,18 @@
             </div>
         </div>
         <div class="mb-2 col-6 col-md-3">
-            <div class="card h-100 border-left-warning">
-                <div class="px-3 py-2 card-body">
-                    <div class="mb-1 text-xs font-weight-bold text-warning text-uppercase">Descuento Otorgado</div>
-                    <div class="mb-0 h5 font-weight-bold" id="kpi-descuento">—</div>
-                </div>
-            </div>
-        </div>
-        <div class="mb-2 col-6 col-md-3">
-            <div class="card h-100 border-left-dark">
-                <div class="px-3 py-2 card-body">
-                    <div class="mb-1 text-xs font-weight-bold text-dark text-uppercase">Costo Facturado</div>
-                    <div class="mb-0 h5 font-weight-bold" id="kpi-costo">—</div>
-                </div>
-            </div>
-        </div>
-        <div class="mb-2 col-6 col-md-3">
             <div class="card h-100 border-left-danger">
                 <div class="px-3 py-2 card-body">
-                    <div class="mb-1 text-xs font-weight-bold text-danger text-uppercase">Margen %</div>
+                    <div class="mb-1 text-xs font-weight-bold text-danger text-uppercase">Margen</div>
                     <div class="mb-0 h5 font-weight-bold" id="kpi-margen">—</div>
+                </div>
+            </div>
+        </div>
+        <div class="mb-2 col-6 col-md-3">
+            <div class="card h-100 border-left-info">
+                <div class="px-3 py-2 card-body">
+                    <div class="mb-1 text-xs font-weight-bold text-info text-uppercase">% Avance Facturación</div>
+                    <div class="mb-0 h5 font-weight-bold" id="kpi-avance">—</div>
                 </div>
             </div>
         </div>
@@ -265,6 +241,7 @@
                         <th>Facturación</th>
                         <th class="text-right">Ofertado</th>
                         <th class="text-right">Facturado</th>
+                        <th class="text-right">Margen Oferta %</th>
                         <th class="text-right">Avance %</th>
                     </tr>
                 </thead>
@@ -276,7 +253,7 @@
     {{-- TABLA: PRODUCTOS --}}
     <div class="mb-3 card card-body">
         <div class="d-flex align-items-center mb-2">
-            <h6 class="mb-0 font-weight-bold">Analítica de Productos</h6>
+            <h6 class="mb-0 font-weight-bold" id="titulo-analitica-productos">Analítica de Productos por Ofertas</h6>
             <button class="ml-auto btn btn-sm btn-success" onclick="reporteExpo.exportarProductos()">
                 <i class="fas fa-file-excel"></i> Excel
             </button>
@@ -290,14 +267,12 @@
                         <th>Marca</th>
                         <th>Categoría</th>
                         <th class="text-right">Ofertas</th>
-                        <th class="text-right">Cant. Ofertada</th>
-                        <th class="text-right">Cant. Facturada</th>
-                        <th class="text-right">Venta Ofertado</th>
-                        <th class="text-right">Venta Facturado</th>
-                        <th class="text-right">Descuento</th>
-                        <th class="text-right">Costo</th>
-                        <th class="text-right">Utilidad</th>
-                        <th class="text-right">Margen %</th>
+                        <th class="text-right" id="th-productos-cantidad-base">Cant. Ofertada</th>
+                        <th class="text-right" id="th-productos-venta-base">Venta Oferta</th>
+                        <th class="text-right" id="th-productos-descuento-base">Descuento Oferta</th>
+                        <th class="text-right" id="th-productos-costo-base">Costo Oferta</th>
+                        <th class="text-right" id="th-productos-utilidad-base">Utilidad Oferta</th>
+                        <th class="text-right" id="th-productos-margen-base">Margen Oferta %</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
@@ -317,7 +292,7 @@
                     <div class="ml-auto mr-3">
                         <button type="button" class="btn btn-sm btn-outline-primary" onclick="reporteExpo.abrirBuscadorProductos('oferta')" title="Buscar producto"><i class="fas fa-search"></i> Producto</button>
                         <button type="button" class="btn btn-sm btn-success" onclick="reporteExpo.exportarOfertaSeleccionada()" title="Descargar oferta en Excel"><i class="fas fa-file-excel"></i> Excel</button>
-                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="reporteExpo.imprimirOfertaSeleccionada()" title="Abrir PDF de la oferta"><i class="fas fa-file-pdf"></i> Imprimir PDF</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="reporteExpo.imprimirOfertaSeleccionada()" title="Imprimir oferta"><i class="fas fa-print"></i> Imprimir</button>
                     </div>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar"><span aria-hidden="true">&times;</span></button>
                 </div>
@@ -364,16 +339,16 @@
                 </div>
                 <div class="modal-body">
                     <div class="bi-modal-summary mb-3" id="modal-producto-resumen"></div>
-                    <h6 class="font-weight-bold">Ofertas donde apareció</h6>
+                    <h6 class="font-weight-bold" id="titulo-modal-producto-detalle">Ofertas donde apareció</h6>
                     <div class="table-responsive">
                         <table class="table table-sm table-bordered table-hover" id="modal-producto-ofertas">
                             <thead class="thead-light"><tr>
                                 <th>Oferta / Flujo</th><th>Fecha</th><th>Cliente</th><th>Asesor</th><th>Teleasesor</th>
-                                <th>Escala</th><th class="text-right">Cant.</th><th class="text-right">Precio base</th>
+                                <th>Escala</th><th class="text-right" id="th-modal-producto-cantidad">Cant. Ofertada</th><th class="text-right">Precio base</th>
                                 <th class="text-right">Precio ofertado</th><th class="text-right">Descuento</th>
-                                <th class="text-right">Precio final</th><th class="text-right">Subtotal</th>
-                                <th class="text-right">ISV / Total</th><th class="text-right">Costo</th>
-                                <th class="text-right">Utilidad / Margen</th><th>Facturación</th>
+                                <th class="text-right" id="th-modal-producto-precio">Precio oferta</th><th class="text-right" id="th-modal-producto-subtotal">Subtotal oferta</th>
+                                <th class="text-right" id="th-modal-producto-total">ISV / Total oferta</th><th class="text-right" id="th-modal-producto-costo">Costo oferta</th>
+                                <th class="text-right" id="th-modal-producto-utilidad">Utilidad / Margen oferta</th><th>Facturación</th>
                             </tr></thead><tbody></tbody>
                         </table>
                     </div>
