@@ -1703,5 +1703,9 @@ Route::post('/reporte/ventas-cobros/actualizar-f01/{facturaId}',                
     Route::get('/reporte/expo/detalle-producto',   [\App\Http\Livewire\Reportes\ReporteExpo::class, 'detalleProducto']);
     Route::get('/reporte/expo/exportar-oferta',    [\App\Http\Livewire\Reportes\ReporteExpo::class, 'exportarOferta']);
 
+
+    // Ruta auto-generada para: FlujoDeVenta\VidaUtilDeUnFlujo
+    Route::get('/flujo_de_venta/vida_util_de_un_flujo', \App\Http\Livewire\FlujoDeVenta\VidaUtilDeUnFlujo::class);
+
     // [auto-routes-anchor]
 });

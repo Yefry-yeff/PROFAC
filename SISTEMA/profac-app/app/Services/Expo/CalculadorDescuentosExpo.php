@@ -34,7 +34,19 @@ class CalculadorDescuentosExpo
         }
 
         $version = (int) ($reglas['version'] ?? 4);
-        if ($version >= 4) {
+        $porcentajesForzados = $this->porcentajesForzados(
+            array_keys($subtotalesMarca),
+            $reglas['marcas'] ?? [],
+            (string) ($reglas['descuento_modo'] ?? 'automatico'),
+            (int) ($reglas['descuento_escalon'] ?? 0)
+        );
+        if ($porcentajesForzados !== null) {
+            [$porcentajeGeneral, $porcentajesMarca] = $this->resolverGeneralConPorcentajesFijos(
+                $lineas,
+                $porcentajesForzados,
+                $reglas['generales'] ?? []
+            );
+        } elseif ($version >= 4) {
             [$porcentajeGeneral, $porcentajesMarca] = $this->resolverEscalonesNetos(
                 $lineas,
                 array_keys($subtotalesMarca),
@@ -125,6 +137,70 @@ class CalculadorDescuentosExpo
         }
 
         return $alcanzada['porcentaje'] ?? 0.0;
+    }
+
+    /** @return array<int, float>|null */
+    private function porcentajesForzados(array $marcaIds, array $reglas, string $modo, int $escalon): ?array
+    {
+        if (!in_array($modo, ['escalon', 'maximo'], true)) {
+            return null;
+        }
+
+        $porcentajes = [];
+        foreach ($marcaIds as $marcaId) {
+            $reglasMarca = array_values(array_filter(
+                $reglas,
+                fn (array $regla) => (int) ($regla['marca_id'] ?? 0) === $marcaId
+            ));
+            usort($reglasMarca, fn (array $primera, array $segunda) =>
+                [(float) ($primera['venta_minima'] ?? 0), (int) ($primera['orden'] ?? 0)]
+                <=> [(float) ($segunda['venta_minima'] ?? 0), (int) ($segunda['orden'] ?? 0)]
+            );
+
+            if (!$reglasMarca) {
+                $porcentajes[$marcaId] = 0.0;
+                continue;
+            }
+
+            $indice = $modo === 'maximo'
+                ? count($reglasMarca) - 1
+                : min(max($escalon, 1) - 1, count($reglasMarca) - 1);
+            $porcentajes[$marcaId] = (float) ($reglasMarca[$indice]['porcentaje_descuento'] ?? 0);
+        }
+
+        return $porcentajes;
+    }
+
+    /** @return array{0:float, 1:array<int, float>} */
+    private function resolverGeneralConPorcentajesFijos(
+        array $lineas,
+        array $porcentajesMarca,
+        array $reglasGenerales
+    ): array {
+        $candidatos = array_map(
+            fn (array $regla) => (float) ($regla['venta_minima'] ?? 0),
+            $reglasGenerales
+        );
+        $candidatos[] = 0.0;
+        $candidatos = array_values(array_unique($candidatos));
+        rsort($candidatos, SORT_NUMERIC);
+
+        foreach ($candidatos as $baseEscalon) {
+            $porcentajeGeneral = $this->porcentajeAlcanzado($baseEscalon, $reglasGenerales);
+            $subtotalNeto = 0.0;
+            foreach ($lineas as $linea) {
+                $subtotal = (float) $linea['subtotal_bruto'];
+                $descuentoMarca = round($subtotal * ($porcentajesMarca[(int) $linea['marca_id']] ?? 0) / 100, 2);
+                $descuentoGeneral = round(($subtotal - $descuentoMarca) * $porcentajeGeneral / 100, 2);
+                $subtotalNeto += $subtotal - $descuentoMarca - $descuentoGeneral;
+            }
+
+            if ($subtotalNeto + self::TOLERANCIA >= $baseEscalon) {
+                return [$porcentajeGeneral, $porcentajesMarca];
+            }
+        }
+
+        return [0.0, $porcentajesMarca];
     }
 
     /**
