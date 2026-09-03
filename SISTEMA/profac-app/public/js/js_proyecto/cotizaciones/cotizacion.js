@@ -130,12 +130,10 @@
 
             $('#gestor_entrega').select2({
                 ajax:{
-                    url:'/ventas/corporativo/vendedores',
+                    url:'/cotizacion/gestores-entrega',
                     data: function(params) {
                         var query = {
-                            search: params.term,
-                            type: 'public',
-                            page: params.page || 1
+                            search: params.term || ''
                         }
                         return query;
                     }

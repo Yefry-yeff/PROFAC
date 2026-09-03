@@ -1493,11 +1493,20 @@ class FacturacionCorporativa extends Component
                 DB::rollBack();
             }
 
+            $errores = $e->errors();
+            $esPrecioExpoMenor = array_key_exists('precio_expo_menor', $errores);
+            $esPrecioExpoDistinto = array_key_exists('precio_expo_distinto', $errores);
+            $esAutorizacionSr = array_key_exists('autorizacion_sr', $errores);
+
             return response()->json([
                 'icon' => 'warning',
-                'title' => 'Cantidad Expo no disponible',
-                'text' => collect($e->errors())->flatten()->first(),
-                'errors' => $e->errors(),
+                'title' => $esPrecioExpoMenor
+                    ? 'Precio menor al pactado'
+                    : ($esPrecioExpoDistinto
+                        ? 'Precio diferente al pactado'
+                        : ($esAutorizacionSr ? 'Autorización SR requerida' : 'Cantidad Expo no disponible')),
+                'text' => collect($errores)->flatten()->first(),
+                'errors' => $errores,
             ], 422);
         } catch (QueryException $e) {
             if (DB::transactionLevel()) {

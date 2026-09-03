@@ -1796,6 +1796,7 @@ class ModalFlujoPedido extends Component
             foreach ($productos as $prod) {
                 $prefProds[] = [
                     'prefactura_id'            => $prefacturaId,
+                    'cotizacion_has_producto_id' => $prod->id,
                     'producto_id'              => $prod->producto_id,
                     'indice'                   => $prod->indice,
                     'nombre_producto'          => $prod->nombre_producto,
@@ -2545,10 +2546,21 @@ class ModalFlujoPedido extends Component
             }
         }
 
+        $clienteId = (int) ($this->prefacturaData['cliente_id'] ?? 0);
+        if (!$clienteId && $cotizacionId) {
+            $clienteId = (int) DB::table('cotizacion')
+                ->where('id', $cotizacionId)
+                ->value('cliente_id');
+        }
+        if (!$clienteId) {
+            $this->mensajeError = 'La prefactura no tiene un cliente válido para seleccionar el tele asesor.';
+            return;
+        }
+
         $this->dispatchBrowserEvent('fmp-facturar-directo', [
             'url'       => '/prefactura/' . (int) $this->prefacturaData['id'] . '/facturar-directo',
             'tipo_pago' => $tipoPago,
-            'cliente_id' => (int) ($this->pedidoData['cliente_id'] ?? 0),
+            'cliente_id' => $clienteId,
             'tele_asesor_id' => Auth::id(),
             'tele_asesor_nombre' => Auth::user()->name ?? '',
         ]);

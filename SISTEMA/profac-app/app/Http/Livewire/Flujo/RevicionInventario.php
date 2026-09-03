@@ -421,6 +421,7 @@ class RevicionInventario extends Component
             ->leftJoin('unidad_medida as um', 'um.id', '=', 'umv.unidad_medida_id')
             ->where('chp.cotizacion_id', $this->cotizacionId)
             ->select(
+                'chp.id as cotizacion_has_producto_id',
                 'chp.indice',
                 'chp.nombre_producto',
                 'chp.nombre_bodega',
@@ -436,12 +437,13 @@ class RevicionInventario extends Component
             )
             ->get();
 
-        $destinosExpo = $this->esOfertaExpo
+        $productoIds = $prods->pluck('producto_id')->filter()->unique()->values()->toArray();
+        $destinosBodega = $this->esOfertaExpo
             ? $this->obtenerDestinosBodegaExpo(
-                $prods->pluck('producto_id')->filter()->unique()->values()->toArray(),
+                $productoIds,
                 $bodegasExpo
             )
-            : [];
+            : $this->obtenerDestinosDisponiblesPorProducto($productoIds);
 
         $this->productos   = [];
         $this->stockErrors = [];
@@ -539,8 +541,19 @@ class RevicionInventario extends Component
                 }
             }
 
+            $destinosLinea = $destinosBodega[(int) $prod->producto_id] ?? [];
+            $ubicacionActual = (int) $prod->bodega_id . '|' . (int) $prod->seccion_id;
+            $ubicacionesValidas = array_column($destinosLinea, 'value');
+            $destinoSuficiente = collect($destinosLinea)->first(
+                fn (array $destino) => (float) $destino['stock'] >= (float) $prod->cantidad
+            );
+            $ubicacionSeleccionada = in_array($ubicacionActual, $ubicacionesValidas, true)
+                ? $ubicacionActual
+                : ($destinoSuficiente['value'] ?? '');
+
             $this->productos[] = [
                 'idx'             => $i,
+                'cotizacion_has_producto_id' => $prod->cotizacion_has_producto_id,
                 'indice'          => $prod->indice,
                 'nombre_producto' => $prod->nombre_producto,
                 'nombre_bodega'   => $prod->nombre_bodega,
@@ -558,7 +571,7 @@ class RevicionInventario extends Component
                 'disponible'      => $disponible,
                 'disponible_global' => $disponibleGlobal,
                 'falta_stock'     => $faltaStock,
-                'destinos_bodega' => $destinosExpo[(int) $prod->producto_id] ?? [],
+                'destinos_bodega' => $destinosLinea,
                 'reservas_detalle' => (!$this->devuelto && !$sinExistencia && $prod->producto_id && $prod->seccion_id)
                     ? ($reservasDetalle->get($prod->producto_id . '_' . $prod->seccion_id, collect())
                         ->map(fn($r) => (array) $r)->values()->toArray())
@@ -566,7 +579,7 @@ class RevicionInventario extends Component
             ];
 
             $this->productosRevisados[$i] = false;
-            $this->bodegaExpoSeleccionada[$i] = (int) $prod->bodega_id . '|' . (int) $prod->seccion_id;
+            $this->bodegaExpoSeleccionada[$i] = $ubicacionSeleccionada;
         }
 
         // ── Si el flujo está devuelto, cargar motivo y notas de productos ──
@@ -638,10 +651,10 @@ class RevicionInventario extends Component
         $this->filtroRevisado = '';
     }
 
-    public function guardarBodegaExpo(int $idx): void
+    public function guardarBodega(int $idx): void
     {
-        if (!$this->flujoId || !$this->cotizacionId || !$this->esOfertaExpo || $this->devuelto || $this->soloVisualizacion) {
-            $this->mensajeError = 'La reasignación de bodega solo está disponible para ofertas Expo en revisión activa.';
+        if (!$this->flujoId || !$this->cotizacionId || $this->devuelto || $this->soloVisualizacion) {
+            $this->mensajeError = 'La reasignación de bodega solo está disponible durante una revisión activa.';
             return;
         }
 
@@ -650,6 +663,12 @@ class RevicionInventario extends Component
 
         if (!$producto) {
             $this->mensajeError = 'Seleccione una bodega válida donde exista el producto.';
+            return;
+        }
+
+        $destinoPermitido = collect($producto['destinos_bodega'] ?? [])->firstWhere('value', $seleccion);
+        if (!$destinoPermitido) {
+            $this->mensajeError = 'La bodega seleccionada no es un destino válido para este producto.';
             return;
         }
 
@@ -701,6 +720,7 @@ class RevicionInventario extends Component
                     'Bodega_id' => $bodegaDestinoId,
                     'seccion_id' => $seccionDestinoId,
                     'nombre_bodega' => $destino->bodega_nombre,
+                    'resta_inventario' => 1,
                     'updated_at' => now(),
                 ]);
 
@@ -715,7 +735,7 @@ class RevicionInventario extends Component
                 'id_seccion_actualizacion' => $seccionDestinoId,
                 'nombre_bodega_origen' => $linea->nombre_bodega,
                 'nombre_bodega_destino' => $destino->bodega_nombre,
-                'motivo' => 'Reasignación de bodega Expo desde Revisión de Inventario. Flujo #' . $this->flujoId,
+                'motivo' => 'Reasignación de bodega desde Revisión de Inventario. Flujo #' . $this->flujoId,
                 'created_by' => Auth::id(),
                 'updated_by' => Auth::id(),
                 'created_at' => now(),
@@ -764,6 +784,7 @@ class RevicionInventario extends Component
             $destinos[(int) $row->producto_id][] = [
                 'value' => (int) $row->bodega_id . '|' . (int) $row->seccion_id,
                 'bodega_nombre' => (string) $row->bodega_nombre,
+                'stock' => (float) $row->stock,
                 'text' => trim($row->bodega_nombre . ' - ' . $row->seccion_descripcion . ' (Existencia: ' . (int) $row->stock . ')'),
             ];
         }
@@ -795,8 +816,132 @@ class RevicionInventario extends Component
      */
     public function tieneProductosSinExistencia(): bool
     {
-        return collect($this->productos)
-            ->contains(fn (array $prod) => !empty($prod['sin_existencia']));
+        return collect($this->productos)->contains(function (array $prod) {
+            if (empty($prod['sin_existencia'])) {
+                return false;
+            }
+
+            if ($this->esOfertaExpo) {
+                return true;
+            }
+
+            return !$this->productoTieneBodegaSeleccionadaSuficiente($prod);
+        });
+    }
+
+    public function productoTieneBodegaSeleccionadaSuficiente(array $prod): bool
+    {
+        $seleccion = (string) ($this->bodegaExpoSeleccionada[$prod['idx']] ?? '');
+        $destino = collect($prod['destinos_bodega'] ?? [])->first(
+            fn (array $opcion) => (string) $opcion['value'] === $seleccion
+        );
+
+        return $destino && (float) $destino['stock'] >= (float) $prod['cantidad'];
+    }
+
+    private function sincronizarBodegasNormalesSeleccionadas(): bool
+    {
+        if ($this->esOfertaExpo) {
+            return true;
+        }
+
+        $actualizaciones = [];
+        foreach ($this->productos as $prod) {
+            if (empty($prod['sin_existencia'])) {
+                continue;
+            }
+
+            $seleccion = (string) ($this->bodegaExpoSeleccionada[$prod['idx']] ?? '');
+            $destino = collect($prod['destinos_bodega'] ?? [])->first(
+                fn (array $opcion) => (string) $opcion['value'] === $seleccion
+            );
+
+            if (!$destino || (float) $destino['stock'] < (float) $prod['cantidad']) {
+                $this->mensajeError = 'Seleccione una bodega con existencia suficiente para ' . $prod['nombre_producto'] . '.';
+                return false;
+            }
+
+            [$bodegaId, $seccionId] = array_map('intval', explode('|', $seleccion, 2));
+            $actualizaciones[] = [
+                'linea_id' => (int) $prod['cotizacion_has_producto_id'],
+                'bodega_id' => $bodegaId,
+                'seccion_id' => $seccionId,
+                'bodega_nombre' => $destino['bodega_nombre'],
+            ];
+        }
+
+        foreach ($actualizaciones as $actualizacion) {
+            DB::table('cotizacion_has_producto')
+                ->where('id', $actualizacion['linea_id'])
+                ->where('cotizacion_id', $this->cotizacionId)
+                ->update([
+                    'Bodega_id' => $actualizacion['bodega_id'],
+                    'seccion_id' => $actualizacion['seccion_id'],
+                    'nombre_bodega' => $actualizacion['bodega_nombre'],
+                    'resta_inventario' => 1,
+                    'updated_at' => now(),
+                ]);
+        }
+
+        return true;
+    }
+
+    public function tieneProductosExpoSinBodegaFisica(): bool
+    {
+        if (!$this->esOfertaExpo) {
+            return false;
+        }
+
+        return collect($this->productos)->contains(function (array $prod) {
+            $seleccion = (string) ($this->bodegaExpoSeleccionada[$prod['idx']] ?? '');
+            $destino = collect($prod['destinos_bodega'] ?? [])->first(
+                fn (array $opcion) => (string) $opcion['value'] === $seleccion
+            );
+
+            return !$destino || (float) $destino['stock'] < (float) $prod['cantidad'];
+        });
+    }
+
+    private function sincronizarBodegasExpoSeleccionadas(): bool
+    {
+        if (!$this->esOfertaExpo) {
+            return true;
+        }
+
+        foreach ($this->productos as $prod) {
+            $seleccion = (string) ($this->bodegaExpoSeleccionada[$prod['idx']] ?? '');
+            $destino = collect($prod['destinos_bodega'] ?? [])->first(
+                fn (array $opcion) => (string) $opcion['value'] === $seleccion
+            );
+
+            if (!$destino) {
+                $this->mensajeError = 'Seleccione una bodega física válida para todos los productos Expo.';
+                return false;
+            }
+
+            if ((float) $destino['stock'] < (float) $prod['cantidad']) {
+                $this->mensajeError = 'La bodega seleccionada para ' . $prod['nombre_producto'] . ' no cubre la cantidad solicitada.';
+                return false;
+            }
+
+            [$bodegaId, $seccionId] = array_map('intval', explode('|', $seleccion, 2));
+            if ($bodegaId <= 0 || $seccionId <= 0) {
+                $this->mensajeError = 'La bodega virtual de Expo no puede utilizarse para generar la prefactura.';
+                return false;
+            }
+
+            DB::table('cotizacion_has_producto')
+                ->where('id', (int) $prod['cotizacion_has_producto_id'])
+                ->where('cotizacion_id', $this->cotizacionId)
+                ->update([
+                    'Bodega_id' => $bodegaId,
+                    'seccion_id' => $seccionId,
+                    'nombre_bodega' => $destino['bodega_nombre'],
+                    'updated_at' => now(),
+                ]);
+        }
+
+        return true;
     }
 
     /**
@@ -906,6 +1051,11 @@ class RevicionInventario extends Component
             return;
         }
 
+        if (!$this->sincronizarBodegasNormalesSeleccionadas()
+            || !$this->sincronizarBodegasExpoSeleccionadas()) {
+            return;
+        }
+
         $cotizacion = DB::table('cotizacion')->where('id', $this->cotizacionId)->first();
         if (!$cotizacion) {
             $this->mensajeError = 'Oferta ganadora no encontrada.';
@@ -975,6 +1125,7 @@ class RevicionInventario extends Component
             foreach ($productos as $prod) {
                 $prefProds[] = [
                     'prefactura_id'            => $prefacturaId,
+                    'cotizacion_has_producto_id' => $prod->id,
                     'producto_id'              => $prod->producto_id,
                     'indice'                   => $prod->indice,
                     'nombre_producto'          => $prod->nombre_producto,

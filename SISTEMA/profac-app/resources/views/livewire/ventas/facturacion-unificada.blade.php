@@ -88,6 +88,8 @@
         .cart-item-card { transition: box-shadow .15s; }
         .cart-item-card:hover { box-shadow: 0 4px 18px rgba(27,94,32,.14) !important; }
         .cart-field-label { font-size:10px; color:#78909c; font-weight:700; text-transform:uppercase; letter-spacing:.3px; margin-bottom:3px; }
+        #carritoTbody input[id^="nombre"] { cursor: pointer; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px; }
+        #carritoTbody input[id^="nombre"]:focus { outline: 2px solid #2e7d32; outline-offset: 2px; }
 
         /* ── of-card system ────────────────────────────────────────────── */
         .ofr-main-ibox { border: none !important; box-shadow: none !important; background: transparent !important; }
@@ -1199,6 +1201,28 @@
             </div>
         </div>
 
+        <div class="modal fade" id="modalDescripcionProducto" tabindex="-1" role="dialog" aria-labelledby="tituloDescripcionProducto" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered" role="document">
+                <div class="modal-content">
+                    <div class="modal-header" style="background:#1f6f50; border:none; padding:14px 20px;">
+                        <h5 class="modal-title" id="tituloDescripcionProducto" style="color:#fff; font-size:15px; font-weight:700; margin:0;">
+                            Descripción del producto
+                        </h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar" style="color:#fff; opacity:1;">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body" style="padding:20px;">
+                        <strong id="nombreDescripcionProducto" class="d-block mb-2" style="color:#1b5e20;"></strong>
+                        <p id="textoDescripcionProducto" class="mb-0" style="white-space:pre-wrap; color:#455a64; line-height:1.6;"></p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cerrar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         {{-- ============================================================== --}}
         {{-- MODAL: Seleccionar Gestor de Entrega y Tele Asesor            --}}
         {{-- ============================================================== --}}
@@ -2008,12 +2032,51 @@
     var filtrarProductosExpo = {!! $filtrarProductosExpo ? 'true' : 'false' !!};
     var reglasExpoOferta = @json($reglasExpoOferta ?? []);
     var atribucionesDescuentoExpo = @json($atribucionesDescuentoExpo ?? []);
+    var productosPactadosExpo = @json($productosParaCarrito ?? []);
     var seleccionandoProductoCotizadorExpo = false;
     var productoCotizadorExpo = null;
     var datosCalculoCotizadorExpo = null;
     var productoExpoAgregandoAutomaticamente = null;
     var datosProductoExpoPrecargados = null;
     var bodegaExpoCapturaRapida = null;
+    var solicitudDescripcionProducto = 0;
+
+    function abrirDescripcionProducto(indice) {
+        var productoId = document.getElementById('idProducto' + indice)?.value;
+        var nombreInput = document.getElementById('nombre' + indice);
+        if (!productoId || !nombreInput) return;
+
+        var solicitudActual = ++solicitudDescripcionProducto;
+        document.getElementById('nombreDescripcionProducto').textContent = nombreInput.value;
+        document.getElementById('textoDescripcionProducto').textContent = 'Cargando descripción...';
+        $('#modalDescripcionProducto').modal('show');
+
+        axios.get('/productos/' + encodeURIComponent(productoId) + '/descripcion')
+            .then(function(response) {
+                if (solicitudActual !== solicitudDescripcionProducto) return;
+                var producto = response.data.producto || {};
+                document.getElementById('nombreDescripcionProducto').textContent = producto.nombre || nombreInput.value;
+                document.getElementById('textoDescripcionProducto').textContent = String(producto.descripcion || '').trim()
+                    || 'Este producto no tiene una descripción registrada.';
+            })
+            .catch(function() {
+                if (solicitudActual !== solicitudDescripcionProducto) return;
+                document.getElementById('textoDescripcionProducto').textContent = 'No fue posible cargar la descripción del producto.';
+            });
+    }
+
+    document.addEventListener('click', function(event) {
+        var nombreProducto = event.target.closest('#carritoTbody input[id^="nombre"]');
+        if (nombreProducto) abrirDescripcionProducto(nombreProducto.id.substring(6));
+    });
+
+    document.addEventListener('keydown', function(event) {
+        var nombreProducto = event.target.closest('#carritoTbody input[id^="nombre"]');
+        if (nombreProducto && (event.key === 'Enter' || event.key === ' ')) {
+            event.preventDefault();
+            abrirDescripcionProducto(nombreProducto.id.substring(6));
+        }
+    });
 
     // Mapa de URLs por código de tipo de factura
     var urlsPorTipo = {
@@ -2103,7 +2166,9 @@
 
     var numeroInputs = 0;
     var arregloIdInputs = [];
-    var ventaTemporalId = new URLSearchParams(window.location.search).get('temporal_id');
+    var parametrosVentaTemporal = new URLSearchParams(window.location.search);
+    var nuevaVentaSolicitada = parametrosVentaTemporal.get('nueva') === '1';
+    var ventaTemporalId = nuevaVentaSolicitada ? null : parametrosVentaTemporal.get('temporal_id');
     var ventaTemporalTipo = codigoActual === 'cotizacion_clientes_a' ? 'oferta' : 'factura';
     var ventaTemporalRestaurando = false;
     var ventaTemporalFinalizada = false;
@@ -2112,9 +2177,22 @@
     var ventaTemporalAutosaveActivo = false;
     var ventaTemporalCambiosPendientes = false;
     var ventaTemporalGuardando = false;
+    var ventaTemporalPromesaGuardado = null;
     var ventaTemporalRevision = 0;
     var esDuplicandoOferta = {!! $duplicandoOferta ? 'true' : 'false' !!};
     var esContinuandoOfertaExpo = {!! $continuandoOfertaExpo ? 'true' : 'false' !!};
+    var esFacturacionExpoDesdePrefactura = esOfertaExpo
+        && {!! $fromPrefactura ? 'true' : 'false' !!}
+        && !esDuplicandoOferta
+        && !esContinuandoOfertaExpo;
+    var esFacturacionNormalDesdePrefactura = !esOfertaExpo
+        && {!! $fromPrefactura ? 'true' : 'false' !!};
+    var esEdicionNormalDesdePrefactura = !esOfertaExpo
+        && {!! $fromPrefactura ? 'true' : 'false' !!}
+        && new URLSearchParams(window.location.search).get('modo') === 'editar_factura';
+    var esRecargaPagina = window.performance
+        && window.performance.getEntriesByType
+        && window.performance.getEntriesByType('navigation')[0]?.type === 'reload';
     var cambiosPrecioExpoConfirmados = false;
     var retencionEstado = false;
     var diasCredito = 0;
@@ -2145,6 +2223,7 @@
     function urlReanudacionTemporal() {
         var url = new URL(window.location.href);
         url.searchParams.delete('temporal_id');
+        url.searchParams.delete('nueva');
         return url.pathname + url.search;
     }
 
@@ -2203,11 +2282,11 @@
 
     function guardarVentaTemporal() {
         if (ventaTemporalRestaurando || ventaTemporalFinalizada) return Promise.resolve();
-        if (ventaTemporalGuardando) return Promise.resolve();
+        if (ventaTemporalGuardando) return ventaTemporalPromesaGuardado || Promise.resolve();
         clearTimeout(ventaTemporalTimer);
         ventaTemporalGuardando = true;
         var revisionEnviada = ventaTemporalRevision;
-        return axios.post('/ventas/temporales', datosVentaTemporal()).then(function(response) {
+        ventaTemporalPromesaGuardado = axios.post('/ventas/temporales', datosVentaTemporal()).then(function(response) {
             ventaTemporalId = response.data.id;
             ventaTemporalCambiosPendientes = ventaTemporalRevision !== revisionEnviada;
             var url = new URL(window.location.href);
@@ -2217,8 +2296,10 @@
             console.warn('No se pudo guardar el registro temporal:', error);
         }).finally(function() {
             ventaTemporalGuardando = false;
-            if (ventaTemporalCambiosPendientes) guardarVentaTemporal();
+            ventaTemporalPromesaGuardado = null;
+            if (ventaTemporalCambiosPendientes) return guardarVentaTemporal();
         });
+        return ventaTemporalPromesaGuardado;
     }
 
     document.addEventListener('visibilitychange', function() {
@@ -2254,7 +2335,7 @@
     function aplicarControlTemporal(controlGuardado) {
         var control = document.getElementById(controlGuardado.id);
         if (!control) return;
-        if (control.id === 'vendedor') return;
+        if (control.id === 'vendedor' || ['restriccion', 'tipo_venta_id', 'tipo_factura_id'].includes(control.id)) return;
         if (control.tagName === 'SELECT') {
             (controlGuardado.options || []).forEach(function(optionGuardada) {
                 if (!Array.from(control.options).some(function(option) { return option.value == optionGuardada.value; })) {
@@ -2272,6 +2353,95 @@
         }
     }
 
+    function aplicarConfiguracionTipoFacturaActual() {
+        document.getElementById('restriccion').value = tipoFacturaConfig ? tipoFacturaConfig.restriccion : 1;
+        document.getElementById('tipo_venta_id').value = tipoFacturaConfig ? tipoFacturaConfig.tipo_venta_id : 2;
+        document.getElementById('tipo_factura_id').value = tipoFacturaConfig ? tipoFacturaConfig.id : '';
+    }
+
+    function restaurarPreciosPactadosExpo() {
+        if (!esFacturacionExpoDesdePrefactura || !Array.isArray(productosPactadosExpo)) return false;
+
+        var productosPorLinea = {};
+        var corregido = false;
+        productosPactadosExpo.forEach(function(producto) {
+            productosPorLinea[String(producto.cotizacion_has_producto_id || '')] = producto;
+        });
+
+        arregloIdInputs.forEach(function(indice) {
+            var lineaId = document.getElementById('cotizacionLineaId' + indice)?.value || '';
+            var producto = productosPorLinea[String(lineaId)];
+            if (!producto) return;
+
+            var precioPactado = Number(producto.precio_unidad || 0);
+            if (!(precioPactado > 0)) return;
+
+            var selector = document.getElementById('precios' + indice);
+            var precio = document.getElementById('precio' + indice);
+            var referenciaAnterior = Number(selector?.value || precio?.getAttribute('data-precio-escala') || 0);
+            var permitePrecioLibre = tipoFacturaConfig && tipoFacturaConfig.multiples_precios;
+
+            if (precio && !permitePrecioLibre && Math.abs(Number(precio.value || 0) - precioPactado) > 0.005) {
+                precio.value = precioPactado.toFixed(2);
+                corregido = true;
+            }
+            if (precio && Math.abs(referenciaAnterior - precioPactado) > 0.005) corregido = true;
+            if (precio) precio.setAttribute('data-precio-escala', precioPactado.toFixed(2));
+            if (selector) {
+                selector.innerHTML = '';
+                selector.add(new Option(precioPactado.toFixed(2) + ' - Pactado Expo', precioPactado.toFixed(2), true, true));
+                selector.options[0].setAttribute('data-id', producto.idPrecioSeleccionado || 'p1');
+            }
+
+            var precioCarga = document.getElementById('precios_producto_carga_id' + indice);
+            if (precioCarga && String(precioCarga.value || '') !== String(producto.precios_producto_carga_id || '')) {
+                precioCarga.value = producto.precios_producto_carga_id || '';
+                corregido = true;
+            }
+        });
+
+        return corregido;
+    }
+
+    function restaurarReferenciasEscalaPrefacturaNormal() {
+        if (!esFacturacionNormalDesdePrefactura || !Array.isArray(productosPactadosExpo)) return false;
+
+        var productosPorLinea = {};
+        var productosPorId = {};
+        var corregido = false;
+        productosPactadosExpo.forEach(function(producto) {
+            productosPorLinea[String(producto.cotizacion_has_producto_id || '')] = producto;
+            productosPorId[String(producto.producto_id || '')] = producto;
+        });
+
+        arregloIdInputs.forEach(function(indice) {
+            var lineaId = document.getElementById('cotizacionLineaId' + indice)?.value || '';
+            var productoId = document.getElementById('idProducto' + indice)?.value || '';
+            var producto = productosPorLinea[String(lineaId)] || productosPorId[String(productoId)];
+            var precioVigente = Number(producto?.precioEscalaVigente || 0);
+            if (!(precioVigente > 0)) return;
+
+            var precio = document.getElementById('precio' + indice);
+            var selector = document.getElementById('precios' + indice);
+            var referenciaAnterior = Number(precio?.getAttribute('data-precio-escala') || selector?.value || 0);
+            if (Math.abs(referenciaAnterior - precioVigente) > 0.005) corregido = true;
+
+            if (precio) precio.setAttribute('data-precio-escala', precioVigente.toFixed(2));
+            if (selector) {
+                selector.innerHTML = '';
+                selector.add(new Option(
+                    precioVigente.toFixed(2) + ' - Escala ' + (producto.escalaVigente || ''),
+                    precioVigente.toFixed(2),
+                    true,
+                    true
+                ));
+                selector.options[0].setAttribute('data-id', producto.idPrecioSeleccionado || 'p1');
+            }
+        });
+
+        return corregido;
+    }
+
     function restaurarVentaTemporal(instantanea) {
         ventaTemporalRestaurando = true;
         var carrito = document.getElementById('carritoTbody');
@@ -2282,6 +2452,9 @@
             : [];
         var controlesTemporales = instantanea.controles || [];
         controlesTemporales.forEach(aplicarControlTemporal);
+        aplicarConfiguracionTipoFacturaActual();
+        var preciosExpoCorregidos = restaurarPreciosPactadosExpo();
+        var referenciasEscalaCorregidas = restaurarReferenciasEscalaPrefacturaNormal();
         var asesorTemporal = controlesTemporales.find(function(control) { return control.id === 'vendedor'; });
         var clienteTemporal = document.getElementById('seleccionarCliente');
         var cargaAsesor = Promise.resolve();
@@ -2297,8 +2470,14 @@
         if (tabla) tabla.classList.toggle('d-none', !tieneProductos);
         if (vacio) vacio.classList.toggle('d-none', tieneProductos);
         actualizarContadorCarrito();
+        calcularTotalesInicioPagina();
         return Promise.all([cargaAsesor, cargaStocks]).finally(function() {
             ventaTemporalRestaurando = false;
+            if (preciosExpoCorregidos || referenciasEscalaCorregidas) {
+                ventaTemporalCambiosPendientes = true;
+                ventaTemporalRevision += 1;
+                return guardarVentaTemporal();
+            }
         });
     }
 
@@ -2356,10 +2535,19 @@
             ocultarCargaTemporales();
         }
         ventaTemporalId = null;
+        nuevaVentaSolicitada = false;
         var url = new URL(window.location.href);
         url.searchParams.delete('temporal_id');
+        url.searchParams.delete('nueva');
         window.history.replaceState({}, '', url.toString());
         activarAutosaveTemporal();
+    }
+
+    function recargarComoNuevaVenta() {
+        var url = new URL(window.location.href);
+        url.searchParams.delete('temporal_id');
+        url.searchParams.set('nueva', '1');
+        window.location.replace(url.toString());
     }
 
     function continuarVentaTemporal(temporal) {
@@ -2426,7 +2614,7 @@
                 var temporal = temporales.find(function(item) { return String(item.id) === String(result.value); });
                 if (temporal) continuarVentaTemporal(temporal);
             } else if (result.isDenied) {
-                iniciarNuevaVentaTemporal();
+                recargarComoNuevaVenta();
             }
         });
     }
@@ -2461,6 +2649,21 @@
     }
 
     function inicializarVentaTemporal() {
+        if (nuevaVentaSolicitada) {
+            iniciarNuevaVentaTemporal();
+            return;
+        }
+
+        if (esEdicionNormalDesdePrefactura && esRecargaPagina) {
+            consultarVentasTemporales();
+            return;
+        }
+
+        if (esEdicionNormalDesdePrefactura && !ventaTemporalId) {
+            iniciarNuevaVentaTemporal();
+            return;
+        }
+
         if ((esDuplicandoOferta || esContinuandoOfertaExpo) && !ventaTemporalId) {
             iniciarNuevaVentaTemporal();
             return;
@@ -2473,12 +2676,18 @@
 
         axios.get('/ventas/temporales/' + ventaTemporalId).then(function(response) {
             var temporal = response.data.data;
-            if (temporal.tipo !== ventaTemporalTipo || temporal.codigo_tipo !== codigoActual) {
+            if (temporal.tipo !== ventaTemporalTipo) {
                 throw new Error('El registro temporal no corresponde al formulario actual.');
             }
+            var cambioTipoFactura = temporal.codigo_tipo !== codigoActual;
             return restaurarVentaTemporal(temporal.contenido || {}).then(function() {
                 ocultarCargaTemporales();
                 activarAutosaveTemporal();
+                if (cambioTipoFactura) {
+                    ventaTemporalCambiosPendientes = true;
+                    ventaTemporalRevision += 1;
+                    return guardarVentaTemporal();
+                }
             });
         }).catch(function() {
             ventaTemporalId = null;
@@ -2677,23 +2886,26 @@
     }
 
     function cambiarTipoFacturaDesdeUrl(rutaMenu) {
-        // Preserva los parámetros de prefactura (from=prefactura, prefactura_id, flujoId)
-        const urlParams = new URLSearchParams(window.location.search);
-        const from = urlParams.get('from');
-        const prefacturaId = urlParams.get('prefactura_id');
-        const flujoId = urlParams.get('flujoId');
-        const modo = urlParams.get('modo');
-        const autorizacionId = urlParams.get('autorizacion_id');
-        const autorizadorId = urlParams.get('autorizador_id');
-
-        let newUrl = '/' + rutaMenu;
-        if (from && prefacturaId && flujoId) {
-            newUrl += '?from=' + from + '&prefactura_id=' + prefacturaId + '&flujoId=' + flujoId;
-            if (modo) newUrl += '&modo=' + encodeURIComponent(modo);
-            if (autorizacionId) newUrl += '&autorizacion_id=' + encodeURIComponent(autorizacionId);
-            if (autorizadorId) newUrl += '&autorizador_id=' + encodeURIComponent(autorizadorId);
+        var nuevaUrl = new URL(window.location.href);
+        nuevaUrl.pathname = '/' + rutaMenu.replace(/^\/+/, '');
+        if (ventaTemporalId) nuevaUrl.searchParams.set('temporal_id', ventaTemporalId);
+        var navegar = function() {
+            if (ventaTemporalId) nuevaUrl.searchParams.set('temporal_id', ventaTemporalId);
+            window.location.href = nuevaUrl.toString();
+        };
+        if (esEdicionNormalDesdePrefactura && !ventaTemporalId && !ventaTemporalRestaurando) {
+            ventaTemporalCambiosPendientes = true;
+            ventaTemporalRevision += 1;
+            guardarVentaTemporal().finally(navegar);
+            return;
         }
-        window.location.href = newUrl;
+        if (!ventaTemporalId || ventaTemporalRestaurando || ventaTemporalFinalizada) {
+            navegar();
+            return;
+        }
+        ventaTemporalCambiosPendientes = true;
+        ventaTemporalRevision += 1;
+        guardarVentaTemporal().finally(navegar);
     }
 
     // ================================================================
@@ -3630,7 +3842,7 @@
                         </button>
                     </td>
                     <td style="vertical-align:middle; padding:4px 6px;">
-                        <input type="text" id="nombre${numeroInputs}" name="nombre${numeroInputs}" value='${producto.nombre}' readonly data-parsley-required
+                        <input type="text" id="nombre${numeroInputs}" name="nombre${numeroInputs}" value='${producto.nombre}' readonly role="button" title="Ver descripción del producto" data-parsley-required
                             style="border:none; background:transparent; font-size:12px; font-weight:700; color:#1b5e20; width:100%; min-width:130px;">
                     </td>
                     <td style="vertical-align:middle; padding:4px 6px; white-space:nowrap;">
@@ -4602,6 +4814,7 @@
     }
 
     function mostrarErrorPrecioBajoEscala(productos) {
+        var referenciaExpo = esFacturacionExpoDesdePrefactura;
         var filas = productos.map(function (p) {
             return '<tr>'
                 + '<td style="padding:4px 8px; text-align:left;">' + p.nombre + '</td>'
@@ -4614,9 +4827,9 @@
             icon: 'error',
             title: 'No se puede facturar',
             width: 560,
-            html: '<p class="text-left">El valor ingresado es <b>menor</b> al precio de la escala seleccionada para uno o más productos:</p>'
-                + '<table class="table table-sm" style="font-size:12px;"><thead><tr><th>Producto</th><th>Escala</th><th>Ingresado</th></tr></thead><tbody>' + filas + '</tbody></table>'
-                + '<p class="text-left mt-2" style="margin-top:10px;">Si necesita facturar con un valor menor al de la escala, debe realizar la factura desde <b>Editar Factura</b> seleccionando el tipo <b>Factura SR</b>.</p>'
+            html: '<p class="text-left">El valor ingresado es <b>menor</b> al precio ' + (referenciaExpo ? 'pactado en la Oferta Expo ganadora' : 'de la escala seleccionada') + ' para uno o más productos:</p>'
+                + '<table class="table table-sm" style="font-size:12px;"><thead><tr><th>Producto</th><th>' + (referenciaExpo ? 'Pactado' : 'Escala') + '</th><th>Ingresado</th></tr></thead><tbody>' + filas + '</tbody></table>'
+                + '<p class="text-left mt-2" style="margin-top:10px;">Si necesita facturar con un valor menor, debe realizar la factura desde <b>Editar Factura</b> seleccionando el tipo <b>Factura SR</b>.</p>'
         });
     }
 
@@ -5547,9 +5760,10 @@
             var precioSelectEl = document.getElementById('precios' + idx);
             var precioUnitEl = document.getElementById('precio' + idx);
             var nombre = nombreEl ? nombreEl.value : '—';
-            var precioOpc = precioSelectEl ? parseFloat(precioSelectEl.value) || 0 : 0;
+            var precioOpc = precioUnitEl ? parseFloat(precioUnitEl.getAttribute('data-precio-escala')) : NaN;
+            if (isNaN(precioOpc)) precioOpc = precioSelectEl ? parseFloat(precioSelectEl.value) || 0 : 0;
             var precioUnitario = precioUnitEl ? parseFloat(precioUnitEl.value) || 0 : 0;
-            var esBajo = precioUnitario < precioOpc;
+            var esBajo = precioUnitario < precioOpc - 0.0001;
             // Solo agregar al arreglo y mostrar en tabla si el precio está por debajo del OPC
             if (!esBajo) continue;
             productosSR.push({ nombre: nombre, precioOpc: precioOpc, precioUnitario: precioUnitario });
@@ -5565,7 +5779,6 @@
     }
 
     function mostrarModalGestorEntrega() {
-        var urlVendedores = urls.vendedores;
         var clienteId = $('#seleccionarCliente').val();
         var teleHidden = document.getElementById('tele_asesor_hidden');
         var teleIdActual = teleHidden && teleHidden.value ? teleHidden.value : '{{ Auth::id() }}';
@@ -5574,9 +5787,9 @@
             $('#gestor_entrega_modal').select2({
                 dropdownParent: $('#modal_gestor_entrega'),
                 ajax: {
-                    url: urlVendedores,
+                    url: '/cotizacion/gestores-entrega',
                     data: function(params) {
-                        return { search: params.term, type: 'public', page: params.page || 1 };
+                        return { search: params.term || '' };
                     }
                 },
                 allowClear: true,
@@ -6112,10 +6325,10 @@
             var totalEliminar = productosConCambioEscala.length - totalCargar;
             Swal.fire({
                 icon: 'warning',
-                title: 'Cambios en precios de escala',
+                title: 'Los precios vigentes aumentaron',
                 width: 860,
                 html: '<p style="color:#546e7a;font-size:13px;text-align:left;margin-bottom:10px;">'
-                    + '<strong>' + totalCargar + ' producto(s)</strong> se cargarán con el nuevo precio y '
+                    + '<strong>' + totalCargar + ' producto(s)</strong> cuyo precio aumentó se cargarán con el nuevo valor y '
                     + '<strong>' + totalEliminar + ' producto(s)</strong> se eliminarán por no tener escala vigente. '
                     + 'Los demás productos se cargarán sin cambios.</p>'
                     + '<div style="max-height:280px;overflow:auto;border:1px solid #e0e0e0;border-radius:7px;">'
@@ -6186,13 +6399,28 @@
             mostrarCargaOferta();
             _cargaInicialEnLote = true;
             _carritoCargaInicial = document.createElement('tbody');
-            Promise.all(productos.map(function (prod) {
-                return (_modoPrefactura || _modoContinuacionExpo)
-                    ? agregarProductoDesdePrefactura(prod)
-                    : agregarProductoDesdeOferta(prod);
-            })).then(function () {
+            var esCargaDuplicadoNormal = esDuplicandoOferta && !esOfertaExpo && !_modoPrefactura;
+            var primerIndiceDuplicadoNormal = numeroInputs;
+            if (esCargaDuplicadoNormal) numeroInputs += productos.length;
+            var cargaProductos = Promise.all(productos.map(function (prod, posicion) {
+                if (_modoPrefactura || _modoContinuacionExpo) {
+                    return agregarProductoDesdePrefactura(prod);
+                }
+                return agregarProductoDesdeOferta(
+                    prod,
+                    esCargaDuplicadoNormal ? primerIndiceDuplicadoNormal + posicion + 1 : null
+                );
+            }));
+
+            cargaProductos.then(function () {
                 var carrito = document.getElementById('carritoTbody');
                 if (carrito && _carritoCargaInicial) {
+                    if (esCargaDuplicadoNormal) {
+                        Array.from(_carritoCargaInicial.children)
+                            .sort(function (filaA, filaB) { return Number(filaA.id) - Number(filaB.id); })
+                            .forEach(function (fila) { _carritoCargaInicial.appendChild(fila); });
+                        arregloIdInputs.sort(function (indiceA, indiceB) { return indiceA - indiceB; });
+                    }
                     carrito.insertAdjacentHTML('beforeend', _carritoCargaInicial.innerHTML);
                 }
                 _carritoCargaInicial = null;
@@ -6203,7 +6431,11 @@
             }).then(function () {
                 _cargaInicialEnLote = false;
                 ventaTemporalRestaurando = false;
-                if (esDuplicandoOferta || esContinuandoOfertaExpo) guardarVentaTemporal();
+                if (esDuplicandoOferta || esContinuandoOfertaExpo || esEdicionNormalDesdePrefactura) {
+                    ventaTemporalCambiosPendientes = true;
+                    ventaTemporalRevision += 1;
+                    guardarVentaTemporal();
+                }
                 ocultarCargaOferta();
                 Swal.fire({
                     icon: 'success',
@@ -6229,6 +6461,12 @@
                 var idx = numeroInputs;
 
                 var precioUsar   = parseFloat(prod.precio_unidad || 0);
+                var precioReferencia = _modoPrefactura && parseFloat(prod.precioEscalaVigente || 0) > 0
+                    ? parseFloat(prod.precioEscalaVigente)
+                    : precioUsar;
+                var etiquetaReferencia = _modoPrefactura && prod.escalaVigente
+                    ? 'Escala ' + prod.escalaVigente
+                    : 'Fijo';
                 var cantidadUsar = parseFloat(prod.cantidad || 0);
                 var subTotalUsar = parseFloat(prod.sub_total || 0);
                 var isvUsar      = parseFloat(prod.isv || 0);
@@ -6280,7 +6518,7 @@
                         </button>
                     </td>
                     <td style="vertical-align:middle; padding:4px 6px;">
-                        <input type="text" id="nombre${idx}" name="nombre${idx}" value='${prod.nombre_producto || ''}' readonly data-parsley-required
+                        <input type="text" id="nombre${idx}" name="nombre${idx}" value='${prod.nombre_producto || ''}' readonly role="button" title="Ver descripción del producto" data-parsley-required
                             style="border:none; background:transparent; font-size:12px; font-weight:700; color:#1b5e20; width:100%; min-width:130px;">
                     </td>
                     <td style="vertical-align:middle; padding:4px 6px; white-space:nowrap;">
@@ -6291,12 +6529,12 @@
                     <td style="vertical-align:middle; padding:4px 6px;">
                         <select class="form-control form-control-sm" name="precios${idx}" id="precios${idx}" data-parsley-required style="font-size:11px; min-width:100px;"
                             onchange="validacionPrecio(precios${idx}, precio${idx})">
-                            <option value="${precioUsar.toFixed(2)}" data-id="p1" selected>${precioUsar.toFixed(2)} - Fijo</option>
+                            <option value="${precioReferencia.toFixed(2)}" data-id="${prod.idPrecioSeleccionado || 'p1'}" selected>${precioReferencia.toFixed(2)} - ${etiquetaReferencia}</option>
                         </select>
                     </td>
                     <td style="vertical-align:middle; padding:4px 6px;">
                         <input type="number" id="precio${idx}" name="precio${idx}" value="${precioUsar.toFixed(2)}" class="form-control form-control-sm"
-                            data-parsley-required step="any" autocomplete="off" style="min-width:80px; font-size:11px;"
+                            data-precio-escala="${precioReferencia.toFixed(2)}" data-parsley-required step="any" autocomplete="off" style="min-width:80px; font-size:11px;"
                             oninput="calcularTotales(precio${idx},cantidad${idx},${isvPct},unidad${idx},${idx},restaInventario${idx})">
                     </td>
                     <td style="vertical-align:middle; padding:4px 6px;">
@@ -6339,7 +6577,7 @@
             });
         }
 
-        function agregarProductoDesdeOferta(prod) {
+        function agregarProductoDesdeOferta(prod, indiceReservado) {
             return new Promise(function (resolve) {
                 if (!prod.producto_id) { resolve(); return; }
 
@@ -6358,8 +6596,11 @@
                     var producto = response.data.producto;
                     var arrayUnidades = response.data.unidades;
                     var categoriaNombre = (prod.categoria_precios_nombre || '').toString().trim();
-                    numeroInputs += 1;
-                    var idx = numeroInputs;
+                    var idx = indiceReservado;
+                    if (!idx) {
+                        numeroInputs += 1;
+                        idx = numeroInputs;
+                    }
 
                     // Construir select de unidades – pre-seleccionar la del duplicado
                     var htmlSelectUnidades = '';
@@ -6404,7 +6645,13 @@
                     // se valida al enviar el formulario en las facturas con restricción.
                     var precioEscalaRef = precioOpcFmt;
                     var cantidadUsar = prod.cantidad || 1;
-                    var esSinExistencia = !(parseFloat(prod.resta_inventario || 0) > 0);
+                    var esDuplicadoNormal = esDuplicandoOferta && !esOfertaExpo;
+                    var bodegaOriginalValida = parseInt(prod.Bodega_id || 0, 10) > 0
+                        && parseInt(prod.seccion_id || 0, 10) > 0
+                        && !/^SIN EXISTENCIA/i.test(String(prod.nombre_bodega || '').trim());
+                    var esSinExistencia = esDuplicadoNormal
+                        ? !bodegaOriginalValida
+                        : !(parseFloat(prod.resta_inventario || 0) > 0);
                     var bodegaTexto = esSinExistencia ? 'SIN EXISTENCIA' : (prod.nombre_bodega || '');
                     var idBodega = esSinExistencia ? '' : (prod['Bodega_id'] ?? '');
                     var idSeccion = esSinExistencia ? '' : (prod.seccion_id || '');
@@ -6428,7 +6675,7 @@
                             <input id="idBodega${idx}" name="idBodega${idx}" type="hidden" value="${idBodega}">
                             <input id="idSeccion${idx}" name="idSeccion${idx}" type="hidden" value="${idSeccion}">
                             <input id="sinExistencia${idx}" name="sinExistencia${idx}" type="hidden" value="${esSinExistencia ? 1 : 0}">
-                            <input id="restaInventario${idx}" name="restaInventario${idx}" type="hidden" value="${esSinExistencia ? 0 : ''}">
+                            <input id="restaInventario${idx}" name="restaInventario${idx}" type="hidden" value="${esSinExistencia ? 0 : (esDuplicadoNormal ? 1 : '')}">
                             <input id="subTotal${idx}" name="subTotal${idx}" type="hidden" value="" required>
                             <input id="isvProducto${idx}" name="isvProducto${idx}" type="hidden" value="" required>
                             <input id="acumuladoDescuento${idx}" name="acumuladoDescuento${idx}" type="hidden">
@@ -6439,7 +6686,7 @@
                             </button>
                         </td>
                         <td style="vertical-align:middle; padding:4px 6px;">
-                            <input type="text" id="nombre${idx}" name="nombre${idx}" value='${producto.nombre}' readonly data-parsley-required
+                            <input type="text" id="nombre${idx}" name="nombre${idx}" value='${producto.nombre}' readonly role="button" title="Ver descripción del producto" data-parsley-required
                                 style="border:none; background:transparent; font-size:12px; font-weight:700; color:#1b5e20; width:100%; min-width:130px;">
                         </td>
                         <td style="vertical-align:middle; padding:4px 6px; white-space:nowrap;">

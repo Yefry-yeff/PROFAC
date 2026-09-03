@@ -953,6 +953,125 @@ class PrefacturaController
         return response()->json(['pedido_id' => $pedidoId]);
     }
 
+    private function obtenerCambiosEscalaPrefactura($productos): array
+    {
+        $preciosOriginales = DB::table('precios_producto_carga as ppc')
+            ->leftJoin('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')
+            ->whereIn('ppc.id', $productos->pluck('precios_producto_carga_id')->filter()->unique())
+            ->get(['ppc.*', 'cp.nombre as categoria_nombre'])
+            ->keyBy('id');
+
+        $preciosActuales = DB::table('precios_producto_carga as ppc')
+            ->leftJoin('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')
+            ->whereIn('ppc.categoria_precios_id', $preciosOriginales->pluck('categoria_precios_id')->filter()->unique())
+            ->whereIn('ppc.producto_id', $productos->pluck('producto_id')->filter()->unique())
+            ->where('ppc.estado_id', 1)
+            ->orderBy('ppc.id')
+            ->get(['ppc.*', 'cp.nombre as categoria_nombre'])
+            ->keyBy(fn ($precio) => $precio->categoria_precios_id . '|' . $precio->producto_id);
+
+        $cambios = [];
+        foreach ($productos as $producto) {
+            $selector = strtolower(trim((string) ($producto->idPrecioSeleccionado ?? '')));
+            [$columnaPrecio, $escala] = match ($selector) {
+                'p1', 'a' => ['precio_a', 'A'],
+                'p2', 'b' => ['precio_b', 'B'],
+                'p3', 'c' => ['precio_c', 'C'],
+                'p4', 'd' => ['precio_d', 'D'],
+                default   => ['precio_base_venta', 'BASE'],
+            };
+
+            $precioOriginal = $preciosOriginales->get((int) $producto->precios_producto_carga_id);
+            $clavePrecio = $precioOriginal
+                ? $precioOriginal->categoria_precios_id . '|' . $producto->producto_id
+                : null;
+            $precioActual = $clavePrecio ? $preciosActuales->get($clavePrecio) : null;
+            $precioEscalaActual = $precioActual
+                ? (float) ($precioActual->{$columnaPrecio} ?? 0)
+                : null;
+            $precioFactura = (float) ($producto->precio_unidad ?? 0);
+
+            $razones = [];
+            if ($precioEscalaActual !== null
+                && $precioFactura < $precioEscalaActual - 0.0001) {
+                $razones[] = 'El precio de la prefactura es menor que el precio vigente.';
+            }
+
+            if (!empty($razones)) {
+                $cambios[] = [
+                    'nombre_producto'   => (string) ($producto->nombre_producto ?? 'Producto sin nombre'),
+                    'categoria_anterior' => (string) ($precioOriginal->categoria_nombre ?? 'Sin categoría'),
+                    'categoria_actual'  => (string) ($precioActual->categoria_nombre ?? $precioOriginal->categoria_nombre ?? 'Sin categoría'),
+                    'escala'            => $escala,
+                    'precio_anterior'   => round($precioFactura, 2),
+                    'precio_actual'     => $precioEscalaActual === null ? null : round($precioEscalaActual, 2),
+                    'precio_factura'    => round($precioFactura, 2),
+                    'motivo'            => implode(' ', array_unique($razones)),
+                ];
+            }
+        }
+
+        return $cambios;
+    }
+
+    private function respuestaCambiosEscalaPrefactura(array $cambios)
+    {
+        $filas = collect($cambios)->map(function ($producto) {
+            $precioActual = is_null($producto['precio_actual'])
+                ? '<span style="color:#b42318;font-weight:800;">No disponible</span>'
+                : '<strong style="color:#b42318;font-size:14px;">L. ' . number_format($producto['precio_actual'], 2) . '</strong>';
+            $aumento = is_null($producto['precio_actual'])
+                ? null
+                : max(0, (float) $producto['precio_actual'] - (float) $producto['precio_anterior']);
+            $indicadorAumento = $aumento === null
+                ? ''
+                : '<span style="display:inline-block;margin-top:3px;padding:2px 7px;border-radius:999px;background:#fff1f0;color:#b42318;font-size:10px;font-weight:800;white-space:nowrap;">+ L. '
+                    . number_format($aumento, 2) . '</span>';
+
+            return '<tr style="border-bottom:1px solid #e8edf2;">'
+                . '<td style="padding:12px 14px;text-align:left;min-width:250px;">'
+                . '<strong style="display:block;color:#263238;font-size:12px;line-height:1.4;">' . e($producto['nombre_producto']) . '</strong>'
+                . '<span style="display:block;margin-top:4px;color:#b42318;font-size:10px;line-height:1.35;">' . e($producto['motivo']) . '</span></td>'
+                . '<td style="padding:12px 10px;text-align:center;white-space:nowrap;">'
+                . '<span style="display:inline-block;padding:3px 8px;border-radius:999px;background:#eef2f6;color:#475467;font-size:10px;font-weight:700;">'
+                . e($producto['categoria_anterior']) . ' &rarr; ' . e($producto['categoria_actual']) . '</span>'
+                . '<span style="display:block;margin-top:5px;color:#667085;font-size:10px;">Escala <strong>' . e($producto['escala']) . '</strong></span></td>'
+                . '<td style="padding:12px 10px;text-align:right;white-space:nowrap;color:#475467;font-size:13px;font-weight:700;">L. '
+                . number_format($producto['precio_anterior'], 2) . '</td>'
+                . '<td style="padding:12px 4px;text-align:center;color:#98a2b3;font-size:15px;">&rarr;</td>'
+                . '<td style="padding:12px 14px;text-align:right;white-space:nowrap;">' . $precioActual . '<br>' . $indicadorAumento . '</td>'
+                . '</tr>';
+        })->implode('');
+
+        $cantidadCambios = count($cambios);
+        $html = '<div style="text-align:left;color:#344054;">'
+            . '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;padding:10px 12px;border:1px solid #fedf89;background:#fffaeb;border-radius:7px;">'
+            . '<span style="font-size:12px;line-height:1.45;">El precio guardado en la prefactura quedó por debajo del precio vigente.</span>'
+            . '<span style="flex:none;padding:4px 9px;border-radius:999px;background:#f79009;color:#fff;font-size:11px;font-weight:800;white-space:nowrap;">'
+            . $cantidadCambios . ' ' . ($cantidadCambios === 1 ? 'producto' : 'productos') . '</span></div>'
+            . '<div class="fmp-price-scroll" style="overflow:auto;border:1px solid #e4e7ec;border-radius:7px;background:#fff;">'
+            . '<table style="border-collapse:collapse;font-size:12px;width:100%;min-width:650px;">'
+            . '<thead style="position:sticky;top:0;z-index:1;background:#f8fafc;"><tr>'
+            . '<th style="padding:9px 14px;text-align:left;color:#667085;font-size:10px;text-transform:uppercase;">Producto</th>'
+            . '<th style="padding:9px 10px;text-align:center;color:#667085;font-size:10px;text-transform:uppercase;">Categoría y escala</th>'
+            . '<th style="padding:9px 10px;text-align:right;color:#667085;font-size:10px;text-transform:uppercase;white-space:nowrap;">Prefactura</th>'
+            . '<th style="width:24px;"></th>'
+            . '<th style="padding:9px 14px;text-align:right;color:#667085;font-size:10px;text-transform:uppercase;white-space:nowrap;">Vigente</th></tr></thead>'
+            . '<tbody>' . $filas . '</tbody></table></div>'
+            . '<div style="display:flex;align-items:flex-start;gap:10px;margin-top:14px;padding:11px 13px;border-left:4px solid #1570ef;background:#eff8ff;border-radius:0 7px 7px 0;">'
+            . '<span style="color:#1570ef;font-size:16px;line-height:1;">&#9432;</span>'
+            . '<div style="font-size:12px;line-height:1.5;color:#344054;"><strong style="display:block;color:#175cd3;margin-bottom:2px;">Para conservar los precios de la prefactura</strong>'
+            . 'Seleccione <b>Editar Factura</b> y utilice el tipo <b>Factura SR</b>.</div></div>'
+            . '</div>';
+
+        return response()->json([
+            'icon' => 'warning',
+            'title' => 'Los precios vigentes aumentaron',
+            'warning' => $html,
+            'productos_escala_cambiada' => $cambios,
+        ], 422);
+    }
+
     // ─────────────────────────────────────────────────────────────────────
     // POST /prefactura/{id}/facturar-directo
     // Crea la factura directamente desde los datos de la prefactura,
@@ -988,6 +1107,32 @@ class PrefacturaController
             ], 409);
         }
 
+        $esOfertaExpo = DB::table('expo_cotizacion')
+            ->where('cotizacion_id', (int) $pf->cotizacion_id)
+            ->exists();
+
+        $clienteId = (int) ($pf->cliente_id ?: DB::table('cotizacion')
+            ->where('id', (int) $pf->cotizacion_id)
+            ->value('cliente_id'));
+
+        if (!$clienteId) {
+            return response()->json([
+                'error' => 'La prefactura no tiene un cliente válido para seleccionar el tele asesor.',
+            ], 422);
+        }
+
+        $teleAsesorAsignado = $clienteId && DB::table('cliente_usuario')
+            ->where('cliente_id', (int) $clienteId)
+            ->where('usuario_id', (int) $request->tele_asesor)
+            ->where('rol_id', 3)
+            ->exists();
+
+        if (!$teleAsesorAsignado) {
+            return response()->json([
+                'error' => 'El tele asesor seleccionado no está asignado a este cliente.',
+            ], 422);
+        }
+
         if (!DB::table('users')->where('id', (int) $request->tele_asesor)->where('estado_id', 1)->exists()) {
             return response()->json([
                 'error' => 'El usuario seleccionado no está activo.',
@@ -998,6 +1143,21 @@ class PrefacturaController
             return response()->json([
                 'error' => 'El gestor de entrega seleccionado no está activo.',
             ], 422);
+        }
+
+        $productos = DB::table('prefactura_has_producto')
+            ->where('prefactura_id', $id)
+            ->get();
+
+        if ($productos->isEmpty()) {
+            return response()->json(['error' => 'La prefactura no tiene productos.'], 422);
+        }
+
+        if (!$esOfertaExpo) {
+            $cambiosEscala = $this->obtenerCambiosEscalaPrefactura($productos);
+            if (!empty($cambiosEscala)) {
+                return $this->respuestaCambiosEscalaPrefactura($cambiosEscala);
+            }
         }
 
         try {
@@ -1156,56 +1316,6 @@ class PrefacturaController
         } else {
             $diasCredito = 0;
             $fechaVencimiento = $fechaEmision;
-        }
-
-        // ── Obtener productos de la prefactura ────────────────────────────
-        $productos = DB::table('prefactura_has_producto')
-            ->where('prefactura_id', $id)
-            ->get();
-
-        if ($productos->isEmpty()) {
-            return response()->json(['error' => 'La prefactura no tiene productos.'], 422);
-        }
-
-        // ── Validar precio vs. escala seleccionada ─────────────────────────
-        // Bloquea la facturación directa si el precio unitario de algún producto
-        // quedó por debajo del precio de la escala seleccionada en la prefactura.
-        // El usuario debe usar "Editar Factura" y seleccionar el tipo "Factura SR"
-        // si necesita facturar con un valor menor al de la escala.
-        $productosBajoEscala = [];
-        foreach ($productos as $prod) {
-            $precioEscala = (float) ($prod->precioSeleccionado ?? 0);
-            $precioUnidad = (float) ($prod->precio_unidad ?? 0);
-            if ($precioEscala > 0 && $precioUnidad < $precioEscala - 0.0001) {
-                $productosBajoEscala[] = [
-                    'nombre_producto' => $prod->nombre_producto,
-                    'precio_escala'   => round($precioEscala, 2),
-                    'precio_unidad'   => round($precioUnidad, 2),
-                ];
-            }
-        }
-
-        if (!empty($productosBajoEscala)) {
-            $filas = collect($productosBajoEscala)->map(function ($p) {
-                return '<tr>'
-                    . '<td style="padding:4px 8px; text-align:left;">' . e($p['nombre_producto']) . '</td>'
-                    . '<td style="padding:4px 8px; text-align:right;">L. ' . number_format($p['precio_escala'], 2) . '</td>'
-                    . '<td style="padding:4px 8px; text-align:right; color:#c62828; font-weight:700;">L. ' . number_format($p['precio_unidad'], 2) . '</td>'
-                    . '</tr>';
-            })->implode('');
-
-            $html = '<div style="text-align:left;">'
-                . '<p style="font-size:13px;color:#555;">El valor ingresado es <b>menor</b> al precio de la escala seleccionada para uno o más productos:</p>'
-                . '<table class="table table-sm" style="font-size:12px;width:100%;"><thead><tr><th>Producto</th><th>Escala</th><th>Ingresado</th></tr></thead><tbody>' . $filas . '</tbody></table>'
-                . '<p style="font-size:13px;color:#555;margin-top:10px;">Si necesita facturar con un valor menor al de la escala, debe realizar la factura desde <b>Editar Factura</b> seleccionando el tipo <b>Factura SR</b>.</p>'
-                . '</div>';
-
-            return response()->json([
-                'icon'                   => 'warning',
-                'title'                  => 'No se puede facturar',
-                'warning'                => $html,
-                'productos_bajo_escala'  => $productosBajoEscala,
-            ], 422);
         }
 
         // ── Construir índices y datos por producto ────────────────────────

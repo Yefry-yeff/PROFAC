@@ -13,6 +13,26 @@ class FacturacionUnificadaAlcanceTest extends TestCase
 {
     use DatabaseTransactions;
 
+    public function test_descripcion_producto_devuelve_el_detalle_solicitado(): void
+    {
+        $producto = DB::table('producto')->select('id', 'nombre')->first();
+
+        $this->assertNotNull($producto, 'No existe un producto para probar la consulta de descripción.');
+        $descripcion = 'Descripción para prueba del modal';
+        DB::table('producto')->where('id', $producto->id)->update(['descripcion' => $descripcion]);
+
+        $usuario = User::query()->first();
+        $this->assertNotNull($usuario, 'No existe un usuario para probar la consulta de descripción.');
+        $this->actingAs($usuario)
+            ->getJson('/productos/' . $producto->id . '/descripcion')
+            ->assertOk()
+            ->assertJsonPath('producto.id', $producto->id)
+            ->assertJsonPath('producto.nombre', $producto->nombre)
+            ->assertJsonPath('producto.descripcion', $descripcion);
+
+        $this->getJson('/productos/2147483647/descripcion')->assertNotFound();
+    }
+
     public function test_duplicar_oferta_expo_normaliza_productos_a_bodega_virtual(): void
     {
         $oferta = DB::table('expo_cotizacion as ec')
@@ -46,6 +66,38 @@ class FacturacionUnificadaAlcanceTest extends TestCase
             && $producto['nombre_bodega'] === 'EXPO - DISPONIBLE AGRUPADO'
             && (int) $producto['resta_inventario'] === 1
         ));
+    }
+
+    public function test_duplicar_oferta_normal_conserva_orden_y_bodegas_originales(): void
+    {
+        $cotizacionId = DB::table('cotizacion_has_producto as chp')
+            ->leftJoin('expo_cotizacion as ec', 'ec.cotizacion_id', '=', 'chp.cotizacion_id')
+            ->whereNull('ec.cotizacion_id')
+            ->where('chp.resta_inventario', 1)
+            ->orderByDesc('chp.cotizacion_id')
+            ->value('chp.cotizacion_id');
+
+        $this->assertNotNull($cotizacionId, 'No existe una oferta normal con bodega para probar su duplicación.');
+        $usuario = User::query()->first();
+        $this->assertNotNull($usuario, 'No existe un usuario para probar la duplicación.');
+        $this->actingAs($usuario);
+
+        $originales = DB::table('cotizacion_has_producto')
+            ->where('cotizacion_id', $cotizacionId)
+            ->orderBy('indice')
+            ->get(['producto_id', 'Bodega_id', 'seccion_id', 'nombre_bodega']);
+
+        $componente = Livewire::withQueryParams([
+            'duplicar' => 1,
+            'cotizacionId' => $cotizacionId,
+        ])->test(FacturacionUnificada::class, ['codigo' => 'cotizacion_clientes_a'])
+            ->assertSet('esOfertaExpo', false);
+
+        $duplicados = collect($componente->get('productosParaCarrito'));
+        $this->assertSame($originales->pluck('producto_id')->map(fn ($id) => (int) $id)->all(), $duplicados->pluck('producto_id')->map(fn ($id) => (int) $id)->all());
+        $this->assertSame($originales->pluck('Bodega_id')->map(fn ($id) => (int) $id)->all(), $duplicados->pluck('Bodega_id')->map(fn ($id) => (int) $id)->all());
+        $this->assertSame($originales->pluck('seccion_id')->map(fn ($id) => (int) $id)->all(), $duplicados->pluck('seccion_id')->map(fn ($id) => (int) $id)->all());
+        $this->assertSame($originales->pluck('nombre_bodega')->all(), $duplicados->pluck('nombre_bodega')->all());
     }
 
     public function test_buscador_y_url_solo_permiten_flujos_involucrados_o_clientes_asignados(): void

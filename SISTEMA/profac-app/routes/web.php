@@ -798,6 +798,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/productos/buscar/categorias', [BusquedaProductoController::class, 'categorias']);
     Route::get('/productos/buscar/marcas', [BusquedaProductoController::class, 'marcas']);
     Route::get('/productos/buscar/top-vendidos', [BusquedaProductoController::class, 'topVendidos']);
+    Route::get('/productos/{idProducto}/descripcion', [FacturacionUnificada::class, 'descripcionProducto']);
     Route::get('/expo/oferta/listar-bodega/{idProducto}', [FacturacionUnificada::class, 'listarBodegasExpo']);
     Route::get('/expo/captura-rapida/producto/{identificador}', [FacturacionUnificada::class, 'capturaRapidaExpo']);
 
@@ -902,6 +903,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::post('/cotizacion/asesor-asignado', [Cotizacion::class, 'obtenerAsesorAsignado']);
     Route::get('/cotizacion/vendedores-asignados', [Cotizacion::class, 'listadoVendedoresAsignados']);
     Route::get('/cotizacion/actores-asignados', [Cotizacion::class, 'listadoActoresAsignados']);
+    Route::get('/cotizacion/gestores-entrega', [Cotizacion::class, 'listadoGestoresEntrega']);
     Route::post('/guardar/cotizacion', [Cotizacion::class, 'guardarCotizacion']);
     Route::post('/cotizacion/adjunto/subir', [Cotizacion::class, 'subirAdjunto']);
 

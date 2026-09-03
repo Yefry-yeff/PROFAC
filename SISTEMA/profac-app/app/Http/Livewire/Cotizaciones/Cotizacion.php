@@ -299,6 +299,38 @@ class Cotizacion extends Component
         return $this->listadoActoresAsignados($request);
     }
 
+    public function listadoGestoresEntrega(Request $request)
+    {
+        $datos = $request->validate([
+            'search' => 'nullable|string|max:150',
+        ]);
+        $busqueda = trim((string) ($datos['search'] ?? ''));
+        $rolesElegibles = [
+            ClienteActoresAsignados::ROL_ASESOR_COMERCIAL,
+            ClienteActoresAsignados::ROL_TELE_ASESOR,
+            ClienteActoresAsignados::ROL_GESTOR_ENTREGA,
+        ];
+
+        $usuarios = DB::table('users as u')
+            ->where('u.estado_id', 1)
+            ->where(function ($query) use ($rolesElegibles) {
+                $query->whereIn('u.rol_id', $rolesElegibles)
+                    ->orWhereExists(function ($subquery) use ($rolesElegibles) {
+                        $subquery->select(DB::raw(1))
+                            ->from('usuario_rol as ur')
+                            ->whereColumn('ur.usuario_id', 'u.id')
+                            ->whereIn('ur.rol_id', $rolesElegibles);
+                    });
+            })
+            ->when($busqueda !== '', function ($query) use ($busqueda) {
+                $query->where('u.name', 'like', '%' . $busqueda . '%');
+            })
+            ->orderBy('u.name')
+            ->get(['u.id', DB::raw('u.name as text')]);
+
+        return response()->json(['results' => $usuarios]);
+    }
+
     public function obtenerAsesorAsignado(Request $request)
     {
         $request->merge(['rol_id' => ClienteActoresAsignados::ROL_ASESOR_COMERCIAL]);

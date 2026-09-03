@@ -2,7 +2,9 @@
 
 namespace App\Services\Expo;
 
+use App\Models\ModelCodigoAutorizacion;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -89,6 +91,59 @@ class SaldoLineasOferta
             }
         }
 
+        $permitePreciosMenores = DB::table('tipo_factura')
+            ->where('id', (int) $request->input('tipo_factura_id', 0))
+            ->value('multiples_precios');
+
+        if ((bool) $permitePreciosMenores) {
+            $autorizacion = ModelCodigoAutorizacion::where('id', (int) $request->input('codigo_autorizacion', 0))
+                ->where('users_id', Auth::id())
+                ->where('estado_id', 1)
+                ->first();
+
+            if (!$autorizacion || !$autorizacion->esValido(
+                $request->input('flujo_id') ? (int) $request->input('flujo_id') : null,
+                'facturacion'
+            )) {
+                throw ValidationException::withMessages([
+                    'autorizacion_sr' => 'La Factura SR requiere un código de autorización válido y vigente.',
+                ]);
+            }
+        }
+
+        if (!(bool) $permitePreciosMenores) {
+            $productosBajoPacto = [];
+            $productosSobrePacto = [];
+            foreach ($lineasPorIndice as $indice => $lineaId) {
+                $precioPactado = (float) ($lineas[$lineaId]->precio_unidad ?? 0);
+                $precioFactura = (float) $request->input('precio' . $indice, 0);
+                if ($precioPactado > 0 && $precioFactura < $precioPactado - self::TOLERANCIA) {
+                    $productosBajoPacto[] = (string) ($lineas[$lineaId]->nombre_producto ?? "Producto #{$lineaId}")
+                        . ': pactado L. ' . number_format($precioPactado, 2)
+                        . ', ingresado L. ' . number_format($precioFactura, 2);
+                } elseif ($precioPactado > 0 && $precioFactura > $precioPactado + self::TOLERANCIA) {
+                    $productosSobrePacto[] = (string) ($lineas[$lineaId]->nombre_producto ?? "Producto #{$lineaId}")
+                        . ': pactado L. ' . number_format($precioPactado, 2)
+                        . ', ingresado L. ' . number_format($precioFactura, 2);
+                }
+            }
+
+            if (!empty($productosBajoPacto)) {
+                throw ValidationException::withMessages([
+                    'precio_expo_menor' => 'El precio de la factura es menor que el pactado en la Oferta Expo ganadora. '
+                        . implode('; ', $productosBajoPacto)
+                        . '. Para usar un precio menor debe seleccionar Factura SR.',
+                ]);
+            }
+
+            if (!empty($productosSobrePacto)) {
+                throw ValidationException::withMessages([
+                    'precio_expo_distinto' => 'La factura Expo normal debe conservar exactamente el precio pactado en la oferta ganadora. '
+                        . implode('; ', $productosSobrePacto) . '.',
+                ]);
+            }
+        }
+
         $cantidadesAplicadas = [];
         $restantePorLinea = $lineas->mapWithKeys(
             fn ($linea) => [(int) $linea->id => (float) $linea->cantidad_aplicada]
@@ -152,7 +207,7 @@ class SaldoLineasOferta
             ->where('cotizacion_id', $cotizacionId)
             ->whereIn('id', $cantidades->keys())
             ->lockForUpdate()
-            ->get(['id', 'producto_id', 'cantidad'])
+            ->get(['id', 'producto_id', 'nombre_producto', 'cantidad', 'precio_unidad'])
             ->keyBy('id');
 
         if ($lineas->count() !== $cantidades->count()) {
