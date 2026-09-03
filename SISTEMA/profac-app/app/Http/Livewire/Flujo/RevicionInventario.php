@@ -816,8 +816,74 @@ class RevicionInventario extends Component
      */
     public function tieneProductosSinExistencia(): bool
     {
-        return collect($this->productos)
-            ->contains(fn (array $prod) => !empty($prod['sin_existencia']));
+        return collect($this->productos)->contains(function (array $prod) {
+            if (empty($prod['sin_existencia'])) {
+                return false;
+            }
+
+            if ($this->esOfertaExpo) {
+                return true;
+            }
+
+            return !$this->productoTieneBodegaSeleccionadaSuficiente($prod);
+        });
+    }
+
+    public function productoTieneBodegaSeleccionadaSuficiente(array $prod): bool
+    {
+        $seleccion = (string) ($this->bodegaExpoSeleccionada[$prod['idx']] ?? '');
+        $destino = collect($prod['destinos_bodega'] ?? [])->first(
+            fn (array $opcion) => (string) $opcion['value'] === $seleccion
+        );
+
+        return $destino && (float) $destino['stock'] >= (float) $prod['cantidad'];
+    }
+
+    private function sincronizarBodegasNormalesSeleccionadas(): bool
+    {
+        if ($this->esOfertaExpo) {
+            return true;
+        }
+
+        $actualizaciones = [];
+        foreach ($this->productos as $prod) {
+            if (empty($prod['sin_existencia'])) {
+                continue;
+            }
+
+            $seleccion = (string) ($this->bodegaExpoSeleccionada[$prod['idx']] ?? '');
+            $destino = collect($prod['destinos_bodega'] ?? [])->first(
+                fn (array $opcion) => (string) $opcion['value'] === $seleccion
+            );
+
+            if (!$destino || (float) $destino['stock'] < (float) $prod['cantidad']) {
+                $this->mensajeError = 'Seleccione una bodega con existencia suficiente para ' . $prod['nombre_producto'] . '.';
+                return false;
+            }
+
+            [$bodegaId, $seccionId] = array_map('intval', explode('|', $seleccion, 2));
+            $actualizaciones[] = [
+                'linea_id' => (int) $prod['cotizacion_has_producto_id'],
+                'bodega_id' => $bodegaId,
+                'seccion_id' => $seccionId,
+                'bodega_nombre' => $destino['bodega_nombre'],
+            ];
+        }
+
+        foreach ($actualizaciones as $actualizacion) {
+            DB::table('cotizacion_has_producto')
+                ->where('id', $actualizacion['linea_id'])
+                ->where('cotizacion_id', $this->cotizacionId)
+                ->update([
+                    'Bodega_id' => $actualizacion['bodega_id'],
+                    'seccion_id' => $actualizacion['seccion_id'],
+                    'nombre_bodega' => $actualizacion['bodega_nombre'],
+                    'resta_inventario' => 1,
+                    'updated_at' => now(),
+                ]);
+        }
+
+        return true;
     }
 
     public function tieneProductosExpoSinBodegaFisica(): bool
@@ -985,7 +1051,8 @@ class RevicionInventario extends Component
             return;
         }
 
-        if (!$this->sincronizarBodegasExpoSeleccionadas()) {
+        if (!$this->sincronizarBodegasNormalesSeleccionadas()
+            || !$this->sincronizarBodegasExpoSeleccionadas()) {
             return;
         }
 

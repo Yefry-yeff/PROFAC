@@ -115,6 +115,33 @@
     #modal-gestor-flujo .modal-dialog { overflow: visible !important; }
     #modal-gestor-flujo .modal-content { overflow: visible !important; }
     #modal-gestor-flujo .modal-body { overflow: visible !important; }
+    .swal2-popup.fmp-price-alert {
+        max-height:calc(100vh - 20px);
+        padding:12px 18px 14px;
+        overflow:hidden;
+    }
+    .fmp-price-alert .swal2-icon {
+        width:3.4em;
+        height:3.4em;
+        margin:2px auto 8px;
+    }
+    .fmp-price-alert .swal2-icon-content { font-size:2.5em; }
+    .fmp-price-alert .swal2-title {
+        padding:0;
+        margin:0 0 12px;
+        font-size:24px;
+        line-height:1.2;
+    }
+    .fmp-price-alert .swal2-html-container {
+        margin:0;
+        padding:0 2px;
+        overflow:hidden;
+    }
+    .fmp-price-alert .fmp-price-scroll {
+        max-height:min(330px, max(82px, calc(100vh - 300px)));
+    }
+    .fmp-price-alert .swal2-actions { margin:10px 0 0; }
+    .fmp-price-alert .swal2-confirm { margin:0; padding:8px 22px; }
 </style>
 
 @php
@@ -2956,6 +2983,10 @@
                         Swal.fire({
                             icon: data.icon || 'error',
                             title: data.title || 'Error',
+                            width: data.productos_escala_cambiada ? 'min(760px, calc(100vw - 28px))' : undefined,
+                            customClass: data.productos_escala_cambiada ? { popup: 'fmp-price-alert' } : undefined,
+                            confirmButtonText: data.productos_escala_cambiada ? 'Entendido' : 'OK',
+                            confirmButtonColor: data.productos_escala_cambiada ? '#1570ef' : undefined,
                             text: data.text || data.warning || (data.detail && data.detail.text) || data.error || 'No se pudo facturar la prefactura.',
                             html: (data.warning && data.warning.includes('<')) ? data.warning : undefined
                         });

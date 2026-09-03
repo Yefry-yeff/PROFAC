@@ -993,22 +993,16 @@ class PrefacturaController
 
             $precioOriginal = $preciosOriginales->get((int) $producto->precios_producto_carga_id);
             $precioActual = $preciosActuales->get((int) $producto->producto_id);
-            $precioEscalaAnterior = (float) ($producto->precioSeleccionado ?? 0);
-            if ($precioEscalaAnterior <= 0 && $precioOriginal) {
-                $precioEscalaAnterior = (float) ($precioOriginal->{$columnaPrecio} ?? 0);
-            }
             $precioEscalaActual = $precioActual
                 ? (float) ($precioActual->{$columnaPrecio} ?? 0)
                 : null;
+            $precioFactura = (float) ($producto->precio_unidad ?? 0);
 
             $razones = [];
             if ($precioEscalaActual !== null
-                && $precioEscalaAnterior > 0
-                && $precioEscalaAnterior < $precioEscalaActual - 0.0001) {
-                $razones[] = 'El precio anterior es menor que el precio vigente.';
+                && $precioFactura < $precioEscalaActual - 0.0001) {
+                $razones[] = 'El precio de la prefactura es menor que el precio vigente.';
             }
-
-            $precioFactura = (float) ($producto->precio_unidad ?? 0);
 
             if (!empty($razones)) {
                 $cambios[] = [
@@ -1016,7 +1010,7 @@ class PrefacturaController
                     'categoria_anterior' => (string) ($precioOriginal->categoria_nombre ?? 'Sin categoría'),
                     'categoria_actual'  => $categoriaActualNombre,
                     'escala'            => $escala,
-                    'precio_anterior'   => round($precioEscalaAnterior, 2),
+                    'precio_anterior'   => round($precioFactura, 2),
                     'precio_actual'     => $precioEscalaActual === null ? null : round($precioEscalaActual, 2),
                     'precio_factura'    => round($precioFactura, 2),
                     'motivo'            => implode(' ', array_unique($razones)),
@@ -1031,25 +1025,50 @@ class PrefacturaController
     {
         $filas = collect($cambios)->map(function ($producto) {
             $precioActual = is_null($producto['precio_actual'])
-                ? '<span style="color:#c62828;font-weight:700;">No disponible</span>'
-                : 'L. ' . number_format($producto['precio_actual'], 2);
+                ? '<span style="color:#b42318;font-weight:800;">No disponible</span>'
+                : '<strong style="color:#b42318;font-size:14px;">L. ' . number_format($producto['precio_actual'], 2) . '</strong>';
+            $aumento = is_null($producto['precio_actual'])
+                ? null
+                : max(0, (float) $producto['precio_actual'] - (float) $producto['precio_anterior']);
+            $indicadorAumento = $aumento === null
+                ? ''
+                : '<span style="display:inline-block;margin-top:3px;padding:2px 7px;border-radius:999px;background:#fff1f0;color:#b42318;font-size:10px;font-weight:800;white-space:nowrap;">+ L. '
+                    . number_format($aumento, 2) . '</span>';
 
-            return '<tr>'
-                . '<td style="padding:5px 8px;text-align:left;">' . e($producto['nombre_producto'])
-                . '<div style="font-size:10px;color:#c62828;">' . e($producto['motivo']) . '</div></td>'
-                . '<td style="padding:5px 8px;text-align:center;">' . e($producto['categoria_anterior']) . ' &rarr; ' . e($producto['categoria_actual']) . '</td>'
-                . '<td style="padding:5px 8px;text-align:center;font-weight:700;">' . e($producto['escala']) . '</td>'
-                . '<td style="padding:5px 8px;text-align:right;">L. ' . number_format($producto['precio_anterior'], 2) . '</td>'
-                . '<td style="padding:5px 8px;text-align:right;color:#c62828;font-weight:700;">' . $precioActual . '</td>'
+            return '<tr style="border-bottom:1px solid #e8edf2;">'
+                . '<td style="padding:12px 14px;text-align:left;min-width:250px;">'
+                . '<strong style="display:block;color:#263238;font-size:12px;line-height:1.4;">' . e($producto['nombre_producto']) . '</strong>'
+                . '<span style="display:block;margin-top:4px;color:#b42318;font-size:10px;line-height:1.35;">' . e($producto['motivo']) . '</span></td>'
+                . '<td style="padding:12px 10px;text-align:center;white-space:nowrap;">'
+                . '<span style="display:inline-block;padding:3px 8px;border-radius:999px;background:#eef2f6;color:#475467;font-size:10px;font-weight:700;">'
+                . e($producto['categoria_anterior']) . ' &rarr; ' . e($producto['categoria_actual']) . '</span>'
+                . '<span style="display:block;margin-top:5px;color:#667085;font-size:10px;">Escala <strong>' . e($producto['escala']) . '</strong></span></td>'
+                . '<td style="padding:12px 10px;text-align:right;white-space:nowrap;color:#475467;font-size:13px;font-weight:700;">L. '
+                . number_format($producto['precio_anterior'], 2) . '</td>'
+                . '<td style="padding:12px 4px;text-align:center;color:#98a2b3;font-size:15px;">&rarr;</td>'
+                . '<td style="padding:12px 14px;text-align:right;white-space:nowrap;">' . $precioActual . '<br>' . $indicadorAumento . '</td>'
                 . '</tr>';
         })->implode('');
 
-        $html = '<div style="text-align:left;">'
-            . '<p style="font-size:13px;color:#555;">Los siguientes precios de la prefactura son menores que los precios vigentes:</p>'
-            . '<div style="max-height:360px;overflow:auto;"><table class="table table-sm" style="font-size:12px;width:100%;">'
-            . '<thead><tr><th>Producto</th><th>Categoría</th><th>Escala</th><th>Anterior</th><th>Vigente</th></tr></thead>'
+        $cantidadCambios = count($cambios);
+        $html = '<div style="text-align:left;color:#344054;">'
+            . '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;padding:10px 12px;border:1px solid #fedf89;background:#fffaeb;border-radius:7px;">'
+            . '<span style="font-size:12px;line-height:1.45;">El precio guardado en la prefactura quedó por debajo del precio vigente.</span>'
+            . '<span style="flex:none;padding:4px 9px;border-radius:999px;background:#f79009;color:#fff;font-size:11px;font-weight:800;white-space:nowrap;">'
+            . $cantidadCambios . ' ' . ($cantidadCambios === 1 ? 'producto' : 'productos') . '</span></div>'
+            . '<div class="fmp-price-scroll" style="overflow:auto;border:1px solid #e4e7ec;border-radius:7px;background:#fff;">'
+            . '<table style="border-collapse:collapse;font-size:12px;width:100%;min-width:650px;">'
+            . '<thead style="position:sticky;top:0;z-index:1;background:#f8fafc;"><tr>'
+            . '<th style="padding:9px 14px;text-align:left;color:#667085;font-size:10px;text-transform:uppercase;">Producto</th>'
+            . '<th style="padding:9px 10px;text-align:center;color:#667085;font-size:10px;text-transform:uppercase;">Categoría y escala</th>'
+            . '<th style="padding:9px 10px;text-align:right;color:#667085;font-size:10px;text-transform:uppercase;white-space:nowrap;">Prefactura</th>'
+            . '<th style="width:24px;"></th>'
+            . '<th style="padding:9px 14px;text-align:right;color:#667085;font-size:10px;text-transform:uppercase;white-space:nowrap;">Vigente</th></tr></thead>'
             . '<tbody>' . $filas . '</tbody></table></div>'
-            . '<p style="font-size:13px;color:#555;margin-top:10px;">Para facturar con los valores de la prefactura, debe usar <b>Editar Factura</b> y seleccionar el tipo <b>Factura SR</b>.</p>'
+            . '<div style="display:flex;align-items:flex-start;gap:10px;margin-top:14px;padding:11px 13px;border-left:4px solid #1570ef;background:#eff8ff;border-radius:0 7px 7px 0;">'
+            . '<span style="color:#1570ef;font-size:16px;line-height:1;">&#9432;</span>'
+            . '<div style="font-size:12px;line-height:1.5;color:#344054;"><strong style="display:block;color:#175cd3;margin-bottom:2px;">Para conservar los precios de la prefactura</strong>'
+            . 'Seleccione <b>Editar Factura</b> y utilice el tipo <b>Factura SR</b>.</div></div>'
             . '</div>';
 
         return response()->json([

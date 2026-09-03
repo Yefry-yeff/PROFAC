@@ -897,6 +897,24 @@ class FacturacionUnificada extends Component
         }
         $marcasSnapshot = collect($this->reglasExpoOferta['lineas'] ?? [])->keyBy('linea_id');
 
+        $preciosVigentesPrefactura = collect();
+        if (!$expoCotizacion) {
+            $categoriaActualId = (int) (DB::table('cliente')
+                ->where('id', (int) $pref->cliente_id)
+                ->value('categoria_precios_id') ?? 0);
+            if ($categoriaActualId > 0) {
+                $preciosVigentesPrefactura = DB::table('precios_producto_carga')
+                    ->where('categoria_precios_id', $categoriaActualId)
+                    ->where('estado_id', 1)
+                    ->whereIn('producto_id', DB::table('prefactura_has_producto')
+                        ->where('prefactura_id', $prefacturaId)
+                        ->select('producto_id'))
+                    ->orderBy('id')
+                    ->get()
+                    ->keyBy('producto_id');
+            }
+        }
+
         // Carrito exacto desde prefactura (sin recalcular valores)
         $this->productosParaCarrito = DB::table('prefactura_has_producto as php')
             ->leftJoin('cotizacion_has_producto as chp', 'chp.id', '=', 'php.cotizacion_has_producto_id')
@@ -918,13 +936,15 @@ class FacturacionUnificada extends Component
                 'php.seccion_id',
                 'php.resta_inventario',
                 'php.precios_producto_carga_id',
+                'php.idPrecioSeleccionado',
+                'php.precioSeleccionado',
                 'chp.cantidad as cantidad_ofertada',
                 'chp.monto_descProducto',
                 'chp.precio_unidad as precio_pactado_expo',
                 'chp.idPrecioSeleccionado as escala_pactada_expo',
                 'chp.precios_producto_carga_id as precio_carga_pactado_expo',
             ])
-            ->map(function ($r) use ($marcasSnapshot, $expoCotizacion) {
+            ->map(function ($r) use ($marcasSnapshot, $expoCotizacion, $preciosVigentesPrefactura) {
                 $producto = (array) $r;
                 $marca = $marcasSnapshot[(int) ($r->cotizacion_has_producto_id ?? 0)] ?? [];
                 $producto['marca_id'] = (int) ($marca['marca_id'] ?? 0);
@@ -934,6 +954,20 @@ class FacturacionUnificada extends Component
                     $producto['precioSeleccionado'] = (float) $r->precio_pactado_expo;
                     $producto['idPrecioSeleccionado'] = $r->escala_pactada_expo ?: 'p1';
                     $producto['precios_producto_carga_id'] = $r->precio_carga_pactado_expo;
+                } else {
+                    $selector = strtolower(trim((string) ($r->idPrecioSeleccionado ?? '')));
+                    [$columnaPrecio, $escala] = match ($selector) {
+                        'p1', 'a' => ['precio_a', 'A'],
+                        'p2', 'b' => ['precio_b', 'B'],
+                        'p3', 'c' => ['precio_c', 'C'],
+                        'p4', 'd' => ['precio_d', 'D'],
+                        default   => ['precio_base_venta', 'BASE'],
+                    };
+                    $precioVigente = $preciosVigentesPrefactura->get((int) $r->producto_id);
+                    $producto['precioEscalaVigente'] = $precioVigente
+                        ? (float) ($precioVigente->{$columnaPrecio} ?? 0)
+                        : null;
+                    $producto['escalaVigente'] = $escala;
                 }
                 return $producto;
             })

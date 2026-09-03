@@ -2185,6 +2185,8 @@
         && {!! $fromPrefactura ? 'true' : 'false' !!}
         && !esDuplicandoOferta
         && !esContinuandoOfertaExpo;
+    var esFacturacionNormalDesdePrefactura = !esOfertaExpo
+        && {!! $fromPrefactura ? 'true' : 'false' !!};
     var esEdicionNormalDesdePrefactura = !esOfertaExpo
         && {!! $fromPrefactura ? 'true' : 'false' !!}
         && new URLSearchParams(window.location.search).get('modo') === 'editar_factura';
@@ -2401,6 +2403,45 @@
         return corregido;
     }
 
+    function restaurarReferenciasEscalaPrefacturaNormal() {
+        if (!esFacturacionNormalDesdePrefactura || !Array.isArray(productosPactadosExpo)) return false;
+
+        var productosPorLinea = {};
+        var productosPorId = {};
+        var corregido = false;
+        productosPactadosExpo.forEach(function(producto) {
+            productosPorLinea[String(producto.cotizacion_has_producto_id || '')] = producto;
+            productosPorId[String(producto.producto_id || '')] = producto;
+        });
+
+        arregloIdInputs.forEach(function(indice) {
+            var lineaId = document.getElementById('cotizacionLineaId' + indice)?.value || '';
+            var productoId = document.getElementById('idProducto' + indice)?.value || '';
+            var producto = productosPorLinea[String(lineaId)] || productosPorId[String(productoId)];
+            var precioVigente = Number(producto?.precioEscalaVigente || 0);
+            if (!(precioVigente > 0)) return;
+
+            var precio = document.getElementById('precio' + indice);
+            var selector = document.getElementById('precios' + indice);
+            var referenciaAnterior = Number(precio?.getAttribute('data-precio-escala') || selector?.value || 0);
+            if (Math.abs(referenciaAnterior - precioVigente) > 0.005) corregido = true;
+
+            if (precio) precio.setAttribute('data-precio-escala', precioVigente.toFixed(2));
+            if (selector) {
+                selector.innerHTML = '';
+                selector.add(new Option(
+                    precioVigente.toFixed(2) + ' - Escala ' + (producto.escalaVigente || ''),
+                    precioVigente.toFixed(2),
+                    true,
+                    true
+                ));
+                selector.options[0].setAttribute('data-id', producto.idPrecioSeleccionado || 'p1');
+            }
+        });
+
+        return corregido;
+    }
+
     function restaurarVentaTemporal(instantanea) {
         ventaTemporalRestaurando = true;
         var carrito = document.getElementById('carritoTbody');
@@ -2413,6 +2454,7 @@
         controlesTemporales.forEach(aplicarControlTemporal);
         aplicarConfiguracionTipoFacturaActual();
         var preciosExpoCorregidos = restaurarPreciosPactadosExpo();
+        var referenciasEscalaCorregidas = restaurarReferenciasEscalaPrefacturaNormal();
         var asesorTemporal = controlesTemporales.find(function(control) { return control.id === 'vendedor'; });
         var clienteTemporal = document.getElementById('seleccionarCliente');
         var cargaAsesor = Promise.resolve();
@@ -2431,7 +2473,7 @@
         calcularTotalesInicioPagina();
         return Promise.all([cargaAsesor, cargaStocks]).finally(function() {
             ventaTemporalRestaurando = false;
-            if (preciosExpoCorregidos) {
+            if (preciosExpoCorregidos || referenciasEscalaCorregidas) {
                 ventaTemporalCambiosPendientes = true;
                 ventaTemporalRevision += 1;
                 return guardarVentaTemporal();
@@ -5718,9 +5760,10 @@
             var precioSelectEl = document.getElementById('precios' + idx);
             var precioUnitEl = document.getElementById('precio' + idx);
             var nombre = nombreEl ? nombreEl.value : '—';
-            var precioOpc = precioSelectEl ? parseFloat(precioSelectEl.value) || 0 : 0;
+            var precioOpc = precioUnitEl ? parseFloat(precioUnitEl.getAttribute('data-precio-escala')) : NaN;
+            if (isNaN(precioOpc)) precioOpc = precioSelectEl ? parseFloat(precioSelectEl.value) || 0 : 0;
             var precioUnitario = precioUnitEl ? parseFloat(precioUnitEl.value) || 0 : 0;
-            var esBajo = precioUnitario < precioOpc;
+            var esBajo = precioUnitario < precioOpc - 0.0001;
             // Solo agregar al arreglo y mostrar en tabla si el precio está por debajo del OPC
             if (!esBajo) continue;
             productosSR.push({ nombre: nombre, precioOpc: precioOpc, precioUnitario: precioUnitario });
@@ -6418,6 +6461,12 @@
                 var idx = numeroInputs;
 
                 var precioUsar   = parseFloat(prod.precio_unidad || 0);
+                var precioReferencia = _modoPrefactura && parseFloat(prod.precioEscalaVigente || 0) > 0
+                    ? parseFloat(prod.precioEscalaVigente)
+                    : precioUsar;
+                var etiquetaReferencia = _modoPrefactura && prod.escalaVigente
+                    ? 'Escala ' + prod.escalaVigente
+                    : 'Fijo';
                 var cantidadUsar = parseFloat(prod.cantidad || 0);
                 var subTotalUsar = parseFloat(prod.sub_total || 0);
                 var isvUsar      = parseFloat(prod.isv || 0);
@@ -6480,12 +6529,12 @@
                     <td style="vertical-align:middle; padding:4px 6px;">
                         <select class="form-control form-control-sm" name="precios${idx}" id="precios${idx}" data-parsley-required style="font-size:11px; min-width:100px;"
                             onchange="validacionPrecio(precios${idx}, precio${idx})">
-                            <option value="${precioUsar.toFixed(2)}" data-id="p1" selected>${precioUsar.toFixed(2)} - Fijo</option>
+                            <option value="${precioReferencia.toFixed(2)}" data-id="${prod.idPrecioSeleccionado || 'p1'}" selected>${precioReferencia.toFixed(2)} - ${etiquetaReferencia}</option>
                         </select>
                     </td>
                     <td style="vertical-align:middle; padding:4px 6px;">
                         <input type="number" id="precio${idx}" name="precio${idx}" value="${precioUsar.toFixed(2)}" class="form-control form-control-sm"
-                            data-parsley-required step="any" autocomplete="off" style="min-width:80px; font-size:11px;"
+                            data-precio-escala="${precioReferencia.toFixed(2)}" data-parsley-required step="any" autocomplete="off" style="min-width:80px; font-size:11px;"
                             oninput="calcularTotales(precio${idx},cantidad${idx},${isvPct},unidad${idx},${idx},restaInventario${idx})">
                     </td>
                     <td style="vertical-align:middle; padding:4px 6px;">

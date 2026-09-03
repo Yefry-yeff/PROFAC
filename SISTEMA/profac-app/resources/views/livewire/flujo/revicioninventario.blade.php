@@ -248,6 +248,9 @@
                                                                     wire:target="guardarBodega({{ $prod['idx'] }})"
                                                                     class="form-control"
                                                                     title="Bodegas y secciones donde existe el producto">
+                                                                @if(empty($bodegaExpoSeleccionada[$prod['idx']]))
+                                                                    <option value="">Seleccione una bodega con existencia suficiente</option>
+                                                                @endif
                                                                 @forelse($prod['destinos_bodega'] as $destino)
                                                                     <option value="{{ $destino['value'] }}">{{ $destino['text'] }}</option>
                                                                 @empty
@@ -338,7 +341,12 @@
                                                     </div>
                                                 </td>
                                                 <td style="padding:8px 14px; text-align:center;">
-                                                    @if ($prod['sin_existencia'] ?? false)
+                                                    @if (($prod['sin_existencia'] ?? false) && !$esOfertaExpo && $this->productoTieneBodegaSeleccionadaSuficiente($prod))
+                                                        <span style="background:#e8f5e9; color:#2e7d32; border-radius:8px;
+                                                                     padding:3px 10px; font-size:11px; font-weight:700;">
+                                                            <i class="fa fa-check mr-1"></i>Bodega lista
+                                                        </span>
+                                                    @elseif ($prod['sin_existencia'] ?? false)
                                                         <span style="background:#ffebee; color:#c62828; border-radius:8px;
                                                                      padding:3px 10px; font-size:11px; font-weight:700;">
                                                             <i class="fa fa-ban mr-1"></i>Sin existencia
