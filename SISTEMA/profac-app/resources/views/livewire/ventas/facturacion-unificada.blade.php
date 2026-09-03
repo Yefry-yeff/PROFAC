@@ -2185,6 +2185,12 @@
         && {!! $fromPrefactura ? 'true' : 'false' !!}
         && !esDuplicandoOferta
         && !esContinuandoOfertaExpo;
+    var esEdicionNormalDesdePrefactura = !esOfertaExpo
+        && {!! $fromPrefactura ? 'true' : 'false' !!}
+        && new URLSearchParams(window.location.search).get('modo') === 'editar_factura';
+    var esRecargaPagina = window.performance
+        && window.performance.getEntriesByType
+        && window.performance.getEntriesByType('navigation')[0]?.type === 'reload';
     var cambiosPrecioExpoConfirmados = false;
     var retencionEstado = false;
     var diasCredito = 0;
@@ -2606,6 +2612,16 @@
             return;
         }
 
+        if (esEdicionNormalDesdePrefactura && esRecargaPagina) {
+            consultarVentasTemporales();
+            return;
+        }
+
+        if (esEdicionNormalDesdePrefactura && !ventaTemporalId) {
+            iniciarNuevaVentaTemporal();
+            return;
+        }
+
         if ((esDuplicandoOferta || esContinuandoOfertaExpo) && !ventaTemporalId) {
             iniciarNuevaVentaTemporal();
             return;
@@ -2831,7 +2847,16 @@
         var nuevaUrl = new URL(window.location.href);
         nuevaUrl.pathname = '/' + rutaMenu.replace(/^\/+/, '');
         if (ventaTemporalId) nuevaUrl.searchParams.set('temporal_id', ventaTemporalId);
-        var navegar = function() { window.location.href = nuevaUrl.toString(); };
+        var navegar = function() {
+            if (ventaTemporalId) nuevaUrl.searchParams.set('temporal_id', ventaTemporalId);
+            window.location.href = nuevaUrl.toString();
+        };
+        if (esEdicionNormalDesdePrefactura && !ventaTemporalId && !ventaTemporalRestaurando) {
+            ventaTemporalCambiosPendientes = true;
+            ventaTemporalRevision += 1;
+            guardarVentaTemporal().finally(navegar);
+            return;
+        }
         if (!ventaTemporalId || ventaTemporalRestaurando || ventaTemporalFinalizada) {
             navegar();
             return;
@@ -6363,7 +6388,11 @@
             }).then(function () {
                 _cargaInicialEnLote = false;
                 ventaTemporalRestaurando = false;
-                if (esDuplicandoOferta || esContinuandoOfertaExpo) guardarVentaTemporal();
+                if (esDuplicandoOferta || esContinuandoOfertaExpo || esEdicionNormalDesdePrefactura) {
+                    ventaTemporalCambiosPendientes = true;
+                    ventaTemporalRevision += 1;
+                    guardarVentaTemporal();
+                }
                 ocultarCargaOferta();
                 Swal.fire({
                     icon: 'success',
