@@ -2876,8 +2876,7 @@
                     });
                     $.get('/cotizacion/actores-asignados', {
                         cliente_id: detail.cliente_id,
-                        rol_id: 3,
-                        todos_activos: 1
+                        rol_id: 3
                     }).done(function(data) {
                         var teleasesores = data.results || [];
                         var actualAsignado = teleasesores.some(function(usuario) {

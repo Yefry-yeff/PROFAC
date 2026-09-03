@@ -423,6 +423,10 @@ class FacturacionUnificada extends Component
             $productosResueltos = [];
             $productosSugeridos = [];
             $productosConCambioEscala = [];
+            $facturandoOfertaExpo = $esExpo
+                && $this->fromPrefactura
+                && !$this->duplicandoOferta
+                && !$this->continuandoOfertaExpo;
             $marcasPorProducto = DB::table('producto as p')
                 ->leftJoin('marca as m', 'm.id', '=', 'p.marca_id')
                 ->whereIn('p.id', collect($prods)->pluck('producto_id')->filter()->unique()->all())
@@ -454,6 +458,26 @@ class FacturacionUnificada extends Component
                         'nombre_pedido' => $p->nombre_producto,
                         'cantidad' => $p->cantidad,
                         'similares' => $this->buscarSimilares($p->nombre_producto),
+                    ];
+                    continue;
+                }
+
+                if ($facturandoOfertaExpo) {
+                    $precioPactado = (float) ($prod['precio_unidad'] ?? 0);
+                    $prod['precioSeleccionado'] = $precioPactado;
+
+                    $categoriaPactada = DB::table('precios_producto_carga as ppc')
+                        ->leftJoin('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')
+                        ->where('ppc.id', (int) ($prod['precios_producto_carga_id'] ?? 0))
+                        ->first(['ppc.categoria_precios_id', 'cp.nombre as categoria_nombre']);
+                    $prod['categoria_precios_id'] = (int) ($categoriaPactada->categoria_precios_id ?? 0);
+                    $prod['categoria_precios_nombre'] = $categoriaPactada->categoria_nombre ?? 'Precio pactado Expo';
+
+                    $productosResueltos[] = $prod;
+                    $productosSugeridos[] = [
+                        'nombre_pedido' => $p->nombre_producto,
+                        'cantidad'      => $p->cantidad,
+                        'similares'     => $this->buscarSimilares($p->nombre_producto),
                     ];
                     continue;
                 }
@@ -511,15 +535,16 @@ class FacturacionUnificada extends Component
                 $precioA = (float) ($ppcActivo->precio_a ?? 0);
                 $precioUnidadOriginal = isset($prod['precio_unidad']) ? (float) $prod['precio_unidad'] : 0;
                 $prod['precios_producto_carga_id'] = (int) $ppcActivo->id;
-                $prod['idPrecioSeleccionado'] = 'p1';
-                $prod['precioSeleccionado'] = $precioA;
-                if (!$this->continuandoOfertaExpo) {
+                $precioAumento = $precioUnidadOriginal < $precioA - 0.005;
+                if ($precioAumento) {
+                    $prod['idPrecioSeleccionado'] = 'p1';
+                    $prod['precioSeleccionado'] = $precioA;
                     $prod['precio_unidad'] = $precioA;
                 }
                 $prod['categoria_precios_id'] = (int) $ppcActivo->categoria_precios_id;
                 $prod['categoria_precios_nombre'] = $ppcActivo->categoria_nombre ?? 'Categoria sin nombre';
 
-                if (abs($precioUnidadOriginal - $precioA) > 0.005) {
+                if ($precioAumento) {
                     $productosConCambioEscala[] = [
                         'producto' => $prod['nombre_producto'] ?? ('Producto ID ' . ($prod['producto_id'] ?? 'N/A')),
                         'precio_anterior' => $precioUnidadOriginal,
@@ -895,12 +920,21 @@ class FacturacionUnificada extends Component
                 'php.precios_producto_carga_id',
                 'chp.cantidad as cantidad_ofertada',
                 'chp.monto_descProducto',
+                'chp.precio_unidad as precio_pactado_expo',
+                'chp.idPrecioSeleccionado as escala_pactada_expo',
+                'chp.precios_producto_carga_id as precio_carga_pactado_expo',
             ])
-            ->map(function ($r) use ($marcasSnapshot) {
+            ->map(function ($r) use ($marcasSnapshot, $expoCotizacion) {
                 $producto = (array) $r;
                 $marca = $marcasSnapshot[(int) ($r->cotizacion_has_producto_id ?? 0)] ?? [];
                 $producto['marca_id'] = (int) ($marca['marca_id'] ?? 0);
                 $producto['marca_nombre'] = $marca['marca'] ?? 'SIN MARCA';
+                if ($expoCotizacion && $r->cotizacion_has_producto_id) {
+                    $producto['precio_unidad'] = (float) $r->precio_pactado_expo;
+                    $producto['precioSeleccionado'] = (float) $r->precio_pactado_expo;
+                    $producto['idPrecioSeleccionado'] = $r->escala_pactada_expo ?: 'p1';
+                    $producto['precios_producto_carga_id'] = $r->precio_carga_pactado_expo;
+                }
                 return $producto;
             })
             ->toArray();

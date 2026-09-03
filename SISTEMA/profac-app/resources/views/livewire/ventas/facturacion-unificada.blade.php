@@ -2032,6 +2032,7 @@
     var filtrarProductosExpo = {!! $filtrarProductosExpo ? 'true' : 'false' !!};
     var reglasExpoOferta = @json($reglasExpoOferta ?? []);
     var atribucionesDescuentoExpo = @json($atribucionesDescuentoExpo ?? []);
+    var productosPactadosExpo = @json($productosParaCarrito ?? []);
     var seleccionandoProductoCotizadorExpo = false;
     var productoCotizadorExpo = null;
     var datosCalculoCotizadorExpo = null;
@@ -2180,6 +2181,10 @@
     var ventaTemporalRevision = 0;
     var esDuplicandoOferta = {!! $duplicandoOferta ? 'true' : 'false' !!};
     var esContinuandoOfertaExpo = {!! $continuandoOfertaExpo ? 'true' : 'false' !!};
+    var esFacturacionExpoDesdePrefactura = esOfertaExpo
+        && {!! $fromPrefactura ? 'true' : 'false' !!}
+        && !esDuplicandoOferta
+        && !esContinuandoOfertaExpo;
     var cambiosPrecioExpoConfirmados = false;
     var retencionEstado = false;
     var diasCredito = 0;
@@ -2346,6 +2351,50 @@
         document.getElementById('tipo_factura_id').value = tipoFacturaConfig ? tipoFacturaConfig.id : '';
     }
 
+    function restaurarPreciosPactadosExpo() {
+        if (!esFacturacionExpoDesdePrefactura || !Array.isArray(productosPactadosExpo)) return false;
+
+        var productosPorLinea = {};
+        var corregido = false;
+        productosPactadosExpo.forEach(function(producto) {
+            productosPorLinea[String(producto.cotizacion_has_producto_id || '')] = producto;
+        });
+
+        arregloIdInputs.forEach(function(indice) {
+            var lineaId = document.getElementById('cotizacionLineaId' + indice)?.value || '';
+            var producto = productosPorLinea[String(lineaId)];
+            if (!producto) return;
+
+            var precioPactado = Number(producto.precio_unidad || 0);
+            if (!(precioPactado > 0)) return;
+
+            var selector = document.getElementById('precios' + indice);
+            var precio = document.getElementById('precio' + indice);
+            var referenciaAnterior = Number(selector?.value || precio?.getAttribute('data-precio-escala') || 0);
+            var permitePrecioLibre = tipoFacturaConfig && tipoFacturaConfig.multiples_precios;
+
+            if (precio && !permitePrecioLibre && Math.abs(Number(precio.value || 0) - precioPactado) > 0.005) {
+                precio.value = precioPactado.toFixed(2);
+                corregido = true;
+            }
+            if (precio && Math.abs(referenciaAnterior - precioPactado) > 0.005) corregido = true;
+            if (precio) precio.setAttribute('data-precio-escala', precioPactado.toFixed(2));
+            if (selector) {
+                selector.innerHTML = '';
+                selector.add(new Option(precioPactado.toFixed(2) + ' - Pactado Expo', precioPactado.toFixed(2), true, true));
+                selector.options[0].setAttribute('data-id', producto.idPrecioSeleccionado || 'p1');
+            }
+
+            var precioCarga = document.getElementById('precios_producto_carga_id' + indice);
+            if (precioCarga && String(precioCarga.value || '') !== String(producto.precios_producto_carga_id || '')) {
+                precioCarga.value = producto.precios_producto_carga_id || '';
+                corregido = true;
+            }
+        });
+
+        return corregido;
+    }
+
     function restaurarVentaTemporal(instantanea) {
         ventaTemporalRestaurando = true;
         var carrito = document.getElementById('carritoTbody');
@@ -2357,6 +2406,7 @@
         var controlesTemporales = instantanea.controles || [];
         controlesTemporales.forEach(aplicarControlTemporal);
         aplicarConfiguracionTipoFacturaActual();
+        var preciosExpoCorregidos = restaurarPreciosPactadosExpo();
         var asesorTemporal = controlesTemporales.find(function(control) { return control.id === 'vendedor'; });
         var clienteTemporal = document.getElementById('seleccionarCliente');
         var cargaAsesor = Promise.resolve();
@@ -2375,6 +2425,11 @@
         calcularTotalesInicioPagina();
         return Promise.all([cargaAsesor, cargaStocks]).finally(function() {
             ventaTemporalRestaurando = false;
+            if (preciosExpoCorregidos) {
+                ventaTemporalCambiosPendientes = true;
+                ventaTemporalRevision += 1;
+                return guardarVentaTemporal();
+            }
         });
     }
 
@@ -4692,6 +4747,7 @@
     }
 
     function mostrarErrorPrecioBajoEscala(productos) {
+        var referenciaExpo = esFacturacionExpoDesdePrefactura;
         var filas = productos.map(function (p) {
             return '<tr>'
                 + '<td style="padding:4px 8px; text-align:left;">' + p.nombre + '</td>'
@@ -4704,9 +4760,9 @@
             icon: 'error',
             title: 'No se puede facturar',
             width: 560,
-            html: '<p class="text-left">El valor ingresado es <b>menor</b> al precio de la escala seleccionada para uno o más productos:</p>'
-                + '<table class="table table-sm" style="font-size:12px;"><thead><tr><th>Producto</th><th>Escala</th><th>Ingresado</th></tr></thead><tbody>' + filas + '</tbody></table>'
-                + '<p class="text-left mt-2" style="margin-top:10px;">Si necesita facturar con un valor menor al de la escala, debe realizar la factura desde <b>Editar Factura</b> seleccionando el tipo <b>Factura SR</b>.</p>'
+            html: '<p class="text-left">El valor ingresado es <b>menor</b> al precio ' + (referenciaExpo ? 'pactado en la Oferta Expo ganadora' : 'de la escala seleccionada') + ' para uno o más productos:</p>'
+                + '<table class="table table-sm" style="font-size:12px;"><thead><tr><th>Producto</th><th>' + (referenciaExpo ? 'Pactado' : 'Escala') + '</th><th>Ingresado</th></tr></thead><tbody>' + filas + '</tbody></table>'
+                + '<p class="text-left mt-2" style="margin-top:10px;">Si necesita facturar con un valor menor, debe realizar la factura desde <b>Editar Factura</b> seleccionando el tipo <b>Factura SR</b>.</p>'
         });
     }
 
@@ -6201,10 +6257,10 @@
             var totalEliminar = productosConCambioEscala.length - totalCargar;
             Swal.fire({
                 icon: 'warning',
-                title: 'Cambios en precios de escala',
+                title: 'Los precios vigentes aumentaron',
                 width: 860,
                 html: '<p style="color:#546e7a;font-size:13px;text-align:left;margin-bottom:10px;">'
-                    + '<strong>' + totalCargar + ' producto(s)</strong> se cargarán con el nuevo precio y '
+                    + '<strong>' + totalCargar + ' producto(s)</strong> cuyo precio aumentó se cargarán con el nuevo valor y '
                     + '<strong>' + totalEliminar + ' producto(s)</strong> se eliminarán por no tener escala vigente. '
                     + 'Los demás productos se cargarán sin cambios.</p>'
                     + '<div style="max-height:280px;overflow:auto;border:1px solid #e0e0e0;border-radius:7px;">'
