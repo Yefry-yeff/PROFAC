@@ -388,7 +388,7 @@
                                 @elseif ($esFacturaAnulada)
                                     <i class="fa fa-times-circle"></i> Anulada
                                 @elseif ($esRechazado)
-                                    <i class="fa fa-times-circle"></i> Rechazado
+                                    <i class="fa fa-times-circle"></i> Rechazado por créditos
                                 @else
                                     <i class="fa fa-clock-o"></i> Pendiente
                                 @endif

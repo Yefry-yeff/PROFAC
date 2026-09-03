@@ -33,8 +33,11 @@
         .estado-entrega-cobro { background:#ede7f6; color:#4527a0; }
         .estado-sin-flujo { background:#f5f5f5; color:#78909c; }
         .estado-cancelado { background:#fce4ec; color:#b71c1c; }
+        .estado-rechazado-creditos { background:#c62828; color:#fff; }
         .ofp-row { transition: background .1s; }
         .ofp-row:hover > td { background: #fff8ee !important; cursor: pointer; }
+        .ofp-row-rechazado-creditos > td { background:#ffebee !important; border-color:#ef9a9a !important; }
+        .ofp-row-rechazado-creditos:hover > td { background:#ffcdd2 !important; }
     </style>
 
     <div class="ibox" style="background:#fff; border-radius:14px; overflow:hidden; box-shadow:0 8px 26px rgba(0,0,0,.08);">
@@ -108,6 +111,7 @@
                 <option value="prefactura">Pre Factura</option>
                 <option value="factura">Factura</option>
                 <option value="Entrega Cobro">Entrega / Cobro</option>
+                <option value="rechazado_creditos">Rechazado por créditos</option>
                 <option value="sin_flujo">Sin flujo</option>
             </select>
         </div>
@@ -129,10 +133,10 @@
     </div>
 
     @php
-        $ofrTotal    = count($registros);
+        $ofrTotal    = $totalRegistros;
         $ofrLastPage = max(1, (int) ceil($ofrTotal / $perPage));
         $ofrStart    = ($paginaOfr - 1) * $perPage;
-        $ofrSlice    = array_slice($registros, $ofrStart, $perPage);
+        $ofrSlice    = $registros;
 
         $estadoMap = [
             'pedido'        => ['#e8f5e9', '#2e7d32', 'Pedido',          'fa-shopping-cart'],
@@ -142,6 +146,7 @@
             'Entrega Cobro' => ['#ede7f6', '#4527a0', 'Entrega / Cobro', 'fa-truck'],
             'sin_flujo'     => ['#f5f5f5', '#78909c', 'Sin flujo',       'fa-question-circle'],
             'cancelado'     => ['#fce4ec', '#b71c1c', 'Cancelado',       'fa-ban'],
+            'rechazado_creditos' => ['#c62828', '#fff', 'Rechazado por créditos', 'fa-times-circle'],
         ];
     @endphp
 
@@ -207,10 +212,12 @@
                         'factura' => 'estado-factura',
                         'Entrega Cobro' => 'estado-entrega-cobro',
                         'cancelado' => 'estado-cancelado',
+                        'rechazado_creditos' => 'estado-rechazado-creditos',
                         default => 'estado-sin-flujo',
                     };
+                    $filaRechazadaCreditos = $ef === 'rechazado_creditos';
                 @endphp
-                <tr class="ofp-row" wire:click="abrirFlujoDesdeRegistro({{ (int) ($o['flujo_id'] ?? 0) }}, {{ (int) ($o['pedido_id'] ?? 0) }})" title="Ver flujo #{{ $o['flujo_id'] }}">
+                <tr class="ofp-row {{ $filaRechazadaCreditos ? 'ofp-row-rechazado-creditos' : '' }}" wire:click="abrirFlujoDesdeRegistro({{ (int) ($o['flujo_id'] ?? 0) }}, {{ (int) ($o['pedido_id'] ?? 0) }})" title="Ver flujo #{{ $o['flujo_id'] }}">
                     <td class="text-center align-middle" style="padding:8px;">
                         <span style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; border-radius:6px; padding:2px 9px; font-weight:800; font-size:13px;">
                             #{{ $o['flujo_id'] }}
