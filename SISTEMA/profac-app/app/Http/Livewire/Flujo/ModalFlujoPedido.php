@@ -1796,6 +1796,7 @@ class ModalFlujoPedido extends Component
             foreach ($productos as $prod) {
                 $prefProds[] = [
                     'prefactura_id'            => $prefacturaId,
+                    'cotizacion_has_producto_id' => $prod->id,
                     'producto_id'              => $prod->producto_id,
                     'indice'                   => $prod->indice,
                     'nombre_producto'          => $prod->nombre_producto,

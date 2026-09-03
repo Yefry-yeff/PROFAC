@@ -903,6 +903,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::post('/cotizacion/asesor-asignado', [Cotizacion::class, 'obtenerAsesorAsignado']);
     Route::get('/cotizacion/vendedores-asignados', [Cotizacion::class, 'listadoVendedoresAsignados']);
     Route::get('/cotizacion/actores-asignados', [Cotizacion::class, 'listadoActoresAsignados']);
+    Route::get('/cotizacion/gestores-entrega', [Cotizacion::class, 'listadoGestoresEntrega']);
     Route::post('/guardar/cotizacion', [Cotizacion::class, 'guardarCotizacion']);
     Route::post('/cotizacion/adjunto/subir', [Cotizacion::class, 'subirAdjunto']);
 

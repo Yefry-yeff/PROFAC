@@ -10,6 +10,7 @@ class ClienteActoresAsignados
 {
     public const ROL_ASESOR_COMERCIAL = 2;
     public const ROL_TELE_ASESOR = 3;
+    public const ROL_GESTOR_ENTREGA = 16;
 
     public static function usuarios(int $clienteId, int $rolId): Collection
     {

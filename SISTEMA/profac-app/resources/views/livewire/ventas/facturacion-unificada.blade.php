@@ -5644,7 +5644,6 @@
     }
 
     function mostrarModalGestorEntrega() {
-        var urlVendedores = urls.vendedores;
         var clienteId = $('#seleccionarCliente').val();
         var teleHidden = document.getElementById('tele_asesor_hidden');
         var teleIdActual = teleHidden && teleHidden.value ? teleHidden.value : '{{ Auth::id() }}';
@@ -5653,9 +5652,9 @@
             $('#gestor_entrega_modal').select2({
                 dropdownParent: $('#modal_gestor_entrega'),
                 ajax: {
-                    url: urlVendedores,
+                    url: '/cotizacion/gestores-entrega',
                     data: function(params) {
-                        return { search: params.term, type: 'public', page: params.page || 1 };
+                        return { search: params.term || '' };
                     }
                 },
                 allowClear: true,

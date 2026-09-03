@@ -273,11 +273,12 @@
                             && ($tieneRevisionCreditoRechazada ?? false);
                         // Factura anulada: mostrar paso 6 como rojo con X
                         $esFacturaAnulada = ($info['key'] === 'factura') && ($facturaAnulada ?? false);
+                        $esFacturaExpoDisponible = ($info['key'] === 'factura') && ($expoConSaldoPendiente ?? false);
                         if ($esDevuelto)     $pendiente = false;
                         if ($esRechazado)    { $pendiente = false; $completado = false; $activo = false; }
                         if ($esFacturaAnulada) { $pendiente = false; $completado = false; $activo = false; }
                         $labelColor = ($esSinPedido || $esSinAplica) ? '#e74c3c' : ($esRechazado || $esFacturaAnulada ? '#e74c3c' : ($completado ? '#1ab394' : ($activo ? '#1a7efb' : ($esDevuelto ? '#e67e22' : '#aab'))));
-                        $puedeClick = ($completado || $activo || $esDevuelto || $esRechazado || $esFacturaAnulada) && !$esSinPedido && !$esSinAplica;
+                        $puedeClick = ($completado || $activo || $esDevuelto || $esRechazado || $esFacturaAnulada || $esFacturaExpoDisponible) && !$esSinPedido && !$esSinAplica;
                     @endphp
 
                     {{-- Step card --}}
@@ -2857,12 +2858,9 @@
                         placeholder: '-- Sin gestor --',
                         allowClear: true,
                         ajax: {
-                            url: '/cotizacion/actores-asignados',
+                            url: '/cotizacion/gestores-entrega',
                             data: function(params) {
                                 return {
-                                    cliente_id: detail.cliente_id,
-                                    rol_id: 3,
-                                    todos_activos: 1,
                                     search: params.term || ''
                                 };
                             },

@@ -424,7 +424,8 @@
                                 && count($productos) > 0
                                 && collect($obsProducto)->filter()->isEmpty()
                                 && $this->todosProductosRevisados()
-                                && ! $this->tieneProductosSinExistencia();
+                                && ! $this->tieneProductosSinExistencia()
+                                && ! $this->tieneProductosExpoSinBodegaFisica();
 
                             $puedeDevolverOferta = $this->todosProductosRevisados();
 
@@ -434,7 +435,9 @@
                                     ? 'Elimine las notas/reemplazos antes de pasar a Prefactura'
                                     : ($this->tieneProductosSinExistencia()
                                         ? 'Hay productos marcados como sin existencia'
-                                        : 'Hay productos sin stock suficiente'));
+                                        : ($this->tieneProductosExpoSinBodegaFisica()
+                                            ? 'Seleccione una bodega física para todos los productos Expo'
+                                            : 'Hay productos sin stock suficiente')));
                         @endphp
                         <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center;">
                             {{-- Pasar a Prefactura --}}

@@ -421,6 +421,7 @@ class RevicionInventario extends Component
             ->leftJoin('unidad_medida as um', 'um.id', '=', 'umv.unidad_medida_id')
             ->where('chp.cotizacion_id', $this->cotizacionId)
             ->select(
+                'chp.id as cotizacion_has_producto_id',
                 'chp.indice',
                 'chp.nombre_producto',
                 'chp.nombre_bodega',
@@ -539,8 +540,19 @@ class RevicionInventario extends Component
                 }
             }
 
+            $destinosLinea = $destinosExpo[(int) $prod->producto_id] ?? [];
+            $ubicacionActual = (int) $prod->bodega_id . '|' . (int) $prod->seccion_id;
+            $ubicacionesValidas = array_column($destinosLinea, 'value');
+            $destinoSuficiente = collect($destinosLinea)->first(
+                fn (array $destino) => (float) $destino['stock'] >= (float) $prod->cantidad
+            );
+            $ubicacionSeleccionada = in_array($ubicacionActual, $ubicacionesValidas, true)
+                ? $ubicacionActual
+                : ($destinoSuficiente['value'] ?? '');
+
             $this->productos[] = [
                 'idx'             => $i,
+                'cotizacion_has_producto_id' => $prod->cotizacion_has_producto_id,
                 'indice'          => $prod->indice,
                 'nombre_producto' => $prod->nombre_producto,
                 'nombre_bodega'   => $prod->nombre_bodega,
@@ -558,7 +570,7 @@ class RevicionInventario extends Component
                 'disponible'      => $disponible,
                 'disponible_global' => $disponibleGlobal,
                 'falta_stock'     => $faltaStock,
-                'destinos_bodega' => $destinosExpo[(int) $prod->producto_id] ?? [],
+                'destinos_bodega' => $destinosLinea,
                 'reservas_detalle' => (!$this->devuelto && !$sinExistencia && $prod->producto_id && $prod->seccion_id)
                     ? ($reservasDetalle->get($prod->producto_id . '_' . $prod->seccion_id, collect())
                         ->map(fn($r) => (array) $r)->values()->toArray())
@@ -566,7 +578,7 @@ class RevicionInventario extends Component
             ];
 
             $this->productosRevisados[$i] = false;
-            $this->bodegaExpoSeleccionada[$i] = (int) $prod->bodega_id . '|' . (int) $prod->seccion_id;
+            $this->bodegaExpoSeleccionada[$i] = $ubicacionSeleccionada;
         }
 
         // ── Si el flujo está devuelto, cargar motivo y notas de productos ──
@@ -764,6 +776,7 @@ class RevicionInventario extends Component
             $destinos[(int) $row->producto_id][] = [
                 'value' => (int) $row->bodega_id . '|' . (int) $row->seccion_id,
                 'bodega_nombre' => (string) $row->bodega_nombre,
+                'stock' => (float) $row->stock,
                 'text' => trim($row->bodega_nombre . ' - ' . $row->seccion_descripcion . ' (Existencia: ' . (int) $row->stock . ')'),
             ];
         }
@@ -797,6 +810,64 @@ class RevicionInventario extends Component
     {
         return collect($this->productos)
             ->contains(fn (array $prod) => !empty($prod['sin_existencia']));
+    }
+
+    public function tieneProductosExpoSinBodegaFisica(): bool
+    {
+        if (!$this->esOfertaExpo) {
+            return false;
+        }
+
+        return collect($this->productos)->contains(function (array $prod) {
+            $seleccion = (string) ($this->bodegaExpoSeleccionada[$prod['idx']] ?? '');
+            $destino = collect($prod['destinos_bodega'] ?? [])->first(
+                fn (array $opcion) => (string) $opcion['value'] === $seleccion
+            );
+
+            return !$destino || (float) $destino['stock'] < (float) $prod['cantidad'];
+        });
+    }
+
+    private function sincronizarBodegasExpoSeleccionadas(): bool
+    {
+        if (!$this->esOfertaExpo) {
+            return true;
+        }
+
+        foreach ($this->productos as $prod) {
+            $seleccion = (string) ($this->bodegaExpoSeleccionada[$prod['idx']] ?? '');
+            $destino = collect($prod['destinos_bodega'] ?? [])->first(
+                fn (array $opcion) => (string) $opcion['value'] === $seleccion
+            );
+
+            if (!$destino) {
+                $this->mensajeError = 'Seleccione una bodega física válida para todos los productos Expo.';
+                return false;
+            }
+
+            if ((float) $destino['stock'] < (float) $prod['cantidad']) {
+                $this->mensajeError = 'La bodega seleccionada para ' . $prod['nombre_producto'] . ' no cubre la cantidad solicitada.';
+                return false;
+            }
+
+            [$bodegaId, $seccionId] = array_map('intval', explode('|', $seleccion, 2));
+            if ($bodegaId <= 0 || $seccionId <= 0) {
+                $this->mensajeError = 'La bodega virtual de Expo no puede utilizarse para generar la prefactura.';
+                return false;
+            }
+
+            DB::table('cotizacion_has_producto')
+                ->where('id', (int) $prod['cotizacion_has_producto_id'])
+                ->where('cotizacion_id', $this->cotizacionId)
+                ->update([
+                    'Bodega_id' => $bodegaId,
+                    'seccion_id' => $seccionId,
+                    'nombre_bodega' => $destino['bodega_nombre'],
+                    'updated_at' => now(),
+                ]);
+        }
+
+        return true;
     }
 
     /**
@@ -906,6 +977,10 @@ class RevicionInventario extends Component
             return;
         }
 
+        if (!$this->sincronizarBodegasExpoSeleccionadas()) {
+            return;
+        }
+
         $cotizacion = DB::table('cotizacion')->where('id', $this->cotizacionId)->first();
         if (!$cotizacion) {
             $this->mensajeError = 'Oferta ganadora no encontrada.';
@@ -975,6 +1050,7 @@ class RevicionInventario extends Component
             foreach ($productos as $prod) {
                 $prefProds[] = [
                     'prefactura_id'            => $prefacturaId,
+                    'cotizacion_has_producto_id' => $prod->id,
                     'producto_id'              => $prod->producto_id,
                     'indice'                   => $prod->indice,
                     'nombre_producto'          => $prod->nombre_producto,
