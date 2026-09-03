@@ -68,6 +68,38 @@ class FacturacionUnificadaAlcanceTest extends TestCase
         ));
     }
 
+    public function test_duplicar_oferta_normal_conserva_orden_y_bodegas_originales(): void
+    {
+        $cotizacionId = DB::table('cotizacion_has_producto as chp')
+            ->leftJoin('expo_cotizacion as ec', 'ec.cotizacion_id', '=', 'chp.cotizacion_id')
+            ->whereNull('ec.cotizacion_id')
+            ->where('chp.resta_inventario', 1)
+            ->orderByDesc('chp.cotizacion_id')
+            ->value('chp.cotizacion_id');
+
+        $this->assertNotNull($cotizacionId, 'No existe una oferta normal con bodega para probar su duplicación.');
+        $usuario = User::query()->first();
+        $this->assertNotNull($usuario, 'No existe un usuario para probar la duplicación.');
+        $this->actingAs($usuario);
+
+        $originales = DB::table('cotizacion_has_producto')
+            ->where('cotizacion_id', $cotizacionId)
+            ->orderBy('indice')
+            ->get(['producto_id', 'Bodega_id', 'seccion_id', 'nombre_bodega']);
+
+        $componente = Livewire::withQueryParams([
+            'duplicar' => 1,
+            'cotizacionId' => $cotizacionId,
+        ])->test(FacturacionUnificada::class, ['codigo' => 'cotizacion_clientes_a'])
+            ->assertSet('esOfertaExpo', false);
+
+        $duplicados = collect($componente->get('productosParaCarrito'));
+        $this->assertSame($originales->pluck('producto_id')->map(fn ($id) => (int) $id)->all(), $duplicados->pluck('producto_id')->map(fn ($id) => (int) $id)->all());
+        $this->assertSame($originales->pluck('Bodega_id')->map(fn ($id) => (int) $id)->all(), $duplicados->pluck('Bodega_id')->map(fn ($id) => (int) $id)->all());
+        $this->assertSame($originales->pluck('seccion_id')->map(fn ($id) => (int) $id)->all(), $duplicados->pluck('seccion_id')->map(fn ($id) => (int) $id)->all());
+        $this->assertSame($originales->pluck('nombre_bodega')->all(), $duplicados->pluck('nombre_bodega')->all());
+    }
+
     public function test_buscador_y_url_solo_permiten_flujos_involucrados_o_clientes_asignados(): void
     {
         $flujo = DB::table('flujo as f')

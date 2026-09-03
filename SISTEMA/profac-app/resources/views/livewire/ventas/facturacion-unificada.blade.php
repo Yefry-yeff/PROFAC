@@ -2165,7 +2165,9 @@
 
     var numeroInputs = 0;
     var arregloIdInputs = [];
-    var ventaTemporalId = new URLSearchParams(window.location.search).get('temporal_id');
+    var parametrosVentaTemporal = new URLSearchParams(window.location.search);
+    var nuevaVentaSolicitada = parametrosVentaTemporal.get('nueva') === '1';
+    var ventaTemporalId = nuevaVentaSolicitada ? null : parametrosVentaTemporal.get('temporal_id');
     var ventaTemporalTipo = codigoActual === 'cotizacion_clientes_a' ? 'oferta' : 'factura';
     var ventaTemporalRestaurando = false;
     var ventaTemporalFinalizada = false;
@@ -2207,6 +2209,7 @@
     function urlReanudacionTemporal() {
         var url = new URL(window.location.href);
         url.searchParams.delete('temporal_id');
+        url.searchParams.delete('nueva');
         return url.pathname + url.search;
     }
 
@@ -2418,10 +2421,19 @@
             ocultarCargaTemporales();
         }
         ventaTemporalId = null;
+        nuevaVentaSolicitada = false;
         var url = new URL(window.location.href);
         url.searchParams.delete('temporal_id');
+        url.searchParams.delete('nueva');
         window.history.replaceState({}, '', url.toString());
         activarAutosaveTemporal();
+    }
+
+    function recargarComoNuevaVenta() {
+        var url = new URL(window.location.href);
+        url.searchParams.delete('temporal_id');
+        url.searchParams.set('nueva', '1');
+        window.location.replace(url.toString());
     }
 
     function continuarVentaTemporal(temporal) {
@@ -2488,7 +2500,7 @@
                 var temporal = temporales.find(function(item) { return String(item.id) === String(result.value); });
                 if (temporal) continuarVentaTemporal(temporal);
             } else if (result.isDenied) {
-                iniciarNuevaVentaTemporal();
+                recargarComoNuevaVenta();
             }
         });
     }
@@ -2523,6 +2535,11 @@
     }
 
     function inicializarVentaTemporal() {
+        if (nuevaVentaSolicitada) {
+            iniciarNuevaVentaTemporal();
+            return;
+        }
+
         if ((esDuplicandoOferta || esContinuandoOfertaExpo) && !ventaTemporalId) {
             iniciarNuevaVentaTemporal();
             return;
@@ -6248,13 +6265,28 @@
             mostrarCargaOferta();
             _cargaInicialEnLote = true;
             _carritoCargaInicial = document.createElement('tbody');
-            Promise.all(productos.map(function (prod) {
-                return (_modoPrefactura || _modoContinuacionExpo)
-                    ? agregarProductoDesdePrefactura(prod)
-                    : agregarProductoDesdeOferta(prod);
-            })).then(function () {
+            var esCargaDuplicadoNormal = esDuplicandoOferta && !esOfertaExpo && !_modoPrefactura;
+            var primerIndiceDuplicadoNormal = numeroInputs;
+            if (esCargaDuplicadoNormal) numeroInputs += productos.length;
+            var cargaProductos = Promise.all(productos.map(function (prod, posicion) {
+                if (_modoPrefactura || _modoContinuacionExpo) {
+                    return agregarProductoDesdePrefactura(prod);
+                }
+                return agregarProductoDesdeOferta(
+                    prod,
+                    esCargaDuplicadoNormal ? primerIndiceDuplicadoNormal + posicion + 1 : null
+                );
+            }));
+
+            cargaProductos.then(function () {
                 var carrito = document.getElementById('carritoTbody');
                 if (carrito && _carritoCargaInicial) {
+                    if (esCargaDuplicadoNormal) {
+                        Array.from(_carritoCargaInicial.children)
+                            .sort(function (filaA, filaB) { return Number(filaA.id) - Number(filaB.id); })
+                            .forEach(function (fila) { _carritoCargaInicial.appendChild(fila); });
+                        arregloIdInputs.sort(function (indiceA, indiceB) { return indiceA - indiceB; });
+                    }
                     carrito.insertAdjacentHTML('beforeend', _carritoCargaInicial.innerHTML);
                 }
                 _carritoCargaInicial = null;
@@ -6401,7 +6433,7 @@
             });
         }
 
-        function agregarProductoDesdeOferta(prod) {
+        function agregarProductoDesdeOferta(prod, indiceReservado) {
             return new Promise(function (resolve) {
                 if (!prod.producto_id) { resolve(); return; }
 
@@ -6420,8 +6452,11 @@
                     var producto = response.data.producto;
                     var arrayUnidades = response.data.unidades;
                     var categoriaNombre = (prod.categoria_precios_nombre || '').toString().trim();
-                    numeroInputs += 1;
-                    var idx = numeroInputs;
+                    var idx = indiceReservado;
+                    if (!idx) {
+                        numeroInputs += 1;
+                        idx = numeroInputs;
+                    }
 
                     // Construir select de unidades – pre-seleccionar la del duplicado
                     var htmlSelectUnidades = '';
@@ -6466,7 +6501,13 @@
                     // se valida al enviar el formulario en las facturas con restricción.
                     var precioEscalaRef = precioOpcFmt;
                     var cantidadUsar = prod.cantidad || 1;
-                    var esSinExistencia = !(parseFloat(prod.resta_inventario || 0) > 0);
+                    var esDuplicadoNormal = esDuplicandoOferta && !esOfertaExpo;
+                    var bodegaOriginalValida = parseInt(prod.Bodega_id || 0, 10) > 0
+                        && parseInt(prod.seccion_id || 0, 10) > 0
+                        && !/^SIN EXISTENCIA/i.test(String(prod.nombre_bodega || '').trim());
+                    var esSinExistencia = esDuplicadoNormal
+                        ? !bodegaOriginalValida
+                        : !(parseFloat(prod.resta_inventario || 0) > 0);
                     var bodegaTexto = esSinExistencia ? 'SIN EXISTENCIA' : (prod.nombre_bodega || '');
                     var idBodega = esSinExistencia ? '' : (prod['Bodega_id'] ?? '');
                     var idSeccion = esSinExistencia ? '' : (prod.seccion_id || '');
@@ -6490,7 +6531,7 @@
                             <input id="idBodega${idx}" name="idBodega${idx}" type="hidden" value="${idBodega}">
                             <input id="idSeccion${idx}" name="idSeccion${idx}" type="hidden" value="${idSeccion}">
                             <input id="sinExistencia${idx}" name="sinExistencia${idx}" type="hidden" value="${esSinExistencia ? 1 : 0}">
-                            <input id="restaInventario${idx}" name="restaInventario${idx}" type="hidden" value="${esSinExistencia ? 0 : ''}">
+                            <input id="restaInventario${idx}" name="restaInventario${idx}" type="hidden" value="${esSinExistencia ? 0 : (esDuplicadoNormal ? 1 : '')}">
                             <input id="subTotal${idx}" name="subTotal${idx}" type="hidden" value="" required>
                             <input id="isvProducto${idx}" name="isvProducto${idx}" type="hidden" value="" required>
                             <input id="acumuladoDescuento${idx}" name="acumuladoDescuento${idx}" type="hidden">

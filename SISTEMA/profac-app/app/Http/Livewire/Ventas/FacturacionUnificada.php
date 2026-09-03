@@ -359,10 +359,34 @@ class FacturacionUnificada extends Component
                     : ['version' => 1, 'generales' => $snapshot, 'marcas' => [], 'lineas' => []];
                 $this->cargarAtribucionesDescuentoExpo((int) $cotizId);
             }
+            $ubicacionesPrefactura = collect();
+            if ($esExpo && $this->fromPrefactura && $prefId) {
+                $ubicacionesPrefactura = DB::table('prefactura_has_producto as php')
+                    ->leftJoin('seccion as s', 's.id', '=', 'php.seccion_id')
+                    ->leftJoin('segmento as sg', 'sg.id', '=', 's.segmento_id')
+                    ->leftJoin('bodega as b', 'b.id', '=', 'sg.bodega_id')
+                    ->where('php.prefactura_id', (int) $prefId)
+                    ->whereNotNull('php.cotizacion_has_producto_id')
+                    ->get([
+                        'php.cotizacion_has_producto_id',
+                        'php.seccion_id',
+                        'php.resta_inventario',
+                        DB::raw('COALESCE(sg.bodega_id, php.Bodega_id) as Bodega_id'),
+                        DB::raw("CASE WHEN b.id IS NOT NULL THEN CONCAT(b.nombre, REPLACE(s.descripcion, 'Seccion', '')) ELSE php.nombre_bodega END as nombre_bodega"),
+                    ])
+                    ->keyBy('cotizacion_has_producto_id');
+            }
             $prods = $esExpo && !$this->duplicandoOferta && !$this->continuandoOfertaExpo
                 ? app(SaldoLineasOferta::class)->pendientes((int) $cotizId)
                     ->filter(fn($linea) => (float) $linea->cantidad_pendiente > 0)
-                    ->map(function ($linea) {
+                    ->map(function ($linea) use ($ubicacionesPrefactura) {
+                        $ubicacion = $ubicacionesPrefactura->get($linea->id);
+                        if ($ubicacion && (int) $ubicacion->seccion_id > 0 && (int) $ubicacion->Bodega_id > 0) {
+                            $linea->Bodega_id = (int) $ubicacion->Bodega_id;
+                            $linea->seccion_id = (int) $ubicacion->seccion_id;
+                            $linea->nombre_bodega = $ubicacion->nombre_bodega;
+                            $linea->resta_inventario = (int) $ubicacion->resta_inventario;
+                        }
                         $linea->cotizacion_has_producto_id = $linea->id;
                         $linea->cantidad_ofertada = $linea->cantidad;
                         $linea->cantidad = $linea->cantidad_pendiente;
