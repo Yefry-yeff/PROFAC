@@ -27,6 +27,11 @@
         .attendance-summary-item select { height:34px; padding:3px 36px 3px 8px; border:1.5px solid #e0cbb0; border-radius:7px; background-color:#fff; background-repeat:no-repeat; background-position:right 10px center; background-size:20px 20px; font-size:11px; }
         .attendance-summary-item select:focus { border-color:var(--attendance-orange); box-shadow:0 0 0 3px rgba(230,81,0,.11); }
         .attendance-toolbar { display:grid; grid-template-columns:minmax(280px,1fr) auto; align-items:end; gap:14px; margin-bottom:14px; }
+        .attendance-filters { display:grid; grid-template-columns:minmax(220px,1fr) repeat(2,minmax(145px,190px)) auto; align-items:end; gap:9px; margin-bottom:14px; }
+        .attendance-filter label { margin-bottom:5px; color:#4a5568; font-size:10px; font-weight:800; text-transform:uppercase; }
+        .attendance-filter .form-control { height:36px; border:1.5px solid #dde2ec; border-radius:7px; font-size:11px; }
+        .attendance-filter .form-control:focus { border-color:var(--attendance-orange); box-shadow:0 0 0 3px rgba(230,81,0,.11); }
+        .attendance-filter-clear { width:36px; height:36px; padding:0; border:1px solid #d7dee3; border-radius:7px; background:#fff; color:#607d8b; }
         .attendance-search { position:relative; max-width:680px; }
         .attendance-search label { margin-bottom:5px; color:#4a5568; font-size:10px; font-weight:800; text-transform:uppercase; }
         .attendance-search-box { position:relative; }
@@ -50,7 +55,7 @@
         .attendance-section-head h3 { margin:0; color:var(--attendance-ink); font-size:14px; font-weight:800; }
         .attendance-count { display:inline-flex; align-items:center; gap:5px; border:1px solid #bbf7d0; border-radius:12px; padding:4px 9px; background:#f0fdf4; color:#1a7a4e; font-size:9px; font-weight:800; }
         .attendance-table-wrap { overflow:auto; border:1px solid var(--attendance-line); border-radius:0 0 7px 7px; }
-        .attendance-table { min-width:1100px; margin:0; font-size:11px; }
+        .attendance-table { min-width:1280px; margin:0; font-size:11px; }
         .attendance-table th { padding:8px 10px!important; border-bottom:2px solid #f2d49a!important; background:#fffaf3; color:#7d3f00; font-size:9px; font-weight:800; text-transform:uppercase; white-space:nowrap; }
         .attendance-table td { padding:9px 10px!important; vertical-align:middle!important; border-color:#edf1f3!important; color:#344b56; }
         .attendance-table tbody tr:hover { background:#fffcf5; }
@@ -65,16 +70,39 @@
         .attendance-comment:focus { border-color:var(--attendance-orange); box-shadow:0 0 0 3px rgba(230,81,0,.11); }
         .attendance-remove { width:30px; height:30px; padding:0; border:1px solid #e2b8b8; border-radius:7px; background:#fff; color:#ad3d3d; box-shadow:0 1px 3px rgba(0,0,0,.06); }
         .attendance-remove:hover { background:#fff1f1; color:#8f2929; }
+        .attendance-row-actions { display:flex; align-items:center; justify-content:center; gap:7px; }
+        .attendance-discount-open { min-height:30px; border:1px solid #e0cbb0; border-radius:7px; background:#fff8f0; color:#9a4b16; font-size:10px; font-weight:800; white-space:nowrap; }
+        .attendance-discount-open:hover { border-color:#e67e22; background:#fff1df; color:#7d3f00; }
+        .attendance-discount-count { display:block; margin-top:4px; color:#71838c; font-size:9px; }
+        .attendance-modal-backdrop { position:fixed; z-index:2050; inset:0; display:flex; align-items:center; justify-content:center; padding:20px; background:rgba(28,38,43,.58); }
+        .attendance-modal { width:min(820px,100%); max-height:calc(100vh - 40px); overflow:hidden; border-radius:8px; background:#fff; box-shadow:0 18px 48px rgba(0,0,0,.28); }
+        .attendance-modal-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding:15px 18px; background:var(--attendance-gradient); color:#fff; }
+        .attendance-modal-head h4 { margin:0 0 3px; color:#fff; font-size:16px; font-weight:800; }
+        .attendance-modal-head small { color:rgba(255,255,255,.84); }
+        .attendance-modal-close { width:31px; height:31px; flex:0 0 31px; padding:0; border:1px solid rgba(255,255,255,.45); border-radius:6px; background:transparent; color:#fff; }
+        .attendance-modal-body { max-height:calc(100vh - 155px); overflow:auto; padding:4px 18px; }
+        .attendance-category-row { display:grid; grid-template-columns:minmax(180px,240px) 1fr; gap:18px; padding:14px 0; border-bottom:1px solid #edf1f3; }
+        .attendance-category-row:last-child { border-bottom:0; }
+        .attendance-category-name { color:var(--attendance-ink); font-size:12px; font-weight:800; }
+        .attendance-category-levels { display:flex; flex-wrap:wrap; gap:4px; margin-top:5px; }
+        .attendance-category-level { border:1px solid #ead7c0; border-radius:10px; padding:2px 6px; background:#fffaf3; color:#7d5b3d; font-size:8px; white-space:nowrap; }
+        .attendance-category-select { height:36px; border:1.5px solid #d7dee3; border-radius:7px; font-size:11px; }
+        .attendance-category-select:focus { border-color:var(--attendance-orange); box-shadow:0 0 0 3px rgba(230,81,0,.11); }
+        .attendance-modal-foot { display:flex; justify-content:flex-end; padding:11px 18px; border-top:1px solid #e7ecef; background:#f8fafb; }
+        body:has(.attendance-modal-backdrop) .wrapper.wrapper-content.animated { transform:none!important; animation:none!important; }
         .attendance-empty { padding:40px 20px!important; color:#84949c!important; text-align:center; }
         .attendance-empty i { display:block; margin-bottom:7px; color:#b7c4ca; font-size:25px; }
         @media (max-width:767px) {
             .attendance-heading { flex-direction:column; }
             .attendance-summary { grid-template-columns:1fr; }
             .attendance-toolbar { grid-template-columns:1fr; }
+            .attendance-filters { grid-template-columns:1fr; }
             .attendance-search { max-width:none; }
             .attendance-actions { justify-content:flex-start; }
             .attendance-export { flex:1 1 auto; justify-content:center; }
             .attendance-content { padding:12px; }
+            .attendance-modal-backdrop { padding:8px; }
+            .attendance-category-row { grid-template-columns:1fr; gap:8px; }
         }
     </style>
     @endpush
@@ -186,6 +214,22 @@
                         </div>
                     </div>
 
+                    <div class="attendance-filters">
+                        <div class="attendance-filter">
+                            <label for="buscar-asistente">Buscar en asistentes</label>
+                            <input id="buscar-asistente" type="search" wire:model.debounce.300ms="busquedaAsistente" class="form-control" placeholder="Cliente, RTN, teléfono, correo o código">
+                        </div>
+                        <div class="attendance-filter">
+                            <label for="asistencia-desde">Asistencia desde</label>
+                            <input id="asistencia-desde" type="date" wire:model="fechaDesde" class="form-control">
+                        </div>
+                        <div class="attendance-filter">
+                            <label for="asistencia-hasta">Asistencia hasta</label>
+                            <input id="asistencia-hasta" type="date" wire:model="fechaHasta" class="form-control">
+                        </div>
+                        <button type="button" wire:click="limpiarFiltros" class="attendance-filter-clear" title="Limpiar filtros" aria-label="Limpiar filtros"><i class="fa fa-eraser"></i></button>
+                    </div>
+
                     <div class="attendance-section-head">
                         <h3><i class="fa fa-users mr-2" style="color:#e67e22;"></i>Clientes asistentes</h3>
                         <span class="attendance-count"><i class="fa fa-check"></i>{{ $asistentes->count() }} registrado(s)</span>
@@ -202,7 +246,7 @@
                                     <th class="text-center">Tickets</th>
                                     <th class="text-center">Regalo</th>
                                     <th>Comentario</th>
-                                    <th class="text-center">Acción</th>
+                                    <th class="text-center">Acciones y descuento</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -223,15 +267,70 @@
                                             <textarea maxlength="1000" wire:change="actualizarComentario({{ $cliente->id }}, $event.target.value)" class="form-control form-control-sm attendance-comment" placeholder="Agregar comentario" aria-label="Comentario de {{ $cliente->nombre }}">{{ $cliente->comentario }}</textarea>
                                         </td>
                                         <td class="text-center">
-                                            <button type="button" wire:click="eliminarCliente({{ $cliente->id }})" wire:loading.attr="disabled" onclick="return confirm('¿Eliminar este cliente de la asistencia?')" class="attendance-remove" title="Eliminar de asistencia" aria-label="Eliminar de asistencia"><i class="fa fa-trash"></i></button>
+                                            <div class="attendance-row-actions">
+                                                <button type="button" wire:click="abrirDescuentos({{ $cliente->id }})" wire:loading.attr="disabled" class="attendance-discount-open" title="Configurar descuento por categoría para {{ $cliente->nombre }}"><i class="fa fa-sliders mr-1"></i>Descuento por categoría</button>
+                                                <button type="button" wire:click="eliminarCliente({{ $cliente->id }})" wire:loading.attr="disabled" onclick="return confirm('¿Eliminar este cliente de la asistencia?')" class="attendance-remove" title="Eliminar de asistencia" aria-label="Eliminar de asistencia"><i class="fa fa-trash"></i></button>
+                                            </div>
+                                            <span class="attendance-discount-count">{{ count($cliente->descuentos_escala) ? count($cliente->descuentos_escala) . ' categoría(s) con selección especial' : 'Todas automáticas' }}</span>
                                         </td>
                                     </tr>
                                 @empty
-                                    <tr><td colspan="9" class="attendance-empty"><i class="fa fa-user-plus"></i>Aún no hay clientes registrados en esta Expo.</td></tr>
+                                    <tr><td colspan="9" class="attendance-empty"><i class="fa fa-user-plus"></i>No hay asistentes que coincidan con los filtros.</td></tr>
                                 @endforelse
                             </tbody>
                         </table>
                     </div>
+
+                    @if($clienteDescuento)
+                        <div class="attendance-modal-backdrop" wire:click.self="cerrarDescuentos" wire:key="descuentos-cliente-{{ $clienteDescuento->id }}">
+                            <div class="attendance-modal" role="dialog" aria-modal="true" aria-labelledby="titulo-descuentos-categoria">
+                                <div class="attendance-modal-head">
+                                    <div>
+                                        <h4 id="titulo-descuentos-categoria">Descuento por categoría de precio</h4>
+                                        <small>{{ $clienteDescuento->nombre }} · Cliente #{{ $clienteDescuento->id }}</small>
+                                    </div>
+                                    <button type="button" wire:click="cerrarDescuentos" class="attendance-modal-close" title="Cerrar" aria-label="Cerrar"><i class="fa fa-times"></i></button>
+                                </div>
+                                <div class="attendance-modal-body">
+                                    @forelse($categoriasDescuento as $categoria)
+                                        @php
+                                            $descuentoCategoria = $clienteDescuento->descuentos_escala[$categoria->id] ?? null;
+                                            $seleccionCategoria = !$descuentoCategoria
+                                                ? 'automatico'
+                                                : ($descuentoCategoria['descuento_modo'] === 'escalon'
+                                                    ? 'escalon:' . $descuentoCategoria['descuento_escalon']
+                                                    : $descuentoCategoria['descuento_modo']);
+                                            $ultimoEscalon = $categoria->escalones->last();
+                                        @endphp
+                                        <div class="attendance-category-row" wire:key="categoria-descuento-{{ $clienteDescuento->id }}-{{ $categoria->id }}">
+                                            <div>
+                                                <div class="attendance-category-name">{{ $categoria->nombre }}</div>
+                                                <div class="attendance-category-levels">
+                                                    @foreach($categoria->escalones as $escalon)
+                                                        <span class="attendance-category-level">E{{ $escalon->numero }}: {{ number_format($escalon->porcentaje, 2) }}% desde L {{ number_format($escalon->venta_minima, 2) }}</span>
+                                                    @endforeach
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <select wire:change="actualizarDescuentoEscala({{ $clienteDescuento->id }}, {{ $categoria->id }}, $event.target.value)" class="form-control attendance-category-select" aria-label="Descuento para categoría {{ $categoria->nombre }}">
+                                                    <option value="automatico" @selected($seleccionCategoria === 'automatico')>Automático según monto de la oferta</option>
+                                                    @foreach($categoria->escalones as $escalon)
+                                                        <option value="escalon:{{ $escalon->numero }}" @selected($seleccionCategoria === 'escalon:' . $escalon->numero)>Escalón {{ $escalon->numero }} · {{ number_format($escalon->porcentaje, 2) }}%</option>
+                                                    @endforeach
+                                                    <option value="maximo" @selected($seleccionCategoria === 'maximo')>Dar el máximo · {{ number_format($ultimoEscalon->porcentaje, 2) }}%</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    @empty
+                                        <div class="attendance-empty"><i class="fa fa-list-alt"></i>Esta Expo no tiene descuentos por categoría configurados.</div>
+                                    @endforelse
+                                </div>
+                                <div class="attendance-modal-foot">
+                                    <button type="button" wire:click="cerrarDescuentos" class="btn btn-sm btn-secondary">Cerrar</button>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
                 @endif
             </div>
         </div>

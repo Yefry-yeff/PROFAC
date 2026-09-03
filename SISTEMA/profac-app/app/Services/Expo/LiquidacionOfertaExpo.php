@@ -315,6 +315,9 @@ class LiquidacionOfertaExpo
                     'marcas' => $snapshot['marcas'] ?? [],
                     'escalas' => $snapshot['escalas'] ?? [],
                     'lineas' => $snapshot['lineas'] ?? [],
+                    'descuentos_forzados' => $snapshot['descuentos_forzados'] ?? [],
+                    'descuento_modo' => $snapshot['descuento_modo'] ?? 'automatico',
+                    'descuento_escalon' => $snapshot['descuento_escalon'] ?? null,
                 ];
             }
 

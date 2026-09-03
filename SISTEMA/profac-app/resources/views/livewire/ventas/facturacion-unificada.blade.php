@@ -4228,6 +4228,7 @@
             var generales = Array.isArray(expoConfig?.descuentos) ? expoConfig.descuentos : [];
             var clienteExpoId = Number(document.getElementById('seleccionarCliente')?.value || 0);
             var asistentesExpo = Array.isArray(expoConfig?.clientes_asistentes) ? expoConfig.clientes_asistentes.map(Number) : [];
+            var descuentoEspecial = expoConfig?.descuentos_clientes?.[clienteExpoId] || {};
             var reglasMarcaElegibles = (Array.isArray(expoConfig?.descuentos_escala) ? expoConfig.descuentos_escala : [])
                 .filter(function(regla) {
                     return !regla.requiere_asistencia || asistentesExpo.includes(clienteExpoId);
@@ -4253,7 +4254,8 @@
                 porcentajeIsv: porcentajeIsv,
                 marcaId: Number(categoriaId || 0),
                 generales: generales,
-                reglasMarca: reglasMarcaProducto
+                reglasMarca: reglasMarcaProducto,
+                descuentoEspecial: descuentoEspecial
             };
 
             var filas = umbrales.map(function(umbral, indice) {
@@ -4310,7 +4312,7 @@
                 marcaId: datosCalculoCotizadorExpo.marcaId,
                 importe: compra
             }
-        }, datosCalculoCotizadorExpo.reglasMarca, datosCalculoCotizadorExpo.generales);
+        }, datosCalculoCotizadorExpo.reglasMarca, datosCalculoCotizadorExpo.generales, datosCalculoCotizadorExpo.descuentoEspecial);
         var porcentajeMarca = Number(escalones.porcentajesMarca[datosCalculoCotizadorExpo.marcaId] || 0);
         var porcentajeGeneral = Number(escalones.porcentajeGeneral || 0);
 
@@ -4467,14 +4469,43 @@
         }, null) || 0;
     }
 
-    function resolverEscalonesNetosExpo(importes, reglasMarca, reglasGenerales) {
+    function resolverEscalonesNetosExpo(importes, reglasMarca, reglasGenerales, descuentoEspecial) {
         var valores = Object.values(importes);
         var marcaIds = Array.from(new Set(valores.map(function(datos) { return datos.marcaId; })));
+        var porcentajesForzados = {};
+        var modoGlobal = descuentoEspecial?.descuento_modo || 'automatico';
+        marcaIds.forEach(function(marcaId) {
+            var seleccion = modoGlobal === 'escalon' || modoGlobal === 'maximo'
+                ? descuentoEspecial
+                : (descuentoEspecial?.[marcaId] || {});
+            var modo = seleccion.descuento_modo || 'automatico';
+            if (modo !== 'escalon' && modo !== 'maximo') return;
+
+            var niveles = (reglasMarca || []).filter(function(regla) {
+                return Number(regla.marca_id) === marcaId;
+            }).sort(function(primera, segunda) {
+                return Number(primera.venta_minima || 0) - Number(segunda.venta_minima || 0)
+                    || Number(primera.orden || 0) - Number(segunda.orden || 0);
+            });
+            if (!niveles.length) {
+                porcentajesForzados[marcaId] = 0;
+                return;
+            }
+            var nivelSolicitado = Math.max(Number(seleccion.descuento_escalon || 1), 1);
+            var indiceNivel = modo === 'maximo'
+                ? niveles.length - 1
+                : Math.min(nivelSolicitado - 1, niveles.length - 1);
+            porcentajesForzados[marcaId] = Number(niveles[indiceNivel].porcentaje_descuento || 0);
+        });
+
         var candidatos = [0].concat((reglasGenerales || []).map(function(regla) {
             return Number(regla.venta_minima || 0);
         }));
         (reglasMarca || []).forEach(function(regla) {
-            if (marcaIds.includes(Number(regla.marca_id))) candidatos.push(Number(regla.venta_minima || 0));
+            var marcaId = Number(regla.marca_id);
+            if (marcaIds.includes(marcaId) && !Object.prototype.hasOwnProperty.call(porcentajesForzados, marcaId)) {
+                candidatos.push(Number(regla.venta_minima || 0));
+            }
         });
         candidatos = Array.from(new Set(candidatos)).sort(function(a, b) { return b - a; });
 
@@ -4483,10 +4514,12 @@
             var porcentajeGeneral = porcentajeExpoAlcanzado(baseEscalon, reglasGenerales);
             var porcentajesMarca = {};
             marcaIds.forEach(function(marcaId) {
-                porcentajesMarca[marcaId] = porcentajeExpoAlcanzado(
-                    baseEscalon,
-                    (reglasMarca || []).filter(function(regla) { return Number(regla.marca_id) === marcaId; })
-                );
+                porcentajesMarca[marcaId] = Object.prototype.hasOwnProperty.call(porcentajesForzados, marcaId)
+                    ? porcentajesForzados[marcaId]
+                    : porcentajeExpoAlcanzado(
+                        baseEscalon,
+                        (reglasMarca || []).filter(function(regla) { return Number(regla.marca_id) === marcaId; })
+                    );
             });
             var subtotalNeto = valores.reduce(function(total, datos) {
                 var descuentoMarca = Math.round(datos.importe * Number(porcentajesMarca[datos.marcaId] || 0)) / 100;
@@ -4520,6 +4553,12 @@
                 return !regla.requiere_asistencia || asistentesExpo.includes(clienteExpoId);
             });
         }
+        var descuentoEspecial = usarReglasFirmadas
+            ? (configuracion.descuentos_forzados || {
+                descuento_modo: configuracion.descuento_modo || 'automatico',
+                descuento_escalon: configuracion.descuento_escalon || null
+            })
+            : (expoConfig.descuentos_clientes?.[clienteExpoId] || {});
         var reglasGenerales = usarReglasFirmadas
             ? (Array.isArray(configuracion.generales) ? configuracion.generales : [])
             : (Array.isArray(configuracion.descuentos) ? configuracion.descuentos : []);
@@ -4556,7 +4595,7 @@
         });
 
         var escalonesNetos = versionReglas >= 4
-            ? resolverEscalonesNetosExpo(importes, reglasMarca, reglasGenerales)
+            ? resolverEscalonesNetosExpo(importes, reglasMarca, reglasGenerales, descuentoEspecial)
             : null;
         var porcentajeGeneral = escalonesNetos
             ? escalonesNetos.porcentajeGeneral

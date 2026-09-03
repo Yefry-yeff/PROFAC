@@ -641,7 +641,13 @@ class Cotizacion extends Component
             }
             $calculoServidor = app(\App\Services\Expo\CalculadorDescuentosExpo::class)->calcular(
                 array_values($lineasDescuento),
-                ['version' => 5, 'tipo' => 'escala', 'generales' => $expoConfig['descuentos'], 'escalas' => $expoConfig['descuentos_escala']]
+                [
+                    'version' => 5,
+                    'tipo' => 'escala',
+                    'generales' => $expoConfig['descuentos'],
+                    'escalas' => $expoConfig['descuentos_escala'],
+                    'descuentos_forzados' => $expoConfig['descuentos_forzados'] ?? [],
+                ]
             );
             $porcentajesEscala = $calculoServidor['porcentajes_escala'];
             $detallesNoPermitidos = [];
@@ -782,6 +788,7 @@ class Cotizacion extends Component
                         'tipo' => 'escala',
                         'generales' => $expoConfig['descuentos'],
                         'escalas' => $expoConfig['descuentos_escala'],
+                        'descuentos_forzados' => $expoConfig['descuentos_forzados'] ?? [],
                     ]),
                     'created_at' => now(),
                 ]);
@@ -1084,6 +1091,7 @@ class Cotizacion extends Component
                     'tipo' => 'escala',
                     'generales' => $expoConfig['descuentos'],
                     'escalas' => $expoConfig['descuentos_escala'],
+                    'descuentos_forzados' => $expoConfig['descuentos_forzados'] ?? [],
                     'lineas' => $lineasSnapshot,
                 ]),
             ]);

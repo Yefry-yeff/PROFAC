@@ -91,6 +91,20 @@ class ExpoConfig
 
     private static function construirDetalle(object $expo): array
     {
+        $descuentosClientes = DB::table('expo_asistencia_descuento_escala as eade')
+            ->join('expo_asistencia as ea', 'ea.id', '=', 'eade.expo_asistencia_id')
+            ->where('ea.expo_id', $expo->id)
+            ->get(['ea.cliente_id', 'eade.escala_id', 'eade.descuento_modo', 'eade.descuento_escalon'])
+            ->groupBy('cliente_id')
+            ->map(fn ($descuentos) => $descuentos->mapWithKeys(fn ($descuento) => [
+                (int) $descuento->escala_id => [
+                    'descuento_modo' => $descuento->descuento_modo,
+                    'descuento_escalon' => $descuento->descuento_escalon !== null
+                        ? (int) $descuento->descuento_escalon
+                        : null,
+                ],
+            ])->all())->all();
+
         return [
             'id' => (int) $expo->id,
             'nombre' => $expo->nombre,
@@ -130,6 +144,7 @@ class ExpoConfig
                 ])->all(),
             'clientes_asistentes' => DB::table('expo_asistencia')->where('expo_id', $expo->id)
                 ->pluck('cliente_id')->map(fn ($id) => (int) $id)->all(),
+            'descuentos_clientes' => $descuentosClientes,
         ];
     }
 
@@ -137,6 +152,7 @@ class ExpoConfig
     {
         $asistio = in_array($clienteId, $detalle['clientes_asistentes'] ?? [], true);
         $detalle['cliente_asistio'] = $asistio;
+        $detalle['descuentos_forzados'] = $detalle['descuentos_clientes'][$clienteId] ?? [];
         $detalle['descuentos_marca'] = array_values(array_filter(
             $detalle['descuentos_marca'],
             fn (array $regla) => empty($regla['requiere_asistencia']) || $asistio
