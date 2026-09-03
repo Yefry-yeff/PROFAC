@@ -2176,6 +2176,7 @@
     var ventaTemporalAutosaveActivo = false;
     var ventaTemporalCambiosPendientes = false;
     var ventaTemporalGuardando = false;
+    var ventaTemporalPromesaGuardado = null;
     var ventaTemporalRevision = 0;
     var esDuplicandoOferta = {!! $duplicandoOferta ? 'true' : 'false' !!};
     var esContinuandoOfertaExpo = {!! $continuandoOfertaExpo ? 'true' : 'false' !!};
@@ -2268,11 +2269,11 @@
 
     function guardarVentaTemporal() {
         if (ventaTemporalRestaurando || ventaTemporalFinalizada) return Promise.resolve();
-        if (ventaTemporalGuardando) return Promise.resolve();
+        if (ventaTemporalGuardando) return ventaTemporalPromesaGuardado || Promise.resolve();
         clearTimeout(ventaTemporalTimer);
         ventaTemporalGuardando = true;
         var revisionEnviada = ventaTemporalRevision;
-        return axios.post('/ventas/temporales', datosVentaTemporal()).then(function(response) {
+        ventaTemporalPromesaGuardado = axios.post('/ventas/temporales', datosVentaTemporal()).then(function(response) {
             ventaTemporalId = response.data.id;
             ventaTemporalCambiosPendientes = ventaTemporalRevision !== revisionEnviada;
             var url = new URL(window.location.href);
@@ -2282,8 +2283,10 @@
             console.warn('No se pudo guardar el registro temporal:', error);
         }).finally(function() {
             ventaTemporalGuardando = false;
-            if (ventaTemporalCambiosPendientes) guardarVentaTemporal();
+            ventaTemporalPromesaGuardado = null;
+            if (ventaTemporalCambiosPendientes) return guardarVentaTemporal();
         });
+        return ventaTemporalPromesaGuardado;
     }
 
     document.addEventListener('visibilitychange', function() {
@@ -2319,7 +2322,7 @@
     function aplicarControlTemporal(controlGuardado) {
         var control = document.getElementById(controlGuardado.id);
         if (!control) return;
-        if (control.id === 'vendedor') return;
+        if (control.id === 'vendedor' || ['restriccion', 'tipo_venta_id', 'tipo_factura_id'].includes(control.id)) return;
         if (control.tagName === 'SELECT') {
             (controlGuardado.options || []).forEach(function(optionGuardada) {
                 if (!Array.from(control.options).some(function(option) { return option.value == optionGuardada.value; })) {
@@ -2337,6 +2340,12 @@
         }
     }
 
+    function aplicarConfiguracionTipoFacturaActual() {
+        document.getElementById('restriccion').value = tipoFacturaConfig ? tipoFacturaConfig.restriccion : 1;
+        document.getElementById('tipo_venta_id').value = tipoFacturaConfig ? tipoFacturaConfig.tipo_venta_id : 2;
+        document.getElementById('tipo_factura_id').value = tipoFacturaConfig ? tipoFacturaConfig.id : '';
+    }
+
     function restaurarVentaTemporal(instantanea) {
         ventaTemporalRestaurando = true;
         var carrito = document.getElementById('carritoTbody');
@@ -2347,6 +2356,7 @@
             : [];
         var controlesTemporales = instantanea.controles || [];
         controlesTemporales.forEach(aplicarControlTemporal);
+        aplicarConfiguracionTipoFacturaActual();
         var asesorTemporal = controlesTemporales.find(function(control) { return control.id === 'vendedor'; });
         var clienteTemporal = document.getElementById('seleccionarCliente');
         var cargaAsesor = Promise.resolve();
@@ -2362,6 +2372,7 @@
         if (tabla) tabla.classList.toggle('d-none', !tieneProductos);
         if (vacio) vacio.classList.toggle('d-none', tieneProductos);
         actualizarContadorCarrito();
+        calcularTotalesInicioPagina();
         return Promise.all([cargaAsesor, cargaStocks]).finally(function() {
             ventaTemporalRestaurando = false;
         });
@@ -2552,12 +2563,18 @@
 
         axios.get('/ventas/temporales/' + ventaTemporalId).then(function(response) {
             var temporal = response.data.data;
-            if (temporal.tipo !== ventaTemporalTipo || temporal.codigo_tipo !== codigoActual) {
+            if (temporal.tipo !== ventaTemporalTipo) {
                 throw new Error('El registro temporal no corresponde al formulario actual.');
             }
+            var cambioTipoFactura = temporal.codigo_tipo !== codigoActual;
             return restaurarVentaTemporal(temporal.contenido || {}).then(function() {
                 ocultarCargaTemporales();
                 activarAutosaveTemporal();
+                if (cambioTipoFactura) {
+                    ventaTemporalCambiosPendientes = true;
+                    ventaTemporalRevision += 1;
+                    return guardarVentaTemporal();
+                }
             });
         }).catch(function() {
             ventaTemporalId = null;
@@ -2756,23 +2773,17 @@
     }
 
     function cambiarTipoFacturaDesdeUrl(rutaMenu) {
-        // Preserva los parámetros de prefactura (from=prefactura, prefactura_id, flujoId)
-        const urlParams = new URLSearchParams(window.location.search);
-        const from = urlParams.get('from');
-        const prefacturaId = urlParams.get('prefactura_id');
-        const flujoId = urlParams.get('flujoId');
-        const modo = urlParams.get('modo');
-        const autorizacionId = urlParams.get('autorizacion_id');
-        const autorizadorId = urlParams.get('autorizador_id');
-
-        let newUrl = '/' + rutaMenu;
-        if (from && prefacturaId && flujoId) {
-            newUrl += '?from=' + from + '&prefactura_id=' + prefacturaId + '&flujoId=' + flujoId;
-            if (modo) newUrl += '&modo=' + encodeURIComponent(modo);
-            if (autorizacionId) newUrl += '&autorizacion_id=' + encodeURIComponent(autorizacionId);
-            if (autorizadorId) newUrl += '&autorizador_id=' + encodeURIComponent(autorizadorId);
+        var nuevaUrl = new URL(window.location.href);
+        nuevaUrl.pathname = '/' + rutaMenu.replace(/^\/+/, '');
+        if (ventaTemporalId) nuevaUrl.searchParams.set('temporal_id', ventaTemporalId);
+        var navegar = function() { window.location.href = nuevaUrl.toString(); };
+        if (!ventaTemporalId || ventaTemporalRestaurando || ventaTemporalFinalizada) {
+            navegar();
+            return;
         }
-        window.location.href = newUrl;
+        ventaTemporalCambiosPendientes = true;
+        ventaTemporalRevision += 1;
+        guardarVentaTemporal().finally(navegar);
     }
 
     // ================================================================

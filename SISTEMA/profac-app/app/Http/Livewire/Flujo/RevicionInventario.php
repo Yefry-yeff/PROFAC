@@ -437,12 +437,13 @@ class RevicionInventario extends Component
             )
             ->get();
 
-        $destinosExpo = $this->esOfertaExpo
+        $productoIds = $prods->pluck('producto_id')->filter()->unique()->values()->toArray();
+        $destinosBodega = $this->esOfertaExpo
             ? $this->obtenerDestinosBodegaExpo(
-                $prods->pluck('producto_id')->filter()->unique()->values()->toArray(),
+                $productoIds,
                 $bodegasExpo
             )
-            : [];
+            : $this->obtenerDestinosDisponiblesPorProducto($productoIds);
 
         $this->productos   = [];
         $this->stockErrors = [];
@@ -540,7 +541,7 @@ class RevicionInventario extends Component
                 }
             }
 
-            $destinosLinea = $destinosExpo[(int) $prod->producto_id] ?? [];
+            $destinosLinea = $destinosBodega[(int) $prod->producto_id] ?? [];
             $ubicacionActual = (int) $prod->bodega_id . '|' . (int) $prod->seccion_id;
             $ubicacionesValidas = array_column($destinosLinea, 'value');
             $destinoSuficiente = collect($destinosLinea)->first(
@@ -650,10 +651,10 @@ class RevicionInventario extends Component
         $this->filtroRevisado = '';
     }
 
-    public function guardarBodegaExpo(int $idx): void
+    public function guardarBodega(int $idx): void
     {
-        if (!$this->flujoId || !$this->cotizacionId || !$this->esOfertaExpo || $this->devuelto || $this->soloVisualizacion) {
-            $this->mensajeError = 'La reasignación de bodega solo está disponible para ofertas Expo en revisión activa.';
+        if (!$this->flujoId || !$this->cotizacionId || $this->devuelto || $this->soloVisualizacion) {
+            $this->mensajeError = 'La reasignación de bodega solo está disponible durante una revisión activa.';
             return;
         }
 
@@ -662,6 +663,12 @@ class RevicionInventario extends Component
 
         if (!$producto) {
             $this->mensajeError = 'Seleccione una bodega válida donde exista el producto.';
+            return;
+        }
+
+        $destinoPermitido = collect($producto['destinos_bodega'] ?? [])->firstWhere('value', $seleccion);
+        if (!$destinoPermitido) {
+            $this->mensajeError = 'La bodega seleccionada no es un destino válido para este producto.';
             return;
         }
 
@@ -713,6 +720,7 @@ class RevicionInventario extends Component
                     'Bodega_id' => $bodegaDestinoId,
                     'seccion_id' => $seccionDestinoId,
                     'nombre_bodega' => $destino->bodega_nombre,
+                    'resta_inventario' => 1,
                     'updated_at' => now(),
                 ]);
 
@@ -727,7 +735,7 @@ class RevicionInventario extends Component
                 'id_seccion_actualizacion' => $seccionDestinoId,
                 'nombre_bodega_origen' => $linea->nombre_bodega,
                 'nombre_bodega_destino' => $destino->bodega_nombre,
-                'motivo' => 'Reasignación de bodega Expo desde Revisión de Inventario. Flujo #' . $this->flujoId,
+                'motivo' => 'Reasignación de bodega desde Revisión de Inventario. Flujo #' . $this->flujoId,
                 'created_by' => Auth::id(),
                 'updated_by' => Auth::id(),
                 'created_at' => now(),

@@ -240,12 +240,12 @@
                                                     {{ $prod['nombre_producto'] }}
                                                 </td>
                                                 <td style="padding:8px 14px; color:#607d8b; font-size:12px;">
-                                                    @if($esOfertaExpo && !$devuelto && !$soloVisualizacion)
+                                                    @if(!$devuelto && !$soloVisualizacion)
                                                         <div class="input-group input-group-sm" style="min-width:260px;">
                                                                 <select wire:model="bodegaExpoSeleccionada.{{ $prod['idx'] }}"
-                                                                    wire:change="guardarBodegaExpo({{ $prod['idx'] }})"
+                                                                    wire:change="guardarBodega({{ $prod['idx'] }})"
                                                                     wire:loading.attr="disabled"
-                                                                    wire:target="guardarBodegaExpo({{ $prod['idx'] }})"
+                                                                    wire:target="guardarBodega({{ $prod['idx'] }})"
                                                                     class="form-control"
                                                                     title="Bodegas y secciones donde existe el producto">
                                                                 @forelse($prod['destinos_bodega'] as $destino)
@@ -258,10 +258,10 @@
                                                                 <span class="btn btn-primary"
                                                                       title="La reasignación se guarda automáticamente al cambiar"
                                                                       style="cursor:default; min-width:34px;">
-                                                                    <span wire:loading.remove wire:target="guardarBodegaExpo({{ $prod['idx'] }})">
+                                                                    <span wire:loading.remove wire:target="guardarBodega({{ $prod['idx'] }})">
                                                                         <i class="fa fa-check"></i>
                                                                     </span>
-                                                                    <span wire:loading wire:target="guardarBodegaExpo({{ $prod['idx'] }})" style="display:none;">
+                                                                    <span wire:loading wire:target="guardarBodega({{ $prod['idx'] }})" style="display:none;">
                                                                         <i class="fa fa-spinner fa-spin"></i>
                                                                     </span>
                                                                 </span>
