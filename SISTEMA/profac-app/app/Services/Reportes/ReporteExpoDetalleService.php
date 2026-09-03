@@ -42,6 +42,7 @@ class ReporteExpoDetalleService
             ->leftJoin('precios_producto_carga as ppc', 'ppc.id', '=', 'chp.precios_producto_carga_id')
             ->leftJoin('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')
             ->leftJoin('categoria_producto as cat', 'cat.id', '=', 'ppc.categoria_producto_id')
+            ->leftJoin('unidad_medida_venta as uv', 'uv.id', '=', 'chp.unidad_medida_venta_id')
             ->where('chp.cotizacion_id', $cotizacionId)
             ->orderBy('chp.indice')
             ->get([
@@ -53,6 +54,7 @@ class ReporteExpoDetalleService
                 'chp.monto_descProducto', 'chp.sub_total', 'chp.isv_producto',
                 'chp.isv', 'chp.total', 'ppc.precio_base_venta',
                 'ppc.costoproducto', 'cp.id as escala_id', 'cp.nombre as escala',
+                'uv.unidad_venta',
             ])->map(function ($linea) use ($escalasSnapshot) {
                 $snapshotLinea = $escalasSnapshot->get((int) $linea->linea_id, []);
                 $linea->escala_id = $snapshotLinea['escala_id'] ?? $linea->escala_id;
@@ -128,6 +130,7 @@ class ReporteExpoDetalleService
             ->leftJoin('precios_producto_carga as ppc', 'ppc.id', '=', 'chp.precios_producto_carga_id')
             ->leftJoin('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')
             ->leftJoin('categoria_producto as cat', 'cat.id', '=', 'ppc.categoria_producto_id')
+            ->leftJoin('unidad_medida_venta as uv', 'uv.id', '=', 'chp.unidad_medida_venta_id')
             ->leftJoinSub($facturado, 'facturado', fn ($join) => $join->on('facturado.cotizacion_has_producto_id', '=', 'chp.id'))
             ->whereIn('c.id', $ids->all())
             ->where('chp.producto_id', $productoId)
@@ -144,6 +147,7 @@ class ReporteExpoDetalleService
                 'chp.precio_unidad', 'chp.monto_descProducto', 'chp.sub_total',
                 'chp.isv_producto', 'chp.isv', 'chp.total', 'ppc.precio_base_venta',
                 'ppc.costoproducto', 'cp.id as escala_id', 'cp.nombre as escala',
+                'uv.unidad_venta',
                 DB::raw('COALESCE(facturado.cantidad_facturada, 0) as cantidad_facturada'),
                 DB::raw('COALESCE(facturado.total_facturado, 0) as total_facturado'),
                 DB::raw('COALESCE(facturado.descuento_facturado, 0) as descuento_facturado'),
@@ -322,10 +326,12 @@ class ReporteExpoDetalleService
     private function normalizarLineaOferta(object $linea): array
     {
         $cantidad = (float) $linea->cantidad;
+        $factorUnidad = max((float) ($linea->unidad_venta ?? 1), 1);
+        $cantidadBase = $cantidad * $factorUnidad;
         $precioAntesDescuento = (float) $linea->precio_unidad;
-        $precioFinal = $cantidad > 0 ? round((float) $linea->sub_total / $cantidad, 2) : $precioAntesDescuento;
-        $subtotalFinal = round($precioFinal * $cantidad, 2);
-        $subtotalOriginal = $precioAntesDescuento * $cantidad;
+        $precioFinal = $cantidadBase > 0 ? round((float) $linea->sub_total / $cantidadBase, 2) : $precioAntesDescuento;
+        $subtotalFinal = round($precioFinal * $cantidadBase, 2);
+        $subtotalOriginal = $precioAntesDescuento * $cantidadBase;
         $descuento = max($subtotalOriginal - $subtotalFinal, 0);
         $isv = round($subtotalFinal * (float) $linea->isv_producto / 100, 2);
         $costoUnitario = (float) $linea->precio_base_venta;

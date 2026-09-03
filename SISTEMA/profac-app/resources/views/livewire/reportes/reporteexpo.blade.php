@@ -230,6 +230,18 @@
                 <div id="chart-asesor"></div>
             </div>
         </div>
+        <div class="mb-3 col-lg-6">
+            <div class="card card-body h-100">
+                <h6 class="font-weight-bold">Top de Clientes <small class="text-muted">(clic para filtrar)</small></h6>
+                <div id="chart-top-clientes"></div>
+            </div>
+        </div>
+        <div class="mb-3 col-lg-6">
+            <div class="card card-body h-100">
+                <h6 class="font-weight-bold">Top de Productos <small class="text-muted">(clic para ver analítica)</small></h6>
+                <div id="chart-top-productos"></div>
+            </div>
+        </div>
         <div class="mb-3 col-lg-12">
             <div class="card card-body h-100">
                 <h6 class="font-weight-bold">Rendimiento por Teleasesor <small class="text-muted">ventas netas, utilidad y conversión; clic para filtrar</small></h6>

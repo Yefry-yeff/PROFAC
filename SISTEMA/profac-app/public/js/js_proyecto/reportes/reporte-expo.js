@@ -13,6 +13,7 @@ var reporteExpo = (function () {
     var volverAProducto = false;
     var volverAOferta = false;
     var origenBuscadorProductos = null;
+    var filtroNombres = {};
 
     /* Filtro activo compartido entre todas las gráficas/tablas */
     var filtro = {
@@ -21,6 +22,7 @@ var reporteExpo = (function () {
         escala_id: '',
         vendedor_id: '',
         teleasesor_ids: [],
+        cliente_id: '',
         estado: '',
         fecha_desde: '',
         fecha_hasta: '',
@@ -87,6 +89,7 @@ var reporteExpo = (function () {
             escala_id: 'Escala',
             vendedor_id: 'Asesor',
             teleasesor_ids: 'Teleasesor',
+            cliente_id: 'Cliente',
             estado: 'Estado',
         };
         var campos = {
@@ -97,7 +100,9 @@ var reporteExpo = (function () {
         Object.keys(etiquetas).forEach(function (key) {
             var activo = Array.isArray(filtro[key]) ? filtro[key].length : filtro[key];
             if (activo) {
-                var texto = $(campos[key] + ' option:selected').map(function () { return $(this).text(); }).get().join(', ') || filtro[key];
+                var texto = campos[key]
+                    ? ($(campos[key] + ' option:selected').map(function () { return $(this).text(); }).get().join(', ') || filtro[key])
+                    : (filtroNombres[key] || filtro[key]);
                 html += '<span class="badge badge-primary mr-1 mb-1" style="cursor:pointer" ' +
                         'onclick="reporteExpo.limpiarFiltro(\'' + key + '\')">' +
                         etiquetas[key] + ': ' + texto + ' &times;</span>';
@@ -108,6 +113,7 @@ var reporteExpo = (function () {
 
     function limpiarFiltro(key) {
         filtro[key] = key === 'teleasesor_ids' ? [] : '';
+        delete filtroNombres[key];
         var mapId = { marca_id: 'expo-f-marca', escala_id: 'expo-f-escala', vendedor_id: 'expo-f-vendedor', teleasesor_ids: 'expo-f-teleasesor', estado: 'expo-f-estado' };
         if (mapId[key]) $('#' + mapId[key]).val(key === 'teleasesor_ids' ? [] : '').trigger('change.select2');
         recargarTodo();
@@ -327,6 +333,73 @@ var reporteExpo = (function () {
                 plotOptions: { bar: { columnWidth: '58%' } },
             });
             charts['chart-teleasesor'].render();
+        });
+    }
+
+    function opcionesTopHorizontal(elemento, rows, etiqueta, alSeleccionar) {
+        return {
+            chart: {
+                type: 'bar',
+                height: 390,
+                events: { dataPointSelection: alSeleccionar }
+            },
+            series: [
+                { name: 'Ofertado', data: rows.map(function (r) { return r.ofertado; }) },
+                { name: 'Facturado', data: rows.map(function (r) { return r.facturado; }) },
+            ],
+            xaxis: {
+                categories: rows.map(etiqueta),
+                labels: { formatter: function (v) { return 'L.' + fmtN(v); } }
+            },
+            tooltip: { shared: false, intersect: true, y: { formatter: function (v) { return fmt(v); } } },
+            dataLabels: { enabled: false },
+            colors: ['#2878a9', '#15906b'],
+            legend: { position: 'top' },
+            plotOptions: { bar: { horizontal: true, barHeight: '64%' } },
+            noData: { text: 'Sin datos para los filtros seleccionados' }
+        };
+    }
+
+    function cargarTopClientes() {
+        $.get('/reporte/expo/top-clientes', paramsActuales()).then(function (rows) {
+            destroyChart('chart-top-clientes');
+            var elemento = get('chart-top-clientes');
+            if (!elemento) return;
+
+            charts['chart-top-clientes'] = new ApexCharts(elemento, opcionesTopHorizontal(
+                elemento,
+                rows,
+                function (r) { return r.cliente; },
+                function (event, ctx, config) {
+                    var row = rows[config.dataPointIndex];
+                    if (!row || !row.cliente_id) return;
+                    var mismo = String(filtro.cliente_id) === String(row.cliente_id);
+                    filtro.cliente_id = mismo ? '' : row.cliente_id;
+                    if (mismo) delete filtroNombres.cliente_id;
+                    else filtroNombres.cliente_id = row.cliente;
+                    recargarTodo();
+                }
+            ));
+            charts['chart-top-clientes'].render();
+        });
+    }
+
+    function cargarTopProductos() {
+        $.get('/reporte/expo/top-productos', paramsActuales()).then(function (rows) {
+            destroyChart('chart-top-productos');
+            var elemento = get('chart-top-productos');
+            if (!elemento) return;
+
+            charts['chart-top-productos'] = new ApexCharts(elemento, opcionesTopHorizontal(
+                elemento,
+                rows,
+                function (r) { return r.codigo ? r.codigo + ' · ' + r.producto : r.producto; },
+                function (event, ctx, config) {
+                    var row = rows[config.dataPointIndex];
+                    if (row && row.producto_id) abrirProducto(row.producto_id, false);
+                }
+            ));
+            charts['chart-top-productos'].render();
         });
     }
 
@@ -645,6 +718,8 @@ var reporteExpo = (function () {
         cargarVentasPorMarca();
         cargarVentasPorAsesor();
         cargarVentasPorTeleasesor();
+        cargarTopClientes();
+        cargarTopProductos();
         cargarEvolucionDiaria();
         cargarTablaProductos();
         cargarTablaOfertas();
@@ -660,6 +735,8 @@ var reporteExpo = (function () {
         if (!filtro.teleasesor_ids.length && query.get('teleasesor_ids')) {
             filtro.teleasesor_ids = query.get('teleasesor_ids').split(',').filter(Boolean);
         }
+        filtro.cliente_id = query.get('cliente_id') || '';
+        if (filtro.cliente_id) filtroNombres.cliente_id = 'Cliente #' + filtro.cliente_id;
         filtro.estado = query.get('estado') || '';
         filtro.fecha_desde = query.get('fecha_desde') || '';
         filtro.fecha_hasta = query.get('fecha_hasta') || '';

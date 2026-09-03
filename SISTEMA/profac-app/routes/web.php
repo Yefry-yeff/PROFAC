@@ -1689,6 +1689,8 @@ Route::post('/reporte/ventas-cobros/actualizar-f01/{facturaId}',                
     Route::get('/reporte/expo/ventas-por-marca',   [\App\Http\Livewire\Reportes\ReporteExpo::class, 'ventasPorMarca']);
     Route::get('/reporte/expo/ventas-por-asesor',  [\App\Http\Livewire\Reportes\ReporteExpo::class, 'ventasPorAsesor']);
     Route::get('/reporte/expo/ventas-por-teleasesor', [\App\Http\Livewire\Reportes\ReporteExpo::class, 'ventasPorTeleasesor']);
+    Route::get('/reporte/expo/top-clientes',        [\App\Http\Livewire\Reportes\ReporteExpo::class, 'topClientes']);
+    Route::get('/reporte/expo/top-productos',       [\App\Http\Livewire\Reportes\ReporteExpo::class, 'topProductos']);
     Route::get('/reporte/expo/evolucion-diaria',   [\App\Http\Livewire\Reportes\ReporteExpo::class, 'evolucionDiaria']);
     Route::get('/reporte/expo/tabla-productos',    [\App\Http\Livewire\Reportes\ReporteExpo::class, 'tablaProductos']);
     Route::get('/reporte/expo/tabla-ofertas',      [\App\Http\Livewire\Reportes\ReporteExpo::class, 'tablaOfertas']);

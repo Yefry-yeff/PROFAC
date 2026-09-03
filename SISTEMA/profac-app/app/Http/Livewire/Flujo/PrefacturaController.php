@@ -953,32 +953,22 @@ class PrefacturaController
         return response()->json(['pedido_id' => $pedidoId]);
     }
 
-    private function obtenerCambiosEscalaPrefactura($productos, int $clienteId): array
+    private function obtenerCambiosEscalaPrefactura($productos): array
     {
-        $categoriaCliente = DB::table('cliente as cl')
-            ->leftJoin('categoria_precios as cp', 'cp.id', '=', 'cl.categoria_precios_id')
-            ->where('cl.id', $clienteId)
-            ->first(['cl.categoria_precios_id', 'cp.nombre as categoria_nombre']);
-
-        $categoriaActualId = (int) ($categoriaCliente->categoria_precios_id ?? 0);
-        $categoriaActualNombre = (string) ($categoriaCliente->categoria_nombre ?? 'Sin categoría');
-
         $preciosOriginales = DB::table('precios_producto_carga as ppc')
             ->leftJoin('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')
             ->whereIn('ppc.id', $productos->pluck('precios_producto_carga_id')->filter()->unique())
             ->get(['ppc.*', 'cp.nombre as categoria_nombre'])
             ->keyBy('id');
 
-        $preciosActuales = collect();
-        if ($categoriaActualId) {
-            $preciosActuales = DB::table('precios_producto_carga as ppc')
-                ->where('ppc.categoria_precios_id', $categoriaActualId)
-                ->whereIn('ppc.producto_id', $productos->pluck('producto_id')->filter()->unique())
-                ->where('ppc.estado_id', 1)
-                ->orderBy('ppc.id')
-                ->get()
-                ->keyBy('producto_id');
-        }
+        $preciosActuales = DB::table('precios_producto_carga as ppc')
+            ->leftJoin('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')
+            ->whereIn('ppc.categoria_precios_id', $preciosOriginales->pluck('categoria_precios_id')->filter()->unique())
+            ->whereIn('ppc.producto_id', $productos->pluck('producto_id')->filter()->unique())
+            ->where('ppc.estado_id', 1)
+            ->orderBy('ppc.id')
+            ->get(['ppc.*', 'cp.nombre as categoria_nombre'])
+            ->keyBy(fn ($precio) => $precio->categoria_precios_id . '|' . $precio->producto_id);
 
         $cambios = [];
         foreach ($productos as $producto) {
@@ -992,7 +982,10 @@ class PrefacturaController
             };
 
             $precioOriginal = $preciosOriginales->get((int) $producto->precios_producto_carga_id);
-            $precioActual = $preciosActuales->get((int) $producto->producto_id);
+            $clavePrecio = $precioOriginal
+                ? $precioOriginal->categoria_precios_id . '|' . $producto->producto_id
+                : null;
+            $precioActual = $clavePrecio ? $preciosActuales->get($clavePrecio) : null;
             $precioEscalaActual = $precioActual
                 ? (float) ($precioActual->{$columnaPrecio} ?? 0)
                 : null;
@@ -1008,7 +1001,7 @@ class PrefacturaController
                 $cambios[] = [
                     'nombre_producto'   => (string) ($producto->nombre_producto ?? 'Producto sin nombre'),
                     'categoria_anterior' => (string) ($precioOriginal->categoria_nombre ?? 'Sin categoría'),
-                    'categoria_actual'  => $categoriaActualNombre,
+                    'categoria_actual'  => (string) ($precioActual->categoria_nombre ?? $precioOriginal->categoria_nombre ?? 'Sin categoría'),
                     'escala'            => $escala,
                     'precio_anterior'   => round($precioFactura, 2),
                     'precio_actual'     => $precioEscalaActual === null ? null : round($precioEscalaActual, 2),
@@ -1161,7 +1154,7 @@ class PrefacturaController
         }
 
         if (!$esOfertaExpo) {
-            $cambiosEscala = $this->obtenerCambiosEscalaPrefactura($productos, $clienteId);
+            $cambiosEscala = $this->obtenerCambiosEscalaPrefactura($productos);
             if (!empty($cambiosEscala)) {
                 return $this->respuestaCambiosEscalaPrefactura($cambiosEscala);
             }
