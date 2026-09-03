@@ -1205,6 +1205,50 @@ a.btn.btn-pf-primary:hover {
     </div>
 </div>
 
+<div class="modal fade" id="modalHistorialPrecioProducto" tabindex="-1" role="dialog" aria-labelledby="tituloHistorialPrecioProducto" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header" style="background:var(--pf-grad);color:#fff;">
+                <div>
+                    <small style="color:rgba(255,255,255,.82);">Histórico de precios base y escalas</small>
+                    <h6 class="modal-title mb-0" id="tituloHistorialPrecioProducto">Producto</h6>
+                </div>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Cerrar"><span aria-hidden="true">&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <div id="historialPrecioResumen" class="mb-3"></div>
+                <div id="historialPrecioCargando" class="text-center py-5">
+                    <div class="spinner-border text-warning" role="status"><span class="sr-only">Cargando...</span></div>
+                    <div class="mt-2 text-muted small">Cargando histórico...</div>
+                </div>
+                <div id="historialPrecioContenido" class="table-responsive" style="display:none;">
+                    <table class="table table-sm table-hover mb-0" id="tablaHistorialPrecioProducto">
+                        <thead>
+                            <tr>
+                                <th>Versión</th>
+                                <th>Fecha de registro</th>
+                                <th>Última actualización</th>
+                                <th class="text-right">Precio Base</th>
+                                <th class="text-right historial-col-a">A</th>
+                                <th class="text-right historial-col-b">B</th>
+                                <th class="text-right historial-col-c">C</th>
+                                <th class="text-right historial-col-d">D</th>
+                                <th>Usuario</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div id="historialPrecioError" class="alert alert-danger mb-0" style="display:none;"></div>
+            </div>
+            <div class="modal-footer">
+                <small class="text-muted mr-auto">El porcentaje efectivo se calcula a partir del precio base y el valor guardado en cada versión.</small>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <x-buscador-producto
     id-modal="buscadorProductoPrecio"
     callback="seleccionarProductoParaPrecio"
@@ -1296,6 +1340,47 @@ a.btn.btn-pf-primary:hover {
 .btn-editor-save:disabled { opacity: .6; cursor: not-allowed; }
 #tbl_editor_precios tbody tr.row-saved { background: #eafaf1 !important; transition: background .5s; }
 #tbl_editor_precios td { vertical-align: middle; padding: 5px 8px; font-size: .82rem; }
+.editor-product-history {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: #1f5f8b;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 600;
+    padding: 0;
+    text-align: left;
+}
+.editor-product-history:hover { color: #d35400; text-decoration: underline; }
+.editor-product-history:focus { outline: 2px solid rgba(230,126,34,.35); outline-offset: 2px; }
+#modalHistorialPrecioProducto { z-index: 4010 !important; }
+#modalHistorialPrecioProducto .modal-dialog {
+    max-width: 1180px;
+    width: calc(100vw - 40px);
+}
+#modalHistorialPrecioProducto .modal-body { max-height: 72vh; overflow-y: auto; }
+#tablaHistorialPrecioProducto { min-width: 980px; }
+#tablaHistorialPrecioProducto thead th {
+    background: #f8f0e6;
+    border-bottom: 2px solid #edc896;
+    color: #6f4309;
+    font-size: .72rem;
+    padding: 8px;
+    position: sticky;
+    top: 0;
+    white-space: nowrap;
+    z-index: 2;
+}
+#tablaHistorialPrecioProducto td { font-size: .78rem; padding: 8px; vertical-align: middle; }
+#tablaHistorialPrecioProducto .historial-precio-valor { display: block; font-size: .88rem; font-weight: 700; white-space: nowrap; }
+#tablaHistorialPrecioProducto .historial-precio-porc { display: block; font-size: .68rem; white-space: nowrap; }
+#tablaHistorialPrecioProducto .historial-col-a { color: #2471a3; }
+#tablaHistorialPrecioProducto .historial-col-b { color: #1e8449; }
+#tablaHistorialPrecioProducto .historial-col-c { color: #c0392b; }
+#tablaHistorialPrecioProducto .historial-col-d { color: #7d3c98; }
+@media (max-width: 767px) {
+    #modalHistorialPrecioProducto .modal-dialog { margin: 8px; width: calc(100vw - 16px); }
+}
 </style>
 
 
@@ -2530,7 +2615,11 @@ a.btn.btn-pf-primary:hover {
                 'data-porc-d': row.porc_precio_d
             });
             tr.append($('<td>').text(row.codigo).css({ color: '#999', fontSize: '.72rem', whiteSpace:'nowrap' }));
-            tr.append($('<td>').text(row.nombre));
+            var nombreProducto = $('<button type="button" class="editor-product-history">')
+                .text(row.nombre)
+                .attr('title', 'Ver histórico de precios')
+                .on('click', function() { abrirHistorialPrecioProducto(row.id); });
+            tr.append($('<td>').append(nombreProducto));
 
             var inputBase = $('<input>').attr({
                 type: 'number', step: '0.01', min: '0.01',
@@ -2559,6 +2648,74 @@ a.btn.btn-pf-primary:hover {
             tr.append($('<td class="text-center" style="white-space:nowrap;">').append(btnSave, btnDelete));
             tbody.append(tr);
         });
+    }
+
+    window.abrirHistorialPrecioProducto = function(precioId) {
+        $('#tituloHistorialPrecioProducto').text('Histórico del producto');
+        $('#historialPrecioResumen').empty();
+        $('#tablaHistorialPrecioProducto tbody').empty();
+        $('#historialPrecioContenido, #historialPrecioError').hide();
+        $('#historialPrecioCargando').show();
+        $('#modalHistorialPrecioProducto').modal('show');
+
+        $.get('/precios/producto/historial', { precio_id: precioId })
+            .done(function(res) {
+                $('#tituloHistorialPrecioProducto').text(res.producto);
+                $('#historialPrecioResumen').html(
+                    '<div class="d-flex flex-wrap align-items-center" style="gap:8px;">' +
+                    '<span class="badge badge-light border px-2 py-1">Código: <strong>' + res.producto_id + '</strong></span>' +
+                    '<span class="badge badge-light border px-2 py-1">Categoría: <strong>' + _escaparHtml(res.categoria) + '</strong></span>' +
+                    '<span class="badge badge-light border px-2 py-1">Versiones: <strong>' + res.total + '</strong></span>' +
+                    '</div>'
+                );
+
+                var tbody = $('#tablaHistorialPrecioProducto tbody').empty();
+                $.each(res.historial || [], function(index, item) {
+                    var estado = item.vigente
+                        ? '<span class="badge badge-success">Vigente</span>'
+                        : '<span class="badge badge-secondary">Histórico</span>';
+                    var celdaNivel = function(nivel, clase) {
+                        return '<td class="text-right ' + clase + '">' +
+                            '<span class="historial-precio-valor">L. ' + _formatoPrecioHistorial(nivel.valor) + '</span>' +
+                            '<span class="historial-precio-porc">' + _formatoPorcentajeHistorial(nivel.porcentaje) + '%</span></td>';
+                    };
+                    tbody.append('<tr>' +
+                        '<td><strong>#' + item.id + '</strong><br>' + estado + '</td>' +
+                        '<td style="white-space:nowrap;">' + _formatoFechaHistorial(item.fecha_registro) + '</td>' +
+                        '<td style="white-space:nowrap;">' + _formatoFechaHistorial(item.fecha_actualizacion) + '</td>' +
+                        '<td class="text-right"><span class="historial-precio-valor">L. ' + _formatoPrecioHistorial(item.precio_base) + '</span></td>' +
+                        celdaNivel(item.a, 'historial-col-a') +
+                        celdaNivel(item.b, 'historial-col-b') +
+                        celdaNivel(item.c, 'historial-col-c') +
+                        celdaNivel(item.d, 'historial-col-d') +
+                        '<td>' + _escaparHtml(item.usuario) + '</td>' +
+                        '</tr>');
+                });
+
+                $('#historialPrecioCargando').hide();
+                $('#historialPrecioContenido').show();
+            })
+            .fail(function(xhr) {
+                $('#historialPrecioCargando').hide();
+                $('#historialPrecioError')
+                    .text(xhr.responseJSON?.error || 'No se pudo cargar el histórico de precios.')
+                    .show();
+            });
+    };
+
+    function _formatoPrecioHistorial(valor) {
+        return (parseFloat(valor) || 0).toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function _formatoPorcentajeHistorial(valor) {
+        return (parseFloat(valor) || 0).toLocaleString('es-HN', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    }
+
+    function _formatoFechaHistorial(valor) {
+        if (!valor) return 'Sin registro';
+        var fecha = new Date(String(valor).replace(' ', 'T'));
+        if (isNaN(fecha.getTime())) return _escaparHtml(valor);
+        return fecha.toLocaleString('es-HN', { dateStyle: 'short', timeStyle: 'short' });
     }
 
     window.abrirAgregarProductoPrecio = function() {

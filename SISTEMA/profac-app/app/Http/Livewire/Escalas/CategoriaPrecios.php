@@ -488,6 +488,79 @@ class CategoriaPrecios extends Component
             }
         }
 
+        public function historialPrecioProducto(Request $request)
+        {
+            $precioId = (int) $request->precio_id;
+            if (!$precioId) {
+                return response()->json(['error' => 'Precio requerido'], 422);
+            }
+
+            $referencia = DB::table('precios_producto_carga as ppc')
+                ->join('producto as prod', 'prod.id', '=', 'ppc.producto_id')
+                ->join('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')
+                ->where('ppc.id', $precioId)
+                ->first([
+                    'ppc.producto_id',
+                    'ppc.categoria_precios_id',
+                    'prod.nombre as producto',
+                    'cp.nombre as categoria',
+                ]);
+
+            if (!$referencia) {
+                return response()->json(['error' => 'El precio seleccionado ya no existe.'], 404);
+            }
+
+            $historial = DB::table('precios_producto_carga as ppc')
+                ->leftJoin('users as creador', 'creador.id', '=', 'ppc.users_id_creador')
+                ->leftJoin('users as actualizador', 'actualizador.id', '=', 'ppc.users_id_actualizador')
+                ->where('ppc.producto_id', $referencia->producto_id)
+                ->where('ppc.categoria_precios_id', $referencia->categoria_precios_id)
+                ->orderByDesc('ppc.id')
+                ->get([
+                    'ppc.id',
+                    'ppc.estado_id',
+                    'ppc.precio_base_venta',
+                    'ppc.precio_a',
+                    'ppc.precio_b',
+                    'ppc.precio_c',
+                    'ppc.precio_d',
+                    'ppc.created_at',
+                    'ppc.fecha_ultima_actualizacion',
+                    DB::raw("COALESCE(actualizador.name, creador.name, 'Sin registro') as usuario"),
+                ])
+                ->map(function ($registro) {
+                    $base = (float) $registro->precio_base_venta;
+                    $nivel = function ($valor) use ($base) {
+                        $precio = (float) $valor;
+                        return [
+                            'porcentaje' => $base > 0 ? round((($precio / $base) - 1) * 100, 2) : 0,
+                            'valor' => round($precio, 2),
+                        ];
+                    };
+
+                    return [
+                        'id' => (int) $registro->id,
+                        'vigente' => (int) $registro->estado_id === 1,
+                        'precio_base' => round($base, 2),
+                        'a' => $nivel($registro->precio_a),
+                        'b' => $nivel($registro->precio_b),
+                        'c' => $nivel($registro->precio_c),
+                        'd' => $nivel($registro->precio_d),
+                        'usuario' => $registro->usuario,
+                        'fecha_registro' => $registro->created_at,
+                        'fecha_actualizacion' => $registro->fecha_ultima_actualizacion,
+                    ];
+                })->values();
+
+            return response()->json([
+                'producto_id' => (int) $referencia->producto_id,
+                'producto' => $referencia->producto,
+                'categoria' => $referencia->categoria,
+                'total' => $historial->count(),
+                'historial' => $historial,
+            ]);
+        }
+
         public function agregarProductoPrecio(Request $request)
         {
             $categoriaId = (int) $request->categoria_id;
