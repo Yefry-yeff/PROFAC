@@ -2181,6 +2181,8 @@
     var ventaTemporalRevision = 0;
     var esDuplicandoOferta = {!! $duplicandoOferta ? 'true' : 'false' !!};
     var esContinuandoOfertaExpo = {!! $continuandoOfertaExpo ? 'true' : 'false' !!};
+    var lineasOfertaContinuadaEsperadas = {!! $continuandoOfertaExpo ? count($productosParaCarrito ?? []) : 0 !!};
+    var ofertaContinuadaCargadaCompleta = false;
     var esFacturacionExpoDesdePrefactura = esOfertaExpo
         && {!! $fromPrefactura ? 'true' : 'false' !!}
         && !esDuplicandoOferta
@@ -2250,7 +2252,12 @@
             controles: obtenerControlesTemporal(),
             carrito_html: carrito ? carrito.innerHTML : '',
             numero_inputs: numeroInputs,
-            arreglo_id_inputs: arregloIdInputs.slice()
+            arreglo_id_inputs: arregloIdInputs.slice(),
+            cotizacion_origen_id: esContinuandoOfertaExpo
+                ? Number(new URLSearchParams(window.location.search).get('cotizacionId') || 0)
+                : null,
+            lineas_oferta_origen: esContinuandoOfertaExpo ? lineasOfertaContinuadaEsperadas : null,
+            oferta_origen_cargada: esContinuandoOfertaExpo ? ofertaContinuadaCargadaCompleta : null
         };
     }
 
@@ -2481,6 +2488,34 @@
         });
     }
 
+    function temporalContinuacionIncompleto(instantanea) {
+        if (!esContinuandoOfertaExpo || lineasOfertaContinuadaEsperadas <= 0) return false;
+        var cotizacionActual = Number(new URLSearchParams(window.location.search).get('cotizacionId') || 0);
+        if (instantanea.oferta_origen_cargada === true
+            && Number(instantanea.cotizacion_origen_id || 0) === cotizacionActual
+            && Number(instantanea.lineas_oferta_origen || 0) === lineasOfertaContinuadaEsperadas) {
+            ofertaContinuadaCargadaCompleta = true;
+            return false;
+        }
+        var lineasGuardadas = Array.isArray(instantanea.arreglo_id_inputs)
+            ? instantanea.arreglo_id_inputs.length
+            : 0;
+        var incompleto = lineasGuardadas !== lineasOfertaContinuadaEsperadas;
+        if (!incompleto) ofertaContinuadaCargadaCompleta = true;
+        return incompleto;
+    }
+
+    function recargarOfertaContinuadaCompleta(temporalId) {
+        return axios.delete('/ventas/temporales/' + temporalId).catch(function() {
+            return null;
+        }).finally(function() {
+            ventaTemporalId = null;
+            var url = new URL(window.location.href);
+            url.searchParams.delete('temporal_id');
+            window.location.replace(url.toString());
+        });
+    }
+
     function escaparHtmlTemporal(texto) {
         var elemento = document.createElement('div');
         elemento.textContent = texto || '';
@@ -2678,6 +2713,9 @@
             var temporal = response.data.data;
             if (temporal.tipo !== ventaTemporalTipo) {
                 throw new Error('El registro temporal no corresponde al formulario actual.');
+            }
+            if (temporalContinuacionIncompleto(temporal.contenido || {})) {
+                return recargarOfertaContinuadaCompleta(temporal.id);
             }
             var cambioTipoFactura = temporal.codigo_tipo !== codigoActual;
             return restaurarVentaTemporal(temporal.contenido || {}).then(function() {
@@ -4536,7 +4574,7 @@
 
     function calcularDescuentosCarritoExpo() {
         if (!expoConfig) return null;
-        var usarReglasFirmadas = esOfertaExpo && !filtrarProductosExpo;
+        var usarReglasFirmadas = esOfertaExpo && (!filtrarProductosExpo || esContinuandoOfertaExpo);
         var configuracion = usarReglasFirmadas ? reglasExpoOferta : expoConfig;
         var versionReglas = usarReglasFirmadas ? Number(configuracion.version || 2) : 5;
         var usarEscalas = !usarReglasFirmadas || configuracion.tipo === 'escala' || versionReglas >= 5;
@@ -6466,6 +6504,9 @@
                 normalizarFilasCarritoExpo();
                 calcularTotalesInicioPagina();
                 actualizarContadorCarrito();
+                if (esContinuandoOfertaExpo && arregloIdInputs.length === lineasOfertaContinuadaEsperadas) {
+                    ofertaContinuadaCargadaCompleta = true;
+                }
                 return actualizarStocksDisponiblesExpo();
             }).then(function () {
                 _cargaInicialEnLote = false;

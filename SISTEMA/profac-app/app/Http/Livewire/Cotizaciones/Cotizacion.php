@@ -534,6 +534,16 @@ class Cotizacion extends Component
                         ->first(['ppc.id', 'ppc.precio_a', 'cp.nombre as categoria'])
                     : null;
 
+                if (!$precioActivo && $productoId > 0 && !empty($expoConfig['escalas'])) {
+                    $precioActivo = DB::table('precios_producto_carga as ppc')
+                        ->leftJoin('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')
+                        ->where('ppc.producto_id', $productoId)
+                        ->whereIn('ppc.categoria_precios_id', $expoConfig['escalas'])
+                        ->where('ppc.estado_id', 1)
+                        ->orderByDesc('ppc.id')
+                        ->first(['ppc.id', 'ppc.precio_a', 'ppc.categoria_precios_id', 'cp.nombre as categoria']);
+                }
+
                 if (!$precioActivo) {
                     $productosSinEscala[] = (string) $request->input('nombre' . $indice, 'Producto ID ' . $productoId);
                     continue;
@@ -548,7 +558,7 @@ class Cotizacion extends Component
                         'precio_nuevo' => $precioNuevo,
                         'precio_carga_id' => (int) $precioActivo->id,
                         'categoria_anterior' => (string) (DB::table('categoria_precios')
-                            ->where('id', (int) $referencia->categoria_precios_id)
+                            ->where('id', (int) ($referencia->categoria_precios_id ?? 0))
                             ->value('nombre') ?? 'Escala anterior'),
                         'categoria' => $precioActivo->categoria ?? 'Escala vigente',
                         'accion' => 'cargar',
