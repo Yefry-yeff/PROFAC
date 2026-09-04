@@ -4663,7 +4663,7 @@
             var descuentoGeneral = redondearMoneda((datos.importe - descuentoMarca) * porcentajeGeneral / 100);
             var descuentoTotal = redondearMoneda(descuentoMarca + descuentoGeneral);
 
-            if (usarReglasFirmadas) {
+            if (usarReglasFirmadas && datos.descuentoFirmado > 0) {
                 var proporcionCantidad = datos.cantidadOfertada > 0
                     ? Math.min(Math.max(datos.cantidad / datos.cantidadOfertada, 0), 1)
                     : 0;
