@@ -163,6 +163,54 @@ class ListaDeAsistencia extends Component
         $this->clienteDescuentoId = null;
     }
 
+    public function actualizarMaximoGeneral(int $clienteId, bool $activo): void
+    {
+        $expo = $this->expoActivaSeleccionada();
+        $asistencia = DB::table('expo_asistencia')
+            ->where('expo_id', $expo->id)
+            ->where('cliente_id', $clienteId)
+            ->first(['id']);
+        abort_unless($asistencia, 404, 'El cliente no está registrado en esta Expo.');
+
+        $escalaIds = DB::table('expo_descuento_escala')
+            ->where('expo_id', $expo->id)
+            ->distinct()
+            ->pluck('escala_id');
+        abort_if($escalaIds->isEmpty(), 422, 'La Expo no tiene descuentos por categoría configurados.');
+
+        DB::transaction(function () use ($asistencia, $escalaIds, $activo) {
+            DB::table('expo_asistencia')->where('id', $asistencia->id)->update([
+                'descuento_modo' => 'automatico',
+                'descuento_escalon' => null,
+                'descuento_asignado_por' => null,
+                'descuento_asignado_at' => null,
+                'updated_at' => now(),
+            ]);
+
+            DB::table('expo_asistencia_descuento_escala')
+                ->where('expo_asistencia_id', $asistencia->id)
+                ->delete();
+
+            if ($activo) {
+                DB::table('expo_asistencia_descuento_escala')->insert(
+                    $escalaIds->map(fn ($escalaId) => [
+                        'expo_asistencia_id' => $asistencia->id,
+                        'escala_id' => (int) $escalaId,
+                        'descuento_modo' => 'maximo',
+                        'descuento_escalon' => null,
+                        'asignado_por' => Auth::id(),
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ])->all()
+                );
+            }
+        });
+
+        session()->flash('success', $activo
+            ? 'Se asignó el descuento máximo en todas las categorías de precio.'
+            : 'Todas las categorías volvieron al cálculo automático.');
+    }
+
     public function actualizarDescuentoEscala(int $clienteId, int $escalaId, string $seleccion): void
     {
         $expo = $this->expoActivaSeleccionada();

@@ -81,6 +81,10 @@
         .attendance-modal-head small { color:rgba(255,255,255,.84); }
         .attendance-modal-close { width:31px; height:31px; flex:0 0 31px; padding:0; border:1px solid rgba(255,255,255,.45); border-radius:6px; background:transparent; color:#fff; }
         .attendance-modal-body { max-height:calc(100vh - 155px); overflow:auto; padding:4px 18px; }
+        .attendance-general-max { display:flex; align-items:center; justify-content:space-between; gap:18px; margin:14px 0 4px; padding:12px 14px; border:1px solid #f2c37d; border-radius:7px; background:#fff8ed; }
+        .attendance-general-max strong { display:block; color:#7d3f00; font-size:12px; }
+        .attendance-general-max small { display:block; margin-top:2px; color:#7b6a5c; font-size:9px; }
+        .attendance-general-toggle { width:20px; height:20px; flex:0 0 20px; cursor:pointer; accent-color:var(--attendance-orange); }
         .attendance-category-row { display:grid; grid-template-columns:minmax(180px,240px) 1fr; gap:18px; padding:14px 0; border-bottom:1px solid #edf1f3; }
         .attendance-category-row:last-child { border-bottom:0; }
         .attendance-category-name { color:var(--attendance-ink); font-size:12px; font-weight:800; }
@@ -292,6 +296,19 @@
                                     <button type="button" wire:click="cerrarDescuentos" class="attendance-modal-close" title="Cerrar" aria-label="Cerrar"><i class="fa fa-times"></i></button>
                                 </div>
                                 <div class="attendance-modal-body">
+                                    @php
+                                        $todasCategoriasEnMaximo = $categoriasDescuento->isNotEmpty()
+                                            && $categoriasDescuento->every(function ($categoria) use ($clienteDescuento) {
+                                                return ($clienteDescuento->descuentos_escala[$categoria->id]['descuento_modo'] ?? null) === 'maximo';
+                                            });
+                                    @endphp
+                                    <label class="attendance-general-max" for="maximo-general-{{ $clienteDescuento->id }}">
+                                        <span>
+                                            <strong>Dar el máximo descuento en todas las categorías</strong>
+                                            <small>Al marcar esta opción, cada categoría utilizará automáticamente su escalón máximo.</small>
+                                        </span>
+                                        <input id="maximo-general-{{ $clienteDescuento->id }}" type="checkbox" wire:change="actualizarMaximoGeneral({{ $clienteDescuento->id }}, $event.target.checked)" class="attendance-general-toggle" @checked($todasCategoriasEnMaximo)>
+                                    </label>
                                     @forelse($categoriasDescuento as $categoria)
                                         @php
                                             $descuentoCategoria = $clienteDescuento->descuentos_escala[$categoria->id] ?? null;
