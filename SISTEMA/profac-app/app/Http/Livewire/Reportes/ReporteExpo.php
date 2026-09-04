@@ -41,14 +41,14 @@ class ReporteExpo extends Component
      *
      *   - 4508, 4476  -> duplicados; se conserva 4487 (oferta vigente 40865)
      *   - 4504        -> duplicado; se conserva 4489 (oferta vigente 40856)
-     *   - 4493        -> duplicado; se conserva 4497 (oferta vigente 40837)
+    *   - 4497        -> duplicado; se conserva 4493 (oferta vigente 40844)
      *   - 4485        -> duplicado; se conserva 4498 (oferta vigente 40834)
      *   - 4490        -> caso normal, sin duplicado (oferta vigente 40862)
      *
      * Validado contra la base de datos y confirmado con el usuario el
-     * 2026-09-02 (el caso de 4485/4498 se corrigió: se conserva 4498).
+    * 2026-09-04 (se corrigió el caso de 4493/4497: se conserva 4493).
      */
-    private const FLUJOS_EXCLUIDOS_DUPLICADOS = [4508, 4476, 4504, 4493, 4485];
+    private const FLUJOS_EXCLUIDOS_DUPLICADOS = [4508, 4476, 4504, 4497, 4485];
 
     private const ESTADOS_VALIDOS = [
         'PENDIENTE_FACTURACION',
