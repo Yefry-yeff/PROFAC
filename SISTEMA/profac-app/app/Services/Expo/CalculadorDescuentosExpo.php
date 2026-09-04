@@ -34,11 +34,19 @@ class CalculadorDescuentosExpo
         }
 
         $version = (int) ($reglas['version'] ?? 4);
+        $porcentajesForzados = $this->porcentajesForzados(
+            array_keys($subtotalesMarca),
+            $reglas['marcas'] ?? [],
+            $reglas['descuentos_forzados'] ?? [],
+            (string) ($reglas['descuento_modo'] ?? 'automatico'),
+            (int) ($reglas['descuento_escalon'] ?? 0)
+        );
         if ($version >= 4) {
             [$porcentajeGeneral, $porcentajesMarca] = $this->resolverEscalonesNetos(
                 $lineas,
                 array_keys($subtotalesMarca),
-                $reglas
+                $reglas,
+                $porcentajesForzados
             );
         } else {
             $porcentajeGeneral = $this->porcentajeAlcanzado($totalBruto, $reglas['generales'] ?? []);
@@ -51,6 +59,7 @@ class CalculadorDescuentosExpo
                 $baseEscalonMarca = $version >= 3 ? $totalBruto : $subtotal;
                 $porcentajesMarca[$marcaId] = $this->porcentajeAlcanzado($baseEscalonMarca, $reglasMarca);
             }
+            $porcentajesMarca = array_replace($porcentajesMarca, $porcentajesForzados);
         }
 
         $descuentoMarca = 0.0;
@@ -127,12 +136,67 @@ class CalculadorDescuentosExpo
         return $alcanzada['porcentaje'] ?? 0.0;
     }
 
+    /** @return array<int, float> */
+    private function porcentajesForzados(
+        array $marcaIds,
+        array $reglas,
+        array $descuentosForzados,
+        string $modoGlobal,
+        int $escalonGlobal
+    ): array
+    {
+        if (in_array($modoGlobal, ['escalon', 'maximo'], true)) {
+            foreach ($marcaIds as $marcaId) {
+                $descuentosForzados[$marcaId] = [
+                    'descuento_modo' => $modoGlobal,
+                    'descuento_escalon' => $escalonGlobal,
+                ];
+            }
+        }
+
+        $porcentajes = [];
+        foreach ($marcaIds as $marcaId) {
+            $seleccion = $descuentosForzados[$marcaId] ?? $descuentosForzados[(string) $marcaId] ?? [];
+            $modo = (string) ($seleccion['descuento_modo'] ?? 'automatico');
+            $escalon = (int) ($seleccion['descuento_escalon'] ?? 0);
+            if (!in_array($modo, ['escalon', 'maximo'], true)) {
+                continue;
+            }
+
+            $reglasMarca = array_values(array_filter(
+                $reglas,
+                fn (array $regla) => (int) ($regla['marca_id'] ?? 0) === $marcaId
+            ));
+            usort($reglasMarca, fn (array $primera, array $segunda) =>
+                [(float) ($primera['venta_minima'] ?? 0), (int) ($primera['orden'] ?? 0)]
+                <=> [(float) ($segunda['venta_minima'] ?? 0), (int) ($segunda['orden'] ?? 0)]
+            );
+
+            if (!$reglasMarca) {
+                $porcentajes[$marcaId] = 0.0;
+                continue;
+            }
+
+            $indice = $modo === 'maximo'
+                ? count($reglasMarca) - 1
+                : min(max($escalon, 1) - 1, count($reglasMarca) - 1);
+            $porcentajes[$marcaId] = (float) ($reglasMarca[$indice]['porcentaje_descuento'] ?? 0);
+        }
+
+        return $porcentajes;
+    }
+
     /**
      * @param array<int, array{marca_id:int, subtotal_bruto:float}> $lineas
      * @param array<int, int> $marcaIds
      * @return array{0:float, 1:array<int, float>}
      */
-    private function resolverEscalonesNetos(array $lineas, array $marcaIds, array $reglas): array
+    private function resolverEscalonesNetos(
+        array $lineas,
+        array $marcaIds,
+        array $reglas,
+        array $porcentajesForzados = []
+    ): array
     {
         $reglasGenerales = $reglas['generales'] ?? [];
         $reglasPorMarca = [];
@@ -148,6 +212,10 @@ class CalculadorDescuentosExpo
             $candidatos[] = (float) ($regla['venta_minima'] ?? 0);
         }
         foreach ($reglasPorMarca as $reglasMarca) {
+            $marcaId = (int) ($reglasMarca[0]['marca_id'] ?? 0);
+            if (array_key_exists($marcaId, $porcentajesForzados)) {
+                continue;
+            }
             foreach ($reglasMarca as $regla) {
                 $candidatos[] = (float) ($regla['venta_minima'] ?? 0);
             }
@@ -161,10 +229,9 @@ class CalculadorDescuentosExpo
             $subtotalNeto = 0.0;
 
             foreach ($marcaIds as $marcaId) {
-                $porcentajesMarca[$marcaId] = $this->porcentajeAlcanzado(
-                    $baseEscalon,
-                    $reglasPorMarca[$marcaId]
-                );
+                $porcentajesMarca[$marcaId] = array_key_exists($marcaId, $porcentajesForzados)
+                    ? $porcentajesForzados[$marcaId]
+                    : $this->porcentajeAlcanzado($baseEscalon, $reglasPorMarca[$marcaId]);
             }
             foreach ($lineas as $linea) {
                 $subtotal = (float) $linea['subtotal_bruto'];

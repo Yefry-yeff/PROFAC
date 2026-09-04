@@ -2181,6 +2181,8 @@
     var ventaTemporalRevision = 0;
     var esDuplicandoOferta = {!! $duplicandoOferta ? 'true' : 'false' !!};
     var esContinuandoOfertaExpo = {!! $continuandoOfertaExpo ? 'true' : 'false' !!};
+    var lineasOfertaContinuadaEsperadas = {!! $continuandoOfertaExpo ? count($productosParaCarrito ?? []) : 0 !!};
+    var ofertaContinuadaCargadaCompleta = false;
     var esFacturacionExpoDesdePrefactura = esOfertaExpo
         && {!! $fromPrefactura ? 'true' : 'false' !!}
         && !esDuplicandoOferta
@@ -2250,7 +2252,12 @@
             controles: obtenerControlesTemporal(),
             carrito_html: carrito ? carrito.innerHTML : '',
             numero_inputs: numeroInputs,
-            arreglo_id_inputs: arregloIdInputs.slice()
+            arreglo_id_inputs: arregloIdInputs.slice(),
+            cotizacion_origen_id: esContinuandoOfertaExpo
+                ? Number(new URLSearchParams(window.location.search).get('cotizacionId') || 0)
+                : null,
+            lineas_oferta_origen: esContinuandoOfertaExpo ? lineasOfertaContinuadaEsperadas : null,
+            oferta_origen_cargada: esContinuandoOfertaExpo ? ofertaContinuadaCargadaCompleta : null
         };
     }
 
@@ -2481,6 +2488,34 @@
         });
     }
 
+    function temporalContinuacionIncompleto(instantanea) {
+        if (!esContinuandoOfertaExpo || lineasOfertaContinuadaEsperadas <= 0) return false;
+        var cotizacionActual = Number(new URLSearchParams(window.location.search).get('cotizacionId') || 0);
+        if (instantanea.oferta_origen_cargada === true
+            && Number(instantanea.cotizacion_origen_id || 0) === cotizacionActual
+            && Number(instantanea.lineas_oferta_origen || 0) === lineasOfertaContinuadaEsperadas) {
+            ofertaContinuadaCargadaCompleta = true;
+            return false;
+        }
+        var lineasGuardadas = Array.isArray(instantanea.arreglo_id_inputs)
+            ? instantanea.arreglo_id_inputs.length
+            : 0;
+        var incompleto = lineasGuardadas !== lineasOfertaContinuadaEsperadas;
+        if (!incompleto) ofertaContinuadaCargadaCompleta = true;
+        return incompleto;
+    }
+
+    function recargarOfertaContinuadaCompleta(temporalId) {
+        return axios.delete('/ventas/temporales/' + temporalId).catch(function() {
+            return null;
+        }).finally(function() {
+            ventaTemporalId = null;
+            var url = new URL(window.location.href);
+            url.searchParams.delete('temporal_id');
+            window.location.replace(url.toString());
+        });
+    }
+
     function escaparHtmlTemporal(texto) {
         var elemento = document.createElement('div');
         elemento.textContent = texto || '';
@@ -2678,6 +2713,9 @@
             var temporal = response.data.data;
             if (temporal.tipo !== ventaTemporalTipo) {
                 throw new Error('El registro temporal no corresponde al formulario actual.');
+            }
+            if (temporalContinuacionIncompleto(temporal.contenido || {})) {
+                return recargarOfertaContinuadaCompleta(temporal.id);
             }
             var cambioTipoFactura = temporal.codigo_tipo !== codigoActual;
             return restaurarVentaTemporal(temporal.contenido || {}).then(function() {
@@ -4228,6 +4266,7 @@
             var generales = Array.isArray(expoConfig?.descuentos) ? expoConfig.descuentos : [];
             var clienteExpoId = Number(document.getElementById('seleccionarCliente')?.value || 0);
             var asistentesExpo = Array.isArray(expoConfig?.clientes_asistentes) ? expoConfig.clientes_asistentes.map(Number) : [];
+            var descuentoEspecial = expoConfig?.descuentos_clientes?.[clienteExpoId] || {};
             var reglasMarcaElegibles = (Array.isArray(expoConfig?.descuentos_escala) ? expoConfig.descuentos_escala : [])
                 .filter(function(regla) {
                     return !regla.requiere_asistencia || asistentesExpo.includes(clienteExpoId);
@@ -4253,7 +4292,8 @@
                 porcentajeIsv: porcentajeIsv,
                 marcaId: Number(categoriaId || 0),
                 generales: generales,
-                reglasMarca: reglasMarcaProducto
+                reglasMarca: reglasMarcaProducto,
+                descuentoEspecial: descuentoEspecial
             };
 
             var filas = umbrales.map(function(umbral, indice) {
@@ -4310,7 +4350,7 @@
                 marcaId: datosCalculoCotizadorExpo.marcaId,
                 importe: compra
             }
-        }, datosCalculoCotizadorExpo.reglasMarca, datosCalculoCotizadorExpo.generales);
+        }, datosCalculoCotizadorExpo.reglasMarca, datosCalculoCotizadorExpo.generales, datosCalculoCotizadorExpo.descuentoEspecial);
         var porcentajeMarca = Number(escalones.porcentajesMarca[datosCalculoCotizadorExpo.marcaId] || 0);
         var porcentajeGeneral = Number(escalones.porcentajeGeneral || 0);
 
@@ -4467,14 +4507,43 @@
         }, null) || 0;
     }
 
-    function resolverEscalonesNetosExpo(importes, reglasMarca, reglasGenerales) {
+    function resolverEscalonesNetosExpo(importes, reglasMarca, reglasGenerales, descuentoEspecial) {
         var valores = Object.values(importes);
         var marcaIds = Array.from(new Set(valores.map(function(datos) { return datos.marcaId; })));
+        var porcentajesForzados = {};
+        var modoGlobal = descuentoEspecial?.descuento_modo || 'automatico';
+        marcaIds.forEach(function(marcaId) {
+            var seleccion = modoGlobal === 'escalon' || modoGlobal === 'maximo'
+                ? descuentoEspecial
+                : (descuentoEspecial?.[marcaId] || {});
+            var modo = seleccion.descuento_modo || 'automatico';
+            if (modo !== 'escalon' && modo !== 'maximo') return;
+
+            var niveles = (reglasMarca || []).filter(function(regla) {
+                return Number(regla.marca_id) === marcaId;
+            }).sort(function(primera, segunda) {
+                return Number(primera.venta_minima || 0) - Number(segunda.venta_minima || 0)
+                    || Number(primera.orden || 0) - Number(segunda.orden || 0);
+            });
+            if (!niveles.length) {
+                porcentajesForzados[marcaId] = 0;
+                return;
+            }
+            var nivelSolicitado = Math.max(Number(seleccion.descuento_escalon || 1), 1);
+            var indiceNivel = modo === 'maximo'
+                ? niveles.length - 1
+                : Math.min(nivelSolicitado - 1, niveles.length - 1);
+            porcentajesForzados[marcaId] = Number(niveles[indiceNivel].porcentaje_descuento || 0);
+        });
+
         var candidatos = [0].concat((reglasGenerales || []).map(function(regla) {
             return Number(regla.venta_minima || 0);
         }));
         (reglasMarca || []).forEach(function(regla) {
-            if (marcaIds.includes(Number(regla.marca_id))) candidatos.push(Number(regla.venta_minima || 0));
+            var marcaId = Number(regla.marca_id);
+            if (marcaIds.includes(marcaId) && !Object.prototype.hasOwnProperty.call(porcentajesForzados, marcaId)) {
+                candidatos.push(Number(regla.venta_minima || 0));
+            }
         });
         candidatos = Array.from(new Set(candidatos)).sort(function(a, b) { return b - a; });
 
@@ -4483,10 +4552,12 @@
             var porcentajeGeneral = porcentajeExpoAlcanzado(baseEscalon, reglasGenerales);
             var porcentajesMarca = {};
             marcaIds.forEach(function(marcaId) {
-                porcentajesMarca[marcaId] = porcentajeExpoAlcanzado(
-                    baseEscalon,
-                    (reglasMarca || []).filter(function(regla) { return Number(regla.marca_id) === marcaId; })
-                );
+                porcentajesMarca[marcaId] = Object.prototype.hasOwnProperty.call(porcentajesForzados, marcaId)
+                    ? porcentajesForzados[marcaId]
+                    : porcentajeExpoAlcanzado(
+                        baseEscalon,
+                        (reglasMarca || []).filter(function(regla) { return Number(regla.marca_id) === marcaId; })
+                    );
             });
             var subtotalNeto = valores.reduce(function(total, datos) {
                 var descuentoMarca = Math.round(datos.importe * Number(porcentajesMarca[datos.marcaId] || 0)) / 100;
@@ -4503,7 +4574,7 @@
 
     function calcularDescuentosCarritoExpo() {
         if (!expoConfig) return null;
-        var usarReglasFirmadas = esOfertaExpo && !filtrarProductosExpo;
+        var usarReglasFirmadas = esOfertaExpo && (!filtrarProductosExpo || esContinuandoOfertaExpo);
         var configuracion = usarReglasFirmadas ? reglasExpoOferta : expoConfig;
         var versionReglas = usarReglasFirmadas ? Number(configuracion.version || 2) : 5;
         var usarEscalas = !usarReglasFirmadas || configuracion.tipo === 'escala' || versionReglas >= 5;
@@ -4520,6 +4591,12 @@
                 return !regla.requiere_asistencia || asistentesExpo.includes(clienteExpoId);
             });
         }
+        var descuentoEspecial = usarReglasFirmadas
+            ? (configuracion.descuentos_forzados || {
+                descuento_modo: configuracion.descuento_modo || 'automatico',
+                descuento_escalon: configuracion.descuento_escalon || null
+            })
+            : (expoConfig.descuentos_clientes?.[clienteExpoId] || {});
         var reglasGenerales = usarReglasFirmadas
             ? (Array.isArray(configuracion.generales) ? configuracion.generales : [])
             : (Array.isArray(configuracion.descuentos) ? configuracion.descuentos : []);
@@ -4556,7 +4633,7 @@
         });
 
         var escalonesNetos = versionReglas >= 4
-            ? resolverEscalonesNetosExpo(importes, reglasMarca, reglasGenerales)
+            ? resolverEscalonesNetosExpo(importes, reglasMarca, reglasGenerales, descuentoEspecial)
             : null;
         var porcentajeGeneral = escalonesNetos
             ? escalonesNetos.porcentajeGeneral
@@ -6427,6 +6504,9 @@
                 normalizarFilasCarritoExpo();
                 calcularTotalesInicioPagina();
                 actualizarContadorCarrito();
+                if (esContinuandoOfertaExpo && arregloIdInputs.length === lineasOfertaContinuadaEsperadas) {
+                    ofertaContinuadaCargadaCompleta = true;
+                }
                 return actualizarStocksDisponiblesExpo();
             }).then(function () {
                 _cargaInicialEnLote = false;

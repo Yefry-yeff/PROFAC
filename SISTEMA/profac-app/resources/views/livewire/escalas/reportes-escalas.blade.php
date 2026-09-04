@@ -41,9 +41,40 @@
 .btn-rpt-excel:disabled { opacity:.6; cursor:not-allowed; }
 .btn-rpt-primary { background:var(--pf-grad); color:#fff; border:none; border-radius:7px; font-size:.78rem; font-weight:600; padding:6px 16px; display:inline-flex; align-items:center; gap:6px; box-shadow:0 1px 4px rgba(230,126,34,.3); transition:box-shadow .15s,background .15s; cursor:pointer; }
 .btn-rpt-primary:hover { background:var(--pf-grad-hover); color:#fff; box-shadow:0 3px 8px rgba(230,126,34,.4); text-decoration:none; }
+.rpt-product-picker { display:flex; align-items:stretch; width:100%; }
+.rpt-product-picker .btn-rpt-product {
+  align-items:center; background:#fff; border:1px solid #ddd; border-radius:7px 0 0 7px;
+  color:#343a40; display:flex; flex:1 1 auto; font-size:.82rem; gap:8px; min-height:38px;
+  overflow:hidden; padding:6px 11px; text-align:left;
+}
+.rpt-product-picker .btn-rpt-product:hover,
+.rpt-product-picker .btn-rpt-product:focus { border-color:var(--pf-orange); box-shadow:0 0 0 3px rgba(230,126,34,.15); outline:none; }
+.rpt-product-picker .btn-rpt-product i { color:var(--pf-orange); flex:none; }
+.rpt-product-picker .btn-rpt-product span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.rpt-product-picker .btn-rpt-clear {
+  background:#fff; border:1px solid #ddd; border-left:0; border-radius:0 7px 7px 0;
+  color:#b42318; padding:0 12px;
+}
+.rpt-product-picker .btn-rpt-clear:hover { background:#fff1f0; }
+.rpt-product-history { background:transparent; border:0; color:#1f5f8b; cursor:pointer; font:inherit; font-weight:600; padding:0; text-align:left; }
+.rpt-product-history:hover { color:#d35400; text-decoration:underline; }
+.rpt-product-history:focus { outline:2px solid rgba(230,126,34,.35); outline-offset:2px; }
 .rpt-table thead th { background:#fdf4ea !important; color:#7d4600; font-size:.72rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; border-bottom:2px solid #ecd5b5 !important; white-space:nowrap; padding:8px 10px; }
 .rpt-table td { font-size:.8rem; vertical-align:middle; padding:6px 10px; }
 .rpt-table tbody tr:hover { background-color:#fffcf7 !important; }
+#modalHistorialPrecioProducto { z-index:4010 !important; }
+#modalHistorialPrecioProducto .modal-dialog { max-width:1180px; width:calc(100vw - 40px); }
+#modalHistorialPrecioProducto .modal-body { max-height:72vh; overflow-y:auto; }
+#tablaHistorialPrecioProducto { min-width:980px; }
+#tablaHistorialPrecioProducto thead th { background:#f8f0e6; border-bottom:2px solid #edc896; color:#6f4309; font-size:.72rem; padding:8px; position:sticky; top:0; white-space:nowrap; z-index:2; }
+#tablaHistorialPrecioProducto td { font-size:.78rem; padding:8px; vertical-align:middle; }
+#tablaHistorialPrecioProducto .historial-precio-valor { display:block; font-size:.88rem; font-weight:700; white-space:nowrap; }
+#tablaHistorialPrecioProducto .historial-precio-porc { display:block; font-size:.68rem; white-space:nowrap; }
+#tablaHistorialPrecioProducto .historial-col-a { color:#2471a3; }
+#tablaHistorialPrecioProducto .historial-col-b { color:#1e8449; }
+#tablaHistorialPrecioProducto .historial-col-c { color:#c0392b; }
+#tablaHistorialPrecioProducto .historial-col-d { color:#7d3c98; }
+@media (max-width:767px) { #modalHistorialPrecioProducto .modal-dialog { margin:8px; width:calc(100vw - 16px); } }
 .badge-activo   { background:#d4edda; color:#155724; border-radius:6px; padding:3px 8px; font-size:.7rem; font-weight:700; }
 .badge-inactivo { background:#f8d7da; color:#721c24; border-radius:6px; padding:3px 8px; font-size:.7rem; font-weight:700; }
 .badge-cero     { background:#fff3cd; color:#856404; border-radius:6px; padding:3px 8px; font-size:.7rem; font-weight:700; }
@@ -179,13 +210,17 @@
             <div class="rpt-filter-label"><i class="fa fa-tag"></i> Cat. de Precio</div>
             <select id="filtro-cat-precio" class="form-control form-control-sm select2bs4"><option value="">Todas las categorías de precio</option></select>
           </div>
-          <div class="rpt-filter-item">
-            <div class="rpt-filter-label"><i class="fa fa-filter"></i> Filtrar por</div>
-            <select id="tipoFiltro" class="form-control form-control-sm select2bs4"><option value="">Sin filtro adicional</option><option value="1">Por Marca</option><option value="2">Por Categoría Producto</option></select>
-          </div>
-          <div class="rpt-filter-item" id="wrapper-lista-filtro" style="display:none;">
-            <div class="rpt-filter-label" id="label-lista-filtro"><i class="fa fa-list"></i> Valor</div>
-            <select id="listaTipoFiltro" class="form-control form-control-sm select2bs4"><option value="">Seleccione...</option></select>
+          <div class="rpt-filter-item" style="flex:2 1 340px;max-width:540px;">
+            <div class="rpt-filter-label"><i class="fa fa-cube"></i> Producto</div>
+            <div class="rpt-product-picker">
+              <button type="button" class="btn-rpt-product" onclick="abrirProductoFiltroReporte()" title="Buscar producto">
+                <i class="fa fa-search"></i>
+                <span id="filtro-producto-nombre">Todos los productos</span>
+              </button>
+              <button type="button" class="btn-rpt-clear" id="btn-limpiar-producto-reporte" onclick="limpiarProductoFiltroReporte()" title="Limpiar producto" aria-label="Limpiar producto" style="display:none;">
+                <i class="fa fa-times"></i>
+              </button>
+            </div>
           </div>
         </div>
         <div class="rpt-card-body">
@@ -394,6 +429,52 @@
   </div>
 </div>
 
+<div class="modal fade" id="modalHistorialPrecioProducto" tabindex="-1" role="dialog" aria-labelledby="tituloHistorialPrecioProducto" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-header" style="background:var(--pf-grad);color:#fff;">
+        <div>
+          <small style="color:rgba(255,255,255,.82);">Histórico de precios base y escalas</small>
+          <h6 class="modal-title mb-0" id="tituloHistorialPrecioProducto">Producto</h6>
+        </div>
+        <button type="button" class="close text-white" data-dismiss="modal" aria-label="Cerrar"><span aria-hidden="true">&times;</span></button>
+      </div>
+      <div class="modal-body">
+        <div id="historialPrecioResumen" class="mb-3"></div>
+        <div id="historialPrecioCargando" class="text-center py-5">
+          <div class="spinner-border text-warning" role="status"><span class="sr-only">Cargando...</span></div>
+          <div class="mt-2 text-muted small">Cargando histórico...</div>
+        </div>
+        <div id="historialPrecioContenido" class="table-responsive" style="display:none;">
+          <table class="table table-sm table-hover mb-0" id="tablaHistorialPrecioProducto">
+            <thead>
+              <tr>
+                <th>Versión</th><th>Fecha de registro</th><th>Última actualización</th>
+                <th class="text-right">Precio Base</th><th class="text-right historial-col-a">A</th>
+                <th class="text-right historial-col-b">B</th><th class="text-right historial-col-c">C</th>
+                <th class="text-right historial-col-d">D</th><th>Usuario</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div id="historialPrecioError" class="alert alert-danger mb-0" style="display:none;"></div>
+      </div>
+      <div class="modal-footer">
+        <small class="text-muted mr-auto">El porcentaje efectivo se calcula a partir del precio base y el valor guardado en cada versión.</small>
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<x-buscador-producto
+  id-modal="buscadorProductoReporteEscalas"
+  callback="seleccionarProductoFiltroReporte"
+  :con-stock-default="false"
+  :use-top-preview="false"
+/>
+
 @push('scripts')
-<script src="{{ asset('js/js_proyecto/Escalas/reporteEscalas.js') }}?v=20260602"></script>
+<script src="{{ asset('js/js_proyecto/Escalas/reporteEscalas.js') }}?v=20260903-2"></script>
 @endpush

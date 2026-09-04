@@ -513,6 +513,19 @@ class FacturacionUnificada extends Component
                                 ->first();
                         }
                     }
+
+                    // La categoria del producto puede cambiar despues de crear la oferta.
+                    // Si la anterior ya no esta activa, usar su categoria vigente dentro de esta Expo.
+                    if (!$ppcActivo && !empty($this->expoConfig['escalas'])) {
+                        $ppcActivo = DB::table('precios_producto_carga as ppc')
+                            ->leftJoin('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')
+                            ->where('ppc.producto_id', (int) ($prod['producto_id'] ?? 0))
+                            ->whereIn('ppc.categoria_precios_id', $this->expoConfig['escalas'])
+                            ->where('ppc.estado_id', 1)
+                            ->orderByDesc('ppc.id')
+                            ->select('ppc.id', 'ppc.precio_a', 'ppc.producto_id', 'ppc.categoria_precios_id', 'cp.nombre as categoria_nombre')
+                            ->first();
+                    }
                 }
 
                 if (!$ppcActivo) {

@@ -45,6 +45,77 @@ class CalculadorDescuentosExpoTest extends TestCase
         $this->assertSame(300.0, $resultado['descuento_ganado']);
     }
 
+    public function test_escalon_forzado_se_aplica_por_posicion_y_limita_cada_escala_a_su_ultimo_nivel(): void
+    {
+        $resultado = (new CalculadorDescuentosExpo())->calcular([
+            ['escala_id' => 35, 'subtotal_bruto' => 100.00],
+            ['escala_id' => 36, 'subtotal_bruto' => 100.00],
+        ], [
+            'version' => 5,
+            'tipo' => 'escala',
+            'descuento_modo' => 'escalon',
+            'descuento_escalon' => 5,
+            'escalas' => [
+                ['escala_id' => 35, 'venta_minima' => 1000, 'porcentaje_descuento' => 10, 'orden' => 1],
+                ['escala_id' => 35, 'venta_minima' => 5000, 'porcentaje_descuento' => 40, 'orden' => 5],
+                ['escala_id' => 36, 'venta_minima' => 1000, 'porcentaje_descuento' => 8, 'orden' => 6],
+                ['escala_id' => 36, 'venta_minima' => 2000, 'porcentaje_descuento' => 20, 'orden' => 7],
+            ],
+            'generales' => [],
+        ]);
+
+        $this->assertSame(40.0, $resultado['porcentajes_escala'][35]);
+        $this->assertSame(20.0, $resultado['porcentajes_escala'][36]);
+        $this->assertSame(60.0, $resultado['descuento_ganado']);
+    }
+
+    public function test_maximo_forzado_usa_el_ultimo_escalon_de_cada_escala_sin_alcanzar_el_minimo(): void
+    {
+        $resultado = (new CalculadorDescuentosExpo())->calcular([
+            ['escala_id' => 35, 'subtotal_bruto' => 100.00],
+            ['escala_id' => 36, 'subtotal_bruto' => 100.00],
+        ], [
+            'version' => 5,
+            'tipo' => 'escala',
+            'descuento_modo' => 'maximo',
+            'escalas' => [
+                ['escala_id' => 35, 'venta_minima' => 1000, 'porcentaje_descuento' => 10, 'orden' => 1],
+                ['escala_id' => 35, 'venta_minima' => 5000, 'porcentaje_descuento' => 40, 'orden' => 5],
+                ['escala_id' => 36, 'venta_minima' => 1000, 'porcentaje_descuento' => 8, 'orden' => 6],
+                ['escala_id' => 36, 'venta_minima' => 2000, 'porcentaje_descuento' => 20, 'orden' => 7],
+            ],
+            'generales' => [],
+        ]);
+
+        $this->assertSame(40.0, $resultado['porcentajes_escala'][35]);
+        $this->assertSame(20.0, $resultado['porcentajes_escala'][36]);
+    }
+
+    public function test_permite_forzar_una_categoria_y_mantener_otra_en_calculo_automatico(): void
+    {
+        $resultado = (new CalculadorDescuentosExpo())->calcular([
+            ['escala_id' => 35, 'subtotal_bruto' => 100.00],
+            ['escala_id' => 36, 'subtotal_bruto' => 100.00],
+        ], [
+            'version' => 5,
+            'tipo' => 'escala',
+            'descuentos_forzados' => [
+                35 => ['descuento_modo' => 'escalon', 'descuento_escalon' => 2],
+            ],
+            'escalas' => [
+                ['escala_id' => 35, 'venta_minima' => 1000, 'porcentaje_descuento' => 10, 'orden' => 1],
+                ['escala_id' => 35, 'venta_minima' => 5000, 'porcentaje_descuento' => 40, 'orden' => 5],
+                ['escala_id' => 36, 'venta_minima' => 1000, 'porcentaje_descuento' => 8, 'orden' => 6],
+                ['escala_id' => 36, 'venta_minima' => 2000, 'porcentaje_descuento' => 20, 'orden' => 7],
+            ],
+            'generales' => [],
+        ]);
+
+        $this->assertSame(40.0, $resultado['porcentajes_escala'][35]);
+        $this->assertSame(0.0, $resultado['porcentajes_escala'][36]);
+        $this->assertSame(40.0, $resultado['descuento_ganado']);
+    }
+
     public function test_el_escalon_se_evalua_con_el_subtotal_neto_despues_del_descuento(): void
     {
         $resultado = (new CalculadorDescuentosExpo())->calcular([

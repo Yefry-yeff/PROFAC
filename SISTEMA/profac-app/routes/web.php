@@ -454,6 +454,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::post('/actualizar/categoria/precios', [CategoriaPrecios::class, 'actualizarCategoria']);
     Route::post('/actualizar/comision/cat-precio', [CategoriaPrecios::class, 'actualizarComisionCatPrecio'])->name('cat.precio.actualizar.comision');
     Route::get('/precios/productos/listar', [CategoriaPrecios::class, 'listarProductosPrecios']);
+    Route::get('/precios/producto/historial', [CategoriaPrecios::class, 'historialPrecioProducto']);
     Route::post('/precios/producto/agregar', [CategoriaPrecios::class, 'agregarProductoPrecio']);
     Route::post('/precios/producto/eliminar', [CategoriaPrecios::class, 'eliminarProductoPrecio']);
     Route::post('/precios/producto/actualizar-base', [CategoriaPrecios::class, 'actualizarPrecioBase']);
@@ -1689,6 +1690,8 @@ Route::post('/reporte/ventas-cobros/actualizar-f01/{facturaId}',                
     Route::get('/reporte/expo/ventas-por-marca',   [\App\Http\Livewire\Reportes\ReporteExpo::class, 'ventasPorMarca']);
     Route::get('/reporte/expo/ventas-por-asesor',  [\App\Http\Livewire\Reportes\ReporteExpo::class, 'ventasPorAsesor']);
     Route::get('/reporte/expo/ventas-por-teleasesor', [\App\Http\Livewire\Reportes\ReporteExpo::class, 'ventasPorTeleasesor']);
+    Route::get('/reporte/expo/top-clientes',        [\App\Http\Livewire\Reportes\ReporteExpo::class, 'topClientes']);
+    Route::get('/reporte/expo/top-productos',       [\App\Http\Livewire\Reportes\ReporteExpo::class, 'topProductos']);
     Route::get('/reporte/expo/evolucion-diaria',   [\App\Http\Livewire\Reportes\ReporteExpo::class, 'evolucionDiaria']);
     Route::get('/reporte/expo/tabla-productos',    [\App\Http\Livewire\Reportes\ReporteExpo::class, 'tablaProductos']);
     Route::get('/reporte/expo/tabla-ofertas',      [\App\Http\Livewire\Reportes\ReporteExpo::class, 'tablaOfertas']);
@@ -1699,6 +1702,10 @@ Route::post('/reporte/ventas-cobros/actualizar-f01/{facturaId}',                
     Route::get('/reporte/expo/detalle-oferta',     [\App\Http\Livewire\Reportes\ReporteExpo::class, 'detalleOferta']);
     Route::get('/reporte/expo/detalle-producto',   [\App\Http\Livewire\Reportes\ReporteExpo::class, 'detalleProducto']);
     Route::get('/reporte/expo/exportar-oferta',    [\App\Http\Livewire\Reportes\ReporteExpo::class, 'exportarOferta']);
+
+
+    // Ruta auto-generada para: FlujoDeVenta\VidaUtilDeUnFlujo
+    Route::get('/flujo_de_venta/vida_util_de_un_flujo', \App\Http\Livewire\FlujoDeVenta\VidaUtilDeUnFlujo::class);
 
     // [auto-routes-anchor]
 });

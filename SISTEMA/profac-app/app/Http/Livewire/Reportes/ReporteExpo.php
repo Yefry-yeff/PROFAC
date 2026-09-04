@@ -160,6 +160,11 @@ class ReporteExpo extends Component
         return "ROUND(ROUND(CASE WHEN {$alias}.cantidad > 0 THEN {$alias}.sub_total / {$alias}.cantidad ELSE {$alias}.precio_unidad END, 2) * {$alias}.cantidad, 2)";
     }
 
+    private function brutoOfertaExpr(string $alias = 'chp', string $unidadAlias = 'uv'): string
+    {
+        return "ROUND({$alias}.precio_unidad * {$alias}.cantidad * COALESCE(NULLIF({$unidadAlias}.unidad_venta, 0), 1), 2)";
+    }
+
     private function idsDesdeRequest(Request $r, string $plural, string $singular): array
     {
         $valor = $r->input($plural, $r->input($singular, []));
@@ -179,6 +184,7 @@ class ReporteExpo extends Component
             LEFT JOIN precios_producto_carga ppc ON ppc.id = chp.precios_producto_carga_id
             LEFT JOIN categoria_precios cp ON cp.id = ppc.categoria_precios_id
             LEFT JOIN categoria_producto cat ON cat.id = ppc.categoria_producto_id
+            LEFT JOIN unidad_medida_venta uv ON uv.id = chp.unidad_medida_venta_id
         ";
     }
 
@@ -253,13 +259,15 @@ class ReporteExpo extends Component
         $expoId = $this->expoIdDesdeRequest($r);
         $extra = $this->filtrosExtra($r);
         $netoOfertaExpr = $this->netoOfertaExpr();
+        $brutoOfertaExpr = $this->brutoOfertaExpr();
 
         $rowOfertado = DB::selectOne("
             SELECT
                 COUNT(DISTINCT c.id) AS num_ofertas,
                 COUNT(DISTINCT COALESCE(c.cliente_id, c.nombre_cliente)) AS clientes_unicos,
-                COALESCE(SUM(chp.precio_unidad * chp.cantidad), 0) AS total_ofertado,
+                COALESCE(SUM($brutoOfertaExpr), 0) AS total_ofertado,
                 COALESCE(SUM($netoOfertaExpr), 0) AS total_neto,
+                COALESCE(SUM(GREATEST(($brutoOfertaExpr) - ($netoOfertaExpr), 0)), 0) AS total_descuento,
                 COALESCE(SUM(ROUND(($netoOfertaExpr) * chp.isv_producto / 100, 2)), 0) AS total_isv,
                 COALESCE(SUM(COALESCE(ppc.precio_base_venta, 0) * chp.cantidad), 0) AS total_costo
             {$this->joinsOfertado()}
@@ -295,7 +303,7 @@ class ReporteExpo extends Component
             'clientes_unicos' => (int) $rowOfertado->clientes_unicos,
             'num_facturas' => (int) $rowFacturado->num_facturas,
             'total_ofertado' => round($totalOfertado, 2),
-            'total_descuento' => round($totalOfertado - $totalNeto, 2),
+            'total_descuento' => round((float) $rowOfertado->total_descuento, 2),
             'total_oferta_sin_isv' => round($totalNeto, 2),
             'total_oferta_con_isv' => round($totalNeto + $totalIsv, 2),
             'total_facturado' => round($totalFacturado, 2),
@@ -462,6 +470,71 @@ class ReporteExpo extends Component
         return response()->json($rows);
     }
 
+    public function topClientes(Request $r)
+    {
+        $expoId = $this->expoIdDesdeRequest($r);
+        $extra = $this->filtrosExtra($r);
+        $netoOfertaExpr = $this->netoOfertaExpr();
+
+        $ofertado = DB::select("
+            SELECT COALESCE(c.cliente_id, 0) AS cliente_id,
+                   COALESCE(NULLIF(c.nombre_cliente, ''), 'Sin cliente') AS cliente,
+                   COUNT(DISTINCT c.id) AS ofertas,
+                   SUM($netoOfertaExpr) AS ofertado
+            {$this->joinsOfertado()}
+            {$this->joinExpoCotizacion($expoId)}
+            {$this->whereVigentes($expoId)}
+            $extra
+            GROUP BY COALESCE(c.cliente_id, 0), COALESCE(NULLIF(c.nombre_cliente, ''), 'Sin cliente')
+        ");
+
+        $facturado = DB::select("
+            SELECT COALESCE(c.cliente_id, 0) AS cliente_id,
+                   SUM(vhp.sub_total_s) AS facturado
+            {$this->joinsOfertado()}
+            {$this->joinsFacturado()}
+            {$this->joinExpoCotizacion($expoId)}
+            {$this->whereVigentes($expoId)}
+            $extra
+            GROUP BY COALESCE(c.cliente_id, 0)
+        ");
+        $facturadoPorCliente = collect($facturado)->keyBy('cliente_id');
+        $baseFacturas = $r->input('rentabilidad_base') === 'facturas';
+
+        $rows = collect($ofertado)->map(function ($row) use ($facturadoPorCliente, $baseFacturas) {
+            $totalOfertado = round((float) $row->ofertado, 2);
+            $totalFacturado = round((float) ($facturadoPorCliente->get($row->cliente_id)->facturado ?? 0), 2);
+
+            return [
+                'cliente_id' => (int) $row->cliente_id,
+                'cliente' => $row->cliente,
+                'ofertas' => (int) $row->ofertas,
+                'ofertado' => $totalOfertado,
+                'facturado' => $totalFacturado,
+                'total_base' => $baseFacturas ? $totalFacturado : $totalOfertado,
+            ];
+        })->sortByDesc('total_base')->take(10)->values();
+
+        return response()->json($rows);
+    }
+
+    public function topProductos(Request $r)
+    {
+        $rows = collect($this->datosProductos($r))
+            ->sortByDesc('total_base')
+            ->take(10)
+            ->map(fn ($row) => [
+                'producto_id' => $row['producto_id'],
+                'producto' => $row['producto'],
+                'codigo' => $row['codigo'],
+                'ofertado' => $row['total_ofertado'],
+                'facturado' => $row['total_facturado'],
+                'total_base' => $row['total_base'],
+            ])->values();
+
+        return response()->json($rows);
+    }
+
     public function evolucionDiaria(Request $r)
     {
         $expoId = $this->expoIdDesdeRequest($r);
@@ -515,6 +588,7 @@ class ReporteExpo extends Component
         $expoId = $this->expoIdDesdeRequest($r);
         $extra = $this->filtrosExtra($r);
         $netoOfertaExpr = $this->netoOfertaExpr();
+        $brutoOfertaExpr = $this->brutoOfertaExpr();
 
         $ofertado = DB::select("
              SELECT p.id AS producto_id, p.codigo_barra AS codigo, p.nombre AS producto,
@@ -523,7 +597,7 @@ class ReporteExpo extends Component
                  COUNT(DISTINCT c.id) AS numero_ofertas,
                  SUM(chp.cantidad) AS cantidad_ofertada,
                  SUM($netoOfertaExpr) AS total_ofertado,
-                 SUM((chp.precio_unidad * chp.cantidad) - ($netoOfertaExpr)) AS descuento,
+                 SUM(GREATEST(($brutoOfertaExpr) - ($netoOfertaExpr), 0)) AS descuento,
                   SUM(COALESCE(ppc.precio_base_venta, 0) * chp.cantidad) AS costo_ofertado
             {$this->joinsOfertado()}
             {$this->joinExpoCotizacion($expoId)}
@@ -610,6 +684,7 @@ class ReporteExpo extends Component
         $expoId = $this->expoIdDesdeRequest($r);
         $extra = $this->filtrosExtra($r);
         $netoOfertaExpr = $this->netoOfertaExpr();
+        $brutoOfertaExpr = $this->brutoOfertaExpr();
 
         $rows = DB::select("
             SELECT
@@ -621,7 +696,7 @@ class ReporteExpo extends Component
                 COALESCE(ec.estado, 'SIN_REGISTRO') AS estado,
                 COALESCE(ec.flujo_id, (SELECT hf.flujo_id FROM historico_flujo hf WHERE hf.tipo_tramite_id = 2 AND hf.tramite_id = c.id ORDER BY hf.id DESC LIMIT 1)) AS flujo_id,
                 SUM($netoOfertaExpr) AS total_ofertado,
-                SUM((chp.precio_unidad * chp.cantidad) - ($netoOfertaExpr)) AS descuento,
+                SUM(GREATEST(($brutoOfertaExpr) - ($netoOfertaExpr), 0)) AS descuento,
                 SUM(COALESCE(ppc.precio_base_venta, 0) * chp.cantidad) AS total_costo_oferta,
                 SUM(chp.cantidad) AS cantidad_ofertada,
                 COALESCE(fact.total_facturado, 0) AS total_facturado,

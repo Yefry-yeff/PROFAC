@@ -34,9 +34,10 @@ class ReportesEscalas extends Component
         $catPrecioId   = $request->input('cat_precio_id');
         $tipoFiltro    = $request->input('tipoFiltro');
         $valorFiltro   = $request->input('listaTipoFiltro');
+        $productoId    = $request->input('producto_id');
         $fecha = now()->format('Y-m-d_His');
         return Excel::download(
-            new ReporteProductosPreciosFiltro($catClienteId, $catPrecioId, $tipoFiltro, $valorFiltro),
+            new ReporteProductosPreciosFiltro($catClienteId, $catPrecioId, $tipoFiltro, $valorFiltro, $productoId),
             "reporte_precios_{$fecha}.xlsx"
         );
     }
@@ -47,6 +48,7 @@ class ReportesEscalas extends Component
         $catPrecioIds  = array_slice(array_map('intval', array_filter(explode(',', $request->input('cat_precio_ids',  '')))), 0, 20);
         $tipoFiltro    = $request->input('tipoFiltro');
         $listaIds      = array_slice(array_map('intval', array_filter(explode(',', $request->input('lista_filtro_ids', '')))), 0, 20);
+        $productoId    = (int) $request->input('producto_id');
 
         // Cap de página para evitar consultas masivas
         if (isset($request['length']) && (int)$request['length'] > 100) {
@@ -61,6 +63,7 @@ class ReportesEscalas extends Component
             ->leftJoin('categoria_producto as c', 'c.id', '=', 'ppc.categoria_producto_id')
             ->where('ppc.estado_id', 1)
             ->select(
+                'ppc.id as precio_id',
                 'p.id',
                 'cce.nombre_categoria as categoria_cliente',
                 'p.nombre as producto',
@@ -80,6 +83,9 @@ class ReportesEscalas extends Component
         }
         if (!empty($catPrecioIds)) {
             $query->whereIn('cp.id', $catPrecioIds);
+        }
+        if ($productoId > 0) {
+            $query->where('ppc.producto_id', $productoId);
         }
         if ($tipoFiltro == '1' && !empty($listaIds)) {
             $query->whereIn('ppc.marca_id', $listaIds);
