@@ -4659,22 +4659,32 @@
             var porcentajeMarca = escalonesNetos
                 ? Number(escalonesNetos.porcentajesMarca[datos.marcaId] || 0)
                 : (reglaMarca ? Number(reglaMarca.porcentaje_descuento || 0) : 0);
+            var porcentajeGeneralLinea = porcentajeGeneral;
             var descuentoMarca = redondearMoneda(datos.importe * porcentajeMarca / 100);
-            var descuentoGeneral = redondearMoneda((datos.importe - descuentoMarca) * porcentajeGeneral / 100);
+            var descuentoGeneral = redondearMoneda((datos.importe - descuentoMarca) * porcentajeGeneralLinea / 100);
             var descuentoTotal = redondearMoneda(descuentoMarca + descuentoGeneral);
 
-            if (usarReglasFirmadas) {
+            if (usarReglasFirmadas && datos.descuentoFirmado > 0) {
+                var proporcionMarcaCalculada = descuentoTotal > 0
+                    ? descuentoMarca / descuentoTotal
+                    : (reglasGenerales.length === 0 ? 1 : 0);
                 var proporcionCantidad = datos.cantidadOfertada > 0
                     ? Math.min(Math.max(datos.cantidad / datos.cantidadOfertada, 0), 1)
                     : 0;
                 descuentoTotal = redondearMoneda(datos.descuentoFirmado * proporcionCantidad);
 
-                var atribucion = atribucionesDescuentoExpo[datos.lineaId] || {};
-                var proporcionMarca = Math.min(Math.max(Number(atribucion.proporcion_marca || 0), 0), 1);
+                var atribucion = atribucionesDescuentoExpo[datos.lineaId]
+                    || atribucionesDescuentoExpo['indice:' + id]
+                    || null;
+                var proporcionMarca = atribucion
+                    ? Number(atribucion.proporcion_marca || 0)
+                    : proporcionMarcaCalculada;
+                if (reglasGenerales.length === 0) proporcionMarca = 1;
+                proporcionMarca = Math.min(Math.max(proporcionMarca, 0), 1);
                 descuentoMarca = redondearMoneda(descuentoTotal * proporcionMarca);
                 descuentoGeneral = redondearMoneda(descuentoTotal - descuentoMarca);
                 porcentajeMarca = datos.importe > 0 ? descuentoMarca * 100 / datos.importe : 0;
-                porcentajeGeneral = datos.importe - descuentoMarca > 0
+                porcentajeGeneralLinea = datos.importe - descuentoMarca > 0
                     ? descuentoGeneral * 100 / (datos.importe - descuentoMarca)
                     : 0;
             }
@@ -4690,7 +4700,7 @@
 
             resultado.lineas[id] = {
                 porcentajeMarca: porcentajeMarca,
-                porcentajeGeneral: porcentajeGeneral,
+                porcentajeGeneral: porcentajeGeneralLinea,
                 descuentoMarca: descuentoMarca,
                 descuentoGeneral: descuentoGeneral,
                 descuentoTotal: descuentoTotal,
@@ -4705,7 +4715,7 @@
                     marcaNombre: datos.marcaProductoNombre,
                     escalaNombre: usarEscalas ? nombreMarca : '',
                     porcentajeMarca: porcentajeMarca,
-                    porcentajeGeneral: porcentajeGeneral,
+                    porcentajeGeneral: porcentajeGeneralLinea,
                     cantidad: 0,
                     subtotal: 0,
                     descuentoMarca: 0,
@@ -4749,9 +4759,11 @@
                 + '<strong>' + formatoMoneda(marca.descuentoMarca) + '</strong></div>';
         }).join('');
         var totalGeneral = todasLasMarcas.reduce(function(total, marca) { return total + marca.descuentoGeneral; }, 0);
-        var filaGeneral = '<div class="d-flex justify-content-between" style="gap:12px; color:#546e7a;">'
-            + '<span>Descuento general <strong>(' + Number(calculo.porcentajeGeneral || 0).toFixed(2) + '%)</strong></span>'
-            + '<strong>' + formatoMoneda(totalGeneral) + '</strong></div>';
+        var filaGeneral = totalGeneral > 0.005
+            ? '<div class="d-flex justify-content-between" style="gap:12px; color:#546e7a;">'
+                + '<span>Descuento general <strong>(' + Number(calculo.porcentajeGeneral || 0).toFixed(2) + '%)</strong></span>'
+                + '<strong>' + formatoMoneda(totalGeneral) + '</strong></div>'
+            : '';
         contenedor.innerHTML = filasMarca + filaGeneral;
     }
 
