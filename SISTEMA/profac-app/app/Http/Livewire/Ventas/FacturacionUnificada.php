@@ -127,8 +127,12 @@ class FacturacionUnificada extends Component
         $lineas = DB::table('cotizacion_has_producto as chp')
             ->join('producto as p', 'p.id', '=', 'chp.producto_id')
             ->leftJoin('precios_producto_carga as ppc', 'ppc.id', '=', 'chp.precios_producto_carga_id')
+            ->leftJoin('unidad_medida_venta as uv', 'uv.id', '=', 'chp.unidad_medida_venta_id')
             ->where('chp.cotizacion_id', $cotizacionId)
-            ->get(['chp.id', 'chp.cantidad', 'chp.precio_unidad', 'chp.monto_descProducto', 'p.marca_id', 'ppc.categoria_precios_id']);
+            ->get([
+                'chp.id', 'chp.cantidad', 'chp.precio_unidad', 'chp.monto_descProducto',
+                'p.marca_id', 'ppc.categoria_precios_id', 'uv.unidad_venta',
+            ]);
 
         $usaEscalas = ($this->reglasExpoOferta['tipo'] ?? null) === 'escala'
             || (int) ($this->reglasExpoOferta['version'] ?? 0) >= 5;
@@ -137,7 +141,12 @@ class FacturacionUnificada extends Component
             $lineas->map(fn ($linea) => [
                 'marca_id' => (int) $linea->marca_id,
                 'escala_id' => (int) $linea->categoria_precios_id,
-                'subtotal_bruto' => round((float) $linea->precio_unidad * (float) $linea->cantidad, 2),
+                'subtotal_bruto' => round(
+                    (float) $linea->precio_unidad
+                    * (float) $linea->cantidad
+                    * ((float) $linea->unidad_venta > 0 ? (float) $linea->unidad_venta : 1),
+                    2
+                ),
             ])->all(),
             $this->reglasExpoOferta
         );
@@ -148,7 +157,10 @@ class FacturacionUnificada extends Component
             $porcentajesGrupo = $usaEscalas ? ($calculo['porcentajes_escala'] ?? []) : $calculo['porcentajes_marca'];
             $porcentajeMarca = (float) ($porcentajesGrupo[$grupoId] ?? 0);
             $descuentoMarca = round(
-                (float) $linea->precio_unidad * (float) $linea->cantidad * $porcentajeMarca / 100,
+                (float) $linea->precio_unidad
+                * (float) $linea->cantidad
+                * ((float) $linea->unidad_venta > 0 ? (float) $linea->unidad_venta : 1)
+                * $porcentajeMarca / 100,
                 2
             );
 
