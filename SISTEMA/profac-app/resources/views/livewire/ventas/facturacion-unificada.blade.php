@@ -5433,6 +5433,11 @@
                     var d = res.data;
                     if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-file-text-o d-block" style="font-size:20px;margin-bottom:4px;"></i>Oferta ganadora'; }
 
+                    if (d.en_secciones_ofertas) {
+                        window.location.href = '/flujo/secciones_ofertas?flujo_id=' + encodeURIComponent(d.flujoId || idFlujo);
+                        return;
+                    }
+
                     if (d.en_revision_credito) {
                         _revisionFlujoId = d.flujoId || idFlujo;
                         var metaWrap = document.getElementById('revisionCredMeta');
@@ -5493,6 +5498,11 @@
             };
 
             $('#modalExitoOferta').one('hidden.bs.modal', function() {
+                if (expoConfig && expoConfig.id) {
+                    runPrefacturar('');
+                    return;
+                }
+
                 Swal.fire({
                     title: 'Comentario para Créditos',
                     text: 'Opcional: agrega una observación antes de marcar la oferta ganadora.',

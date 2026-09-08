@@ -48,7 +48,12 @@
                         <div>
                             <h5 style="color:#fff; margin:0; font-weight:700; font-size:15px;">
                                 <i class="mr-2 fa fa-search"></i>
-                                Revisando Flujo #{{ $flujoId }}
+                                Revisando Flujo #{{ $flujoId }} · Oferta #{{ $cotizacionId }}
+                                @if($estadoSeccion)
+                                    <span style="background:rgba(255,255,255,.2); border-radius:20px; padding:2px 10px; font-size:11px; margin-left:7px;">
+                                        {{ str_replace('_', ' ', $estadoSeccion) }}
+                                    </span>
+                                @endif
                             </h5>
                             @if($flujoData)
                             <small style="color:rgba(255,255,255,.88); font-size:11px; display:block; margin-top:3px;">
@@ -673,6 +678,9 @@
                                                          padding:3px 10px; font-weight:700; font-size:12px;">
                                                 #{{ $reg['flujo_id'] }}
                                             </span>
+                                            @if(!empty($reg['seccion_nombre']))
+                                                <small class="d-block mt-1" style="color:#1565c0;">{{ $reg['seccion_nombre'] }}</small>
+                                            @endif
                                         </td>
                                         <td style="padding:10px 16px; color:#2c3e50; font-weight:600;">
                                             {{ $reg['cliente'] }}
@@ -701,7 +709,7 @@
                                         </td>
                                         <td style="padding:10px 16px; text-align:center;">
                                             <button type="button"
-                                                    wire:click="seleccionarFlujo({{ $reg['flujo_id'] }})"
+                                                    wire:click="seleccionarFlujo({{ $reg['flujo_id'] }}, false{{ ($reg['seccion_numero'] ?? null) ? ', ' . $reg['cotizacion_id'] : '' }})"
                                                     style="background:linear-gradient(135deg,#1a7efb,#0d6efd); color:#fff;
                                                            border:none; border-radius:8px; padding:5px 14px;
                                                            font-size:12px; font-weight:700; cursor:pointer;">
@@ -779,6 +787,9 @@
                                                          padding:2px 8px; font-size:10px; font-weight:700; margin-left:4px;">
                                                 <i class="fa fa-reply mr-1"></i>Devuelto
                                             </span>
+                                            @if(!empty($reg['seccion_nombre']))
+                                                <small class="d-block mt-1" style="color:#e65100;">{{ $reg['seccion_nombre'] }}</small>
+                                            @endif
                                         </td>
                                         <td style="padding:10px 16px; color:#2c3e50; font-weight:600;">
                                             {{ $reg['cliente'] }}
@@ -817,7 +828,7 @@
                                         </td>
                                         <td style="padding:10px 16px; text-align:center;">
                                             <button type="button"
-                                                    wire:click="seleccionarFlujo({{ $reg['flujo_id'] }})"
+                                                    wire:click="seleccionarFlujo({{ $reg['flujo_id'] }}, false, {{ $reg['cotizacion_id'] }})"
                                                     style="background:linear-gradient(135deg,#e67e22,#d35400); color:#fff;
                                                            border:none; border-radius:8px; padding:5px 14px;
                                                            font-size:12px; font-weight:700; cursor:pointer;">
@@ -893,6 +904,9 @@
                                                          padding:2px 8px; font-size:10px; font-weight:700; margin-left:4px;">
                                                 <i class="fa fa-check mr-1"></i>Aprobado
                                             </span>
+                                            @if(!empty($reg['seccion_nombre']))
+                                                <small class="d-block mt-1" style="color:#2e7d32;">{{ $reg['seccion_nombre'] }}</small>
+                                            @endif
                                         </td>
                                         <td style="padding:10px 16px; color:#2c3e50; font-weight:600;">
                                             {{ $reg['cliente'] }}
@@ -931,7 +945,7 @@
                                         </td>
                                         <td style="padding:10px 16px; text-align:center;">
                                             <button type="button"
-                                                    wire:click="seleccionarFlujo({{ $reg['flujo_id'] }}, true)"
+                                                    wire:click="seleccionarFlujo({{ $reg['flujo_id'] }}, true, {{ $reg['cotizacion_id'] }})"
                                                     style="background:linear-gradient(135deg,#2e7d32,#1b5e20); color:#fff;
                                                            border:none; border-radius:8px; padding:5px 14px;
                                                            font-size:12px; font-weight:700; cursor:pointer;">

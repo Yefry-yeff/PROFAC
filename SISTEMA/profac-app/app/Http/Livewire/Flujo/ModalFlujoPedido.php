@@ -17,6 +17,7 @@ use App\Models\ModelCliente;
 use App\Models\ModelLogTranslados;
 use App\Services\Expo\LiquidacionOfertaExpo;
 use App\Services\Expo\SaldoLineasOferta;
+use App\Services\Expo\SeccionadorOfertaExpo;
 
 /**
  * Modal reutilizable "Flujo del Pedido".
@@ -50,6 +51,7 @@ class ModalFlujoPedido extends Component
     // ── Revisión de Crédito ───────────────────────────────────────────────
     public array  $creditoRevisionData   = [];    // datos del registro credito_revision activo
     public bool   $creditoVigente        = false; // true si hay aprobación no vencida
+    public array  $seccionesExpoData     = [];
 
     // ── Revisión de Inventario: historial de ciclos ──────────────────────────────────────
     public array $revisionHistorial = [];   // ciclos con datos de revisor/aprobador
@@ -173,6 +175,7 @@ class ModalFlujoPedido extends Component
         $tramiteStepMap = [
             1  => 'pedido',
             2  => 'ofertas',
+            11 => 'secciones_ofertas',
             10 => 'revision_credito',     // Revisión de Crédito (nuevo)
             9  => 'revision_inventario',   // Revision de Inventario
             4  => 'prefactura',
@@ -181,6 +184,7 @@ class ModalFlujoPedido extends Component
             8  => 'finalizado',
             'pedido'                 => 'pedido',
             'Ofertas'                => 'ofertas',
+            'Secciones de Ofertas'   => 'secciones_ofertas',
             'Revision de Credito'    => 'revision_credito',
             'Revision de Inventario' => 'revision_inventario',
             'prefactura'             => 'prefactura',
@@ -215,6 +219,7 @@ class ModalFlujoPedido extends Component
         $this->cargarEstadosEntregaCobro();
         $this->cargarRevisionHistorial();
         $this->cargarOfertasPedido();
+        $this->cargarSeccionesExpo();
 
         // Config revisión de inventario
         $cfgRev = DB::table('configuracion_revision_inventario')->first();
@@ -358,6 +363,7 @@ class ModalFlujoPedido extends Component
         $tramiteStepMap = [
             1  => 'ofertas',
             2  => 'ofertas',
+            11 => 'secciones_ofertas',
             10 => 'revision_credito',      // Revisión de Crédito (nuevo)
             9  => 'revision_inventario',   // Revision de Inventario
             4  => 'prefactura',
@@ -368,6 +374,7 @@ class ModalFlujoPedido extends Component
             8  => 'finalizado',
             'pedido'                 => 'ofertas',   // sin pedido, arrancamos en ofertas
             'Ofertas'                => 'ofertas',
+            'Secciones de Ofertas'   => 'secciones_ofertas',
             'Revision de Credito'    => 'revision_credito',
             'Revision de Inventario' => 'revision_inventario',
             'prefactura'             => 'prefactura',
@@ -378,6 +385,7 @@ class ModalFlujoPedido extends Component
 
         $this->cargarRevisionHistorial();
         $this->cargarOfertasPedido();
+        $this->cargarSeccionesExpo();
 
         // Config revisión de inventario
         $cfgRev = DB::table('configuracion_revision_inventario')->first();
@@ -533,6 +541,7 @@ class ModalFlujoPedido extends Component
         $this->revisionHistorial       = [];
         $this->revisionDevuelta        = false;
         $this->creditoRevisionData     = [];
+        $this->seccionesExpoData       = [];
         $this->creditoVigente          = false;
         $this->revisionCreditoPendiente = false;
         $this->flujoCancelado          = false;
@@ -566,6 +575,9 @@ class ModalFlujoPedido extends Component
 
         if ($paso === 'ofertas') {
             $this->cargarOfertasPedido();
+        }
+        if (in_array($paso, ['secciones_ofertas', 'revision_credito', 'revision_inventario', 'prefactura'], true)) {
+            $this->cargarSeccionesExpo();
         }
         if ($paso === 'revision_credito') {
             // Solo lectura en el modal: recargar datos del crédito
@@ -806,6 +818,12 @@ class ModalFlujoPedido extends Component
             ->join('cotizacion as c', 'c.id', '=', 'hf.tramite_id')
             ->where('hf.flujo_id', $this->flujoId)
             ->where('hf.tipo_tramite_id', 2)
+            ->whereNotExists(function ($query) {
+                $query->selectRaw('1')
+                    ->from('expo_oferta_seccion as eos_oferta')
+                    ->whereColumn('eos_oferta.flujo_id', 'hf.flujo_id')
+                    ->whereColumn('eos_oferta.cotizacion_id', 'hf.tramite_id');
+            })
             ->select(
                 'hf.id as hf_id',
                 'hf.tramite_id as cotizacion_id',
@@ -815,6 +833,7 @@ class ModalFlujoPedido extends Component
                 'c.total',
                 'c.cliente_id',
                 'c.estado_id as cotizacion_estado_id',   // 1=activo, 2=inactivo por precios
+                DB::raw('EXISTS(SELECT 1 FROM expo_cotizacion ec WHERE ec.cotizacion_id = c.id) as es_expo'),
                 DB::raw("(SELECT cce.nombre_categoria
                           FROM cotizacion_has_producto chp
                           INNER JOIN precios_producto_carga ppc ON ppc.id = chp.precios_producto_carga_id
@@ -868,6 +887,64 @@ class ModalFlujoPedido extends Component
         // Devuelta si el ciclo más reciente tiene estado_id = 7 (inactivado/devuelto)
         $ultima = collect($records)->sortByDesc('id')->first();
         $this->revisionDevuelta = $ultima !== null && (int) ($ultima['estado_id'] ?? 0) === 7;
+    }
+
+    private function cargarSeccionesExpo(): void
+    {
+        if (!$this->flujoId) {
+            $this->seccionesExpoData = [];
+            return;
+        }
+
+        $latestCredito = DB::table('credito_revision')
+            ->select('flujo_id', 'cotizacion_id', DB::raw('MAX(id) as max_id'))
+            ->whereNotNull('cotizacion_id')
+            ->groupBy('flujo_id', 'cotizacion_id');
+        $latestInventario = DB::table('historico_flujo')
+            ->select('flujo_id', 'tramite_id', DB::raw('MAX(id) as max_id'))
+            ->where('tipo_tramite_id', 9)
+            ->whereNotNull('tramite_id')
+            ->groupBy('flujo_id', 'tramite_id');
+
+        $secciones = DB::table('expo_oferta_seccion as eos')
+            ->join('cotizacion as c', 'c.id', '=', 'eos.cotizacion_id')
+            ->leftJoinSub($latestCredito, 'lcr', function ($join) {
+                $join->on('lcr.flujo_id', '=', 'eos.flujo_id')
+                    ->on('lcr.cotizacion_id', '=', 'eos.cotizacion_id');
+            })
+            ->leftJoin('credito_revision as cr', 'cr.id', '=', 'lcr.max_id')
+            ->leftJoinSub($latestInventario, 'linv', function ($join) {
+                $join->on('linv.flujo_id', '=', 'eos.flujo_id')
+                    ->on('linv.tramite_id', '=', 'eos.cotizacion_id');
+            })
+            ->leftJoin('historico_flujo as hi', 'hi.id', '=', 'linv.max_id')
+            ->leftJoin('prefactura as pf', 'pf.id', '=', 'eos.prefactura_id')
+            ->where('eos.flujo_id', $this->flujoId)
+            ->orderBy('eos.numero')
+            ->get([
+                'eos.id', 'eos.numero', 'eos.nombre', 'eos.estado', 'eos.cotizacion_origen_id',
+                'eos.cotizacion_id', 'eos.prefactura_id', 'eos.finaliza_seccionado',
+                'c.nombre_cliente', 'c.total', 'c.fecha_emision', 'c.fecha_vencimiento', 'c.tipo_pago_id',
+                'cr.estado as credito_estado', 'cr.motivo_rechazo as credito_motivo',
+                'cr.observaciones as credito_observaciones', 'cr.fecha_aprobacion as credito_fecha',
+                'hi.estado_id as inventario_estado_id', 'hi.observaciones as inventario_observaciones',
+                'hi.updated_at as inventario_fecha', 'pf.estado as prefactura_estado',
+                'pf.fecha_emision as prefactura_fecha', 'pf.fecha_vencimiento as prefactura_vencimiento',
+            ]);
+
+        $productos = DB::table('cotizacion_has_producto')
+            ->whereIn('cotizacion_id', $secciones->pluck('cotizacion_id'))
+            ->orderBy('indice')
+            ->get(['cotizacion_id', 'nombre_producto', 'cantidad'])
+            ->groupBy('cotizacion_id');
+
+        $this->seccionesExpoData = $secciones->map(function ($seccion) use ($productos) {
+            $data = (array) $seccion;
+            $data['productos'] = $productos->get($seccion->cotizacion_id, collect())
+                ->map(fn ($producto) => (array) $producto)
+                ->all();
+            return $data;
+        })->all();
     }
 
     public function verOferta(int $cotizacionId): void
@@ -1472,6 +1549,27 @@ class ModalFlujoPedido extends Component
         $cotizacionId = (int) $this->ofertaSeleccionada['id'];
         $cotizacion   = DB::table('cotizacion')->where('id', $cotizacionId)->first();
         if (!$cotizacion) { $this->mensajeError = 'Oferta no encontrada.'; return; }
+
+        if (DB::table('expo_cotizacion')->where('cotizacion_id', $cotizacionId)->exists()) {
+            try {
+                app(SeccionadorOfertaExpo::class)->iniciarSeccionado(
+                    (int) $this->flujoId,
+                    $cotizacionId,
+                    (int) Auth::id()
+                );
+                $this->confirmAccionOferta = null;
+                $this->ofertaSeleccionada = null;
+                $this->comentarioCreditoGanadora = '';
+                $this->mensajeExito = 'Oferta Expo #' . $cotizacionId . ' marcada como ganadora. Cree sus secciones antes de enviarlas a revisión.';
+                $this->emit('pedidoActualizado');
+                $this->dispatchBrowserEvent('fmp-redirigir', [
+                    'url' => route('flujo.secciones_ofertas', ['flujo_id' => $this->flujoId]),
+                ]);
+            } catch (\Throwable $e) {
+                $this->mensajeError = 'Error al iniciar las secciones de la oferta Expo: ' . $e->getMessage();
+            }
+            return;
+        }
 
         // ── Verificar si la revisión de inventario está activada ──────────
         $configRevision = DB::table('configuracion_revision_inventario')->first();
@@ -2234,7 +2332,7 @@ class ModalFlujoPedido extends Component
         return $productosConCambio;
     }
 
-    private function cargarPrefactura(): void
+    private function cargarPrefactura(?int $prefacturaId = null): void
     {
         if (!$this->flujoId) {
             $this->prefacturaData = null;
@@ -2248,6 +2346,7 @@ class ModalFlujoPedido extends Component
         }
         $pref = DB::table('prefactura')
             ->where('flujo_id', $this->flujoId)
+            ->when($prefacturaId, fn ($query) => $query->where('id', $prefacturaId))
             ->whereIn('estado', ['activo', 'convertida'])
             ->orderByDesc('id')
             ->first();
@@ -2315,6 +2414,23 @@ class ModalFlujoPedido extends Component
                 $this->prefacturaPuedeFacturar = false;
             }
         }
+    }
+
+    public function seleccionarPrefacturaExpo(int $prefacturaId): void
+    {
+        $perteneceAlFlujo = DB::table('expo_oferta_seccion')
+            ->where('flujo_id', $this->flujoId)
+            ->where('prefactura_id', $prefacturaId)
+            ->exists();
+
+        if (!$perteneceAlFlujo) {
+            $this->mensajeError = 'La prefactura seleccionada no pertenece a este flujo Expo.';
+            return;
+        }
+
+        $this->cargarPrefactura($prefacturaId);
+        $this->confirmAccionPrefactura = null;
+        $this->mensajeError = '';
     }
 
     public function confirmarAccionPrefactura(string $accion): void

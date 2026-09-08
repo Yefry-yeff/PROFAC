@@ -915,11 +915,20 @@ class FacturacionCorporativa extends Component
             // Cuando la factura se genera manualmente (guardarVenta + confirmarFacturaFlujo),
             // la prefactura queda en 'activo' y sigue descontando stock disponible.
             if ($flujoId && $request->filled('prefactura_id') && !$esExpoParcial) {
+                $prefacturaId = (int) $request->input('prefactura_id');
                 DB::table('prefactura')
                     ->where('flujo_id', $flujoId)
-                    ->where('id', (int) $request->input('prefactura_id'))
+                    ->where('id', $prefacturaId)
                     ->where('estado', 'activo')
                     ->update(['estado' => 'convertida', 'updated_at' => now()]);
+
+                DB::table('expo_oferta_seccion')
+                    ->where('prefactura_id', $prefacturaId)
+                    ->update([
+                        'estado' => 'FACTURADA',
+                        'updated_by' => Auth::id(),
+                        'updated_at' => now(),
+                    ]);
             }
 
             DB::commit();

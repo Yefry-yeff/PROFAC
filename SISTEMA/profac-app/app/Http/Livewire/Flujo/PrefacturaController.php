@@ -13,6 +13,7 @@ use App\Models\CreditoRevision;
 use App\Http\Livewire\Ventas\FacturacionCorporativa;
 use App\Events\FlujoAvanzadoEvent;
 use App\Services\Expo\SaldoLineasOferta;
+use App\Services\Expo\SeccionadorOfertaExpo;
 use Carbon\Carbon;
 
 /**
@@ -361,6 +362,33 @@ class PrefacturaController
         $cotizacion = DB::table('cotizacion')->where('id', $cotizacionId)->first();
         if (!$cotizacion) {
             return response()->json(['icon' => 'error', 'title' => 'Error', 'text' => 'Oferta no encontrada.'], 404);
+        }
+
+        if (DB::table('expo_cotizacion')->where('cotizacion_id', $cotizacionId)->exists()) {
+            if (!$flujoId) {
+                $flujoId = (int) DB::table('historico_flujo')
+                    ->where('tipo_tramite_id', 2)
+                    ->where('tramite_id', $cotizacionId)
+                    ->orderByDesc('id')
+                    ->value('flujo_id');
+            }
+
+            try {
+                app(SeccionadorOfertaExpo::class)->iniciarSeccionado(
+                    $flujoId,
+                    $cotizacionId,
+                    (int) Auth::id()
+                );
+
+                return response()->json([
+                    'en_secciones_ofertas' => true,
+                    'cotizacionId' => $cotizacionId,
+                    'flujoId' => $flujoId,
+                    'message' => 'Oferta Expo #' . $cotizacionId . ' enviada a Secciones de Ofertas.',
+                ]);
+            } catch (\Throwable $e) {
+                return response()->json(['icon' => 'error', 'title' => 'Error', 'text' => $e->getMessage()], 422);
+            }
         }
 
         // ── Verificar si la revisión de inventario está activa ────────────
