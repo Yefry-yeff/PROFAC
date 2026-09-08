@@ -26,6 +26,7 @@ class SeccionesOferta extends Component
     public string $fechaPago = '';
     public ?int $ultimaSeccionId = null;
     public string $ultimaSeccionNombre = '';
+    public string $ultimaSeccionDestino = 'Crédito';
     public ?int $editarSeccionId = null;
     public ?string $editarEstadoSeccion = null;
     public bool $puedeCrear = false;
@@ -248,6 +249,7 @@ class SeccionesOferta extends Component
         }
 
         try {
+            $devueltaInventario = $this->editarEstadoSeccion === 'DEVUELTA_INVENTARIO';
             $this->validate([
                 'tipoPagoId' => 'required|integer|in:1,2',
                 'fechaEmision' => 'required|date',
@@ -296,6 +298,7 @@ class SeccionesOferta extends Component
                 ->first(['nombre']);
             $this->ultimaSeccionId = $cotizacionHijaId;
             $this->ultimaSeccionNombre = (string) ($seccion->nombre ?? ('Oferta #' . $cotizacionHijaId));
+            $this->ultimaSeccionDestino = $devueltaInventario ? 'Inventario' : 'Crédito';
             $this->editarSeccionId = null;
             $this->editarEstadoSeccion = null;
             $this->comentarioInventarioGeneral = '';

@@ -252,7 +252,7 @@
                                 <i class="fa fa-check"></i>
                             </div>
                             <h4 style="font-weight:800; color:#145c54;">Sección guardada</h4>
-                            <p class="text-muted mb-4">{{ $ultimaSeccionNombre }} fue enviada a Revisión de Crédito.</p>
+                            <p class="text-muted mb-4">{{ $ultimaSeccionNombre }} fue enviada a Revisión de {{ $ultimaSeccionDestino }}.</p>
                             <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
                                 <a class="btn btn-white expo-success-action" target="_blank"
                                    href="{{ $ultimaSeccionId ? '/cotizacion/imprimir/'.$ultimaSeccionId : '#' }}">
