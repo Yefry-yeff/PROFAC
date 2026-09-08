@@ -150,11 +150,15 @@
     $tieneOfertas  = count($ofertasPedido) > 0 || ($d['total_ofertas'] > 0);
     $tieneGanadora = ($d['has_ganadora'] > 0);
     $esFlujoExpo = collect($ofertasPedido)->contains(fn ($oferta) => !empty($oferta['es_expo']));
-    $seccionesExpo = collect($seccionesExpoData);
+    $seccionesExpo = collect($seccionesExpoData)->reject(fn ($seccion) => $seccion['estado'] === 'ANULADA');
     $totalSeccionesExpo = $seccionesExpo->count();
-    $totalCreditoExpo = $totalSeccionesExpo;
+    $totalCreditoExpo = $seccionesExpo->filter(fn ($seccion) => !empty($seccion['credito_estado']))->count();
+    $totalCreditoAprobadoExpo = $seccionesExpo->filter(fn ($seccion) => ($seccion['credito_estado'] ?? null) === 'aprobado')->count();
     $totalInventarioExpo = $seccionesExpo->filter(fn ($seccion) => !empty($seccion['inventario_estado_id']) || in_array($seccion['estado'], ['EN_REVISION_INVENTARIO', 'PREFACTURADA', 'FACTURADA', 'DEVUELTA_INVENTARIO'], true))->count();
+    $totalInventarioCompletadoExpo = $seccionesExpo->filter(fn ($seccion) => (int) ($seccion['inventario_estado_id'] ?? 0) === 1 || in_array($seccion['estado'], ['PREFACTURADA', 'FACTURADA'], true))->count();
     $totalPrefacturaExpo = $seccionesExpo->filter(fn ($seccion) => !empty($seccion['prefactura_id']))->count();
+    $creditoExpoCompletado = $seccionesExpoCompletas && $totalSeccionesExpo > 0 && $totalCreditoAprobadoExpo === $totalSeccionesExpo;
+    $inventarioExpoCompletado = $creditoExpoCompletado && $totalInventarioCompletadoExpo === $totalSeccionesExpo;
     $tieneSecciones = $esFlujoExpo && (in_array(11, $flujoTipos) || $totalSeccionesExpo > 0);
     $tieneRevision         = in_array(9, $flujoTipos) || ($esFlujoExpo && $totalInventarioExpo > 0);   // Revision de Inventario (incluye devueltos)
     $tieneRevisionActiva   = $tieneRevision && !($revisionDevuelta ?? false);  // ciclo activo
@@ -305,28 +309,41 @@
                         $completado = !$esSinPedido && !$esSinAplica && (($paso < $fPasoLinea) || ($paso === $ultimoPasoPrincipal && $fPaso > $ultimoPasoPrincipal));
                         $activo     = !$esSinPedido && !$esSinAplica && ($paso === $fPasoLinea) && !($paso === $ultimoPasoPrincipal && $fPaso > $ultimoPasoPrincipal);
                         $pendiente  = !$esSinPedido && !$esSinAplica && ($paso > $fPasoLinea);
+                        if ($esFlujoExpo && in_array($info['key'], ['secciones_ofertas', 'revision_credito', 'revision_inventario'], true)) {
+                            $etapaExpoCompletada = match($info['key']) {
+                                'secciones_ofertas' => $seccionesExpoCompletas,
+                                'revision_credito' => $creditoExpoCompletado,
+                                'revision_inventario' => $inventarioExpoCompletado,
+                            };
+                            $completado = $etapaExpoCompletada;
+                            $activo = false;
+                            $pendiente = !$etapaExpoCompletada;
+                        }
                         $esSeleccionado = ($info['key'] === $pasoActivo);
                         $delay      = ($paso - 1) * 100;
                         // Rev. Inventario devuelta: mostrar como estado especial (naranja)
                         $esDevuelto = ($info['key'] === 'revision_inventario')
                             && ($tieneRevisionDevuelta ?? false)
                             && !($tieneRevisionActiva ?? false)
+                            && (!$esFlujoExpo || $seccionesExpoCompletas)
                             && $pendiente;
                         // Rev. Crédito rechazada: mostrar como rojo con X
                         $esRechazado = ($info['key'] === 'revision_credito')
-                            && ($tieneRevisionCreditoRechazada ?? false);
+                            && ($tieneRevisionCreditoRechazada ?? false)
+                            && (!$esFlujoExpo || $seccionesExpoCompletas);
                         // Factura anulada: mostrar paso 6 como rojo con X
                         $esFacturaAnulada = ($info['key'] === 'factura') && ($facturaAnulada ?? false);
                         $esFacturaExpoDisponible = ($info['key'] === 'factura') && ($expoConSaldoPendiente ?? false);
                         if ($esDevuelto)     $pendiente = false;
                         if ($esRechazado)    { $pendiente = false; $completado = false; $activo = false; }
                         if ($esFacturaAnulada) { $pendiente = false; $completado = false; $activo = false; }
-                        $labelColor = ($esSinPedido || $esSinAplica) ? '#e74c3c' : ($esRechazado || $esFacturaAnulada ? '#e74c3c' : ($completado ? '#1ab394' : ($activo ? '#1a7efb' : ($esDevuelto ? '#e67e22' : '#aab'))));
+                        $esPendienteExpo = $esFlujoExpo && $pendiente;
+                        $labelColor = ($esSinPedido || $esSinAplica) ? '#e74c3c' : ($esRechazado || $esFacturaAnulada ? '#e74c3c' : ($completado ? '#1ab394' : ($activo ? '#1a7efb' : ($esDevuelto ? '#e67e22' : ($esPendienteExpo ? '#d97706' : '#aab')))));
                         $puedeClick = ($completado || $activo || $esDevuelto || $esRechazado || $esFacturaAnulada || $esFacturaExpoDisponible) && !$esSinPedido && !$esSinAplica;
                         $conteoPasoExpo = $esFlujoExpo ? match($info['key']) {
                             'secciones_ofertas' => $totalSeccionesExpo,
-                            'revision_credito' => $totalCreditoExpo,
-                            'revision_inventario' => $totalInventarioExpo,
+                            'revision_credito' => $totalCreditoAprobadoExpo . '/' . $totalSeccionesExpo,
+                            'revision_inventario' => $totalInventarioCompletadoExpo . '/' . $totalSeccionesExpo,
                             'prefactura' => $totalPrefacturaExpo,
                             default => null,
                         } : null;
@@ -415,11 +432,13 @@
                         </div>
                         @else
                         <div class="fmp-step-circle" style="width:60px; height:60px; border-radius:50%;
-                                    background:#e8eaf0; color:#c0c2cc; margin-bottom:8px;
+                                background:{{ $esPendienteExpo ? 'linear-gradient(135deg,#f59e0b,#d97706)' : '#e8eaf0' }};
+                                color:{{ $esPendienteExpo ? '#fff' : '#c0c2cc' }}; margin-bottom:8px;
+                                {{ $esPendienteExpo ? 'box-shadow:0 4px 14px rgba(217,119,6,.3);' : '' }}
                                     display:flex; align-items:center; justify-content:center; flex-direction:column;
                                     flex-shrink:0;">
-                            <span class="fmp-step-num" style="font-size:20px; font-weight:700; line-height:1; color:#aab;">{{ $paso }}</span>
-                            <i class="fmp-step-icon-sm fa {{ $info['icon'] }}" style="font-size:11px; margin-top:2px; color:#c0c2cc;"></i>
+                            <span class="fmp-step-num" style="font-size:20px; font-weight:700; line-height:1; color:{{ $esPendienteExpo ? '#fff' : '#aab' }};">{{ $paso }}</span>
+                            <i class="fmp-step-icon-sm fa {{ $info['icon'] }}" style="font-size:11px; margin-top:2px; color:{{ $esPendienteExpo ? '#fff' : '#c0c2cc' }};"></i>
                         </div>
                         @endif
 
@@ -1744,7 +1763,7 @@
                         </div>
                         <div style="display:flex; gap:7px; flex-wrap:wrap; margin-top:9px;">
                             <a href="/cotizacion/imprimir/{{ $seccion['cotizacion_id'] }}" target="_blank" class="btn btn-white btn-xs"><i class="fa fa-print mr-1"></i>Imprimir</a>
-                            @if($estadoSeccion === 'RECHAZADA_CREDITO')
+                            @if(in_array($estadoSeccion, ['RECHAZADA_CREDITO', 'DEVUELTA_INVENTARIO'], true))
                             <a href="{{ route('flujo.secciones_ofertas', ['flujo_id' => $flujoId, 'seccion_id' => $seccion['id']]) }}" class="btn btn-danger btn-xs">
                                 <i class="fa fa-pencil mr-1"></i>Editar y reenviar
                             </a>
@@ -1901,9 +1920,6 @@
                         @endif
                         <div style="display:flex; gap:7px; flex-wrap:wrap; margin-top:9px;">
                             <a href="/cotizacion/imprimir/{{ $seccion['cotizacion_id'] }}" target="_blank" class="btn btn-white btn-xs"><i class="fa fa-print mr-1"></i>Imprimir</a>
-                            @if($inventarioEstado === 5)
-                            <a href="/flujo/revicion_inventario?flujo_id={{ $flujoId }}&cotizacion_id={{ $seccion['cotizacion_id'] }}" class="btn btn-primary btn-xs"><i class="fa fa-search mr-1"></i>Revisar</a>
-                            @endif
                         </div>
                     </div>
                     @empty

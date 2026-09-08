@@ -761,10 +761,25 @@ class RevicionInventario extends Component
             ]);
 
             DB::commit();
-            $mensaje = 'Bodega reasignada a ' . $destinoTexto . '. La auditoría fue registrada.';
-            $flujoId = $this->flujoId;
-            $this->seleccionarFlujo($flujoId);
-            $this->mensajeExito = $mensaje;
+            foreach ($this->productos as $key => $productoActual) {
+                if ((int) $productoActual['idx'] !== $idx) {
+                    continue;
+                }
+
+                $this->productos[$key] = array_merge($productoActual, [
+                    'bodega_id' => $bodegaDestinoId,
+                    'seccion_id' => $seccionDestinoId,
+                    'nombre_bodega' => $destino->bodega_nombre,
+                    'bodega_actual_nombre' => $destino->bodega_nombre,
+                    'seccion_actual_descripcion' => $destino->seccion_descripcion,
+                    'resta_inventario' => 1,
+                    'sin_existencia' => false,
+                ]);
+                break;
+            }
+
+            $this->mensajeError = '';
+            $this->mensajeExito = 'Bodega reasignada a ' . $destinoTexto . '. La auditoría fue registrada.';
         } catch (\Throwable $e) {
             DB::rollBack();
             $this->mensajeError = 'No se pudo reasignar la bodega: ' . $e->getMessage();

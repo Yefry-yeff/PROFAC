@@ -52,6 +52,7 @@ class ModalFlujoPedido extends Component
     public array  $creditoRevisionData   = [];    // datos del registro credito_revision activo
     public bool   $creditoVigente        = false; // true si hay aprobación no vencida
     public array  $seccionesExpoData     = [];
+    public bool   $seccionesExpoCompletas = false;
 
     // ── Revisión de Inventario: historial de ciclos ──────────────────────────────────────
     public array $revisionHistorial = [];   // ciclos con datos de revisor/aprobador
@@ -893,6 +894,7 @@ class ModalFlujoPedido extends Component
     {
         if (!$this->flujoId) {
             $this->seccionesExpoData = [];
+            $this->seccionesExpoCompletas = false;
             return;
         }
 
@@ -945,6 +947,11 @@ class ModalFlujoPedido extends Component
                 ->all();
             return $data;
         })->all();
+
+        $cotizacionOrigenId = (int) ($secciones->first()->cotizacion_origen_id ?? 0);
+        $this->seccionesExpoCompletas = $cotizacionOrigenId > 0
+            && !app(SeccionadorOfertaExpo::class)->pendientes($cotizacionOrigenId)
+                ->contains(fn ($linea) => (float) $linea->cantidad_pendiente > 0);
     }
 
     public function verOferta(int $cotizacionId): void

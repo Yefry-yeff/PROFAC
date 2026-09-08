@@ -27,9 +27,12 @@ class SeccionesOferta extends Component
     public ?int $ultimaSeccionId = null;
     public string $ultimaSeccionNombre = '';
     public ?int $editarSeccionId = null;
+    public ?string $editarEstadoSeccion = null;
     public bool $puedeCrear = false;
     public bool $finalizaSeccionado = false;
     public string $comentarioCredito = '';
+    public string $comentarioInventarioGeneral = '';
+    public array $comentariosInventarioProductos = [];
     public string $busqueda = '';
     public string $busquedaProducto = '';
     public string $mensajeExito = '';
@@ -118,8 +121,11 @@ class SeccionesOferta extends Component
         $this->ultimaSeccionId = null;
         $this->ultimaSeccionNombre = '';
         $this->editarSeccionId = null;
+        $this->editarEstadoSeccion = null;
         $this->finalizaSeccionado = false;
         $this->comentarioCredito = '';
+        $this->comentarioInventarioGeneral = '';
+        $this->comentariosInventarioProductos = [];
         $this->busquedaProducto = '';
         $this->mensajeError = '';
         $this->cargarDetalle();
@@ -142,7 +148,11 @@ class SeccionesOferta extends Component
         $this->ultimaSeccionId = null;
         $this->ultimaSeccionNombre = '';
         $this->puedeCrear = false;
+        $this->editarEstadoSeccion = null;
         $this->finalizaSeccionado = false;
+        $this->comentarioCredito = '';
+        $this->comentarioInventarioGeneral = '';
+        $this->comentariosInventarioProductos = [];
         $this->busquedaProducto = '';
         $this->mensajeError = '';
     }
@@ -213,9 +223,12 @@ class SeccionesOferta extends Component
     {
         $this->dispatchBrowserEvent('cerrar-modal-seccion-guardada');
         $this->editarSeccionId = null;
+        $this->editarEstadoSeccion = null;
         $this->mensajeExito = '';
         $this->mensajeError = '';
         $this->comentarioCredito = '';
+        $this->comentarioInventarioGeneral = '';
+        $this->comentariosInventarioProductos = [];
         $this->cargarDetalle();
     }
 
@@ -284,6 +297,9 @@ class SeccionesOferta extends Component
             $this->ultimaSeccionId = $cotizacionHijaId;
             $this->ultimaSeccionNombre = (string) ($seccion->nombre ?? ('Oferta #' . $cotizacionHijaId));
             $this->editarSeccionId = null;
+            $this->editarEstadoSeccion = null;
+            $this->comentarioInventarioGeneral = '';
+            $this->comentariosInventarioProductos = [];
             $this->mensajeExito = '';
             $this->mensajeError = '';
             $this->cargarDetalle();
@@ -375,9 +391,9 @@ class SeccionesOferta extends Component
             ->where('eos.id', $seccionId)
             ->where('eos.flujo_id', $this->flujoId)
             ->where('eos.cotizacion_origen_id', $this->cotizacionOrigenId)
-            ->where('eos.estado', 'RECHAZADA_CREDITO')
+            ->whereIn('eos.estado', ['RECHAZADA_CREDITO', 'DEVUELTA_INVENTARIO'])
             ->first([
-                'eos.id', 'eos.cotizacion_id', 'eos.finaliza_seccionado',
+                'eos.id', 'eos.cotizacion_id', 'eos.estado', 'eos.finaliza_seccionado',
                 'c.tipo_pago_id', 'c.fecha_emision', 'c.fecha_vencimiento',
             ]);
 
@@ -401,6 +417,7 @@ class SeccionesOferta extends Component
         }
 
         $this->editarSeccionId = (int) $seccion->id;
+        $this->editarEstadoSeccion = (string) $seccion->estado;
         $this->tipoPagoId = (int) ($seccion->tipo_pago_id ?: 1);
         $this->fechaEmision = \Carbon\Carbon::parse($seccion->fecha_emision)->toDateString();
         $this->fechaPago = \Carbon\Carbon::parse($seccion->fecha_vencimiento ?: $seccion->fecha_emision)->toDateString();
@@ -410,8 +427,44 @@ class SeccionesOferta extends Component
             ->where('tramite_id', $seccion->cotizacion_id)
             ->latest('id')
             ->value('observacion') ?? '');
+        if ($this->editarEstadoSeccion === 'DEVUELTA_INVENTARIO') {
+            $this->cargarObservacionesInventario((int) $seccion->cotizacion_id);
+        }
         $this->puedeCrear = true;
         $this->sincronizarSeleccionTodos();
+    }
+
+    private function cargarObservacionesInventario(int $cotizacionId): void
+    {
+        $this->comentarioInventarioGeneral = '';
+        $this->comentariosInventarioProductos = [];
+
+        $observacion = (string) (DB::table('historico_flujo')
+            ->where('flujo_id', $this->flujoId)
+            ->where('tipo_tramite_id', 9)
+            ->where('tramite_id', $cotizacionId)
+            ->where('estado_id', 7)
+            ->latest('id')
+            ->value('observaciones') ?? '');
+        $detalle = trim((string) preg_replace('/^Devuelto a Oferta:\s*/i', '', $observacion));
+        if ($detalle === '') {
+            return;
+        }
+
+        $inicioNotas = strpos($detalle, ' | [');
+        $this->comentarioInventarioGeneral = trim(
+            $inicioNotas === false ? $detalle : substr($detalle, 0, $inicioNotas)
+        );
+
+        if ($inicioNotas !== false) {
+            preg_match_all('/\|\s*\[([^\]]+)\]:\s*([^|]+)/', substr($detalle, $inicioNotas), $coincidencias, PREG_SET_ORDER);
+            $this->comentariosInventarioProductos = collect($coincidencias)
+                ->map(fn ($coincidencia) => [
+                    'producto' => trim($coincidencia[1]),
+                    'comentario' => trim($coincidencia[2]),
+                ])
+                ->all();
+        }
     }
 
     public function render()

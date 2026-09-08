@@ -50,8 +50,8 @@
                     <div class="expo-payment-panel mb-4">
                         <div class="d-flex align-items-center justify-content-between flex-wrap mb-3" style="gap:8px;">
                             <div>
-                                <h5 class="mb-1" style="color:#00695c;"><i class="mr-1 fa fa-calendar-check-o"></i>{{ $editarSeccionId ? 'Corregir sección rechazada' : 'Condiciones de esta sección' }}</h5>
-                                <small class="text-muted">Estos datos viajarán únicamente con esta sección a Revisión de Crédito.</small>
+                                <h5 class="mb-1" style="color:#00695c;"><i class="mr-1 fa fa-calendar-check-o"></i>{{ $editarEstadoSeccion === 'DEVUELTA_INVENTARIO' ? 'Corregir sección devuelta por Inventario' : ($editarSeccionId ? 'Corregir sección rechazada por Crédito' : 'Condiciones de esta sección') }}</h5>
+                                <small class="text-muted">{{ $editarEstadoSeccion === 'DEVUELTA_INVENTARIO' ? 'Las condiciones aprobadas por Crédito no pueden modificarse. La sección corregida volverá directamente a Revisión de Inventario.' : ($editarSeccionId ? 'La sección corregida volverá a Revisión de Crédito.' : 'Estos datos viajarán únicamente con esta sección a Revisión de Crédito.') }}</small>
                             </div>
                             @if (!$puedeCrear)
                                 <span class="badge badge-info">Oferta completamente seccionada</span>
@@ -60,25 +60,25 @@
                         <div class="row align-items-end">
                             <div class="col-md-3 form-group mb-md-0">
                                 <label class="expo-payment-label" for="tipoPagoSeccion">Condición de pago</label>
-                                <select id="tipoPagoSeccion" class="form-control" wire:model="tipoPagoId" {{ !$puedeCrear ? 'disabled' : '' }}>
+                                <select id="tipoPagoSeccion" class="form-control" wire:model="tipoPagoId" {{ !$puedeCrear || $editarEstadoSeccion === 'DEVUELTA_INVENTARIO' ? 'disabled' : '' }}>
                                     <option value="1">Contado</option>
                                     <option value="2">Crédito</option>
                                 </select>
                             </div>
                             <div class="col-md-3 form-group mb-md-0">
                                 <label class="expo-payment-label" for="fechaEmisionSeccion">Fecha de emisión</label>
-                                <input id="fechaEmisionSeccion" type="date" class="form-control" wire:model="fechaEmision" {{ !$puedeCrear ? 'disabled' : '' }}>
+                                <input id="fechaEmisionSeccion" type="date" class="form-control" wire:model="fechaEmision" {{ !$puedeCrear || $editarEstadoSeccion === 'DEVUELTA_INVENTARIO' ? 'disabled' : '' }}>
                                 @error('fechaEmision') <small class="text-danger">{{ $message }}</small> @enderror
                             </div>
                             <div class="col-md-3 form-group mb-md-0">
                                 <label class="expo-payment-label" for="fechaPagoSeccion">{{ $tipoPagoId === 2 ? 'Fecha de vencimiento' : 'Fecha de pago' }}</label>
                                 <input id="fechaPagoSeccion" type="date" class="form-control" wire:model="fechaPago"
-                                       min="{{ $fechaEmision }}" {{ !$puedeCrear || $tipoPagoId === 1 ? 'disabled' : '' }}>
+                                       min="{{ $fechaEmision }}" {{ !$puedeCrear || $tipoPagoId === 1 || $editarEstadoSeccion === 'DEVUELTA_INVENTARIO' ? 'disabled' : '' }}>
                                 @error('fechaPago') <small class="text-danger">{{ $message }}</small> @enderror
                             </div>
                             <div class="col-md-3 form-group mb-md-0">
                                 <div class="custom-control custom-checkbox pb-2">
-                                    <input type="checkbox" class="custom-control-input" id="finalizaSeccionado" wire:model.defer="finalizaSeccionado" {{ !$puedeCrear ? 'disabled' : '' }}>
+                                    <input type="checkbox" class="custom-control-input" id="finalizaSeccionado" wire:model.defer="finalizaSeccionado" {{ !$puedeCrear || $editarEstadoSeccion === 'DEVUELTA_INVENTARIO' ? 'disabled' : '' }}>
                                     <label class="custom-control-label" for="finalizaSeccionado">Esta será la última sección</label>
                                 </div>
                             </div>
@@ -87,10 +87,26 @@
                                 <textarea id="comentarioCreditoSeccion" class="form-control" rows="2"
                                           wire:model.defer="comentarioCredito"
                                           placeholder="Observación específica de esta sección..."
-                                          {{ !$puedeCrear ? 'disabled' : '' }}></textarea>
+                                          {{ !$puedeCrear || $editarEstadoSeccion === 'DEVUELTA_INVENTARIO' ? 'disabled' : '' }}></textarea>
                             </div>
                         </div>
                     </div>
+
+                    @if($editarEstadoSeccion === 'DEVUELTA_INVENTARIO')
+                    <div class="alert alert-warning" style="border-left:4px solid #e65100;">
+                        <h5 style="color:#8a4700;"><i class="mr-1 fa fa-commenting-o"></i>Observaciones de Revisión de Inventario</h5>
+                        <div class="mb-2"><strong>Comentario general:</strong> {{ $comentarioInventarioGeneral ?: 'Sin comentario general.' }}</div>
+                        @if(!empty($comentariosInventarioProductos))
+                            @foreach($comentariosInventarioProductos as $comentarioProducto)
+                            <div style="background:#fff; border-left:3px solid #ef6c00; padding:7px 10px; margin-top:6px; border-radius:4px;">
+                                <strong>{{ $comentarioProducto['producto'] }}:</strong> {{ $comentarioProducto['comentario'] }}
+                            </div>
+                            @endforeach
+                        @else
+                            <small>No se registraron comentarios por producto.</small>
+                        @endif
+                    </div>
+                    @endif
 
                     @if (!$puedeCrear && !empty($productos))
                         <div class="alert alert-info">
@@ -176,7 +192,7 @@
                     @if ($puedeCrear)
                     <div class="d-flex justify-content-end mt-3">
                         <button type="button" class="btn btn-primary" wire:click="guardar" wire:loading.attr="disabled">
-                            <i class="mr-1 fa fa-paper-plane"></i>{{ $editarSeccionId ? 'Guardar cambios y reenviar a Crédito' : 'Guardar y enviar a revisión' }}
+                            <i class="mr-1 fa fa-paper-plane"></i>{{ $editarEstadoSeccion === 'DEVUELTA_INVENTARIO' ? 'Guardar cambios y reenviar a Inventario' : ($editarSeccionId ? 'Guardar cambios y reenviar a Crédito' : 'Guardar y enviar a revisión') }}
                         </button>
                     </div>
                     @endif
@@ -203,7 +219,7 @@
                                             <a class="btn btn-white btn-xs" target="_blank" href="/cotizacion/imprimir/{{ $seccion['cotizacion_id'] }}" title="Imprimir sección">
                                                 <i class="fa fa-print"></i>
                                             </a>
-                                            @if($seccion['estado'] === 'RECHAZADA_CREDITO')
+                                            @if(in_array($seccion['estado'], ['RECHAZADA_CREDITO', 'DEVUELTA_INVENTARIO'], true))
                                             <a class="btn btn-danger btn-xs" href="{{ route('flujo.secciones_ofertas', ['flujo_id' => $flujoId, 'seccion_id' => $seccion['id']]) }}" title="Editar y reenviar">
                                                 <i class="fa fa-pencil"></i>
                                             </a>

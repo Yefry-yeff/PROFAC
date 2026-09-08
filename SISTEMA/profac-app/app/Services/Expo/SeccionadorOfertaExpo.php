@@ -338,10 +338,22 @@ class SeccionadorOfertaExpo
             $comentarioCredito
         ) {
             $seccion = DB::table('expo_oferta_seccion')->where('id', $seccionId)->lockForUpdate()->first();
-            if (!$seccion || $seccion->estado !== 'RECHAZADA_CREDITO') {
+            if (!$seccion || !in_array($seccion->estado, ['RECHAZADA_CREDITO', 'DEVUELTA_INVENTARIO'], true)) {
                 throw ValidationException::withMessages([
-                    'seccion' => 'Sólo puede editar una sección rechazada por Crédito.',
+                    'seccion' => 'Sólo puede editar una sección rechazada por Crédito o devuelta por Inventario.',
                 ]);
+            }
+
+            $devueltaInventario = $seccion->estado === 'DEVUELTA_INVENTARIO';
+            if ($devueltaInventario) {
+                $cotizacionActual = DB::table('cotizacion')
+                    ->where('id', $seccion->cotizacion_id)
+                    ->lockForUpdate()
+                    ->first(['tipo_pago_id', 'fecha_emision', 'fecha_vencimiento']);
+                $tipoPagoId = (int) $cotizacionActual->tipo_pago_id;
+                $fechaEmision = $cotizacionActual->fecha_emision;
+                $fechaPago = $cotizacionActual->fecha_vencimiento ?: $cotizacionActual->fecha_emision;
+                $finalizaSeccionado = (bool) $seccion->finaliza_seccionado;
             }
 
             if (!in_array($tipoPagoId, [1, 2], true)) {
@@ -403,11 +415,33 @@ class SeccionadorOfertaExpo
             $this->actualizarSnapshotLineas((int) $seccion->cotizacion_id);
 
             DB::table('expo_oferta_seccion')->where('id', $seccionId)->update([
-                'estado' => 'EN_REVISION_CREDITO',
+                'estado' => $devueltaInventario ? 'EN_REVISION_INVENTARIO' : 'EN_REVISION_CREDITO',
                 'finaliza_seccionado' => $finalizaSeccionado,
                 'updated_by' => $usuarioId,
                 'updated_at' => now(),
             ]);
+
+            if ($devueltaInventario) {
+                DB::table('historico_flujo')
+                    ->where('flujo_id', $seccion->flujo_id)
+                    ->where('tipo_tramite_id', 9)
+                    ->where('tramite_id', $seccion->cotizacion_id)
+                    ->where('estado_id', 7)
+                    ->update([
+                        'estado_id' => 5,
+                        'observaciones' => 'Sección Expo corregida y reenviada directamente a Revisión de Inventario.',
+                        'updated_by' => $usuarioId,
+                        'updated_at' => now(),
+                    ]);
+
+                DB::table('flujo')->where('id', $seccion->flujo_id)->update([
+                    'tipo_tramite_id' => 11,
+                    'updated_by' => $usuarioId,
+                    'updated_at' => now(),
+                ]);
+
+                return (int) $seccion->cotizacion_id;
+            }
 
             $revision = CreditoRevision::paraSeccion((int) $seccion->flujo_id, (int) $seccion->cotizacion_id);
             if ($revision) {
@@ -466,6 +500,28 @@ class SeccionadorOfertaExpo
                 'created_by' => $usuarioId,
                 'updated_by' => $usuarioId,
                 'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            $saldoPendiente = $this->pendientes((int) $seccion->cotizacion_origen_id)->sum('cantidad_pendiente');
+            $continuaSeccionado = !$finalizaSeccionado && $saldoPendiente > 0;
+            if (!$continuaSeccionado) {
+                DB::table('historico_flujo')
+                    ->where('flujo_id', $seccion->flujo_id)
+                    ->where('tipo_tramite_id', 11)
+                    ->where('tramite_id', $seccion->cotizacion_origen_id)
+                    ->where('estado_id', 5)
+                    ->update([
+                        'estado_id' => 1,
+                        'observaciones' => 'Sección corregida y reenviada a Revisión de Crédito.',
+                        'updated_by' => $usuarioId,
+                        'updated_at' => now(),
+                    ]);
+            }
+
+            DB::table('flujo')->where('id', $seccion->flujo_id)->update([
+                'tipo_tramite_id' => $continuaSeccionado ? 11 : 10,
+                'updated_by' => $usuarioId,
                 'updated_at' => now(),
             ]);
 
