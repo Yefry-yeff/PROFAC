@@ -1598,6 +1598,9 @@ Route::post('/reporte/ventas-cobros/actualizar-f01/{facturaId}',                
     // Revisión de Crédito
     Route::get('/flujo/revision_creditos', \App\Http\Livewire\Flujo\RevisionCreditos::class)->name('flujo.revision_creditos');
 
+    // Secciones de ofertas ganadoras Expo
+    Route::get('/flujo/secciones_ofertas', \App\Http\Livewire\Flujo\SeccionesOferta::class)->name('flujo.secciones_ofertas');
+
     // Ruta auto-generada para: Reportes\EvaluacionDeClientesPorNivelDeFacturacion
     Route::get('/reportes/evaluacion_de_clientes_por_nivel_de_facturacion', \App\Http\Livewire\Reportes\EvaluacionDeClientesPorNivelDeFacturacion::class);
 

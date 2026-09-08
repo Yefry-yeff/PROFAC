@@ -54,7 +54,14 @@
                         <div>
                             <h5 style="color:#fff; margin:0; font-weight:700; font-size:15px;">
                                 <i class="mr-2 fa fa-credit-card"></i>
-                                Revisando Flujo #{{ $flujoId }}
+                                Revisando Flujo #{{ $flujoId }} · Oferta #{{ $cotizacionId }}
+                                @if($esSeccionExpo)
+                                <span style="display:inline-block; background:#e0f2f1; color:#00695c;
+                                             border:1px solid #80cbc4; border-radius:4px; padding:2px 6px;
+                                             font-size:10px; font-weight:800; margin-left:5px; vertical-align:middle;">
+                                    EXPO
+                                </span>
+                                @endif
                                 @if($flujoData) — {{ $flujoData['cliente'] ?? '—' }} @endif
                                 <span style="background:rgba(255,255,255,.2); border-radius:20px; padding:2px 12px; font-size:12px; margin-left:8px;">
                                     {{ strtoupper($estadoCredito ?? 'pendiente') }}
@@ -565,6 +572,7 @@
                                             <th style="padding:10px 14px; color:#546e7a;">Flujo</th>
                                             <th style="padding:10px 14px; color:#546e7a;">Cliente</th>
                                             <th style="padding:10px 14px; color:#546e7a;">Oferta</th>
+                                            <th style="padding:10px 14px; color:#546e7a;">Estado</th>
                                             <th style="padding:10px 14px; color:#546e7a;">Días solicitados</th>
                                             <th style="padding:10px 14px; color:#546e7a;">Monto oferta</th>
                                             <th style="padding:10px 14px; color:#546e7a;">
@@ -609,8 +617,23 @@
                                                              padding:2px 10px; font-size:12px; font-weight:700;">
                                                     #{{ $r['cotizacion_id'] }}
                                                 </span>
+                                                @if(!empty($r['es_expo']))
+                                                <span style="display:inline-block; margin-left:5px; background:#e0f2f1; color:#00695c;
+                                                             border:1px solid #80cbc4; border-radius:4px; padding:2px 6px;
+                                                             font-size:10px; font-weight:800; vertical-align:middle;">
+                                                    EXPO
+                                                </span>
+                                                @endif
                                                 @else
                                                 <span class="text-muted">—</span>
+                                                @endif
+                                            </td>
+                                            <td style="padding:10px 14px;">
+                                                <span class="badge {{ ($r['estado_credito'] ?? '') === 'aprobado' ? 'badge-success' : ((($r['estado_credito'] ?? '') === 'pendiente') ? 'badge-warning' : 'badge-danger') }}">
+                                                    {{ strtoupper($r['estado_credito'] ?? 'pendiente') }}
+                                                </span>
+                                                @if($r['seccion_nombre'] ?? null)
+                                                    <small class="d-block text-muted mt-1">{{ $r['seccion_nombre'] }}</small>
                                                 @endif
                                             </td>
                                             <td style="padding:10px 14px; text-align:center;">
@@ -645,7 +668,7 @@
                                             @endif
                                             <td style="padding:10px 14px; text-align:center;">
                                                 <button type="button"
-                                                        wire:click="seleccionarFlujo({{ $r['flujo_id'] }})"
+                                                        wire:click="seleccionarFlujo({{ $r['flujo_id'] }}{{ ($r['seccion_numero'] ?? null) ? ', ' . $r['cotizacion_id'] : '' }})"
                                                         class="btn btn-sm"
                                                         style="background:#1a5276; color:#fff; border-radius:20px;
                                                                font-size:12px; padding:4px 14px; font-weight:600;">

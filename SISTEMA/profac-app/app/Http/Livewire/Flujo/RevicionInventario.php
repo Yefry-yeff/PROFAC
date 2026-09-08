@@ -3,6 +3,7 @@
 namespace App\Http\Livewire\Flujo;
 
 use App\Support\ExpoStock;
+use App\Services\Expo\SeccionadorOfertaExpo;
 use Livewire\Component;
 use App\Events\FlujoAvanzadoEvent;
 use Illuminate\Support\Facades\DB;
@@ -20,10 +21,11 @@ use Illuminate\Support\Facades\Auth;
  */
 class RevicionInventario extends Component
 {
-    private function diasVigenciaPrefactura(int $flujoId): int
+    private function diasVigenciaPrefactura(int $flujoId, int $cotizacionId): int
     {
         $credito = DB::table('credito_revision')
             ->where('flujo_id', $flujoId)
+            ->when($this->esOfertaExpo, fn ($query) => $query->where('cotizacion_id', $cotizacionId))
             ->where('estado', 'aprobado')
             ->latest('id')
             ->first(['dias_credito_aprobados', 'fecha_aprobacion', 'fecha_vencimiento_credito']);
@@ -52,6 +54,7 @@ class RevicionInventario extends Component
     public ?int   $flujoId          = null;
     protected     $flujoData        = null;   // info del flujo + oferta ganadora
     public ?int   $cotizacionId     = null;   // ID de la cotizacion ganadora
+    public ?string $estadoSeccion   = null;
     public array  $productos        = [];     // {nombre_producto, cantidad, disponible, falta_stock}
     public array  $stockErrors      = [];     // productos con stock insuficiente
     public array  $productosRevisados = [];   // checkbox por producto
@@ -111,7 +114,8 @@ class RevicionInventario extends Component
 
         $flujoId = request()->integer('flujo_id');
         if ($flujoId > 0) {
-            $this->seleccionarFlujo($flujoId);
+            $cotizacionId = request()->integer('cotizacion_id') ?: null;
+            $this->seleccionarFlujo($flujoId, false, $cotizacionId);
         }
     }
 
@@ -180,27 +184,26 @@ class RevicionInventario extends Component
 
     private function buildBandejaCount(string $term, string $tipo): int
     {
-        $latestRevSub = DB::table('historico_flujo')
-            ->select('flujo_id', DB::raw('MAX(id) as max_id'))
+        $latestRevSub = DB::table('historico_flujo as hfs')
+            ->leftJoin('expo_oferta_seccion as eos_group', function ($join) {
+                $join->on('eos_group.flujo_id', '=', 'hfs.flujo_id')
+                    ->on('eos_group.cotizacion_id', '=', 'hfs.tramite_id');
+            })
+            ->select('hfs.flujo_id', DB::raw('MAX(hfs.id) as max_id'))
             ->where('tipo_tramite_id', 9)
-            ->groupBy('flujo_id');
+            ->groupBy('hfs.flujo_id', DB::raw('COALESCE(eos_group.cotizacion_id, 0)'));
 
         $q = DB::table('flujo as f')
-            ->joinSub($latestRevSub, 'lrev', function ($j) { $j->on('lrev.flujo_id', '=', 'f.id'); })
+                        ->joinSub($latestRevSub, 'lrev', function ($j) { $j->on('lrev.flujo_id', '=', 'f.id'); })
             ->join('historico_flujo as hf', 'hf.id', '=', 'lrev.max_id')
-            ->leftJoin('historico_flujo as hfof', function ($j) {
-                $j->on('hfof.flujo_id', '=', 'f.id')
-                  ->where('hfof.tipo_tramite_id', 2)
-                  ->where('hfof.observaciones', 'ganadora');
-            })
-            ->leftJoin('cotizacion as c', 'c.id', '=', 'hfof.tramite_id')
+                        ->leftJoin('cotizacion as c', 'c.id', '=', 'hf.tramite_id')
             ->leftJoin('pedido as p', DB::raw('CAST(f.identificacion AS UNSIGNED)'), '=', 'p.id')
             ->leftJoin('cliente as cl', function ($j) {
                 $j->on('cl.id', '=', 'c.cliente_id')->orOn('cl.id', '=', 'p.cliente_id');
             });
 
         if ($tipo === 'llegando') {
-            $q->where('f.tipo_tramite_id', 9)->where('hf.estado_id', '!=', 7);
+            $q->where('hf.estado_id', 5);
         } elseif ($tipo === 'devueltos') {
             $q->where('hf.estado_id', 7);
         } else {
@@ -211,7 +214,7 @@ class RevicionInventario extends Component
             $like = '%' . $term . '%';
             if (is_numeric($term)) {
                 $q->where(function ($s) use ($term) {
-                    $s->where('f.id', (int) $term)->orWhere('f.identificacion', $term)->orWhere('hfof.tramite_id', (int) $term);
+                    $s->where('f.id', (int) $term)->orWhere('f.identificacion', $term)->orWhere('hf.tramite_id', (int) $term);
                 });
             } else {
                 $q->where(function ($s) use ($like) {
@@ -220,29 +223,28 @@ class RevicionInventario extends Component
             }
         }
 
-        return (int) $q->count(DB::raw('DISTINCT f.id'));
+        return (int) $q->count('hf.id');
     }
 
     private function buildBandejaQuery(string $term, string $tipo, int $page = 1): array
     {
-        // Subquery: obtiene solo el registro MÁS RECIENTE de revisión (tipo=9) por flujo.
-        // Esto evita que flujos con múltiples ciclos aparezcan duplicados en bandeja.
-        $latestRevSub = DB::table('historico_flujo')
-            ->select('flujo_id', DB::raw('MAX(id) as max_id'))
+        // Los flujos normales conservan una fila por flujo; Expo conserva una por sección.
+        $latestRevSub = DB::table('historico_flujo as hfs')
+            ->leftJoin('expo_oferta_seccion as eos_group', function ($join) {
+                $join->on('eos_group.flujo_id', '=', 'hfs.flujo_id')
+                    ->on('eos_group.cotizacion_id', '=', 'hfs.tramite_id');
+            })
+            ->select('hfs.flujo_id', DB::raw('MAX(hfs.id) as max_id'))
             ->where('tipo_tramite_id', 9)
-            ->groupBy('flujo_id');
+            ->groupBy('hfs.flujo_id', DB::raw('COALESCE(eos_group.cotizacion_id, 0)'));
 
         $q = DB::table('flujo as f')
             ->joinSub($latestRevSub, 'lrev', function ($j) {
                 $j->on('lrev.flujo_id', '=', 'f.id');
             })
             ->join('historico_flujo as hf', 'hf.id', '=', 'lrev.max_id')
-            ->leftJoin('historico_flujo as hfof', function ($j) {
-                $j->on('hfof.flujo_id', '=', 'f.id')
-                  ->where('hfof.tipo_tramite_id', 2)
-                  ->where('hfof.observaciones', 'ganadora');
-            })
-            ->leftJoin('cotizacion as c', 'c.id', '=', 'hfof.tramite_id')
+                        ->leftJoin('cotizacion as c', 'c.id', '=', 'hf.tramite_id')
+                        ->leftJoin('expo_oferta_seccion as eos', 'eos.cotizacion_id', '=', 'c.id')
             ->leftJoin('pedido as p', DB::raw('CAST(f.identificacion AS UNSIGNED)'), '=', 'p.id')
             ->leftJoin('cliente as cl', function ($j) {
                 $j->on('cl.id', '=', 'c.cliente_id')
@@ -253,22 +255,25 @@ class RevicionInventario extends Component
                 'f.identificacion',
                 'hf.created_at as fecha_revision',
                 'hf.updated_at as fecha_accion',
-                'hfof.tramite_id as cotizacion_id',
+                'hf.tramite_id as cotizacion_id',
+                'eos.numero as seccion_numero',
+                'eos.nombre as seccion_nombre',
+                'eos.estado as seccion_estado',
                 DB::raw("COALESCE(c.nombre_cliente, p.observaciones, CONCAT('Flujo #', f.id)) as cliente"),
                 DB::raw("COALESCE(c.RTN, '') as rtn"),
-                DB::raw('(SELECT COUNT(*) FROM cotizacion_has_producto chp WHERE chp.cotizacion_id = hfof.tramite_id) as total_productos'),
+                DB::raw('(SELECT COUNT(*) FROM cotizacion_has_producto chp WHERE chp.cotizacion_id = hf.tramite_id) as total_productos'),
                 'hf.observaciones as obs_revision',
                 'hf.estado_id'
             )
             ->groupBy(
                 'f.id', 'f.identificacion', 'hf.created_at', 'hf.updated_at',
-                'hfof.tramite_id', 'c.nombre_cliente', 'p.observaciones',
-                'c.RTN', 'hf.observaciones', 'hf.estado_id'
+                'hf.tramite_id', 'eos.numero', 'eos.nombre', 'eos.estado',
+                'c.nombre_cliente', 'p.observaciones', 'c.RTN', 'hf.observaciones', 'hf.estado_id'
             );
 
         if ($tipo === 'llegando') {
             // Ciclo activo: el registro más reciente de tipo=9 no está devuelto ni aprobado
-            $q->where('f.tipo_tramite_id', 9)->where('hf.estado_id', '!=', 7);
+            $q->where('hf.estado_id', 5);
         } elseif ($tipo === 'devueltos') {
             // Solo el último ciclo de revisión fue devuelto (estado_id=7)
             $q->where('hf.estado_id', 7);
@@ -282,12 +287,14 @@ class RevicionInventario extends Component
                 $q->where(function ($s) use ($term) {
                     $s->where('f.id', (int) $term)
                       ->orWhere('f.identificacion', $term)
-                      ->orWhere('hfof.tramite_id', (int) $term);
+                      ->orWhere('hf.tramite_id', (int) $term)
+                      ->orWhere('eos.numero', (int) $term);
                 });
             } else {
                 $q->where(function ($s) use ($like) {
                     $s->where('c.nombre_cliente', 'LIKE', $like)
                       ->orWhere('c.RTN', 'LIKE', $like)
+                      ->orWhere('eos.nombre', 'LIKE', $like)
                       ->orWhere('p.observaciones', 'LIKE', $like);
                 });
             }
@@ -301,7 +308,7 @@ class RevicionInventario extends Component
     // DETALLE DE FLUJO
     // ─────────────────────────────────────────────────────────────────────
 
-    public function seleccionarFlujo(int $flujoId, bool $soloVisualizacion = false): void
+    public function seleccionarFlujo(int $flujoId, bool $soloVisualizacion = false, ?int $cotizacionId = null): void
     {
         $this->flujoId          = $flujoId;
         $this->soloVisualizacion = $soloVisualizacion;
@@ -317,14 +324,20 @@ class RevicionInventario extends Component
         $this->esOfertaExpo     = false;
         $this->bodegaExpoSeleccionada = [];
 
+        $this->esOfertaExpo = $cotizacionId && DB::table('expo_oferta_seccion')
+            ->where('flujo_id', $flujoId)
+            ->where('cotizacion_id', $cotizacionId)
+            ->exists();
+
         // Detectar el estado del ciclo ACTUAL mirando el registro MÁS RECIENTE de tipo=9.
         // Si el último registro tiene estado_id=7 → ciclo cerrado/devuelto (modo lectura).
         // Si no → ciclo activo (puede ser un segundo o posterior ciclo).
         $latestRevRec = DB::table('historico_flujo')
             ->where('flujo_id', $flujoId)
             ->where('tipo_tramite_id', 9)
+            ->when($this->esOfertaExpo, fn ($query) => $query->where('tramite_id', $cotizacionId))
             ->orderByDesc('id')
-            ->first(['id', 'estado_id', 'observaciones']);
+            ->first(['id', 'tramite_id', 'estado_id', 'observaciones']);
 
         $revRec = null;
         if ($latestRevRec && (int) $latestRevRec->estado_id === 7) {
@@ -348,13 +361,14 @@ class RevicionInventario extends Component
             ->first();
         $this->flujoData = $flujoResult ? (array) $flujoResult : null;
 
-        // Obtener la cotizacion ganadora de este flujo
-        $hfGanadora = DB::table('historico_flujo')
-            ->where('flujo_id', $flujoId)
-            ->where('tipo_tramite_id', 2)
-            ->where('observaciones', 'ganadora')
-            ->orderByDesc('id')
-            ->first(['tramite_id', 'observaciones']);
+        $hfGanadora = $this->esOfertaExpo && $latestRevRec
+            ? (object) ['tramite_id' => $latestRevRec->tramite_id]
+            : DB::table('historico_flujo')
+                ->where('flujo_id', $flujoId)
+                ->where('tipo_tramite_id', 2)
+                ->where('observaciones', 'ganadora')
+                ->orderByDesc('id')
+                ->first(['tramite_id', 'observaciones']);
 
         // Si fue devuelto, buscar el cotizacion_id a través de cotizacion_estado (ganadora=4)
         if (!$hfGanadora) {
@@ -385,10 +399,13 @@ class RevicionInventario extends Component
             return;
         }
 
-        $expoId = (int) (DB::table('expo_cotizacion')
+        $this->estadoSeccion = $this->esOfertaExpo
+            ? DB::table('expo_oferta_seccion')->where('cotizacion_id', $this->cotizacionId)->value('estado')
+            : null;
+
+        $expoId = $this->esOfertaExpo ? (int) (DB::table('expo_cotizacion')
             ->where('cotizacion_id', $this->cotizacionId)
-            ->value('expo_id') ?? 0);
-        $this->esOfertaExpo = $expoId > 0;
+            ->value('expo_id') ?? 0) : 0;
         $bodegasExpo = $this->esOfertaExpo
             ? DB::table('expo_bodega')->where('expo_id', $expoId)->pluck('bodega_id')->map(fn ($id) => (int) $id)->all()
             : [];
@@ -618,6 +635,7 @@ class RevicionInventario extends Component
         $this->devuelto         = false;
         $this->motivoDevolucionGuardado = '';
         $this->cotizacionId     = null;
+        $this->estadoSeccion    = null;
         $this->productos        = [];
         $this->stockErrors      = [];
         $this->confirmAccion    = null;
@@ -743,10 +761,25 @@ class RevicionInventario extends Component
             ]);
 
             DB::commit();
-            $mensaje = 'Bodega reasignada a ' . $destinoTexto . '. La auditoría fue registrada.';
-            $flujoId = $this->flujoId;
-            $this->seleccionarFlujo($flujoId);
-            $this->mensajeExito = $mensaje;
+            foreach ($this->productos as $key => $productoActual) {
+                if ((int) $productoActual['idx'] !== $idx) {
+                    continue;
+                }
+
+                $this->productos[$key] = array_merge($productoActual, [
+                    'bodega_id' => $bodegaDestinoId,
+                    'seccion_id' => $seccionDestinoId,
+                    'nombre_bodega' => $destino->bodega_nombre,
+                    'bodega_actual_nombre' => $destino->bodega_nombre,
+                    'seccion_actual_descripcion' => $destino->seccion_descripcion,
+                    'resta_inventario' => 1,
+                    'sin_existencia' => false,
+                ]);
+                break;
+            }
+
+            $this->mensajeError = '';
+            $this->mensajeExito = 'Bodega reasignada a ' . $destinoTexto . '. La auditoría fue registrada.';
         } catch (\Throwable $e) {
             DB::rollBack();
             $this->mensajeError = 'No se pudo reasignar la bodega: ' . $e->getMessage();
@@ -1089,7 +1122,7 @@ class RevicionInventario extends Component
             return;
         }
 
-        $diasValidez = $this->diasVigenciaPrefactura((int) $this->flujoId);
+        $diasValidez = $this->diasVigenciaPrefactura((int) $this->flujoId, (int) $this->cotizacionId);
 
         DB::beginTransaction();
         try {
@@ -1157,6 +1190,7 @@ class RevicionInventario extends Component
             DB::table('historico_flujo')
                 ->where('flujo_id', $this->flujoId)
                 ->where('tipo_tramite_id', 9)
+                ->when($this->esOfertaExpo, fn ($query) => $query->where('tramite_id', $this->cotizacionId))
                 ->where('estado_id', '!=', 7)
                 ->update([
                     'estado_id'     => 1,
@@ -1178,9 +1212,35 @@ class RevicionInventario extends Component
                 'updated_at'      => now(),
             ]);
 
-            // Avanzar flujo a prefactura
+            $seccionExpo = DB::table('expo_oferta_seccion')
+                ->where('cotizacion_id', $this->cotizacionId)
+                ->lockForUpdate()
+                ->first();
+            $etapaResumen = $tramitePrefacturaId;
+
+            if ($seccionExpo) {
+                DB::table('expo_oferta_seccion')->where('id', $seccionExpo->id)->update([
+                    'estado' => 'PREFACTURADA',
+                    'prefactura_id' => $prefacturaId,
+                    'updated_by' => Auth::id(),
+                    'updated_at' => now(),
+                ]);
+
+                $saldoPendiente = app(SeccionadorOfertaExpo::class)
+                    ->pendientes((int) $seccionExpo->cotizacion_origen_id)
+                    ->sum('cantidad_pendiente');
+                if (!(bool) $seccionExpo->finaliza_seccionado && $saldoPendiente > 0) {
+                    $etapaResumen = 11;
+                } elseif (DB::table('expo_oferta_seccion')->where('flujo_id', $this->flujoId)->where('estado', 'EN_REVISION_CREDITO')->exists()) {
+                    $etapaResumen = 10;
+                } elseif (DB::table('expo_oferta_seccion')->where('flujo_id', $this->flujoId)->where('estado', 'EN_REVISION_INVENTARIO')->exists()) {
+                    $etapaResumen = 9;
+                }
+            }
+
+            // El flujo conserva una etapa resumen; cada sección mantiene su estado independiente.
             DB::table('flujo')->where('id', $this->flujoId)->update([
-                'tipo_tramite_id' => $tramitePrefacturaId,
+                'tipo_tramite_id' => $etapaResumen,
                 'updated_by'      => Auth::id(),
                 'updated_at'      => now(),
             ]);
@@ -1209,7 +1269,8 @@ class RevicionInventario extends Component
 
             $this->cerrarDetalle();
             $this->cargar();
-            $this->mensajeExito = 'Flujo #' . $flujoIdCerrado . ': Prefactura #' . $prefacturaId . ' generada. Válida por ' . $diasValidez . ' día(s).';
+            $this->mensajeExito = 'Flujo #' . $flujoIdCerrado . ': Prefactura #' . $prefacturaId . ' generada. Válida por ' . $diasValidez . ' día(s).'
+                . ($etapaResumen === 11 ? ' La oferta Expo conserva productos pendientes por seccionar.' : '');
 
         } catch (\Throwable $e) {
             DB::rollBack();
@@ -1251,10 +1312,15 @@ class RevicionInventario extends Component
 
         DB::beginTransaction();
         try {
+            $seccionExpo = $this->cotizacionId
+                ? DB::table('expo_oferta_seccion')->where('cotizacion_id', $this->cotizacionId)->lockForUpdate()->first()
+                : null;
+
             // Cerrar el registro de Revision de Inventario como "devuelto"
             DB::table('historico_flujo')
                 ->where('flujo_id', $this->flujoId)
                 ->where('tipo_tramite_id', 9)
+                ->when($this->esOfertaExpo, fn ($query) => $query->where('tramite_id', $this->cotizacionId))
                 ->where('estado_id', '!=', 7)
                 ->update([
                     'estado_id'     => 7,  // inactivado / devuelto
@@ -1263,16 +1329,37 @@ class RevicionInventario extends Component
                     'updated_at'    => now(),
                 ]);
 
-            // Quitar la marca de ganadora de la oferta (vuelve a estado oferta normal)
+            // Quitar la marca de ganadora de la oferta revisada.
             DB::table('historico_flujo')
                 ->where('flujo_id', $this->flujoId)
                 ->where('tipo_tramite_id', 2)
+                ->when($this->esOfertaExpo, fn ($query) => $query->where('tramite_id', $this->cotizacionId))
                 ->where('observaciones', 'ganadora')
                 ->update([
                     'observaciones' => 'Devuelta desde Revisión: ' . $motivo,
                     'updated_by'    => Auth::id(),
                     'updated_at'    => now(),
                 ]);
+
+            if ($seccionExpo) {
+                DB::table('expo_oferta_seccion')->where('id', $seccionExpo->id)->update([
+                    'estado' => 'DEVUELTA_INVENTARIO',
+                    'updated_by' => Auth::id(),
+                    'updated_at' => now(),
+                ]);
+
+                DB::table('historico_flujo')->insert([
+                    'flujo_id' => $this->flujoId,
+                    'tipo_tramite_id' => 11,
+                    'tramite_id' => $seccionExpo->cotizacion_origen_id,
+                    'estado_id' => 5,
+                    'observaciones' => 'Sección devuelta por Inventario: ' . $obsCompleta,
+                    'created_by' => Auth::id(),
+                    'updated_by' => Auth::id(),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
 
             // Auditoría en cotizacion_estado
             if ($this->cotizacionId) {
@@ -1289,9 +1376,9 @@ class RevicionInventario extends Component
                 ]);
             }
 
-            // Retroceder flujo a Ofertas (tipo_tramite_id = 2)
+            // Las secciones Expo vuelven al paso 11; las ofertas normales vuelven a Ofertas.
             DB::table('flujo')->where('id', $this->flujoId)->update([
-                'tipo_tramite_id' => 2,
+                'tipo_tramite_id' => $seccionExpo ? 11 : 2,
                 'updated_by'      => Auth::id(),
                 'updated_at'      => now(),
             ]);
@@ -1304,7 +1391,9 @@ class RevicionInventario extends Component
             $this->motivoDevolucion = '';
             $this->mensajeError     = '';
             $this->cargar();
-            $this->mensajeExito = 'Flujo #' . $this->flujoId . ' devuelto a Oferta correctamente. Se registraron las observaciones.';
+            $this->mensajeExito = 'Flujo #' . $this->flujoId
+                . ($seccionExpo ? ' devuelto a Secciones de Ofertas.' : ' devuelto a Oferta correctamente.')
+                . ' Se registraron las observaciones.';
 
         } catch (\Throwable $e) {
             DB::rollBack();

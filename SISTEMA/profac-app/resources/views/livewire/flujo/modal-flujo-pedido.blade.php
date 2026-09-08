@@ -149,19 +149,32 @@
     $fCancelado   = ($d['estado'] === 'cancelado');
     $tieneOfertas  = count($ofertasPedido) > 0 || ($d['total_ofertas'] > 0);
     $tieneGanadora = ($d['has_ganadora'] > 0);
-    $tieneRevision         = in_array(9, $flujoTipos);   // Revision de Inventario (incluye devueltos)
+    $esFlujoExpo = collect($ofertasPedido)->contains(fn ($oferta) => !empty($oferta['es_expo']));
+    $seccionesExpo = collect($seccionesExpoData)->reject(fn ($seccion) => $seccion['estado'] === 'ANULADA');
+    $totalSeccionesExpo = $seccionesExpo->count();
+    $totalCreditoExpo = $seccionesExpo->filter(fn ($seccion) => !empty($seccion['credito_estado']))->count();
+    $totalCreditoAprobadoExpo = $seccionesExpo->filter(fn ($seccion) => ($seccion['credito_estado'] ?? null) === 'aprobado')->count();
+    $totalInventarioExpo = $seccionesExpo->filter(fn ($seccion) => !empty($seccion['inventario_estado_id']) || in_array($seccion['estado'], ['EN_REVISION_INVENTARIO', 'PREFACTURADA', 'FACTURADA', 'DEVUELTA_INVENTARIO'], true))->count();
+    $totalInventarioCompletadoExpo = $seccionesExpo->filter(fn ($seccion) => (int) ($seccion['inventario_estado_id'] ?? 0) === 1 || in_array($seccion['estado'], ['PREFACTURADA', 'FACTURADA'], true))->count();
+    $totalPrefacturaExpo = $seccionesExpo->filter(fn ($seccion) => !empty($seccion['prefactura_id']))->count();
+    $totalPrefacturaFacturadaExpo = $seccionesExpo->filter(fn ($seccion) => ($seccion['prefactura_estado'] ?? null) === 'convertida')->count();
+    $creditoExpoCompletado = $seccionesExpoCompletas && $totalSeccionesExpo > 0 && $totalCreditoAprobadoExpo === $totalSeccionesExpo;
+    $inventarioExpoCompletado = $creditoExpoCompletado && $totalInventarioCompletadoExpo === $totalSeccionesExpo;
+    $prefacturaExpoCompletada = $totalPrefacturaExpo > 0 && $totalPrefacturaFacturadaExpo === $totalPrefacturaExpo;
+    $tieneSecciones = $esFlujoExpo && (in_array(11, $flujoTipos) || $totalSeccionesExpo > 0);
+    $tieneRevision         = in_array(9, $flujoTipos) || ($esFlujoExpo && $totalInventarioExpo > 0);   // Revision de Inventario (incluye devueltos)
     $tieneRevisionActiva   = $tieneRevision && !($revisionDevuelta ?? false);  // ciclo activo
     $tieneRevisionDevuelta = $tieneRevision && ($revisionDevuelta ?? false);   // último ciclo devuelto
 
     // Revisión de Crédito (tipo 10)
-    $tieneRevisionCredito         = in_array(10, $flujoTipos);
+    $tieneRevisionCredito         = in_array(10, $flujoTipos) || ($esFlujoExpo && $totalCreditoExpo > 0);
     $creditoRevisionEstado        = $creditoRevisionData['estado'] ?? null;  // 'pendiente'|'aprobado'|'rechazado'
     // Activa = hay un historico_flujo tipo=10 con estado_id=5 (pendiente), ó el registro ya existe con estado pendiente
     $tieneRevisionCreditoActiva   = $tieneRevisionCredito && ($revisionCreditoPendiente || $creditoRevisionEstado === 'pendiente');
     $tieneRevisionCreditoAprobada = $tieneRevisionCredito && ($creditoRevisionEstado === 'aprobado');
     $tieneRevisionCreditoRechazada= $tieneRevisionCredito && ($creditoRevisionEstado === 'rechazado');
 
-    $tienePrefact  = in_array(4, $flujoTipos);
+    $tienePrefact  = in_array(4, $flujoTipos) || ($esFlujoExpo && $totalPrefacturaExpo > 0);
     $tieneFactura  = in_array(3, $flujoTipos) || in_array(5, $flujoTipos);
     $facturaParcial = $tieneFactura && ($expoConSaldoPendiente ?? false);
 
@@ -176,20 +189,24 @@
     $facturaCompletada = in_array(5, $flujoTipos) || in_array(3, $flujoTipos);
     $facturaAnulada = $facturaCompletada && isset($facturaData['estado_venta_id']) && (int)$facturaData['estado_venta_id'] === 2;
 
-    // fPaso: número del paso activo en el stepper (1-6 para el pipeline principal)
-    // 1=Pedido, 2=Ofertas, 3=RevCrédito, 4=RevInventario, 5=PreFactura, 6=Factura
+    $pasoSecciones = $esFlujoExpo ? 3 : null;
+    $pasoCredito = $esFlujoExpo ? 4 : 3;
+    $pasoInventario = $esFlujoExpo ? 5 : 4;
+    $pasoPrefactura = $esFlujoExpo ? 6 : 5;
+    $pasoFactura = $esFlujoExpo ? 7 : 6;
+
     $fPaso = match(true) {
         $fCancelado                  => 0,
-        $facturaParcial              => 6,
-        $finalizadoCompletado        => 8,
-        $cobroCompletado             => 7,
-        $tieneEntrega                => 7,
-        $tieneFactura                => 7,
-        $tienePrefact                => 5,
-        $tieneRevisionActiva         => 4,   // en revisión de inventario (ciclo activo)
-        $tieneRevisionCreditoActiva   => 3,   // en revisión de crédito (pendiente)
-        $tieneRevisionCreditoRechazada => 3,   // crédito rechazado: mantener en paso 3 (Pendiente en rev. inv y prefact)
-        $tieneGanadora               => 5,   // ganadora sin revisiones → directamente prefactura
+        $facturaParcial              => $pasoFactura,
+        $finalizadoCompletado        => $pasoFactura + 2,
+        $cobroCompletado             => $pasoFactura + 1,
+        $tieneEntrega                => $pasoFactura + 1,
+        $tieneFactura                => $pasoFactura + 1,
+        $tienePrefact                => $pasoPrefactura,
+        $tieneRevisionActiva         => $pasoInventario,
+        $tieneRevisionCreditoActiva   => $pasoCredito,
+        $tieneRevisionCreditoRechazada => $pasoCredito,
+        $tieneGanadora               => $esFlujoExpo ? $pasoSecciones : $pasoPrefactura,
         $tieneOfertas                => 2,
         default                      => 1,
     };
@@ -197,16 +214,21 @@
     $fPasos = [
         1 => ['key' => 'pedido',              'icon' => 'fa-shopping-cart', 'title' => 'Pedido'],
         2 => ['key' => 'ofertas',             'icon' => 'fa-tag',           'title' => 'Ofertas'],
-        3 => ['key' => 'revision_credito',    'icon' => 'fa-credit-card',   'title' => 'Rev. Crédito'],
-        4 => ['key' => 'revision_inventario', 'icon' => 'fa-search',        'title' => 'Rev. Inventario'],
-        5 => ['key' => 'prefactura',          'icon' => 'fa-file-o',        'title' => 'Pre Factura'],
-        6 => ['key' => 'factura',             'icon' => 'fa-file-text',     'title' => 'Factura'],
     ];
+    if ($esFlujoExpo) {
+        $fPasos[3] = ['key' => 'secciones_ofertas', 'icon' => 'fa-object-group', 'title' => 'Secciones'];
+    }
+    $fPasos[$pasoCredito] = ['key' => 'revision_credito', 'icon' => 'fa-credit-card', 'title' => 'Rev. Crédito'];
+    $fPasos[$pasoInventario] = ['key' => 'revision_inventario', 'icon' => 'fa-search', 'title' => 'Rev. Inventario'];
+    $fPasos[$pasoPrefactura] = ['key' => 'prefactura', 'icon' => 'fa-file-o', 'title' => 'Pre Factura'];
+    $fPasos[$pasoFactura] = ['key' => 'factura', 'icon' => 'fa-file-text', 'title' => 'Factura'];
+    $ultimoPasoPrincipal = count($fPasos);
 
     $pasoMap = [
-        'pedido' => 1, 'ofertas' => 2, 'revision_credito' => 3,
-        'revision_inventario' => 4, 'prefactura' => 5, 'factura' => 6,
-        'entrega' => 7, 'cobro' => 8, 'finalizado' => 9,
+        'pedido' => 1, 'ofertas' => 2, 'secciones_ofertas' => $pasoSecciones,
+        'revision_credito' => $pasoCredito, 'revision_inventario' => $pasoInventario,
+        'prefactura' => $pasoPrefactura, 'factura' => $pasoFactura,
+        'entrega' => $pasoFactura + 1, 'cobro' => $pasoFactura + 2, 'finalizado' => $pasoFactura + 3,
     ];
     $pasoActivoNum = $pasoMap[$pasoActivo] ?? 1;
 @endphp
@@ -276,45 +298,76 @@
                             flex-wrap:nowrap; overflow-x:auto; padding:18px 16px 10px;">
                     @foreach ($fPasos as $paso => $info)
                     @php
-                        $fPasoLinea = min($fPaso, 6);
+                        $fPasoLinea = min($fPaso, $ultimoPasoPrincipal);
                         $esSinPedido = ($paso === 1 && !empty($d['sin_pedido']));
                         // Pasos que no aplican porque el flujo fue directo (sin ofertas/prefactura)
                         $esSinAplica = !$esSinPedido && !empty($d['sin_pedido']) && (
-                            ($paso === 2 && !$tieneOfertas && $fPasoLinea > 2) ||
-                            ($paso === 3 && !$tieneRevisionCredito && !$tieneRevision && !$tienePrefact && $fPasoLinea > 3) ||
-                            ($paso === 4 && !$tieneRevision && !$tienePrefact && $fPasoLinea > 4) ||
-                            ($paso === 5 && !$tienePrefact && $fPasoLinea > 5)
+                            ($info['key'] === 'ofertas' && !$tieneOfertas && $fPasoLinea > $paso) ||
+                            ($info['key'] === 'secciones_ofertas' && !$tieneSecciones && $fPasoLinea > $paso) ||
+                            ($info['key'] === 'revision_credito' && !$tieneRevisionCredito && !$tieneRevision && !$tienePrefact && $fPasoLinea > $paso) ||
+                            ($info['key'] === 'revision_inventario' && !$tieneRevision && !$tienePrefact && $fPasoLinea > $paso) ||
+                            ($info['key'] === 'prefactura' && !$tienePrefact && $fPasoLinea > $paso)
                         );
-                        $completado = !$esSinPedido && !$esSinAplica && (($paso < $fPasoLinea) || ($paso === 6 && $fPaso > 6));
-                        $activo     = !$esSinPedido && !$esSinAplica && ($paso === $fPasoLinea) && !($paso === 6 && $fPaso > 6);
+                        $completado = !$esSinPedido && !$esSinAplica && (($paso < $fPasoLinea) || ($paso === $ultimoPasoPrincipal && $fPaso > $ultimoPasoPrincipal));
+                        $activo     = !$esSinPedido && !$esSinAplica && ($paso === $fPasoLinea) && !($paso === $ultimoPasoPrincipal && $fPaso > $ultimoPasoPrincipal);
                         $pendiente  = !$esSinPedido && !$esSinAplica && ($paso > $fPasoLinea);
+                        if ($esFlujoExpo && in_array($info['key'], ['secciones_ofertas', 'revision_credito', 'revision_inventario', 'prefactura'], true)) {
+                            $etapaExpoCompletada = match($info['key']) {
+                                'secciones_ofertas' => $seccionesExpoCompletas,
+                                'revision_credito' => $creditoExpoCompletado,
+                                'revision_inventario' => $inventarioExpoCompletado,
+                                'prefactura' => $prefacturaExpoCompletada,
+                            };
+                            $completado = $etapaExpoCompletada;
+                            $activo = $info['key'] === 'prefactura' && !$etapaExpoCompletada && $totalPrefacturaExpo > 0;
+                            $pendiente = !$etapaExpoCompletada && !$activo;
+                        }
                         $esSeleccionado = ($info['key'] === $pasoActivo);
                         $delay      = ($paso - 1) * 100;
                         // Rev. Inventario devuelta: mostrar como estado especial (naranja)
                         $esDevuelto = ($info['key'] === 'revision_inventario')
                             && ($tieneRevisionDevuelta ?? false)
                             && !($tieneRevisionActiva ?? false)
+                            && (!$esFlujoExpo || $seccionesExpoCompletas)
                             && $pendiente;
                         // Rev. Crédito rechazada: mostrar como rojo con X
                         $esRechazado = ($info['key'] === 'revision_credito')
-                            && ($tieneRevisionCreditoRechazada ?? false);
+                            && ($tieneRevisionCreditoRechazada ?? false)
+                            && (!$esFlujoExpo || $seccionesExpoCompletas);
                         // Factura anulada: mostrar paso 6 como rojo con X
                         $esFacturaAnulada = ($info['key'] === 'factura') && ($facturaAnulada ?? false);
                         $esFacturaExpoDisponible = ($info['key'] === 'factura') && ($expoConSaldoPendiente ?? false);
                         if ($esDevuelto)     $pendiente = false;
                         if ($esRechazado)    { $pendiente = false; $completado = false; $activo = false; }
                         if ($esFacturaAnulada) { $pendiente = false; $completado = false; $activo = false; }
-                        $labelColor = ($esSinPedido || $esSinAplica) ? '#e74c3c' : ($esRechazado || $esFacturaAnulada ? '#e74c3c' : ($completado ? '#1ab394' : ($activo ? '#1a7efb' : ($esDevuelto ? '#e67e22' : '#aab'))));
+                        $esPendienteExpo = $esFlujoExpo && $pendiente;
+                        $labelColor = ($esSinPedido || $esSinAplica) ? '#e74c3c' : ($esRechazado || $esFacturaAnulada ? '#e74c3c' : ($completado ? '#1ab394' : ($activo ? '#1a7efb' : ($esDevuelto ? '#e67e22' : ($esPendienteExpo ? '#d97706' : '#aab')))));
                         $puedeClick = ($completado || $activo || $esDevuelto || $esRechazado || $esFacturaAnulada || $esFacturaExpoDisponible) && !$esSinPedido && !$esSinAplica;
+                        $conteoPasoExpo = $esFlujoExpo ? match($info['key']) {
+                            'secciones_ofertas' => $totalSeccionesExpo,
+                            'revision_credito' => $totalCreditoAprobadoExpo . '/' . $totalSeccionesExpo,
+                            'revision_inventario' => $totalInventarioCompletadoExpo . '/' . $totalSeccionesExpo,
+                            'prefactura' => $totalPrefacturaFacturadaExpo . '/' . $totalPrefacturaExpo,
+                            default => null,
+                        } : null;
+                        if ($esFlujoExpo) {
+                            $puedeClick = $puedeClick || match($info['key']) {
+                                'secciones_ofertas' => $tieneGanadora,
+                                'revision_credito' => $totalCreditoExpo > 0,
+                                'revision_inventario' => $totalInventarioExpo > 0,
+                                'prefactura' => $totalPrefacturaExpo > 0,
+                                default => false,
+                            };
+                        }
                     @endphp
 
                     {{-- Step card --}}
-                    <div class="{{ $puedeClick ? 'fmp-step-clickable' : '' }}"
+                    <div class="fmp-step-card {{ $puedeClick ? 'fmp-step-clickable' : '' }}"
                          @if($puedeClick) wire:click="seleccionarPaso('{{ $info['key'] }}')" @endif
                          style="display:flex; flex-direction:column; align-items:center; min-width:100px;
                                 animation:stepIn .5s cubic-bezier(.34,1.56,.64,1) {{ $delay }}ms both;
                                 {{ $esSeleccionado ? 'background:rgba(26,126,251,.06); border-radius:12px; padding:4px 6px;' : 'padding:4px 6px;' }}"
-                         class="fmp-step-card">
+                        >
 
                         {{-- Circle --}}
                         @if ($esSinPedido || $esSinAplica)
@@ -382,11 +435,13 @@
                         </div>
                         @else
                         <div class="fmp-step-circle" style="width:60px; height:60px; border-radius:50%;
-                                    background:#e8eaf0; color:#c0c2cc; margin-bottom:8px;
+                                background:{{ $esPendienteExpo ? 'linear-gradient(135deg,#f59e0b,#d97706)' : '#e8eaf0' }};
+                                color:{{ $esPendienteExpo ? '#fff' : '#c0c2cc' }}; margin-bottom:8px;
+                                {{ $esPendienteExpo ? 'box-shadow:0 4px 14px rgba(217,119,6,.3);' : '' }}
                                     display:flex; align-items:center; justify-content:center; flex-direction:column;
                                     flex-shrink:0;">
-                            <span class="fmp-step-num" style="font-size:20px; font-weight:700; line-height:1; color:#aab;">{{ $paso }}</span>
-                            <i class="fmp-step-icon-sm fa {{ $info['icon'] }}" style="font-size:11px; margin-top:2px; color:#c0c2cc;"></i>
+                            <span class="fmp-step-num" style="font-size:20px; font-weight:700; line-height:1; color:{{ $esPendienteExpo ? '#fff' : '#aab' }};">{{ $paso }}</span>
+                            <i class="fmp-step-icon-sm fa {{ $info['icon'] }}" style="font-size:11px; margin-top:2px; color:{{ $esPendienteExpo ? '#fff' : '#c0c2cc' }};"></i>
                         </div>
                         @endif
 
@@ -397,7 +452,7 @@
                                 @if($esSinPedido)
                                 Flujo #{{ $d['flujo_id'] ?? $flujoId ?? $d['id'] }}
                                 @else
-                                {{ $info['title'] }}
+                                {{ $info['title'] }}@if(!is_null($conteoPasoExpo)) ({{ $conteoPasoExpo }})@endif
                                 @endif
                             </div>
                             <div style="font-size:10px; color:{{ $labelColor }}; opacity:{{ $pendiente ? '.5' : '1' }};">
@@ -421,19 +476,19 @@
                                     <i class="fa fa-clock-o"></i> Pendiente
                                 @endif
                             </div>
-                            @if ($activo && $paso === 5)
+                            @if ($activo && $info['key'] === 'prefactura')
                             <div style="font-size:10px; color:#f39c12; margin-top:3px; font-weight:700;
                                         background:rgba(243,156,18,.12); border-radius:8px; padding:1px 6px;">
                                 <i class="fa fa-trophy"></i> Oferta ganadora
                             </div>
                             @endif
-                            @if ($activo && $paso === 4)
+                            @if ($activo && $info['key'] === 'revision_inventario')
                             <div style="font-size:10px; color:#9c27b0; margin-top:3px; font-weight:700;
                                         background:rgba(156,39,176,.1); border-radius:8px; padding:1px 6px;">
                                 <i class="fa fa-search"></i> En revisión
                             </div>
                             @endif
-                            @if ($activo && $paso === 3)
+                            @if ($activo && $info['key'] === 'revision_credito')
                             <div style="font-size:10px; color:#1565c0; margin-top:3px; font-weight:700;
                                         background:rgba(21,101,192,.1); border-radius:8px; padding:1px 6px;">
                                 <i class="fa fa-credit-card"></i> Rev. Crédito
@@ -443,7 +498,7 @@
                     </div>{{-- /step --}}
 
                     {{-- Conector --}}
-                    @if ($paso < 6)
+                    @if ($paso < $ultimoPasoPrincipal)
                     @php $connDelay = $delay + 80; @endphp
                     <div style="flex:1; min-width:16px; max-width:40px; height:4px; border-radius:4px;
                                 margin-bottom:30px; position:relative; overflow:hidden; background:#e0e3ee;">
@@ -522,7 +577,7 @@
                                     </div>
                                     <span style="position:absolute; top:-4px; right:-4px; background:#0fa37a; color:#fff; border-radius:50%;
                                                  width:20px; height:20px; display:flex; align-items:center; justify-content:center;
-                                                 font-size:10px; font-weight:800; border:2px solid #fff; line-height:1;">6</span>
+                                                 font-size:10px; font-weight:800; border:2px solid #fff; line-height:1;">{{ $pasoFactura }}</span>
                                 </div>
                                 @elseif ($entregaActiva)
                                 <div class="fmp-step-circle" style="width:60px; height:60px; border-radius:50%;
@@ -531,7 +586,7 @@
                                             box-shadow:0 6px 20px rgba(26,126,251,.5), 0 0 0 5px rgba(26,126,251,.2), 0 0 0 10px rgba(26,126,251,.08);
                                             display:flex; align-items:center; justify-content:center; flex-direction:column;
                                             flex-shrink:0; outline:3px solid rgba(26,126,251,.35); outline-offset:4px;">
-                                    <span class="fmp-step-num" style="font-size:20px; font-weight:800; line-height:1;">6</span>
+                                    <span class="fmp-step-num" style="font-size:20px; font-weight:800; line-height:1;">{{ $pasoFactura }}</span>
                                     <i class="fmp-step-icon-sm fa fa-truck" style="font-size:11px; margin-top:2px; opacity:.85;"></i>
                                 </div>
                                 @elseif ($entregaEstadoId === 5)
@@ -541,7 +596,7 @@
                                             box-shadow:0 4px 16px rgba(26,126,251,.35);
                                             display:flex; align-items:center; justify-content:center; flex-direction:column;
                                             flex-shrink:0;">
-                                    <span class="fmp-step-num" style="font-size:20px; font-weight:800; line-height:1;">6</span>
+                                    <span class="fmp-step-num" style="font-size:20px; font-weight:800; line-height:1;">{{ $pasoFactura }}</span>
                                     <i class="fmp-step-icon-sm fa fa-truck" style="font-size:11px; margin-top:2px; opacity:.85;"></i>
                                 </div>
                                 @else
@@ -549,7 +604,7 @@
                                             background:#e8eaf0; color:#c0c2cc; margin-bottom:8px;
                                             display:flex; align-items:center; justify-content:center; flex-direction:column;
                                             flex-shrink:0;">
-                                    <span class="fmp-step-num" style="font-size:20px; font-weight:700; line-height:1; color:#aab;">6</span>
+                                    <span class="fmp-step-num" style="font-size:20px; font-weight:700; line-height:1; color:#aab;">{{ $pasoFactura }}</span>
                                     <i class="fmp-step-icon-sm fa fa-truck" style="font-size:11px; margin-top:2px; color:#c0c2cc;"></i>
                                 </div>
                                 @endif
@@ -585,7 +640,7 @@
                                     </div>
                                     <span style="position:absolute; top:-4px; right:-4px; background:#0fa37a; color:#fff; border-radius:50%;
                                                  width:20px; height:20px; display:flex; align-items:center; justify-content:center;
-                                                 font-size:10px; font-weight:800; border:2px solid #fff; line-height:1;">7</span>
+                                                 font-size:10px; font-weight:800; border:2px solid #fff; line-height:1;">{{ $pasoFactura + 1 }}</span>
                                 </div>
                                 @elseif ($cobroActiva)
                                 <div class="fmp-step-circle" style="width:60px; height:60px; border-radius:50%;
@@ -594,7 +649,7 @@
                                             box-shadow:0 6px 20px rgba(26,126,251,.5), 0 0 0 5px rgba(26,126,251,.2), 0 0 0 10px rgba(26,126,251,.08);
                                             display:flex; align-items:center; justify-content:center; flex-direction:column;
                                             flex-shrink:0; outline:3px solid rgba(26,126,251,.35); outline-offset:4px;">
-                                    <span class="fmp-step-num" style="font-size:20px; font-weight:800; line-height:1;">7</span>
+                                    <span class="fmp-step-num" style="font-size:20px; font-weight:800; line-height:1;">{{ $pasoFactura + 1 }}</span>
                                     <i class="fmp-step-icon-sm fa fa-dollar" style="font-size:11px; margin-top:2px; opacity:.85;"></i>
                                 </div>
                                 @elseif ($cobroEstadoId === 5)
@@ -604,7 +659,7 @@
                                             box-shadow:0 4px 16px rgba(26,126,251,.35);
                                             display:flex; align-items:center; justify-content:center; flex-direction:column;
                                             flex-shrink:0;">
-                                    <span class="fmp-step-num" style="font-size:20px; font-weight:800; line-height:1;">7</span>
+                                    <span class="fmp-step-num" style="font-size:20px; font-weight:800; line-height:1;">{{ $pasoFactura + 1 }}</span>
                                     <i class="fmp-step-icon-sm fa fa-dollar" style="font-size:11px; margin-top:2px; opacity:.85;"></i>
                                 </div>
                                 @else
@@ -612,7 +667,7 @@
                                             background:#e8eaf0; color:#c0c2cc; margin-bottom:8px;
                                             display:flex; align-items:center; justify-content:center; flex-direction:column;
                                             flex-shrink:0;">
-                                    <span class="fmp-step-num" style="font-size:20px; font-weight:700; line-height:1; color:#aab;">7</span>
+                                    <span class="fmp-step-num" style="font-size:20px; font-weight:700; line-height:1; color:#aab;">{{ $pasoFactura + 1 }}</span>
                                     <i class="fmp-step-icon-sm fa fa-dollar" style="font-size:11px; margin-top:2px; color:#c0c2cc;"></i>
                                 </div>
                                 @endif
@@ -659,7 +714,7 @@
                                 </div>
                                 <span style="position:absolute; top:-4px; right:-4px; background:#0fa37a; color:#fff; border-radius:50%;
                                              width:20px; height:20px; display:flex; align-items:center; justify-content:center;
-                                             font-size:10px; font-weight:800; border:2px solid #fff; line-height:1;">8</span>
+                                             font-size:10px; font-weight:800; border:2px solid #fff; line-height:1;">{{ $pasoFactura + 2 }}</span>
                             </div>
                             @elseif ($finalActiva)
                             <div class="fmp-step-circle" style="width:60px; height:60px; border-radius:50%;
@@ -668,7 +723,7 @@
                                         box-shadow:0 6px 20px rgba(26,126,251,.5), 0 0 0 5px rgba(26,126,251,.2), 0 0 0 10px rgba(26,126,251,.08);
                                         display:flex; align-items:center; justify-content:center; flex-direction:column;
                                         flex-shrink:0; outline:3px solid rgba(26,126,251,.35); outline-offset:4px;">
-                                <span class="fmp-step-num" style="font-size:20px; font-weight:800; line-height:1;">8</span>
+                                <span class="fmp-step-num" style="font-size:20px; font-weight:800; line-height:1;">{{ $pasoFactura + 2 }}</span>
                                 <i class="fmp-step-icon-sm fa fa-flag-checkered" style="font-size:11px; margin-top:2px; opacity:.85;"></i>
                             </div>
                             @else
@@ -676,7 +731,7 @@
                                         background:#e8eaf0; color:#c0c2cc; margin-bottom:8px;
                                         display:flex; align-items:center; justify-content:center; flex-direction:column;
                                         flex-shrink:0;">
-                                <span class="fmp-step-num" style="font-size:20px; font-weight:700; line-height:1; color:#aab;">8</span>
+                                <span class="fmp-step-num" style="font-size:20px; font-weight:700; line-height:1; color:#aab;">{{ $pasoFactura + 2 }}</span>
                                 <i class="fmp-step-icon-sm fa fa-flag-checkered" style="font-size:11px; margin-top:2px; color:#c0c2cc;"></i>
                             </div>
                             @endif
@@ -700,7 +755,7 @@
 
                 {{-- ── Barra de progreso ─────────────────────────────── --}}
                 @if (!$fCancelado)
-                @php $progressPct = min(round(($fPaso / 8) * 100), 100); @endphp
+                @php $progressPct = min(round(($fPaso / ($pasoFactura + 2)) * 100), 100); @endphp
                 <div style="height:5px; border-radius:5px; background:#e8eaf0; margin:0 4px 6px; overflow:hidden;">
                     <div style="height:100%; border-radius:5px;
                                 background:linear-gradient(90deg,#1ab394,#1a7efb);
@@ -1178,13 +1233,16 @@
 
                     {{-- Confirmación: Ganadora --}}
                     @if (!$facturaCompletada && $confirmAccionOferta === 'ganadora')
+                    @php $confirmandoOfertaExpo = !empty($ofertaSeleccionada['es_expo']); @endphp
                     <div x-data="{}"
+                        @unless ($confirmandoOfertaExpo)
                         x-init="$nextTick(() => setTimeout(() => { $refs.comentarioGanadoraTA.scrollIntoView({ block: 'center' }); $refs.comentarioGanadoraTA.focus(); }, 100))"
+                        @endunless
                         style="margin-top:12px; background:#fff8e1; border:1px solid #ffe082;
                                 border-radius:12px; padding:14px;">
 
                         {{-- Errores de inventario (si los hay) --}}
-                        @if (!empty($stockErrors))
+                        @if (!$confirmandoOfertaExpo && !empty($stockErrors))
                         <div style="background:#fce4ec; border:1px solid #f48fb1; border-radius:8px;
                                     padding:10px 12px; margin-bottom:10px;">
                             <p style="font-size:12px; color:#b71c1c; font-weight:700; margin:0 0 8px;">
@@ -1215,7 +1273,12 @@
                             <i class="mr-1 fa fa-trophy text-warning"></i>
                             ¿Marcar la <strong>Oferta #{{ $ofertaSeleccionada['id'] }}</strong> como <strong>ganadora</strong>?
                         </p>
-                        @if ($revisionInventarioActiva)
+                        @if ($confirmandoOfertaExpo)
+                        <p style="font-size:12px; color:#00695c; margin:0 0 10px; text-align:center;">
+                            <i class="mr-1 fa fa-object-group"></i>
+                            La oferta pasará directamente a <strong>Secciones de Ofertas</strong>.
+                        </p>
+                        @elseif ($revisionInventarioActiva)
                         <p style="font-size:12px; color:#6a1b9a; margin:0 0 10px; text-align:center;">
                             <i class="mr-1 fa fa-search"></i>
                             La oferta pasará a <strong>Revisión de Inventario</strong> antes de convertirse en Pre-Factura.
@@ -1226,6 +1289,7 @@
                             Se creará la <strong>Pre-Factura automáticamente</strong> y se reservará el inventario.
                         </p>
                         @endif
+                        @unless ($confirmandoOfertaExpo)
                         <div style="margin:0 0 10px;">
                             <label style="display:block; font-size:11px; font-weight:700; color:#616161; margin-bottom:4px;">
                                 Comentario para Créditos (opcional)
@@ -1236,12 +1300,15 @@
                                       placeholder="Escribe una observación para el área de créditos..."
                                       style="width:100%; border:1px solid #ddd; border-radius:8px; padding:8px 10px; font-size:12px; resize:vertical;"></textarea>
                         </div>
+                        @endunless
                         <div style="display:flex; gap:8px; justify-content:center;">
                             <button type="button" wire:click="ganadoraOferta"
-                                    style="background:{{ $revisionInventarioActiva ? 'linear-gradient(135deg,#7b1fa2,#9c27b0)' : 'linear-gradient(135deg,#e65100,#f9a826)' }}; color:#fff;
+                                    style="background:{{ $confirmandoOfertaExpo ? 'linear-gradient(135deg,#00897b,#00695c)' : ($revisionInventarioActiva ? 'linear-gradient(135deg,#7b1fa2,#9c27b0)' : 'linear-gradient(135deg,#e65100,#f9a826)') }}; color:#fff;
                                            border:none; border-radius:8px; padding:7px 18px;
                                            font-size:12px; font-weight:700; cursor:pointer;">
-                                @if ($revisionInventarioActiva)
+                                @if ($confirmandoOfertaExpo)
+                                    <i class="mr-1 fa fa-object-group"></i> Confirmar y crear secciones
+                                @elseif ($revisionInventarioActiva)
                                     <i class="mr-1 fa fa-search"></i> Confirmar y enviar a Revisión
                                 @else
                                     <i class="mr-1 fa fa-trophy"></i> Confirmar y crear Pre-Factura
@@ -1650,9 +1717,108 @@
                 {{-- /paso ofertas --}}
 
                 {{-- ══════════════════════════════════════════════════ --}}
+                {{-- PASO: SECCIONES DE OFERTAS EXPO                    --}}
+                {{-- ══════════════════════════════════════════════════ --}}
+                @if ($pasoActivo === 'secciones_ofertas')
+                <div style="border:1px solid #80cbc4; background:#e0f2f1; border-radius:8px; padding:18px 20px;">
+                    <div style="display:flex; align-items:center; gap:14px;">
+                        <div style="width:46px; height:46px; border-radius:50%; background:#00897b; color:#fff;
+                                    display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0;">
+                            <i class="fa fa-object-group"></i>
+                        </div>
+                        <div style="flex:1; min-width:0;">
+                            <h5 style="margin:0 0 4px; color:#00695c; font-size:14px; font-weight:700;">Secciones de Ofertas</h5>
+                            <p style="margin:0; color:#38635f; font-size:12px;">
+                                Seleccione productos y cantidades de la oferta Expo ganadora para crear la siguiente oferta.
+                            </p>
+                        </div>
+                        <a href="{{ route('flujo.secciones_ofertas', ['flujo_id' => $flujoId]) }}"
+                           class="btn btn-info btn-sm" style="white-space:nowrap;">
+                            <i class="mr-1 fa fa-plus-circle"></i>Nueva sección
+                        </a>
+                    </div>
+                </div>
+                <div style="display:grid; gap:10px; margin-top:12px;">
+                    @forelse($seccionesExpoData as $seccion)
+                    @php
+                        $estadoSeccion = $seccion['estado'] ?? 'EN_REVISION_CREDITO';
+                        $estadoVisual = match($estadoSeccion) {
+                            'EN_REVISION_CREDITO' => ['En revisión de crédito', '#1565c0', '#e3f2fd'],
+                            'EN_REVISION_INVENTARIO' => ['En revisión de inventario', '#6a1b9a', '#f3e5f5'],
+                            'PREFACTURADA' => ['Prefacturada', '#00695c', '#e0f2f1'],
+                            'FACTURADA' => ['Facturada', '#2e7d32', '#e8f5e9'],
+                            'RECHAZADA_CREDITO' => ['Rechazada por crédito', '#c62828', '#ffebee'],
+                            'DEVUELTA_INVENTARIO' => ['Rechazada por inventario', '#e65100', '#fff3e0'],
+                            default => [str_replace('_', ' ', $estadoSeccion), '#546e7a', '#eceff1'],
+                        };
+                    @endphp
+                    <div style="background:#fff; border:1px solid #dfe7e7; border-left:4px solid {{ $estadoVisual[1] }}; border-radius:9px; padding:12px 14px;">
+                        <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+                            <div>
+                                <strong style="color:#263238;">{{ $seccion['nombre'] }}</strong>
+                                <div style="font-size:11px; color:#78909c; margin-top:3px;">
+                                    Referencia #{{ $seccion['cotizacion_id'] }} · {{ count($seccion['productos']) }} producto(s) · L {{ number_format($seccion['total'], 2) }}
+                                </div>
+                            </div>
+                            <span style="background:{{ $estadoVisual[2] }}; color:{{ $estadoVisual[1] }}; border-radius:12px; padding:3px 10px; font-size:11px; font-weight:700; height:max-content;">
+                                {{ $estadoVisual[0] }}
+                            </span>
+                        </div>
+                        <div style="display:flex; gap:7px; flex-wrap:wrap; margin-top:9px;">
+                            <a href="/cotizacion/imprimir/{{ $seccion['cotizacion_id'] }}" target="_blank" class="btn btn-white btn-xs"><i class="fa fa-print mr-1"></i>Imprimir</a>
+                            @if(in_array($estadoSeccion, ['RECHAZADA_CREDITO', 'DEVUELTA_INVENTARIO'], true))
+                            <a href="{{ route('flujo.secciones_ofertas', ['flujo_id' => $flujoId, 'seccion_id' => $seccion['id']]) }}" class="btn btn-danger btn-xs">
+                                <i class="fa fa-pencil mr-1"></i>Editar y reenviar
+                            </a>
+                            @endif
+                        </div>
+                    </div>
+                    @empty
+                    <div class="text-center text-muted" style="padding:18px;">Aún no se han creado secciones.</div>
+                    @endforelse
+                </div>
+                @endif
+
+                {{-- ══════════════════════════════════════════════════ --}}
                 {{-- PASO: REVISIÓN DE CRÉDITO (informativo en modal)   --}}
                 {{-- ══════════════════════════════════════════════════ --}}
                 @if ($pasoActivo === 'revision_credito')
+                @if($esFlujoExpo)
+                <div style="margin-top:14px; display:grid; gap:10px;">
+                    @forelse($seccionesExpoData as $seccion)
+                    @php
+                        $creditoEstado = $seccion['credito_estado'] ?? 'pendiente';
+                        $creditoVisual = match($creditoEstado) {
+                            'aprobado' => ['APROBADA', '#2e7d32', '#e8f5e9', 'fa-check-circle'],
+                            'rechazado', 'cancelado' => ['RECHAZADA', '#c62828', '#ffebee', 'fa-times-circle'],
+                            default => ['PENDIENTE', '#1565c0', '#e3f2fd', 'fa-clock-o'],
+                        };
+                    @endphp
+                    <div style="background:#fff; border:1px solid #dfe5eb; border-left:4px solid {{ $creditoVisual[1] }}; border-radius:10px; padding:13px 15px;">
+                        <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+                            <div>
+                                <strong>{{ $seccion['nombre'] }}</strong>
+                                <div style="font-size:11px; color:#78909c; margin-top:3px;">Referencia #{{ $seccion['cotizacion_id'] }} · L {{ number_format($seccion['total'], 2) }}</div>
+                            </div>
+                            <span style="background:{{ $creditoVisual[2] }}; color:{{ $creditoVisual[1] }}; border-radius:12px; padding:3px 10px; font-size:11px; font-weight:700; height:max-content;">
+                                <i class="fa {{ $creditoVisual[3] }} mr-1"></i>{{ $creditoVisual[0] }}
+                            </span>
+                        </div>
+                        @if(!empty($seccion['credito_motivo']))
+                        <div style="margin-top:8px; padding:7px 9px; background:#fff5f5; color:#9b1c1c; border-radius:6px; font-size:11px;"><strong>Motivo:</strong> {{ $seccion['credito_motivo'] }}</div>
+                        @endif
+                        <div style="display:flex; gap:7px; flex-wrap:wrap; margin-top:9px;">
+                            <a href="/cotizacion/imprimir/{{ $seccion['cotizacion_id'] }}" target="_blank" class="btn btn-white btn-xs"><i class="fa fa-print mr-1"></i>Imprimir</a>
+                            @if(in_array($creditoEstado, ['rechazado', 'cancelado'], true))
+                            <a href="{{ route('flujo.secciones_ofertas', ['flujo_id' => $flujoId, 'seccion_id' => $seccion['id']]) }}" class="btn btn-danger btn-xs"><i class="fa fa-pencil mr-1"></i>Editar y reenviar</a>
+                            @endif
+                        </div>
+                    </div>
+                    @empty
+                    <div class="text-center text-muted" style="padding:20px;">No hay secciones enviadas a Crédito.</div>
+                    @endforelse
+                </div>
+                @else
                 @php
                     $crEstado     = $creditoRevisionData['estado'] ?? 'pendiente';
                     $crAprobado   = ($crEstado === 'aprobado');
@@ -1729,12 +1895,41 @@
                         </div>
                     </div>
                 </div>
+                @endif
                 @endif {{-- /paso revision_credito --}}
 
                 {{-- ══════════════════════════════════════════════════ --}}
                 {{-- PASO: REVISIÓN DE INVENTARIO (informativo)         --}}
                 {{-- ══════════════════════════════════════════════════ --}}
                 @if ($pasoActivo === 'revision_inventario')
+                @if($esFlujoExpo)
+                <div style="margin-top:14px; display:grid; gap:10px;">
+                    @forelse(collect($seccionesExpoData)->filter(fn($seccion) => !empty($seccion['inventario_estado_id']) || in_array($seccion['estado'], ['EN_REVISION_INVENTARIO','PREFACTURADA','FACTURADA','DEVUELTA_INVENTARIO'], true)) as $seccion)
+                    @php
+                        $inventarioEstado = (int)($seccion['inventario_estado_id'] ?? 5);
+                        $inventarioVisual = match($inventarioEstado) {
+                            1 => ['APROBADA', '#2e7d32', '#e8f5e9', 'fa-check-circle'],
+                            7 => ['RECHAZADA', '#e65100', '#fff3e0', 'fa-reply'],
+                            default => ['PENDIENTE', '#6a1b9a', '#f3e5f5', 'fa-clock-o'],
+                        };
+                    @endphp
+                    <div style="background:#fff; border:1px solid #e5dbea; border-left:4px solid {{ $inventarioVisual[1] }}; border-radius:10px; padding:13px 15px;">
+                        <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+                            <div><strong>{{ $seccion['nombre'] }}</strong><div style="font-size:11px; color:#78909c; margin-top:3px;">Referencia #{{ $seccion['cotizacion_id'] }} · {{ count($seccion['productos']) }} producto(s)</div></div>
+                            <span style="background:{{ $inventarioVisual[2] }}; color:{{ $inventarioVisual[1] }}; border-radius:12px; padding:3px 10px; font-size:11px; font-weight:700; height:max-content;"><i class="fa {{ $inventarioVisual[3] }} mr-1"></i>{{ $inventarioVisual[0] }}</span>
+                        </div>
+                        @if($inventarioEstado === 7 && !empty($seccion['inventario_observaciones']))
+                        <div style="margin-top:8px; padding:7px 9px; background:#fff8f0; color:#8a4700; border-radius:6px; font-size:11px;">{{ $seccion['inventario_observaciones'] }}</div>
+                        @endif
+                        <div style="display:flex; gap:7px; flex-wrap:wrap; margin-top:9px;">
+                            <a href="/cotizacion/imprimir/{{ $seccion['cotizacion_id'] }}" target="_blank" class="btn btn-white btn-xs"><i class="fa fa-print mr-1"></i>Imprimir</a>
+                        </div>
+                    </div>
+                    @empty
+                    <div class="text-center text-muted" style="padding:20px;">No hay secciones enviadas a Inventario.</div>
+                    @endforelse
+                </div>
+                @else
                 @php
                     $ciclos      = $revisionHistorial ?? [];
                     $totalCiclos = count($ciclos);
@@ -1903,26 +2098,58 @@
                     @endforelse
                 </div>
                 @endif
+                @endif
                 {{-- /paso revision_inventario --}}
 
                 {{-- ══════════════════════════════════════════════════ --}}
                 {{-- PASO: PREFACTURA                                       --}}
                 {{-- ══════════════════════════════════════════════════ --}}
                 @if ($pasoActivo === 'prefactura')
+                <div style="display:flex; flex-direction:column; gap:10px; margin:12px 0;">
+
+                @if($esFlujoExpo)
+                <div style="display:contents;">
+                    @forelse(collect($seccionesExpoData)->filter(fn($seccion) => !empty($seccion['prefactura_id'])) as $seccion)
+                        @php
+                        $prefActiva = ($seccion['prefactura_estado'] ?? '') === 'activo';
+                        $prefSeleccionada = (int) ($prefacturaData['id'] ?? 0) === (int) $seccion['prefactura_id'];
+                        @endphp
+                    <button type="button" wire:click="seleccionarPrefacturaExpo({{ $seccion['prefactura_id'] }})"
+                            wire:key="prefactura-expo-{{ $seccion['prefactura_id'] }}"
+                            aria-expanded="{{ $prefSeleccionada ? 'true' : 'false' }}"
+                            style="order:{{ $loop->index * 2 }}; background:{{ $prefSeleccionada ? '#f0fdfa' : '#fff' }}; border:{{ $prefSeleccionada ? '2px' : '1px' }} solid {{ $prefActiva ? '#80cbc4' : '#bbdefb' }}; border-left:4px solid {{ $prefActiva ? '#00897b' : '#1565c0' }}; border-radius:10px; padding:13px 15px; text-align:left; cursor:pointer;">
+                        <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+                            <div><strong>{{ $seccion['nombre'] }}</strong><div style="font-size:11px; color:#78909c; margin-top:3px;">Prefactura #{{ $seccion['prefactura_id'] }} · Referencia #{{ $seccion['cotizacion_id'] }}</div></div>
+                            <span style="background:{{ $prefActiva ? '#e0f2f1' : '#e3f2fd' }}; color:{{ $prefActiva ? '#00695c' : '#1565c0' }}; border-radius:12px; padding:3px 10px; font-size:11px; font-weight:700; height:max-content;">{{ $prefActiva ? 'LISTA PARA FACTURAR' : 'FACTURADA' }}</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top:7px; font-size:11px; color:#546e7a;">
+                            <span>{{ count($seccion['productos']) }} producto(s) · L {{ number_format($seccion['total'], 2) }}</span>
+                            <span style="color:#1a5fa8; font-weight:700;"><i class="fa fa-chevron-down mr-1 fmp-invoice-chevron" style="transform:rotate({{ $prefSeleccionada ? '180deg' : '0deg' }});"></i>Ver detalle</span>
+                        </div>
+                    </button>
+                    @empty
+                    <div class="text-center text-muted" style="padding:20px;">Ninguna sección ha sido aprobada por Inventario todavía.</div>
+                    @endforelse
+                </div>
+                @endif
 
                 @if ($prefacturaData)
-                @php $pref = $prefacturaData; @endphp
-                <div style="margin-top:12px;">
+                @php
+                    $pref = $prefacturaData;
+                    $prefFacturada = ($pref['estado'] ?? '') === 'convertida';
+                    $indicePrefacturaSeleccionada = collect($seccionesExpoData)
+                        ->filter(fn($seccion) => !empty($seccion['prefactura_id']))
+                        ->values()
+                        ->search(fn($seccion) => (int) $seccion['prefactura_id'] === (int) $pref['id']);
+                    $ordenDetallePrefactura = $indicePrefacturaSeleccionada === false
+                        ? 999
+                        : ($indicePrefacturaSeleccionada * 2) + 1;
+                @endphp
+                <div style="order:{{ $esFlujoExpo ? $ordenDetallePrefactura : 0 }}; padding:2px 10px 12px; border-left:4px solid #00897b; background:#f8fffe; border-radius:0 0 10px 10px;">
 
-                    @if(count($prefacturasData) > 1)
-                    <div class="table-responsive" style="margin-bottom:10px;">
-                        <table class="table table-sm table-bordered" style="font-size:11px; background:#fff;">
-                            <thead><tr><th>Prefactura</th><th>Emisión</th><th>Vencimiento</th><th>Estado</th><th class="text-right">Total</th></tr></thead>
-                            <tbody>@foreach($prefacturasData as $prefHist)<tr>
-                                <td>#{{ $prefHist['id'] }}</td><td>{{ $prefHist['fecha_emision'] }}</td><td>{{ $prefHist['fecha_vencimiento'] }}</td>
-                                <td>{{ ucfirst($prefHist['estado']) }}</td><td class="text-right">L {{ number_format($prefHist['total'], 2) }}</td>
-                            </tr>@endforeach</tbody>
-                        </table>
+                    @if($esFlujoExpo)
+                    <div style="font-size:12px; font-weight:800; color:#00695c; margin:0 0 8px;">
+                        <i class="mr-1 fa fa-file-text-o"></i>Detalle de prefactura #{{ $pref['id'] }}
                     </div>
                     @endif
 
@@ -1998,7 +2225,7 @@
                     {{-- Botones de acción --}}
                     @if ($confirmAccionPrefactura === null)
                     <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:4px;">
-                        @if (!$facturaCompletada)
+                        @if ($esFlujoExpo ? !$prefFacturada : !$facturaCompletada)
 <button type="button" wire:click="solicitarAutorizacionPrefactura('revertir_prefactura')"
                                 style="background:linear-gradient(135deg,#1a7efb,#0d6efd); color:#fff;
                                        border:none; border-radius:8px; padding:6px 14px;
@@ -2021,7 +2248,7 @@
                             <i class="fa fa-print"></i> Imprimir prefactura
                         </a>
 
-                        @if (!$facturaCompletada)
+                        @if ($esFlujoExpo ? !$prefFacturada : !$facturaCompletada)
                         @if ($prefacturaPuedeFacturar)
                         <button id="btn-facturar-directo" type="button" wire:click="facturarPrefacturaDirecta"
                                 wire:loading.attr="disabled" wire:target="facturarPrefacturaDirecta"
@@ -2167,12 +2394,15 @@
 
                 @else
                 {{-- No hay prefactura activa todavía --}}
+                @if(!$esFlujoExpo)
                 <div style="margin-top:20px; text-align:center; padding:24px; color:#90a4ae;">
                     <i class="mb-2 fa fa-clock-o fa-2x d-block" style="opacity:.4;"></i>
                     <p style="font-size:13px; margin:0; font-weight:600;">Sin prefactura activa.</p>
                     <p style="font-size:12px; margin:4px 0 0; opacity:.7;">Marca una oferta como ganadora para generar la prefactura.</p>
                 </div>
                 @endif
+                @endif
+                </div>
 
                 {{-- ══════════════════════════════════════════════════ --}}
                 {{-- PASO: FACTURA                                         --}}
@@ -2613,16 +2843,6 @@
 
             {{-- ── Footer ─────────────────────────────────────────────── --}}
             <div class="modal-footer fmp-foot" style="border:none; background:#f8f9fc;">
-
-                @if ($pasoActivo === 'factura' && $expoConSaldoPendiente)
-                <button type="button" wire:click="facturarPrefacturaDirecta"
-                        wire:loading.attr="disabled" wire:target="facturarPrefacturaDirecta"
-                        style="border-radius:20px; padding:6px 20px; background:#2e7d32;
-                               border:none; color:#fff; font-size:13px; font-weight:700; cursor:pointer;">
-                    <span wire:loading.remove wire:target="facturarPrefacturaDirecta"><i class="fa fa-plus-circle mr-1"></i>Continuar facturando</span>
-                    <span wire:loading wire:target="facturarPrefacturaDirecta"><i class="fa fa-spinner fa-spin mr-1"></i>Procesando...</span>
-                </button>
-                @endif
 
                 <button type="button" wire:click="cerrar"
                         style="border-radius:20px; padding:6px 20px; background:#f0f0f0;

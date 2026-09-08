@@ -13,6 +13,7 @@ use App\Models\CreditoRevision;
 use App\Http\Livewire\Ventas\FacturacionCorporativa;
 use App\Events\FlujoAvanzadoEvent;
 use App\Services\Expo\SaldoLineasOferta;
+use App\Services\Expo\SeccionadorOfertaExpo;
 use Carbon\Carbon;
 
 /**
@@ -361,6 +362,33 @@ class PrefacturaController
         $cotizacion = DB::table('cotizacion')->where('id', $cotizacionId)->first();
         if (!$cotizacion) {
             return response()->json(['icon' => 'error', 'title' => 'Error', 'text' => 'Oferta no encontrada.'], 404);
+        }
+
+        if (DB::table('expo_cotizacion')->where('cotizacion_id', $cotizacionId)->exists()) {
+            if (!$flujoId) {
+                $flujoId = (int) DB::table('historico_flujo')
+                    ->where('tipo_tramite_id', 2)
+                    ->where('tramite_id', $cotizacionId)
+                    ->orderByDesc('id')
+                    ->value('flujo_id');
+            }
+
+            try {
+                app(SeccionadorOfertaExpo::class)->iniciarSeccionado(
+                    $flujoId,
+                    $cotizacionId,
+                    (int) Auth::id()
+                );
+
+                return response()->json([
+                    'en_secciones_ofertas' => true,
+                    'cotizacionId' => $cotizacionId,
+                    'flujoId' => $flujoId,
+                    'message' => 'Oferta Expo #' . $cotizacionId . ' enviada a Secciones de Ofertas.',
+                ]);
+            } catch (\Throwable $e) {
+                return response()->json(['icon' => 'error', 'title' => 'Error', 'text' => $e->getMessage()], 422);
+            }
         }
 
         // ── Verificar si la revisión de inventario está activa ────────────
@@ -1014,6 +1042,20 @@ class PrefacturaController
         return $cambios;
     }
 
+    private function obtenerCambiosEscalaOfertaExpo($productos, int $cotizacionOrigenId): array
+    {
+        $indices = $productos->pluck('indice')->filter(fn ($indice) => $indice !== null)->unique()->values();
+        $productoIds = $productos->pluck('producto_id')->filter()->unique()->values();
+
+        $lineasOferta = DB::table('cotizacion_has_producto')
+            ->where('cotizacion_id', $cotizacionOrigenId)
+            ->when($indices->isNotEmpty(), fn ($query) => $query->whereIn('indice', $indices))
+            ->when($indices->isEmpty(), fn ($query) => $query->whereIn('producto_id', $productoIds))
+            ->get();
+
+        return $this->obtenerCambiosEscalaPrefactura($lineasOferta);
+    }
+
     private function respuestaCambiosEscalaPrefactura(array $cambios)
     {
         $filas = collect($cambios)->map(function ($producto) {
@@ -1107,7 +1149,10 @@ class PrefacturaController
             ], 409);
         }
 
-        $esOfertaExpo = DB::table('expo_cotizacion')
+        $seccionExpo = DB::table('expo_oferta_seccion')
+            ->where('prefactura_id', $id)
+            ->first(['cotizacion_origen_id']);
+        $esOfertaExpo = (bool) $seccionExpo || DB::table('expo_cotizacion')
             ->where('cotizacion_id', (int) $pf->cotizacion_id)
             ->exists();
 
@@ -1153,17 +1198,20 @@ class PrefacturaController
             return response()->json(['error' => 'La prefactura no tiene productos.'], 422);
         }
 
-        if (!$esOfertaExpo) {
-            $cambiosEscala = $this->obtenerCambiosEscalaPrefactura($productos);
-            if (!empty($cambiosEscala)) {
-                return $this->respuestaCambiosEscalaPrefactura($cambiosEscala);
-            }
+        $cambiosEscala = $esOfertaExpo
+            ? $this->obtenerCambiosEscalaOfertaExpo(
+                $productos,
+                (int) ($seccionExpo->cotizacion_origen_id ?? $pf->cotizacion_id)
+            )
+            : $this->obtenerCambiosEscalaPrefactura($productos);
+        if (!empty($cambiosEscala)) {
+            return $this->respuestaCambiosEscalaPrefactura($cambiosEscala);
         }
 
         try {
             // Si la prefactura ya venció, su reserva se considera liberada y debe
             // revalidarse la disponibilidad real antes de permitir facturar.
-            if ($this->reservaPrefacturaVencio($pf)) {
+            if (!$esOfertaExpo && $this->reservaPrefacturaVencio($pf)) {
                 $faltantes = $this->obtenerFaltantesInventarioPrefactura((int) $pf->id, true);
                 if (!empty($faltantes)) {
                     return response()->json([
@@ -1387,6 +1435,7 @@ class PrefacturaController
             'ordenCompra'              => $ordenCompraId,
             'pedido_id'                => $pedidoId,
             'flujo_id'                 => $pf->flujo_id,
+            'prefactura_id'            => $id,
         ], $productoData);
 
         $syntheticRequest = Request::create(
@@ -1502,6 +1551,16 @@ class PrefacturaController
                 ->where('id', $id)
                 ->update(['estado' => 'convertida', 'updated_at' => now()]);
 
+            if ($seccionExpo) {
+                DB::table('expo_oferta_seccion')
+                    ->where('prefactura_id', $id)
+                    ->update([
+                        'estado' => 'FACTURADA',
+                        'updated_by' => Auth::id(),
+                        'updated_at' => now(),
+                    ]);
+            }
+
             // ── Registrar el flujo (equivalente a confirmarFacturaFlujo) ──────
             $flujoId = (int) ($pf->flujo_id ?? 0);
             if ($flujoId && $facturaId) {
@@ -1511,9 +1570,13 @@ class PrefacturaController
             $TIPO_CONJUNTO = 7;
             $ESTADO_ACTIVO = 1;
             $ESTADO_PEND   = 5;
+            $expoConSeccionesPendientes = $seccionExpo && DB::table('expo_oferta_seccion')
+                ->where('flujo_id', $flujoId)
+                ->whereNotIn('estado', ['FACTURADA', 'ANULADA'])
+                ->exists();
 
             DB::table('flujo')->where('id', $flujoId)->update([
-                'tipo_tramite_id' => $TIPO_CONJUNTO,
+                'tipo_tramite_id' => $expoConSeccionesPendientes ? $TIPO_FACTURA : $TIPO_CONJUNTO,
                 'updated_by'      => Auth::id(),
                 'updated_at'      => now(),
             ]);
@@ -1522,6 +1585,7 @@ class PrefacturaController
                 ->where('flujo_id', $flujoId)
                 ->where('tipo_tramite_id', $TIPO_FACTURA)
                 ->where('estado_id', '!=', 7)
+                ->when($seccionExpo, fn ($query) => $query->where('tramite_id', $facturaId))
                 ->orderByDesc('id')
                 ->first(['id', 'tramite_id']);
 

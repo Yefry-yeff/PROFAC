@@ -48,7 +48,19 @@
                         <div>
                             <h5 style="color:#fff; margin:0; font-weight:700; font-size:15px;">
                                 <i class="mr-2 fa fa-search"></i>
-                                Revisando Flujo #{{ $flujoId }}
+                                Revisando Flujo #{{ $flujoId }} · Oferta #{{ $cotizacionId }}
+                                @if($esOfertaExpo)
+                                <span style="display:inline-block; background:#e0f2f1; color:#00695c;
+                                             border:1px solid #80cbc4; border-radius:4px; padding:2px 6px;
+                                             font-size:10px; font-weight:800; margin-left:5px; vertical-align:middle;">
+                                    EXPO
+                                </span>
+                                @endif
+                                @if($estadoSeccion)
+                                    <span style="background:rgba(255,255,255,.2); border-radius:20px; padding:2px 10px; font-size:11px; margin-left:7px;">
+                                        {{ str_replace('_', ' ', $estadoSeccion) }}
+                                    </span>
+                                @endif
                             </h5>
                             @if($flujoData)
                             <small style="color:rgba(255,255,255,.88); font-size:11px; display:block; margin-top:3px;">
@@ -206,12 +218,12 @@
                             </div>
                             @else
                             <div style="overflow-x:auto;">
-                                <table class="table table-hover table-sm mb-0" style="font-size:13px; margin:0;">
+                                <table class="table table-hover table-sm mb-0" style="font-size:13px; margin:0; min-width:1500px;">
                                     <thead style="background:#f8f9fc;">
                                         <tr>
                                             <th style="padding:10px 14px; color:#555; font-weight:700;">#</th>
                                             <th style="padding:10px 14px; color:#555; font-weight:700;">Producto</th>
-                                            <th style="padding:10px 14px; color:#555; font-weight:700;">Bodega</th>
+                                            <th style="padding:10px 14px; color:#555; font-weight:700; width:420px; min-width:420px;">Bodega</th>
                                             <th style="padding:10px 10px; color:#555; font-weight:700; white-space:nowrap;">Unidad</th>
                                             <th style="padding:10px 14px; text-align:center; color:#555; font-weight:700;">Cantidad</th>
                                             <th style="padding:10px 14px; text-align:center; color:#e65100; font-weight:700;">Reserva</th>
@@ -232,22 +244,33 @@
                                         </tr>
                                         @else
                                             @foreach ($this->productosFiltrados as $prod)
+                                            @php
+                                                $sinBodegaSuficiente = $esOfertaExpo
+                                                    && !$this->productoTieneBodegaSeleccionadaSuficiente($prod);
+                                                $alertaInventario = $prod['falta_stock'] || $sinBodegaSuficiente;
+                                                $destinoSeleccionado = collect($prod['destinos_bodega'] ?? [])->firstWhere(
+                                                    'value',
+                                                    (string) ($bodegaExpoSeleccionada[$prod['idx']] ?? '')
+                                                );
+                                                $textoBodegaSeleccionada = $destinoSeleccionado['text'] ?? ($prod['nombre_bodega'] ?? '—');
+                                            @endphp
                                             <tr style="border-bottom:1px solid #f0f0f0;
-                                                       {{ $prod['falta_stock'] ? 'background:#fff8f5;' : '' }}
-                                                       {{ !empty($productosRevisados[$prod['idx']]) ? 'box-shadow: inset 4px 0 0 #2e7d32;' : '' }}">
+                                                       {{ $alertaInventario ? 'background:#ffebee;' : '' }}
+                                                       {{ $alertaInventario ? 'box-shadow:inset 4px 0 0 #c62828;' : (!empty($productosRevisados[$prod['idx']]) ? 'box-shadow:inset 4px 0 0 #2e7d32;' : '') }}">
                                                 <td style="padding:8px 14px; color:#888;">{{ $loop->iteration }}</td>
                                                 <td style="padding:8px 14px; color:#2c3e50; font-weight:600;">
                                                     {{ $prod['nombre_producto'] }}
                                                 </td>
-                                                <td style="padding:8px 14px; color:#607d8b; font-size:12px;">
+                                                <td style="padding:8px 14px; color:#607d8b; font-size:12px; width:420px; min-width:420px;">
                                                     @if(!$devuelto && !$soloVisualizacion)
-                                                        <div class="input-group input-group-sm" style="min-width:260px;">
+                                                    <div class="input-group input-group-sm" style="width:100%;">
                                                                 <select wire:model="bodegaExpoSeleccionada.{{ $prod['idx'] }}"
                                                                     wire:change="guardarBodega({{ $prod['idx'] }})"
                                                                     wire:loading.attr="disabled"
                                                                     wire:target="guardarBodega({{ $prod['idx'] }})"
                                                                     class="form-control"
-                                                                    title="Bodegas y secciones donde existe el producto">
+                                                                    style="{{ $sinBodegaSuficiente ? 'border:2px solid #c62828; color:#b71c1c; background-color:#fff5f5;' : '' }}"
+                                                                    title="{{ $textoBodegaSeleccionada }}">
                                                                 @if(empty($bodegaExpoSeleccionada[$prod['idx']]))
                                                                     <option value="">Seleccione una bodega con existencia suficiente</option>
                                                                 @endif
@@ -257,20 +280,11 @@
                                                                     <option value="">Sin existencia en bodegas</option>
                                                                 @endforelse
                                                             </select>
-                                                            <div class="input-group-append">
-                                                                <span class="btn btn-primary"
-                                                                      title="La reasignación se guarda automáticamente al cambiar"
-                                                                      style="cursor:default; min-width:34px;">
-                                                                    <span wire:loading.remove wire:target="guardarBodega({{ $prod['idx'] }})">
-                                                                        <i class="fa fa-check"></i>
-                                                                    </span>
-                                                                    <span wire:loading wire:target="guardarBodega({{ $prod['idx'] }})" style="display:none;">
-                                                                        <i class="fa fa-spinner fa-spin"></i>
-                                                                    </span>
-                                                                </span>
-                                                            </div>
                                                         </div>
-                                                        <small style="color:#78909c;">Actual: {{ $prod['nombre_bodega'] ?? '—' }}</small>
+                                                        <small style="display:block; margin-top:4px; color:{{ $sinBodegaSuficiente ? '#b71c1c' : '#607d8b' }};
+                                                                      font-weight:600; white-space:normal; overflow-wrap:anywhere; line-height:1.3;">
+                                                            {{ $textoBodegaSeleccionada }}
+                                                        </small>
                                                     @else
                                                         {{ $prod['nombre_bodega'] ?? '—' }}
                                                     @endif
@@ -341,7 +355,12 @@
                                                     </div>
                                                 </td>
                                                 <td style="padding:8px 14px; text-align:center;">
-                                                    @if (($prod['sin_existencia'] ?? false) && !$esOfertaExpo && $this->productoTieneBodegaSeleccionadaSuficiente($prod))
+                                                    @if($sinBodegaSuficiente)
+                                                        <span style="background:#ffebee; color:#c62828; border:1px solid #ef9a9a; border-radius:8px;
+                                                                     padding:3px 10px; font-size:11px; font-weight:700;">
+                                                            <i class="fa fa-exclamation-triangle mr-1"></i>Bodega insuficiente
+                                                        </span>
+                                                    @elseif (($prod['sin_existencia'] ?? false) && !$esOfertaExpo && $this->productoTieneBodegaSeleccionadaSuficiente($prod))
                                                         <span style="background:#e8f5e9; color:#2e7d32; border-radius:8px;
                                                                      padding:3px 10px; font-size:11px; font-weight:700;">
                                                             <i class="fa fa-check mr-1"></i>Bodega lista
@@ -673,6 +692,9 @@
                                                          padding:3px 10px; font-weight:700; font-size:12px;">
                                                 #{{ $reg['flujo_id'] }}
                                             </span>
+                                            @if(!empty($reg['seccion_nombre']))
+                                                <small class="d-block mt-1" style="color:#1565c0;">{{ $reg['seccion_nombre'] }}</small>
+                                            @endif
                                         </td>
                                         <td style="padding:10px 16px; color:#2c3e50; font-weight:600;">
                                             {{ $reg['cliente'] }}
@@ -686,6 +708,11 @@
                                                          padding:3px 10px; font-weight:700; font-size:12px;">
                                                 <i class="fa fa-trophy mr-1"></i>#{{ $reg['cotizacion_id'] }}
                                             </span>
+                                            @if(!empty($reg['seccion_numero']))
+                                            <span style="display:inline-block; margin-left:5px; background:#e0f2f1; color:#00695c;
+                                                         border:1px solid #80cbc4; border-radius:4px; padding:2px 6px;
+                                                         font-size:10px; font-weight:800; vertical-align:middle;">EXPO</span>
+                                            @endif
                                             @else
                                             <span style="color:#aaa; font-size:11px;">—</span>
                                             @endif
@@ -701,7 +728,7 @@
                                         </td>
                                         <td style="padding:10px 16px; text-align:center;">
                                             <button type="button"
-                                                    wire:click="seleccionarFlujo({{ $reg['flujo_id'] }})"
+                                                    wire:click="seleccionarFlujo({{ $reg['flujo_id'] }}, false{{ ($reg['seccion_numero'] ?? null) ? ', ' . $reg['cotizacion_id'] : '' }})"
                                                     style="background:linear-gradient(135deg,#1a7efb,#0d6efd); color:#fff;
                                                            border:none; border-radius:8px; padding:5px 14px;
                                                            font-size:12px; font-weight:700; cursor:pointer;">
@@ -779,6 +806,9 @@
                                                          padding:2px 8px; font-size:10px; font-weight:700; margin-left:4px;">
                                                 <i class="fa fa-reply mr-1"></i>Devuelto
                                             </span>
+                                            @if(!empty($reg['seccion_nombre']))
+                                                <small class="d-block mt-1" style="color:#e65100;">{{ $reg['seccion_nombre'] }}</small>
+                                            @endif
                                         </td>
                                         <td style="padding:10px 16px; color:#2c3e50; font-weight:600;">
                                             {{ $reg['cliente'] }}
@@ -792,6 +822,11 @@
                                                          padding:3px 10px; font-weight:700; font-size:12px;">
                                                 <i class="fa fa-trophy mr-1"></i>#{{ $reg['cotizacion_id'] }}
                                             </span>
+                                            @if(!empty($reg['seccion_numero']))
+                                            <span style="display:inline-block; margin-left:5px; background:#e0f2f1; color:#00695c;
+                                                         border:1px solid #80cbc4; border-radius:4px; padding:2px 6px;
+                                                         font-size:10px; font-weight:800; vertical-align:middle;">EXPO</span>
+                                            @endif
                                             @else
                                             <span style="color:#aaa; font-size:11px;">—</span>
                                             @endif
@@ -817,7 +852,7 @@
                                         </td>
                                         <td style="padding:10px 16px; text-align:center;">
                                             <button type="button"
-                                                    wire:click="seleccionarFlujo({{ $reg['flujo_id'] }})"
+                                                    wire:click="seleccionarFlujo({{ $reg['flujo_id'] }}, false, {{ $reg['cotizacion_id'] }})"
                                                     style="background:linear-gradient(135deg,#e67e22,#d35400); color:#fff;
                                                            border:none; border-radius:8px; padding:5px 14px;
                                                            font-size:12px; font-weight:700; cursor:pointer;">
@@ -893,6 +928,9 @@
                                                          padding:2px 8px; font-size:10px; font-weight:700; margin-left:4px;">
                                                 <i class="fa fa-check mr-1"></i>Aprobado
                                             </span>
+                                            @if(!empty($reg['seccion_nombre']))
+                                                <small class="d-block mt-1" style="color:#2e7d32;">{{ $reg['seccion_nombre'] }}</small>
+                                            @endif
                                         </td>
                                         <td style="padding:10px 16px; color:#2c3e50; font-weight:600;">
                                             {{ $reg['cliente'] }}
@@ -906,6 +944,11 @@
                                                          padding:3px 10px; font-weight:700; font-size:12px;">
                                                 <i class="fa fa-trophy mr-1"></i>#{{ $reg['cotizacion_id'] }}
                                             </span>
+                                            @if(!empty($reg['seccion_numero']))
+                                            <span style="display:inline-block; margin-left:5px; background:#e0f2f1; color:#00695c;
+                                                         border:1px solid #80cbc4; border-radius:4px; padding:2px 6px;
+                                                         font-size:10px; font-weight:800; vertical-align:middle;">EXPO</span>
+                                            @endif
                                             @else
                                             <span style="color:#aaa; font-size:11px;">—</span>
                                             @endif
@@ -931,7 +974,7 @@
                                         </td>
                                         <td style="padding:10px 16px; text-align:center;">
                                             <button type="button"
-                                                    wire:click="seleccionarFlujo({{ $reg['flujo_id'] }}, true)"
+                                                    wire:click="seleccionarFlujo({{ $reg['flujo_id'] }}, true, {{ $reg['cotizacion_id'] }})"
                                                     style="background:linear-gradient(135deg,#2e7d32,#1b5e20); color:#fff;
                                                            border:none; border-radius:8px; padding:5px 14px;
                                                            font-size:12px; font-weight:700; cursor:pointer;">

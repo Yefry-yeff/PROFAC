@@ -130,7 +130,7 @@ class FacturacionUnificada extends Component
             ->leftJoin('unidad_medida_venta as uv', 'uv.id', '=', 'chp.unidad_medida_venta_id')
             ->where('chp.cotizacion_id', $cotizacionId)
             ->get([
-                'chp.id', 'chp.cantidad', 'chp.precio_unidad', 'chp.monto_descProducto',
+                'chp.id', 'chp.indice', 'chp.cantidad', 'chp.precio_unidad', 'chp.monto_descProducto',
                 'p.marca_id', 'ppc.categoria_precios_id', 'uv.unidad_venta',
             ]);
 
@@ -164,13 +164,20 @@ class FacturacionUnificada extends Component
                 2
             );
 
-            return [(int) $linea->id => [
+            $atribucion = [
                 'porcentaje_marca' => $porcentajeMarca,
                 'porcentaje_general' => (float) ($calculo['porcentaje_general'] ?? 0),
                 'proporcion_marca' => $descuentoFirmado > 0
-                    ? min(max($descuentoMarca / $descuentoFirmado, 0), 1)
+                    ? ((float) ($calculo['porcentaje_general'] ?? 0) <= 0
+                        ? 1
+                        : min(max($descuentoMarca / $descuentoFirmado, 0), 1))
                     : 0,
-            ]];
+            ];
+
+            return [
+                (int) $linea->id => $atribucion,
+                'indice:' . (int) $linea->indice => $atribucion,
+            ];
         })->all();
     }
 

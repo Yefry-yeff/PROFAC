@@ -6,6 +6,7 @@ use App\Support\ExpoConfig;
 use Livewire\Component;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use App\Services\Expo\SeccionadorOfertaExpo;
 
 /**
  * Dos pestanas:
@@ -333,6 +334,24 @@ class ListarPedidosParaOfertar extends Component
 
     public function marcarGanadora(int $flujoId, int $ofertaId): void
     {
+        if (DB::table('expo_cotizacion')->where('cotizacion_id', $ofertaId)->exists()) {
+            try {
+                app(SeccionadorOfertaExpo::class)->iniciarSeccionado(
+                    $flujoId,
+                    $ofertaId,
+                    (int) Auth::id()
+                );
+                $this->mensajeExito = 'Oferta Expo #' . $ofertaId . ' enviada a Secciones de Ofertas.';
+                $this->mensajeError = '';
+                $this->redirect(route('flujo.secciones_ofertas', ['flujo_id' => $flujoId]));
+                return;
+            } catch (\Throwable $e) {
+                $this->mensajeError = 'Error: ' . $e->getMessage();
+                $this->mensajeExito = '';
+            }
+            return;
+        }
+
         DB::beginTransaction();
         try {
             // Verificar si la revisión de inventario está activa
