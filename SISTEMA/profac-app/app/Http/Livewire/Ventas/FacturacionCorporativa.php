@@ -1046,6 +1046,15 @@ class FacturacionCorporativa extends Component
                 ], 401);
             }
 
+            $prefacturaExcluirId = (int) ($request->prefactura_id ?? 0);
+            $facturacionExpoDesdePrefactura = $prefacturaExcluirId > 0 && (
+                DB::table('expo_oferta_seccion')->where('prefactura_id', $prefacturaExcluirId)->exists()
+                || DB::table('prefactura as pf')
+                    ->join('expo_cotizacion as ec', 'ec.cotizacion_id', '=', 'pf.cotizacion_id')
+                    ->where('pf.id', $prefacturaExcluirId)
+                    ->exists()
+            );
+
             $teleAsesorId = $this->resolveTeleAsesorId($request);
             //
 
@@ -1068,7 +1077,7 @@ class FacturacionCorporativa extends Component
 
 
 
-            if ($request->tipoPagoVenta == 2) {
+            if ($request->tipoPagoVenta == 2 && !$facturacionExpoDesdePrefactura) {
                 $comprobarCredito = $this->comprobarCreditoCliente($request->seleccionarCliente, $request->totalGeneral);
 
                 if ($comprobarCredito) {
@@ -1088,7 +1097,6 @@ class FacturacionCorporativa extends Component
 
             // Si la venta proviene de una prefactura, excluirla del stock reservado
             // para no contar como indisponible el stock que ella misma reservó.
-            $prefacturaExcluirId = (int) ($request->prefactura_id ?? 0);
 
             // En modo editar_factura: sumar de vuelta el stock de la factura original
             // para no bloquear la edición por el stock que ya estaba descontado.
@@ -1121,8 +1129,9 @@ class FacturacionCorporativa extends Component
             $mensaje = "";
             $flag = false;
 
-            //comprobar existencia de producto en bodega
-            for ($j = 0; $j < count($arrayInputs); $j++) {
+            // Las prefacturas Expo ya fueron aprobadas por Inventario y se facturan tal como quedaron registradas.
+            if (!$facturacionExpoDesdePrefactura) {
+                for ($j = 0; $j < count($arrayInputs); $j++) {
 
                 $keyIdSeccion = "idSeccion" . $arrayInputs[$j];
                 $keyIdProducto = "idProducto" . $arrayInputs[$j];
@@ -1172,16 +1181,17 @@ class FacturacionCorporativa extends Component
                     $mensaje = $mensaje . "Unidades insuficientes para el producto: <b>" . $request->$keyNombre . "</b> en la bodega con sección :<b>" . $request->$keyBodega . "</b><br><br>";
                     $flag = true;
                 }
-            }
+                }
 
-            if ($flag) {
-                return response()->json([
-                    'icon' => "warning",
-                    'text' =>  '<p class="text-left">' . $mensaje . '</p>',
-                    'title' => 'Advertencia!',
-                    'idFactura' => 0,
+                if ($flag) {
+                    return response()->json([
+                        'icon' => "warning",
+                        'text' =>  '<p class="text-left">' . $mensaje . '</p>',
+                        'title' => 'Advertencia!',
+                        'idFactura' => 0,
 
-                ], 200);
+                    ], 200);
+                }
             }
             //comprobar existencia de producto en bodega
 
@@ -1413,7 +1423,7 @@ class FacturacionCorporativa extends Component
 
                 // dd($factura);
 
-                $this->restarUnidadesInventario($precios_producto_carga_id, $idPrecioSeleccionado, $precioSeleccionado, $restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $arrayInputs[$i], $tipoPrecio, $lineasExpoPorIndice[(string) $arrayInputs[$i]] ?? null, (float) $request->input('cantidadOfertaAplicada' . $arrayInputs[$i], 0));
+                $this->restarUnidadesInventario($precios_producto_carga_id, $idPrecioSeleccionado, $precioSeleccionado, $restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $arrayInputs[$i], $tipoPrecio, $lineasExpoPorIndice[(string) $arrayInputs[$i]] ?? null, (float) $request->input('cantidadOfertaAplicada' . $arrayInputs[$i], 0), $facturacionExpoDesdePrefactura);
             };
 
             if ($request->tipoPagoVenta == 2) { //si el tipo de pago es credito
@@ -2016,7 +2026,7 @@ class FacturacionCorporativa extends Component
         }
     }
 
-    public function restarUnidadesInventario($precios_producto_carga_id,$idPrecioSeleccionado,$precioSeleccionado , $unidadesRestarInv, $idProducto, $idSeccion, $idFactura, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $indice, $tipoPrecio = '2', $cotizacionLineaId = null, $cantidadOfertaAplicada = 0)
+    public function restarUnidadesInventario($precios_producto_carga_id,$idPrecioSeleccionado,$precioSeleccionado , $unidadesRestarInv, $idProducto, $idSeccion, $idFactura, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $indice, $tipoPrecio = '2', $cotizacionLineaId = null, $cantidadOfertaAplicada = 0, bool $permitirFaltanteExpo = false)
     {
         try {
 
@@ -2033,13 +2043,35 @@ class FacturacionCorporativa extends Component
                         from recibido_bodega
                             where seccion_id = " . $idSeccion . " and
                             producto_id = " . $idProducto . " and
-                            cantidad_disponible <>0
+                            cantidad_disponible > 0
                             order by created_at asc
                         limit 1
                         ");
 
 
-                if ($unidadesDisponibles->cantidad_disponible == $unidadesRestar) {
+                if (!$unidadesDisponibles && $permitirFaltanteExpo) {
+                    $unidadesDisponibles = DB::table('recibido_bodega')
+                        ->where('seccion_id', $idSeccion)
+                        ->where('producto_id', $idProducto)
+                        ->orderBy('created_at')
+                        ->first(['id', 'cantidad_disponible']);
+
+                    if (!$unidadesDisponibles) {
+                        throw new \RuntimeException("El producto {$idProducto} no tiene un lote registrado para facturar la prefactura Expo.");
+                    }
+
+                    $registroResta = $unidadesRestar;
+                    $lote = ModelRecibirBodega::find($unidadesDisponibles->id);
+                    $lote->cantidad_disponible = (float) $lote->cantidad_disponible - $registroResta;
+                    $lote->save();
+                    $unidadesRestar = 0;
+                    $subTotalSecccionado = round(($precioUnidad * $registroResta), 4);
+                    $isvSecccionado = round(($subTotalSecccionado * ($ivsProducto / 100)), 4);
+                    $totalSecccionado = round(($isvSecccionado + $subTotalSecccionado), 4);
+                    $cantidadSeccion = $registroResta / $unidad;
+                } else if (!$unidadesDisponibles) {
+                    throw new \RuntimeException("No hay inventario disponible para el producto {$idProducto}.");
+                } else if ($unidadesDisponibles->cantidad_disponible == $unidadesRestar) {
 
                     $diferencia = $unidadesDisponibles->cantidad_disponible - $unidadesRestar;
                     $lote = ModelRecibirBodega::find($unidadesDisponibles->id);

@@ -93,6 +93,7 @@ class ModalFlujoPedido extends Component
     public array $prefacturaStockFaltante = [];
     public bool $prefacturaReservaCompleta = true;
     public array $prefacturaReservaFaltante = [];
+    public bool $prefacturaEsExpo = false;
     public bool $expoConSaldoPendiente = false;
     public $mostrarAutorizacionPrefactura = false;
     public $accionAutorizacionPrefactura  = null;
@@ -270,7 +271,10 @@ class ModalFlujoPedido extends Component
             $this->cargarHistorialEntregasFactura();
         }
         $this->cargarEstadoCobroFactura();
-        if ($this->expoConSaldoPendiente) {
+        if ($this->tienePrefacturasExpoActivas()) {
+            $this->pasoActivo = 'prefactura';
+            $this->limpiarSeleccionPrefactura();
+        } elseif ($this->expoConSaldoPendiente) {
             $this->pasoActivo = 'factura';
         }
         $this->showModal               = true;
@@ -437,7 +441,10 @@ class ModalFlujoPedido extends Component
             $this->cargarHistorialEntregasFactura();
         }
         $this->cargarEstadoCobroFactura();
-        if ($this->expoConSaldoPendiente) {
+        if ($this->tienePrefacturasExpoActivas()) {
+            $this->pasoActivo = 'prefactura';
+            $this->limpiarSeleccionPrefactura();
+        } elseif ($this->expoConSaldoPendiente) {
             $this->pasoActivo = 'factura';
         }
         $this->showModal               = true;
@@ -597,7 +604,11 @@ class ModalFlujoPedido extends Component
             $this->cargarRevisionHistorial();
         }
         if ($paso === 'prefactura') {
-            $this->cargarPrefactura();
+            if ($this->tieneSeccionesExpoConPrefactura()) {
+                $this->limpiarSeleccionPrefactura();
+            } else {
+                $this->cargarPrefactura();
+            }
         }
         if ($paso === 'factura') {
             $this->cargarFactura();
@@ -2343,6 +2354,7 @@ class ModalFlujoPedido extends Component
     {
         if (!$this->flujoId) {
             $this->prefacturaData = null;
+            $this->prefacturaEsExpo = false;
             $this->expoConSaldoPendiente = false;
             $this->prefacturaVencida = false;
             $this->prefacturaPuedeFacturar = true;
@@ -2366,6 +2378,7 @@ class ModalFlujoPedido extends Component
 
         if (!$pref) {
             $this->prefacturaData = null;
+            $this->prefacturaEsExpo = false;
             $this->expoConSaldoPendiente = false;
             $this->prefacturaVencida = false;
             $this->prefacturaPuedeFacturar = true;
@@ -2387,6 +2400,10 @@ class ModalFlujoPedido extends Component
 
         $this->prefacturaData = array_merge((array) $pref, ['productos' => $productos]);
         $cotizacionId = (int) ($pref->cotizacion_id ?? 0);
+        $this->prefacturaEsExpo = DB::table('expo_oferta_seccion')
+            ->where('prefactura_id', $pref->id)
+            ->exists()
+            || ($cotizacionId > 0 && DB::table('expo_cotizacion')->where('cotizacion_id', $cotizacionId)->exists());
         $this->expoConSaldoPendiente = $cotizacionId > 0
             && DB::table('expo_cotizacion')->where('cotizacion_id', $cotizacionId)->exists()
             && app(SaldoLineasOferta::class)->pendientes($cotizacionId)
@@ -2401,6 +2418,14 @@ class ModalFlujoPedido extends Component
                     'updated_by' => Auth::id(),
                     'updated_at' => now(),
                 ]);
+        }
+
+        if ($this->prefacturaEsExpo) {
+            $this->prefacturaStockFaltante = [];
+            $this->prefacturaPuedeFacturar = true;
+            $this->prefacturaReservaCompleta = true;
+            $this->prefacturaReservaFaltante = [];
+            return;
         }
 
         // Regla todo-o-nada de reserva: si no cubre cantidades completas, no debe apartar.
@@ -2423,8 +2448,38 @@ class ModalFlujoPedido extends Component
         }
     }
 
+    private function tieneSeccionesExpoConPrefactura(): bool
+    {
+        return collect($this->seccionesExpoData)
+            ->contains(fn (array $seccion) => !empty($seccion['prefactura_id']));
+    }
+
+    private function tienePrefacturasExpoActivas(): bool
+    {
+        return collect($this->seccionesExpoData)->contains(
+            fn (array $seccion) => !empty($seccion['prefactura_id'])
+                && ($seccion['prefactura_estado'] ?? null) === 'activo'
+        );
+    }
+
+    private function limpiarSeleccionPrefactura(): void
+    {
+        $this->prefacturaData = null;
+        $this->prefacturaEsExpo = false;
+        $this->prefacturaVencida = false;
+        $this->prefacturaPuedeFacturar = true;
+        $this->prefacturaStockFaltante = [];
+        $this->prefacturaReservaCompleta = true;
+        $this->prefacturaReservaFaltante = [];
+    }
+
     public function seleccionarPrefacturaExpo(int $prefacturaId): void
     {
+        if ((int) ($this->prefacturaData['id'] ?? 0) === $prefacturaId) {
+            $this->limpiarSeleccionPrefactura();
+            return;
+        }
+
         $perteneceAlFlujo = DB::table('expo_oferta_seccion')
             ->where('flujo_id', $this->flujoId)
             ->where('prefactura_id', $prefacturaId)
@@ -2582,41 +2637,7 @@ class ModalFlujoPedido extends Component
         $this->mensajeError = '';
 
         $cotizacionId = (int) ($this->prefacturaData['cotizacion_id'] ?? 0);
-        $esOfertaExpo = $cotizacionId > 0 && DB::table('expo_cotizacion')
-            ->where('cotizacion_id', $cotizacionId)
-            ->exists();
-
-        if ($esOfertaExpo) {
-            $tipoVentaFiscal = (int) DB::table('cotizacion as c')
-                ->join('cliente as cl', 'cl.id', '=', 'c.cliente_id')
-                ->where('c.id', $cotizacionId)
-                ->value('cl.tipo_cliente_id');
-
-            $tipoFactura = DB::table('tipo_factura')
-                ->where('estado', 1)
-                ->where('codigo', '!=', 'cotizacion_clientes_a')
-                ->where('tipo_venta_id', $tipoVentaFiscal)
-                ->orderBy('orden')
-                ->first(['ruta_menu']);
-
-            if (!$tipoFactura) {
-                $this->mensajeError = 'No hay un tipo de facturación disponible para esta Oferta Expo.';
-                return;
-            }
-
-            $urlBase = '/' . ltrim($tipoFactura->ruta_menu, '/')
-                . '?from=prefactura'
-                . '&prefactura_id=' . (int) $this->prefacturaData['id']
-                . '&flujoId=' . (int) $this->flujoId
-                . '&cotizacionId=' . $cotizacionId;
-
-            $this->dispatchBrowserEvent('fmp-redirigir', [
-                'url' => $urlBase . '&expo_parcial=1',
-            ]);
-            return;
-        }
-
-        if ($this->prefacturaVencida) {
+        if (!$this->prefacturaEsExpo && $this->prefacturaVencida) {
             $faltantes = $this->obtenerFaltantesInventarioPrefactura((int) $this->prefacturaData['id'], true);
             $this->prefacturaStockFaltante = $faltantes;
             $this->prefacturaPuedeFacturar = empty($faltantes);
