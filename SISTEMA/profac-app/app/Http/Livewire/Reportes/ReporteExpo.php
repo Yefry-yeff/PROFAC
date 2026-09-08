@@ -591,7 +591,7 @@ class ReporteExpo extends Component
         $brutoOfertaExpr = $this->brutoOfertaExpr();
 
         $ofertado = DB::select("
-             SELECT p.id AS producto_id, p.codigo_barra AS codigo, p.nombre AS producto,
+             SELECT p.id AS producto_id, p.id AS codigo_producto, p.codigo_barra AS codigo, p.nombre AS producto,
                  COALESCE(m.nombre,'Sin marca') AS marca,
                  COALESCE(cat.descripcion,'Sin categoria') AS categoria,
                  COUNT(DISTINCT c.id) AS numero_ofertas,
@@ -639,6 +639,7 @@ class ReporteExpo extends Component
 
             return [
                 'producto_id' => (int) $row->producto_id,
+                'codigo_producto' => (int) $row->codigo_producto,
                 'codigo' => $row->codigo,
                 'producto' => $row->producto,
                 'marca' => $row->marca,
@@ -669,9 +670,9 @@ class ReporteExpo extends Component
         $baseFacturas = $r->input('rentabilidad_base') === 'facturas';
         $entidad = $baseFacturas ? 'Factura' : 'Oferta';
 
-        $headings = ['Codigo', 'Producto', 'Marca', 'Categoria', 'Ofertas', 'Cant. ' . ($baseFacturas ? 'Facturada' : 'Ofertada'), 'Venta ' . $entidad . ' (L)', 'Descuento (L)', 'Costo ' . $entidad . ' (L)', 'Utilidad ' . $entidad . ' (L)', 'Margen ' . $entidad . ' %'];
+        $headings = ['Codigo producto', 'Codigo de barra', 'Producto', 'Marca', 'Categoria', 'Ofertas', 'Cant. ' . ($baseFacturas ? 'Facturada' : 'Ofertada'), 'Venta ' . $entidad . ' (L)', 'Descuento (L)', 'Costo ' . $entidad . ' (L)', 'Utilidad ' . $entidad . ' (L)', 'Margen ' . $entidad . ' %'];
         $rows = array_map(fn ($p) => [
-            $p['codigo'], $p['producto'], $p['marca'], $p['categoria'], $p['numero_ofertas'],
+            $p['codigo_producto'], $p['codigo'], $p['producto'], $p['marca'], $p['categoria'], $p['numero_ofertas'],
             $baseFacturas ? $p['cantidad_facturada'] : $p['cantidad_ofertada'], $p['total_base'],
             $p['descuento'], $p['total_costo'], $p['utilidad'], $p['margen_pct'],
         ], $data);

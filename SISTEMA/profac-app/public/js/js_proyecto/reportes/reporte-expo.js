@@ -441,6 +441,7 @@ var reporteExpo = (function () {
             var tbody = $('#tabla-expo-productos tbody').empty();
             rows.forEach(function (r) {
                 tbody.append('<tr class="bi-row-selectable" data-producto-id="' + r.producto_id + '" title="Abrir analítica del producto">' +
+                    '<td>' + esc(r.codigo_producto) + '</td>' +
                     '<td>' + esc(r.codigo) + '</td>' +
                     '<td>' + esc(r.producto) + '</td>' +
                     '<td>' + esc(r.marca) + '</td>' +
