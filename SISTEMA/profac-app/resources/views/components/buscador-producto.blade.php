@@ -418,8 +418,8 @@
                           ' loading="lazy" onerror="this.onerror=null;this.src=\'' + noimg + '\'">' +
                    '</div>' +
                    '<div class="card-body p-2" style="font-size:.75rem;">' +
-                     '<p class="mb-1 font-weight-bold text-dark text-truncate"' +
-                        ' style="line-height:1.25;font-size:.78rem;" title="' + esc(p.nombre) + '">' + esc(p.nombre) + '</p>' +
+                            '<p class="mb-1 font-weight-bold text-dark"' +
+                                ' style="line-height:1.25;font-size:.78rem;white-space:normal;overflow-wrap:anywhere;" title="' + esc(p.nombre) + '">' + esc(p.nombre) + '</p>' +
                      '<p class="mb-1 text-muted" style="font-size:.64rem;line-height:1.45;">' +
                        '<b>ID:</b> ' + p.id +
                        (p.codigo_barra    ? '<br><b>C.B:</b> '  + esc(p.codigo_barra)   : '') +
