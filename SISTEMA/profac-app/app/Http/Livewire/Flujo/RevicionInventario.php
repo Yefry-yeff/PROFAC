@@ -712,6 +712,11 @@ class RevicionInventario extends Component
             return;
         }
 
+        $stockDestino = $this->calcularStockDestinoNormal(
+            (int) $producto['producto_id'],
+            $seccionDestinoId
+        );
+
         $destinoTexto = trim($destino->bodega_nombre . ' - ' . $destino->seccion_descripcion
             . ' (Existencia: ' . (int) $destino->stock . ')');
         $linea = DB::table('cotizacion_has_producto')
@@ -774,9 +779,26 @@ class RevicionInventario extends Component
                     'seccion_actual_descripcion' => $destino->seccion_descripcion,
                     'resta_inventario' => 1,
                     'sin_existencia' => false,
+                    'rawStock' => $stockDestino['existencia'],
+                    'reservado' => $stockDestino['reservado'],
+                    'disponible' => $stockDestino['disponible'],
+                    'falta_stock' => $stockDestino['disponible'] < (float) $productoActual['cantidad'],
+                    'reservas_detalle' => $stockDestino['reservas'],
                 ]);
                 break;
             }
+
+            $this->stockErrors = collect($this->productos)
+                ->filter(fn (array $linea) => !empty($linea['falta_stock']))
+                ->map(fn (array $linea) => [
+                    'idx' => $linea['idx'],
+                    'producto' => $linea['nombre_producto'],
+                    'solicitado' => (int) $linea['cantidad'],
+                    'disponible' => (int) $linea['disponible'],
+                    'disponible_global' => $linea['disponible_global'],
+                ])
+                ->values()
+                ->all();
 
             $this->mensajeError = '';
             $this->mensajeExito = 'Bodega reasignada a ' . $destinoTexto . '. La auditoría fue registrada.';
@@ -823,6 +845,48 @@ class RevicionInventario extends Component
         }
 
         return $destinos;
+    }
+
+    private function calcularStockDestinoNormal(int $productoId, int $seccionId): array
+    {
+        $existencia = (float) DB::table('recibido_bodega')
+            ->where('producto_id', $productoId)
+            ->where('seccion_id', $seccionId)
+            ->where('cantidad_disponible', '>', 0)
+            ->sum('cantidad_disponible');
+
+        $reservas = DB::table('prefactura_has_producto as php')
+            ->join('prefactura as pf', 'pf.id', '=', 'php.prefactura_id')
+            ->leftJoin('seccion as s', 's.id', '=', 'php.seccion_id')
+            ->leftJoin('segmento as sg', 'sg.id', '=', 's.segmento_id')
+            ->where('pf.estado', 'activo')
+            ->whereRaw("TIMESTAMPADD(DAY, COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7), COALESCE(pf.created_at, CONCAT(COALESCE(pf.fecha_emision, CURDATE()), ' 00:00:00'))) > NOW()")
+            ->where('php.producto_id', $productoId)
+            ->where('php.seccion_id', $seccionId)
+            ->where('php.resta_inventario', 1)
+            ->select(
+                'php.producto_id', 'php.seccion_id', 'pf.id as prefactura_id',
+                'pf.flujo_id', 'pf.nombre_cliente', 'php.cantidad',
+                'pf.fecha_emision', 'sg.bodega_id'
+            )
+            ->selectRaw("DATE(TIMESTAMPADD(DAY, COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7), COALESCE(pf.created_at, CONCAT(COALESCE(pf.fecha_emision, CURDATE()), ' 00:00:00')))) as fecha_vencimiento_reserva")
+            ->get();
+
+        $cacheReservaCompleta = [];
+        $reservas = $reservas
+            ->filter(fn ($reserva) => $this->prefacturaTieneReservaCompleta(
+                (int) $reserva->prefactura_id,
+                $cacheReservaCompleta
+            ))
+            ->values();
+        $reservado = (float) $reservas->sum('cantidad');
+
+        return [
+            'existencia' => $existencia,
+            'reservado' => $reservado,
+            'disponible' => max(0.0, $existencia - $reservado),
+            'reservas' => $reservas->map(fn ($reserva) => (array) $reserva)->all(),
+        ];
     }
 
     /**

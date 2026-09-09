@@ -34,7 +34,7 @@ class RevisionCreditos extends Component
 
     // ── Detalle del flujo seleccionado ────────────────────────────────────
     public ?int   $flujoId          = null;
-    protected     $flujoData        = null;
+    public ?array $flujoData        = null;
     public ?int   $cotizacionId     = null;
     public bool   $esSeccionExpo    = false;
     public ?int   $clienteId        = null;
@@ -71,12 +71,19 @@ class RevisionCreditos extends Component
     // ── Datos crediticios actuales/edición ───────────────────────────────
     public float $montoCreditoActual      = 0.0;
     public float $montoDisponibleActual   = 0.0;
+    public float $montoDisponibleProyectado = 0.0;
     public int   $diasCreditoActual       = 0;
     public float $montoCreditoEditable    = 0.0;
     public string $montoCreditoEditableTexto = '0.00';
     public int   $diasCreditoEditable     = 0;
     public bool  $puedeAutorizar          = false;
     public array $bloqueosAutorizacion    = [];
+    public bool  $modalMovimientosCreditoVisible = false;
+    public array $detalleMovimientosCredito = [];
+    public bool  $modalAjusteCreditoVisible = false;
+    public string $nuevoCreditoClienteTexto = '0.00';
+    public int $nuevosDiasCreditoCliente = 0;
+    public string $motivoAjusteCredito = '';
 
     // ── Mensajes ──────────────────────────────────────────────────────────
     public string $mensajeExito = '';
@@ -334,6 +341,7 @@ class RevisionCreditos extends Component
                 'f.identificacion',
                 'p.id as pedido_id',
                 DB::raw("COALESCE(c.nombre_cliente, cl.nombre, 'N/A') as cliente"),
+                DB::raw("COALESCE(c.RTN, cl.rtn, '') as rtn"),
                 DB::raw('COALESCE(c.cliente_id, cl.id) as cliente_id'),
                 'p.created_at as pedido_fecha',
                 'p.observaciones as pedido_obs',
@@ -456,12 +464,19 @@ class RevisionCreditos extends Component
         $this->observaciones          = '';
         $this->montoCreditoActual     = 0.0;
         $this->montoDisponibleActual  = 0.0;
+        $this->montoDisponibleProyectado = 0.0;
         $this->diasCreditoActual      = 0;
         $this->montoCreditoEditable   = 0.0;
         $this->montoCreditoEditableTexto = '0.00';
         $this->diasCreditoEditable    = 0;
         $this->puedeAutorizar         = false;
         $this->bloqueosAutorizacion   = [];
+        $this->modalMovimientosCreditoVisible = false;
+        $this->detalleMovimientosCredito = [];
+        $this->modalAjusteCreditoVisible = false;
+        $this->nuevoCreditoClienteTexto = '0.00';
+        $this->nuevosDiasCreditoCliente = 0;
+        $this->motivoAjusteCredito = '';
         $this->mensajeExito           = '';
         $this->mensajeError           = '';
     }
@@ -489,6 +504,7 @@ class RevisionCreditos extends Component
             $this->diasCreditoActual     = 0;
             $this->montoCreditoEditable  = 0.0;
             $this->diasCreditoEditable   = 0;
+            $this->montoDisponibleProyectado = -$this->montoTotalOferta;
             $this->bloqueosAutorizacion  = ['No se encontró cliente vinculado para validar crédito.'];
             $this->puedeAutorizar        = false;
             return;
@@ -509,7 +525,9 @@ class RevisionCreditos extends Component
         $this->montoCreditoEditable = $this->montoCreditoActual;
         $this->montoCreditoEditableTexto = number_format($this->montoCreditoEditable, 2, '.', ',');
         $this->diasCreditoEditable  = $this->diasCreditoActual;
-        $this->montoDisponibleActual = CreditoService::calcularDisponible((int) $this->clienteId, $this->montoCreditoEditable);
+        $detalleCredito = CreditoService::obtenerDetalleMovimientos((int) $this->clienteId);
+        $this->montoDisponibleActual = (float) $detalleCredito['saldo_pendiente'];
+        $this->montoDisponibleProyectado = $this->montoDisponibleActual - $this->montoTotalOferta;
 
         $this->evaluarReglasAutorizacion();
     }
@@ -546,6 +564,12 @@ class RevisionCreditos extends Component
 
     private function evaluarReglasAutorizacion(): void
     {
+        if (!$this->clienteId) {
+            $this->bloqueosAutorizacion = ['No se encontró cliente vinculado para validar crédito.'];
+            $this->puedeAutorizar = false;
+            return;
+        }
+
         // Facturas de contado no requieren validación de crédito
         if ($this->tipoPagoSolicitud === 'contado') {
             $this->bloqueosAutorizacion = [];
@@ -555,16 +579,168 @@ class RevisionCreditos extends Component
 
         $bloqueos = [];
 
-        if ($this->montoTotalOferta > $this->montoDisponibleActual) {
-            $bloqueos[] = 'El monto de la factura excede el crédito disponible del cliente.';
-        }
-
         if ($this->diasCreditoEditable > $this->diasSolicitadosCredito) {
             $bloqueos[] = 'Los días aprobados no pueden ser mayores que los días solicitados en el flujo.';
         }
 
         $this->bloqueosAutorizacion = $bloqueos;
         $this->puedeAutorizar = empty($bloqueos);
+    }
+
+    public function abrirMovimientosCredito(): void
+    {
+        if (!$this->clienteId) {
+            return;
+        }
+
+        $this->detalleMovimientosCredito = CreditoService::obtenerDetalleMovimientos($this->clienteId);
+        $this->modalMovimientosCreditoVisible = true;
+    }
+
+    public function cerrarMovimientosCredito(): void
+    {
+        $this->modalMovimientosCreditoVisible = false;
+    }
+
+    public function abrirAjusteCredito(): void
+    {
+        if (!$this->clienteId) {
+            $this->mensajeError = 'No se encontró cliente vinculado para modificar el crédito.';
+            return;
+        }
+
+        $this->nuevoCreditoClienteTexto = number_format($this->montoCreditoActual, 2, '.', ',');
+        $this->nuevosDiasCreditoCliente = $this->diasCreditoActual;
+        $this->motivoAjusteCredito = '';
+        $this->mensajeError = '';
+        $this->modalAjusteCreditoVisible = true;
+    }
+
+    public function cerrarAjusteCredito(): void
+    {
+        $this->modalAjusteCreditoVisible = false;
+        $this->motivoAjusteCredito = '';
+    }
+
+    public function guardarAjusteCredito(): void
+    {
+        if (!$this->clienteId || !$this->flujoId || !$this->cotizacionId) {
+            $this->mensajeError = 'No se encontró el cliente, flujo u oferta para registrar el ajuste.';
+            return;
+        }
+
+        $valorLimpio = str_replace(',', '', trim($this->nuevoCreditoClienteTexto));
+        if ($valorLimpio === '' || !is_numeric($valorLimpio) || (float) $valorLimpio < 0) {
+            $this->mensajeError = 'Ingrese un monto de crédito válido, igual o mayor que cero.';
+            return;
+        }
+
+        if ($this->nuevosDiasCreditoCliente < 0 || $this->nuevosDiasCreditoCliente > 365) {
+            $this->mensajeError = 'Los días de crédito deben estar entre 0 y 365.';
+            return;
+        }
+
+        $motivo = trim($this->motivoAjusteCredito);
+        if ($motivo === '') {
+            $this->mensajeError = 'Indique el motivo del cambio de crédito.';
+            return;
+        }
+
+        $nuevoCredito = round((float) $valorLimpio, 2);
+        $nuevosDiasCredito = (int) $this->nuevosDiasCreditoCliente;
+
+        DB::beginTransaction();
+        try {
+            $cliente = DB::table('cliente')
+                ->where('id', $this->clienteId)
+                ->lockForUpdate()
+                ->first(['credito_inicial', 'dias_credito', 'vendedor']);
+
+            if (!$cliente) {
+                throw new \RuntimeException('El cliente ya no existe.');
+            }
+
+            $creditoAnterior = DB::table('cliente_credito')
+                ->where('cliente_id', $this->clienteId)
+                ->orderByDesc('id')
+                ->lockForUpdate()
+                ->first();
+            $limiteAnterior = (float) ($creditoAnterior->credito ?? $cliente->credito_inicial ?? 0);
+            $diasAnteriores = (int) ($creditoAnterior->dias_credito ?? $cliente->dias_credito ?? 0);
+            $detalleAnterior = CreditoService::obtenerDetalleMovimientos($this->clienteId);
+            $disponibleAnterior = (float) $detalleAnterior['saldo_pendiente'];
+
+            DB::table('cliente')->where('id', $this->clienteId)->update([
+                'credito_inicial' => $nuevoCredito,
+                'dias_credito' => $nuevosDiasCredito,
+                'updated_at' => now(),
+            ]);
+
+            DB::table('cliente_credito')
+                ->where('cliente_id', $this->clienteId)
+                ->update(['activo' => 0, 'updated_at' => now()]);
+
+            DB::table('cliente_credito')->insert([
+                'cliente_id' => $this->clienteId,
+                'activo' => 1,
+                'credito_activo' => $creditoAnterior->credito_activo ?? ($nuevoCredito > 0 ? 1 : 0),
+                'credito' => $nuevoCredito,
+                'dias_credito' => $nuevosDiasCredito,
+                'fecha_vigencia' => $creditoAnterior->fecha_vigencia ?? null,
+                'vendedor_id' => $creditoAnterior->vendedor_id ?? $cliente->vendedor ?? null,
+                'referencias_bancarias' => $creditoAnterior->referencias_bancarias ?? null,
+                'referencias_comerciales' => $creditoAnterior->referencias_comerciales ?? null,
+                'metodo_pago' => $creditoAnterior->metodo_pago ?? null,
+                'letra_cambio' => $creditoAnterior->letra_cambio ?? 0,
+                'obs_letra_cambio' => $creditoAnterior->obs_letra_cambio ?? null,
+                'aval_solidario' => $creditoAnterior->aval_solidario ?? 0,
+                'obs_aval_solidario' => $creditoAnterior->obs_aval_solidario ?? null,
+                'autorizacion_gerencia' => $creditoAnterior->autorizacion_gerencia ?? null,
+                'users_id' => Auth::id(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            $detalleNuevo = CreditoService::obtenerDetalleMovimientos($this->clienteId);
+            $disponibleNuevo = (float) $detalleNuevo['saldo_pendiente'];
+            DB::table('cliente')->where('id', $this->clienteId)->update([
+                'credito' => $disponibleNuevo,
+                'updated_at' => now(),
+            ]);
+
+            $descripcion = 'Ajuste de crédito desde oferta #' . $this->cotizacionId
+                . ': L ' . number_format($limiteAnterior, 2)
+                . ' a L ' . number_format($nuevoCredito, 2)
+                . '; días ' . $diasAnteriores . ' a ' . $nuevosDiasCredito
+                . '. Motivo: ' . $motivo;
+            DB::table('log_credito')->insert([
+                'descripcion' => mb_substr($descripcion, 0, 200),
+                'tipo' => 'ajuste_credito_cliente',
+                'monto' => abs($nuevoCredito - $limiteAnterior),
+                'users_id' => Auth::id(),
+                'factura_id' => null,
+                'flujo_id' => $this->flujoId,
+                'cotizacion_id' => $this->cotizacionId,
+                'saldo_anterior' => $disponibleAnterior,
+                'saldo_resultante' => $disponibleNuevo,
+                'cliente_id' => $this->clienteId,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            DB::commit();
+
+            $this->modalAjusteCreditoVisible = false;
+            $this->motivoAjusteCredito = '';
+            $this->cargarDatosCreditoCliente();
+            $this->mensajeError = '';
+            $this->mensajeExito = 'Crédito del cliente actualizado de L '
+                . number_format($limiteAnterior, 2) . ' a L ' . number_format($nuevoCredito, 2)
+                . '. El cambio quedó auditado.';
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            $this->mensajeError = 'No se pudo actualizar el crédito del cliente: ' . $e->getMessage();
+        }
     }
 
     // DEPRECATED: Esta función ya no debe usarse.
@@ -689,6 +865,10 @@ class RevisionCreditos extends Component
         DB::beginTransaction();
         try {
             $ip = request()->ip();
+            $saldoAnterior = (float) CreditoService::obtenerDetalleMovimientos(
+                (int) $this->clienteId
+            )['saldo_pendiente'];
+            $saldoResultante = $saldoAnterior - (float) $this->montoTotalOferta;
 
             // Los datos de crédito editados en esta pantalla (monto, días) se persisten SOLO
             // en la tabla credito_revision de este flujo, sin modificar la configuración
@@ -769,6 +949,23 @@ class RevisionCreditos extends Component
                 . '. Días aprobados: ' . (int) $diasAprobados,
                 $ip
             );
+
+            DB::table('log_credito')->insert([
+                'descripcion' => $saldoResultante < 0
+                    ? 'Saldo negativo por aprobación de oferta #' . $this->cotizacionId
+                    : 'Aprobación de crédito para oferta #' . $this->cotizacionId,
+                'tipo' => 'aprobacion_oferta',
+                'monto' => $this->montoTotalOferta,
+                'users_id' => Auth::id(),
+                'factura_id' => null,
+                'flujo_id' => $this->flujoId,
+                'cotizacion_id' => $this->cotizacionId,
+                'saldo_anterior' => $saldoAnterior,
+                'saldo_resultante' => $saldoResultante,
+                'cliente_id' => $this->clienteId,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
 
             // Cerrar historico_flujo tipo=10 como aprobado
             DB::table('historico_flujo')
@@ -856,7 +1053,10 @@ class RevisionCreditos extends Component
 
             $this->cerrarDetalle();
             $this->cargar();
-            $this->mensajeExito = 'Flujo #' . $flujoIdCerrado . ': Crédito aprobado y enviado a Revisión de Inventario.';
+            $this->mensajeExito = 'Flujo #' . $flujoIdCerrado . ': Crédito aprobado y enviado a Revisión de Inventario.'
+                . ($saldoResultante < 0
+                    ? ' El saldo disponible proyectado del cliente quedó en L ' . number_format($saldoResultante, 2) . '.'
+                    : '');
 
         } catch (\Exception $e) {
             DB::rollBack();

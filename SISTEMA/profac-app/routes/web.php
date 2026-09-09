@@ -573,6 +573,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     /* ---- Crédito ---- */
     Route::post('/clientes/credito/guardar',       [Cliente::class, 'guardarCredito'])->name('clientes.credito.guardar');
     Route::get('/clientes/credito/historico/{id}', [Cliente::class, 'historicoCredito'])->name('clientes.credito.historico');
+    Route::get('/clientes/credito/movimientos/{id}', [Cliente::class, 'movimientosCredito'])->name('clientes.credito.movimientos');
 
     /* ---- Observaciones ---- */
     Route::post('/clientes/observacion/guardar',  [Cliente::class, 'guardarObservacion'])->name('clientes.observacion.guardar');
