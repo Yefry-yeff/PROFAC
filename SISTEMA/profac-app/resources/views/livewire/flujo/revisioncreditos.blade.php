@@ -1,4 +1,10 @@
 <div>
+    <style>
+        body .wrapper.wrapper-content.animated.fadeInRight {
+            animation: none !important;
+            transform: none !important;
+        }
+    </style>
     {{-- ══════════════════════════════════════════════════════════════════ --}}
     {{--                    REVISIÓN DE CRÉDITO                           --}}
     {{-- ══════════════════════════════════════════════════════════════════ --}}
@@ -18,7 +24,7 @@
         </div>
     </div>
 
-    <div class="wrapper wrapper-content animated fadeInRight">
+    <div class="wrapper wrapper-content">
 
         {{-- ── Mensajes globales ─────────────────────────────────────── --}}
         @if ($mensajeExito && !$flujoId)
@@ -92,7 +98,7 @@
                             <button type="button" class="close" data-dismiss="alert"><span>&times;</span></button>
                         </div>
                         @endif
-                        @if ($mensajeError)
+                        @if ($mensajeError && !$modalAjusteCreditoVisible)
                         <div class="alert alert-danger" role="alert">
                             <i class="mr-1 fa fa-exclamation-triangle"></i> {{ $mensajeError }}
                         </div>
@@ -273,29 +279,66 @@
                                 <div style="font-size:12px; font-weight:700; color:#2e7d32; margin-bottom:10px; text-transform:uppercase;">
                                     Datos crediticios del cliente
                                 </div>
+                                <div style="padding:10px 12px; margin-bottom:12px; background:#f7faf8; border-left:3px solid #1ab394;">
+                                    <strong>{{ $flujoData['cliente'] ?? 'Cliente no identificado' }}</strong>
+                                    <span class="text-muted" style="margin-left:10px; font-size:12px;">
+                                        RTN: {{ $flujoData['rtn'] ?? 'No registrado' }}
+                                    </span>
+                                </div>
                                 <div class="row">
-                                    <div class="col-md-4 mb-3">
-                                        <label style="font-size:12px; font-weight:700; color:#2e7d32;">Monto de crédito</label>
-                                         <input type="text"
-                                             wire:model.lazy="montoCreditoEditableTexto"
-                                               class="form-control" style="border-radius:8px; font-size:13px;">
-                                                                                <small class="text-muted">Editable solo para este flujo</small>
+                                    <div class="col-md-3 mb-3">
+                                        <label style="font-size:12px; font-weight:700; color:#2e7d32;">Crédito aprobado</label>
+                                        <button type="button" wire:click="abrirAjusteCredito"
+                                                class="form-control text-left"
+                                                title="Modificar crédito aprobado del cliente"
+                                                style="border-radius:8px; font-size:13px; background:#f8f9fa; cursor:pointer; color:#1565c0; font-weight:700;">
+                                            <i class="fa fa-pencil mr-1"></i>
+                                            L {{ number_format($montoCreditoActual, 2, '.', ',') }}
+                                        </button>
+                                        <small class="text-muted">Clic para modificar el límite del cliente</small>
                                     </div>
-                                    <div class="col-md-4 mb-3">
-                                        <label style="font-size:12px; font-weight:700; color:#2e7d32;">Monto disponible</label>
+                                    <div class="col-md-3 mb-3">
+                                        <label style="font-size:12px; font-weight:700; color:#2e7d32;">Disponible para Crédito</label>
+                                        <button type="button" wire:click="abrirMovimientosCredito"
+                                                class="form-control text-left"
+                                            title="Ver detalle del disponible para crédito"
+                                                style="border-radius:8px; font-size:13px; background:#f8f9fa; cursor:pointer; color:#1565c0; font-weight:700;">
+                                            <i class="fa fa-list-alt mr-1"></i>
+                                            L {{ number_format($montoDisponibleActual, 2, '.', ',') }}
+                                        </button>
+                                        <small class="text-muted">Clic para ver el cálculo</small>
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label style="font-size:12px; font-weight:700; color:#2e7d32;">Monto de crédito</label>
                                         <input type="text" class="form-control" readonly
-                                             value="L {{ number_format($montoDisponibleActual, 2, '.', ',') }}"
-                                               style="border-radius:8px; font-size:13px; background:#f8f9fa; cursor:default;">
-                                        <small class="text-muted">Calculado automáticamente</small>
+                                               value="L {{ number_format($montoTotalOferta, 2, '.', ',') }}"
+                                               style="border-radius:8px; font-size:13px; background:#f8f9fa;">
+                                        <small class="text-muted">Monto total de la oferta</small>
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label style="font-size:12px; font-weight:700; color:{{ $montoDisponibleProyectado < 0 ? '#c62828' : '#2e7d32' }};">Monto disponible después de aprobar</label>
+                                        <input type="text" class="form-control" readonly
+                                             value="L {{ number_format($montoDisponibleProyectado, 2, '.', ',') }}"
+                                               style="border-radius:8px; font-size:13px; font-weight:700; background:{{ $montoDisponibleProyectado < 0 ? '#fff3e0' : '#f8f9fa' }}; color:{{ $montoDisponibleProyectado < 0 ? '#c62828' : '#2c3e50' }};">
+                                        <small class="text-muted">Disponible para crédito menos oferta</small>
                                     </div>
                                     <div class="col-md-4 mb-3">
                                         <label style="font-size:12px; font-weight:700; color:#2e7d32;">Días de crédito</label>
                                         <input type="number" min="0"
                                                wire:model.debounce.300ms="diasCreditoEditable"
                                                class="form-control" style="border-radius:8px; font-size:13px;">
-                                             <small class="text-muted">Editable solo para este flujo</small>
+                                        <small class="text-muted">Editable solo para este flujo</small>
                                     </div>
                                 </div>
+
+                                @if ($montoDisponibleProyectado < 0)
+                                <div class="alert alert-warning" style="margin-bottom:10px; border-radius:8px; font-size:12px;">
+                                    <i class="mr-1 fa fa-exclamation-triangle"></i>
+                                    Puede aprobar la oferta, pero el disponible para crédito del cliente quedará negativo en
+                                    <strong>L {{ number_format(abs($montoDisponibleProyectado), 2, '.', ',') }}</strong>.
+                                    La aprobación quedará registrada en la auditoría del cliente.
+                                </div>
+                                @endif
 
                                 @if (!empty($bloqueosAutorizacion))
                                 <div class="alert alert-danger" style="margin-bottom:0; border-radius:8px; font-size:12px;">
@@ -749,6 +792,153 @@
         </div>
 
         @endif {{-- end if flujoId --}}
+
+        @if($modalMovimientosCreditoVisible)
+        <div class="modal fade show" style="display:flex; align-items:center; justify-content:center; padding:20px; background:rgba(0,0,0,.45);" tabindex="-1" role="dialog">
+            <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document"
+                 style="width:100%; max-width:1100px; max-height:calc(100vh - 40px); margin:0;">
+                <div class="modal-content" style="border-radius:10px; overflow:hidden; max-height:calc(100vh - 40px);">
+                    <div class="modal-header" style="background:#37474f; color:#fff;">
+                        <h5 class="modal-title"><i class="fa fa-list-alt mr-2"></i>Movimientos del crédito</h5>
+                        <button type="button" wire:click="cerrarMovimientosCredito" class="close" style="color:#fff;"><span>&times;</span></button>
+                    </div>
+                    <div class="modal-body" style="overflow-y:auto;">
+                        @php $detalleCredito = $detalleMovimientosCredito; @endphp
+                        <div class="row mb-4">
+                            <div class="col-md-3"><strong>Crédito aprobado:</strong><br>L {{ number_format($detalleCredito['credito_aprobado'] ?? 0, 2, '.', ',') }}</div>
+                            <div class="col-md-3"><strong>Monto en facturaciones:</strong><br>L {{ number_format($detalleCredito['monto_facturaciones'] ?? 0, 2, '.', ',') }}</div>
+                            <div class="col-md-3"><strong>Pendientes de facturar:</strong><br>L {{ number_format($detalleCredito['pendiente_facturar'] ?? 0, 2, '.', ',') }}</div>
+                            <div class="col-md-3"><strong>Disponible para Crédito:</strong><br>L {{ number_format($detalleCredito['saldo_pendiente'] ?? 0, 2, '.', ',') }}</div>
+                        </div>
+                        <h6 style="font-weight:700;">Monto en facturaciones</h6>
+                        <div class="table-responsive mb-4">
+                            <table class="table table-sm table-striped">
+                                <thead><tr><th>Factura</th><th>Fecha</th><th class="text-right">Total</th><th class="text-right">Saldo pendiente</th></tr></thead>
+                                <tbody>
+                                    @forelse(($detalleCredito['cuentas'] ?? []) as $cuenta)
+                                    <tr>
+                                        <td>#{{ $cuenta['numero_factura'] ?: $cuenta['factura_id'] }}</td>
+                                        <td>{{ $cuenta['fecha_emision'] ? \Carbon\Carbon::parse($cuenta['fecha_emision'])->format('d/m/Y') : '—' }}</td>
+                                        <td class="text-right">L {{ number_format($cuenta['total_factura_cargo'] ?? 0, 2, '.', ',') }}</td>
+                                        <td class="text-right font-weight-bold">L {{ number_format($cuenta['saldo'] ?? 0, 2, '.', ',') }}</td>
+                                    </tr>
+                                    @empty
+                                    <tr><td colspan="4" class="text-center text-muted">No hay cuentas pendientes.</td></tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                        <h6 style="font-weight:700;">Pendientes de facturar</h6>
+                        <div class="table-responsive mb-4">
+                            <table class="table table-sm table-striped">
+                                <thead><tr><th>Fecha aprobación</th><th>Oferta / flujo</th><th>Usuario</th><th class="text-right">Monto</th></tr></thead>
+                                <tbody>
+                                    @forelse(($detalleCredito['pendientes_facturar'] ?? []) as $pendiente)
+                                    <tr>
+                                        <td>{{ $pendiente['fecha_aprobacion'] ? \Carbon\Carbon::parse($pendiente['fecha_aprobacion'])->format('d/m/Y') : '—' }}</td>
+                                        <td>Oferta #{{ $pendiente['cotizacion_id'] }} / Flujo #{{ $pendiente['flujo_id'] }}</td>
+                                        <td>{{ $pendiente['usuario'] ?? '—' }}</td>
+                                        <td class="text-right font-weight-bold">L {{ number_format($pendiente['monto'], 2, '.', ',') }}</td>
+                                    </tr>
+                                    @empty
+                                    <tr><td colspan="4" class="text-center text-muted">No hay ofertas aprobadas pendientes de facturar.</td></tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                        <h6 style="font-weight:700;">Auditoría de crédito</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped">
+                                <thead><tr><th>Fecha</th><th>Oferta / flujo</th><th>Usuario</th><th>Detalle</th><th class="text-right">Monto</th><th class="text-right">Saldo anterior</th><th class="text-right">Saldo resultante</th></tr></thead>
+                                <tbody>
+                                    @forelse(($detalleCredito['aprobaciones'] ?? []) as $movimiento)
+                                    <tr>
+                                        <td>{{ \Carbon\Carbon::parse($movimiento['created_at'])->format('d/m/Y H:i') }}</td>
+                                        <td>Oferta #{{ $movimiento['cotizacion_id'] }} / Flujo #{{ $movimiento['flujo_id'] }}</td>
+                                        <td>{{ $movimiento['usuario'] ?? '—' }}</td>
+                                        <td>{{ $movimiento['descripcion'] ?? '—' }}</td>
+                                        <td class="text-right">L {{ number_format($movimiento['monto'], 2, '.', ',') }}</td>
+                                        <td class="text-right">L {{ number_format($movimiento['saldo_anterior'], 2, '.', ',') }}</td>
+                                        <td class="text-right font-weight-bold {{ $movimiento['saldo_resultante'] < 0 ? 'text-danger' : '' }}">L {{ number_format($movimiento['saldo_resultante'], 2, '.', ',') }}</td>
+                                    </tr>
+                                    @empty
+                                    <tr><td colspan="7" class="text-center text-muted">No hay movimientos auditados con este detalle.</td></tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" wire:click="cerrarMovimientosCredito" class="btn btn-default">Cerrar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        @endif
+
+        @if($modalAjusteCreditoVisible)
+        <div class="modal fade show" style="display:flex; align-items:center; justify-content:center; padding:20px; background:rgba(0,0,0,.45);" tabindex="-1" role="dialog">
+            <div class="modal-dialog" role="document" style="width:100%; max-width:620px; margin:0;">
+                <div class="modal-content" style="border-radius:10px; overflow:hidden;">
+                    <div class="modal-header" style="background:#1565c0; color:#fff;">
+                        <h5 class="modal-title"><i class="fa fa-pencil-square-o mr-2"></i>Modificar crédito aprobado</h5>
+                        <button type="button" wire:click="cerrarAjusteCredito" class="close" style="color:#fff;"><span>&times;</span></button>
+                    </div>
+                    <div class="modal-body">
+                        <div style="padding:10px 12px; margin-bottom:14px; background:#f5f8fb; border-left:3px solid #1565c0;">
+                            <strong>{{ $flujoData['cliente'] ?? 'Cliente' }}</strong>
+                            <div class="text-muted" style="font-size:12px;">
+                                Crédito actual: L {{ number_format($montoCreditoActual, 2, '.', ',') }} · {{ $diasCreditoActual }} días
+                            </div>
+                        </div>
+                        <div class="alert alert-info" style="font-size:12px;">
+                            Este cambio actualizará el crédito global del cliente y recalculará automáticamente su disponible para crédito.
+                        </div>
+                        @if($montoDisponibleActual < 0)
+                        <div class="alert alert-warning" style="font-size:13px;">
+                            <i class="fa fa-exclamation-triangle mr-1"></i>
+                            Al cliente le hacen falta <strong>L {{ number_format(abs($montoDisponibleActual), 2, '.', ',') }}</strong>
+                            para que su disponible para crédito quede en L 0.00 y no en negativo.
+                        </div>
+                        @endif
+                        <div class="form-group">
+                            <label style="font-weight:700;">Nuevo crédito aprobado</label>
+                            <div class="input-group">
+                                <div class="input-group-prepend"><span class="input-group-text">L</span></div>
+                                <input type="text" wire:model.defer="nuevoCreditoClienteTexto"
+                                       class="form-control" inputmode="decimal" placeholder="0.00">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label style="font-weight:700;">Días de crédito</label>
+                            <input type="number" wire:model.defer="nuevosDiasCreditoCliente"
+                                   class="form-control" min="0" max="365" step="1">
+                            <small class="text-muted">Se actualizarán también en la ficha del cliente.</small>
+                        </div>
+                        <div class="form-group mb-0">
+                            <label style="font-weight:700;">Motivo del cambio <span class="text-danger">*</span></label>
+                            <textarea wire:model.defer="motivoAjusteCredito" class="form-control" rows="3"
+                                      maxlength="500" placeholder="Explique por qué se modifica el crédito del cliente..."></textarea>
+                            <small class="text-muted">El monto anterior, nuevo monto, usuario, flujo, oferta y motivo quedarán auditados.</small>
+                        </div>
+                        @if($mensajeError)
+                        <div class="alert alert-danger mt-3 mb-0" style="font-size:12px;">
+                            <i class="fa fa-exclamation-triangle mr-1"></i>{{ $mensajeError }}
+                        </div>
+                        @endif
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" wire:click="cerrarAjusteCredito" class="btn btn-default">Cancelar</button>
+                        <button type="button" wire:click="guardarAjusteCredito" wire:loading.attr="disabled"
+                                class="btn btn-primary">
+                            <span wire:loading.remove wire:target="guardarAjusteCredito"><i class="fa fa-save mr-1"></i>Guardar cambio</span>
+                            <span wire:loading wire:target="guardarAjusteCredito"><i class="fa fa-spinner fa-spin mr-1"></i>Guardando...</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        @endif
 
     </div>
 </div>

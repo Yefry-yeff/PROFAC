@@ -1165,7 +1165,7 @@ class Cliente extends Component
                 ", [$id, (int)(Auth::id() ?? 1)]);
             }
 
-            $montoDisponible = CreditoService::calcularDisponible((int)$id, (float)($datosCliente->credito_inicial ?? 0));
+            $montoDisponible = (float) CreditoService::obtenerDetalleMovimientos((int) $id)['saldo_pendiente'];
 
             return response()->json([
                 'datosCliente'     => $datosCliente,
@@ -1416,8 +1416,12 @@ class Cliente extends Component
                 'users_id'               => Auth::user()->id,
             ]);
 
-            // Recalcular monto disponible con el nuevo límite y persistir en cliente.credito
-            $montoDisponible = CreditoService::actualizarDisponible((int)$id, (float)$credito);
+            // Recalcular el saldo pendiente incluyendo facturas y ofertas aprobadas sin facturar.
+            $montoDisponible = (float) CreditoService::obtenerDetalleMovimientos((int) $id)['saldo_pendiente'];
+            DB::table('cliente')->where('id', $id)->update([
+                'credito' => $montoDisponible,
+                'updated_at' => now(),
+            ]);
 
             DB::commit();
             try { $this->logHistorial($id, 'Crédito actualizado', 'Monto: L ' . number_format((float)$credito, 2) . ' | Días: ' . ($request->dias_credito ?? 0)); } catch (\Throwable $e) {}
@@ -1437,6 +1441,17 @@ class Cliente extends Component
         $id   = $request->route('id');
         $rows = DB::select("SELECT cc.*, u.name as usuario, v.name as nombre_vendedor FROM cliente_credito cc LEFT JOIN users u ON u.id = cc.users_id LEFT JOIN users v ON v.id = cc.vendedor_id WHERE cc.cliente_id = ? ORDER BY cc.id DESC", [$id]);
         return response()->json(['historico' => $rows], 200);
+    }
+
+    /**
+     * GET /clientes/credito/movimientos/{id}
+     */
+    public function movimientosCredito(Request $request)
+    {
+        return response()->json(
+            CreditoService::obtenerDetalleMovimientos((int) $request->route('id')),
+            200
+        );
     }
 
     /**
