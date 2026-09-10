@@ -986,13 +986,22 @@ class PrefacturaController
         $preciosOriginales = DB::table('precios_producto_carga as ppc')
             ->leftJoin('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')
             ->whereIn('ppc.id', $productos->pluck('precios_producto_carga_id')->filter()->unique())
-            ->get(['ppc.*', 'cp.nombre as categoria_nombre'])
+            ->get(['ppc.*', 'cp.nombre as categoria_nombre', 'cp.cliente_categoria_escala_id'])
             ->keyBy('id');
+
+        $gruposEscala = $preciosOriginales->pluck('cliente_categoria_escala_id')->filter()->unique();
+        $preciosHistoricos = DB::table('precios_producto_carga as ppc')
+            ->join('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')
+            ->whereIn('ppc.producto_id', $productos->pluck('producto_id')->filter()->unique())
+            ->whereIn('cp.cliente_categoria_escala_id', $gruposEscala)
+            ->orderByDesc('ppc.id')
+            ->get(['ppc.*', 'cp.nombre as categoria_nombre', 'cp.cliente_categoria_escala_id'])
+            ->groupBy(fn ($precio) => $precio->producto_id . '|' . $precio->cliente_categoria_escala_id);
 
         $preciosActuales = DB::table('precios_producto_carga as ppc')
             ->leftJoin('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')
-            ->whereIn('ppc.categoria_precios_id', $preciosOriginales->pluck('categoria_precios_id')->filter()->unique())
             ->whereIn('ppc.producto_id', $productos->pluck('producto_id')->filter()->unique())
+            ->whereIn('cp.cliente_categoria_escala_id', $gruposEscala)
             ->where('ppc.estado_id', 1)
             ->orderBy('ppc.id')
             ->get(['ppc.*', 'cp.nombre as categoria_nombre'])
@@ -1010,6 +1019,23 @@ class PrefacturaController
             };
 
             $precioOriginal = $preciosOriginales->get((int) $producto->precios_producto_carga_id);
+            $precioSeleccionado = (float) ($producto->precioSeleccionado ?? 0);
+            $precioOriginalSeleccionado = $precioOriginal
+                ? (float) ($precioOriginal->{$columnaPrecio} ?? 0)
+                : 0.0;
+
+            if ($precioOriginal && $precioSeleccionado > 0
+                && abs($precioOriginalSeleccionado - $precioSeleccionado) > 0.005) {
+                $claveGrupo = $producto->producto_id . '|' . $precioOriginal->cliente_categoria_escala_id;
+                $categoriasCoincidentes = collect($preciosHistoricos->get($claveGrupo, collect()))
+                    ->filter(fn ($precio) => abs((float) ($precio->{$columnaPrecio} ?? 0) - $precioSeleccionado) <= 0.005)
+                    ->groupBy('categoria_precios_id');
+
+                if ($categoriasCoincidentes->count() === 1) {
+                    $precioOriginal = $categoriasCoincidentes->first()->first();
+                }
+            }
+
             $clavePrecio = $precioOriginal
                 ? $precioOriginal->categoria_precios_id . '|' . $producto->producto_id
                 : null;
