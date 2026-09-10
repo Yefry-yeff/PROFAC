@@ -16,13 +16,15 @@ class ReporteProductosPreciosFiltro implements FromQuery, WithHeadings, WithMapp
     protected $catPrecioId;
     protected $tipoFiltro;
     protected $valorFiltro;
+    protected $productoId;
 
-    public function __construct($catClienteId = null, $catPrecioId = null, $tipoFiltro = null, $valorFiltro = null)
+    public function __construct($catClienteId = null, $catPrecioId = null, $tipoFiltro = null, $valorFiltro = null, $productoId = null)
     {
         $this->catClienteId = $catClienteId;
         $this->catPrecioId  = $catPrecioId;
         $this->tipoFiltro   = $tipoFiltro;
         $this->valorFiltro  = $valorFiltro;
+        $this->productoId   = $productoId ? (int) $productoId : null;
     }
 
 
@@ -71,6 +73,9 @@ class ReporteProductosPreciosFiltro implements FromQuery, WithHeadings, WithMapp
         }
         if ($this->catPrecioId) {
             $query->where('C.id', $this->catPrecioId);
+        }
+        if ($this->productoId) {
+            $query->where('A.producto_id', $this->productoId);
         }
         if ($this->tipoFiltro == 1 && $this->valorFiltro) {
             $query->where('A.marca_id', $this->valorFiltro);

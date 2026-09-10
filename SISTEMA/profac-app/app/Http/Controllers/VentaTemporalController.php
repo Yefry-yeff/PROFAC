@@ -18,7 +18,12 @@ class VentaTemporalController extends Controller
             ->where('usuario_id', Auth::id())
             ->where('tipo', $request->tipo)
             ->orderByDesc('updated_at')
-            ->get(['id', 'tipo', 'codigo_tipo', 'titulo', 'url_reanudacion', 'expira_at', 'created_at', 'updated_at']);
+            ->orderByDesc('id')
+            ->get(['id', 'tipo', 'codigo_tipo', 'titulo', 'url_reanudacion', 'expira_at', 'created_at', 'updated_at'])
+            ->unique(function ($temporal) {
+                $titulo = mb_strtolower(trim((string) $temporal->titulo));
+                return $titulo !== '' ? $titulo : 'temporal-' . $temporal->id;
+            })->values();
 
         return response()->json(['data' => $temporales]);
     }

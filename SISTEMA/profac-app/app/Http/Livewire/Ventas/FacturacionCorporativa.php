@@ -4,6 +4,9 @@ namespace App\Http\Livewire\Ventas;
 
 use App\Support\ExpoConfig;
 use App\Support\ClienteActoresAsignados;
+use App\Services\Expo\LiquidacionOfertaExpo;
+use App\Services\Expo\RecalculadorFacturaExpo;
+use App\Services\Expo\SaldoLineasOferta;
 use Livewire\Component;
 
 
@@ -11,6 +14,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use DataTables;
 use Auth;
 use Validator;
@@ -90,6 +94,13 @@ class FacturacionCorporativa extends Component
 
     private function resolveTeleAsesorId(Request $request): int
     {
+        ClienteActoresAsignados::validar(
+            (int) $request->seleccionarCliente,
+            (int) $request->vendedor,
+            ClienteActoresAsignados::ROL_ASESOR_COMERCIAL,
+            'vendedor'
+        );
+
         $teleAsesorId = $request->tele_asesor ? (int) $request->tele_asesor : Auth::id();
         ClienteActoresAsignados::validar(
             (int) $request->seleccionarCliente,
@@ -99,6 +110,68 @@ class FacturacionCorporativa extends Component
         );
 
         return $teleAsesorId;
+    }
+
+    private function aplicarImportesFirmadosExpo(Request $request, array $indices, array $lineasPorIndice): void
+    {
+        if (empty($lineasPorIndice)) {
+            return;
+        }
+
+        $lineas = DB::table('cotizacion_has_producto')
+            ->whereIn('id', array_values($lineasPorIndice))
+            ->get(['id', 'cantidad', 'monto_descProducto'])
+            ->keyBy('id');
+        $cambios = [];
+        $subtotalGeneral = 0.0;
+        $subtotalGrabado = 0.0;
+        $subtotalExento = 0.0;
+        $isvGeneral = 0.0;
+        $totalGeneral = 0.0;
+        $descuentoGeneral = 0.0;
+
+        foreach ($indices as $indice) {
+            $lineaId = (int) ($lineasPorIndice[(string) $indice] ?? 0);
+            $linea = $lineas[$lineaId];
+            $cantidad = (float) $request->input('cantidad' . $indice, 0);
+            $unidad = (float) $request->input('unidad' . $indice, 0);
+            $precio = (float) $request->input('precio' . $indice, 0);
+            $cantidadOfertada = (float) $linea->cantidad;
+            $descuento = $cantidadOfertada > 0
+                ? round((float) $linea->monto_descProducto * $cantidad / $cantidadOfertada, 2)
+                : 0.0;
+            $bruto = round($precio * $cantidad * $unidad, 2);
+            $descuento = min($descuento, $bruto);
+            $subtotal = round($bruto - $descuento, 2);
+            $porcentajeIsv = (float) $request->input('isv' . $indice, 0);
+            $isv = round($subtotal * $porcentajeIsv / 100, 2);
+            $total = round($subtotal + $isv, 2);
+
+            $cambios['acumuladoDescuento' . $indice] = $descuento;
+            $cambios['subTotal' . $indice] = $subtotal;
+            $cambios['isvProducto' . $indice] = $isv;
+            $cambios['total' . $indice] = $total;
+            $subtotalGeneral += $subtotal;
+            $isvGeneral += $isv;
+            $totalGeneral += $total;
+            $descuentoGeneral += $descuento;
+
+            if ($porcentajeIsv > 0) {
+                $subtotalGrabado += $subtotal;
+            } else {
+                $subtotalExento += $subtotal;
+            }
+        }
+
+        $request->merge(array_merge($cambios, [
+            'subTotalGeneral' => round($subtotalGeneral, 2),
+            'subTotalGeneralGrabado' => round($subtotalGrabado, 2),
+            'subTotalGeneralExcento' => round($subtotalExento, 2),
+            'isvGeneral' => round($isvGeneral, 2),
+            'totalGeneral' => round($totalGeneral, 2),
+            'porDescuento' => 0,
+            'porDescuentoCalculado' => round($descuentoGeneral, 2),
+        ]));
     }
 
     // Nota: Este componente solo se usa como controlador API.
@@ -300,6 +373,18 @@ class FacturacionCorporativa extends Component
                 return $row;
             }, $results);
 
+            $expoId = (int) $request->input('expo_id', 0);
+            if ($expoId > 0) {
+                $expo = ExpoConfig::detalleActivaParaUsuario($expoId, Auth::id());
+                if (!$expo) {
+                    return response()->json(['message' => 'La Expo no está activa o está fuera de vigencia.'], 422);
+                }
+                $results = array_values(array_filter(
+                    $results,
+                    fn ($row) => in_array((int) $row->idBodega, $expo['bodegas'], true)
+                ));
+            }
+
             $permitirSinExistencia = (int) ($request->permitir_sin_existencia ?? 0) === 1;
             if ($permitirSinExistencia) {
                 $results[] = (object) [
@@ -474,6 +559,8 @@ class FacturacionCorporativa extends Component
                 SELECT
                     p.id,
                     CONCAT(p.id,' - ',p.nombre) AS nombre,
+                    p.marca_id,
+                    COALESCE(m.nombre, 'SIN MARCA') AS marca,
                     p.isv,
                     p.ultimo_costo_compra AS ultimo_costo_compra,
                     ppc.precio_base_venta AS precio_base,
@@ -481,8 +568,10 @@ class FacturacionCorporativa extends Component
                     ppc.precio_b AS precio2,
                     ppc.precio_c AS precio3,
                     ppc.precio_d AS precio4,
-                    ppc.id AS precios_producto_carga_id
+                    ppc.id AS precios_producto_carga_id,
+                    ppc.categoria_precios_id
                 FROM producto p
+                LEFT JOIN marca m ON m.id = p.marca_id
                 JOIN precios_producto_carga ppc
                     ON ppc.producto_id = p.id
                     AND ppc.categoria_precios_id = :categoria_cliente_venta_id
@@ -615,7 +704,8 @@ class FacturacionCorporativa extends Component
     }
 
     /**
-     * Al guardar la factura: avanza el flujo al trámite "Flujo conjunto" (tipo 7)
+    * Al guardar la factura completa: avanza el flujo al trámite "Flujo conjunto" (tipo 7).
+    * Una Oferta Expo con saldo permanece en Factura (tipo 3).
      * e inserta registros en historico_flujo:
      *   – Registro Factura:  tipo_tramite_id=3, tramite_id=factura.id,       estado_id=1
      *   – Registro Entrega:  tipo_tramite_id=5, tramite_id=NULL,             estado_id=5
@@ -628,9 +718,23 @@ class FacturacionCorporativa extends Component
         $flujoId   = (int) $request->input('flujo_id');
         $facturaId = (int) $request->input('factura_id');
         $pedidoIdReq = (int) $request->input('pedido_id');
+        $esExpoParcial = $request->boolean('expo_parcial');
 
         if (!$facturaId) {
             return response()->json(['ok' => false, 'message' => 'Datos incompletos.'], 422);
+        }
+
+        $prefacturaId = (int) $request->input('prefactura_id');
+        if ($prefacturaId > 0) {
+            $cotizacionExpoId = (int) DB::table('prefactura')
+                ->where('id', $prefacturaId)
+                ->value('cotizacion_id');
+
+            if ($cotizacionExpoId > 0 && DB::table('expo_cotizacion')->where('cotizacion_id', $cotizacionExpoId)->exists()) {
+                $esExpoParcial = app(SaldoLineasOferta::class)
+                    ->pendientes($cotizacionExpoId)
+                    ->contains(fn ($linea) => (float) $linea->cantidad_pendiente > 0);
+            }
         }
 
         // IDs según nuevo modelo de tipos de trámite:
@@ -701,9 +805,9 @@ class FacturacionCorporativa extends Component
                 ->where('id', $facturaId)
                 ->first(['nombre_cliente', 'rtn']);
 
-            // 1. Actualizar flujo al estado Flujo conjunto (Entrega + Cobro)
+            // 1. Una Expo parcial permanece en Factura hasta completar la oferta.
             DB::table('flujo')->where('id', $flujoId)->update([
-                'tipo_tramite_id' => $TIPO_FLUJO_CONJUNTO,
+                'tipo_tramite_id' => $esExpoParcial ? $TIPO_FACTURA : $TIPO_FLUJO_CONJUNTO,
                 'nombre'          => $facturaClienteData->nombre_cliente ?? null,
                 'cliente_rtn'     => $facturaClienteData->rtn ?? null,
                 'updated_by'      => Auth::id(),
@@ -716,28 +820,19 @@ class FacturacionCorporativa extends Component
             $existingFacturaRec = DB::table('historico_flujo')
                 ->where('flujo_id', $flujoId)
                 ->where('tipo_tramite_id', $TIPO_FACTURA)
+                ->where('tramite_id', $facturaId)
                 ->where('estado_id', '!=', 7)
-                ->orderByDesc('id')
-                ->first(['id', 'tramite_id']);
+                ->first(['id']);
 
-            if ($existingFacturaRec) {
-                if ((int) $existingFacturaRec->tramite_id !== $facturaId) {
-                    DB::table('historico_flujo')
-                        ->where('id', $existingFacturaRec->id)
-                        ->update([
-                            'tramite_id'    => $facturaId,
-                            'observaciones' => 'Factura #' . $facturaId . ' confirmada. Paso actual: Entregas y Cobros',
-                            'updated_by'    => Auth::id(),
-                            'updated_at'    => now(),
-                        ]);
-                }
-            } else {
+            if (!$existingFacturaRec) {
                 DB::table('historico_flujo')->insert([
                     'flujo_id'        => $flujoId,
                     'tipo_tramite_id' => $TIPO_FACTURA,
                     'tramite_id'      => $facturaId,
                     'estado_id'       => $ESTADO_ACTIVO,
-                    'observaciones'   => 'Factura #' . $facturaId . ' confirmada. Paso actual: Entregas y Cobros',
+                    'observaciones'   => $esExpoParcial
+                        ? 'Factura #' . $facturaId . ' confirmada. Estado: Factura parcial'
+                        : 'Factura #' . $facturaId . ' confirmada. Paso actual: Entregas y Cobros',
                     'created_by'      => Auth::id(),
                     'updated_by'      => Auth::id(),
                     'created_at'      => now(),
@@ -746,11 +841,13 @@ class FacturacionCorporativa extends Component
             }
 
             // 3. Registro de Entrega (tramite_id = NULL, estado Pendiente)
+            if (!$esExpoParcial) {
             $entregaExiste = DB::table('historico_flujo')
                 ->where('flujo_id', $flujoId)
                 ->where('tipo_tramite_id', $TIPO_ENTREGA)
                 ->whereNull('tramite_id')
                 ->where('estado_id', $ESTADO_PENDIENTE)
+                ->where('observaciones', 'Entrega pendiente — Factura #' . $facturaId)
                 ->exists();
 
             if (!$entregaExiste) {
@@ -766,8 +863,10 @@ class FacturacionCorporativa extends Component
                     'updated_at'      => now(),
                 ]);
             }
+            }
 
             // 4. Registro de Cobro (tramite_id = aplicacion_pagos.id para esta factura, estado Pendiente)
+            if (!$esExpoParcial) {
             $aplicacionPagoId = DB::table('aplicacion_pagos')
                 ->where('factura_id', $facturaId)
                 ->orderByDesc('id')
@@ -777,7 +876,13 @@ class FacturacionCorporativa extends Component
                 ->where('flujo_id', $flujoId)
                 ->where('tipo_tramite_id', $TIPO_COBRO)
                 ->where('estado_id', $ESTADO_PENDIENTE)
-                ->orderByDesc('id')
+                ->where(function ($query) use ($aplicacionPagoId, $facturaId) {
+                    if ($aplicacionPagoId) {
+                        $query->where('tramite_id', $aplicacionPagoId);
+                    } else {
+                        $query->where('observaciones', 'Cobro pendiente — Factura #' . $facturaId);
+                    }
+                })
                 ->first(['id', 'tramite_id']);
 
             if ($cobroPendiente) {
@@ -804,21 +909,24 @@ class FacturacionCorporativa extends Component
                     'updated_at'      => now(),
                 ]);
             }
+            }
 
             // 5. Cerrar prefactura activa vinculada al flujo (si existe).
             // Cuando la factura se genera manualmente (guardarVenta + confirmarFacturaFlujo),
             // la prefactura queda en 'activo' y sigue descontando stock disponible.
-            if ($flujoId) {
+            if ($flujoId && $request->filled('prefactura_id') && !$esExpoParcial) {
                 DB::table('prefactura')
                     ->where('flujo_id', $flujoId)
+                    ->where('id', (int) $request->input('prefactura_id'))
                     ->where('estado', 'activo')
                     ->update(['estado' => 'convertida', 'updated_at' => now()]);
             }
 
             DB::commit();
 
-            // Notificar a los responsables de Entrega y Cobro (tipo 7 = Flujo conjunto)
-            try {
+            // Notificar solo cuando la oferta ya puede avanzar a Entrega y Cobro.
+            if (!$esExpoParcial) {
+                try {
                 $facturaCtx = DB::table('factura')
                     ->where('id', $facturaId)
                     ->first(['nombre_cliente', 'total', 'cai']);
@@ -831,17 +939,65 @@ class FacturacionCorporativa extends Component
                         'referencia' => 'Factura #' . ($facturaCtx?->cai ?? $facturaId),
                     ]
                 ));
-            } catch (\Throwable $notifEx) {
-                \Log::error('NotificacionFlujo dispatch failed (FacturacionCorporativa tipo=7)', [
-                    'flujo_id' => $flujoId,
-                    'error'    => $notifEx->getMessage(),
-                ]);
+                } catch (\Throwable $notifEx) {
+                    \Log::error('NotificacionFlujo dispatch failed (FacturacionCorporativa tipo=7)', [
+                        'flujo_id' => $flujoId,
+                        'error'    => $notifEx->getMessage(),
+                    ]);
+                }
             }
 
             return response()->json(['ok' => true, 'flujoId' => $flujoId]);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['ok' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function confirmarLiquidacionExpo(Request $request)
+    {
+        $datos = $request->validate([
+            'cotizacion_id' => 'required|integer|min:1',
+            'flujo_id' => 'required|integer|min:1',
+        ]);
+
+        $cotizacionId = (int) $datos['cotizacion_id'];
+        $flujoId = (int) $datos['flujo_id'];
+        $pertenece = DB::table('expo_cotizacion as ec')
+            ->join('historico_flujo as hf', 'hf.tramite_id', '=', 'ec.cotizacion_id')
+            ->where('ec.cotizacion_id', $cotizacionId)
+            ->where('ec.flujo_id', $flujoId)
+            ->where('hf.flujo_id', $flujoId)
+            ->where('hf.tipo_tramite_id', 2)
+            ->exists();
+
+        if (!$pertenece) {
+            return response()->json([
+                'icon' => 'warning',
+                'title' => 'Liquidación no disponible',
+                'text' => 'La Oferta Expo no pertenece al flujo indicado.',
+            ], 422);
+        }
+
+        try {
+            $resumen = app(LiquidacionOfertaExpo::class)->confirmar($cotizacionId, $flujoId, Auth::id());
+
+            return response()->json(['ok' => true, 'liquidacionExpo' => $resumen]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'icon' => 'warning',
+                'title' => 'No se pudo liquidar la oferta',
+                'text' => collect($e->errors())->flatten()->first(),
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'icon' => 'error',
+                'title' => 'Error de liquidación',
+                'text' => 'No se pudo aplicar el aumento de la Oferta Expo.',
+            ], 500);
         }
     }
 
@@ -904,27 +1060,14 @@ class FacturacionCorporativa extends Component
 
 
             if ($request->tipoPagoVenta == 2) {
-                // Si la factura proviene de un flujo con crédito aprobado formalmente
-                // (credito_revision.estado = 'aprobado'), omitir la verificación del
-                // límite global del cliente — la aprobación explícita ya lo cubre.
-                $flujoIdReq = (int) ($request->flujo_id ?? 0);
-                $creditoAprobadoPorFlujo = $flujoIdReq
-                    ? \Illuminate\Support\Facades\DB::table('credito_revision')
-                        ->where('flujo_id', $flujoIdReq)
-                        ->where('estado', 'aprobado')
-                        ->exists()
-                    : false;
+                $comprobarCredito = $this->comprobarCreditoCliente($request->seleccionarCliente, $request->totalGeneral);
 
-                if (!$creditoAprobadoPorFlujo) {
-                    $comprobarCredito = $this->comprobarCreditoCliente($request->seleccionarCliente, $request->totalGeneral);
-
-                    if ($comprobarCredito) {
-                        return response()->json([
-                            'icon' => 'warning',
-                            'title' => 'Advertencia!',
-                            'text' => 'El cliente ' . $request->nombre_cliente_ventas . ', no cuenta con crédito suficiente . Por el momento no se puede emitir factura a este cliente.',
-                        ], 401);
-                    }
+                if ($comprobarCredito) {
+                    return response()->json([
+                        'icon' => 'warning',
+                        'title' => 'Advertencia!',
+                        'text' => 'El cliente ' . $request->nombre_cliente_ventas . ', no cuenta con crédito suficiente para esta factura parcial.',
+                    ], 401);
                 }
             }
 
@@ -1049,6 +1192,9 @@ class FacturacionCorporativa extends Component
 
             DB::beginTransaction();
 
+            $lineasExpoPorIndice = app(SaldoLineasOferta::class)
+                ->validarSolicitudFactura($request, $arrayInputs);
+            app(RecalculadorFacturaExpo::class)->aplicar($request, $arrayInputs);
 
 
 
@@ -1258,7 +1404,7 @@ class FacturacionCorporativa extends Component
 
                 // dd($factura);
 
-                $this->restarUnidadesInventario($precios_producto_carga_id, $idPrecioSeleccionado, $precioSeleccionado, $restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $arrayInputs[$i], $tipoPrecio);
+                $this->restarUnidadesInventario($precios_producto_carga_id, $idPrecioSeleccionado, $precioSeleccionado, $restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $arrayInputs[$i], $tipoPrecio, $lineasExpoPorIndice[(string) $arrayInputs[$i]] ?? null, (float) $request->input('cantidadOfertaAplicada' . $arrayInputs[$i], 0));
             };
 
             if ($request->tipoPagoVenta == 2) { //si el tipo de pago es credito
@@ -1297,6 +1443,20 @@ class FacturacionCorporativa extends Component
                 }
             }
 
+            $liquidacionExpo = null;
+            $cotizacionId = (int) ($request->cotizacion_id ?? 0);
+            $flujoId = (int) ($request->flujo_id ?? 0);
+            if ($cotizacionId > 0 && $flujoId > 0 && DB::table('expo_cotizacion')->where('cotizacion_id', $cotizacionId)->exists()) {
+                $liquidacionExpo = app(LiquidacionOfertaExpo::class)->procesar(
+                    $cotizacionId,
+                    $flujoId,
+                    (int) $factura->id,
+                    $request->boolean('ultima_factura'),
+                    $request->motivo_cierre,
+                    Auth::id()
+                );
+            }
+
             DB::commit();
 
             if (($request->modo ?? null) === 'editar_factura' && !empty($request->prefactura_id) && !empty($request->autorizacion_id)) {
@@ -1324,11 +1484,34 @@ class FacturacionCorporativa extends Component
                 </div>',
                 'title' => 'Exito!',
                 'idFactura' => $factura->id,
-                'numeroVenta' => $numeroVenta->numero
+                'numeroVenta' => $numeroVenta->numero,
+                'liquidacionExpo' => $liquidacionExpo,
 
             ], 200);
+        } catch (ValidationException $e) {
+            if (DB::transactionLevel()) {
+                DB::rollBack();
+            }
+
+            $errores = $e->errors();
+            $esPrecioExpoMenor = array_key_exists('precio_expo_menor', $errores);
+            $esPrecioExpoDistinto = array_key_exists('precio_expo_distinto', $errores);
+            $esAutorizacionSr = array_key_exists('autorizacion_sr', $errores);
+
+            return response()->json([
+                'icon' => 'warning',
+                'title' => $esPrecioExpoMenor
+                    ? 'Precio menor al pactado'
+                    : ($esPrecioExpoDistinto
+                        ? 'Precio diferente al pactado'
+                        : ($esAutorizacionSr ? 'Autorización SR requerida' : 'Cantidad Expo no disponible')),
+                'text' => collect($errores)->flatten()->first(),
+                'errors' => $errores,
+            ], 422);
         } catch (QueryException $e) {
-            DB::rollback();
+            if (DB::transactionLevel()) {
+                DB::rollBack();
+            }
 
             return response()->json([
                 'error' => 'Ha ocurrido un error al realizar la factura.',
@@ -1338,6 +1521,17 @@ class FacturacionCorporativa extends Component
                 'idFactura' => $factura->id ?? null,
                 'mensajeError' => $e
             ], 402);
+        } catch (\Throwable $e) {
+            if (DB::transactionLevel()) {
+                DB::rollBack();
+            }
+            report($e);
+
+            return response()->json([
+                'icon' => 'error',
+                'title' => 'Error al guardar la factura',
+                'text' => 'No se completó la factura ni su liquidación Expo.',
+            ], 500);
         }
     }
 
@@ -1813,7 +2007,7 @@ class FacturacionCorporativa extends Component
         }
     }
 
-    public function restarUnidadesInventario($precios_producto_carga_id,$idPrecioSeleccionado,$precioSeleccionado , $unidadesRestarInv, $idProducto, $idSeccion, $idFactura, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $indice, $tipoPrecio = '2')
+    public function restarUnidadesInventario($precios_producto_carga_id,$idPrecioSeleccionado,$precioSeleccionado , $unidadesRestarInv, $idProducto, $idSeccion, $idFactura, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $indice, $tipoPrecio = '2', $cotizacionLineaId = null, $cantidadOfertaAplicada = 0)
     {
         try {
 
@@ -1888,10 +2082,15 @@ class FacturacionCorporativa extends Component
                     $cantidadSeccion = $registroResta / $unidad;
                 };
 
+                $cantidadOfertaSeccion = min((float) $cantidadOfertaAplicada, (float) $cantidadSeccion);
+                $cantidadOfertaAplicada -= $cantidadOfertaSeccion;
+
 
 
                 array_push($this->arrayProductos, [
                     "factura_id" => $idFactura,
+                    "cotizacion_has_producto_id" => $cotizacionLineaId,
+                    "cantidad_oferta_aplicada" => $cotizacionLineaId ? $cantidadOfertaSeccion : 0,
                     "producto_id" => $idProducto,
                     "lote" => $unidadesDisponibles->id,
                     "indice" => $indice,
@@ -2590,12 +2789,21 @@ class FacturacionCorporativa extends Component
     public function listadoVendedores(Request $request)
     {
         $search = trim($request->get('search', ''));
+        $clienteId = (int) $request->get('cliente_id');
 
-        $query = DB::table('users')->where('estado_id', 1);
+        $query = DB::table('cliente_usuario as cu')
+            ->join('users as u', 'u.id', '=', 'cu.usuario_id')
+            ->where('cu.cliente_id', $clienteId)
+            ->where('cu.rol_id', ClienteActoresAsignados::ROL_ASESOR_COMERCIAL)
+            ->where('u.estado_id', 1);
         if ($search !== '') {
-            $query->where('name', 'like', '%' . $search . '%');
+            $query->where('u.name', 'like', '%' . $search . '%');
         }
-        $listadoVendedores = $query->select('id', DB::raw('name as text'))->get();
+        $listadoVendedores = $query
+            ->select('u.id', DB::raw('u.name as text'))
+            ->distinct()
+            ->orderBy('u.name')
+            ->get();
 
         return response()->json([
             'results' => $listadoVendedores,

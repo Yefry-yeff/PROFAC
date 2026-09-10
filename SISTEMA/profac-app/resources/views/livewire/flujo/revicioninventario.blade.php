@@ -240,7 +240,40 @@
                                                     {{ $prod['nombre_producto'] }}
                                                 </td>
                                                 <td style="padding:8px 14px; color:#607d8b; font-size:12px;">
-                                                    {{ $prod['nombre_bodega'] ?? '—' }}
+                                                    @if(!$devuelto && !$soloVisualizacion)
+                                                        <div class="input-group input-group-sm" style="min-width:260px;">
+                                                                <select wire:model="bodegaExpoSeleccionada.{{ $prod['idx'] }}"
+                                                                    wire:change="guardarBodega({{ $prod['idx'] }})"
+                                                                    wire:loading.attr="disabled"
+                                                                    wire:target="guardarBodega({{ $prod['idx'] }})"
+                                                                    class="form-control"
+                                                                    title="Bodegas y secciones donde existe el producto">
+                                                                @if(empty($bodegaExpoSeleccionada[$prod['idx']]))
+                                                                    <option value="">Seleccione una bodega con existencia suficiente</option>
+                                                                @endif
+                                                                @forelse($prod['destinos_bodega'] as $destino)
+                                                                    <option value="{{ $destino['value'] }}">{{ $destino['text'] }}</option>
+                                                                @empty
+                                                                    <option value="">Sin existencia en bodegas</option>
+                                                                @endforelse
+                                                            </select>
+                                                            <div class="input-group-append">
+                                                                <span class="btn btn-primary"
+                                                                      title="La reasignación se guarda automáticamente al cambiar"
+                                                                      style="cursor:default; min-width:34px;">
+                                                                    <span wire:loading.remove wire:target="guardarBodega({{ $prod['idx'] }})">
+                                                                        <i class="fa fa-check"></i>
+                                                                    </span>
+                                                                    <span wire:loading wire:target="guardarBodega({{ $prod['idx'] }})" style="display:none;">
+                                                                        <i class="fa fa-spinner fa-spin"></i>
+                                                                    </span>
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        <small style="color:#78909c;">Actual: {{ $prod['nombre_bodega'] ?? '—' }}</small>
+                                                    @else
+                                                        {{ $prod['nombre_bodega'] ?? '—' }}
+                                                    @endif
                                                 </td>
                                                 <td style="padding:8px 10px; color:#607d8b; font-size:12px; white-space:nowrap;">
                                                     <span style="background:#f1f5f9; color:#334155; border-radius:999px; padding:1px 8px; font-weight:600; display:inline-block; font-size:11px; line-height:1.2;">
@@ -308,7 +341,12 @@
                                                     </div>
                                                 </td>
                                                 <td style="padding:8px 14px; text-align:center;">
-                                                    @if ($prod['sin_existencia'] ?? false)
+                                                    @if (($prod['sin_existencia'] ?? false) && !$esOfertaExpo && $this->productoTieneBodegaSeleccionadaSuficiente($prod))
+                                                        <span style="background:#e8f5e9; color:#2e7d32; border-radius:8px;
+                                                                     padding:3px 10px; font-size:11px; font-weight:700;">
+                                                            <i class="fa fa-check mr-1"></i>Bodega lista
+                                                        </span>
+                                                    @elseif ($prod['sin_existencia'] ?? false)
                                                         <span style="background:#ffebee; color:#c62828; border-radius:8px;
                                                                      padding:3px 10px; font-size:11px; font-weight:700;">
                                                             <i class="fa fa-ban mr-1"></i>Sin existencia
@@ -394,7 +432,8 @@
                                 && count($productos) > 0
                                 && collect($obsProducto)->filter()->isEmpty()
                                 && $this->todosProductosRevisados()
-                                && ! $this->tieneProductosSinExistencia();
+                                && ! $this->tieneProductosSinExistencia()
+                                && ! $this->tieneProductosExpoSinBodegaFisica();
 
                             $puedeDevolverOferta = $this->todosProductosRevisados();
 
@@ -404,7 +443,9 @@
                                     ? 'Elimine las notas/reemplazos antes de pasar a Prefactura'
                                     : ($this->tieneProductosSinExistencia()
                                         ? 'Hay productos marcados como sin existencia'
-                                        : 'Hay productos sin stock suficiente'));
+                                        : ($this->tieneProductosExpoSinBodegaFisica()
+                                            ? 'Seleccione una bodega física para todos los productos Expo'
+                                            : 'Hay productos sin stock suficiente')));
                         @endphp
                         <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center;">
                             {{-- Pasar a Prefactura --}}

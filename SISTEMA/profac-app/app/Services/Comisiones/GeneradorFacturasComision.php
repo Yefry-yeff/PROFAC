@@ -228,6 +228,8 @@ class GeneradorFacturasComision
                  COALESCE(NULLIF(vp.precioSeleccionado, 0), vp.precio_unidad) as precio_para_comision,
                  vp.precios_producto_carga_id,
                  vp.producto_id,
+                 vp.seccion_id,
+                 vp.unidad_medida_venta_id,
                  ppc.categoria_precios_id'
             )
             ->get();
@@ -235,6 +237,8 @@ class GeneradorFacturasComision
         if ($productos->isEmpty()) {
             return [];
         }
+
+        $cantidadesDevueltasFactura = $this->cantidadesDevueltasPorLinea($facturaId);
 
         // Regla SR: precargar precio_a de la categoría más baja para comparar por producto.
         // La categoría forzada solo aplica si el precio vendido es MAYOR al precio de esa categoría.
@@ -259,8 +263,14 @@ class GeneradorFacturasComision
 
             $totalTarget    = 0.0;
             $lineasProducto = [];
+            $cantidadesDevueltas = $cantidadesDevueltasFactura;
 
             foreach ($productos as $prod) {
+                $cantidadComisionable = $this->consumirCantidadDevuelta($prod, $cantidadesDevueltas);
+                if ($cantidadComisionable <= 0.005) {
+                    continue;
+                }
+
                 // Regla SR: usar la categoría más baja SOLO si el precio vendido es
                 // estrictamente mayor al precio_a de esa categoría para este producto.
                 // Si es menor o igual, se comisiona por la categoría real de la línea.
@@ -283,11 +293,11 @@ class GeneradorFacturasComision
 
                 $precioParaComision = (float) ($prod->precio_para_comision ?? $prod->precio_unidad ?? 0);
                 $pct        = (float) $escala[$key]->porcentaje_comision;
-                $montoLinea = round(($pct / 100) * $precioParaComision * $prod->cantidad, 4);
+                $montoLinea = round(($pct / 100) * $precioParaComision * $cantidadComisionable, 4);
                 $totalTarget += $montoLinea;
 
                 $lineasProducto[] = [
-                    'cantidad'                  => $prod->cantidad,
+                    'cantidad'                  => $cantidadComisionable,
                     'precio_venta'              => $precioParaComision,
                     'monto_comision'            => $montoLinea,
                     'precios_producto_carga_id' => $prod->precios_producto_carga_id,
@@ -340,6 +350,66 @@ class GeneradorFacturasComision
         }
 
         return $resultado;
+    }
+
+    private function cantidadesDevueltasPorLinea(int $facturaId): array
+    {
+        $lineas = DB::table('nota_credito_has_producto as ncp')
+            ->join('nota_credito as nc', 'nc.id', '=', 'ncp.nota_credito_id')
+            ->where('nc.factura_id', $facturaId)
+            ->where('nc.estado_nota_id', 1)
+            ->selectRaw(
+                'ncp.producto_id,
+                 ncp.seccion_id,
+                 ncp.unidad_medida_venta_id,
+                 ncp.precios_producto_carga_id,
+                 ncp.precio_unidad,
+                 SUM(ncp.cantidad) AS cantidad'
+            )
+            ->groupBy(
+                'ncp.producto_id',
+                'ncp.seccion_id',
+                'ncp.unidad_medida_venta_id',
+                'ncp.precios_producto_carga_id',
+                'ncp.precio_unidad'
+            )
+            ->get();
+
+        $cantidades = ['exactas' => [], 'por_precio' => []];
+        foreach ($lineas as $linea) {
+            $base = $linea->producto_id . '|' . $linea->seccion_id . '|' . $linea->unidad_medida_venta_id;
+            if ($linea->precios_producto_carga_id) {
+                $clave = $base . '|' . $linea->precios_producto_carga_id;
+                $cantidades['exactas'][$clave] = ($cantidades['exactas'][$clave] ?? 0) + (float) $linea->cantidad;
+                continue;
+            }
+
+            $clave = $base . '|' . number_format((float) $linea->precio_unidad, 4, '.', '');
+            $cantidades['por_precio'][$clave] = ($cantidades['por_precio'][$clave] ?? 0) + (float) $linea->cantidad;
+        }
+
+        return $cantidades;
+    }
+
+    private function consumirCantidadDevuelta(object $producto, array &$cantidades): float
+    {
+        $cantidadVendida = max((float) $producto->cantidad, 0);
+        $base = $producto->producto_id . '|' . $producto->seccion_id . '|' . $producto->unidad_medida_venta_id;
+        $claveExacta = $base . '|' . $producto->precios_producto_carga_id;
+        $clavePrecio = $base . '|' . number_format((float) $producto->precio_unidad, 4, '.', '');
+
+        $devuelta = min($cantidadVendida, (float) ($cantidades['exactas'][$claveExacta] ?? 0));
+        if ($devuelta > 0) {
+            $cantidades['exactas'][$claveExacta] -= $devuelta;
+        }
+
+        $pendiente = $cantidadVendida - $devuelta;
+        $devueltaPorPrecio = min($pendiente, (float) ($cantidades['por_precio'][$clavePrecio] ?? 0));
+        if ($devueltaPorPrecio > 0) {
+            $cantidades['por_precio'][$clavePrecio] -= $devueltaPorPrecio;
+        }
+
+        return max($cantidadVendida - $devuelta - $devueltaPorPrecio, 0);
     }
 }
 

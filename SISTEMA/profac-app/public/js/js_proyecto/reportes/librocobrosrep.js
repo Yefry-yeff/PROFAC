@@ -28,6 +28,8 @@ function getFiltrosLC() {
         cliente: $('#fil_lc_cliente').val() || '',
         factura: $('#fil_lc_factura').val() || '',
         vendedor: $('#fil_lc_vendedor').val() || '',
+        teleasesor: $('#fil_lc_teleasesor').val() || '',
+        gestor: $('#fil_lc_gestor').val() || '',
         banco: $('#fil_lc_banco').val() || '',
         fecha_desde: $('#fil_lc_fecha_desde').val() || '',
         fecha_hasta: $('#fil_lc_fecha_hasta').val() || ''
@@ -89,7 +91,10 @@ function cargarTablaLC() {
             { data: 'teleasesor' },
             { data: 'factura', render: function(d) { return '<strong>' + escHtmlLC(d) + '</strong>'; } },
             { data: 'monto_cobrado', className: 'text-right', render: function(d) { return fmtLpsLC(d); } },
-            { data: 'estado_factura', render: function(d) { return '<span class="badge ' + (d === 'PAGADA' ? 'badge-success' : 'badge-warning') + '">' + d + '</span>'; } },
+            { data: 'estado_factura', render: function(d) {
+                var completa = d === 'PAGADA';
+                return '<span class="badge ' + (completa ? 'badge-success' : 'badge-warning') + '">' + (completa ? 'COMPLETO' : d) + '</span>';
+            } },
             { data: 'banco' },
             { data: 'cuenta_banco' },
             { data: 'observaciones' },
@@ -125,6 +130,8 @@ function mostrarFiltrosActivosLC() {
         { key: 'fecha_hasta', icon: 'fa-calendar', label: 'Hasta:', fmt: function(v) { return v; } },
         { key: 'cliente', icon: 'fa-user', label: 'Cliente:', fmt: function(v) { var t = $('#fil_lc_cliente option[value="' + v + '"]').text(); return t || v; } },
         { key: 'vendedor', icon: 'fa-briefcase', label: 'Asesor Comercial:', fmt: function(v) { var t = $('#fil_lc_vendedor option[value="' + v + '"]').text(); return t || v; } },
+        { key: 'teleasesor', icon: 'fa-headphones', label: 'Teleasesor:', fmt: function(v) { var t = $('#fil_lc_teleasesor option[value="' + v + '"]').text(); return t || v; } },
+        { key: 'gestor', icon: 'fa-truck', label: 'Gestor de Entrega:', fmt: function(v) { var t = $('#fil_lc_gestor option[value="' + v + '"]').text(); return t || v; } },
         { key: 'banco', icon: 'fa-bank', label: 'Banco:', fmt: function(v) { var t = $('#fil_lc_banco option[value="' + v + '"]').text(); return t || v; } },
         { key: 'factura', icon: 'fa-file', label: 'Factura:', fmt: function(v) { return v; } }
     ];
@@ -150,6 +157,8 @@ function limpiarFiltroLC(el) {
     var ids = {
         cliente: '#fil_lc_cliente',
         vendedor: '#fil_lc_vendedor',
+        teleasesor: '#fil_lc_teleasesor',
+        gestor: '#fil_lc_gestor',
         banco: '#fil_lc_banco',
         factura: '#fil_lc_factura',
         fecha_desde: '#fil_lc_fecha_desde',
@@ -166,6 +175,8 @@ function limpiarFiltroLC(el) {
 function limpiarFiltrosLC() {
     $('#fil_lc_cliente').val('').trigger('change');
     $('#fil_lc_vendedor').val('').trigger('change');
+    $('#fil_lc_teleasesor').val('').trigger('change');
+    $('#fil_lc_gestor').val('').trigger('change');
     $('#fil_lc_banco').val('').trigger('change');
     $('#fil_lc_factura').val('');
     setDefaultDatesLC();
@@ -200,6 +211,10 @@ function _exportarFormLC(url) {
         cliente_id: f.cliente || '',
         vendedor: f.vendedor || '',
         vendedor_id: f.vendedor || '',
+        teleasesor: f.teleasesor || '',
+        teleasesor_id: f.teleasesor || '',
+        gestor: f.gestor || '',
+        gestor_id: f.gestor || '',
         banco: f.banco || '',
         banco_id: f.banco || '',
         factura: f.factura || '',
@@ -232,6 +247,10 @@ function _exportarConCargaLC(url, title, detail) {
         cliente_id: f.cliente || '',
         vendedor: f.vendedor || '',
         vendedor_id: f.vendedor || '',
+        teleasesor: f.teleasesor || '',
+        teleasesor_id: f.teleasesor || '',
+        gestor: f.gestor || '',
+        gestor_id: f.gestor || '',
         banco: f.banco || '',
         banco_id: f.banco || '',
         factura: f.factura || '',
@@ -314,6 +333,10 @@ function _exportarPdfConEsperaLC(url, title, detail) {
         cliente_id: f.cliente || '',
         vendedor: f.vendedor || '',
         vendedor_id: f.vendedor || '',
+        teleasesor: f.teleasesor || '',
+        teleasesor_id: f.teleasesor || '',
+        gestor: f.gestor || '',
+        gestor_id: f.gestor || '',
         banco: f.banco || '',
         banco_id: f.banco || '',
         factura: f.factura || '',
@@ -375,6 +398,10 @@ function exportarExcelLC() {
         cliente_id: f.cliente || '',
         vendedor: f.vendedor || '',
         vendedor_id: f.vendedor || '',
+        teleasesor: f.teleasesor || '',
+        teleasesor_id: f.teleasesor || '',
+        gestor: f.gestor || '',
+        gestor_id: f.gestor || '',
         banco: f.banco || '',
         banco_id: f.banco || '',
         factura: f.factura || '',
@@ -435,6 +462,8 @@ function lcExportarPdf() { exportarPdfLC(); }
 $(document).ready(function() {
     $('#fil_lc_cliente').select2({ placeholder: '— Todos —', allowClear: true, dropdownParent: $('#modalFiltrosLC') });
     $('#fil_lc_vendedor').select2({ placeholder: '— Todos —', allowClear: true, dropdownParent: $('#modalFiltrosLC') });
+    $('#fil_lc_teleasesor').select2({ placeholder: '— Todos —', allowClear: true, dropdownParent: $('#modalFiltrosLC') });
+    $('#fil_lc_gestor').select2({ placeholder: '— Todos —', allowClear: true, dropdownParent: $('#modalFiltrosLC') });
     $('#fil_lc_banco').select2({ placeholder: '— Todos —', allowClear: true, dropdownParent: $('#modalFiltrosLC') });
 
     setDefaultDatesLC();

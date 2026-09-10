@@ -27,7 +27,7 @@ class ExcelController extends Controller
         $tipoPlantilla = $request->input('tipoPlantilla'); // categoria o general
         $tipoCategoria = $request->input('tipoCategoria'); // escalable o manual
         $tipoFiltro = $request->input('tipoFiltro');
-        $valorFiltro = $request->input('listaTipoFiltro');
+        $valorFiltro = $this->normalizarIdsFiltro($request->input('listaTipoFiltro'));
         $valorCategoria = $request->input('listaTipoFiltroCatPrecios'); // null si es general
 
         // Generar fecha para el nombre del archivo
@@ -49,6 +49,13 @@ class ExcelController extends Controller
             new ProductosPlantillaExport($tipoFiltro, $valorFiltro, $valorCategoria),
             'plantilla_productos_escalable_' . $sufijo . '_' . $fecha . '.xlsx'
         );
+    }
+
+    private function normalizarIdsFiltro($valor): array
+    {
+        $valores = is_array($valor) ? $valor : explode(',', (string) $valor);
+
+        return array_values(array_unique(array_filter(array_map('intval', $valores))));
     }
 
 
@@ -93,7 +100,7 @@ $v = Validator::make($request->all(), [
     'archivo_excel'      => 'required|file|max:20480',
     'tipoCategoria'      => 'required|in:escalable,manual',
     'tipoFiltro'         => 'required|in:1,2',
-    'valorFiltro'        => 'required|integer',
+    'valorFiltro'        => 'required',
     'categoriaPrecioId'  => 'required',
     'defaultUnidadMedidaId' => 'nullable|integer|exists:unidad_medida_venta,id',
 ], [
@@ -140,10 +147,15 @@ if ($modoTodas && !$catClienteId) {
             // - userId: auditoría del creador de los registros
             // - defaultUnidadMedidaId: fallback opcional para unidad de medida en caso de ausencia
             // Construcción del import SIN argumentos nombrados (compat PHP 7.x)
+$valorFiltro = $this->normalizarIdsFiltro($request->input('valorFiltro'));
+if (empty($valorFiltro)) {
+    return response()->json(['icon' => 'error', 'title' => 'Validación', 'text' => 'Seleccione al menos un filtro válido.'], 422);
+}
+
 $import = new PreciosProductoCargaImport(
     $request->input('tipoCategoria'),
     (int)$request->input('tipoFiltro'),
-    (int)$request->input('valorFiltro'),
+    $valorFiltro,
     $modoTodas ? null : (int)$categoriaPrecioRaw,
     (int)$userId,
     $request->input('defaultUnidadMedidaId') ? (int)$request->input('defaultUnidadMedidaId') : null,
@@ -318,7 +330,7 @@ $collections = Excel::toCollection($import, $full);
             'tipoPlantilla'       => 'required|in:categoria,general',
             'tipoCategoria'       => 'required|in:escalable,manual',
             'tipoFiltro'          => 'required|in:1,2',
-            'valorFiltro'         => 'required|integer',
+            'valorFiltro'         => 'required',
             'categoriaPrecioId'   => 'nullable',
             'defaultUnidadMedidaId' => 'nullable|integer',
             'categoriasExcluidas'   => 'nullable|array',
@@ -344,6 +356,12 @@ $collections = Excel::toCollection($import, $full);
             $modoTodas           = ($categoriaPrecioRaw === 'all');
             $catClienteId        = $request->input('catClienteId');
             $categoriasExcluidas = array_map('intval', (array) $request->input('categoriasExcluidas', []));
+            $valorFiltro         = $this->normalizarIdsFiltro($request->input('valorFiltro'));
+
+            if (empty($valorFiltro)) {
+                return response()->json(['icon' => 'error', 'title' => 'Validación',
+                    'text' => 'Seleccione al menos una marca o categoría.'], 422);
+            }
 
             // Determinar el tipoPlantilla efectivo para el importer
             $tipoPlantillaEfectivo = $modoTodas ? 'cliente_todas' : $tipoPlantilla;
@@ -376,7 +394,7 @@ $collections = Excel::toCollection($import, $full);
             $import = new PreciosProductoCargaImport(
                 $request->input('tipoCategoria'),
                 (int)$request->input('tipoFiltro'),
-                (int)$request->input('valorFiltro'),
+                $valorFiltro,
                 $categoriaPrecioId,
                 (int)$userId,
                 $request->input('defaultUnidadMedidaId') ? (int)$request->input('defaultUnidadMedidaId') : null,
@@ -429,7 +447,7 @@ $collections = Excel::toCollection($import, $full);
                     'tipoPlantilla'        => $tipoPlantillaEfectivo,
                     'tipoCategoria'        => $request->input('tipoCategoria'),
                     'tipoFiltro'           => (int)$request->input('tipoFiltro'),
-                    'valorFiltro'          => (int)$request->input('valorFiltro'),
+                    'valorFiltro'          => $valorFiltro,
                     'categoriaPrecioId'    => $categoriaPrecioId,
                     'clienteCategoriaId'   => $modoTodas ? (int)$catClienteId : null,
                     'userId'               => (int)$userId,

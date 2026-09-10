@@ -88,6 +88,8 @@
         .cart-item-card { transition: box-shadow .15s; }
         .cart-item-card:hover { box-shadow: 0 4px 18px rgba(27,94,32,.14) !important; }
         .cart-field-label { font-size:10px; color:#78909c; font-weight:700; text-transform:uppercase; letter-spacing:.3px; margin-bottom:3px; }
+        #carritoTbody input[id^="nombre"] { cursor: pointer; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px; }
+        #carritoTbody input[id^="nombre"]:focus { outline: 2px solid #2e7d32; outline-offset: 2px; }
 
         /* ── of-card system ────────────────────────────────────────────── */
         .ofr-main-ibox { border: none !important; box-shadow: none !important; background: transparent !important; }
@@ -153,6 +155,74 @@
             font-size: 11px; font-weight: 700; padding: 2px 10px;
         }
 
+        /* ── Selector compacto de líneas pendientes Expo ─────────────── */
+        .expo-pendientes-card { padding: 0; overflow: hidden; border-color: #ffd59a; }
+        .expo-pendientes-encabezado {
+            padding: 15px 20px; display: flex; flex-wrap: wrap;
+            align-items: center; justify-content: space-between; gap: 12px;
+            background: linear-gradient(135deg,#fff8ed,#fffdf8); border-bottom: 1px solid #ffe2b8;
+        }
+        .expo-pendientes-titulo { min-width: 220px; }
+        .expo-pendientes-titulo .of-card-title { color: #7c4a12; margin-bottom: 3px !important; }
+        .expo-pendientes-titulo small { color: #8a8178; font-size: 11px; }
+        .expo-pendientes-contadores { display: flex; flex-wrap: wrap; gap: 6px; }
+        .expo-contador {
+            padding: 3px 9px; border-radius: 12px; background: #fff;
+            border: 1px solid #eadfce; color: #6b6258; font-size: 10px; font-weight: 800;
+        }
+        .expo-contador.seleccionado { background: #e8f5e9; border-color: #a5d6a7; color: #1b5e20; }
+        .expo-pendientes-herramientas {
+            padding: 12px 20px; display: grid;
+            grid-template-columns: minmax(240px,2fr) minmax(170px,1fr) minmax(160px,1fr);
+            gap: 9px; border-bottom: 1px solid #eef0f3; background: #fff;
+        }
+        .expo-buscador { position: relative; }
+        .expo-buscador i { position: absolute; left: 11px; top: 10px; color: #9aa3ab; }
+        .expo-buscador input { padding-left: 34px; }
+        .expo-pendientes-acciones {
+            padding: 10px 20px; display: flex; flex-wrap: wrap;
+            justify-content: space-between; align-items: center; gap: 8px;
+            background: #fafbfc; border-bottom: 1px solid #eef0f3;
+        }
+        .expo-pendientes-lista {
+            max-height: 390px; overflow-y: auto; padding: 10px 14px;
+            display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 7px;
+            background: #f7f8fa;
+        }
+        .expo-linea-item {
+            min-width: 0; margin: 0; padding: 9px 11px; display: flex;
+            align-items: flex-start; gap: 9px; border: 1px solid #e2e6ea;
+            border-radius: 7px; background: #fff; cursor: pointer;
+        }
+        .expo-linea-item:hover { border-color: #f0ad4e; box-shadow: 0 2px 8px rgba(70,55,35,.08); }
+        .expo-linea-item.seleccionada { border-color: #43a047; background: #f1f8f2; }
+        .expo-linea-item.en-carrito { border-color: #90caf9; background: #f1f7fc; cursor: default; }
+        .expo-linea-item input { margin-top: 3px; flex-shrink: 0; accent-color: #2e7d32; }
+        .expo-linea-info { min-width: 0; flex: 1; }
+        .expo-linea-nombre {
+            display: block; color: #37474f; font-size: 11px; font-weight: 700;
+            line-height: 1.35; overflow-wrap: anywhere;
+        }
+        .expo-linea-meta { margin-top: 5px; display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+        .expo-linea-chip { padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 800; }
+        .expo-linea-chip.marca { color: #795548; background: #fff3e0; }
+        .expo-linea-chip.codigo { color: #455a64; background: #eceff1; }
+        .expo-linea-pendiente { margin-left: auto; color: #e65100; font-size: 10px; font-weight: 800; }
+        .expo-pendientes-vacio { grid-column: 1/-1; padding: 34px 18px; text-align: center; color: #78909c; }
+        .expo-pendientes-paginacion {
+            padding: 10px 20px; display: flex; justify-content: space-between;
+            align-items: center; gap: 10px; border-top: 1px solid #eef0f3; background: #fff;
+        }
+        @media (max-width: 767.5px) {
+            .expo-pendientes-herramientas { grid-template-columns: 1fr; }
+            .expo-pendientes-lista { grid-template-columns: 1fr; max-height: 440px; }
+            .expo-pendientes-acciones > div {
+                display: grid !important; grid-template-columns: repeat(2,minmax(0,1fr)); width: 100%;
+            }
+            .expo-pendientes-acciones .btn { min-width: 0; width: 100%; white-space: normal; }
+            .expo-pendientes-acciones .btn:last-child { grid-column: 1/-1; }
+        }
+
         /* ── Collapsible of-cards ─────────────────────────────────────── */
         .of-card-title { cursor: pointer; user-select: none; }
         .of-card-title .of-chevron {
@@ -179,8 +249,94 @@
         #modal_gestor_entrega .modal-dialog { overflow: visible !important; }
         #modal_gestor_entrega .modal-content { overflow: visible !important; }
         #modal_gestor_entrega .modal-body { overflow: visible !important; }
+        #cargandoTemporales {
+            position: fixed; inset: 0; z-index: 9998;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(255,255,255,.88);
+        }
+        html.temporales-cargados #cargandoTemporales { display: none !important; }
+        #cargandoTemporales .carga-temporales-contenido {
+            display: flex; flex-direction: column; align-items: center; gap: 12px;
+            color: #00897b; font-size: 14px; font-weight: 700;
+        }
+        #cargandoTemporales .fa { font-size: 42px; }
+
+        /* ── Resumen compacto de liquidación Expo ──────────────────── */
+        .swal2-container.liquidacion-expo-container { align-items: center !important; padding: 16px !important; }
+        .swal2-popup.liquidacion-expo-popup {
+            width: min(680px, calc(100vw - 32px)) !important;
+            max-height: calc(100vh - 32px); padding: 18px 20px 14px !important;
+            border-radius: 8px !important; overflow: hidden;
+        }
+        .liquidacion-expo-popup .swal2-icon { width: 46px; height: 46px; margin: 0 auto 8px; }
+        .liquidacion-expo-popup .swal2-icon .swal2-icon-content { font-size: 30px; }
+        .liquidacion-expo-popup .swal2-title {
+            padding: 0; color: #263238; font-size: 20px; line-height: 1.25;
+        }
+        .liquidacion-expo-popup .swal2-html-container {
+            max-height: calc(100vh - 190px); margin: 12px 0 0; padding: 0 2px 2px;
+            overflow-y: auto; overflow-x: hidden; color: #37474f;
+        }
+        .liquidacion-expo-popup .swal2-actions { margin: 12px 0 0; }
+        .liquidacion-expo-popup .swal2-styled { margin: 0 4px; padding: 8px 18px; font-size: 13px; }
+        .expo-liquidacion-estado {
+            display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+            padding: 8px 10px; border: 1px solid #b8dfc5; border-radius: 6px;
+            background: #edf8f0; color: #25633a; font-size: 12px; text-align: left;
+        }
+        .expo-liquidacion-estado.info { border-color: #b7d7ef; background: #eef7fd; color: #245a7a; }
+        .expo-liquidacion-metricas {
+            display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 7px; margin-bottom: 10px;
+        }
+        .expo-liquidacion-metrica {
+            min-width: 0; padding: 8px 9px; border: 1px solid #e1e7e5;
+            border-radius: 6px; background: #f8faf9; text-align: left;
+        }
+        .expo-liquidacion-metrica.destacada { border-color: #f2c98d; background: #fff8ed; }
+        .expo-liquidacion-metrica span {
+            display: block; margin-bottom: 2px; overflow: hidden; color: #718079;
+            font-size: 9px; font-weight: 700; line-height: 1.2; text-overflow: ellipsis;
+            text-transform: uppercase; white-space: nowrap;
+        }
+        .expo-liquidacion-metrica strong { display: block; color: #263832; font-size: 13px; line-height: 1.25; }
+        .expo-liquidacion-metrica.destacada strong { color: #9a5800; }
+        .expo-liquidacion-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 10px; align-items: start; }
+        .expo-liquidacion-seccion { min-width: 0; }
+        .expo-liquidacion-seccion.completa { grid-column: 1 / -1; }
+        .expo-liquidacion-titulo {
+            margin: 0 0 5px; color: #52615b; font-size: 10px; font-weight: 800;
+            letter-spacing: 0; text-align: left; text-transform: uppercase;
+        }
+        .expo-liquidacion-tabla { width: 100%; margin: 0; border-collapse: collapse; font-size: 11px; }
+        .expo-liquidacion-tabla th {
+            padding: 6px 7px; border-bottom: 1px solid #dce5e1; background: #f1f5f3;
+            color: #607069; font-size: 9px; font-weight: 800; text-transform: uppercase;
+        }
+        .expo-liquidacion-tabla td { padding: 6px 7px; border-bottom: 1px solid #edf1ef; color: #394943; }
+        .expo-liquidacion-tabla tbody tr:last-child td { border-bottom: 0; }
+        .expo-liquidacion-tabla-contenedor { border: 1px solid #dfe7e3; border-radius: 6px; overflow-x: auto; }
+        @media (max-width: 575.5px) {
+            .swal2-container.liquidacion-expo-container { padding: 8px !important; }
+            .swal2-popup.liquidacion-expo-popup {
+                width: calc(100vw - 16px) !important; max-height: calc(100vh - 16px);
+                padding: 14px 12px 12px !important;
+            }
+            .liquidacion-expo-popup .swal2-title { font-size: 17px; }
+            .liquidacion-expo-popup .swal2-html-container { max-height: calc(100vh - 172px); }
+            .expo-liquidacion-metricas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .expo-liquidacion-grid { grid-template-columns: 1fr; }
+            .expo-liquidacion-seccion.completa { grid-column: auto; }
+        }
     </style>
     @endpush
+
+    <div id="cargandoTemporales" role="status" aria-live="polite" aria-label="{{ ($duplicandoOferta || $continuandoOfertaExpo) ? 'Cargando oferta' : 'Cargando registros temporales' }}">
+        <div class="carga-temporales-contenido">
+            <i class="fa fa-spinner fa-spin" aria-hidden="true"></i>
+            <span>{{ ($duplicandoOferta || $continuandoOfertaExpo) ? 'Cargando oferta...' : 'Cargando registros temporales...' }}</span>
+        </div>
+    </div>
 
     {{-- ===== PAGE HEADING (solo en flujo) ===== --}}
     @if($fromFlujo && ($config->codigo ?? '') === 'cotizacion_clientes_a')
@@ -285,7 +441,7 @@
         @endif
 
         {{-- ===== PANEL: VINCULAR A UNA PREFACTURA (modo facturación desde prefactura) ===== --}}
-        @if($fromPrefactura)
+        @if($fromPrefactura && !$esOfertaExpo)
         <div class="pedido-link-panel {{ $prefacturaVinculada ? 'linked' : '' }}" style="border-color:#a5d6a7; background:#f1f8e9;">
             @if(!$prefacturaVinculada)
             <div class="mb-3">
@@ -504,11 +660,14 @@
                             <input type="hidden" id="tipo_venta_id"      name="tipo_venta_id"      value="{{ $config->tipo_venta_id ?? 2 }}">
                             <input type="hidden" id="tipo_factura_id"    name="tipo_factura_id"    value="{{ $config->id ?? '' }}">
                             <input type="hidden" id="expo_id"            name="expo_id"            value="{{ $expoConfig['id'] ?? '' }}">
+                            <input type="hidden" id="oferta_id_continuar" name="oferta_id_continuar" value="{{ $continuandoOfertaExpo ? request()->get('cotizacionId', '') : '' }}">
                             <input type="hidden" id="idComprobante"      name="idComprobante"      value="">
                             <input type="hidden" id="codigo_autorizacion" name="codigo_autorizacion" value="">
                             <input type="hidden" id="pedido_vinculado_id" name="pedido_id"          value="{{ $pedidoId ?? '' }}"> {{-- vinculación a pedido --}}
                             <input type="hidden" id="flujo_vinculado_id"  name="flujo_id"           value="{{ $flujoVinculadoId ?? '' }}"> {{-- flujo directo (sin pedido) --}}
                             <input type="hidden" id="prefactura_vinculada_id" name="prefactura_id"   value="{{ $prefacturaVinculadaId ?? '' }}"> {{-- prefactura vinculada --}}
+                            <input type="hidden" id="cotizacion_vinculada_id" name="cotizacion_id" value="{{ $prefacturaVinculada['cotizacion_id'] ?? ($duplicandoOferta ? '' : request()->get('cotizacionId', '')) }}">
+                            <input type="hidden" name="duplicar_cotizacion_id" value="{{ $duplicandoOferta ? request()->get('cotizacionId', '') : '' }}">
 
                             {{-- ── SECCIÓN 1: Datos del Cliente ────────────────────────── --}}
                             <span id="ico_sec_cliente" style="display:none;"></span>
@@ -675,8 +834,14 @@
                             {{-- ── SECCIÓN 2: Agregar Producto ─────────────────────────── --}}
                             <span id="ico_sec_producto" style="display:none;"></span>
                             <div class="of-card">
-                            <div class="of-card-title" onclick="toggleOfCard('body_producto', this)">
-                                <i class="fa fa-plus-circle text-success"></i> Agregar producto al carrito
+                            <div class="of-card-title d-flex align-items-center" onclick="toggleOfCard('body_producto', this)">
+                                <span><i class="fa fa-plus-circle text-success"></i> Agregar producto al carrito</span>
+                                @if(!empty($expoConfig))
+                                <button type="button" onclick="event.stopPropagation(); abrirCotizadorDescuentosExpo();"
+                                    class="btn btn-outline-success btn-sm ml-auto mr-2" style="font-size:11px; font-weight:700; border-radius:6px;">
+                                    <i class="mr-1 fa fa-calculator"></i> Cotizar descuentos
+                                </button>
+                                @endif
                                 <i class="fa fa-chevron-down of-chevron"></i>
                             </div>
                             <div id="body_producto">
@@ -773,6 +938,56 @@
                             </div>{{-- /body_producto --}}
                             </div>{{-- /of-card producto --}}
 
+                            @if(!$duplicandoOferta && !$continuandoOfertaExpo && $esOfertaExpo && (!$fromPrefactura || request()->boolean('expo_parcial')) && count($productosParaCarrito) > 0)
+                            <div class="of-card expo-pendientes-card">
+                                <div class="expo-pendientes-encabezado">
+                                    <div class="expo-pendientes-titulo">
+                                        <span class="of-card-title"><i class="fa fa-tags text-warning"></i> Líneas pendientes de la Oferta Expo</span>
+                                        <small>Busque, filtre y seleccione únicamente los productos que desea facturar.</small>
+                                    </div>
+                                    <div class="expo-pendientes-contadores">
+                                        <span class="expo-contador"><span id="expoTotalLineas">{{ count($productosParaCarrito) }}</span> pendientes</span>
+                                        <span class="expo-contador"><span id="expoResultadosLineas">{{ count($productosParaCarrito) }}</span> resultados</span>
+                                        <span class="expo-contador seleccionado"><span id="expoSeleccionadasLineas">0</span> seleccionadas</span>
+                                    </div>
+                                </div>
+                                <div class="expo-pendientes-herramientas">
+                                    <div class="expo-buscador">
+                                        <i class="fa fa-search" aria-hidden="true"></i>
+                                        <input type="search" id="expoBuscarLinea" class="form-control form-control-sm"
+                                            placeholder="Buscar por código, producto o marca..." autocomplete="off">
+                                    </div>
+                                    <select id="expoFiltrarMarca" class="form-control form-control-sm" aria-label="Filtrar por marca">
+                                        <option value="">Todas las marcas</option>
+                                        @foreach(collect($productosParaCarrito)->groupBy('marca_id')->sortBy(fn($lineas) => $lineas->first()['marca_nombre'] ?? 'SIN MARCA') as $marcaId => $lineasMarca)
+                                        <option value="{{ (int)$marcaId }}">{{ $lineasMarca->first()['marca_nombre'] ?? 'SIN MARCA' }} ({{ $lineasMarca->count() }})</option>
+                                        @endforeach
+                                    </select>
+                                    <select id="expoFiltrarEstado" class="form-control form-control-sm" aria-label="Filtrar por estado">
+                                        <option value="todos">Todos los estados</option>
+                                        <option value="sin_carrito">Sin agregar al carrito</option>
+                                        <option value="parciales">Agregados parcialmente</option>
+                                        <option value="seleccionados">Seleccionados</option>
+                                    </select>
+                                </div>
+                                <div class="expo-pendientes-acciones">
+                                    <small id="expoRangoLineas" class="text-muted"></small>
+                                    <div class="d-flex flex-wrap" style="gap:6px;">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="expoAlternarTodas(false)"><i class="fa fa-times mr-1"></i>Limpiar selección</button>
+                                        <button type="button" class="btn btn-sm btn-outline-warning" onclick="expoAlternarTodas(true)" title="Selecciona todos los productos que coinciden con los filtros"><i class="fa fa-check-square-o mr-1"></i>Seleccionar resultados</button>
+                                        <button type="button" class="btn btn-sm btn-outline-success" onclick="expoSeleccionarMarca()" title="Selecciona todos los productos pendientes de la marca filtrada"><i class="fa fa-tags mr-1"></i>Seleccionar marca</button>
+                                        <button type="button" class="btn btn-sm btn-warning" onclick="expoAgregarSeleccionados()"><i class="fa fa-cart-plus mr-1"></i>Agregar <span id="expoCantidadAgregar">0</span></button>
+                                    </div>
+                                </div>
+                                <div id="expoPendientesLista" class="expo-pendientes-lista"></div>
+                                <div class="expo-pendientes-paginacion">
+                                    <button id="expoPaginaAnterior" type="button" class="btn btn-sm btn-outline-secondary" onclick="expoCambiarPagina(-1)" aria-label="Página anterior"><i class="fa fa-chevron-left"></i></button>
+                                    <small id="expoPaginaEstado" class="text-muted"></small>
+                                    <button id="expoPaginaSiguiente" type="button" class="btn btn-sm btn-outline-secondary" onclick="expoCambiarPagina(1)" aria-label="Página siguiente"><i class="fa fa-chevron-right"></i></button>
+                                </div>
+                            </div>
+                            @endif
+
                             {{-- ── CARRITO DE PRODUCTOS ────────────────────────────────── --}}
                             <div class="of-card" style="padding:0; overflow:hidden;">
                                 <div style="padding:16px 24px 12px; border-bottom:1px solid #f0f2f5; display:flex; align-items:center; gap:8px; cursor:pointer;"
@@ -781,6 +996,13 @@
                                         <i class="fa fa-shopping-cart text-warning"></i> Carrito de productos
                                     </span>
                                     <span id="cart-count-badge">0 producto(s)</span>
+                                    @if(!empty($expoConfig))
+                                    <button type="button" class="btn btn-sm btn-outline-success ml-auto"
+                                        onclick="event.stopPropagation(); abrirResumenMarcasCarritoExpo();"
+                                        title="Ver resumen del carrito por marca">
+                                        <i class="fa fa-tags mr-1"></i> Resumen por marca
+                                    </button>
+                                    @endif
                                     <i class="ml-2 fa fa-chevron-down of-chevron" style="margin-left:8px;"></i>
                                 </div>
 
@@ -802,6 +1024,7 @@
                                                     <th style="min-width:90px;">P. Unitario</th>
                                                     <th style="min-width:70px;">Cantidad</th>
                                                     <th style="min-width:90px;">Unidad</th>
+                                                    @if(!empty($expoConfig))<th style="min-width:190px;">Descuento Expo</th>@endif
                                                     <th style="min-width:90px;">Subtotal</th>
                                                     <th style="min-width:80px;">ISV</th>
                                                     <th style="min-width:90px; background:linear-gradient(135deg,#e65100,#f9a826); color:#fff;">Total</th>
@@ -831,6 +1054,9 @@
                                                 <input type="text" id="descuentoMostrar" name="descuentoMostrar" class="val" placeholder="L. 0.00" data-parsley-required autocomplete="off" readonly>
                                                 <input type="hidden" value="0" id="porDescuentoCalculado" name="porDescuentoCalculado">
                                             </div>
+                                            @if(!empty($expoConfig))
+                                            <div id="descuentoExpoResumenMarcas" style="padding:0 14px 8px; font-size:11px;"></div>
+                                            @endif
                                             <div class="of-total-row">
                                                 <span class="lbl"><i class="mr-1 fa fa-list text-muted"></i> Sub Total</span>
                                                 <input type="text" id="subTotalGeneralMostrar" class="val" placeholder="L. 0.00" readonly autocomplete="off">
@@ -970,6 +1196,28 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="modalDescripcionProducto" tabindex="-1" role="dialog" aria-labelledby="tituloDescripcionProducto" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered" role="document">
+                <div class="modal-content">
+                    <div class="modal-header" style="background:#1f6f50; border:none; padding:14px 20px;">
+                        <h5 class="modal-title" id="tituloDescripcionProducto" style="color:#fff; font-size:15px; font-weight:700; margin:0;">
+                            Descripción del producto
+                        </h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar" style="color:#fff; opacity:1;">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body" style="padding:20px;">
+                        <strong id="nombreDescripcionProducto" class="d-block mb-2" style="color:#1b5e20;"></strong>
+                        <p id="textoDescripcionProducto" class="mb-0" style="white-space:pre-wrap; color:#455a64; line-height:1.6;"></p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cerrar</button>
                     </div>
                 </div>
             </div>
@@ -1154,13 +1402,13 @@
                         {{-- 4 botones compactos --}}
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
 
-                            <button onclick="ofertaAccion('nueva')"
+                            <button onclick="ofertaAccion('{{ $expoConfig ? 'continuar' : 'nueva' }}')"
                                     style="background:#f0fdf4; color:#1b5e20; border:1.5px solid #a7f3d0;
                                            border-radius:10px; padding:11px 8px; font-size:12px; font-weight:700;
                                            cursor:pointer; text-align:center; transition:background .15s;"
                                     onmouseover="this.style.background='#dcfce7'" onmouseout="this.style.background='#f0fdf4'">
-                                <i class="fa fa-plus-circle d-block" style="font-size:20px; margin-bottom:4px; color:#16a34a;"></i>
-                                Nueva oferta
+                                <i class="fa {{ $expoConfig ? 'fa-pencil-square-o' : 'fa-plus-circle' }} d-block" style="font-size:20px; margin-bottom:4px; color:#16a34a;"></i>
+                                {{ $expoConfig ? 'Continuar ofertando' : 'Nueva oferta' }}
                             </button>
 
                             <button onclick="ofertaAccion('flujo')"
@@ -1680,8 +1928,95 @@
         </div>
     </div>
 
+    @if(!empty($expoConfig))
+    <style>
+        #modalCotizadorDescuentosExpo .modal-dialog { max-width: 1050px; }
+        #modalCotizadorDescuentosExpo .modal-content { background:#fff; color:#37474f; border:0; border-radius:8px; overflow:hidden; box-shadow:0 18px 55px rgba(28,49,58,.35); }
+        #modalCotizadorDescuentosExpo .modal-header { background:#1f6f50; color:#fff; border:0; padding:16px 20px; }
+        #modalCotizadorDescuentosExpo .modal-header .close { color:#fff; opacity:.9; text-shadow:none; }
+        #modalCotizadorDescuentosExpo .modal-body { background:#f7faf8; padding:20px; }
+        #modalCotizadorDescuentosExpo .modal-footer { background:#fff; border-top:1px solid #dce7e1; }
+        #modalCotizadorDescuentosExpo .cotizador-expo-campo { background:#fff; border:1px solid #c9d8d0; border-radius:6px; padding:14px; }
+        #modalCotizadorDescuentosExpo .cotizador-expo-resumen { background:#fff; border-left:4px solid #ef8c22; padding:10px 12px; margin-bottom:12px; }
+        #modalCotizadorDescuentosExpo .cotizador-expo-tabla { background:#fff; font-size:12px; }
+        #modalCotizadorDescuentosExpo .cotizador-expo-tabla thead th { background:#e6f1eb; color:#245c46; border-color:#cbded4; vertical-align:middle; }
+        #modalCotizadorDescuentosExpo .cotizador-expo-tabla td { color:#37474f; border-color:#dce7e1; vertical-align:middle; }
+    </style>
+    <div class="modal fade" id="modalCotizadorDescuentosExpo" tabindex="-1" role="dialog" aria-labelledby="tituloCotizadorDescuentosExpo" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div>
+                        <h5 class="modal-title" id="tituloCotizadorDescuentosExpo"><i class="fa fa-calculator mr-2"></i>Cotizar descuentos Expo</h5>
+                        <small style="color:#d9eee4;">Cantidades mínimas y precios según las reglas parametrizadas.</small>
+                    </div>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar"><span aria-hidden="true">&times;</span></button>
+                </div>
+                <div class="modal-body">
+                    <div class="cotizador-expo-campo mb-3">
+                        <div class="row align-items-end">
+                            <div class="col-12 col-md-8 mb-2 mb-md-0">
+                                <label class="ofr-label">Producto</label>
+                                <div class="input-group">
+                                    <input type="text" id="cotizadorExpoCodigoProducto" class="form-control"
+                                        placeholder="ID, nombre o código de barras del producto..." autocomplete="off"
+                                        oninput="prepararNuevaBusquedaCotizadorExpo(this.value)"
+                                        onkeydown="if(event.key==='Enter'){event.preventDefault();buscarProductoCotizadorExpo(this.value);return false;}">
+                                    <div class="input-group-append">
+                                        <button type="button" class="btn btn-success" title="Buscar producto" onclick="abrirBusquedaProductoCotizadorExpo()">
+                                            <i class="fa fa-search"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <small id="cotizadorExpoProductoLabel" class="mt-1 text-success font-weight-bold d-block d-none" style="font-size:11px;"></small>
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <label class="ofr-label">Escala de precio</label>
+                                <select id="cotizadorExpoEscala" class="form-control" onchange="recalcularCotizadorDescuentosExpo()" disabled>
+                                    <option value="">Seleccione un producto</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="cotizadorExpoResultado">
+                        <div class="text-center text-muted py-4"><i class="fa fa-tags fa-2x mb-2 d-block"></i>Seleccione un producto para consultar sus descuentos.</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalResumenMarcasCarritoExpo" tabindex="-1" role="dialog" aria-labelledby="tituloResumenMarcasCarritoExpo" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+            <div class="modal-content" style="border:0; border-radius:8px; overflow:hidden;">
+                <div class="modal-header" style="background:#1f6f50; color:#fff; border:0;">
+                    <h5 class="modal-title" id="tituloResumenMarcasCarritoExpo"><i class="fa fa-tags mr-2"></i>Resumen por marca y escala</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar" style="color:#fff; opacity:.9; text-shadow:none;"><span aria-hidden="true">&times;</span></button>
+                </div>
+                <div class="modal-body" style="background:#f7faf8;">
+                    <div class="input-group input-group-sm mb-3">
+                        <div class="input-group-prepend"><span class="input-group-text"><i class="fa fa-search"></i></span></div>
+                        <input id="buscarProductoResumenMarcasExpo" type="search" class="form-control" placeholder="Buscar producto..." autocomplete="off" oninput="filtrarProductosResumenMarcasExpo(this.value)">
+                    </div>
+                    <div id="resumenMarcasCarritoExpoContenido"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
     {{-- Buscador de producto reutilizable --}}
-    <x-buscador-producto id-modal="buscadorProductoUnificado" callback="alSeleccionarProducto" />
+    <x-buscador-producto
+        id-modal="buscadorProductoUnificado"
+        callback="alSeleccionarProducto"
+        :expo-id="$filtrarProductosExpo && $expoConfig ? $expoConfig['id'] : null"
+    />
 
     {{-- Modal global de flujo (escucha abrirFlujoPedido / abrirFlujoCotizacion) --}}
     <livewire:flujo.modal-flujo-pedido />
@@ -1693,6 +2028,55 @@
     // ================================================================
     var tipoFacturaConfig = @json($config);
     var expoConfig = @json($expoConfig ?? null);
+    var esOfertaExpo = {!! $esOfertaExpo ? 'true' : 'false' !!};
+    var filtrarProductosExpo = {!! $filtrarProductosExpo ? 'true' : 'false' !!};
+    var reglasExpoOferta = @json($reglasExpoOferta ?? []);
+    var atribucionesDescuentoExpo = @json($atribucionesDescuentoExpo ?? []);
+    var productosPactadosExpo = @json($productosParaCarrito ?? []);
+    var seleccionandoProductoCotizadorExpo = false;
+    var productoCotizadorExpo = null;
+    var datosCalculoCotizadorExpo = null;
+    var productoExpoAgregandoAutomaticamente = null;
+    var datosProductoExpoPrecargados = null;
+    var bodegaExpoCapturaRapida = null;
+    var solicitudDescripcionProducto = 0;
+
+    function abrirDescripcionProducto(indice) {
+        var productoId = document.getElementById('idProducto' + indice)?.value;
+        var nombreInput = document.getElementById('nombre' + indice);
+        if (!productoId || !nombreInput) return;
+
+        var solicitudActual = ++solicitudDescripcionProducto;
+        document.getElementById('nombreDescripcionProducto').textContent = nombreInput.value;
+        document.getElementById('textoDescripcionProducto').textContent = 'Cargando descripción...';
+        $('#modalDescripcionProducto').modal('show');
+
+        axios.get('/productos/' + encodeURIComponent(productoId) + '/descripcion')
+            .then(function(response) {
+                if (solicitudActual !== solicitudDescripcionProducto) return;
+                var producto = response.data.producto || {};
+                document.getElementById('nombreDescripcionProducto').textContent = producto.nombre || nombreInput.value;
+                document.getElementById('textoDescripcionProducto').textContent = String(producto.descripcion || '').trim()
+                    || 'Este producto no tiene una descripción registrada.';
+            })
+            .catch(function() {
+                if (solicitudActual !== solicitudDescripcionProducto) return;
+                document.getElementById('textoDescripcionProducto').textContent = 'No fue posible cargar la descripción del producto.';
+            });
+    }
+
+    document.addEventListener('click', function(event) {
+        var nombreProducto = event.target.closest('#carritoTbody input[id^="nombre"]');
+        if (nombreProducto) abrirDescripcionProducto(nombreProducto.id.substring(6));
+    });
+
+    document.addEventListener('keydown', function(event) {
+        var nombreProducto = event.target.closest('#carritoTbody input[id^="nombre"]');
+        if (nombreProducto && (event.key === 'Enter' || event.key === ' ')) {
+            event.preventDefault();
+            abrirDescripcionProducto(nombreProducto.id.substring(6));
+        }
+    });
 
     // Mapa de URLs por código de tipo de factura
     var urlsPorTipo = {
@@ -1782,13 +2166,36 @@
 
     var numeroInputs = 0;
     var arregloIdInputs = [];
-    var ventaTemporalId = new URLSearchParams(window.location.search).get('temporal_id');
+    var parametrosVentaTemporal = new URLSearchParams(window.location.search);
+    var nuevaVentaSolicitada = parametrosVentaTemporal.get('nueva') === '1';
+    var ventaTemporalId = nuevaVentaSolicitada ? null : parametrosVentaTemporal.get('temporal_id');
     var ventaTemporalTipo = codigoActual === 'cotizacion_clientes_a' ? 'oferta' : 'factura';
     var ventaTemporalRestaurando = false;
     var ventaTemporalFinalizada = false;
     var ventaTemporalTimer = null;
     var ventaTemporalObserver = null;
     var ventaTemporalAutosaveActivo = false;
+    var ventaTemporalCambiosPendientes = false;
+    var ventaTemporalGuardando = false;
+    var ventaTemporalPromesaGuardado = null;
+    var ventaTemporalRevision = 0;
+    var esDuplicandoOferta = {!! $duplicandoOferta ? 'true' : 'false' !!};
+    var esContinuandoOfertaExpo = {!! $continuandoOfertaExpo ? 'true' : 'false' !!};
+    var lineasOfertaContinuadaEsperadas = {!! $continuandoOfertaExpo ? count($productosParaCarrito ?? []) : 0 !!};
+    var ofertaContinuadaCargadaCompleta = false;
+    var esFacturacionExpoDesdePrefactura = esOfertaExpo
+        && {!! $fromPrefactura ? 'true' : 'false' !!}
+        && !esDuplicandoOferta
+        && !esContinuandoOfertaExpo;
+    var esFacturacionNormalDesdePrefactura = !esOfertaExpo
+        && {!! $fromPrefactura ? 'true' : 'false' !!};
+    var esEdicionNormalDesdePrefactura = !esOfertaExpo
+        && {!! $fromPrefactura ? 'true' : 'false' !!}
+        && new URLSearchParams(window.location.search).get('modo') === 'editar_factura';
+    var esRecargaPagina = window.performance
+        && window.performance.getEntriesByType
+        && window.performance.getEntriesByType('navigation')[0]?.type === 'reload';
+    var cambiosPrecioExpoConfirmados = false;
     var retencionEstado = false;
     var diasCredito = 0;
     var diasCreditoAprobadosFlujo = null;
@@ -1818,6 +2225,7 @@
     function urlReanudacionTemporal() {
         var url = new URL(window.location.href);
         url.searchParams.delete('temporal_id');
+        url.searchParams.delete('nueva');
         return url.pathname + url.search;
     }
 
@@ -1844,7 +2252,12 @@
             controles: obtenerControlesTemporal(),
             carrito_html: carrito ? carrito.innerHTML : '',
             numero_inputs: numeroInputs,
-            arreglo_id_inputs: arregloIdInputs.slice()
+            arreglo_id_inputs: arregloIdInputs.slice(),
+            cotizacion_origen_id: esContinuandoOfertaExpo
+                ? Number(new URLSearchParams(window.location.search).get('cotizacionId') || 0)
+                : null,
+            lineas_oferta_origen: esContinuandoOfertaExpo ? lineasOfertaContinuadaEsperadas : null,
+            oferta_origen_cargada: esContinuandoOfertaExpo ? ofertaContinuadaCargadaCompleta : null
         };
     }
 
@@ -1857,30 +2270,65 @@
 
     function programarGuardadoTemporal() {
         if (ventaTemporalRestaurando || ventaTemporalFinalizada) return;
+        ventaTemporalCambiosPendientes = true;
+        ventaTemporalRevision += 1;
         clearTimeout(ventaTemporalTimer);
         ventaTemporalTimer = setTimeout(guardarVentaTemporal, 600);
     }
 
-    function guardarVentaTemporal() {
-        if (ventaTemporalRestaurando || ventaTemporalFinalizada) return;
-        var instantanea = crearInstantaneaTemporal();
-
-        axios.post('/ventas/temporales', {
+    function datosVentaTemporal() {
+        return {
             id: ventaTemporalId || null,
             tipo: ventaTemporalTipo,
             codigo_tipo: codigoActual,
             titulo: tituloVentaTemporal(),
             url_reanudacion: urlReanudacionTemporal(),
-            contenido: instantanea
-        }).then(function(response) {
+            contenido: crearInstantaneaTemporal()
+        };
+    }
+
+    function guardarVentaTemporal() {
+        if (ventaTemporalRestaurando || ventaTemporalFinalizada) return Promise.resolve();
+        if (ventaTemporalGuardando) return ventaTemporalPromesaGuardado || Promise.resolve();
+        clearTimeout(ventaTemporalTimer);
+        ventaTemporalGuardando = true;
+        var revisionEnviada = ventaTemporalRevision;
+        ventaTemporalPromesaGuardado = axios.post('/ventas/temporales', datosVentaTemporal()).then(function(response) {
             ventaTemporalId = response.data.id;
+            ventaTemporalCambiosPendientes = ventaTemporalRevision !== revisionEnviada;
             var url = new URL(window.location.href);
             url.searchParams.set('temporal_id', ventaTemporalId);
             window.history.replaceState({}, '', url.toString());
         }).catch(function(error) {
             console.warn('No se pudo guardar el registro temporal:', error);
+        }).finally(function() {
+            ventaTemporalGuardando = false;
+            ventaTemporalPromesaGuardado = null;
+            if (ventaTemporalCambiosPendientes) return guardarVentaTemporal();
         });
+        return ventaTemporalPromesaGuardado;
     }
+
+    document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'hidden' && ventaTemporalCambiosPendientes) {
+            guardarVentaTemporal();
+        }
+    });
+
+    window.addEventListener('pagehide', function() {
+        if (!ventaTemporalCambiosPendientes || ventaTemporalRestaurando || ventaTemporalFinalizada) return;
+        clearTimeout(ventaTemporalTimer);
+        fetch('/ventas/temporales', {
+            method: 'POST',
+            credentials: 'same-origin',
+            keepalive: true,
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+            },
+            body: JSON.stringify(datosVentaTemporal())
+        });
+    });
 
     function eliminarVentaTemporal() {
         ventaTemporalFinalizada = true;
@@ -1894,6 +2342,7 @@
     function aplicarControlTemporal(controlGuardado) {
         var control = document.getElementById(controlGuardado.id);
         if (!control) return;
+        if (control.id === 'vendedor' || ['restriccion', 'tipo_venta_id', 'tipo_factura_id'].includes(control.id)) return;
         if (control.tagName === 'SELECT') {
             (controlGuardado.options || []).forEach(function(optionGuardada) {
                 if (!Array.from(control.options).some(function(option) { return option.value == optionGuardada.value; })) {
@@ -1911,6 +2360,95 @@
         }
     }
 
+    function aplicarConfiguracionTipoFacturaActual() {
+        document.getElementById('restriccion').value = tipoFacturaConfig ? tipoFacturaConfig.restriccion : 1;
+        document.getElementById('tipo_venta_id').value = tipoFacturaConfig ? tipoFacturaConfig.tipo_venta_id : 2;
+        document.getElementById('tipo_factura_id').value = tipoFacturaConfig ? tipoFacturaConfig.id : '';
+    }
+
+    function restaurarPreciosPactadosExpo() {
+        if (!esFacturacionExpoDesdePrefactura || !Array.isArray(productosPactadosExpo)) return false;
+
+        var productosPorLinea = {};
+        var corregido = false;
+        productosPactadosExpo.forEach(function(producto) {
+            productosPorLinea[String(producto.cotizacion_has_producto_id || '')] = producto;
+        });
+
+        arregloIdInputs.forEach(function(indice) {
+            var lineaId = document.getElementById('cotizacionLineaId' + indice)?.value || '';
+            var producto = productosPorLinea[String(lineaId)];
+            if (!producto) return;
+
+            var precioPactado = Number(producto.precio_unidad || 0);
+            if (!(precioPactado > 0)) return;
+
+            var selector = document.getElementById('precios' + indice);
+            var precio = document.getElementById('precio' + indice);
+            var referenciaAnterior = Number(selector?.value || precio?.getAttribute('data-precio-escala') || 0);
+            var permitePrecioLibre = tipoFacturaConfig && tipoFacturaConfig.multiples_precios;
+
+            if (precio && !permitePrecioLibre && Math.abs(Number(precio.value || 0) - precioPactado) > 0.005) {
+                precio.value = precioPactado.toFixed(2);
+                corregido = true;
+            }
+            if (precio && Math.abs(referenciaAnterior - precioPactado) > 0.005) corregido = true;
+            if (precio) precio.setAttribute('data-precio-escala', precioPactado.toFixed(2));
+            if (selector) {
+                selector.innerHTML = '';
+                selector.add(new Option(precioPactado.toFixed(2) + ' - Pactado Expo', precioPactado.toFixed(2), true, true));
+                selector.options[0].setAttribute('data-id', producto.idPrecioSeleccionado || 'p1');
+            }
+
+            var precioCarga = document.getElementById('precios_producto_carga_id' + indice);
+            if (precioCarga && String(precioCarga.value || '') !== String(producto.precios_producto_carga_id || '')) {
+                precioCarga.value = producto.precios_producto_carga_id || '';
+                corregido = true;
+            }
+        });
+
+        return corregido;
+    }
+
+    function restaurarReferenciasEscalaPrefacturaNormal() {
+        if (!esFacturacionNormalDesdePrefactura || !Array.isArray(productosPactadosExpo)) return false;
+
+        var productosPorLinea = {};
+        var productosPorId = {};
+        var corregido = false;
+        productosPactadosExpo.forEach(function(producto) {
+            productosPorLinea[String(producto.cotizacion_has_producto_id || '')] = producto;
+            productosPorId[String(producto.producto_id || '')] = producto;
+        });
+
+        arregloIdInputs.forEach(function(indice) {
+            var lineaId = document.getElementById('cotizacionLineaId' + indice)?.value || '';
+            var productoId = document.getElementById('idProducto' + indice)?.value || '';
+            var producto = productosPorLinea[String(lineaId)] || productosPorId[String(productoId)];
+            var precioVigente = Number(producto?.precioEscalaVigente || 0);
+            if (!(precioVigente > 0)) return;
+
+            var precio = document.getElementById('precio' + indice);
+            var selector = document.getElementById('precios' + indice);
+            var referenciaAnterior = Number(precio?.getAttribute('data-precio-escala') || selector?.value || 0);
+            if (Math.abs(referenciaAnterior - precioVigente) > 0.005) corregido = true;
+
+            if (precio) precio.setAttribute('data-precio-escala', precioVigente.toFixed(2));
+            if (selector) {
+                selector.innerHTML = '';
+                selector.add(new Option(
+                    precioVigente.toFixed(2) + ' - Escala ' + (producto.escalaVigente || ''),
+                    precioVigente.toFixed(2),
+                    true,
+                    true
+                ));
+                selector.options[0].setAttribute('data-id', producto.idPrecioSeleccionado || 'p1');
+            }
+        });
+
+        return corregido;
+    }
+
     function restaurarVentaTemporal(instantanea) {
         ventaTemporalRestaurando = true;
         var carrito = document.getElementById('carritoTbody');
@@ -1919,7 +2457,19 @@
         arregloIdInputs = Array.isArray(instantanea.arreglo_id_inputs)
             ? instantanea.arreglo_id_inputs.map(function(id) { return parseInt(id, 10); })
             : [];
-        (instantanea.controles || []).forEach(aplicarControlTemporal);
+        var controlesTemporales = instantanea.controles || [];
+        controlesTemporales.forEach(aplicarControlTemporal);
+        aplicarConfiguracionTipoFacturaActual();
+        var preciosExpoCorregidos = restaurarPreciosPactadosExpo();
+        var referenciasEscalaCorregidas = restaurarReferenciasEscalaPrefacturaNormal();
+        var asesorTemporal = controlesTemporales.find(function(control) { return control.id === 'vendedor'; });
+        var clienteTemporal = document.getElementById('seleccionarCliente');
+        var cargaAsesor = Promise.resolve();
+        if (clienteTemporal && clienteTemporal.value) {
+            cargaAsesor = aplicarAsesorAsignado(clienteTemporal.value, asesorTemporal ? asesorTemporal.value : null);
+        }
+        normalizarFilasCarritoExpo();
+        var cargaStocks = actualizarStocksDisponiblesExpo();
 
         var tieneProductos = arregloIdInputs.length > 0;
         var tabla = document.getElementById('carritoTablaWrapper');
@@ -1927,7 +2477,43 @@
         if (tabla) tabla.classList.toggle('d-none', !tieneProductos);
         if (vacio) vacio.classList.toggle('d-none', tieneProductos);
         actualizarContadorCarrito();
-        ventaTemporalRestaurando = false;
+        calcularTotalesInicioPagina();
+        return Promise.all([cargaAsesor, cargaStocks]).finally(function() {
+            ventaTemporalRestaurando = false;
+            if (preciosExpoCorregidos || referenciasEscalaCorregidas) {
+                ventaTemporalCambiosPendientes = true;
+                ventaTemporalRevision += 1;
+                return guardarVentaTemporal();
+            }
+        });
+    }
+
+    function temporalContinuacionIncompleto(instantanea) {
+        if (!esContinuandoOfertaExpo || lineasOfertaContinuadaEsperadas <= 0) return false;
+        var cotizacionActual = Number(new URLSearchParams(window.location.search).get('cotizacionId') || 0);
+        if (instantanea.oferta_origen_cargada === true
+            && Number(instantanea.cotizacion_origen_id || 0) === cotizacionActual
+            && Number(instantanea.lineas_oferta_origen || 0) === lineasOfertaContinuadaEsperadas) {
+            ofertaContinuadaCargadaCompleta = true;
+            return false;
+        }
+        var lineasGuardadas = Array.isArray(instantanea.arreglo_id_inputs)
+            ? instantanea.arreglo_id_inputs.length
+            : 0;
+        var incompleto = lineasGuardadas !== lineasOfertaContinuadaEsperadas;
+        if (!incompleto) ofertaContinuadaCargadaCompleta = true;
+        return incompleto;
+    }
+
+    function recargarOfertaContinuadaCompleta(temporalId) {
+        return axios.delete('/ventas/temporales/' + temporalId).catch(function() {
+            return null;
+        }).finally(function() {
+            ventaTemporalId = null;
+            var url = new URL(window.location.href);
+            url.searchParams.delete('temporal_id');
+            window.location.replace(url.toString());
+        });
     }
 
     function escaparHtmlTemporal(texto) {
@@ -1936,12 +2522,67 @@
         return elemento.innerHTML;
     }
 
+    function mostrarStockDisponibleExpo(indice, disponible) {
+        if (!filtrarProductosExpo) return;
+        var nombreProducto = document.getElementById('nombre' + indice);
+        if (!nombreProducto) return;
+
+        var indicador = document.getElementById('stockExpoProducto' + indice);
+        if (!indicador) {
+            indicador = document.createElement('small');
+            indicador.id = 'stockExpoProducto' + indice;
+            indicador.className = 'd-block mt-1';
+            indicador.style.cssText = 'font-size:10px;font-weight:700;color:#1565c0;';
+            nombreProducto.insertAdjacentElement('afterend', indicador);
+        }
+
+        var stock = Math.max(0, Number(disponible || 0));
+        indicador.textContent = 'Stock disponible: ' + stock.toLocaleString('es-HN', { maximumFractionDigits: 2 });
+    }
+
+    function consultarStockDisponibleExpo(indice) {
+        if (!filtrarProductosExpo || !expoConfig) return Promise.resolve();
+        var productoId = document.getElementById('idProducto' + indice)?.value;
+        if (!productoId) return Promise.resolve();
+
+        return axios.get('/expo/oferta/listar-bodega/' + productoId, {
+            params: { expo_id: expoConfig.id }
+        }).then(function(response) {
+            mostrarStockDisponibleExpo(indice, response.data?.results?.[0]?.disponible || 0);
+        }).catch(function() {
+            mostrarStockDisponibleExpo(indice, 0);
+        });
+    }
+
+    function actualizarStocksDisponiblesExpo() {
+        if (!filtrarProductosExpo) return Promise.resolve();
+        return Promise.all(arregloIdInputs.map(consultarStockDisponibleExpo));
+    }
+
+    function ocultarCargaTemporales() {
+        document.documentElement.classList.add('temporales-cargados');
+        var cargando = document.getElementById('cargandoTemporales');
+        if (cargando) cargando.style.display = 'none';
+    }
+
     function iniciarNuevaVentaTemporal() {
+        if (!esDuplicandoOferta && !esContinuandoOfertaExpo) {
+            ocultarCargaTemporales();
+        }
         ventaTemporalId = null;
+        nuevaVentaSolicitada = false;
         var url = new URL(window.location.href);
         url.searchParams.delete('temporal_id');
+        url.searchParams.delete('nueva');
         window.history.replaceState({}, '', url.toString());
         activarAutosaveTemporal();
+    }
+
+    function recargarComoNuevaVenta() {
+        var url = new URL(window.location.href);
+        url.searchParams.delete('temporal_id');
+        url.searchParams.set('nueva', '1');
+        window.location.replace(url.toString());
     }
 
     function continuarVentaTemporal(temporal) {
@@ -1953,11 +2594,20 @@
 
         ventaTemporalId = temporal.id;
         axios.get('/ventas/temporales/' + temporal.id).then(function(response) {
-            restaurarVentaTemporal(response.data.data.contenido || {});
-            var url = new URL(window.location.href);
-            url.searchParams.set('temporal_id', temporal.id);
-            window.history.replaceState({}, '', url.toString());
-            activarAutosaveTemporal();
+            return restaurarVentaTemporal(response.data.data.contenido || {}).then(function() {
+                var url = new URL(window.location.href);
+                url.searchParams.set('temporal_id', temporal.id);
+                window.history.replaceState({}, '', url.toString());
+                activarAutosaveTemporal();
+            });
+        }).catch(function(error) {
+            console.warn('No se pudo recuperar el registro temporal:', error);
+            iniciarNuevaVentaTemporal();
+            Swal.fire({
+                icon: 'error',
+                title: 'No se pudo continuar la oferta',
+                text: 'El registro temporal ya no está disponible. Se inició una oferta nueva.'
+            });
         });
     }
 
@@ -1985,6 +2635,7 @@
             denyButtonColor: '#e65100',
             allowOutsideClick: false,
             allowEscapeKey: false,
+            didOpen: ocultarCargaTemporales,
             preConfirm: function() {
                 var opcion = document.querySelector('input[name="temporal_seleccionado"]:checked');
                 if (!opcion) {
@@ -1998,7 +2649,7 @@
                 var temporal = temporales.find(function(item) { return String(item.id) === String(result.value); });
                 if (temporal) continuarVentaTemporal(temporal);
             } else if (result.isDenied) {
-                iniciarNuevaVentaTemporal();
+                recargarComoNuevaVenta();
             }
         });
     }
@@ -2013,11 +2664,11 @@
         var carrito = document.getElementById('carritoTbody');
         if (carrito) {
             ventaTemporalObserver = new MutationObserver(programarGuardadoTemporal);
-            ventaTemporalObserver.observe(carrito, { childList: true, subtree: true });
+            ventaTemporalObserver.observe(carrito, { childList: true });
         }
     }
 
-    function inicializarVentaTemporal() {
+    function consultarVentasTemporales() {
         axios.get('/ventas/temporales', { params: { tipo: ventaTemporalTipo } }).then(function(response) {
             var temporales = (response.data.data || []).filter(function(item) {
                 return item.tipo === ventaTemporalTipo;
@@ -2029,6 +2680,63 @@
             }
         }).catch(function() {
             iniciarNuevaVentaTemporal();
+        });
+    }
+
+    function inicializarVentaTemporal() {
+        if (nuevaVentaSolicitada) {
+            iniciarNuevaVentaTemporal();
+            return;
+        }
+
+        if (esEdicionNormalDesdePrefactura && esRecargaPagina) {
+            consultarVentasTemporales();
+            return;
+        }
+
+        if (esEdicionNormalDesdePrefactura && !ventaTemporalId) {
+            iniciarNuevaVentaTemporal();
+            return;
+        }
+
+        if ((esDuplicandoOferta || esContinuandoOfertaExpo) && !ventaTemporalId) {
+            iniciarNuevaVentaTemporal();
+            return;
+        }
+
+        if (!ventaTemporalId) {
+            consultarVentasTemporales();
+            return;
+        }
+
+        axios.get('/ventas/temporales/' + ventaTemporalId).then(function(response) {
+            var temporal = response.data.data;
+            if (temporal.tipo !== ventaTemporalTipo) {
+                throw new Error('El registro temporal no corresponde al formulario actual.');
+            }
+            if (temporalContinuacionIncompleto(temporal.contenido || {})) {
+                return recargarOfertaContinuadaCompleta(temporal.id);
+            }
+            var cambioTipoFactura = temporal.codigo_tipo !== codigoActual;
+            return restaurarVentaTemporal(temporal.contenido || {}).then(function() {
+                ocultarCargaTemporales();
+                activarAutosaveTemporal();
+                if (cambioTipoFactura) {
+                    ventaTemporalCambiosPendientes = true;
+                    ventaTemporalRevision += 1;
+                    return guardarVentaTemporal();
+                }
+            });
+        }).catch(function() {
+            ventaTemporalId = null;
+            var url = new URL(window.location.href);
+            url.searchParams.delete('temporal_id');
+            window.history.replaceState({}, '', url.toString());
+            if (esContinuandoOfertaExpo) {
+                iniciarNuevaVentaTemporal();
+            } else {
+                consultarVentasTemporales();
+            }
         });
     }
 
@@ -2216,23 +2924,26 @@
     }
 
     function cambiarTipoFacturaDesdeUrl(rutaMenu) {
-        // Preserva los parámetros de prefactura (from=prefactura, prefactura_id, flujoId)
-        const urlParams = new URLSearchParams(window.location.search);
-        const from = urlParams.get('from');
-        const prefacturaId = urlParams.get('prefactura_id');
-        const flujoId = urlParams.get('flujoId');
-        const modo = urlParams.get('modo');
-        const autorizacionId = urlParams.get('autorizacion_id');
-        const autorizadorId = urlParams.get('autorizador_id');
-
-        let newUrl = '/' + rutaMenu;
-        if (from && prefacturaId && flujoId) {
-            newUrl += '?from=' + from + '&prefactura_id=' + prefacturaId + '&flujoId=' + flujoId;
-            if (modo) newUrl += '&modo=' + encodeURIComponent(modo);
-            if (autorizacionId) newUrl += '&autorizacion_id=' + encodeURIComponent(autorizacionId);
-            if (autorizadorId) newUrl += '&autorizador_id=' + encodeURIComponent(autorizadorId);
+        var nuevaUrl = new URL(window.location.href);
+        nuevaUrl.pathname = '/' + rutaMenu.replace(/^\/+/, '');
+        if (ventaTemporalId) nuevaUrl.searchParams.set('temporal_id', ventaTemporalId);
+        var navegar = function() {
+            if (ventaTemporalId) nuevaUrl.searchParams.set('temporal_id', ventaTemporalId);
+            window.location.href = nuevaUrl.toString();
+        };
+        if (esEdicionNormalDesdePrefactura && !ventaTemporalId && !ventaTemporalRestaurando) {
+            ventaTemporalCambiosPendientes = true;
+            ventaTemporalRevision += 1;
+            guardarVentaTemporal().finally(navegar);
+            return;
         }
-        window.location.href = newUrl;
+        if (!ventaTemporalId || ventaTemporalRestaurando || ventaTemporalFinalizada) {
+            navegar();
+            return;
+        }
+        ventaTemporalCambiosPendientes = true;
+        ventaTemporalRevision += 1;
+        guardarVentaTemporal().finally(navegar);
     }
 
     // ================================================================
@@ -2457,6 +3168,14 @@
     }
 
     function alSeleccionarProducto(producto) {
+        if (seleccionandoProductoCotizadorExpo) {
+            seleccionandoProductoCotizadorExpo = false;
+            cotizarDescuentosProductoExpo(producto);
+            return;
+        }
+        productoExpoAgregandoAutomaticamente = null;
+        datosProductoExpoPrecargados = null;
+        bodegaExpoCapturaRapida = null;
         var select = document.getElementById('seleccionarProducto');
         select.innerHTML = '<option value="' + producto.id + '" selected>' + producto.nombre + '</option>';
         var campoBusqueda = document.getElementById('codigoProductoBuscar');
@@ -2471,6 +3190,10 @@
     function buscarPorCodigo(cod) {
         cod = String(cod).trim();
         if (!cod) { window['abrirBuscador_buscadorProductoUnificado'](''); return; }
+        if (esCapturaRapidaExpo()) {
+            capturarProductoExpoPorCodigo(cod);
+            return;
+        }
         var secuenciaActual = ++secuenciaBusquedaProducto;
         axios.get('/productos/buscar', { params: { q: cod, page: 1 } })
             .then(function(r) {
@@ -2492,6 +3215,11 @@
     }
 
     $(document).on('hidden.bs.modal', '#buscadorProductoUnificado', function() {
+        if ($('#modalCotizadorDescuentosExpo').hasClass('show')) {
+            $('body').addClass('modal-open');
+            document.getElementById('cotizadorExpoCodigoProducto')?.focus();
+            return;
+        }
         enfocarBusquedaProducto();
     });
 
@@ -2502,14 +3230,14 @@
     // ASESOR COMERCIAL ASIGNADO (solo modo "Nueva Oferta" / cotizacion_clientes_a)
     // Carga únicamente los asesores comerciales asignados al cliente en la cartera.
     // ================================================================
-    function aplicarAsesorAsignado(idCliente) {
-        if (codigoActual !== 'cotizacion_clientes_a' || !idCliente) return;
+    function aplicarAsesorAsignado(idCliente, asesorPreferido) {
+        if (!idCliente) return Promise.resolve();
         if (modoEditarFactura) {
             bloquearCamposEdicionFactura();
-            return;
+            return Promise.resolve();
         }
 
-        axios.post('/cotizacion/asesor-asignado', { cliente_id: idCliente })
+        return axios.post('/cotizacion/asesor-asignado', { cliente_id: idCliente })
             .then(response => {
                 var data = response.data;
                 var vendedorSelect = $('#vendedor');
@@ -2523,7 +3251,8 @@
                         vendedorSelect.append(new Option('-- Seleccionar asesor --', '', true, false));
                     }
                     asesores.forEach(function(asesor) {
-                        var seleccionado = asesores.length === 1;
+                        var seleccionado = String(asesor.id) === String(asesorPreferido)
+                            || (asesores.length === 1 && !asesorPreferido);
                         vendedorSelect.append(new Option(asesor.text, asesor.id, seleccionado, seleccionado));
                     });
                 }
@@ -2600,6 +3329,8 @@
                 }
             })
             .then(() => {
+                calcularTotalesInicioPagina();
+                recalcularCotizadorDescuentosExpo();
                 window.dispatchEvent(new CustomEvent('cliente-datos-cargados'));
             })
             .catch(err => {
@@ -2636,7 +3367,7 @@
     function obtenerTipoPago() {
         var urlTipoPago = urls.tipo_pago;
 
-        axios.get(urlTipoPago)
+        return axios.get(urlTipoPago)
             .then(response => {
                 let tipoDePago = response.data.tipos;
                 let numeroVenta = response.data.numeroVenta.numero;
@@ -2718,6 +3449,11 @@
 
         $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>Cargando categorías...</option>');
 
+        if (esCapturaRapidaExpo()) {
+            cargarProductoExpoCapturaRapida(productoId);
+            return;
+        }
+
         axios.post('/producto/categorias-disponibles', {
             producto_id: productoId,
             cliente_categoria_escala_id: categoriaEscalaId,
@@ -2754,11 +3490,9 @@
                         $('#categoria_cliente_venta_id option:nth-child(2)').prop('selected', true);
                     }
                     $('#categoria_cliente_venta_id').prop('disabled', false);
+                    precargarDatosProductoExpo(productoId);
+                    intentarAgregarProductoExpoAutomaticamente();
 
-                    if (expoConfig && expoConfig.escalas.length === 1 && expoConfig.bodegas.length === 1 && categorias.length === 1) {
-                        $('#categoria_cliente_venta_id').val(String(categorias[0].id)).trigger('change');
-                        seleccionarBodegaExpoUnica(productoId);
-                    }
                 } else {
                     $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>No hay categorías disponibles</option>');
                     Swal.fire({ icon: 'warning', title: 'Advertencia', text: 'Este producto no tiene escalas de precio.' });
@@ -2790,6 +3524,8 @@
         var clienteId = $('#seleccionarCliente').val();
         var panel = document.getElementById('historialPreciosPanel');
         var cuerpo = document.getElementById('historialPreciosCuerpo');
+
+        if (!panel || !cuerpo) return;
 
         if (!productoId || !clienteId) {
             cuerpo.innerHTML = '<p class="mb-0 text-muted small">Sin ventas previas de este producto a este cliente.</p>';
@@ -2823,51 +3559,185 @@
     // BODEGAS
     // ================================================================
     function obtenerBodegas(id) {
-        document.getElementById('bodega').innerHTML = "<option selected disabled>--Seleccione una bodega--</option>";
+        document.getElementById('bodega').innerHTML = "<option selected disabled>--Cargando bodega--</option>";
         $('#bodega').prop('disabled', false);
-        var urlBase = urls.bodegas;
+        var urlBase = filtrarProductosExpo
+            ? '/expo/oferta/listar-bodega/{idProducto}'
+            : urls.bodegas;
         var url = urlBase.replace('{idProducto}', id);
+
+        function parametrosBodega(params) {
+            var _urlParams = new URLSearchParams(window.location.search);
+            var _modo = _urlParams.get('modo') || '';
+            var _flujoId = _urlParams.get('flujoId') || document.getElementById('flujo_vinculado_id')?.value || '';
+            var _prefacturaId = _urlParams.get('prefactura_id') || document.getElementById('prefactura_vinculada_id')?.value || '';
+            return {
+                search: params?.term || '',
+                type: 'public',
+                page: params?.page || 1,
+                idProducto: id,
+                flujo_id: _flujoId,
+                modo: _modo,
+                prefactura_id: _prefacturaId,
+                permitir_sin_existencia: codigoActual === 'cotizacion_clientes_a' && !filtrarProductosExpo ? 1 : 0,
+                expo_id: filtrarProductosExpo && expoConfig ? expoConfig.id : null
+            };
+        }
 
         $('#bodega').select2({
             ajax: {
                 url: url,
-                data: function(params) {
-                    var _urlParams = new URLSearchParams(window.location.search);
-                    var _modo         = _urlParams.get('modo') || '';
-                    // Priorizar flujoId de la URL (en editar_factura el campo oculto puede estar vacío)
-                    var _flujoId      = _urlParams.get('flujoId') || document.getElementById('flujo_vinculado_id')?.value || '';
-                    // prefactura_id: necesario para excluir su reserva del cálculo de stock
-                    var _prefacturaId = _urlParams.get('prefactura_id') || document.getElementById('prefactura_vinculada_id')?.value || '';
-                    var _permitirSinExistencia = (codigoActual === 'cotizacion_clientes_a') ? 1 : 0;
-                    return { search: params.term, type: 'public', page: params.page || 1, idProducto: id, flujo_id: _flujoId, modo: _modo, prefactura_id: _prefacturaId, permitir_sin_existencia: _permitirSinExistencia, expo_id: expoConfig ? expoConfig.id : null };
-                }
+                data: parametrosBodega
             }
         });
+
+        if (filtrarProductosExpo) {
+            axios.get(url, { params: parametrosBodega() })
+                .then(function(response) {
+                    if (String($('#seleccionarProducto').val() || '') !== String(id)) return;
+                    var primeraBodega = response.data?.results?.[0] || null;
+                    $('#bodega').empty();
+
+                    if (!primeraBodega) {
+                        $('#bodega').append(new Option('No hay existencia en las bodegas de la Expo', '', true, true));
+                        $('#bodega').prop('disabled', true);
+                        document.getElementById('botonAdd').classList.add('d-none');
+                        return;
+                    }
+
+                    var opcion = new Option(primeraBodega.text, primeraBodega.id, true, true);
+                    $(opcion).data('data', primeraBodega);
+                    $('#bodega').append(opcion).trigger('change');
+                    if ($('#categoria_cliente_venta_id').val()) {
+                        prueba();
+                        intentarAgregarProductoExpoAutomaticamente();
+                    }
+                })
+                .catch(function() {
+                    $('#bodega').empty().append(new Option('No se pudo cargar la bodega', '', true, true));
+                    document.getElementById('botonAdd').classList.add('d-none');
+                });
+        }
     }
 
-    function seleccionarBodegaExpoUnica(productoId) {
-        obtenerBodegas(productoId);
-        var url = urls.bodegas.replace('{idProducto}', productoId);
-        axios.get(url, {
+    function intentarAgregarProductoExpoAutomaticamente() {
+        if (!esCapturaRapidaExpo()) return;
+
+        var productoId = String($('#seleccionarProducto').val() || '');
+        var categoriaId = String($('#categoria_cliente_venta_id').val() || '');
+        var bodega = $('#bodega').hasClass('select2-hidden-accessible')
+            ? $('#bodega').select2('data')[0]
+            : bodegaExpoCapturaRapida;
+
+        if (!productoId || !categoriaId || !bodega || bodega.idBodega === undefined || !bodega.id) return;
+
+        var clave = productoId + '|' + categoriaId + '|' + bodega.idBodega + '|' + bodega.id;
+        if (productoExpoAgregandoAutomaticamente === clave) return;
+
+        productoExpoAgregandoAutomaticamente = clave;
+        document.getElementById('botonAdd').classList.add('d-none');
+        agregarProductoCarrito(bodega, clave);
+    }
+
+    function esCapturaRapidaExpo() {
+        return filtrarProductosExpo && expoConfig && expoConfig.bodegas.length > 0;
+    }
+
+    function cargarProductoExpoCapturaRapida(productoId) {
+        var categoriaPreferidaId = $('#categoria_cliente_venta_id').data('categoria-precio-id') || null;
+        axios.get('/expo/captura-rapida/producto/' + productoId, {
             params: {
-                idProducto: productoId,
-                permitir_sin_existencia: 1,
-                expo_id: expoConfig.id
+                expo_id: expoConfig.id,
+                categoria_precio_id: categoriaPreferidaId
             }
         }).then(function(response) {
             if (String($('#seleccionarProducto').val() || '') !== String(productoId)) return;
-            var opciones = response.data.results || [];
-            var bodega = opciones.find(function(item) { return !item.esSinExistencia; })
-                || opciones.find(function(item) { return item.esSinExistencia; });
-            if (!bodega) return;
 
-            var option = new Option(bodega.text, bodega.id, true, true);
-            $('#bodega').append(option).trigger('change');
-            agregarProductoCarrito(bodega);
-        }).catch(function(error) {
-            var mensaje = error.response?.data?.message || 'No se pudo consultar la bodega configurada para la Expo.';
-            Swal.fire({ icon: 'error', title: 'Error', text: mensaje });
+            procesarProductoExpoCapturaRapida(response.data, productoId);
+        }).catch(mostrarErrorCapturaRapidaExpo);
+    }
+
+    function capturarProductoExpoPorCodigo(codigo) {
+        var secuenciaActual = ++secuenciaBusquedaProducto;
+        var categoriaPreferidaId = $('#categoria_cliente_venta_id').data('categoria-precio-id') || null;
+        axios.get('/expo/captura-rapida/producto/' + encodeURIComponent(codigo), {
+            params: {
+                expo_id: expoConfig.id,
+                categoria_precio_id: categoriaPreferidaId
+            }
+        }).then(function(response) {
+            if (secuenciaActual !== secuenciaBusquedaProducto) return;
+            var producto = response.data.producto;
+            productoExpoAgregandoAutomaticamente = null;
+            datosProductoExpoPrecargados = null;
+            bodegaExpoCapturaRapida = null;
+            document.getElementById('seleccionarProducto').innerHTML = '<option value="' + producto.id + '" selected>' + producto.nombre + '</option>';
+            document.getElementById('productoSeleccionadoLabel').textContent = '✓ ' + producto.nombre;
+            document.getElementById('productoSeleccionadoLabel').classList.remove('d-none');
+            procesarProductoExpoCapturaRapida(response.data, producto.id);
+        }).catch(mostrarErrorCapturaRapidaExpo);
+    }
+
+    function procesarProductoExpoCapturaRapida(datos, productoId) {
+            var response = { data: datos };
+
+            var categorias = response.data.categorias || [];
+            var categoriaSeleccionadaId = String(response.data.categoria_id || '');
+            $('#categoria_cliente_venta_id').empty();
+            categorias.forEach(function(categoria) {
+                var precio = Number(categoria.precio_a || 0).toLocaleString('es-HN', {
+                    style: 'currency', currency: 'HNL', minimumFractionDigits: 2
+                });
+                var seleccionada = String(categoria.id) === categoriaSeleccionadaId;
+                $('#categoria_cliente_venta_id').append(new Option(
+                    categoria.nombre_categoria + ' - ' + precio,
+                    categoria.id,
+                    seleccionada,
+                    seleccionada
+                ));
+            });
+            $('#categoria_cliente_venta_id').prop('disabled', false);
+
+            var bodega = response.data.bodega;
+            bodegaExpoCapturaRapida = bodega;
+            var opcion = new Option(bodega.text, bodega.id, true, true);
+            $(opcion).data('data', bodega);
+            $('#bodega').empty().append(opcion).trigger('change');
+
+            datosProductoExpoPrecargados = {
+                clave: String(productoId) + '|' + categoriaSeleccionadaId,
+                promesa: Promise.resolve({
+                    data: {
+                        producto: response.data.producto,
+                        unidades: response.data.unidades
+                    }
+                })
+            };
+            intentarAgregarProductoExpoAutomaticamente();
+    }
+
+    function mostrarErrorCapturaRapidaExpo(error) {
+        document.getElementById('botonAdd').classList.add('d-none');
+        Swal.fire({
+            icon: 'warning',
+            title: 'Producto no disponible',
+            text: error.response?.data?.message || 'No se pudo preparar el producto para la Oferta Expo.'
         });
+    }
+
+    function precargarDatosProductoExpo(productoId) {
+        if (!esCapturaRapidaExpo()) return;
+        var categoriaId = String($('#categoria_cliente_venta_id').val() || '');
+        if (!productoId || !categoriaId) return;
+
+        var clave = String(productoId) + '|' + categoriaId;
+        datosProductoExpoPrecargados = {
+            clave: clave,
+            promesa: axios.post(urls.datos_producto, {
+                idProducto: productoId,
+                categoria_cliente_venta_id: categoriaId
+            })
+        };
     }
 
     // ================================================================
@@ -2908,7 +3778,7 @@
     // ================================================================
     // AGREGAR PRODUCTO AL CARRITO
     // ================================================================
-    function agregarProductoCarrito(bodegaExpo) {
+    function agregarProductoCarrito(bodegaExpo, claveAgregadoAutomatico) {
         let idProducto = document.getElementById('seleccionarProducto').value;
         let categoria_cliente_venta_id = document.getElementById('categoria_cliente_venta_id').value;
         let data = bodegaExpo || $("#bodega").select2('data')[0];
@@ -2922,8 +3792,15 @@
         let idSeccion = esSinExistencia ? '' : data.id;
 
         var urlDatosProducto = urls.datos_producto;
+        var claveDatosProducto = String(idProducto) + '|' + String(categoria_cliente_venta_id);
+        var solicitudDatosProducto = datosProductoExpoPrecargados?.clave === claveDatosProducto
+            ? datosProductoExpoPrecargados.promesa
+            : axios.post(urlDatosProducto, {
+                idProducto: idProducto,
+                categoria_cliente_venta_id: categoria_cliente_venta_id
+            });
 
-        axios.post(urlDatosProducto, { idProducto: idProducto, categoria_cliente_venta_id: categoria_cliente_venta_id })
+        solicitudDatosProducto
             .then(response => {
                 // Verificar duplicados
                 let flag = false;
@@ -2939,6 +3816,9 @@
                 });
 
                 if (flag) {
+                    if (productoExpoAgregandoAutomaticamente === claveAgregadoAutomatico) {
+                        productoExpoAgregandoAutomaticamente = null;
+                    }
                     Swal.fire({
                         icon: 'warning', title: 'Advertencia!',
                         html: '<p class="text-left">La sección de bodega y producto ha sido agregada anteriormente.<br><br>Por favor verificar la sección de bodega y producto sea distinto a los ya existentes.</p>'
@@ -2981,6 +3861,9 @@
                 <tr id='${numeroInputs}'>
                     <td style="vertical-align:middle; text-align:center; padding:4px 6px;">
                         <input id="idProducto${numeroInputs}" name="idProducto${numeroInputs}" type="hidden" value="${producto.id}">
+                        <input id="marcaExpoId${numeroInputs}" type="hidden" value="${producto.marca_id || 0}">
+                        <input id="marcaExpoNombre${numeroInputs}" type="hidden" value="${producto.marca || 'SIN MARCA'}">
+                        <input id="escalaExpoId${numeroInputs}" type="hidden" value="${producto.categoria_precios_id || categoria_cliente_venta_id || 0}">
                         <input id="precios_producto_carga_id${numeroInputs}" name="precios_producto_carga_id${numeroInputs}" type="hidden" value="${producto.precios_producto_carga_id || ''}">
                         <input id="isv${numeroInputs}" name="isv${numeroInputs}" type="hidden" value="${producto.isv}">
                         <input id="idBodega${numeroInputs}" name="idBodega${numeroInputs}" type="hidden" value="${idBodega}">
@@ -2997,7 +3880,7 @@
                         </button>
                     </td>
                     <td style="vertical-align:middle; padding:4px 6px;">
-                        <input type="text" id="nombre${numeroInputs}" name="nombre${numeroInputs}" value='${producto.nombre}' readonly data-parsley-required
+                        <input type="text" id="nombre${numeroInputs}" name="nombre${numeroInputs}" value='${producto.nombre}' readonly role="button" title="Ver descripción del producto" data-parsley-required
                             style="border:none; background:transparent; font-size:12px; font-weight:700; color:#1b5e20; width:100%; min-width:130px;">
                     </td>
                     <td style="vertical-align:middle; padding:4px 6px; white-space:nowrap;">
@@ -3014,11 +3897,11 @@
                     <td style="vertical-align:middle; padding:4px 6px;">
                         <input type="number" id="precio${numeroInputs}" name="precio${numeroInputs}" value="${producto.precio1}" class="form-control form-control-sm"
                             data-precio-escala="${precioEscalaRef}" data-parsley-required step="any" autocomplete="off" style="min-width:80px; font-size:11px;"
-                            onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
+                            oninput="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
                     </td>
                     <td style="vertical-align:middle; padding:4px 6px;">
-                        <input type="number" id="cantidad${numeroInputs}" name="cantidad${numeroInputs}" class="form-control form-control-sm" min="1" data-parsley-required autocomplete="off" style="min-width:60px; font-size:11px;"
-                            onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
+                        <input type="number" id="cantidad${numeroInputs}" name="cantidad${numeroInputs}" class="form-control form-control-sm" min="1" step="any" inputmode="decimal" data-parsley-required autocomplete="off" style="min-width:60px; font-size:11px;"
+                            oninput="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
                     </td>
                     <td style="vertical-align:middle; padding:4px 6px;">
                         <select class="form-control form-control-sm" name="unidad${numeroInputs}" id="unidad${numeroInputs}" data-parsley-required style="font-size:11px; min-width:80px;"
@@ -3026,6 +3909,7 @@
                             ${htmlSelectUnidades}
                         </select>
                     </td>
+                    ${expoConfig ? `<td style="vertical-align:middle; padding:4px 6px;"><div id="descuentoExpoProducto${numeroInputs}" style="font-size:10px; line-height:1.35;"></div></td>` : ''}
                     <td style="vertical-align:middle; padding:4px 6px; text-align:right;">
                         <input type="text" id="subTotalMostrar${numeroInputs}" name="subTotalMostrar${numeroInputs}" placeholder="0.00" readonly autocomplete="off"
                             style="border:none; background:#f1f8e9; border-radius:5px; font-weight:700; color:#2e7d32; font-size:12px; padding:2px 6px; text-align:right; width:100%; min-width:75px;">
@@ -3042,14 +3926,19 @@
 
                 arregloIdInputs.splice(numeroInputs, 0, numeroInputs);
                 document.getElementById('carritoTbody').insertAdjacentHTML('beforeend', html);
+                mostrarStockDisponibleExpo(numeroInputs, data.disponible || 0);
                 // Mostrar tabla, ocultar mensaje vacío
                 document.getElementById('carritoVacio').classList.add('d-none');
                 document.getElementById('carritoTablaWrapper').classList.remove('d-none');
                 actualizarContadorCarrito();
                 reiniciarCapturaProducto();
                 programarGuardadoTemporal();
+                enfocarCantidadCarrito(numeroInputs);
             })
             .catch(err => {
+                if (productoExpoAgregandoAutomaticamente === claveAgregadoAutomatico) {
+                    productoExpoAgregandoAutomaticamente = null;
+                }
                 const mensaje = err.response?.data?.message || 'Error al agregar producto';
                 Swal.fire({ icon: 'error', title: 'Error', html: mensaje });
             });
@@ -3064,6 +3953,7 @@
     // ================================================================
     function calcularTotalesInicioPagina() {
         let arrayInputs = this.arregloIdInputs;
+        let calculoExpo = calcularDescuentosCarritoExpo();
         arrayInputs.forEach(id => {
             let valorInputPrecio = document.getElementById('precio' + id).value;
             let valorInputCantidad = document.getElementById('cantidad' + id).value;
@@ -3079,7 +3969,12 @@
                 let descuento = document.getElementById("porDescuento").value;
                 let subTotal = 0, isv = 0, total = 0, descuentoCalculado = 0;
 
-                if (descuento > 0) {
+                if (calculoExpo?.lineas[id]) {
+                    subTotal = calculoExpo.lineas[id].subtotalNeto;
+                    descuentoCalculado = calculoExpo.lineas[id].descuentoTotal;
+                    isv = calculoExpo.lineas[id].isv;
+                    total = calculoExpo.lineas[id].total;
+                } else if (descuento > 0) {
                     subTotal = valorInputPrecio * (valorInputCantidad * valorSelectUnidad);
                     descuentoCalculado = subTotal * (descuento / 100);
                     subTotal = subTotal - descuentoCalculado;
@@ -3121,7 +4016,7 @@
             idRestaInventario.value = valorInputCantidad * valorSelectUnidad;
         }
 
-        if (actualizarDescuentoExpo()) {
+        if (expoConfig) {
             calcularTotalesInicioPagina();
             idPrecio.value = valorInputPrecio;
             actualizarContadorCarrito();
@@ -3156,7 +4051,9 @@
             this.totalesGenerales();
         }
 
-        idPrecio.value = valorInputPrecio;
+        if (!(codigoActual === 'cotizacion_clientes_a' && !expoConfig)) {
+            idPrecio.value = valorInputPrecio;
+        }
         actualizarContadorCarrito();
     }
 
@@ -3164,6 +4061,315 @@
         return new Intl.NumberFormat('es-HN', {
             style: 'currency', currency: 'HNL', minimumFractionDigits: 2
         }).format(valor);
+    }
+
+    function enfocarCantidadCarrito(id) {
+        window.setTimeout(function() {
+            var cantidad = document.getElementById('cantidad' + id);
+            if (!cantidad) return;
+            cantidad.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+            cantidad.focus({ preventScroll: true });
+            cantidad.select();
+        }, 80);
+    }
+
+    function normalizarFilasCarritoExpo() {
+        if (!expoConfig) return;
+        var categoriaId = document.getElementById('categoria_cliente_venta_id')?.value || '';
+        var consultasMarca = [];
+
+        arregloIdInputs.forEach(function(id) {
+            var cantidad = document.getElementById('cantidad' + id);
+            if (cantidad) {
+                cantidad.setAttribute('inputmode', 'decimal');
+                cantidad.setAttribute('step', 'any');
+                if (!cantidad.dataset.expoInputActivo) {
+                    cantidad.dataset.expoInputActivo = '1';
+                    cantidad.addEventListener('input', function() {
+                        calcularTotales(
+                            document.getElementById('precio' + id),
+                            cantidad,
+                            Number(document.getElementById('isv' + id)?.value || 0),
+                            document.getElementById('unidad' + id),
+                            id,
+                            document.getElementById('restaInventario' + id)
+                        );
+                    });
+                }
+            }
+
+            var campoSubtotal = document.getElementById('subTotalMostrar' + id);
+            var celdaSubtotal = campoSubtotal ? campoSubtotal.closest('td') : null;
+            var filaProducto = celdaSubtotal ? celdaSubtotal.parentNode : null;
+            ['descuentoExpoMarcaProducto' + id, 'descuentoExpoSubtotalProducto' + id].forEach(function(legacyId) {
+                var legacy = document.getElementById(legacyId);
+                if (legacy?.closest('td')) legacy.closest('td').remove();
+            });
+
+            var indicadores = filaProducto
+                ? Array.from(filaProducto.querySelectorAll('[id="descuentoExpoProducto' + id + '"]'))
+                : [];
+            indicadores.slice(1).forEach(function(duplicado) {
+                if (duplicado.closest('td')) duplicado.closest('td').remove();
+            });
+            var indicador = indicadores[0] || null;
+            if (!indicador && celdaSubtotal && filaProducto) {
+                    var celdaDescuento = document.createElement('td');
+                    celdaDescuento.style.cssText = 'vertical-align:middle; padding:4px 6px;';
+                    celdaDescuento.innerHTML = '<div id="descuentoExpoProducto' + id + '" style="font-size:10px; line-height:1.35;"></div>';
+                    filaProducto.insertBefore(celdaDescuento, celdaSubtotal);
+                    indicador = celdaDescuento.firstElementChild;
+            } else if (indicador && celdaSubtotal && indicador.closest('td')?.nextElementSibling !== celdaSubtotal) {
+                filaProducto.insertBefore(indicador.closest('td'), celdaSubtotal);
+            }
+
+            var marca = document.getElementById('marcaExpoId' + id);
+            var marcaNombre = document.getElementById('marcaExpoNombre' + id);
+            var escala = document.getElementById('escalaExpoId' + id);
+            if (!marca || !escala) {
+                var producto = document.getElementById('idProducto' + id);
+                if (!marca) {
+                    marca = document.createElement('input');
+                    marca.type = 'hidden';
+                    marca.id = 'marcaExpoId' + id;
+                    marca.value = '0';
+                    if (producto?.parentNode) producto.parentNode.insertBefore(marca, producto.nextSibling);
+
+                }
+                if (!marcaNombre) {
+                    marcaNombre = document.createElement('input');
+                    marcaNombre.type = 'hidden';
+                    marcaNombre.id = 'marcaExpoNombre' + id;
+                    marcaNombre.value = 'SIN MARCA';
+                    if (marca.parentNode) marca.parentNode.insertBefore(marcaNombre, marca.nextSibling);
+                }
+                if (!escala) {
+                    escala = document.createElement('input');
+                    escala.type = 'hidden';
+                    escala.id = 'escalaExpoId' + id;
+                    escala.value = '0';
+                    if (producto?.parentNode) producto.parentNode.insertBefore(escala, producto.nextSibling);
+                }
+
+                var precioCargaId = document.getElementById('precios_producto_carga_id' + id)?.value || null;
+                consultasMarca.push(axios.post(urls.datos_producto, {
+                    idProducto: producto?.value,
+                    categoria_cliente_venta_id: categoriaId,
+                    precios_producto_carga_id: precioCargaId
+                }).then(function(response) {
+                    marca.value = response.data.producto?.marca_id || 0;
+                    marcaNombre.value = response.data.producto?.marca || 'SIN MARCA';
+                    escala.value = response.data.producto?.categoria_precios_id || 0;
+                }).catch(function() {
+                    marca.value = 0;
+                    escala.value = 0;
+                }));
+            }
+        });
+
+        calcularTotalesInicioPagina();
+        if (consultasMarca.length > 0) {
+            Promise.allSettled(consultasMarca).then(calcularTotalesInicioPagina);
+        }
+    }
+
+    function abrirCotizadorDescuentosExpo() {
+        productoCotizadorExpo = null;
+        datosCalculoCotizadorExpo = null;
+        document.getElementById('cotizadorExpoCodigoProducto').value = '';
+        document.getElementById('cotizadorExpoProductoLabel').textContent = '';
+        document.getElementById('cotizadorExpoProductoLabel').classList.add('d-none');
+        document.getElementById('cotizadorExpoEscala').innerHTML = '<option value="">Seleccione un producto</option>';
+        document.getElementById('cotizadorExpoEscala').disabled = true;
+        document.getElementById('cotizadorExpoResultado').innerHTML = '<div class="text-center text-muted py-4"><i class="fa fa-tags fa-2x mb-2 d-block"></i>Seleccione un producto para consultar sus descuentos.</div>';
+        $('#modalCotizadorDescuentosExpo').modal('show');
+    }
+
+    function abrirBusquedaProductoCotizadorExpo() {
+        var termino = document.getElementById('cotizadorExpoCodigoProducto').value.trim();
+        seleccionandoProductoCotizadorExpo = true;
+        window['abrirBuscador_buscadorProductoUnificado'](termino);
+    }
+
+    function prepararNuevaBusquedaCotizadorExpo(valorActual) {
+        if (!productoCotizadorExpo) return;
+        productoCotizadorExpo = null;
+        datosCalculoCotizadorExpo = null;
+        document.getElementById('cotizadorExpoProductoLabel').textContent = '';
+        document.getElementById('cotizadorExpoProductoLabel').classList.add('d-none');
+        document.getElementById('cotizadorExpoEscala').innerHTML = '<option value="">Seleccione un producto</option>';
+        document.getElementById('cotizadorExpoEscala').disabled = true;
+        document.getElementById('cotizadorExpoResultado').innerHTML = '<div class="text-center text-muted py-4"><i class="fa fa-tags fa-2x mb-2 d-block"></i>Presione Enter para buscar el producto.</div>';
+    }
+
+    function buscarProductoCotizadorExpo(codigo) {
+        codigo = String(codigo || '').trim();
+        if (!codigo) {
+            abrirBusquedaProductoCotizadorExpo();
+            return;
+        }
+
+        axios.get('/productos/buscar', { params: { q: codigo, page: 1, expo_id: expoConfig?.id } }).then(function(response) {
+            var productos = response.data.data || [];
+            var producto = productos.find(function(item) {
+                return String(item.id) === codigo
+                    || String(item.codigo_barra || '').trim() === codigo
+                    || String(item.codigo_estatal || '').trim() === codigo;
+            });
+            if (producto || productos.length === 1) {
+                cotizarDescuentosProductoExpo(producto || productos[0]);
+                return;
+            }
+            abrirBusquedaProductoCotizadorExpo();
+        }).catch(abrirBusquedaProductoCotizadorExpo);
+    }
+
+    function recalcularCotizadorDescuentosExpo() {
+        if (productoCotizadorExpo) cotizarDescuentosProductoExpo(productoCotizadorExpo);
+    }
+
+    function cotizarDescuentosProductoExpo(productoSeleccionado) {
+        var productoId = productoSeleccionado?.id;
+        var selectorEscala = document.getElementById('cotizadorExpoEscala');
+        var resultado = document.getElementById('cotizadorExpoResultado');
+        if (!productoId || !selectorEscala || !resultado) return;
+
+        var mismoProducto = Number(productoCotizadorExpo?.id || 0) === Number(productoId);
+        var categoriaPreferidaId = mismoProducto ? selectorEscala.value : null;
+
+        productoCotizadorExpo = productoSeleccionado;
+        document.getElementById('cotizadorExpoCodigoProducto').value = '';
+        var productoLabel = document.getElementById('cotizadorExpoProductoLabel');
+        productoLabel.textContent = (productoSeleccionado.nombre || 'Producto') + ' (ID: ' + productoId + ')';
+        productoLabel.classList.remove('d-none');
+        selectorEscala.innerHTML = '<option value="">Consultando escalas...</option>';
+        selectorEscala.disabled = true;
+        resultado.innerHTML = '<div class="text-center text-muted py-4"><i class="fa fa-spinner fa-spin mr-1"></i> Calculando descuentos...</div>';
+        axios.get('/expo/captura-rapida/producto/' + encodeURIComponent(productoId), {
+            params: {
+                expo_id: expoConfig.id,
+                categoria_precio_id: categoriaPreferidaId
+            }
+        }).then(function(response) {
+            var categorias = Array.isArray(response.data.categorias) ? response.data.categorias : [];
+            selectorEscala.innerHTML = '';
+            categorias.forEach(function(categoria) {
+                selectorEscala.add(new Option(categoria.nombre_categoria, categoria.id));
+            });
+            selectorEscala.value = String(response.data.categoria_id || '');
+            selectorEscala.disabled = categorias.length <= 1;
+
+            var categoriaId = selectorEscala.value;
+            var producto = response.data.producto || {};
+            var precio = Number(producto.precio1 || 0);
+            var porcentajeIsv = Number(producto.isv || 0);
+            var generales = Array.isArray(expoConfig?.descuentos) ? expoConfig.descuentos : [];
+            var clienteExpoId = Number(document.getElementById('seleccionarCliente')?.value || 0);
+            var asistentesExpo = Array.isArray(expoConfig?.clientes_asistentes) ? expoConfig.clientes_asistentes.map(Number) : [];
+            var descuentoEspecial = expoConfig?.descuentos_clientes?.[clienteExpoId] || {};
+            var reglasMarcaElegibles = (Array.isArray(expoConfig?.descuentos_escala) ? expoConfig.descuentos_escala : [])
+                .filter(function(regla) {
+                    return !regla.requiere_asistencia || asistentesExpo.includes(clienteExpoId);
+                });
+            var reglasMarcaProducto = reglasMarcaElegibles
+                .filter(function(regla) { return Number(regla.escala_id) === Number(categoriaId); })
+                .map(function(regla) {
+                    return Object.assign({}, regla, { marca_id: Number(regla.escala_id) });
+                });
+            var umbrales = generales.map(function(regla) { return Number(regla.venta_minima || 0); });
+            reglasMarcaProducto.forEach(function(regla) {
+                umbrales.push(Number(regla.venta_minima || 0));
+            });
+            umbrales = Array.from(new Set(umbrales.filter(function(valor) { return valor > 0; }))).sort(function(a, b) { return a - b; });
+
+            if (!(precio > 0) || umbrales.length === 0) {
+                resultado.innerHTML = '<div class="alert alert-info mb-0">Este producto no tiene escenarios de descuento disponibles en la Expo.</div>';
+                return;
+            }
+
+            datosCalculoCotizadorExpo = {
+                precio: precio,
+                porcentajeIsv: porcentajeIsv,
+                marcaId: Number(categoriaId || 0),
+                generales: generales,
+                reglasMarca: reglasMarcaProducto,
+                descuentoEspecial: descuentoEspecial
+            };
+
+            var filas = umbrales.map(function(umbral, indice) {
+                var porcentajeMarcaUmbral = porcentajeExpoAlcanzado(umbral, reglasMarcaProducto);
+                var porcentajeGeneralUmbral = porcentajeExpoAlcanzado(umbral, generales);
+                var precioNetoUmbral = precio
+                    * (1 - porcentajeMarcaUmbral / 100)
+                    * (1 - porcentajeGeneralUmbral / 100);
+                var cantidad = precioNetoUmbral > 0
+                    ? Math.max(1, Math.ceil((umbral - 0.005) / precioNetoUmbral))
+                    : 1;
+                return '<tr data-cotizador-fila="' + indice + '"><td style="min-width:105px;">'
+                    + '<input type="number" min="1" step="1" inputmode="numeric" value="' + cantidad + '" class="form-control form-control-sm text-center cotizador-expo-cantidad" oninput="recalcularFilaCotizadorExpo(this)"></td>'
+                    + '<td class="text-right" data-campo="precio"></td>'
+                    + '<td class="text-right" data-campo="escalon"></td>'
+                    + '<td class="text-center" data-campo="marca"></td>'
+                    + '<td class="text-center" data-campo="general"></td>'
+                    + '<td class="text-right" data-campo="subtotal-neto"></td>'
+                    + '<td class="text-right" data-campo="final-sin-isv"></td>'
+                    + '<td class="text-right" data-campo="isv"></td>'
+                    + '<td class="text-right" data-campo="final"></td>'
+                    + '<td class="text-right" data-campo="ahorro"></td>'
+                    + '<td class="text-right" data-campo="ahorro-total"></td></tr>';
+            }).join('');
+
+                var nombreEscala = selectorEscala.options[selectorEscala.selectedIndex]?.text || ('Escala ' + categoriaId);
+                resultado.innerHTML = '<div class="cotizador-expo-resumen"><strong>' + $('<div>').text(producto.nombre || 'Producto').html() + '</strong><br>'
+                    + '<small><i class="fa fa-tag mr-1 text-success"></i>Marca: ' + $('<div>').text(producto.marca || 'SIN MARCA').html()
+                    + ' &nbsp; <i class="fa fa-list-alt mr-1 text-success"></i>Escala: <strong>' + $('<div>').text(nombreEscala).html() + '</strong>'
+                    + ' &nbsp; Precio unitario base: <strong>' + formatoMoneda(precio) + '</strong></small></div>'
+                    + '<div class="table-responsive"><table class="table table-sm table-bordered cotizador-expo-tabla mb-2">'
+                        + '<thead><tr><th class="text-center">Desde cantidad</th><th class="text-right">Precio unitario</th><th class="text-right">Escalón del descuento</th><th class="text-center">Desc. escala</th><th class="text-center">Desc. subtotal</th><th class="text-right">Subtotal neto</th><th class="text-right">Precio unitario final</th><th class="text-right">ISV</th><th class="text-right">Precio U.F. + ISV</th><th class="text-right">Ahorro por unidad</th><th class="text-right">Ahorro total</th></tr></thead>'
+                    + '<tbody>' + filas + '</tbody></table></div>'
+                    + '<small class="text-muted">El subtotal neto después de descuentos determina el escalón. Se aplica primero el descuento de escala y después el general.</small>';
+                    resultado.querySelectorAll('.cotizador-expo-cantidad').forEach(recalcularFilaCotizadorExpo);
+        }).catch(function(error) {
+            selectorEscala.innerHTML = '<option value="">Sin escalas disponibles</option>';
+            selectorEscala.disabled = true;
+            var mensaje = error.response?.data?.message || 'No fue posible consultar el precio y los descuentos del producto.';
+            resultado.innerHTML = '<div class="alert alert-danger mb-0">' + $('<div>').text(mensaje).html() + '</div>';
+        });
+    }
+
+    function recalcularFilaCotizadorExpo(campoCantidad) {
+        if (!datosCalculoCotizadorExpo) return;
+        var cantidad = Number(campoCantidad.value || 0);
+        if (!(cantidad > 0)) return;
+
+        var fila = campoCantidad.closest('tr');
+        var precio = datosCalculoCotizadorExpo.precio;
+        var compra = cantidad * precio;
+        var escalones = resolverEscalonesNetosExpo({
+            cotizador: {
+                marcaId: datosCalculoCotizadorExpo.marcaId,
+                importe: compra
+            }
+        }, datosCalculoCotizadorExpo.reglasMarca, datosCalculoCotizadorExpo.generales, datosCalculoCotizadorExpo.descuentoEspecial);
+        var porcentajeMarca = Number(escalones.porcentajesMarca[datosCalculoCotizadorExpo.marcaId] || 0);
+        var porcentajeGeneral = Number(escalones.porcentajeGeneral || 0);
+
+        var precioTrasMarca = precio * (1 - porcentajeMarca / 100);
+        var precioConDescuento = precioTrasMarca * (1 - porcentajeGeneral / 100);
+        var subtotalNeto = precioConDescuento * cantidad;
+        var isvUnitario = precioConDescuento * datosCalculoCotizadorExpo.porcentajeIsv / 100;
+        var precioFinal = precioConDescuento + isvUnitario;
+
+        fila.querySelector('[data-campo="escalon"]').textContent = formatoMoneda(escalones.baseEscalon || 0);
+        fila.querySelector('[data-campo="precio"]').textContent = formatoMoneda(precio);
+        fila.querySelector('[data-campo="marca"]').textContent = porcentajeMarca.toFixed(2) + '%';
+        fila.querySelector('[data-campo="general"]').textContent = porcentajeGeneral.toFixed(2) + '%';
+        fila.querySelector('[data-campo="subtotal-neto"]').innerHTML = '<strong class="text-success">' + formatoMoneda(subtotalNeto) + '</strong>';
+        fila.querySelector('[data-campo="final-sin-isv"]').innerHTML = '<strong class="text-success">' + formatoMoneda(precioConDescuento) + '</strong>';
+        fila.querySelector('[data-campo="isv"]').innerHTML = formatoMoneda(isvUnitario) + '<small class="d-block text-muted">' + datosCalculoCotizadorExpo.porcentajeIsv.toFixed(2) + '%</small>';
+        fila.querySelector('[data-campo="final"]').innerHTML = '<strong class="text-success">' + formatoMoneda(precioFinal) + '</strong>';
+        fila.querySelector('[data-campo="ahorro"]').textContent = formatoMoneda(precio - precioConDescuento);
+        fila.querySelector('[data-campo="ahorro-total"]').textContent = formatoMoneda((precio - precioConDescuento) * cantidad);
     }
 
     function actualizarContadorCarrito() {
@@ -3189,13 +4395,14 @@
             : totalCantidad.toFixed(2);
 
         badge.textContent = cantidadTexto + ' producto(s)';
+        if (typeof window.expoActualizarPendientes === 'function') {
+            window.expoActualizarPendientes();
+        }
     }
 
     function totalesGenerales() {
-        if (numeroInputs == 0) return;
-
-        if (actualizarDescuentoExpo()) {
-            calcularTotalesInicioPagina();
+        if (numeroInputs == 0) {
+            actualizarSimulacionDescuentoMarcaExpo();
             return;
         }
 
@@ -3230,6 +4437,383 @@
         document.getElementById('isvGeneralMostrar').value = formatoMoneda(totalISV);
         document.getElementById('totalGeneral').value = totalGeneralValor.toFixed(2);
         document.getElementById('totalGeneralMostrar').value = formatoMoneda(totalGeneralValor);
+        renderizarResumenDescuentoExpo(calcularDescuentosCarritoExpo());
+        actualizarSimulacionDescuentoMarcaExpo();
+    }
+
+    function actualizarSimulacionDescuentoMarcaExpo() {
+        actualizarDescuentosProductosExpo();
+        if (!esOfertaExpo) return;
+        var panel = document.getElementById('simulacionDescuentoMarcaExpo');
+        var detalle = document.getElementById('simulacionDescuentoMarcaExpoDetalle');
+        if (!panel || !detalle) return;
+        var calculo = calcularDescuentosCarritoExpo();
+        var filas = Object.values(calculo?.marcas || {}).filter(function(marca) {
+            return marca.subtotal > 0;
+        }).map(function(marca) {
+            return '<tr><td>' + $('<div>').text(marca.nombre).html() + '</td>'
+                + '<td class="text-right">' + formatoMoneda(marca.subtotal) + '</td>'
+                + '<td class="text-right"><small>' + Number(marca.porcentajeMarca || 0).toFixed(2) + '%</small><br>' + formatoMoneda(marca.descuentoMarca) + '</td>'
+                + '<td class="text-right"><small>' + Number(marca.porcentajeGeneral || 0).toFixed(2) + '%</small><br>' + formatoMoneda(marca.descuentoGeneral) + '</td>'
+                + '<td class="text-right"><strong>' + formatoMoneda(marca.descuentoTotal) + '</strong></td></tr>';
+        }).join('');
+
+        panel.style.display = filas ? 'block' : 'none';
+        var etiquetaGrupo = calculo?.tipoGrupo === 'escala' ? 'Escala' : 'Marca';
+        detalle.innerHTML = filas
+            ? '<div class="table-responsive"><table class="table table-sm table-bordered mb-2"><thead><tr><th>' + etiquetaGrupo + '</th><th class="text-right">Subtotal</th><th class="text-right">Desc. ' + etiquetaGrupo.toLowerCase() + '</th><th class="text-right">Desc. subtotal</th><th class="text-right">Descuento total</th></tr></thead><tbody>' + filas + '</tbody></table></div>'
+            : '';
+    }
+
+    function actualizarDescuentosProductosExpo() {
+        var calculo = calcularDescuentosCarritoExpo();
+        if (!calculo) return;
+        arregloIdInputs.forEach(function(id) {
+            var linea = calculo.lineas[id];
+            var indicador = document.getElementById('descuentoExpoProducto' + id);
+            if (indicador) {
+                if (esOfertaExpo) {
+                    var detalles = [];
+                    if (Number(linea?.descuentoMarca || 0) > 0.005) {
+                        detalles.push('<div style="white-space:nowrap;"><span style="color:#546e7a;">' + (calculo.tipoGrupo === 'escala' ? 'Escala' : 'Marca') + ' ('
+                            + Number(linea?.porcentajeMarca || 0).toFixed(2) + '%):</span> <strong style="color:#1b5e20;">'
+                            + formatoMoneda(linea.descuentoMarca) + '</strong></div>');
+                    }
+                    if (Number(linea?.descuentoGeneral || 0) > 0.005) {
+                        detalles.push('<div style="white-space:nowrap;"><span style="color:#546e7a;">General ('
+                            + Number(linea?.porcentajeGeneral || 0).toFixed(2) + '%):</span> <strong style="color:#1565c0;">'
+                            + formatoMoneda(linea.descuentoGeneral) + '</strong></div>');
+                    }
+                    detalles.push('<div style="white-space:nowrap;"><span style="color:#546e7a;">Firmado:</span> '
+                        + '<strong style="color:#1b5e20;">' + formatoMoneda(linea?.descuentoTotal || 0) + '</strong></div>');
+                    indicador.innerHTML = detalles.join('');
+                    return;
+                }
+                indicador.innerHTML = '<div style="white-space:nowrap;"><span style="color:#546e7a;">' + (resultado.tipoGrupo === 'escala' ? 'Escala:' : 'Marca:') + '</span> '
+                    + '<strong style="color:#1b5e20;">' + formatoMoneda(linea?.descuentoMarca || 0) + '</strong></div>'
+                    + '<div style="white-space:nowrap;"><span style="color:#546e7a;">Subtotal:</span> '
+                    + '<strong style="color:#1565c0;">' + formatoMoneda(linea?.descuentoGeneral || 0) + '</strong></div>';
+            }
+        });
+    }
+
+    function porcentajeExpoAlcanzado(baseEscalon, reglas) {
+        return (reglas || []).filter(function(regla) {
+            return baseEscalon + 0.005 >= Number(regla.venta_minima || 0);
+        }).sort(function(a, b) {
+            return Number(b.venta_minima || 0) - Number(a.venta_minima || 0);
+        }).reduce(function(porcentaje, regla) {
+            return porcentaje === null ? Number(regla.porcentaje_descuento || 0) : porcentaje;
+        }, null) || 0;
+    }
+
+    function resolverEscalonesNetosExpo(importes, reglasMarca, reglasGenerales, descuentoEspecial) {
+        var valores = Object.values(importes);
+        var marcaIds = Array.from(new Set(valores.map(function(datos) { return datos.marcaId; })));
+        var porcentajesForzados = {};
+        var modoGlobal = descuentoEspecial?.descuento_modo || 'automatico';
+        marcaIds.forEach(function(marcaId) {
+            var seleccion = modoGlobal === 'escalon' || modoGlobal === 'maximo'
+                ? descuentoEspecial
+                : (descuentoEspecial?.[marcaId] || {});
+            var modo = seleccion.descuento_modo || 'automatico';
+            if (modo !== 'escalon' && modo !== 'maximo') return;
+
+            var niveles = (reglasMarca || []).filter(function(regla) {
+                return Number(regla.marca_id) === marcaId;
+            }).sort(function(primera, segunda) {
+                return Number(primera.venta_minima || 0) - Number(segunda.venta_minima || 0)
+                    || Number(primera.orden || 0) - Number(segunda.orden || 0);
+            });
+            if (!niveles.length) {
+                porcentajesForzados[marcaId] = 0;
+                return;
+            }
+            var nivelSolicitado = Math.max(Number(seleccion.descuento_escalon || 1), 1);
+            var indiceNivel = modo === 'maximo'
+                ? niveles.length - 1
+                : Math.min(nivelSolicitado - 1, niveles.length - 1);
+            porcentajesForzados[marcaId] = Number(niveles[indiceNivel].porcentaje_descuento || 0);
+        });
+
+        var candidatos = [0].concat((reglasGenerales || []).map(function(regla) {
+            return Number(regla.venta_minima || 0);
+        }));
+        (reglasMarca || []).forEach(function(regla) {
+            var marcaId = Number(regla.marca_id);
+            if (marcaIds.includes(marcaId) && !Object.prototype.hasOwnProperty.call(porcentajesForzados, marcaId)) {
+                candidatos.push(Number(regla.venta_minima || 0));
+            }
+        });
+        candidatos = Array.from(new Set(candidatos)).sort(function(a, b) { return b - a; });
+
+        for (var indice = 0; indice < candidatos.length; indice++) {
+            var baseEscalon = candidatos[indice];
+            var porcentajeGeneral = porcentajeExpoAlcanzado(baseEscalon, reglasGenerales);
+            var porcentajesMarca = {};
+            marcaIds.forEach(function(marcaId) {
+                porcentajesMarca[marcaId] = Object.prototype.hasOwnProperty.call(porcentajesForzados, marcaId)
+                    ? porcentajesForzados[marcaId]
+                    : porcentajeExpoAlcanzado(
+                        baseEscalon,
+                        (reglasMarca || []).filter(function(regla) { return Number(regla.marca_id) === marcaId; })
+                    );
+            });
+            var subtotalNeto = valores.reduce(function(total, datos) {
+                var descuentoMarca = Math.round(datos.importe * Number(porcentajesMarca[datos.marcaId] || 0)) / 100;
+                var descuentoGeneral = Math.round((datos.importe - descuentoMarca) * porcentajeGeneral) / 100;
+                return total + datos.importe - descuentoMarca - descuentoGeneral;
+            }, 0);
+            if (subtotalNeto + 0.005 >= baseEscalon) {
+                return { baseEscalon: baseEscalon, porcentajeGeneral: porcentajeGeneral, porcentajesMarca: porcentajesMarca };
+            }
+        }
+
+        return { baseEscalon: 0, porcentajeGeneral: 0, porcentajesMarca: {} };
+    }
+
+    function calcularDescuentosCarritoExpo() {
+        if (!expoConfig) return null;
+        var usarReglasFirmadas = esOfertaExpo && (!filtrarProductosExpo || esContinuandoOfertaExpo);
+        var configuracion = usarReglasFirmadas ? reglasExpoOferta : expoConfig;
+        var versionReglas = usarReglasFirmadas ? Number(configuracion.version || 2) : 5;
+        var usarEscalas = !usarReglasFirmadas || configuracion.tipo === 'escala' || versionReglas >= 5;
+        var reglasMarcaOrigen = usarReglasFirmadas
+            ? (usarEscalas ? (Array.isArray(configuracion.escalas) ? configuracion.escalas : []) : (Array.isArray(configuracion.marcas) ? configuracion.marcas : []))
+            : (Array.isArray(configuracion.descuentos_escala) ? configuracion.descuentos_escala : []);
+        var reglasMarca = reglasMarcaOrigen.map(function(regla) {
+            return Object.assign({}, regla, { marca_id: Number(usarEscalas ? regla.escala_id : regla.marca_id) });
+        });
+        if (!usarReglasFirmadas) {
+            var clienteExpoId = Number(document.getElementById('seleccionarCliente')?.value || 0);
+            var asistentesExpo = Array.isArray(expoConfig.clientes_asistentes) ? expoConfig.clientes_asistentes.map(Number) : [];
+            reglasMarca = reglasMarca.filter(function(regla) {
+                return !regla.requiere_asistencia || asistentesExpo.includes(clienteExpoId);
+            });
+        }
+        var descuentoEspecial = usarReglasFirmadas
+            ? (configuracion.descuentos_forzados || {
+                descuento_modo: configuracion.descuento_modo || 'automatico',
+                descuento_escalon: configuracion.descuento_escalon || null
+            })
+            : (expoConfig.descuentos_clientes?.[clienteExpoId] || {});
+        var reglasGenerales = usarReglasFirmadas
+            ? (Array.isArray(configuracion.generales) ? configuracion.generales : [])
+            : (Array.isArray(configuracion.descuentos) ? configuracion.descuentos : []);
+        var totalBruto = 0;
+        var importes = {};
+
+        arregloIdInputs.forEach(function(id) {
+            var precio = Number(document.getElementById('precio' + id)?.value || 0);
+            var cantidad = Number(document.getElementById('cantidad' + id)?.value || 0);
+            var unidad = Number(document.getElementById('unidad' + id)?.value || 0);
+            var marcaId = Number(document.getElementById((usarEscalas ? 'escalaExpoId' : 'marcaExpoId') + id)?.value || 0);
+            var marcaProductoId = Number(document.getElementById('marcaExpoId' + id)?.value || 0);
+            var marcaProductoNombre = document.getElementById('marcaExpoNombre' + id)?.value || 'SIN MARCA';
+            var productoNombre = document.getElementById('nombre' + id)?.value || ('Producto #' + id);
+            var lineaId = Number(document.getElementById('lineaExpoOrigenId' + id)?.value
+                || document.getElementById('cotizacionLineaId' + id)?.value || 0);
+            var cantidadOfertada = Number(document.getElementById('cantidadOfertaExpo' + id)?.value || 0);
+            var descuentoFirmado = Number(document.getElementById('descuentoOfertaExpo' + id)?.value || 0);
+            var importe = precio * cantidad * unidad;
+            importes[id] = {
+                precio: precio,
+                cantidad: cantidad,
+                unidad: unidad,
+                marcaId: marcaId,
+                marcaProductoId: marcaProductoId,
+                marcaProductoNombre: marcaProductoNombre,
+                productoNombre: productoNombre,
+                lineaId: lineaId,
+                cantidadOfertada: cantidadOfertada,
+                descuentoFirmado: descuentoFirmado,
+                importe: importe
+            };
+            totalBruto += importe;
+        });
+
+        var escalonesNetos = versionReglas >= 4
+            ? resolverEscalonesNetosExpo(importes, reglasMarca, reglasGenerales, descuentoEspecial)
+            : null;
+        var porcentajeGeneral = escalonesNetos
+            ? escalonesNetos.porcentajeGeneral
+            : porcentajeExpoAlcanzado(totalBruto, reglasGenerales);
+
+        var resultado = { lineas: {}, marcas: {}, totalDescuento: 0, totalBruto: totalBruto, porcentajeGeneral: porcentajeGeneral, tipoGrupo: usarEscalas ? 'escala' : 'marca' };
+        Object.keys(importes).forEach(function(id) {
+            var datos = importes[id];
+            var redondearMoneda = function(valor) { return Math.round((valor + Number.EPSILON) * 100) / 100; };
+            var baseEscalonMarca = versionReglas < 3
+                ? Object.values(importes).filter(function(importe) { return importe.marcaId === datos.marcaId; })
+                    .reduce(function(total, importe) { return total + importe.importe; }, 0)
+                : totalBruto;
+            var reglasDeMarca = reglasMarca.filter(function(regla) {
+                return Number(regla.marca_id) === datos.marcaId;
+            });
+            var baseReglaMarca = escalonesNetos ? escalonesNetos.baseEscalon : baseEscalonMarca;
+            var reglaMarca = reglasDeMarca.filter(function(regla) {
+                return baseReglaMarca + 0.005 >= Number(regla.venta_minima || 0);
+            }).sort(function(a, b) {
+                return Number(b.venta_minima || 0) - Number(a.venta_minima || 0);
+            })[0] || null;
+            var porcentajeMarca = escalonesNetos
+                ? Number(escalonesNetos.porcentajesMarca[datos.marcaId] || 0)
+                : (reglaMarca ? Number(reglaMarca.porcentaje_descuento || 0) : 0);
+            var porcentajeGeneralLinea = porcentajeGeneral;
+            var descuentoMarca = redondearMoneda(datos.importe * porcentajeMarca / 100);
+            var descuentoGeneral = redondearMoneda((datos.importe - descuentoMarca) * porcentajeGeneralLinea / 100);
+            var descuentoTotal = redondearMoneda(descuentoMarca + descuentoGeneral);
+
+            if (usarReglasFirmadas && datos.descuentoFirmado > 0) {
+                var proporcionCantidad = datos.cantidadOfertada > 0
+                    ? Math.min(Math.max(datos.cantidad / datos.cantidadOfertada, 0), 1)
+                    : 0;
+                descuentoTotal = redondearMoneda(datos.descuentoFirmado * proporcionCantidad);
+
+                var atribucion = atribucionesDescuentoExpo[datos.lineaId] || {};
+                var proporcionMarca = Math.min(Math.max(Number(atribucion.proporcion_marca || 0), 0), 1);
+                descuentoMarca = redondearMoneda(descuentoTotal * proporcionMarca);
+                descuentoGeneral = redondearMoneda(descuentoTotal - descuentoMarca);
+                porcentajeMarca = datos.importe > 0 ? descuentoMarca * 100 / datos.importe : 0;
+                porcentajeGeneralLinea = datos.importe - descuentoMarca > 0
+                    ? descuentoGeneral * 100 / (datos.importe - descuentoMarca)
+                    : 0;
+            }
+            var subtotalNeto = redondearMoneda(datos.importe - descuentoTotal);
+            var porcentajeIsv = tipoFacturaConfig && !tipoFacturaConfig.aplica_isv
+                ? 0
+                : Number(document.getElementById('isv' + id)?.value || 0);
+            var isv = redondearMoneda(subtotalNeto * porcentajeIsv / 100);
+            var nombreMarca = usarEscalas
+                ? (reglaMarca?.escala || (datos.marcaId ? 'Escala ' + datos.marcaId : 'SIN ESCALA'))
+                : (document.getElementById('marcaExpoNombre' + id)?.value
+                    || reglaMarca?.marca || reglaMarca?.marca_nombre || (datos.marcaId ? 'Marca ' + datos.marcaId : 'SIN MARCA'));
+
+            resultado.lineas[id] = {
+                porcentajeMarca: porcentajeMarca,
+                porcentajeGeneral: porcentajeGeneralLinea,
+                descuentoMarca: descuentoMarca,
+                descuentoGeneral: descuentoGeneral,
+                descuentoTotal: descuentoTotal,
+                subtotalNeto: subtotalNeto,
+                isv: isv,
+                total: redondearMoneda(subtotalNeto + isv)
+            };
+            var grupoId = usarEscalas ? datos.marcaProductoId + '|' + datos.marcaId : String(datos.marcaId);
+            if (!resultado.marcas[grupoId]) {
+                resultado.marcas[grupoId] = {
+                    nombre: nombreMarca,
+                    marcaNombre: datos.marcaProductoNombre,
+                    escalaNombre: usarEscalas ? nombreMarca : '',
+                    porcentajeMarca: porcentajeMarca,
+                    porcentajeGeneral: porcentajeGeneralLinea,
+                    cantidad: 0,
+                    subtotal: 0,
+                    descuentoMarca: 0,
+                    descuentoGeneral: 0,
+                    descuentoTotal: 0,
+                    productos: []
+                };
+            }
+            var marca = resultado.marcas[grupoId];
+            marca.cantidad += datos.cantidad * datos.unidad;
+            marca.subtotal += datos.importe;
+            marca.descuentoMarca += descuentoMarca;
+            marca.descuentoGeneral += descuentoGeneral;
+            marca.descuentoTotal += descuentoTotal;
+            marca.productos.push({
+                nombre: datos.productoNombre,
+                cantidad: datos.cantidad * datos.unidad,
+                precio: datos.precio,
+                subtotal: datos.importe,
+                descuentoMarca: descuentoMarca,
+                descuentoGeneral: descuentoGeneral,
+                descuentoTotal: descuentoTotal
+            });
+            resultado.totalDescuento += descuentoTotal;
+        });
+        return resultado;
+    }
+
+    function renderizarResumenDescuentoExpo(calculo) {
+        var contenedor = document.getElementById('descuentoExpoResumenMarcas');
+        if (!contenedor || !calculo) return;
+        var todasLasMarcas = Object.values(calculo.marcas).filter(function(marca) { return marca.subtotal > 0; });
+        var marcas = todasLasMarcas.filter(function(marca) { return marca.descuentoMarca > 0.005; });
+        var filasMarca = marcas.map(function(marca) {
+            return '<div class="d-flex justify-content-between" style="gap:12px; color:#546e7a;">'
+                + '<span>' + $('<div>').text(calculo.tipoGrupo === 'escala'
+                    ? marca.marcaNombre + ' - ' + marca.escalaNombre
+                    : marca.nombre).html()
+                + ' <strong>(' + Number(marca.porcentajeMarca || 0).toFixed(2) + '%)</strong>'
+                + ' - Cantidad de Prod = ' + Number(marca.cantidad).toLocaleString('es-HN', { maximumFractionDigits: 2 }) + '</span>'
+                + '<strong>' + formatoMoneda(marca.descuentoMarca) + '</strong></div>';
+        }).join('');
+        var totalGeneral = todasLasMarcas.reduce(function(total, marca) { return total + marca.descuentoGeneral; }, 0);
+        var filaGeneral = totalGeneral > 0.005
+            ? '<div class="d-flex justify-content-between" style="gap:12px; color:#546e7a;">'
+                + '<span>Descuento general <strong>(' + Number(calculo.porcentajeGeneral || 0).toFixed(2) + '%)</strong></span>'
+                + '<strong>' + formatoMoneda(totalGeneral) + '</strong></div>'
+            : '';
+        contenedor.innerHTML = filasMarca + filaGeneral;
+    }
+
+    function abrirResumenMarcasCarritoExpo() {
+        var calculo = calcularDescuentosCarritoExpo();
+        var contenido = document.getElementById('resumenMarcasCarritoExpoContenido');
+        var buscador = document.getElementById('buscarProductoResumenMarcasExpo');
+        if (!contenido || !calculo) return;
+        if (buscador) buscador.value = '';
+        var marcas = Object.values(calculo.marcas).filter(function(marca) { return marca.subtotal > 0; });
+        if (marcas.length === 0) {
+            contenido.innerHTML = '<div class="text-center text-muted py-4">No hay productos en el carrito.</div>';
+        } else {
+            var escapar = function(valor) { return $('<div>').text(valor == null ? '' : String(valor)).html(); };
+            var normalizarBusqueda = function(valor) {
+                return String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+            };
+            var grupos = marcas.map(function(marca, indice) {
+                var etiqueta = calculo.tipoGrupo === 'escala'
+                    ? marca.marcaNombre + ' - ' + marca.escalaNombre
+                    : marca.nombre;
+                var productos = marca.productos.map(function(producto) {
+                    var busqueda = normalizarBusqueda([producto.nombre, etiqueta].join(' '));
+                    return '<tr class="producto-resumen-marca-expo" data-busqueda="' + escapar(busqueda).replace(/"/g, '&quot;') + '">'
+                        + '<td>' + escapar(producto.nombre) + '</td>'
+                        + '<td class="text-right">' + Number(producto.cantidad).toLocaleString('es-HN', { maximumFractionDigits: 2 }) + '</td>'
+                        + '<td class="text-right">' + formatoMoneda(producto.precio) + '</td>'
+                        + '<td class="text-right">' + formatoMoneda(producto.subtotal) + '</td>'
+                        + '<td class="text-right">' + formatoMoneda(producto.descuentoMarca) + '</td>'
+                        + '<td class="text-right"><strong class="text-success">' + formatoMoneda(producto.descuentoTotal) + '</strong></td></tr>';
+                }).join('');
+                return '<section class="grupo-resumen-marca-expo mb-3" data-grupo="' + indice + '">'
+                    + '<div class="d-flex flex-wrap justify-content-between align-items-center px-3 py-2" style="gap:8px;background:#e6f1eb;color:#245c46;border:1px solid #cfe0d7;border-radius:6px 6px 0 0;">'
+                    + '<strong>' + escapar(etiqueta) + ' (' + Number(marca.porcentajeMarca || 0).toFixed(2) + '%)</strong>'
+                    + '<span>Cantidad: <strong>' + Number(marca.cantidad).toLocaleString('es-HN', { maximumFractionDigits: 2 }) + '</strong> &nbsp; Subtotal sin descuento: <strong>' + formatoMoneda(marca.subtotal) + '</strong> &nbsp; Descuento: <strong>' + formatoMoneda(marca.descuentoMarca) + '</strong> &nbsp; Subtotal con descuento: <strong>' + formatoMoneda(marca.subtotal - marca.descuentoMarca) + '</strong></span></div>'
+                    + '<div class="table-responsive"><table class="table table-sm table-bordered mb-0" style="background:#fff;font-size:12px;">'
+                    + '<thead><tr><th>Producto</th><th class="text-right">Cantidad</th><th class="text-right">Precio</th><th class="text-right">Subtotal</th><th class="text-right">Desc. escala</th><th class="text-right">Descuento total</th></tr></thead>'
+                    + '<tbody>' + productos + '</tbody></table></div></section>';
+            }).join('');
+            contenido.innerHTML = grupos + '<div id="resumenMarcasExpoSinResultados" class="text-center text-muted py-4 d-none">No se encontraron productos.</div>';
+        }
+        $('#modalResumenMarcasCarritoExpo').modal('show');
+    }
+
+    function filtrarProductosResumenMarcasExpo(valor) {
+        var termino = String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+        var totalVisibles = 0;
+        document.querySelectorAll('.grupo-resumen-marca-expo').forEach(function(grupo) {
+            var visiblesGrupo = 0;
+            grupo.querySelectorAll('.producto-resumen-marca-expo').forEach(function(fila) {
+                var visible = !termino || (fila.getAttribute('data-busqueda') || '').includes(termino);
+                fila.style.display = visible ? '' : 'none';
+                if (visible) visiblesGrupo += 1;
+            });
+            grupo.style.display = visiblesGrupo > 0 ? '' : 'none';
+            totalVisibles += visiblesGrupo;
+        });
+        var vacio = document.getElementById('resumenMarcasExpoSinResultados');
+        if (vacio) vacio.classList.toggle('d-none', totalVisibles > 0);
     }
 
     function actualizarDescuentoExpo() {
@@ -3310,6 +4894,7 @@
     }
 
     function mostrarErrorPrecioBajoEscala(productos) {
+        var referenciaExpo = esFacturacionExpoDesdePrefactura;
         var filas = productos.map(function (p) {
             return '<tr>'
                 + '<td style="padding:4px 8px; text-align:left;">' + p.nombre + '</td>'
@@ -3322,9 +4907,9 @@
             icon: 'error',
             title: 'No se puede facturar',
             width: 560,
-            html: '<p class="text-left">El valor ingresado es <b>menor</b> al precio de la escala seleccionada para uno o más productos:</p>'
-                + '<table class="table table-sm" style="font-size:12px;"><thead><tr><th>Producto</th><th>Escala</th><th>Ingresado</th></tr></thead><tbody>' + filas + '</tbody></table>'
-                + '<p class="text-left mt-2" style="margin-top:10px;">Si necesita facturar con un valor menor al de la escala, debe realizar la factura desde <b>Editar Factura</b> seleccionando el tipo <b>Factura SR</b>.</p>'
+            html: '<p class="text-left">El valor ingresado es <b>menor</b> al precio ' + (referenciaExpo ? 'pactado en la Oferta Expo ganadora' : 'de la escala seleccionada') + ' para uno o más productos:</p>'
+                + '<table class="table table-sm" style="font-size:12px;"><thead><tr><th>Producto</th><th>' + (referenciaExpo ? 'Pactado' : 'Escala') + '</th><th>Ingresado</th></tr></thead><tbody>' + filas + '</tbody></table>'
+                + '<p class="text-left mt-2" style="margin-top:10px;">Si necesita facturar con un valor menor, debe realizar la factura desde <b>Editar Factura</b> seleccionando el tipo <b>Factura SR</b>.</p>'
         });
     }
 
@@ -3644,7 +5229,8 @@
     var _revisionFlujoId   = null;
 
     function limpiarFormularioVenta(data) {
-        document.getElementById('bloqueImagenes').innerHTML = '';
+        var bloqueImagenes = document.getElementById('bloqueImagenes');
+        if (bloqueImagenes) bloqueImagenes.innerHTML = '';
         var carritoTbodyEl = document.getElementById('carritoTbody');
         if (carritoTbodyEl) carritoTbodyEl.innerHTML = '';
         document.getElementById("crear_venta").reset();
@@ -3665,12 +5251,17 @@
         if (selectOrden) selectOrden.innerHTML = '<option value="" selected disabled>--Seleccionar--</option>';
 
         // Producto
-        document.getElementById('seleccionarProducto').innerHTML = '<option value="" selected disabled></option>';
-        document.getElementById('codigoProductoBuscar').value = '';
+        var seleccionarProducto = document.getElementById('seleccionarProducto');
+        if (seleccionarProducto) seleccionarProducto.innerHTML = '<option value="" selected disabled></option>';
+        var codigoProductoBuscar = document.getElementById('codigoProductoBuscar');
+        if (codigoProductoBuscar) codigoProductoBuscar.value = '';
         var lblProd = document.getElementById('productoSeleccionadoLabel');
         if (lblProd) { lblProd.classList.add('d-none'); lblProd.textContent = ''; }
-        document.getElementById('bodega').innerHTML = '<option value="" selected disabled>--Seleccione un producto--</option>';
-        document.getElementById("bodega").disabled = true;
+        var bodega = document.getElementById('bodega');
+        if (bodega) {
+            bodega.innerHTML = '<option value="" selected disabled>--Seleccione un producto--</option>';
+            bodega.disabled = true;
+        }
         var botonAddEl = document.getElementById('botonAdd');
         if (botonAddEl) botonAddEl.classList.add('d-none');
 
@@ -3732,7 +5323,13 @@
         var idPedido  = _ofertaPedidoId;
         var idFlujo   = _ofertaFlujoId;
 
-        if (tipo === 'nueva') {
+        if (tipo === 'continuar') {
+            $('#modalExitoOferta').modal('hide');
+            document.getElementById("btn_venta_coorporativa").disabled = false;
+            programarGuardadoTemporal();
+            return;
+
+        } else if (tipo === 'nueva') {
             $('#modalExitoOferta').modal('hide');
             // Recargar la página para restaurar los datos del pedido vinculado
             window.location.reload();
@@ -4143,6 +5740,13 @@
 
     $(document).on('submit', '#crear_venta', function(event) {
         event.preventDefault();
+        if (expoConfig && !cambiosPrecioExpoConfirmados) {
+            var cambiosPrecioExpo = obtenerCambiosPrecioExpo();
+            if (cambiosPrecioExpo.length > 0) {
+                mostrarAdvertenciaCambiosPrecioExpo(cambiosPrecioExpo);
+                return;
+            }
+        }
         // 0. Facturas con restricción (no Oferta, no Factura SR): bloquear si algún precio
         //    ingresado quedó por debajo del precio de la escala seleccionada.
         if (codigoActual !== 'cotizacion_clientes_a' && !(tipoFacturaConfig && tipoFacturaConfig.multiples_precios)) {
@@ -4152,7 +5756,7 @@
                 return;
             }
         }
-        // 1. Para facturas (no cotizaciones): mostrar modal de gestor de entrega primero
+        // 1. Toda factura debe confirmar sus actores antes de guardar.
         if (codigoActual !== 'cotizacion_clientes_a') {
             var gestorHidden = document.getElementById('gestor_entrega_hidden');
             if (!gestorHidden || !gestorHidden.getAttribute('data-confirmed')) {
@@ -4171,6 +5775,60 @@
         guardarVenta();
     });
 
+    function obtenerCambiosPrecioExpo() {
+        return arregloIdInputs.map(function(indice) {
+            var precioActual = Number(document.getElementById('precio' + indice)?.value || 0);
+            var selectorPrecio = document.getElementById('precios' + indice);
+            var precioNuevo = Number(selectorPrecio?.value
+                || document.getElementById('precio' + indice)?.getAttribute('data-precio-escala')
+                || precioActual);
+            if (Math.abs(precioActual - precioNuevo) <= 0.005) return null;
+
+            return {
+                producto: document.getElementById('nombre' + indice)?.value || ('Producto #' + indice),
+                precio_actual: precioActual,
+                precio_nuevo: precioNuevo
+            };
+        }).filter(Boolean);
+    }
+
+    function mostrarAdvertenciaCambiosPrecioExpo(cambios) {
+        var escapar = function(valor) { return $('<div>').text(valor == null ? '' : String(valor)).html(); };
+        var moneda = function(valor) {
+            return 'L ' + Number(valor || 0).toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        };
+        var filas = cambios.map(function(cambio) {
+            return '<tr style="border-top:1px solid #eceff1;">'
+                + '<td style="padding:8px;text-align:left;">' + escapar(cambio.producto) + '</td>'
+                + '<td style="padding:8px;text-align:right;white-space:nowrap;">' + moneda(cambio.precio_actual) + '</td>'
+                + '<td style="padding:8px;text-align:right;white-space:nowrap;color:#2e7d32;font-weight:700;">' + moneda(cambio.precio_nuevo) + '</td>'
+                + '</tr>';
+        }).join('');
+
+        Swal.fire({
+            icon: 'warning',
+            title: 'Se detectaron cambios de precio',
+            width: 820,
+            html: '<p style="color:#546e7a;font-size:13px;text-align:left;">Los siguientes productos tendrán cambios en su precio al guardar esta oferta de Expo. ¿Desea continuar?</p>'
+                + '<div style="max-height:320px;overflow:auto;border:1px solid #e0e0e0;border-radius:7px;">'
+                + '<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="background:#f5f7f8;color:#546e7a;">'
+                + '<th style="padding:8px;text-align:left;">Producto</th><th style="padding:8px;text-align:right;">Precio actual</th><th style="padding:8px;text-align:right;">Nuevo precio</th>'
+                + '</tr></thead><tbody>' + filas + '</tbody></table></div>',
+            showCancelButton: true,
+            cancelButtonText: 'Cancelar',
+            confirmButtonText: 'Guardar Oferta',
+            confirmButtonColor: '#00897b'
+        }).then(function(result) {
+            if (!result.isConfirmed) {
+                cambiosPrecioExpoConfirmados = false;
+                document.getElementById('btn_venta_coorporativa').disabled = false;
+                return;
+            }
+            cambiosPrecioExpoConfirmados = true;
+            guardarVenta();
+        });
+    }
+
     function mostrarModalSrAutorizacion() {
         var tbody = document.getElementById('srTableBody');
         if (!tbody) return;
@@ -4182,9 +5840,10 @@
             var precioSelectEl = document.getElementById('precios' + idx);
             var precioUnitEl = document.getElementById('precio' + idx);
             var nombre = nombreEl ? nombreEl.value : '—';
-            var precioOpc = precioSelectEl ? parseFloat(precioSelectEl.value) || 0 : 0;
+            var precioOpc = precioUnitEl ? parseFloat(precioUnitEl.getAttribute('data-precio-escala')) : NaN;
+            if (isNaN(precioOpc)) precioOpc = precioSelectEl ? parseFloat(precioSelectEl.value) || 0 : 0;
             var precioUnitario = precioUnitEl ? parseFloat(precioUnitEl.value) || 0 : 0;
-            var esBajo = precioUnitario < precioOpc;
+            var esBajo = precioUnitario < precioOpc - 0.0001;
             // Solo agregar al arreglo y mostrar en tabla si el precio está por debajo del OPC
             if (!esBajo) continue;
             productosSR.push({ nombre: nombre, precioOpc: precioOpc, precioUnitario: precioUnitario });
@@ -4200,7 +5859,6 @@
     }
 
     function mostrarModalGestorEntrega() {
-        var urlVendedores = urls.vendedores;
         var clienteId = $('#seleccionarCliente').val();
         var teleHidden = document.getElementById('tele_asesor_hidden');
         var teleIdActual = teleHidden && teleHidden.value ? teleHidden.value : '{{ Auth::id() }}';
@@ -4209,9 +5867,9 @@
             $('#gestor_entrega_modal').select2({
                 dropdownParent: $('#modal_gestor_entrega'),
                 ajax: {
-                    url: urlVendedores,
+                    url: '/cotizacion/gestores-entrega',
                     data: function(params) {
-                        return { search: params.term, type: 'public', page: params.page || 1 };
+                        return { search: params.term || '' };
                     }
                 },
                 allowClear: true,
@@ -4277,7 +5935,80 @@
         $('#modal_gestor_entrega').modal('hide');
     });
 
+    function confirmarAjustesEscalaAlGuardar(ajustes) {
+        ajustes = ajustes.filter(function(ajuste) { return ajuste.accion === 'cargar'; });
+        var escapar = function(valor) {
+            return $('<div>').text(valor == null ? '' : String(valor)).html();
+        };
+        var moneda = function(valor) {
+            return Number(valor || 0).toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        };
+        var filas = ajustes.map(function(ajuste) {
+            return '<tr style="border-top:1px solid #eceff1;">'
+                + '<td style="padding:7px 8px;text-align:left;color:#37474f;">' + escapar(ajuste.producto) + '</td>'
+                + '<td style="padding:7px 8px;text-align:left;color:#607d8b;">' + escapar(ajuste.categoria_anterior) + '</td>'
+                + '<td style="padding:7px 8px;text-align:left;color:#2e7d32;font-weight:700;">' + escapar(ajuste.categoria) + '</td>'
+                + '<td style="padding:7px 8px;text-align:right;white-space:nowrap;">L ' + moneda(ajuste.precio_anterior) + '</td>'
+                + '<td style="padding:7px 8px;text-align:right;white-space:nowrap;color:#2e7d32;font-weight:700;">L ' + moneda(ajuste.precio_nuevo) + '</td>'
+                + '</tr>';
+        }).join('');
+
+        return Swal.fire({
+            icon: 'warning',
+            title: 'Se detectaron cambios de precio',
+            width: 880,
+            html: '<p style="color:#546e7a;font-size:13px;text-align:left;margin-bottom:10px;">'
+                + 'Los siguientes productos tendrán cambios en su precio al guardar esta oferta de Expo. ¿Desea continuar?</p>'
+                + '<div style="max-height:300px;overflow:auto;border:1px solid #e0e0e0;border-radius:7px;">'
+                + '<table style="width:100%;border-collapse:collapse;font-size:12px;">'
+                + '<thead><tr style="background:#f5f7f8;color:#546e7a;">'
+                + '<th style="padding:7px 8px;text-align:left;">Producto</th>'
+                + '<th style="padding:7px 8px;text-align:left;">Escala anterior</th>'
+                + '<th style="padding:7px 8px;text-align:left;">Escala vigente</th>'
+                + '<th style="padding:7px 8px;text-align:right;">Precio anterior</th>'
+                + '<th style="padding:7px 8px;text-align:right;">Precio vigente</th>'
+                + '</tr></thead><tbody>' + filas + '</tbody></table></div>',
+            showCancelButton: true,
+            cancelButtonText: 'Cancelar',
+            confirmButtonText: 'Guardar Oferta',
+            confirmButtonColor: '#00897b'
+        }).then(function(result) {
+            if (!result.isConfirmed) {
+                cambiosPrecioExpoConfirmados = false;
+                document.getElementById('btn_venta_coorporativa').disabled = false;
+                return;
+            }
+
+            ajustes.forEach(function(ajuste) {
+                var indice = Number(ajuste.indice);
+                var precio = document.getElementById('precio' + indice);
+                var selector = document.getElementById('precios' + indice);
+                var precioCarga = document.getElementById('precios_producto_carga_id' + indice);
+                if (precioCarga) precioCarga.value = ajuste.precio_carga_id;
+                if (selector) {
+                    selector.innerHTML = '<option value="' + Number(ajuste.precio_nuevo).toFixed(2)
+                        + '" data-id="p1" selected>' + Number(ajuste.precio_nuevo).toFixed(2)
+                        + ' - ' + escapar(ajuste.categoria) + '</option>';
+                }
+                if (precio) {
+                    precio.value = Number(ajuste.precio_nuevo).toFixed(2);
+                    precio.setAttribute('data-precio-escala', precio.value);
+                    precio.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+            });
+            totalesGenerales();
+            cambiosPrecioExpoConfirmados = true;
+            guardarVenta();
+        });
+    }
+
     function guardarVenta() {
+        var ultimaFactura = document.getElementById('ultima_factura');
+        var motivoCierre = document.getElementById('motivo_cierre');
+        if (ultimaFactura && ultimaFactura.checked && (!motivoCierre || !motivoCierre.value.trim())) {
+            Swal.fire({ icon: 'warning', title: 'Motivo requerido', text: 'Indique por qué el cliente no comprará las cantidades restantes.' });
+            return;
+        }
         document.getElementById("btn_venta_coorporativa").disabled = true;
 
         var data = new FormData($('#crear_venta').get(0));
@@ -4346,6 +6077,12 @@
             .then(response => {
                 let data = response.data;
 
+                if (data.requiere_ajuste_escala) {
+                    confirmarAjustesEscalaAlGuardar(data.ajustes_escala || []);
+                    return;
+                }
+                cambiosPrecioExpoConfirmados = false;
+
                 // Para tipos con código de autorización
                 if (tipoFacturaConfig && tipoFacturaConfig.requiere_codigo_autorizacion) {
                     idAutorizacion = document.getElementById('codigo_autorizacion').value;
@@ -4369,9 +6106,25 @@
                     _ofertaPedidoId   = data.pedidoId  || null;
                     _ofertaFlujoId    = data.flujoId   || null;
                     var msgEl = document.getElementById('msgNumOferta');
-                    if (msgEl) msgEl.textContent = 'Oferta #' + data.idFactura + ' registrada exitosamente.';
-                    eliminarVentaTemporal();
-                    limpiarFormularioVenta(data);
+                    if (msgEl) msgEl.textContent = 'Oferta #' + data.idFactura + (data.actualizada ? ' actualizada exitosamente.' : ' registrada exitosamente.');
+                    if (expoConfig) {
+                        var ofertaContinuar = document.getElementById('oferta_id_continuar');
+                        if (ofertaContinuar) ofertaContinuar.value = data.idFactura;
+                        esContinuandoOfertaExpo = true;
+                        var numeroOferta = document.getElementById('numero_venta');
+                        if (numeroOferta) numeroOferta.value = data.idFactura;
+                        var urlContinuar = new URL(window.location.href);
+                        urlContinuar.searchParams.delete('duplicar');
+                        urlContinuar.searchParams.set('continuar_expo', '1');
+                        urlContinuar.searchParams.set('expo', expoConfig.id);
+                        urlContinuar.searchParams.set('cotizacionId', data.idFactura);
+                        window.history.replaceState({}, '', urlContinuar.toString());
+                        programarGuardadoTemporal();
+                    } else {
+                        eliminarVentaTemporal();
+                        limpiarFormularioVenta(data);
+                    }
+                    document.getElementById("btn_venta_coorporativa").disabled = false;
                     $('#modalExitoOferta').modal('show');
                     return;
                 }
@@ -4386,10 +6139,14 @@
                 // Se llama siempre: si no hay flujo previo, el backend lo crea automáticamente.
                 var pedidoVinculadoEl = document.getElementById('pedido_vinculado_id');
                 var pedidoIdVal = pedidoVinculadoEl ? (pedidoVinculadoEl.value || 0) : 0;
+                var prefacturaVinculadaEl = document.getElementById('prefactura_vinculada_id');
+                var prefacturaIdVal = prefacturaVinculadaEl ? (prefacturaVinculadaEl.value || 0) : 0;
                 axios.post('/flujo/factura/confirmar', {
                     flujo_id:        flujoIdVal || 0,
                     factura_id:      data.idFactura,
                     pedido_id:       pedidoIdVal,
+                    prefactura_id:   prefacturaIdVal,
+                    expo_parcial:    urlParams.get('expo_parcial') === '1' ? 1 : 0,
                     tipo_factura_id: (tipoFacturaConfig ? tipoFacturaConfig.id : '')
                 }).then(function(res) {
                     if (res.data && res.data.flujoId) {
@@ -4406,23 +6163,152 @@
                 if (msgFacturaEl) msgFacturaEl.textContent = 'Factura #' + data.idFactura + ' registrada exitosamente.';
                 eliminarVentaTemporal();
                 limpiarFormularioVenta(data);
-                $('#modalExitoFactura').modal('show');
+                if (data.liquidacionExpo && ['PENDIENTE_LIQUIDACION', 'LIQUIDADA'].indexOf(data.liquidacionExpo.estado) !== -1) {
+                    mostrarResumenLiquidacionExpo(data.liquidacionExpo).then(function() {
+                        $('#modalExitoFactura').modal('show');
+                    });
+                } else {
+                    $('#modalExitoFactura').modal('show');
+                }
 
                 // Limpiar código de autorización para próxima venta
                 document.getElementById('codigo_autorizacion').value = '';
             })
             .catch(err => {
+                cambiosPrecioExpoConfirmados = false;
                 document.getElementById("btn_venta_coorporativa").disabled = false;
                 var gestorH = document.getElementById('gestor_entrega_hidden');
                 if (gestorH) { gestorH.removeAttribute('data-confirmed'); }
                 let data = err.response ? err.response.data : {};
                 console.error('Error al guardar – status:', err.response ? err.response.status : 'sin respuesta', '| body:', data);
+                if (Array.isArray(data.detalles_descuento_expo)) {
+                    console.group('Detalle de descuentos Expo no permitidos');
+                    console.error('Resumen:', data.resumen_descuento_expo || {});
+                    console.table(data.detalles_descuento_expo);
+                    console.error('Detalle completo:', data.detalles_descuento_expo);
+                    console.groupEnd();
+
+                    var escaparDetalle = function(valor) {
+                        return $('<div>').text(valor == null ? '' : String(valor)).html();
+                    };
+                    var monedaDetalle = function(valor) {
+                        return 'L ' + Number(valor || 0).toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    };
+                    var filasDetalle = data.detalles_descuento_expo.map(function(detalle) {
+                        return '<tr style="border-top:1px solid #eceff1;">'
+                            + '<td style="padding:7px 8px;text-align:left;">' + escaparDetalle(detalle.producto) + '<small style="display:block;color:#78909c;">' + escaparDetalle(detalle.escala || detalle.marca) + '</small></td>'
+                            + '<td style="padding:7px 8px;text-align:right;white-space:nowrap;">' + monedaDetalle(detalle.precio_unitario) + '</td>'
+                            + '<td style="padding:7px 8px;text-align:right;white-space:nowrap;">' + detalle.cantidad + ' x ' + detalle.unidad + '</td>'
+                            + '<td style="padding:7px 8px;text-align:right;white-space:nowrap;">' + monedaDetalle(detalle.descuento_enviado) + '</td>'
+                            + '<td style="padding:7px 8px;text-align:right;white-space:nowrap;color:#2e7d32;">' + monedaDetalle(detalle.descuento_maximo_permitido) + '</td>'
+                            + '<td style="padding:7px 8px;text-align:right;white-space:nowrap;color:#c62828;font-weight:700;">' + monedaDetalle(detalle.exceso) + '</td>'
+                            + '</tr>';
+                    }).join('');
+                    var resumen = data.resumen_descuento_expo || {};
+                    Swal.fire({
+                        icon: 'error',
+                        title: data.title || 'Descuento Expo no permitido',
+                        width: 960,
+                        html: '<p style="color:#546e7a;font-size:13px;text-align:left;">' + escaparDetalle(data.text) + '</p>'
+                            + '<p style="color:#607d8b;font-size:12px;text-align:left;">Subtotal bruto: <strong>' + monedaDetalle(resumen.subtotal_bruto) + '</strong> · Subtotal neto permitido: <strong>' + monedaDetalle(resumen.subtotal_neto_permitido) + '</strong></p>'
+                            + '<div style="max-height:320px;overflow:auto;border:1px solid #e0e0e0;border-radius:7px;">'
+                            + '<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="background:#f5f7f8;color:#546e7a;">'
+                            + '<th style="padding:7px 8px;text-align:left;">Producto / escala</th><th style="padding:7px 8px;text-align:right;">Precio</th>'
+                            + '<th style="padding:7px 8px;text-align:right;">Cantidad</th><th style="padding:7px 8px;text-align:right;">Descuento enviado</th>'
+                            + '<th style="padding:7px 8px;text-align:right;">Máximo permitido</th><th style="padding:7px 8px;text-align:right;">Exceso</th>'
+                            + '</tr></thead><tbody>' + filasDetalle + '</tbody></table></div>',
+                        confirmButtonText: 'Entendido'
+                    });
+                    return;
+                }
                 let msg = data.text || data.mensaje || data.message || 'Error al guardar';
                 if (data.errors) {
                     msg = Object.values(data.errors).flat().join('<br>');
                 }
                 Swal.fire({ icon: data.icon || 'error', title: data.title || 'Error', html: msg });
             });
+    }
+
+    function mostrarResumenLiquidacionExpo(resumen) {
+        var etiquetaGrupo = resumen.tipo_descuento === 'escala' ? 'escala' : 'marca';
+        var moneda = function(valor) {
+            return 'L ' + Number(valor || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        };
+        var escapar = function(valor) {
+            return $('<div>').text(valor == null ? '' : String(valor)).html();
+        };
+        var facturas = (resumen.facturas || []).map(function(factura) {
+            return '<tr><td>#' + factura.id + '</td><td>' + escapar(factura.numero) + '</td><td class="text-right">' + moneda(factura.subtotal_bruto) + '</td><td class="text-right">' + moneda(factura.total) + '</td></tr>';
+        }).join('');
+        var marcas = (resumen.descuentos_marca || []).map(function(regla) {
+            return '<tr><td>' + escapar(regla.marca) + '</td><td class="text-right">' + Number(regla.porcentaje_descuento || 0).toFixed(2) + '%</td></tr>';
+        }).join('');
+        var pendientes = (resumen.lineas_pendientes || []).map(function(linea) {
+            return '<tr><td>#' + linea.linea_id + '</td><td>' + escapar(linea.producto) + '</td><td class="text-right">' + Number(linea.cantidad_facturada || 0).toFixed(2) + '</td><td class="text-right">' + Number(linea.cantidad_pendiente || 0).toFixed(2) + '</td></tr>';
+        }).join('');
+        var aplicaciones = (resumen.aumentos_realizados || []).map(function(aplicacion) {
+            return '<tr><td>' + escapar(aplicacion.factura || ('#' + aplicacion.factura_id)) + '</td><td class="text-right">' + moneda(aplicacion.monto) + '</td></tr>';
+        }).join('');
+        var requiereConfirmacion = resumen.estado === 'PENDIENTE_LIQUIDACION';
+        var alerta = requiereConfirmacion
+            ? '<div class="expo-liquidacion-estado info"><i class="fa fa-info-circle"></i><span>Este cierre pendiente aplicará el aumento mediante otros movimientos.</span></div>'
+            : '<div class="expo-liquidacion-estado"><i class="fa fa-check-circle"></i><span>Oferta liquidada. El aumento correspondiente fue aplicado.</span></div>';
+        var metrica = function(etiqueta, valor, destacada) {
+            return '<div class="expo-liquidacion-metrica' + (destacada ? ' destacada' : '') + '"><span title="' + escapar(etiqueta) + '">' + escapar(etiqueta) + '</span><strong>' + valor + '</strong></div>';
+        };
+        var tabla = function(titulo, encabezado, filas, completa) {
+            if (!filas) return '';
+            return '<section class="expo-liquidacion-seccion' + (completa ? ' completa' : '') + '"><h3 class="expo-liquidacion-titulo">' + escapar(titulo) + '</h3><div class="expo-liquidacion-tabla-contenedor"><table class="expo-liquidacion-tabla"><thead>' + encabezado + '</thead><tbody>' + filas + '</tbody></table></div></section>';
+        };
+        return Swal.fire({
+            icon: resumen.estado === 'LIQUIDADA' ? 'success' : 'warning',
+            title: 'Liquidación final de la Oferta Expo',
+            position: 'center',
+            customClass: {
+                container: 'liquidacion-expo-container',
+                popup: 'liquidacion-expo-popup'
+            },
+            confirmButtonText: requiereConfirmacion ? 'Aplicar aumento' : 'Continuar',
+            showCancelButton: requiereConfirmacion,
+            cancelButtonText: 'Más tarde',
+            showLoaderOnConfirm: requiereConfirmacion,
+            allowOutsideClick: function() { return !Swal.isLoading(); },
+            preConfirm: requiereConfirmacion ? function() {
+                return axios.post('/expo/liquidacion/confirmar', {
+                    cotizacion_id: resumen.cotizacion_id,
+                    flujo_id: resumen.flujo_id
+                }, {
+                    headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') }
+                }).then(function(response) {
+                    return response.data.liquidacionExpo;
+                }).catch(function(error) {
+                    var data = error.response ? error.response.data : {};
+                    Swal.showValidationMessage(escapar(data.text || data.message || 'No se pudo aplicar el aumento.'));
+                    return false;
+                });
+            } : undefined,
+            html: alerta
+                + '<div class="expo-liquidacion-metricas">'
+                + metrica('Total original', moneda(resumen.total_oferta))
+                + metrica('Subtotal facturado', moneda(resumen.total_facturado))
+                + metrica('Aumento aplicado', moneda(resumen.aumento_calculado), Number(resumen.aumento_calculado || 0) > 0)
+                + metrica('Descuento por ' + etiquetaGrupo, moneda(resumen.descuento_marca_total))
+                + metrica('Base general', moneda(resumen.base_general))
+                + metrica('Descuento general', Number(resumen.porcentaje_descuento || 0).toFixed(2) + '% · ' + moneda(resumen.descuento_general))
+                + metrica('Descuento otorgado', moneda(resumen.descuento_otorgado))
+                + metrica('Descuento ganado', moneda(resumen.descuento_ganado))
+                + '</div><div class="expo-liquidacion-grid">'
+                + tabla('Facturas', '<tr><th>ID</th><th>Factura</th><th class="text-right">Subtotal</th><th class="text-right">Total</th></tr>', facturas)
+                + tabla('Escalón por ' + etiquetaGrupo, '<tr><th>' + (etiquetaGrupo === 'escala' ? 'Escala' : 'Marca') + '</th><th class="text-right">%</th></tr>', marcas)
+                + tabla('Productos no facturados', '<tr><th>Línea</th><th>Producto</th><th class="text-right">Facturado</th><th class="text-right">Pendiente</th></tr>', pendientes, true)
+                + tabla('Aumentos realizados', '<tr><th>Factura</th><th class="text-right">Monto</th></tr>', aplicaciones, true)
+                + '</div>'
+        }).then(function(result) {
+            if (requiereConfirmacion && result.isConfirmed && result.value) {
+                return mostrarResumenLiquidacionExpo(result.value);
+            }
+            return result;
+        });
     }
 
     function obtenerCategoriasClientes() {
@@ -4490,10 +6376,51 @@
     @push('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            var productosConCambioEscala = @json($errorEscalaDuplicado);
+            var escaparDetalleEscala = function(valor) {
+                var elemento = document.createElement('div');
+                elemento.textContent = valor == null ? '' : String(valor);
+                return elemento.innerHTML;
+            };
+            var filasCambioEscala = productosConCambioEscala.map(function(producto) {
+                var precioAnterior = Number(producto.precio_anterior || 0).toLocaleString('es-HN', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+                var seCarga = producto.accion === 'cargar';
+                var precioNuevo = seCarga
+                    ? 'L ' + Number(producto.precio_nuevo || 0).toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                    : 'No disponible';
+                var accion = seCarga
+                    ? '<strong style="color:#2e7d32;">Se cargará</strong><small style="display:block;color:#607d8b;">con el nuevo precio</small>'
+                    : '<strong style="color:#c62828;">Se eliminará</strong><small style="display:block;color:#607d8b;">no tiene escala vigente</small>';
+                return '<tr style="border-top:1px solid #eceff1;">'
+                    + '<td style="padding:7px 8px;text-align:left;color:#37474f;">' + escaparDetalleEscala(producto.producto) + '</td>'
+                    + '<td style="padding:7px 8px;text-align:right;white-space:nowrap;color:#455a64;">L ' + precioAnterior + '</td>'
+                    + '<td style="padding:7px 8px;text-align:right;white-space:nowrap;color:' + (seCarga ? '#2e7d32' : '#c62828') + ';">' + precioNuevo + '</td>'
+                    + '<td style="padding:7px 8px;text-align:left;">' + accion + '</td>'
+                    + '</tr>';
+            }).join('');
+            var totalCargar = productosConCambioEscala.filter(function(producto) { return producto.accion === 'cargar'; }).length;
+            var totalEliminar = productosConCambioEscala.length - totalCargar;
             Swal.fire({
-                icon: 'error',
-                title: 'Escala no disponible',
-                text: @json($errorEscalaDuplicado)
+                icon: 'warning',
+                title: 'Los precios vigentes aumentaron',
+                width: 860,
+                html: '<p style="color:#546e7a;font-size:13px;text-align:left;margin-bottom:10px;">'
+                    + '<strong>' + totalCargar + ' producto(s)</strong> cuyo precio aumentó se cargarán con el nuevo valor y '
+                    + '<strong>' + totalEliminar + ' producto(s)</strong> se eliminarán por no tener escala vigente. '
+                    + 'Los demás productos se cargarán sin cambios.</p>'
+                    + '<div style="max-height:280px;overflow:auto;border:1px solid #e0e0e0;border-radius:7px;">'
+                    + '<table style="width:100%;border-collapse:collapse;font-size:12px;">'
+                    + '<thead><tr style="background:#f5f7f8;color:#546e7a;">'
+                    + '<th style="padding:7px 8px;text-align:left;">Producto</th>'
+                    + '<th style="padding:7px 8px;text-align:right;">Precio anterior</th>'
+                    + '<th style="padding:7px 8px;text-align:right;">Precio nuevo</th>'
+                    + '<th style="padding:7px 8px;text-align:left;">Resultado</th>'
+                    + '</tr></thead><tbody>' + filasCambioEscala + '</tbody></table></div>',
+                confirmButtonText: 'Entendido, continuar',
+                confirmButtonColor: '#00897b'
             });
         });
     </script>
@@ -4506,31 +6433,108 @@
     <script>
     (function () {
         var _productosAutoAgregados = false;
-        var _modoPrefactura = {!! $fromPrefactura ? 'true' : 'false' !!};
+        var _modoPrefactura = {!! ($fromPrefactura && !$esOfertaExpo) ? 'true' : 'false' !!};
+        var _modoContinuacionExpo = {!! $continuandoOfertaExpo ? 'true' : 'false' !!};
+        var _seleccionExpo = {!! (!$duplicandoOferta && !$continuandoOfertaExpo && $esOfertaExpo && (!$fromPrefactura || request()->boolean('expo_parcial'))) ? 'true' : 'false' !!};
+        var _productosDisponibles = @json($productosParaCarrito);
+        var _cargaInicialEnLote = false;
+        var _carritoCargaInicial = null;
+
+        function mostrarCargaOferta() {
+            if (!esDuplicandoOferta && !esContinuandoOfertaExpo) return;
+            var cargando = document.getElementById('cargandoTemporales');
+            document.documentElement.classList.remove('temporales-cargados');
+            if (!cargando) return;
+            cargando.style.display = 'flex';
+            cargando.setAttribute('aria-label', 'Cargando oferta');
+            var texto = cargando.querySelector('span');
+            if (texto) texto.textContent = 'Cargando oferta...';
+        }
+
+        function ocultarCargaOferta() {
+            if (!esDuplicandoOferta && !esContinuandoOfertaExpo) return;
+            ocultarCargaTemporales();
+        }
+
+        function carritoDestinoCargaInicial() {
+            return _cargaInicialEnLote && _carritoCargaInicial
+                ? _carritoCargaInicial
+                : document.getElementById('carritoTbody');
+        }
 
         function cargarProductosIniciales() {
             if (_productosAutoAgregados) return;
+            if (_seleccionExpo) return;
+            if (ventaTemporalId) return;
             _productosAutoAgregados = true;
+            ventaTemporalRestaurando = true;
 
-            var productos = @json($productosParaCarrito);
-            if (!productos || productos.length === 0) return;
+            var productos = _productosDisponibles;
+            if (!productos || productos.length === 0) {
+                ventaTemporalRestaurando = false;
+                ocultarCargaOferta();
+                return;
+            }
 
-            var chain = Promise.resolve();
-            productos.forEach(function (prod) {
-                chain = chain.then(function () {
-                    return _modoPrefactura ? agregarProductoDesdePrefactura(prod) : agregarProductoDesdeOferta(prod);
-                });
-            });
-            chain.then(function () {
+            mostrarCargaOferta();
+            _cargaInicialEnLote = true;
+            _carritoCargaInicial = document.createElement('tbody');
+            var esCargaDuplicadoNormal = esDuplicandoOferta && !esOfertaExpo && !_modoPrefactura;
+            var primerIndiceDuplicadoNormal = numeroInputs;
+            if (esCargaDuplicadoNormal) numeroInputs += productos.length;
+            var cargaProductos = Promise.all(productos.map(function (prod, posicion) {
+                if (_modoPrefactura || _modoContinuacionExpo) {
+                    return agregarProductoDesdePrefactura(prod);
+                }
+                return agregarProductoDesdeOferta(
+                    prod,
+                    esCargaDuplicadoNormal ? primerIndiceDuplicadoNormal + posicion + 1 : null
+                );
+            }));
+
+            cargaProductos.then(function () {
+                var carrito = document.getElementById('carritoTbody');
+                if (carrito && _carritoCargaInicial) {
+                    if (esCargaDuplicadoNormal) {
+                        Array.from(_carritoCargaInicial.children)
+                            .sort(function (filaA, filaB) { return Number(filaA.id) - Number(filaB.id); })
+                            .forEach(function (fila) { _carritoCargaInicial.appendChild(fila); });
+                        arregloIdInputs.sort(function (indiceA, indiceB) { return indiceA - indiceB; });
+                    }
+                    carrito.insertAdjacentHTML('beforeend', _carritoCargaInicial.innerHTML);
+                }
+                _carritoCargaInicial = null;
+                normalizarFilasCarritoExpo();
+                calcularTotalesInicioPagina();
+                actualizarContadorCarrito();
+                if (esContinuandoOfertaExpo && arregloIdInputs.length === lineasOfertaContinuadaEsperadas) {
+                    ofertaContinuadaCargadaCompleta = true;
+                }
+                return actualizarStocksDisponiblesExpo();
+            }).then(function () {
+                _cargaInicialEnLote = false;
+                ventaTemporalRestaurando = false;
+                if (esDuplicandoOferta || esContinuandoOfertaExpo || esEdicionNormalDesdePrefactura) {
+                    ventaTemporalCambiosPendientes = true;
+                    ventaTemporalRevision += 1;
+                    guardarVentaTemporal();
+                }
+                ocultarCargaOferta();
                 Swal.fire({
                     icon: 'success',
                     title: 'Productos cargados',
-                    text: productos.length + ' producto(s) cargado(s) desde ' + (_modoPrefactura ? 'la prefactura vinculada' : 'la oferta duplicada') + '.',
+                    text: productos.length + ' producto(s) cargado(s) desde ' + (_modoPrefactura ? 'la prefactura vinculada' : (esContinuandoOfertaExpo ? 'la oferta Expo' : 'la oferta duplicada')) + '.',
                     timer: 2500,
                     showConfirmButton: false,
                     toast: true,
                     position: 'top-end'
                 });
+            }).catch(function(error) {
+                _cargaInicialEnLote = false;
+                _carritoCargaInicial = null;
+                ventaTemporalRestaurando = false;
+                ocultarCargaOferta();
+                console.error('No se pudieron cargar todos los productos de la oferta:', error);
             });
         }
 
@@ -4540,6 +6544,12 @@
                 var idx = numeroInputs;
 
                 var precioUsar   = parseFloat(prod.precio_unidad || 0);
+                var precioReferencia = _modoPrefactura && parseFloat(prod.precioEscalaVigente || 0) > 0
+                    ? parseFloat(prod.precioEscalaVigente)
+                    : precioUsar;
+                var etiquetaReferencia = _modoPrefactura && prod.escalaVigente
+                    ? 'Escala ' + prod.escalaVigente
+                    : 'Fijo';
                 var cantidadUsar = parseFloat(prod.cantidad || 0);
                 var subTotalUsar = parseFloat(prod.sub_total || 0);
                 var isvUsar      = parseFloat(prod.isv || 0);
@@ -4556,9 +6566,11 @@
                 if (esSinExistencia) {
                     bodegaTexto = 'SIN EXISTENCIA';
                 }
-                var idBodega     = esSinExistencia ? '' : (prod.Bodega_id || '');
+                var idBodega     = esSinExistencia ? '' : (prod.Bodega_id ?? '');
                 var idSeccion    = esSinExistencia ? '' : (prod.seccion_id || '');
                 var idUnidadVenta = prod.unidad_medida_venta_id || '';
+                var unidadValor = parseFloat(prod.unidad_venta || 1);
+                var unidadNombre = prod.unidad_nombre || 'U.';
                 var bodegaBadgeBg = esSinExistencia ? '#ffebee' : '#e3f2fd';
                 var bodegaBadgeColor = esSinExistencia ? '#c62828' : '#1565c0';
                 var bodegaBadgeIcon = esSinExistencia ? 'fa-exclamation-circle' : 'fa-archive';
@@ -4567,6 +6579,12 @@
                 <tr id='${idx}'>
                     <td style="vertical-align:middle; text-align:center; padding:4px 6px;">
                         <input id="idProducto${idx}" name="idProducto${idx}" type="hidden" value="${prod.producto_id || ''}">
+                        <input id="cotizacionLineaId${idx}" name="cotizacionLineaId${idx}" type="hidden" value="${prod.cotizacion_has_producto_id || ''}">
+                        <input id="cantidadOfertaExpo${idx}" type="hidden" value="${prod.cantidad_ofertada || prod.cantidad || 0}">
+                        <input id="descuentoOfertaExpo${idx}" type="hidden" value="${prod.monto_descProducto || 0}">
+                        <input id="marcaExpoId${idx}" type="hidden" value="${prod.marca_id || 0}">
+                        <input id="marcaExpoNombre${idx}" type="hidden" value="${prod.marca_nombre || 'SIN MARCA'}">
+                        <input id="escalaExpoId${idx}" type="hidden" value="${prod.escala_id || prod.categoria_precios_id || 0}">
                         <input id="precios_producto_carga_id${idx}" name="precios_producto_carga_id${idx}" type="hidden" value="${prod.precios_producto_carga_id || ''}">
                         <input id="isv${idx}" name="isv${idx}" type="hidden" value="${isvPct}">
                         <input id="idBodega${idx}" name="idBodega${idx}" type="hidden" value="${idBodega}">
@@ -4583,7 +6601,7 @@
                         </button>
                     </td>
                     <td style="vertical-align:middle; padding:4px 6px;">
-                        <input type="text" id="nombre${idx}" name="nombre${idx}" value='${prod.nombre_producto || ''}' readonly data-parsley-required
+                        <input type="text" id="nombre${idx}" name="nombre${idx}" value='${prod.nombre_producto || ''}' readonly role="button" title="Ver descripción del producto" data-parsley-required
                             style="border:none; background:transparent; font-size:12px; font-weight:700; color:#1b5e20; width:100%; min-width:130px;">
                     </td>
                     <td style="vertical-align:middle; padding:4px 6px; white-space:nowrap;">
@@ -4594,24 +6612,25 @@
                     <td style="vertical-align:middle; padding:4px 6px;">
                         <select class="form-control form-control-sm" name="precios${idx}" id="precios${idx}" data-parsley-required style="font-size:11px; min-width:100px;"
                             onchange="validacionPrecio(precios${idx}, precio${idx})">
-                            <option value="${precioUsar.toFixed(2)}" data-id="p1" selected>${precioUsar.toFixed(2)} - Fijo</option>
+                            <option value="${precioReferencia.toFixed(2)}" data-id="${prod.idPrecioSeleccionado || 'p1'}" selected>${precioReferencia.toFixed(2)} - ${etiquetaReferencia}</option>
                         </select>
                     </td>
                     <td style="vertical-align:middle; padding:4px 6px;">
                         <input type="number" id="precio${idx}" name="precio${idx}" value="${precioUsar.toFixed(2)}" class="form-control form-control-sm"
-                            data-parsley-required step="any" autocomplete="off" style="min-width:80px; font-size:11px;"
-                            onchange="calcularTotales(precio${idx},cantidad${idx},${isvPct},unidad${idx},${idx},restaInventario${idx})">
+                            data-precio-escala="${precioReferencia.toFixed(2)}" data-parsley-required step="any" autocomplete="off" style="min-width:80px; font-size:11px;"
+                            oninput="calcularTotales(precio${idx},cantidad${idx},${isvPct},unidad${idx},${idx},restaInventario${idx})">
                     </td>
                     <td style="vertical-align:middle; padding:4px 6px;">
-                        <input type="number" id="cantidad${idx}" name="cantidad${idx}" value="${cantidadUsar}" class="form-control form-control-sm" min="1" data-parsley-required autocomplete="off" style="min-width:60px; font-size:11px;"
-                            onchange="calcularTotales(precio${idx},cantidad${idx},${isvPct},unidad${idx},${idx},restaInventario${idx})">
+                        <input type="number" id="cantidad${idx}" name="cantidad${idx}" value="${cantidadUsar}" class="form-control form-control-sm" min="1" step="any" inputmode="decimal" data-parsley-required autocomplete="off" style="min-width:60px; font-size:11px;"
+                            oninput="calcularTotales(precio${idx},cantidad${idx},${isvPct},unidad${idx},${idx},restaInventario${idx})">
                     </td>
                     <td style="vertical-align:middle; padding:4px 6px;">
                         <select class="form-control form-control-sm" name="unidad${idx}" id="unidad${idx}" data-parsley-required style="font-size:11px; min-width:80px;"
                             onchange="calcularTotales(precio${idx},cantidad${idx},${isvPct},unidad${idx},${idx},restaInventario${idx})">
-                            <option value="1" data-id="${idUnidadVenta}" selected>U.</option>
+                            <option value="${unidadValor}" data-id="${idUnidadVenta}" selected>${unidadNombre}-${unidadValor.toFixed(2)}</option>
                         </select>
                     </td>
+                    ${expoConfig ? `<td style="vertical-align:middle; padding:4px 6px;"><div id="descuentoExpoProducto${idx}" style="font-size:10px; line-height:1.35;"></div></td>` : ''}
                     <td style="vertical-align:middle; padding:4px 6px; text-align:right;">
                         <input type="text" id="subTotalMostrar${idx}" name="subTotalMostrar${idx}" value="${formatoMoneda(subTotalUsar)}" readonly autocomplete="off"
                             style="border:none; background:#f1f8e9; border-radius:5px; font-weight:700; color:#2e7d32; font-size:12px; padding:2px 6px; text-align:right; width:100%; min-width:75px;">
@@ -4627,17 +6646,21 @@
                 </tr>`;
 
                 arregloIdInputs.splice(idx, 0, idx);
-                document.getElementById('carritoTbody').insertAdjacentHTML('beforeend', html);
+                carritoDestinoCargaInicial().insertAdjacentHTML('beforeend', html);
                 document.getElementById('carritoVacio').classList.add('d-none');
                 document.getElementById('carritoTablaWrapper').classList.remove('d-none');
-                totalesGenerales();
-                actualizarContadorCarrito();
-                programarGuardadoTemporal();
+                if (!_cargaInicialEnLote) {
+                    consultarStockDisponibleExpo(idx);
+                    totalesGenerales();
+                    actualizarContadorCarrito();
+                    programarGuardadoTemporal();
+                    enfocarCantidadCarrito(idx);
+                }
                 resolve();
             });
         }
 
-        function agregarProductoDesdeOferta(prod) {
+        function agregarProductoDesdeOferta(prod, indiceReservado) {
             return new Promise(function (resolve) {
                 if (!prod.producto_id) { resolve(); return; }
 
@@ -4656,8 +6679,11 @@
                     var producto = response.data.producto;
                     var arrayUnidades = response.data.unidades;
                     var categoriaNombre = (prod.categoria_precios_nombre || '').toString().trim();
-                    numeroInputs += 1;
-                    var idx = numeroInputs;
+                    var idx = indiceReservado;
+                    if (!idx) {
+                        numeroInputs += 1;
+                        idx = numeroInputs;
+                    }
 
                     // Construir select de unidades – pre-seleccionar la del duplicado
                     var htmlSelectUnidades = '';
@@ -4702,9 +6728,15 @@
                     // se valida al enviar el formulario en las facturas con restricción.
                     var precioEscalaRef = precioOpcFmt;
                     var cantidadUsar = prod.cantidad || 1;
-                    var esSinExistencia = !(parseFloat(prod.resta_inventario || 0) > 0);
+                    var esDuplicadoNormal = esDuplicandoOferta && !esOfertaExpo;
+                    var bodegaOriginalValida = parseInt(prod.Bodega_id || 0, 10) > 0
+                        && parseInt(prod.seccion_id || 0, 10) > 0
+                        && !/^SIN EXISTENCIA/i.test(String(prod.nombre_bodega || '').trim());
+                    var esSinExistencia = esDuplicadoNormal
+                        ? !bodegaOriginalValida
+                        : !(parseFloat(prod.resta_inventario || 0) > 0);
                     var bodegaTexto = esSinExistencia ? 'SIN EXISTENCIA' : (prod.nombre_bodega || '');
-                    var idBodega = esSinExistencia ? '' : (prod['Bodega_id'] || '');
+                    var idBodega = esSinExistencia ? '' : (prod['Bodega_id'] ?? '');
                     var idSeccion = esSinExistencia ? '' : (prod.seccion_id || '');
                     var bodegaBadgeBg = esSinExistencia ? '#ffebee' : '#e3f2fd';
                     var bodegaBadgeColor = esSinExistencia ? '#c62828' : '#1565c0';
@@ -4714,12 +6746,19 @@
                     <tr id='${idx}'>
                         <td style="vertical-align:middle; text-align:center; padding:4px 6px;">
                             <input id="idProducto${idx}" name="idProducto${idx}" type="hidden" value="${producto.id}">
+                            <input id="cotizacionLineaId${idx}" name="cotizacionLineaId${idx}" type="hidden" value="${prod.cotizacion_has_producto_id || ''}">
+                            <input id="lineaExpoOrigenId${idx}" type="hidden" value="${prod.linea_expo_origen_id || ''}">
+                            <input id="cantidadOfertaExpo${idx}" type="hidden" value="${prod.cantidad_ofertada || prod.cantidad || 0}">
+                            <input id="descuentoOfertaExpo${idx}" type="hidden" value="${prod.monto_descProducto || 0}">
+                            <input id="marcaExpoId${idx}" type="hidden" value="${prod.marca_id || 0}">
+                            <input id="marcaExpoNombre${idx}" type="hidden" value="${prod.marca_nombre || producto.marca || 'SIN MARCA'}">
+                            <input id="escalaExpoId${idx}" type="hidden" value="${prod.escala_id || prod.categoria_precios_id || producto.categoria_precios_id || categoriaId || 0}">
                             <input id="precios_producto_carga_id${idx}" name="precios_producto_carga_id${idx}" type="hidden" value="${producto.precios_producto_carga_id || ''}">
                             <input id="isv${idx}" name="isv${idx}" type="hidden" value="${producto.isv}">
                             <input id="idBodega${idx}" name="idBodega${idx}" type="hidden" value="${idBodega}">
                             <input id="idSeccion${idx}" name="idSeccion${idx}" type="hidden" value="${idSeccion}">
                             <input id="sinExistencia${idx}" name="sinExistencia${idx}" type="hidden" value="${esSinExistencia ? 1 : 0}">
-                            <input id="restaInventario${idx}" name="restaInventario${idx}" type="hidden" value="${esSinExistencia ? 0 : ''}">
+                            <input id="restaInventario${idx}" name="restaInventario${idx}" type="hidden" value="${esSinExistencia ? 0 : (esDuplicadoNormal ? 1 : '')}">
                             <input id="subTotal${idx}" name="subTotal${idx}" type="hidden" value="" required>
                             <input id="isvProducto${idx}" name="isvProducto${idx}" type="hidden" value="" required>
                             <input id="acumuladoDescuento${idx}" name="acumuladoDescuento${idx}" type="hidden">
@@ -4730,7 +6769,7 @@
                             </button>
                         </td>
                         <td style="vertical-align:middle; padding:4px 6px;">
-                            <input type="text" id="nombre${idx}" name="nombre${idx}" value='${producto.nombre}' readonly data-parsley-required
+                            <input type="text" id="nombre${idx}" name="nombre${idx}" value='${producto.nombre}' readonly role="button" title="Ver descripción del producto" data-parsley-required
                                 style="border:none; background:transparent; font-size:12px; font-weight:700; color:#1b5e20; width:100%; min-width:130px;">
                         </td>
                         <td style="vertical-align:middle; padding:4px 6px; white-space:nowrap;">
@@ -4747,11 +6786,11 @@
                         <td style="vertical-align:middle; padding:4px 6px;">
                             <input type="number" id="precio${idx}" name="precio${idx}" value="${precioUnidFmt}" class="form-control form-control-sm"
                                 data-precio-escala="${precioEscalaRef}" data-parsley-required step="any" autocomplete="off" style="min-width:80px; font-size:11px;"
-                                onchange="calcularTotales(precio${idx},cantidad${idx},${producto.isv},unidad${idx},${idx},restaInventario${idx})">
+                                oninput="calcularTotales(precio${idx},cantidad${idx},${producto.isv},unidad${idx},${idx},restaInventario${idx})">
                         </td>
                         <td style="vertical-align:middle; padding:4px 6px;">
-                            <input type="number" id="cantidad${idx}" name="cantidad${idx}" value="${cantidadUsar}" class="form-control form-control-sm" min="1" data-parsley-required autocomplete="off" style="min-width:60px; font-size:11px;"
-                                onchange="calcularTotales(precio${idx},cantidad${idx},${producto.isv},unidad${idx},${idx},restaInventario${idx})">
+                            <input type="number" id="cantidad${idx}" name="cantidad${idx}" value="${cantidadUsar}" class="form-control form-control-sm" min="1" step="any" inputmode="decimal" data-parsley-required autocomplete="off" style="min-width:60px; font-size:11px;"
+                                oninput="calcularTotales(precio${idx},cantidad${idx},${producto.isv},unidad${idx},${idx},restaInventario${idx})">
                         </td>
                         <td style="vertical-align:middle; padding:4px 6px;">
                             <select class="form-control form-control-sm" name="unidad${idx}" id="unidad${idx}" data-parsley-required style="font-size:11px; min-width:80px;"
@@ -4759,6 +6798,7 @@
                                 ${htmlSelectUnidades}
                             </select>
                         </td>
+                        ${expoConfig ? `<td style="vertical-align:middle; padding:4px 6px;"><div id="descuentoExpoProducto${idx}" style="font-size:10px; line-height:1.35;"></div></td>` : ''}
                         <td style="vertical-align:middle; padding:4px 6px; text-align:right;">
                             <input type="text" id="subTotalMostrar${idx}" name="subTotalMostrar${idx}" placeholder="0.00" readonly autocomplete="off"
                                 style="border:none; background:#f1f8e9; border-radius:5px; font-weight:700; color:#2e7d32; font-size:12px; padding:2px 6px; text-align:right; width:100%; min-width:75px;">
@@ -4774,25 +6814,232 @@
                     </tr>`;
 
                     arregloIdInputs.splice(idx, 0, idx);
-                    document.getElementById('carritoTbody').insertAdjacentHTML('beforeend', html);
+                    carritoDestinoCargaInicial().insertAdjacentHTML('beforeend', html);
                     document.getElementById('carritoVacio').classList.add('d-none');
                     document.getElementById('carritoTablaWrapper').classList.remove('d-none');
-                    actualizarContadorCarrito();
-
-                    // Calcular totales para esta fila
-                    calcularTotales(
-                        document.getElementById('precio' + idx),
-                        document.getElementById('cantidad' + idx),
-                        producto.isv,
-                        document.getElementById('unidad' + idx),
-                        idx,
-                        document.getElementById('restaInventario' + idx)
-                    );
-                    programarGuardadoTemporal();
+                    if (!_cargaInicialEnLote) {
+                        consultarStockDisponibleExpo(idx);
+                        actualizarContadorCarrito();
+                        calcularTotales(
+                            document.getElementById('precio' + idx),
+                            document.getElementById('cantidad' + idx),
+                            producto.isv,
+                            document.getElementById('unidad' + idx),
+                            idx,
+                            document.getElementById('restaInventario' + idx)
+                        );
+                        programarGuardadoTemporal();
+                        enfocarCantidadCarrito(idx);
+                    }
                     resolve();
                 }).catch(function () { resolve(); });
             });
         }
+
+        var expoSeleccionIndices = new Set();
+        var expoPaginaActual = 1;
+        var expoLineasPorPagina = 50;
+
+        function expoNormalizarTexto(valor) {
+            return String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        }
+
+        function expoEscaparHtml(valor) {
+            var elemento = document.createElement('div');
+            elemento.textContent = valor == null ? '' : String(valor);
+            return elemento.innerHTML;
+        }
+
+        function expoCantidadesCarritoPorLinea() {
+            var cantidades = new Map();
+            document.querySelectorAll('input[id^="cotizacionLineaId"]').forEach(function(inputLinea) {
+                var lineaId = Number(inputLinea.value);
+                if (!(lineaId > 0)) return;
+                var indiceFila = inputLinea.id.replace('cotizacionLineaId', '');
+                var cantidad = Number(document.getElementById('cantidad' + indiceFila)?.value || 0);
+                var unidad = Number(document.getElementById('unidad' + indiceFila)?.value || 1);
+                var cantidadBase = cantidad > 0 ? cantidad * (unidad > 0 ? unidad : 1) : 0;
+                cantidades.set(lineaId, (cantidades.get(lineaId) || 0) + cantidadBase);
+            });
+            return cantidades;
+        }
+
+        function expoLineasConSaldo() {
+            var cantidadesCarrito = expoCantidadesCarritoPorLinea();
+
+            return _productosDisponibles.map(function(producto, indice) {
+                var cantidadOriginal = Number(producto.cantidad || 0);
+                var cantidadCarrito = cantidadesCarrito.get(Number(producto.cotizacion_has_producto_id)) || 0;
+                return {
+                    producto: producto,
+                    indice: indice,
+                    cantidadCarrito: cantidadCarrito,
+                    cantidadPendiente: Math.max(0, cantidadOriginal - cantidadCarrito)
+                };
+            }).filter(function(item) {
+                if (item.cantidadPendiente <= 0.0001) {
+                    expoSeleccionIndices.delete(item.indice);
+                    return false;
+                }
+                return true;
+            });
+        }
+
+        function expoProductosFiltrados(lineasConSaldo) {
+            var busqueda = expoNormalizarTexto((document.getElementById('expoBuscarLinea') || {}).value);
+            var marca = String((document.getElementById('expoFiltrarMarca') || {}).value || '');
+            var estado = String((document.getElementById('expoFiltrarEstado') || {}).value || 'todos');
+
+            return (lineasConSaldo || expoLineasConSaldo()).filter(function(item) {
+                var producto = item.producto;
+                var coincideTexto = !busqueda || expoNormalizarTexto([
+                    producto.producto_id,
+                    producto.cotizacion_has_producto_id,
+                    producto.nombre_producto,
+                    producto.marca_nombre
+                ].join(' ')).indexOf(busqueda) !== -1;
+                var coincideMarca = !marca || String(producto.marca_id || 0) === marca;
+                var seleccionado = expoSeleccionIndices.has(item.indice);
+                var coincideEstado = estado === 'todos'
+                    || (estado === 'sin_carrito' && item.cantidadCarrito <= 0.0001)
+                    || (estado === 'parciales' && item.cantidadCarrito > 0.0001)
+                    || (estado === 'seleccionados' && seleccionado)
+                    ;
+                return coincideTexto && coincideMarca && coincideEstado;
+            });
+        }
+
+        function expoRenderizarPendientes() {
+            var lista = document.getElementById('expoPendientesLista');
+            if (!lista) return;
+            var lineasConSaldo = expoLineasConSaldo();
+            var filtrados = expoProductosFiltrados(lineasConSaldo);
+            var totalPaginas = Math.max(1, Math.ceil(filtrados.length / expoLineasPorPagina));
+            expoPaginaActual = Math.min(expoPaginaActual, totalPaginas);
+            var inicio = (expoPaginaActual - 1) * expoLineasPorPagina;
+            var pagina = filtrados.slice(inicio, inicio + expoLineasPorPagina);
+
+            if (pagina.length === 0) {
+                lista.innerHTML = '<div class="expo-pendientes-vacio"><i class="fa fa-search fa-2x mb-2"></i><br>No hay líneas que coincidan con los filtros.</div>';
+            } else {
+                lista.innerHTML = pagina.map(function(item) {
+                    var producto = item.producto;
+                    var seleccionado = expoSeleccionIndices.has(item.indice);
+                    var enCarrito = item.cantidadCarrito > 0.0001;
+                    var clases = 'expo-linea-item' + (seleccionado ? ' seleccionada' : '') + (enCarrito ? ' en-carrito' : '');
+                    var pendiente = item.cantidadPendiente.toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    var cantidadCarrito = item.cantidadCarrito.toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    return '<label class="' + clases + '">'
+                        + '<input type="checkbox" class="expo-linea-selector" data-producto-indice="' + item.indice + '" '
+                        + (seleccionado ? 'checked ' : '') + (enCarrito ? 'disabled ' : '')
+                        + 'onchange="expoCambiarSeleccion(' + item.indice + ', this.checked)">'
+                        + '<span class="expo-linea-info"><span class="expo-linea-nombre">' + expoEscaparHtml(producto.nombre_producto) + '</span>'
+                        + '<span class="expo-linea-meta"><span class="expo-linea-chip codigo">#' + expoEscaparHtml(producto.producto_id) + '</span>'
+                        + '<span class="expo-linea-chip marca">' + expoEscaparHtml(producto.marca_nombre || 'SIN MARCA') + '</span>'
+                        + (enCarrito ? '<span class="expo-linea-chip" style="background:#e3f2fd;color:#1565c0;">EN CARRITO: ' + cantidadCarrito + '</span>' : '')
+                        + '<span class="expo-linea-pendiente">Pendiente: ' + pendiente + '</span></span></span></label>';
+                }).join('');
+            }
+
+            document.getElementById('expoTotalLineas').textContent = lineasConSaldo.length;
+            document.getElementById('expoResultadosLineas').textContent = filtrados.length;
+            document.getElementById('expoSeleccionadasLineas').textContent = expoSeleccionIndices.size;
+            document.getElementById('expoCantidadAgregar').textContent = expoSeleccionIndices.size;
+            document.getElementById('expoRangoLineas').textContent = filtrados.length
+                ? 'Mostrando ' + (inicio + 1) + '-' + Math.min(inicio + expoLineasPorPagina, filtrados.length) + ' de ' + filtrados.length
+                : 'Sin resultados';
+            document.getElementById('expoPaginaEstado').textContent = 'Página ' + expoPaginaActual + ' de ' + totalPaginas;
+            document.getElementById('expoPaginaAnterior').disabled = expoPaginaActual <= 1;
+            document.getElementById('expoPaginaSiguiente').disabled = expoPaginaActual >= totalPaginas;
+        }
+
+        window.expoCambiarSeleccion = function(indice, seleccionado) {
+            if (seleccionado) expoSeleccionIndices.add(Number(indice));
+            else expoSeleccionIndices.delete(Number(indice));
+            expoRenderizarPendientes();
+        };
+
+        window.expoCambiarPagina = function(direccion) {
+            expoPaginaActual += Number(direccion);
+            expoRenderizarPendientes();
+            var lista = document.getElementById('expoPendientesLista');
+            if (lista) lista.scrollTop = 0;
+        };
+
+        window.expoAlternarTodas = function(seleccionado) {
+            if (!seleccionado) {
+                expoSeleccionIndices.clear();
+                expoRenderizarPendientes();
+                return;
+            }
+            expoProductosFiltrados().forEach(function(item) {
+                if (item.cantidadCarrito <= 0.0001) expoSeleccionIndices.add(item.indice);
+            });
+            expoRenderizarPendientes();
+        };
+
+        window.expoSeleccionarMarca = function() {
+            var filtroMarca = document.getElementById('expoFiltrarMarca');
+            var marcaId = String(filtroMarca?.value || '');
+            if (!marcaId) {
+                Swal.fire({ icon: 'info', title: 'Seleccione una marca', text: 'Use el filtro de marca y luego presione Seleccionar marca.' });
+                return;
+            }
+            expoLineasConSaldo().forEach(function(item) {
+                if (String(item.producto.marca_id || 0) === marcaId && item.cantidadCarrito <= 0.0001) {
+                    expoSeleccionIndices.add(item.indice);
+                }
+            });
+            expoRenderizarPendientes();
+        };
+
+        window.expoAgregarSeleccionados = function() {
+            var cantidadesCarrito = expoCantidadesCarritoPorLinea();
+            var seleccionados = Array.from(expoSeleccionIndices)
+                .map(function(indice) { return _productosDisponibles[indice]; })
+                .filter(function(prod) {
+                    if (!prod) return false;
+                    return !(cantidadesCarrito.get(Number(prod.cotizacion_has_producto_id)) > 0.0001);
+                });
+
+            if (seleccionados.length === 0) {
+                Swal.fire({ icon: 'info', title: 'Sin líneas nuevas', text: 'Seleccione al menos una línea pendiente que no esté en el carrito.' });
+                return;
+            }
+
+            var chain = Promise.resolve();
+            seleccionados.forEach(function(prod) {
+                chain = chain.then(function() { return agregarProductoDesdeOferta(prod); });
+            });
+            chain.then(function() {
+                expoSeleccionIndices.clear();
+                expoPaginaActual = 1;
+                expoRenderizarPendientes();
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Selección agregada',
+                    text: seleccionados.length + ' línea(s) agregada(s). Puede reducir sus cantidades antes de facturar.',
+                    timer: 2200,
+                    showConfirmButton: false,
+                    toast: true,
+                    position: 'top-end'
+                });
+            });
+        };
+
+        function inicializarExpoPendientes() {
+            var buscador = document.getElementById('expoBuscarLinea');
+            var filtroMarca = document.getElementById('expoFiltrarMarca');
+            var filtroEstado = document.getElementById('expoFiltrarEstado');
+            if (!buscador || !filtroMarca || !filtroEstado) return;
+            buscador.addEventListener('input', function() { expoPaginaActual = 1; expoRenderizarPendientes(); });
+            filtroMarca.addEventListener('change', function() { expoPaginaActual = 1; expoRenderizarPendientes(); });
+            filtroEstado.addEventListener('change', function() { expoPaginaActual = 1; expoRenderizarPendientes(); });
+            expoRenderizarPendientes();
+        }
+
+        window.expoActualizarPendientes = expoRenderizarPendientes;
+        inicializarExpoPendientes();
 
         // Disparar auto-carga cuando el cliente esté completamente cargado
         window.addEventListener('cliente-datos-cargados', function onClienteListo() {

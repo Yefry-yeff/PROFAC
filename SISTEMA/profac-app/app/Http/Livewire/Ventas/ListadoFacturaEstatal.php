@@ -2,6 +2,7 @@
 
 namespace App\Http\Livewire\Ventas;
 
+use Barryvdh\DomPDF\Facade\Pdf;
 use Livewire\Component;
 
 
@@ -228,6 +229,100 @@ class ListadoFacturaEstatal extends Component
 
         }
 
+    }
+
+    public function exportarPdfDetalle(Request $request)
+    {
+        @set_time_limit(0);
+        @ini_set('memory_limit', '512M');
+
+        $request->validate([
+            'tipo' => 'nullable|in:corporativo,estatal,exonerado,todos',
+            'filtroDesde' => 'nullable|date',
+            'filtroHasta' => 'nullable|date|after_or_equal:filtroDesde',
+        ]);
+
+        $tipo = (string) $request->input('tipo', 'estatal');
+        $tipoVentaMap = ['corporativo' => [1], 'estatal' => [2], 'exonerado' => [3], 'todos' => [1, 2, 3]];
+        $tipoLabels = ['corporativo' => 'Clientes B', 'estatal' => 'Clientes A', 'exonerado' => 'Exoneradas', 'todos' => 'Todas las facturas'];
+        $tipoVentaIds = $tipoVentaMap[$tipo] ?? [2];
+        $tipoLabel = $tipoLabels[$tipo] ?? 'Clientes A';
+        $filtroCai = trim((string) $request->input('filtroCai', ''));
+        $filtroCliente = trim((string) $request->input('filtroCliente', ''));
+        $filtroVendedor = trim((string) $request->input('filtroVendedor', ''));
+        $filtroFacturador = trim((string) $request->input('filtroFacturador', ''));
+        $filtroDesde = trim((string) $request->input('filtroDesde', ''));
+        $filtroHasta = trim((string) $request->input('filtroHasta', ''));
+
+        $query = DB::table('factura as f')
+            ->join('cliente as c', 'c.id', '=', 'f.cliente_id')
+            ->join('tipo_pago_venta as tp', 'tp.id', '=', 'f.tipo_pago_id')
+            ->join('users as vendedor', 'vendedor.id', '=', 'f.vendedor')
+            ->leftJoin('users as facturador', 'facturador.id', '=', 'f.users_id')
+            ->whereRaw('YEAR(f.created_at) >= YEAR(NOW()) - 2')
+            ->where('f.estado_venta_id', '<>', 2)
+            ->whereIn('f.tipo_venta_id', $tipoVentaIds)
+            ->select([
+                'f.id', 'f.numero_factura', 'f.cai', 'f.fecha_emision', 'f.created_at',
+                'f.nombre_cliente', 'tp.descripcion as tipo_pago',
+                'f.sub_total', 'f.sub_total_grabado', 'f.sub_total_excento', 'f.isv', 'f.total',
+                'vendedor.name as vendedor', 'facturador.name as facturador',
+            ]);
+
+        if (!in_array((int) Auth::user()->rol_id, self::ADMIN_ROLES, true)) {
+            $query->where(function ($actor) {
+                $actor->where('f.vendedor', Auth::id())
+                    ->orWhere('f.users_id', Auth::id())
+                    ->orWhere('f.gestor_entrega', Auth::id());
+            });
+        }
+        if ($filtroCai !== '') $query->where('f.cai', 'LIKE', "%{$filtroCai}%");
+        if ($filtroCliente !== '') $query->where('f.nombre_cliente', 'LIKE', "%{$filtroCliente}%");
+        if ($filtroVendedor !== '') $query->where('vendedor.name', 'LIKE', "%{$filtroVendedor}%");
+        if ($filtroFacturador !== '') $query->where('facturador.name', 'LIKE', "%{$filtroFacturador}%");
+        if ($filtroDesde !== '' && $filtroHasta !== '') {
+            $query->whereBetween(DB::raw('DATE(f.created_at)'), [$filtroDesde, $filtroHasta]);
+        } elseif ($filtroDesde !== '') {
+            $query->whereDate('f.created_at', '>=', $filtroDesde);
+        } elseif ($filtroHasta !== '') {
+            $query->whereDate('f.created_at', '<=', $filtroHasta);
+        }
+
+        $facturas = $query->orderByDesc('f.created_at')->get();
+        $detalles = collect();
+        if ($facturas->isNotEmpty()) {
+            $detalles = DB::table('venta_has_producto as vp')
+                ->join('producto as p', 'p.id', '=', 'vp.producto_id')
+                ->leftJoin('unidad_medida_venta as umv', 'umv.id', '=', 'vp.unidad_medida_venta_id')
+                ->leftJoin('unidad_medida as um', 'um.id', '=', 'umv.unidad_medida_id')
+                ->whereIn('vp.factura_id', $facturas->pluck('id'))
+                ->select([
+                    'vp.factura_id', 'p.id as producto_id', 'p.nombre as producto',
+                    DB::raw("COALESCE(um.nombre, '-') as unidad"), 'vp.precio_unidad',
+                    DB::raw('SUM(vp.cantidad) as cantidad'),
+                    DB::raw('SUM(vp.sub_total_s) as sub_total'),
+                    DB::raw('SUM(vp.isv_s) as isv'),
+                    DB::raw('SUM(vp.total_s) as total'),
+                ])
+                ->groupBy('vp.factura_id', 'p.id', 'p.nombre', 'um.nombre', 'vp.precio_unidad')
+                ->orderBy('vp.factura_id')
+                ->orderBy('p.nombre')
+                ->get()
+                ->groupBy('factura_id');
+        }
+
+        $filtros = [
+            'cai' => $filtroCai,
+            'cliente' => $filtroCliente,
+            'vendedor' => $filtroVendedor,
+            'facturador' => $filtroFacturador,
+            'desde' => $filtroDesde,
+            'hasta' => $filtroHasta,
+        ];
+
+        return Pdf::loadView('pdf.facturas-estatales-detalle-productos', compact('facturas', 'detalles', 'filtros', 'tipoLabel'))
+            ->setPaper('legal', 'landscape')
+            ->download('Facturas_' . $tipo . '_Detalle_' . now()->format('Y-m-d_H-i') . '.pdf');
     }
 
     public function anularVentaRegistro(Request $request){

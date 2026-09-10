@@ -272,7 +272,7 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
             $row[22] = $esAnulada ? '' : $finalSaldoPendiente;
             $isvFactura = $this->money($r->isv ?? 0);
             $row[23] = !$esAnulada && $finalSaldoPendiente > 0 && $isvFactura > 0
-                && $finalSaldoPendiente === $isvFactura ? 'X' : '';
+                && abs($finalSaldoPendiente - $isvFactura) <= 0.10 ? 'X' : '';
             $row[24] = $estadoCobro;
             $row[25] = $esAnulada ? '' : $this->excelDate($r->fecha_venta);
             $row[26] = $esAnulada ? '' : $this->excelDate($r->fecha_vencimiento);

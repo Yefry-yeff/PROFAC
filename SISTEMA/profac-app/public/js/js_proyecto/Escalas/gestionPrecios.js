@@ -69,16 +69,19 @@ $(document).ready(function () {
     width: 'resolve'
   });
 
-  $('#listaTipoFiltro').select2({
-    theme: 'bootstrap4',
-    placeholder: 'Seleccione una opción',
-    width: 'resolve'
-  });
+  if (!$('#modalSeleccionFiltrosProductos').length) {
+    $('#listaTipoFiltro').select2({
+      theme: 'bootstrap4',
+      placeholder: 'Seleccione una opción',
+      width: 'resolve'
+    });
+  }
 
   // === Cargar opciones dinámicas de #listaTipoFiltro según el valor de #tipoFiltro
   // Si el usuario elige filtrar por Marca (1) o Categoría (2), se consulta el endpoint correspondiente
   // y se pobla el select con los resultados.
   $('#tipoFiltro').on('change', function () {
+    if ($('#modalSeleccionFiltrosProductos').length) return;
     let tipo = $(this).val();
     let $listaTipo = $('#listaTipoFiltro');
 
@@ -119,20 +122,7 @@ $(document).ready(function () {
   $('#listaTipoFiltroCatPrecios').select2({
     theme: 'bootstrap4',
     placeholder: 'Seleccione Categoría de precio',
-    allowClear: true,
-    ajax: {
-      url: '/filtros/categoria/precios',
-      dataType: 'json',
-      delay: 250,
-      processResults: function (data) {
-        return {
-          results: data.map(function (item) {
-            return { id: item.id, text: item.nombre };
-          })
-        };
-      },
-      cache: true
-    }
+    allowClear: true
   });
 
   // === Select2 dentro del modal (categoría de cliente)

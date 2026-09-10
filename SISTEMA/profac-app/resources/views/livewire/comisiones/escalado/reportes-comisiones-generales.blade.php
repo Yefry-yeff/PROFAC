@@ -1,4 +1,4 @@
-﻿@push('styles')
+@push('styles')
 <style>
 :root {
     --rrhh-purple : #7c3aed;
@@ -733,7 +733,7 @@ table.dataTable tbody td { font-size: 13px; vertical-align: middle; }
                             </button>
                             @if(auth()->id() === 2)
                             <button class="btn-export" type="button" style="background:#eef2ff;color:#3730a3;border-color:#c7d2fe;" onclick="exportarProyeccionesExcel15()" title="Solo visible para Yefry Ortiz">
-                                <i class="fa fa-file-excel-o"></i> Excel Proyectadas (Fijo 15%)
+                                <i class="fa fa-file-excel-o"></i> Excel Proyectadas (Especial 15%)
                             </button>
                             @endif
                             <button class="btn-export" type="button" style="background:#fff1f2;color:#9f1239;border-color:#fecdd3;" onclick="exportarProyeccionesExcel('excluidas')">
@@ -787,7 +787,7 @@ table.dataTable tbody td { font-size: 13px; vertical-align: middle; }
                 <div class="tab-toolbar" style="margin-bottom:10px;">
                     <div class="tab-title" style="color:#991b1b;">
                         <i class="fa fa-exclamation-triangle" style="color:#dc2626;"></i>
-                        Facturas para comisión por politica anterior
+                        Facturas excluidas de comisión
                     </div>
                     <button class="btn-export" type="button" style="background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;" onclick="redirigirCalculoPoliticaAnterior()">
                         <i class="fa fa-calculator"></i> Calcular

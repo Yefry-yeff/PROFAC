@@ -19,7 +19,7 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
     // Parámetros recibidos desde el controlador (tipo de categoría, filtros, usuario, etc.)
     protected string $tipoCategoria;
     protected int $tipoFiltro;
-    protected int $valorFiltro;
+    protected array $valorFiltro;
     protected ?int $categoriaPrecioId;  // Ahora puede ser null en modo general
     protected int $userId;
     protected ?int $defaultUnidadMedidaId;
@@ -52,11 +52,12 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
      * Constructor: inicializa los parámetros requeridos para el proceso.
      * Se reciben directamente desde el controlador.
      */
-    public function __construct(string $tipoCategoria, int $tipoFiltro, int $valorFiltro, ?int $categoriaPrecioId, int $userId, ?int $defaultUnidadMedidaId = null, bool $previewMode = false, string $tipoPlantilla = 'categoria', array $categoriasExcluidas = [], ?int $clienteCategoriaId = null)
+    public function __construct(string $tipoCategoria, int $tipoFiltro, $valorFiltro, ?int $categoriaPrecioId, int $userId, ?int $defaultUnidadMedidaId = null, bool $previewMode = false, string $tipoPlantilla = 'categoria', array $categoriasExcluidas = [], ?int $clienteCategoriaId = null)
     {
         $this->tipoCategoria         = $tipoCategoria;
         $this->tipoFiltro            = $tipoFiltro;
-        $this->valorFiltro           = $valorFiltro;
+        $valoresFiltro               = is_array($valorFiltro) ? $valorFiltro : explode(',', (string) $valorFiltro);
+        $this->valorFiltro           = array_values(array_unique(array_filter(array_map('intval', $valoresFiltro))));
         $this->categoriaPrecioId     = $categoriaPrecioId;
         $this->userId                = $userId;
         $this->defaultUnidadMedidaId = $defaultUnidadMedidaId;
@@ -264,13 +265,13 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
 
             // Validar filtros según el tipo seleccionado
             if ($this->tipoFiltro == 1) { // Filtro por Marca
-                if (!$marca_idProductoId || $marca_idProductoId != $this->valorFiltro) {
-                    $this->skip("El producto no pertenece a la marca seleccionada (Esperado: {$this->valorFiltro}, Encontrado: {$marca_idProductoId})", $row->toArray());
+                if (!$marca_idProductoId || !in_array($marca_idProductoId, $this->valorFiltro, true)) {
+                    $this->skip("El producto no pertenece a las marcas seleccionadas (Encontrado: {$marca_idProductoId})", $row->toArray());
                     continue;
                 }
             } elseif ($this->tipoFiltro == 2) { // Filtro por Categoría
-                if (!$categoriaProductoId || $categoriaProductoId != $this->valorFiltro) {
-                    $this->skip("El producto no pertenece a la categoría seleccionada (Esperado: {$this->valorFiltro}, Encontrado: {$categoriaProductoId})", $row->toArray());
+                if (!$categoriaProductoId || !in_array($categoriaProductoId, $this->valorFiltro, true)) {
+                    $this->skip("El producto no pertenece a las categorías seleccionadas (Encontrado: {$categoriaProductoId})", $row->toArray());
                     continue;
                 }
             }

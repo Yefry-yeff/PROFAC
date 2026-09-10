@@ -184,7 +184,7 @@ class LibroCobrosSheet implements FromArray, WithStyles, WithEvents, WithStrictN
                 $r['teleasesor']        ?? '',
                 $r['factura']           ?? '',
                 $cobrado,
-                $r['estado_factura']    ?? '',
+                ($r['estado_factura'] ?? '') === 'PAGADA' ? 'COMPLETO' : ($r['estado_factura'] ?? ''),
                 $r['banco']             ?? '',
                 $r['cuenta_banco']      ?? '',
                 $r['observaciones']     ?? '',
@@ -342,7 +342,7 @@ class LibroCobrosSheet implements FromArray, WithStyles, WithEvents, WithStrictN
                     }
 
                     $estado = (string)($sheet->getCell("I{$row}")->getValue() ?? '');
-                    if (strtoupper($estado) === 'PAGADA') {
+                    if (in_array(strtoupper($estado), ['PAGADA', 'COMPLETO'], true)) {
                         $sheet->getStyle("A{$row}:L{$row}")->getFill()
                             ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('F0FDF4');
                         $sheet->getStyle("M{$row}:{$lc}{$row}")->getFill()

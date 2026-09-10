@@ -220,6 +220,28 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
+                                    <label>Teleasesor</label>
+                                    <select id="fil_lc_teleasesor" class="form-control" style="width:100%;">
+                                        <option value="">&mdash; Todos &mdash;</option>
+                                        @foreach($vendedores as $v)
+                                            <option value="{{ $v->id }}">{{ $v->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Gestor de Entrega</label>
+                                    <select id="fil_lc_gestor" class="form-control" style="width:100%;">
+                                        <option value="">&mdash; Todos &mdash;</option>
+                                        @foreach($vendedores as $v)
+                                            <option value="{{ $v->id }}">{{ $v->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
                                     <label>Banco</label>
                                     <select id="fil_lc_banco" class="form-control form-control-sm" style="width:100%;">
                                         <option value="">&mdash; Todos &mdash;</option>

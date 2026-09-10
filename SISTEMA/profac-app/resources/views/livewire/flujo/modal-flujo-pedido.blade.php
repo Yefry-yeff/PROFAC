@@ -85,6 +85,28 @@
         transform:translateY(0);
         box-shadow:0 4px 12px rgba(26,126,251,.10);
     }
+    .fmp-invoice-card {
+        margin-top:12px;
+        background:#fff;
+        border:2px solid #c9d8ee;
+        border-left:6px solid #1a7efb;
+        border-radius:8px;
+        overflow:hidden;
+        box-shadow:0 5px 14px rgba(34,67,115,.12);
+    }
+    .fmp-invoice-card > summary {
+        padding:14px 16px;
+        font-size:12px;
+        color:#334155;
+        cursor:pointer;
+        list-style:none;
+        background:linear-gradient(90deg,#eef5ff 0%,#fff 100%);
+    }
+    .fmp-invoice-card > summary::-webkit-details-marker { display:none; }
+    .fmp-invoice-card[open] { border-color:#8bb8ef; box-shadow:0 8px 20px rgba(26,126,251,.16); }
+    .fmp-invoice-card[open] > summary { border-bottom:1px solid #c9d8ee; }
+    .fmp-invoice-card[open] .fmp-invoice-chevron { transform:rotate(180deg); }
+    .fmp-invoice-chevron { transition:transform .18s ease; }
     .fmp-info-grid { display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:#666; }
     /* Modal gestor de entrega: encima del flujo modal y su backdrop */
     #modal-gestor-flujo { z-index: 1060 !important; }
@@ -93,6 +115,33 @@
     #modal-gestor-flujo .modal-dialog { overflow: visible !important; }
     #modal-gestor-flujo .modal-content { overflow: visible !important; }
     #modal-gestor-flujo .modal-body { overflow: visible !important; }
+    .swal2-popup.fmp-price-alert {
+        max-height:calc(100vh - 20px);
+        padding:12px 18px 14px;
+        overflow:hidden;
+    }
+    .fmp-price-alert .swal2-icon {
+        width:3.4em;
+        height:3.4em;
+        margin:2px auto 8px;
+    }
+    .fmp-price-alert .swal2-icon-content { font-size:2.5em; }
+    .fmp-price-alert .swal2-title {
+        padding:0;
+        margin:0 0 12px;
+        font-size:24px;
+        line-height:1.2;
+    }
+    .fmp-price-alert .swal2-html-container {
+        margin:0;
+        padding:0 2px;
+        overflow:hidden;
+    }
+    .fmp-price-alert .fmp-price-scroll {
+        max-height:min(330px, max(82px, calc(100vh - 300px)));
+    }
+    .fmp-price-alert .swal2-actions { margin:10px 0 0; }
+    .fmp-price-alert .swal2-confirm { margin:0; padding:8px 22px; }
 </style>
 
 @php
@@ -114,11 +163,12 @@
 
     $tienePrefact  = in_array(4, $flujoTipos);
     $tieneFactura  = in_array(3, $flujoTipos) || in_array(5, $flujoTipos);
+    $facturaParcial = $tieneFactura && ($expoConSaldoPendiente ?? false);
 
     // Estado de Entrega y Cobro leídos desde historico_flujo.estado_id
     // 5 = Pendiente (azul) | 1 = Completado (verde) | null = no existe aún (gris)
-    $entregaEstadoId = $estadoEntrega;  // null | 1 | 5
-    $cobroEstadoId   = $estadoCobro;    // null | 1 | 5
+    $entregaEstadoId = $facturaParcial ? null : $estadoEntrega;  // null | 1 | 5
+    $cobroEstadoId   = $facturaParcial ? null : $estadoCobro;    // null | 1 | 5
     $tieneEntrega    = ($entregaEstadoId !== null);
     $entregaEsCompletada = ($entregaEstadoId === 1);
     $cobroCompletado     = ($cobroEstadoId === 1);
@@ -130,6 +180,7 @@
     // 1=Pedido, 2=Ofertas, 3=RevCrédito, 4=RevInventario, 5=PreFactura, 6=Factura
     $fPaso = match(true) {
         $fCancelado                  => 0,
+        $facturaParcial              => 6,
         $finalizadoCompletado        => 8,
         $cobroCompletado             => 7,
         $tieneEntrega                => 7,
@@ -165,7 +216,7 @@
     class="fmp-overlay"
      style="position:fixed; inset:0; z-index:99999;
           display:flex;
-            pointer-events:none;
+                        pointer-events:auto;
             background:rgba(15,15,35,.62); backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);">
 
     <div class="fmp-dlg" role="document">
@@ -249,11 +300,12 @@
                             && ($tieneRevisionCreditoRechazada ?? false);
                         // Factura anulada: mostrar paso 6 como rojo con X
                         $esFacturaAnulada = ($info['key'] === 'factura') && ($facturaAnulada ?? false);
+                        $esFacturaExpoDisponible = ($info['key'] === 'factura') && ($expoConSaldoPendiente ?? false);
                         if ($esDevuelto)     $pendiente = false;
                         if ($esRechazado)    { $pendiente = false; $completado = false; $activo = false; }
                         if ($esFacturaAnulada) { $pendiente = false; $completado = false; $activo = false; }
                         $labelColor = ($esSinPedido || $esSinAplica) ? '#e74c3c' : ($esRechazado || $esFacturaAnulada ? '#e74c3c' : ($completado ? '#1ab394' : ($activo ? '#1a7efb' : ($esDevuelto ? '#e67e22' : '#aab'))));
-                        $puedeClick = ($completado || $activo || $esDevuelto || $esRechazado || $esFacturaAnulada) && !$esSinPedido && !$esSinAplica;
+                        $puedeClick = ($completado || $activo || $esDevuelto || $esRechazado || $esFacturaAnulada || $esFacturaExpoDisponible) && !$esSinPedido && !$esSinAplica;
                     @endphp
 
                     {{-- Step card --}}
@@ -353,6 +405,8 @@
                                     <i class="fa fa-hashtag"></i> Flujo #{{ $d['flujo_id'] ?? $flujoId ?? $d['id'] }}
                                 @elseif ($esSinAplica)
                                     <i class="fa fa-times-circle"></i> N/A
+                                @elseif ($facturaParcial && $info['key'] === 'factura')
+                                    <i class="fa fa-adjust"></i> Factura parcial
                                 @elseif ($completado)
                                     <i class="fa fa-check-circle"></i> Completado
                                 @elseif ($activo)
@@ -362,7 +416,7 @@
                                 @elseif ($esFacturaAnulada)
                                     <i class="fa fa-times-circle"></i> Anulada
                                 @elseif ($esRechazado)
-                                    <i class="fa fa-times-circle"></i> Rechazado
+                                    <i class="fa fa-times-circle"></i> Rechazado por créditos
                                 @else
                                     <i class="fa fa-clock-o"></i> Pendiente
                                 @endif
@@ -416,7 +470,7 @@
                     $finalActiva      = ($pasoActivo === 'finalizado');
                     $puedeEntrega     = $tieneFactura;
                     $puedeCobro       = $tieneFactura;
-                    $puedeFinal       = $tieneFactura;
+                    $puedeFinal       = $tieneFactura && !$facturaParcial;
 
                     $facturaLineaCompletada = ($fPaso > 5);
 
@@ -1111,12 +1165,22 @@
                                        font-size:11px; font-weight:700; cursor:pointer;">
                             <i class="mr-1 fa fa-copy"></i> Duplicar
                         </button>
+                        @if (!empty($ofertaSeleccionada['es_expo']) && !$facturaCompletada && !$esAnuDet && !$esVencDet)
+                        <button type="button" wire:click="continuarOfertaExpo"
+                                style="background:linear-gradient(135deg,#00897b,#00695c); color:#fff;
+                                       border:none; border-radius:8px; padding:5px 10px;
+                                       font-size:11px; font-weight:700; cursor:pointer;">
+                            <i class="mr-1 fa fa-pencil-square-o"></i> Continuar Oferta
+                        </button>
+                        @endif
                     </div>
                     @endif
 
                     {{-- Confirmación: Ganadora --}}
                     @if (!$facturaCompletada && $confirmAccionOferta === 'ganadora')
-                    <div style="margin-top:12px; background:#fff8e1; border:1px solid #ffe082;
+                    <div x-data="{}"
+                        x-init="$nextTick(() => setTimeout(() => { $refs.comentarioGanadoraTA.scrollIntoView({ block: 'center' }); $refs.comentarioGanadoraTA.focus(); }, 100))"
+                        style="margin-top:12px; background:#fff8e1; border:1px solid #ffe082;
                                 border-radius:12px; padding:14px;">
 
                         {{-- Errores de inventario (si los hay) --}}
@@ -1167,6 +1231,7 @@
                                 Comentario para Créditos (opcional)
                             </label>
                             <textarea wire:model.defer="comentarioCreditoGanadora"
+                                      x-ref="comentarioGanadoraTA"
                                       rows="2"
                                       placeholder="Escribe una observación para el área de créditos..."
                                       style="width:100%; border:1px solid #ddd; border-radius:8px; padding:8px 10px; font-size:12px; resize:vertical;"></textarea>
@@ -1849,6 +1914,18 @@
                 @php $pref = $prefacturaData; @endphp
                 <div style="margin-top:12px;">
 
+                    @if(count($prefacturasData) > 1)
+                    <div class="table-responsive" style="margin-bottom:10px;">
+                        <table class="table table-sm table-bordered" style="font-size:11px; background:#fff;">
+                            <thead><tr><th>Prefactura</th><th>Emisión</th><th>Vencimiento</th><th>Estado</th><th class="text-right">Total</th></tr></thead>
+                            <tbody>@foreach($prefacturasData as $prefHist)<tr>
+                                <td>#{{ $prefHist['id'] }}</td><td>{{ $prefHist['fecha_emision'] }}</td><td>{{ $prefHist['fecha_vencimiento'] }}</td>
+                                <td>{{ ucfirst($prefHist['estado']) }}</td><td class="text-right">L {{ number_format($prefHist['total'], 2) }}</td>
+                            </tr>@endforeach</tbody>
+                        </table>
+                    </div>
+                    @endif
+
                     {{-- Cabecera de prefactura --}}
                     <div style="background:#fff; border-radius:10px; border:1px solid #e8eaf0;
                                 padding:12px 14px; margin-bottom:10px; font-size:12px; color:#555;">
@@ -2102,18 +2179,26 @@
                 {{-- ══════════════════════════════════════════════════ --}}
                 @elseif ($pasoActivo === 'factura')
 
-                @if ($facturaData)
-                @php $fac = $facturaData; @endphp
-                <div style="margin-top:12px;">
-                    <div style="background:#fff; border-radius:10px; border:1px solid #e8eaf0;
-                                padding:12px 14px; margin-bottom:10px; font-size:12px; color:#555;">
-                        <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:center;">
+                @if (!empty($facturasData))
+                <div style="font-size:12px; color:#607d8b; margin:10px 0 4px;">
+                    <i class="fa fa-files-o mr-1"></i>{{ count($facturasData) }} factura(s) registradas en este flujo
+                </div>
+
+                @foreach ($facturasData as $fac)
+                <details class="fmp-invoice-card" @if($facturaSeleccionadaId === (int)$fac['id']) open @endif>
+                    <summary>
+                        <span style="display:flex; flex-wrap:wrap; gap:12px; align-items:center;">
                             <span><i class="mr-1 fa fa-file-text text-primary"></i><strong>Factura #{{ $fac['id'] }}</strong></span>
                             <span><i class="mr-1 fa fa-user text-info"></i>{{ $fac['nombre_cliente'] ?? ($d['cliente'] ?? '—') }}</span>
                             <span><i class="mr-1 fa fa-calendar text-muted"></i>{{ \Carbon\Carbon::parse($fac['fecha_emision'] ?? $fac['created_at'])->format('d/m/Y') }}</span>
                             <strong style="color:#e65100;">Total: L {{ number_format($fac['total'] ?? 0, 2) }}</strong>
-                        </div>
-                    </div>
+                            <span style="background:{{ (int)($fac['estado_venta_id'] ?? 0) === 1 ? '#e8f5e9' : '#ffebee' }}; color:{{ (int)($fac['estado_venta_id'] ?? 0) === 1 ? '#1b5e20' : '#b71c1c' }}; border-radius:8px; padding:2px 9px; font-weight:700;">
+                                {{ (int)($fac['estado_venta_id'] ?? 0) === 1 ? 'Activa' : 'Anulada' }}
+                            </span>
+                            <span style="margin-left:auto; color:#1a5fa8; font-weight:700;"><i class="fa fa-chevron-down mr-1 fmp-invoice-chevron"></i>Ver detalle</span>
+                        </span>
+                    </summary>
+                    <div style="padding:12px;">
 
                     @if (!empty($fac['productos']))
                     <div style="border-radius:10px; overflow:hidden; border:1px solid #e8eaf0;
@@ -2187,9 +2272,94 @@
                         </a>
                         @endif
 
+                        @if((int)($fac['estado_venta_id'] ?? 0) === 1)
+                        <button type="button" wire:click="confirmarAccionFactura('anular', {{ $fac['id'] }})"
+                            style="background:#ffebee; color:#b71c1c; border:1px solid #ffcdd2; border-radius:8px; padding:6px 14px; font-size:12px; font-weight:700; cursor:pointer;">
+                            <i class="fa fa-ban mr-1"></i>Anular esta factura
+                        </button>
+                        @endif
+
                     </div>
                     @endif
+
+                    @if ($confirmAccionFactura === 'anular' && $facturaSeleccionadaId === (int)$fac['id'])
+                    <div style="background:#fff3e0; border:1px solid #ffcc80; border-radius:8px; padding:12px; margin-top:10px;">
+                        <label style="font-size:12px; font-weight:700; color:#e65100;">Motivo de anulación de la factura #{{ $fac['id'] }}</label>
+                        <textarea class="form-control form-control-sm" wire:model.defer="motivoAnulacionFactura" rows="2" maxlength="500"></textarea>
+                        @if($mensajeError)<div class="text-danger mt-1" style="font-size:12px;">{{ $mensajeError }}</div>@endif
+                        <div style="display:flex; gap:8px; margin-top:8px;">
+                            <button type="button" wire:click="anularFactura" class="btn btn-danger btn-sm">Confirmar anulación</button>
+                            <button type="button" wire:click="cancelarConfirmFactura" class="btn btn-default btn-sm">Cancelar</button>
+                        </div>
+                    </div>
+                    @endif
+                    </div>
+                </details>
+                @endforeach
+
+                @if(!empty($liquidacionExpoPendiente))
+                @php $liq = $liquidacionExpoPendiente; @endphp
+                <div style="margin-top:14px; border:1px solid #90caf9; border-radius:10px; overflow:hidden;">
+                    <div style="padding:10px 12px; background:#e3f2fd; color:#0d47a1; display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:8px;">
+                        <strong style="font-size:12px;"><i class="fa fa-calculator mr-1"></i>Liquidación Expo pendiente de confirmación</strong>
+                        <button type="button" class="btn btn-sm btn-primary" onclick='confirmarLiquidacionExpoFlujo(@json($liq))'>
+                            <i class="fa fa-plus-circle mr-1"></i>Revisar y aplicar aumento
+                        </button>
+                    </div>
+                    <div style="padding:10px 12px; font-size:11px; color:#455a64;">
+                        <div style="display:flex; flex-wrap:wrap; gap:18px; margin-bottom:8px;">
+                            <span>Subtotal facturado: <strong>L {{ number_format($liq['total_facturado'] ?? 0, 2) }}</strong></span>
+                            <span>Descuento por marca: <strong>L {{ number_format($liq['descuento_marca_total'] ?? 0, 2) }}</strong></span>
+                            <span>Descuento general: <strong>{{ number_format($liq['porcentaje_descuento'] ?? 0, 2) }}% · L {{ number_format($liq['descuento_general'] ?? 0, 2) }}</strong></span>
+                            <span>Descuento otorgado: <strong>L {{ number_format($liq['descuento_otorgado'] ?? 0, 2) }}</strong></span>
+                            <span>Descuento ganado: <strong>L {{ number_format($liq['descuento_ganado'] ?? 0, 2) }}</strong></span>
+                            <span>Aumento: <strong style="color:#0d47a1;">L {{ number_format($liq['aumento_calculado'] ?? 0, 2) }}</strong></span>
+                        </div>
+                        @if(!empty($liq['descuentos_marca']))
+                        <div class="table-responsive">
+                            <table style="width:100%; border-collapse:collapse;">
+                                <thead><tr style="color:#607d8b;"><th style="padding:3px 5px; text-align:left;">Marca</th><th style="padding:3px 5px; text-align:right;">Escalón alcanzado</th></tr></thead>
+                                <tbody>@foreach($liq['descuentos_marca'] as $marca)<tr style="border-top:1px solid #e3f2fd;"><td style="padding:3px 5px;">{{ $marca['marca'] }}</td><td style="padding:3px 5px; text-align:right;">{{ number_format($marca['porcentaje_descuento'], 2) }}%</td></tr>@endforeach</tbody>
+                            </table>
+                        </div>
+                        @endif
+                    </div>
                 </div>
+                @endif
+
+                @if(!empty($notasCreditoData))
+                <div style="margin-top:14px; border:1px solid #b2dfdb; border-radius:10px; overflow:hidden;">
+                    <div style="padding:9px 12px; background:#e0f2f1; color:#00695c; font-size:12px; font-weight:700;">
+                        <i class="fa fa-file-text-o mr-1"></i>Notas de crédito relacionadas
+                    </div>
+                    @foreach($notasCreditoData as $nota)
+                    <div style="padding:10px 12px; border-top:1px solid #d7eeec; font-size:11px;">
+                        <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:center;">
+                            <strong>Nota #{{ $nota['id'] }}</strong>
+                            <span>{{ $nota['cai'] ?: ($nota['numero_nota'] ?? 'Sin correlativo') }}</span>
+                            <span>{{ $nota['fecha'] ? \Carbon\Carbon::parse($nota['fecha'])->format('d/m/Y') : '—' }}</span>
+                            <strong style="color:#00695c;">L {{ number_format($nota['total'] ?? 0, 2) }}</strong>
+                            <span>Aplicado: L {{ number_format($nota['monto_aplicado'] ?? 0, 2) }}</span>
+                            <span>Disponible: L {{ number_format($nota['saldo_disponible'] ?? 0, 2) }}</span>
+                        </div>
+                        @if(!empty($nota['aplicaciones']))
+                        <table style="width:100%; margin-top:7px; border-collapse:collapse;">
+                            <thead><tr style="color:#607d8b;"><th style="text-align:left; padding:3px 5px;">Factura aplicada</th><th style="text-align:left; padding:3px 5px;">Fecha</th><th style="text-align:right; padding:3px 5px;">Monto</th></tr></thead>
+                            <tbody>
+                                @foreach($nota['aplicaciones'] as $aplicacion)
+                                <tr style="border-top:1px solid #edf4f3;">
+                                    <td style="padding:3px 5px;">{{ $aplicacion['factura'] ?: ('#' . $aplicacion['factura_id']) }}</td>
+                                    <td style="padding:3px 5px;">{{ \Carbon\Carbon::parse($aplicacion['fecha_movimiento'])->format('d/m/Y') }}</td>
+                                    <td style="padding:3px 5px; text-align:right; font-weight:700;">L {{ number_format($aplicacion['monto'], 2) }}</td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                        @endif
+                    </div>
+                    @endforeach
+                </div>
+                @endif
                 @else
                 <div style="margin-top:20px; text-align:center; padding:24px; color:#90a4ae;">
                     <i class="mb-2 fa fa-file-text-o fa-2x d-block" style="opacity:.4;"></i>
@@ -2202,17 +2372,43 @@
                 {{-- ══════════════════════════════════════════════════ --}}
                 @elseif ($pasoActivo === 'entrega')
 
-                @if (!empty($historialEntregasFactura))
+                @if (!empty($facturasData))
                 <div style="margin-top:12px;">
                     <div style="background:#fff; border-radius:10px; border:1px solid #e8eaf0;
                                 padding:12px 14px; margin-bottom:10px; font-size:12px; color:#555;">
                         <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:center;">
-                            <span><i class="mr-1 fa fa-truck text-primary"></i><strong>Entregas de la factura</strong></span>
+                            <span><i class="mr-1 fa fa-truck text-primary"></i><strong>Entregas por factura</strong></span>
+                            <span><i class="mr-1 fa fa-files-o text-primary"></i>{{ count($facturasData) }} factura(s)</span>
                             <span><i class="mr-1 fa fa-list-ul text-info"></i>{{ count($historialEntregasFactura) }} distribución(es) asociada(s)</span>
-                            <span><i class="mr-1 fa fa-sort-amount-asc text-muted"></i>Orden cronológico</span>
                         </div>
                     </div>
 
+                    @foreach ($facturasData as $fac)
+                    @php
+                        $entregasFactura = collect($historialEntregasFactura)
+                            ->where('factura_id', (int) $fac['id'])
+                            ->values();
+                    @endphp
+                    <details class="fmp-invoice-card">
+                        <summary>
+                            <span style="display:flex; flex-wrap:wrap; gap:12px; align-items:center;">
+                                <span><i class="mr-1 fa fa-file-text text-primary"></i><strong>Factura #{{ $fac['id'] }}</strong></span>
+                                <span><i class="mr-1 fa fa-user text-info"></i>{{ $fac['nombre_cliente'] ?? ($d['cliente'] ?? '—') }}</span>
+                                <span><i class="mr-1 fa fa-calendar text-muted"></i>{{ \Carbon\Carbon::parse($fac['fecha_emision'] ?? $fac['created_at'])->format('d/m/Y') }}</span>
+                                <strong style="color:#e65100;">L {{ number_format($fac['total'] ?? 0, 2) }}</strong>
+                                <span style="background:#e8f0fe; color:#1a5fa8; border-radius:10px; padding:2px 8px; font-weight:700;">{{ $entregasFactura->count() }} entrega(s)</span>
+                                <span style="margin-left:auto; color:#1a5fa8; font-weight:700;"><i class="fa fa-chevron-down mr-1 fmp-invoice-chevron"></i>Ver detalle</span>
+                            </span>
+                        </summary>
+                        <div style="padding:12px;">
+                            @if (!empty($fac['productos']))
+                            <div style="margin-bottom:10px; border:1px solid #e8eaf0; border-radius:8px; overflow:hidden;">
+                                <table style="width:100%; font-size:11px; border-collapse:collapse;">
+                                    <thead><tr style="background:#f8f9fc; color:#667085;"><th style="padding:5px 8px; text-align:left;">Producto</th><th style="padding:5px 8px; text-align:center;">Cant.</th><th style="padding:5px 8px; text-align:right;">Total</th></tr></thead>
+                                    <tbody>@foreach ($fac['productos'] as $producto)<tr style="border-top:1px solid #edf0f5;"><td style="padding:5px 8px;">{{ $producto['nombre_producto'] ?? '—' }}</td><td style="padding:5px 8px; text-align:center; font-weight:700; color:#1a7efb;">{{ (int) ($producto['cantidad'] ?? 0) }}</td><td style="padding:5px 8px; text-align:right; font-weight:700;">L {{ number_format($producto['total'] ?? 0, 2) }}</td></tr>@endforeach</tbody>
+                                </table>
+                            </div>
+                            @endif
                     <div style="border-radius:10px; overflow:hidden; border:1px solid #e8eaf0; background:#fff;">
                         <div style="background:linear-gradient(135deg,#1a7efb 0%,#0d6efd 100%); padding:10px 14px; color:#fff; font-size:13px; font-weight:700;">
                             <i class="mr-1 fa fa-history"></i> Historial de entregas
@@ -2222,6 +2418,7 @@
                             <table style="width:100%; font-size:11px; border-collapse:collapse;">
                                 <thead>
                                     <tr style="background:#f8f9fc; color:#888; position:sticky; top:0;">
+                                        <th style="padding:6px 8px; text-align:left;">Factura</th>
                                         <th style="padding:6px 8px; text-align:left;">Distribución</th>
                                         <th style="padding:6px 8px; text-align:left;">Fecha programada</th>
                                         <th style="padding:6px 8px; text-align:left;">Estado</th>
@@ -2232,7 +2429,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach ($historialEntregasFactura as $entrega)
+                                    @forelse ($entregasFactura as $entrega)
                                     @php
                                         $estadoEntregaDistribucion = (int) ($entrega['estado_id'] ?? 0);
                                         $estadoTexto = match($estadoEntregaDistribucion) {
@@ -2251,6 +2448,7 @@
                                         };
                                     @endphp
                                     <tr style="border-bottom:1px solid #f0f0f0;">
+                                        <td style="padding:6px 8px; color:#2c3e50; font-weight:700;">#{{ $entrega['factura_id'] }}</td>
                                         <td style="padding:6px 8px; color:#2c3e50; font-weight:700;">#{{ $entrega['distribucion_id'] }}</td>
                                         <td style="padding:6px 8px; color:#555;">{{ !empty($entrega['fecha_programada']) ? \Carbon\Carbon::parse($entrega['fecha_programada'])->format('d/m/Y') : '—' }}</td>
                                         <td style="padding:6px 8px;">
@@ -2263,17 +2461,21 @@
                                         <td style="padding:6px 8px; text-align:center; font-weight:700; color:#1a7efb;">{{ $entrega['orden_entrega'] ?? '—' }}</td>
                                         <td style="padding:6px 8px; color:#555;">{{ !empty($entrega['fecha_entrega_real']) ? \Carbon\Carbon::parse($entrega['fecha_entrega_real'])->format('d/m/Y H:i') : '—' }}</td>
                                     </tr>
-                                    @endforeach
+                                    @empty
+                                    <tr><td colspan="8" style="padding:16px; text-align:center; color:#90a4ae;">Esta factura todavía no tiene entregas programadas.</td></tr>
+                                    @endforelse
                                 </tbody>
                             </table>
                         </div>
                     </div>
+                        </div>
+                    </details>
+                    @endforeach
                 </div>
                 @else
                 <div style="margin-top:20px; text-align:center; padding:24px; color:#90a4ae;">
                     <i class="mb-2 fa fa-truck fa-2x d-block" style="opacity:.4;"></i>
-                    <p style="font-size:13px; margin:0; font-weight:600;">No hay entregas asociadas a esta factura.</p>
-                    <p style="font-size:12px; margin:4px 0 0; opacity:.7;">Cuando se programe una distribución en logística, aparecerá aquí su historial completo.</p>
+                    <p style="font-size:13px; margin:0; font-weight:600;">No hay facturas registradas para mostrar entregas.</p>
                 </div>
                 @endif
 
@@ -2282,23 +2484,41 @@
                 {{-- ══════════════════════════════════════════════════ --}}
                 @elseif ($pasoActivo === 'cobro')
 
-                @if ($cobroFacturaData)
+                @if (!empty($facturasData))
+                <div style="margin-top:12px; background:#fff; border:1px solid #e8eaf0; border-radius:10px; padding:12px 14px; font-size:12px; color:#555;">
+                    <i class="mr-1 fa fa-money text-primary"></i><strong>Cobros por factura</strong>
+                    <span style="margin-left:10px; color:#607d8b;">{{ count($facturasData) }} factura(s) registradas</span>
+                </div>
+                @foreach ($facturasData as $fac)
                 @php
-                    $saldoCobro = (float) ($saldoPendienteFactura ?? 0);
-                    $totalAbonado = collect($historialPagosFactura)->sum(function ($p) {
+                    $pagosFactura = collect($historialPagosFactura)
+                        ->where('factura_id', (int) $fac['id'])
+                        ->values();
+                    $saldoCobro = (float) ($fac['pendiente_cobro'] ?? 0);
+                    $totalAbonado = $pagosFactura->sum(function ($p) {
                         return (float) ($p['monto_abonado'] ?? 0);
                     });
                 @endphp
-                <div style="margin-top:12px;">
-                    <div style="background:#fff; border-radius:10px; border:1px solid #e8eaf0;
-                                padding:12px 14px; margin-bottom:10px; font-size:12px; color:#555;">
-                        <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:center;">
-                            <span><i class="mr-1 fa fa-file-text text-primary"></i><strong>Factura #{{ $cobroFacturaData['id'] }}</strong></span>
-                            <span><i class="mr-1 fa fa-user text-info"></i>{{ $cobroFacturaData['nombre'] ?? ($d['cliente'] ?? '—') }}</span>
-                            <span><i class="mr-1 fa fa-calendar text-muted"></i>{{ \Carbon\Carbon::parse($cobroFacturaData['fecha_emision'])->format('d/m/Y') }}</span>
-                            <strong style="color:#e65100;">Total factura: L {{ number_format($cobroFacturaData['total'] ?? 0, 2) }}</strong>
-                        </div>
+                <details class="fmp-invoice-card">
+                    <summary>
+                        <span style="display:flex; flex-wrap:wrap; gap:12px; align-items:center;">
+                            <span><i class="mr-1 fa fa-file-text text-primary"></i><strong>Factura #{{ $fac['id'] }}</strong></span>
+                            <span><i class="mr-1 fa fa-user text-info"></i>{{ $fac['nombre_cliente'] ?? ($d['cliente'] ?? '—') }}</span>
+                            <span><i class="mr-1 fa fa-calendar text-muted"></i>{{ \Carbon\Carbon::parse($fac['fecha_emision'] ?? $fac['created_at'])->format('d/m/Y') }}</span>
+                            <strong style="color:#e65100;">L {{ number_format($fac['total'] ?? 0, 2) }}</strong>
+                            <span style="background:{{ $saldoCobro <= 0 ? '#e8f5e9' : '#e8f0fe' }}; color:{{ $saldoCobro <= 0 ? '#1b5e20' : '#1a5fa8' }}; border-radius:10px; padding:2px 8px; font-weight:700;">Saldo: L {{ number_format($saldoCobro, 2) }}</span>
+                            <span style="margin-left:auto; color:#1a5fa8; font-weight:700;"><i class="fa fa-chevron-down mr-1 fmp-invoice-chevron"></i>Ver detalle</span>
+                        </span>
+                    </summary>
+                    <div style="padding:12px;">
+                    @if (!empty($fac['productos']))
+                    <div style="margin-bottom:10px; border:1px solid #e8eaf0; border-radius:8px; overflow:hidden;">
+                        <table style="width:100%; font-size:11px; border-collapse:collapse;">
+                            <thead><tr style="background:#f8f9fc; color:#667085;"><th style="padding:5px 8px; text-align:left;">Producto</th><th style="padding:5px 8px; text-align:center;">Cant.</th><th style="padding:5px 8px; text-align:right;">Total</th></tr></thead>
+                            <tbody>@foreach ($fac['productos'] as $producto)<tr style="border-top:1px solid #edf0f5;"><td style="padding:5px 8px;">{{ $producto['nombre_producto'] ?? '—' }}</td><td style="padding:5px 8px; text-align:center; font-weight:700; color:#1a7efb;">{{ (int) ($producto['cantidad'] ?? 0) }}</td><td style="padding:5px 8px; text-align:right; font-weight:700;">L {{ number_format($producto['total'] ?? 0, 2) }}</td></tr>@endforeach</tbody>
+                        </table>
                     </div>
+                    @endif
 
                     <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
                         <div style="flex:1; min-width:180px; background:#fff; border:1px solid #e8eaf0; border-radius:10px; padding:12px 14px;">
@@ -2306,7 +2526,7 @@
                             <div style="font-size:22px; font-weight:800; color:{{ $saldoCobro <= 0 ? '#1ab394' : '#1a7efb' }};">
                                 L {{ number_format($saldoCobro, 2) }}
                             </div>
-                            <div style="font-size:11px; color:#90a4ae;">Aplicación de pagos #{{ $aplicacionPagoId ?? '—' }}</div>
+                            <div style="font-size:11px; color:#90a4ae;">{{ $saldoCobro <= 0 ? 'Factura pagada' : 'Cobro pendiente' }}</div>
                         </div>
 
                         <div style="flex:1; min-width:180px; background:#fff; border:1px solid #e8eaf0; border-radius:10px; padding:12px 14px;">
@@ -2314,7 +2534,7 @@
                             <div style="font-size:22px; font-weight:800; color:#1ab394;">
                                 L {{ number_format($totalAbonado, 2) }}
                             </div>
-                            <div style="font-size:11px; color:#90a4ae;">{{ count($historialPagosFactura) }} pago(s) registrados</div>
+                            <div style="font-size:11px; color:#90a4ae;">{{ $pagosFactura->count() }} pago(s) registrados</div>
                         </div>
                     </div>
 
@@ -2323,7 +2543,7 @@
                             <i class="mr-1 fa fa-list-ul"></i> Historial de pagos
                         </div>
 
-                        @if (count($historialPagosFactura) === 0)
+                        @if ($pagosFactura->isEmpty())
                         <div style="padding:16px; text-align:center; color:#90a4ae; font-size:12px;">
                             <i class="mb-1 fa fa-inbox d-block" style="opacity:.35; font-size:20px;"></i>
                             No hay pagos registrados para esta factura.
@@ -2333,6 +2553,7 @@
                             <table style="width:100%; font-size:11px; border-collapse:collapse;">
                                 <thead>
                                     <tr style="background:#f8f9fc; color:#888; position:sticky; top:0;">
+                                        <th style="padding:6px 8px; text-align:left;">Factura</th>
                                         <th style="padding:6px 8px; text-align:left;">Fecha</th>
                                         <th style="padding:6px 8px; text-align:right;">Monto</th>
                                         <th style="padding:6px 8px; text-align:left;">Método</th>
@@ -2342,8 +2563,9 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach ($historialPagosFactura as $pago)
+                                    @foreach ($pagosFactura as $pago)
                                     <tr style="border-bottom:1px solid #f0f0f0;">
+                                        <td style="padding:6px 8px; color:#2c3e50; font-weight:700;">#{{ $pago['factura_id'] }}</td>
                                         <td style="padding:6px 8px; color:#2c3e50;">{{ !empty($pago['fecha_pago']) ? \Carbon\Carbon::parse($pago['fecha_pago'])->format('d/m/Y') : '—' }}</td>
                                         <td style="padding:6px 8px; text-align:right; font-weight:700; color:#1ab394;">L {{ number_format((float) ($pago['monto_abonado'] ?? 0), 2) }}</td>
                                         <td style="padding:6px 8px; color:#555;">{{ $pago['tipo_pago'] ?? '—' }}</td>
@@ -2353,7 +2575,7 @@
                                     </tr>
                                     @if (!empty($pago['comentario']))
                                     <tr style="border-bottom:1px solid #f0f0f0; background:#fafbff;">
-                                        <td colspan="6" style="padding:6px 8px; color:#6b7280; font-size:10px;">
+                                        <td colspan="7" style="padding:6px 8px; color:#6b7280; font-size:10px;">
                                             <i class="mr-1 fa fa-sticky-note-o"></i>{{ $pago['comentario'] }}
                                         </td>
                                     </tr>
@@ -2364,12 +2586,13 @@
                         </div>
                         @endif
                     </div>
-                </div>
+                    </div>
+                </details>
+                @endforeach
                 @else
                 <div style="margin-top:20px; text-align:center; padding:24px; color:#90a4ae;">
                     <i class="mb-2 fa fa-clock-o fa-2x d-block" style="opacity:.4;"></i>
-                    <p style="font-size:13px; margin:0; font-weight:600;">No se encontró información de cobro.</p>
-                    <p style="font-size:12px; margin:4px 0 0; opacity:.7;">Primero debe existir una factura y su registro en aplicación de pagos.</p>
+                    <p style="font-size:13px; margin:0; font-weight:600;">No hay facturas registradas para mostrar cobros.</p>
                 </div>
                 @endif
 
@@ -2390,6 +2613,16 @@
 
             {{-- ── Footer ─────────────────────────────────────────────── --}}
             <div class="modal-footer fmp-foot" style="border:none; background:#f8f9fc;">
+
+                @if ($pasoActivo === 'factura' && $expoConSaldoPendiente)
+                <button type="button" wire:click="facturarPrefacturaDirecta"
+                        wire:loading.attr="disabled" wire:target="facturarPrefacturaDirecta"
+                        style="border-radius:20px; padding:6px 20px; background:#2e7d32;
+                               border:none; color:#fff; font-size:13px; font-weight:700; cursor:pointer;">
+                    <span wire:loading.remove wire:target="facturarPrefacturaDirecta"><i class="fa fa-plus-circle mr-1"></i>Continuar facturando</span>
+                    <span wire:loading wire:target="facturarPrefacturaDirecta"><i class="fa fa-spinner fa-spin mr-1"></i>Procesando...</span>
+                </button>
+                @endif
 
                 <button type="button" wire:click="cerrar"
                         style="border-radius:20px; padding:6px 20px; background:#f0f0f0;
@@ -2549,6 +2782,46 @@
 @endif
 
 <script>
+    function confirmarLiquidacionExpoFlujo(resumen) {
+        var moneda = function(valor) {
+            return 'L ' + Number(valor || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        };
+        Swal.fire({
+            icon: 'warning',
+            title: 'Aplicar aumento Expo',
+            width: 680,
+            showCancelButton: true,
+            confirmButtonText: 'Confirmar aumento',
+            cancelButtonText: 'Más tarde',
+            showLoaderOnConfirm: true,
+            allowOutsideClick: function() { return !Swal.isLoading(); },
+            html: '<p style="font-size:13px">El aumento se registrará como otro movimiento en las facturas de este flujo.</p>'
+                + '<div style="display:flex;justify-content:space-around;margin:12px 0"><span>Otorgado<br><strong>' + moneda(resumen.descuento_otorgado) + '</strong></span><span>Ganado<br><strong>' + moneda(resumen.descuento_ganado) + '</strong></span><span>Aumento<br><strong>' + moneda(resumen.aumento_calculado) + '</strong></span></div>',
+            preConfirm: function() {
+                return axios.post('/expo/liquidacion/confirmar', {
+                    cotizacion_id: resumen.cotizacion_id,
+                    flujo_id: resumen.flujo_id
+                }).then(function(response) {
+                    return response.data.liquidacionExpo;
+                }).catch(function(error) {
+                    var data = error.response ? error.response.data : {};
+                    Swal.showValidationMessage(data.text || data.message || 'No se pudo aplicar el aumento.');
+                });
+            }
+        }).then(function(result) {
+            if (!result.isConfirmed || !result.value) return;
+            var liquidacion = result.value;
+            Swal.fire({
+                icon: liquidacion.estado === 'LIQUIDADA' ? 'success' : 'warning',
+                title: liquidacion.estado === 'LIQUIDADA' ? 'Oferta liquidada' : 'Liquidación pendiente',
+                text: liquidacion.mensaje || 'El aumento fue registrado y aplicado.',
+                confirmButtonText: 'Aceptar'
+            }).then(function() {
+                Livewire.emit('recargarFlujo');
+            });
+        });
+    }
+
     function solicitarCodigoPrefactura(btn) {
         var msgEl = document.getElementById('msgSolicitarCodigo');
         btn.disabled = true;
@@ -2612,9 +2885,11 @@
                         placeholder: '-- Sin gestor --',
                         allowClear: true,
                         ajax: {
-                            url: '/ventas/corporativo/vendedores',
+                            url: '/cotizacion/gestores-entrega',
                             data: function(params) {
-                                return { search: params.term || '', type: 'public', page: params.page || 1 };
+                                return {
+                                    search: params.term || ''
+                                };
                             },
                             processResults: function(data) {
                                 return { results: [{ id: '', text: '-- Sin gestor --' }].concat(data.results || []) };
@@ -2708,6 +2983,10 @@
                         Swal.fire({
                             icon: data.icon || 'error',
                             title: data.title || 'Error',
+                            width: data.productos_escala_cambiada ? 'min(760px, calc(100vw - 28px))' : undefined,
+                            customClass: data.productos_escala_cambiada ? { popup: 'fmp-price-alert' } : undefined,
+                            confirmButtonText: data.productos_escala_cambiada ? 'Entendido' : 'OK',
+                            confirmButtonColor: data.productos_escala_cambiada ? '#1570ef' : undefined,
                             text: data.text || data.warning || (data.detail && data.detail.text) || data.error || 'No se pudo facturar la prefactura.',
                             html: (data.warning && data.warning.includes('<')) ? data.warning : undefined
                         });

@@ -113,14 +113,17 @@ function ndInicializarTablas() {
             data: function(datos) { return $.extend(datos, ndFiltrosFacturas); }
         },
         columns: [
-            { data: 'cai' }, { data: 'fecha_emision' }, { data: 'nombre' },
-            { data: 'descripcion' }, { data: 'fecha_vencimiento' },
-            { data: 'sub_total', className: 'text-right' },
-            { data: 'isv', className: 'text-right' },
-            { data: 'total', className: 'text-right' },
-            { data: 'estado_cobro', orderable: false, className: 'text-center' },
-            { data: 'creado_por' },
-            { data: 'estado_ndebito', orderable: false, className: 'text-center' },
+            { data: 'cai', name: 'f.cai' },
+            { data: 'fecha_emision', name: 'f.fecha_emision' },
+            { data: 'nombre', name: 'c.nombre' },
+            { data: 'descripcion', name: 'tp.descripcion' },
+            { data: 'fecha_vencimiento', name: 'f.fecha_vencimiento' },
+            { data: 'sub_total', name: 'f.sub_total', className: 'text-right' },
+            { data: 'isv', name: 'f.isv', className: 'text-right' },
+            { data: 'total', name: 'f.total', className: 'text-right' },
+            { data: 'estado_cobro', orderable: false, searchable: false, className: 'text-center' },
+            { data: 'creado_por', name: 'u.name' },
+            { data: 'estado_ndebito', orderable: false, searchable: false, className: 'text-center' },
             { data: 'opciones', orderable: false, searchable: false, className: 'text-center' }
         ]
     });

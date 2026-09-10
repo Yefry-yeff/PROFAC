@@ -26,6 +26,12 @@ use Illuminate\Support\Facades\File;
 
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\ProductosExport;
+use App\Exports\Inventario\ProductoCargaMasivaPlantillaExport;
+use App\Services\Inventario\ProductoCargaMasivaService;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
+use InvalidArgumentException;
 
 class Producto extends Component
 {
@@ -204,6 +210,218 @@ class Producto extends Component
                 'errorTh' => $e,
             ], 402);
         }
+    }
+
+    public function descargarPlantillaCargaMasiva(ProductoCargaMasivaService $service)
+    {
+        $this->autorizarCargaMasiva();
+
+        return Excel::download(
+            new ProductoCargaMasivaPlantillaExport($service->catalogos()),
+            'plantilla_carga_masiva_productos.xlsx'
+        );
+    }
+
+    public function previsualizarCargaMasiva(Request $request, ProductoCargaMasivaService $service)
+    {
+        $this->autorizarCargaMasiva();
+        $validator = Validator::make($request->all(), [
+            'archivo' => 'required|file|mimes:xlsx,xls|max:10240',
+        ], [
+            'archivo.required' => 'Debe seleccionar un archivo Excel.',
+            'archivo.mimes' => 'El archivo debe tener formato XLSX o XLS.',
+            'archivo.max' => 'El archivo no puede superar 10 MB.',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => $validator->errors()->first()], 422);
+        }
+
+        try {
+            $filas = $service->interpretar($request->file('archivo'));
+            $token = (string) Str::uuid();
+            Cache::put($this->claveCargaMasiva($token), [
+                'users_id' => Auth::id(),
+                'archivo_nombre' => $request->file('archivo')->getClientOriginalName(),
+                'registros_importados' => count($filas),
+                'procesado_at' => now()->timestamp,
+                'filas' => $filas,
+            ], now()->addHours(2));
+
+            return response()->json([
+                'token' => $token,
+                'archivo' => $request->file('archivo')->getClientOriginalName(),
+                'filas' => $filas,
+                'catalogos' => $service->catalogos(),
+            ]);
+        } catch (Throwable $exception) {
+            return response()->json(['message' => $exception->getMessage()], 422);
+        }
+    }
+
+    public function revalidarCargaMasiva(Request $request, ProductoCargaMasivaService $service)
+    {
+        $this->autorizarCargaMasiva();
+        $token = (string) $request->input('token');
+        $previsualizacion = $this->obtenerCargaMasiva($token);
+        if (!$previsualizacion) {
+            return response()->json(['message' => 'La previsualización expiró. Procese nuevamente el archivo.'], 419);
+        }
+
+        try {
+            $filas = $this->filasCargaMasivaRecibidas($request->input('filas', []), $previsualizacion);
+        } catch (InvalidArgumentException $exception) {
+            return response()->json(['message' => 'La previsualización no es válida.'], 422);
+        }
+
+        return response()->json(['filas' => $service->validarFilas($filas)]);
+    }
+
+    public function guardarCargaMasiva(Request $request, ProductoCargaMasivaService $service)
+    {
+        $this->autorizarCargaMasiva();
+        $token = (string) $request->input('token');
+        $previsualizacion = $this->obtenerCargaMasiva($token);
+        if (!$previsualizacion) {
+            return response()->json(['message' => 'La previsualización expiró. Procese nuevamente el archivo.'], 419);
+        }
+
+        try {
+            $filasRecibidas = $this->filasCargaMasivaRecibidas($request->input('filas', []), $previsualizacion);
+        } catch (InvalidArgumentException $exception) {
+            return response()->json(['message' => 'La previsualización no es válida.'], 422);
+        }
+
+        $uidsSeleccionados = collect($filasRecibidas)
+            ->filter(fn ($fila) => filter_var($fila['seleccionado'] ?? false, FILTER_VALIDATE_BOOLEAN))
+            ->pluck('uid')->flip();
+        $seleccionadas = collect($service->validarFilas($filasRecibidas))
+            ->filter(fn ($fila) => $uidsSeleccionados->has($fila['uid']))
+            ->values();
+        if ($seleccionadas->isEmpty()) {
+            return response()->json(['message' => 'Seleccione al menos un producto válido.'], 422);
+        }
+
+        $identificador = $token;
+        try {
+            $importacionId = DB::table('producto_importaciones')->insertGetId([
+                'identificador' => $identificador,
+                'users_id' => Auth::id(),
+                'archivo_nombre' => $previsualizacion['archivo_nombre'],
+                'registros_importados' => $previsualizacion['registros_importados'],
+                'registros_seleccionados' => $seleccionadas->count(),
+                'cantidad_creada' => 0,
+                'cantidad_rechazada' => 0,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        } catch (QueryException $exception) {
+            return response()->json(['message' => 'Esta previsualización ya fue confirmada.'], 409);
+        }
+
+        $creados = [];
+        $rechazados = [];
+        foreach ($seleccionadas as $filaOriginal) {
+            $fila = $service->validarFilas([$filaOriginal])[0];
+            if ($fila['estado'] === 'error') {
+                $rechazados[] = $fila;
+                $this->registrarDetalleImportacion($importacionId, $fila, null, 'RECHAZADO', $fila['errores']);
+                continue;
+            }
+
+            try {
+                $producto = $service->crearProducto($fila, Auth::id(), $importacionId, function ($producto) use ($importacionId, $fila) {
+                    $this->registrarDetalleImportacion($importacionId, $fila, $producto->id, 'CREADO', []);
+                });
+                $fila['producto_id'] = $producto->id;
+                $fila['estado'] = 'creado';
+                $fila['seleccionado'] = false;
+                $creados[] = $fila;
+            } catch (Throwable $exception) {
+                $fila['estado'] = 'error';
+                $fila['errores'] = ['No se pudo crear el producto: ' . $exception->getMessage()];
+                $fila['seleccionado'] = false;
+                $rechazados[] = $fila;
+                $this->registrarDetalleImportacion($importacionId, $fila, null, 'RECHAZADO', $fila['errores']);
+            }
+        }
+
+        DB::table('producto_importaciones')->where('id', $importacionId)->update([
+            'cantidad_creada' => count($creados),
+            'cantidad_rechazada' => count($rechazados),
+            'updated_at' => now(),
+        ]);
+        Cache::forget($this->claveCargaMasiva($token));
+
+        return response()->json([
+            'identificador' => $identificador,
+            'creados' => $creados,
+            'rechazados' => $rechazados,
+            'cantidad_creada' => count($creados),
+            'cantidad_rechazada' => count($rechazados),
+        ]);
+    }
+
+    private function autorizarCargaMasiva(): void
+    {
+        abort_unless(Auth::check() && (int) Auth::user()->rol_id === 1, 403);
+    }
+
+    private function claveCargaMasiva(string $token): string
+    {
+        return 'producto_carga_masiva:' . $token;
+    }
+
+    private function obtenerCargaMasiva(string $token): ?array
+    {
+        if (!$token) {
+            return null;
+        }
+
+        $previsualizacion = Cache::get($this->claveCargaMasiva($token));
+
+        return is_array($previsualizacion) && (int) ($previsualizacion['users_id'] ?? 0) === (int) Auth::id()
+            ? $previsualizacion
+            : null;
+    }
+
+    private function filasCargaMasivaRecibidas($filas, array $previsualizacion): array
+    {
+        $originales = collect($previsualizacion['filas'] ?? [])->keyBy('uid');
+        if (!is_array($filas) || count($filas) !== $originales->count() || count($filas) > ProductoCargaMasivaService::MAX_FILAS) {
+            throw new InvalidArgumentException('Cantidad de filas inválida.');
+        }
+
+        $usados = [];
+        return array_map(function ($fila) use ($originales, &$usados) {
+            $uid = (string) ($fila['uid'] ?? '');
+            if (!$uid || isset($usados[$uid]) || !$originales->has($uid)) {
+                throw new InvalidArgumentException('Fila no reconocida.');
+            }
+            $usados[$uid] = true;
+            $original = $originales->get($uid);
+
+            return array_merge($original, Arr::only($fila, ProductoCargaMasivaService::CAMPOS_EDITABLES), [
+                'uid' => $uid,
+                'fila_excel' => $original['fila_excel'],
+            ]);
+        }, $filas);
+    }
+
+    private function registrarDetalleImportacion(int $importacionId, array $fila, ?int $productoId, string $estado, array $errores): void
+    {
+        DB::table('producto_importacion_detalles')->insert([
+            'producto_importacion_id' => $importacionId,
+            'fila_excel' => (int) ($fila['fila_excel'] ?? 0),
+            'estado' => $estado,
+            'producto_id' => $productoId,
+            'codigo_barra' => $fila['codigo_barra'] ?: null,
+            'nombre' => $fila['nombre'] ?: null,
+            'datos' => json_encode($fila, JSON_UNESCAPED_UNICODE),
+            'errores' => $errores ? json_encode($errores, JSON_UNESCAPED_UNICODE) : null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
     }
 
 

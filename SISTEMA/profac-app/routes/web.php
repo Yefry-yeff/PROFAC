@@ -294,8 +294,8 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/comision/reporte/nomina',      [ReportesComisionesGenerales::class, 'reporteNomina']);
     Route::get('/comision/reporte/nomina/detalle', [ReportesComisionesGenerales::class, 'detalleNomina']);
     Route::get('/comision/reporte/proyecciones', [ReportesComisionesGenerales::class, 'reporteProyecciones']);
-    Route::post('/comision/reporte/proyecciones/exportar-excel', [ReportesComisionesGenerales::class, 'exportarProyeccionesExcel']);
     Route::post('/comision/reporte/proyecciones/exportar-facturas', [ReportesComisionesGenerales::class, 'exportarFacturasProyectadasExcel']);
+    Route::post('/comision/reporte/proyecciones/exportar-excel', [ReportesComisionesGenerales::class, 'exportarProyeccionesExcel']);
     Route::post('/comision/reporte/proyecciones/exportar-excel-15', [ReportesComisionesGenerales::class, 'exportarProyeccionesExcel15']);
     Route::post('/comision/reporte/proyecciones/exportar-nomina', [ReportesComisionesGenerales::class, 'exportarProyeccionesNomina']);
     Route::get('/comision/reporte/factura-por-actor', [ReportesComisionesGenerales::class, 'facturasPorActor']);
@@ -455,6 +455,9 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::post('/actualizar/categoria/precios', [CategoriaPrecios::class, 'actualizarCategoria']);
     Route::post('/actualizar/comision/cat-precio', [CategoriaPrecios::class, 'actualizarComisionCatPrecio'])->name('cat.precio.actualizar.comision');
     Route::get('/precios/productos/listar', [CategoriaPrecios::class, 'listarProductosPrecios']);
+    Route::get('/precios/producto/historial', [CategoriaPrecios::class, 'historialPrecioProducto']);
+    Route::post('/precios/producto/agregar', [CategoriaPrecios::class, 'agregarProductoPrecio']);
+    Route::post('/precios/producto/eliminar', [CategoriaPrecios::class, 'eliminarProductoPrecio']);
     Route::post('/precios/producto/actualizar-base', [CategoriaPrecios::class, 'actualizarPrecioBase']);
     /*SUBIDA DE EXCEL */
     // web.php
@@ -671,6 +674,10 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
 
     Route::get('/producto/registro', Producto::class);
     Route::post('/producto/registrar', [Producto::class, 'crearProducto']);
+    Route::get('/producto/carga-masiva/plantilla', [Producto::class, 'descargarPlantillaCargaMasiva']);
+    Route::post('/producto/carga-masiva/previsualizar', [Producto::class, 'previsualizarCargaMasiva']);
+    Route::post('/producto/carga-masiva/revalidar', [Producto::class, 'revalidarCargaMasiva']);
+    Route::post('/producto/carga-masiva/guardar', [Producto::class, 'guardarCargaMasiva']);
     Route::post('/producto/editar', [Producto::class, 'editarProducto']);
     Route::post('/producto/eliminar', [Producto::class, 'eliminarImagen']);
     Route::get('/producto/marca/listar', [Marca::class, 'listarMarcas']);
@@ -738,6 +745,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/translado/lista/productos', [Translados::class, 'listarProductos']);
     Route::get('/translado/lista/bodegas', [Translados::class, 'listarBodegas']);
     Route::get('/translado/producto/lista/{idBodega}/{idProducto}', [Translados::class, 'productoBodega']);
+    Route::get('/translado/producto/ubicaciones/{idProducto}', [Translados::class, 'ubicacionesProducto']);
     Route::get('/translado/destino/lista/{numeroFilas}', [Translados::class, 'productoGeneralBodega']);
     Route::post('/translado/producto/bodega', [Translados::class, 'ejectarTranslado']);
     // Endpoints optimizados del buscador de productos (filtrados por bodega, solo vista traslados)
@@ -792,12 +800,16 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/productos/buscar/categorias', [BusquedaProductoController::class, 'categorias']);
     Route::get('/productos/buscar/marcas', [BusquedaProductoController::class, 'marcas']);
     Route::get('/productos/buscar/top-vendidos', [BusquedaProductoController::class, 'topVendidos']);
+    Route::get('/productos/{idProducto}/descripcion', [FacturacionUnificada::class, 'descripcionProducto']);
+    Route::get('/expo/oferta/listar-bodega/{idProducto}', [FacturacionUnificada::class, 'listarBodegasExpo']);
+    Route::get('/expo/captura-rapida/producto/{identificador}', [FacturacionUnificada::class, 'capturaRapidaExpo']);
 
     Route::post('/ventas/datos/producto', [FacturacionCorporativa::class, 'obtenerDatosProducto']);
     Route::post('/producto/categorias-disponibles', [FacturacionCorporativa::class, 'obtenerCategoriasProducto']);
 
     Route::post('/ventas/corporativo/guardar', [FacturacionCorporativa::class, 'guardarVenta']);
     Route::post('/flujo/factura/confirmar', [FacturacionCorporativa::class, 'confirmarFacturaFlujo']);
+    Route::post('/expo/liquidacion/confirmar', [FacturacionCorporativa::class, 'confirmarLiquidacionExpo']);
     Route::get('/ventas/corporativo/vendedores', [FacturacionCorporativa::class, 'listadoVendedores']);
     Route::get('/detalle/venta/{id}', DetalleVenta::class);
     Route::get('/detalle/venta/vendedor/{id}', DetalleVentaVendedor::class);
@@ -857,6 +869,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
 
     Route::get('/facturas/estatal', ListadoFacturasUnificado::class)->defaults('tipo', 'estatal');
     Route::get('/lista/facturas/estatal', [ListadoFacturaEstatal::class, 'listarFacturas']);
+    Route::post('/lista/facturas/estatal/exportar-pdf-detalle', [ListadoFacturaEstatal::class, 'exportarPdfDetalle']);
     Route::post('/factura/estatal/anular', [ListadoFacturaEstatal::class, 'anularVentaRegistro']);
 
 
@@ -892,6 +905,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::post('/cotizacion/asesor-asignado', [Cotizacion::class, 'obtenerAsesorAsignado']);
     Route::get('/cotizacion/vendedores-asignados', [Cotizacion::class, 'listadoVendedoresAsignados']);
     Route::get('/cotizacion/actores-asignados', [Cotizacion::class, 'listadoActoresAsignados']);
+    Route::get('/cotizacion/gestores-entrega', [Cotizacion::class, 'listadoGestoresEntrega']);
     Route::post('/guardar/cotizacion', [Cotizacion::class, 'guardarCotizacion']);
     Route::post('/cotizacion/adjunto/subir', [Cotizacion::class, 'subirAdjunto']);
 
@@ -1049,6 +1063,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::post('/nota/credito/datos/factura', [CrearNotaCredito::class, 'obtenerDetalleFactura']);
     Route::post('/nota/credito/previsualizar-aplicacion', [CrearNotaCredito::class, 'previsualizarAplicacion']);
     Route::post('/nota/credito/obtener/productos', [CrearNotaCredito::class, 'obtenerProductos']);
+    Route::post('/nota/credito/obtener/productos-devolucion', [CrearNotaCredito::class, 'obtenerProductosParaDevolucion']);
     Route::post('/nota/credito/datos/producto', [CrearNotaCredito::class, 'datosProducto']);
     Route::post('/nota/credito/guardar', [CrearNotaCredito::class, 'guardarNotaCredito']);
     Route::get('/nota/credito/gobierno', ListadoNotasND::class);
@@ -1657,6 +1672,41 @@ Route::post('/reporte/ventas-cobros/actualizar-f01/{facturaId}',                
 
     // Ruta auto-generada para: FlujoDeVenta\Expo
     Route::get('/flujo_de_venta/expo', \App\Http\Livewire\FlujoDeVenta\Expo::class);
+
+
+    // Ruta auto-generada para: Expo\ReporteDeExpo
+    Route::get('/expo/reporte_de_expo', \App\Http\Livewire\Expo\ReporteDeExpo::class);
+
+
+    // Ruta auto-generada para: Expo\ListaDeAsistencia
+    Route::get('/expo/lista_de_asistencia', \App\Http\Livewire\Expo\ListaDeAsistencia::class);
+
+
+    // Ruta auto-generada para: Reportes\ReporteExpo
+    Route::get('/reportes/reporte_expo', \App\Http\Livewire\Reportes\ReporteExpo::class);
+
+    // Reporte BI de Expo - endpoints AJAX (JSON) del dashboard dinámico
+    Route::get('/reporte/expo/kpis',              [\App\Http\Livewire\Reportes\ReporteExpo::class, 'kpis']);
+    Route::get('/reporte/expo/estado-ofertas',     [\App\Http\Livewire\Reportes\ReporteExpo::class, 'estadoOfertas']);
+    Route::get('/reporte/expo/ventas-por-marca',   [\App\Http\Livewire\Reportes\ReporteExpo::class, 'ventasPorMarca']);
+    Route::get('/reporte/expo/ventas-por-asesor',  [\App\Http\Livewire\Reportes\ReporteExpo::class, 'ventasPorAsesor']);
+    Route::get('/reporte/expo/ventas-por-teleasesor', [\App\Http\Livewire\Reportes\ReporteExpo::class, 'ventasPorTeleasesor']);
+    Route::get('/reporte/expo/top-clientes',        [\App\Http\Livewire\Reportes\ReporteExpo::class, 'topClientes']);
+    Route::get('/reporte/expo/top-productos',       [\App\Http\Livewire\Reportes\ReporteExpo::class, 'topProductos']);
+    Route::get('/reporte/expo/evolucion-diaria',   [\App\Http\Livewire\Reportes\ReporteExpo::class, 'evolucionDiaria']);
+    Route::get('/reporte/expo/tabla-productos',    [\App\Http\Livewire\Reportes\ReporteExpo::class, 'tablaProductos']);
+    Route::get('/reporte/expo/tabla-ofertas',      [\App\Http\Livewire\Reportes\ReporteExpo::class, 'tablaOfertas']);
+    Route::get('/reporte/expo/exportar-productos', [\App\Http\Livewire\Reportes\ReporteExpo::class, 'exportarProductos']);
+    Route::get('/reporte/expo/exportar-ofertas',   [\App\Http\Livewire\Reportes\ReporteExpo::class, 'exportarOfertas']);
+    Route::get('/reporte/expo/catalogo-filtros',   [\App\Http\Livewire\Reportes\ReporteExpo::class, 'catalogoFiltros']);
+    Route::get('/reporte/expo/buscar-productos',   [\App\Http\Livewire\Reportes\ReporteExpo::class, 'buscarProductos']);
+    Route::get('/reporte/expo/detalle-oferta',     [\App\Http\Livewire\Reportes\ReporteExpo::class, 'detalleOferta']);
+    Route::get('/reporte/expo/detalle-producto',   [\App\Http\Livewire\Reportes\ReporteExpo::class, 'detalleProducto']);
+    Route::get('/reporte/expo/exportar-oferta',    [\App\Http\Livewire\Reportes\ReporteExpo::class, 'exportarOferta']);
+
+
+    // Ruta auto-generada para: FlujoDeVenta\VidaUtilDeUnFlujo
+    Route::get('/flujo_de_venta/vida_util_de_un_flujo', \App\Http\Livewire\FlujoDeVenta\VidaUtilDeUnFlujo::class);
 
     // [auto-routes-anchor]
 });

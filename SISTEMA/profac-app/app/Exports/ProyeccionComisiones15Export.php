@@ -2,22 +2,19 @@
 
 namespace App\Exports;
 
+use App\Exports\Comisiones\ProyeccionEspecial15AuditoriaSheet;
+use App\Exports\Comisiones\ProyeccionNominaSheet;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 
 /**
- * Export de Proyección de Comisiones — variante "Fijo 15%".
+ * Export de Proyección de Comisiones con regla especial del 15% por cliente.
  *
- * Misma estructura y estilo que ProyeccionComisionesExport, pero recalculando
- * la comisión de cada línea con un porcentaje fijo del 15% sobre la base
- * comisionable, sin importar la escala parametrizada.
+ * Los clientes configurados en ProyeccionComisiones15SheetExport reciben el
+ * 15% fijo; las demás filas conservan la comisión normal por escala.
  *
  * Uso exclusivo: acceso restringido a un usuario puntual (ver controlador).
  *
- * Pestañas:
- *   1. Asesor Comercial  (capacidad = ASESOR)
- *   2. Teleasesor        (capacidad = TELEASESOR)
- *   3. Gestor de Entregas(capacidad = GESTOR_ENTREGA)
- *   4. Todas             (sin filtro)
+ * Incluye nómina proyectada, detalle por rol, todas las líneas y auditoría.
  */
 class ProyeccionComisiones15Export implements WithMultipleSheets
 {
@@ -25,13 +22,15 @@ class ProyeccionComisiones15Export implements WithMultipleSheets
     protected string $empresa;
     protected string $periodo;
     protected string $generadoPor;
+    protected ProyeccionNominaSheet $nominaSheet;
 
-    public function __construct(array $data, string $empresa, string $periodo, string $generadoPor)
+    public function __construct(array $data, string $empresa, string $periodo, string $generadoPor, ProyeccionNominaSheet $nominaSheet)
     {
         $this->data        = $data;
         $this->empresa     = $empresa;
         $this->periodo     = $periodo;
         $this->generadoPor = $generadoPor;
+        $this->nominaSheet = $nominaSheet;
     }
 
     public function sheets(): array
@@ -42,7 +41,7 @@ class ProyeccionComisiones15Export implements WithMultipleSheets
             ['label' => 'Gestor de Entregas',  'capacidad' => 'GESTOR_ENTREGA'],
         ];
 
-        $sheets = [];
+        $sheets = [$this->nominaSheet];
 
         foreach ($tabs as $tab) {
             $filtered = array_values(array_filter($this->data, function ($row) use ($tab) {
@@ -64,6 +63,12 @@ class ProyeccionComisiones15Export implements WithMultipleSheets
             $this->data,
             'Todas',
             $this->empresa,
+            $this->periodo,
+            $this->generadoPor
+        );
+
+        $sheets[] = new ProyeccionEspecial15AuditoriaSheet(
+            $this->data,
             $this->periodo,
             $this->generadoPor
         );

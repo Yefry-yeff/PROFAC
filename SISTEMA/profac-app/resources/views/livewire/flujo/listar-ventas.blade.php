@@ -33,8 +33,11 @@
         .estado-entrega-cobro { background:#ede7f6; color:#4527a0; }
         .estado-sin-flujo { background:#f5f5f5; color:#78909c; }
         .estado-cancelado { background:#fce4ec; color:#b71c1c; }
+        .estado-rechazado-creditos { background:#c62828; color:#fff; }
         .ofp-row { transition: background .1s; }
         .ofp-row:hover > td { background: #fff8ee !important; cursor: pointer; }
+        .ofp-row-rechazado-creditos > td { background:#ffebee !important; border-color:#ef9a9a !important; }
+        .ofp-row-rechazado-creditos:hover > td { background:#ffcdd2 !important; }
     </style>
 
     <div class="ibox" style="background:#fff; border-radius:14px; overflow:hidden; box-shadow:0 8px 26px rgba(0,0,0,.08);">
@@ -77,7 +80,7 @@
     </div>
 
     <div class="row mb-3">
-        <div class="col-md-4 mb-2">
+        <div class="col-md-3 mb-2">
             <div class="input-group">
                 <div class="input-group-prepend">
                     <span class="input-group-text"
@@ -100,7 +103,7 @@
                    placeholder="# Documento"
                    style="border-radius:8px;">
         </div>
-        <div class="col-md-3 mb-2">
+        <div class="col-md-2 mb-2">
             <select wire:model="filtroEstado" class="form-control" style="border-radius:8px;">
                 <option value="">Todos los estados</option>
                 <option value="pedido">Pedido</option>
@@ -108,7 +111,17 @@
                 <option value="prefactura">Pre Factura</option>
                 <option value="factura">Factura</option>
                 <option value="Entrega Cobro">Entrega / Cobro</option>
+                <option value="rechazado_creditos">Rechazado por créditos</option>
                 <option value="sin_flujo">Sin flujo</option>
+            </select>
+        </div>
+        <div class="col-md-3 mb-2">
+            <select wire:model="filtroTipoVenta" class="form-control" style="border-radius:8px;">
+                <option value="">Todos los tipos</option>
+                <option value="expo">Expo</option>
+                @foreach($tiposVenta as $tipoVenta)
+                    <option value="{{ data_get($tipoVenta, 'id') }}">{{ ucfirst(data_get($tipoVenta, 'descripcion')) }}</option>
+                @endforeach
             </select>
         </div>
         <div class="col-md-3 mb-2">
@@ -120,10 +133,10 @@
     </div>
 
     @php
-        $ofrTotal    = count($registros);
+        $ofrTotal    = $totalRegistros;
         $ofrLastPage = max(1, (int) ceil($ofrTotal / $perPage));
         $ofrStart    = ($paginaOfr - 1) * $perPage;
-        $ofrSlice    = array_slice($registros, $ofrStart, $perPage);
+        $ofrSlice    = $registros;
 
         $estadoMap = [
             'pedido'        => ['#e8f5e9', '#2e7d32', 'Pedido',          'fa-shopping-cart'],
@@ -133,6 +146,7 @@
             'Entrega Cobro' => ['#ede7f6', '#4527a0', 'Entrega / Cobro', 'fa-truck'],
             'sin_flujo'     => ['#f5f5f5', '#78909c', 'Sin flujo',       'fa-question-circle'],
             'cancelado'     => ['#fce4ec', '#b71c1c', 'Cancelado',       'fa-ban'],
+            'rechazado_creditos' => ['#c62828', '#fff', 'Rechazado por créditos', 'fa-times-circle'],
         ];
     @endphp
 
@@ -170,6 +184,7 @@
                         <i class="fa {{ $sortColOfr==='cliente' ? ($sortDirOfr==='asc' ? 'fa-sort-asc' : 'fa-sort-desc') : 'fa-sort' }} sort-icon {{ $sortColOfr==='cliente' ? 'active' : '' }}"></i>
                     </th>
                     <th class="ofp-th static" style="width:140px;">RTN</th>
+                    <th class="ofp-th static" style="width:150px; text-align:center;">Tipo de venta</th>
                     <th class="ofp-th" wire:click="sortByOfr('estado_flujo')" style="width:145px; text-align:center;">
                         Estado
                         <i class="fa {{ $sortColOfr==='estado_flujo' ? ($sortDirOfr==='asc' ? 'fa-sort-asc' : 'fa-sort-desc') : 'fa-sort' }} sort-icon {{ $sortColOfr==='estado_flujo' ? 'active' : '' }}"></i>
@@ -197,10 +212,12 @@
                         'factura' => 'estado-factura',
                         'Entrega Cobro' => 'estado-entrega-cobro',
                         'cancelado' => 'estado-cancelado',
+                        'rechazado_creditos' => 'estado-rechazado-creditos',
                         default => 'estado-sin-flujo',
                     };
+                    $filaRechazadaCreditos = $ef === 'rechazado_creditos';
                 @endphp
-                <tr class="ofp-row" wire:click="abrirFlujoDesdeRegistro({{ (int) ($o['flujo_id'] ?? 0) }}, {{ (int) ($o['pedido_id'] ?? 0) }})" title="Ver flujo #{{ $o['flujo_id'] }}">
+                <tr class="ofp-row {{ $filaRechazadaCreditos ? 'ofp-row-rechazado-creditos' : '' }}" wire:click="abrirFlujoDesdeRegistro({{ (int) ($o['flujo_id'] ?? 0) }}, {{ (int) ($o['pedido_id'] ?? 0) }})" title="Ver flujo #{{ $o['flujo_id'] }}">
                     <td class="text-center align-middle" style="padding:8px;">
                         <span style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; border-radius:6px; padding:2px 9px; font-weight:800; font-size:13px;">
                             #{{ $o['flujo_id'] }}
@@ -214,6 +231,15 @@
                     </td>
                     <td class="align-middle" style="color:#546e7a; padding:8px 12px; font-size:12px;">
                         {{ $o['rtn'] ?: '—' }}
+                    </td>
+                    <td class="text-center align-middle" style="padding:8px 6px;">
+                        @forelse(array_filter(array_map('trim', explode(',', $o['tipos_venta'] ?? ''))) as $tipoVenta)
+                            <span class="hist-badge" style="margin:1px; background:{{ $tipoVenta === 'Expo' ? '#e8f5e9' : '#e3f2fd' }}; color:{{ $tipoVenta === 'Expo' ? '#2e7d32' : '#1565c0' }};">
+                                <i class="fa {{ $tipoVenta === 'Expo' ? 'fa-star' : 'fa-file-text-o' }} mr-1"></i>{{ ucfirst($tipoVenta) }}
+                            </span>
+                        @empty
+                            <span style="color:#b0bec5;">Sin oferta</span>
+                        @endforelse
                     </td>
                     <td class="text-center align-middle" style="padding:8px 6px;">
                         <span class="hist-badge {{ $estadoClass }}">

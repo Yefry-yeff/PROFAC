@@ -6,6 +6,10 @@
     'urlTop'      => '/productos/buscar/top-vendidos',
     'urlFiltros'  => '/productos/buscar',
     'topLabel'    => '',
+    'expoId'      => null,
+    'extraParamsCallback' => '',
+    'conStockDefault' => true,
+    'useTopPreview' => true,
 ])
 @php
     $suf = preg_replace('/[^a-zA-Z0-9]/', '_', $idModal);
@@ -100,7 +104,7 @@
 
                     {{-- Solo con stock --}}
                     <div class="custom-control custom-switch ml-1">
-                        <input type="checkbox" class="custom-control-input" checked
+                        <input type="checkbox" class="custom-control-input" @checked($conStockDefault)
                                id="{{ $suf }}_conStock">
                         <label class="custom-control-label"
                                for="{{ $suf }}_conStock"
@@ -164,7 +168,6 @@
 <style>
 /* Buscador de producto: z-index por encima del sidebar (max z-index sidebar = 10000) */
 #{{ $idModal }}  { z-index: 20050 !important; }
-.modal-backdrop  { z-index: 20040 !important; }
 /* Barra de carga animada — @@keyframes evita que Blade interprete el @ */
 @@keyframes bsp_loadbar {
     0%   { background-position: 100% 0; }
@@ -193,12 +196,15 @@
     var URL_TOP       = '{{ $urlTop }}';
     var URL_FILTROS   = '{{ $urlFiltros }}';
     var TOP_LABEL     = '{{ $topLabel }}';
+    var EXPO_ID       = @json($expoId);
+    var EXTRA_PARAMS_CB = '{{ $extraParamsCallback }}';
+    var USE_TOP_PREVIEW = @json((bool) $useTopPreview);
 
     var page          = 1;
     var query         = '';
     var catId         = '';
     var marcaId       = '';
-    var conStock      = true;
+    var conStock      = @json((bool) $conStockDefault);
     var timer         = null;
     var filtersLoaded        = false;
     var filtersLoadedBodega  = '';   // rastrea para qué bodega se cargaron los filtros
@@ -240,6 +246,13 @@
 
     /* ── helpers ────────────────────────────── */
     function el(id) { return document.getElementById(id); }
+    function contextParams() {
+        var params = EXPO_ID ? { expo_id: EXPO_ID } : {};
+        if (EXTRA_PARAMS_CB && typeof window[EXTRA_PARAMS_CB] === 'function') {
+            Object.assign(params, window[EXTRA_PARAMS_CB]() || {});
+        }
+        return params;
+    }
     function esc(s) {
         return String(s == null ? '' : s)
             .replace(/&/g,'&amp;').replace(/</g,'&lt;')
@@ -249,7 +262,7 @@
     /* ── cargar filtros (una sola vez) ──────── */
     function loadFilters() {
         if (filtersLoaded) return;
-        var filterParams = {};
+        var filterParams = contextParams();
         if (BVAR) { var bvId = window[BVAR]; if (bvId) filterParams.bodega_id = bvId; }
         Promise.all([
             axios.get(URL_FILTROS + '/categorias', { params: filterParams }),
@@ -280,7 +293,7 @@
         clearTimeout(timer);
         page = 1;
         // Si hay query o filtros activos → búsqueda normal; si no → top vendidos
-        if (query === '' && catId === '' && marcaId === '' && !conStock) {
+        if (USE_TOP_PREVIEW && query === '' && catId === '' && marcaId === '' && !conStock) {
             loadTopVendidos();
         } else {
             doSearch();
@@ -291,7 +304,7 @@
         isPreview = true;
         var mySeq = ++reqSeq;
         showLoading();
-        var tvParams = {};
+        var tvParams = contextParams();
         if (BVAR) { var bvId = window[BVAR]; if (bvId) tvParams.bodega_id = bvId; }
         axios.get(URL_TOP, { params: tvParams })
             .then(function (r) {
@@ -343,13 +356,13 @@
         var mySeq = ++reqSeq;   // incrementar ANTES de lanzar la petición
         showLoading();
 
-        var srchParams = {
+        var srchParams = Object.assign(contextParams(), {
             q:            query,
             categoria_id: catId,
             marca_id:     marcaId,
             con_stock:    conStock ? 1 : 0,
             page:         page
-        };
+        });
         if (BVAR) { var bvId2 = window[BVAR]; if (bvId2) srchParams.bodega_id = bvId2; }
         axios.get(URL_BUSCAR, { params: srchParams }).then(function (r) {
             if (reqSeq !== mySeq) return;   // el usuario ya escribió algo más, ignorar
@@ -405,8 +418,8 @@
                           ' loading="lazy" onerror="this.onerror=null;this.src=\'' + noimg + '\'">' +
                    '</div>' +
                    '<div class="card-body p-2" style="font-size:.75rem;">' +
-                     '<p class="mb-1 font-weight-bold text-dark text-truncate"' +
-                        ' style="line-height:1.25;font-size:.78rem;" title="' + esc(p.nombre) + '">' + esc(p.nombre) + '</p>' +
+                            '<p class="mb-1 font-weight-bold text-dark"' +
+                                ' style="line-height:1.25;font-size:.78rem;white-space:normal;overflow-wrap:anywhere;" title="' + esc(p.nombre) + '">' + esc(p.nombre) + '</p>' +
                      '<p class="mb-1 text-muted" style="font-size:.64rem;line-height:1.45;">' +
                        '<b>ID:</b> ' + p.id +
                        (p.codigo_barra    ? '<br><b>C.B:</b> '  + esc(p.codigo_barra)   : '') +
@@ -508,7 +521,7 @@
         el(S + '_clearBtn').classList.toggle('d-none', query === '');
         el(S + '_spinner').classList.remove('d-none');
         el(S + '_info').textContent = '…';
-        if (query === '' && catId === '' && marcaId === '' && !conStock) {
+        if (USE_TOP_PREVIEW && query === '' && catId === '' && marcaId === '' && !conStock) {
             // Volver a mostrar los más vendidos si se borraron todos los filtros
             timer = setTimeout(loadTopVendidos, 300);
         } else {
@@ -555,7 +568,7 @@
         if (filtersLoadedBodega !== currentBodega) filtersLoaded = false;
         loadFilters();
         // Si no hay query ni filtros activos → mostrar top preview
-        if (query === '' && catId === '' && marcaId === '' && !conStock) {
+        if (USE_TOP_PREVIEW && query === '' && catId === '' && marcaId === '' && !conStock) {
             loadTopVendidos();
         } else {
             doSearch();

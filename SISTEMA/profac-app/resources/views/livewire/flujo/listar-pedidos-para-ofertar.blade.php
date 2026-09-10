@@ -278,6 +278,13 @@
                        placeholder="Buscar por cliente, RTN o # flujo…"
                        style="border-radius:0 8px 8px 0;">
             </div>
+            <select wire:model="filtroTipoVenta" class="form-control" style="max-width:220px; border-radius:8px;">
+                <option value="">Todos los tipos</option>
+                <option value="expo">Expo</option>
+                @foreach($tiposVenta as $tipoVenta)
+                    <option value="{{ data_get($tipoVenta, 'id') }}">{{ ucfirst(data_get($tipoVenta, 'descripcion')) }}</option>
+                @endforeach
+            </select>
             <small style="color:#78909c; line-height:36px;">
                 <i class="fa fa-list mr-1"></i> {{ $ofrTotal }} registro(s)
             </small>
@@ -303,6 +310,7 @@
                             <i class="fa {{ $sortColOfr==='cliente' ? ($sortDirOfr==='asc' ? 'fa-sort-asc' : 'fa-sort-desc') : 'fa-sort' }} sort-icon {{ $sortColOfr==='cliente' ? 'active' : '' }}"></i>
                         </th>
                         <th class="ofp-th ofr" style="width:140px; cursor:default;">RTN</th>
+                        <th class="ofp-th ofr" style="width:150px; cursor:default; text-align:center;">Tipo de venta</th>
                         <th class="ofp-th ofr" wire:click="sortByOfr('estado_flujo')" style="width:145px; text-align:center;">
                             Estado
                             <i class="fa {{ $sortColOfr==='estado_flujo' ? ($sortDirOfr==='asc' ? 'fa-sort-asc' : 'fa-sort-desc') : 'fa-sort' }} sort-icon {{ $sortColOfr==='estado_flujo' ? 'active' : '' }}"></i>
@@ -342,6 +350,15 @@
                         </td>
                         <td class="align-middle" style="color:#546e7a; padding:8px 12px; font-size:12px;">
                             {{ $o['rtn'] ?: '—' }}
+                        </td>
+                        <td class="text-center align-middle" style="padding:8px 6px;">
+                            @forelse(array_filter(array_map('trim', explode(',', $o['tipos_venta'] ?? ''))) as $tipoVenta)
+                                <span class="hist-badge" style="margin:1px; background:{{ $tipoVenta === 'Expo' ? '#e8f5e9' : '#e3f2fd' }}; color:{{ $tipoVenta === 'Expo' ? '#2e7d32' : '#1565c0' }};">
+                                    <i class="fa {{ $tipoVenta === 'Expo' ? 'fa-star' : 'fa-file-text-o' }} mr-1"></i>{{ ucfirst($tipoVenta) }}
+                                </span>
+                            @empty
+                                <span style="color:#b0bec5;">Sin oferta</span>
+                            @endforelse
                         </td>
                         <td class="text-center align-middle" style="padding:8px 6px;">
                             <span class="hist-badge"
