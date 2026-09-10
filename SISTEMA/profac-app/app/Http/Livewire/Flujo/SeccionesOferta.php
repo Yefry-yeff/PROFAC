@@ -353,7 +353,7 @@ class SeccionesOferta extends Component
         ) && !DB::table('expo_oferta_seccion')
             ->where('cotizacion_origen_id', $this->cotizacionOrigenId)
             ->where('finaliza_seccionado', 1)
-            ->whereNotIn('estado', ['ANULADA', 'RECHAZADA_CREDITO', 'DEVUELTA_INVENTARIO'])
+            ->whereNotIn('estado', ['ANULADA', 'RECHAZADA_CREDITO', 'DEVUELTA_INVENTARIO', 'DEVUELTA_SECCION'])
             ->exists();
         $this->cantidades = collect($this->productos)
             ->mapWithKeys(fn ($linea) => [(int) $linea['id'] => 0])
@@ -394,7 +394,7 @@ class SeccionesOferta extends Component
             ->where('eos.id', $seccionId)
             ->where('eos.flujo_id', $this->flujoId)
             ->where('eos.cotizacion_origen_id', $this->cotizacionOrigenId)
-            ->whereIn('eos.estado', ['RECHAZADA_CREDITO', 'DEVUELTA_INVENTARIO'])
+            ->whereIn('eos.estado', ['RECHAZADA_CREDITO', 'DEVUELTA_INVENTARIO', 'DEVUELTA_SECCION'])
             ->first([
                 'eos.id', 'eos.cotizacion_id', 'eos.estado', 'eos.finaliza_seccionado',
                 'c.tipo_pago_id', 'c.fecha_emision', 'c.fecha_vencimiento',

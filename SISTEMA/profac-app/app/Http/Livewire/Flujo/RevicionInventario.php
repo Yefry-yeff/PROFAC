@@ -450,7 +450,8 @@ class RevicionInventario extends Component
                 'sg.bodega_id',
                 'b.nombre as bodega_actual_nombre',
                 's.descripcion as seccion_actual_descripcion',
-                'um.nombre as unidad_medida'
+                'um.nombre as unidad_medida',
+                'umv.unidad_venta as factor_unidad'
             )
             ->get();
 
@@ -476,20 +477,23 @@ class RevicionInventario extends Component
                 ->join('prefactura as pf', 'pf.id', '=', 'php.prefactura_id')
                 ->leftJoin('seccion as s', 's.id', '=', 'php.seccion_id')
                 ->leftJoin('segmento as sg', 'sg.id', '=', 's.segmento_id')
+                ->leftJoin('unidad_medida_venta as umv', 'umv.id', '=', 'php.unidad_medida_venta_id')
+                ->leftJoin('unidad_medida as um', 'um.id', '=', 'umv.unidad_medida_id')
                 ->where('pf.estado', 'activo')
                 ->whereRaw("TIMESTAMPADD(DAY, COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7), COALESCE(pf.created_at, CONCAT(COALESCE(pf.fecha_emision, CURDATE()), ' 00:00:00'))) > NOW()")
                 ->whereIn('php.producto_id', $batchProdIds)
-                ->whereIn('php.seccion_id', $batchSecIds)
                 ->where('php.resta_inventario', 1)
                 ->select('php.producto_id', 'php.seccion_id', 'pf.id as prefactura_id',
                          'pf.flujo_id', 'pf.nombre_cliente', 'php.cantidad',
-                         'pf.fecha_emision', 'sg.bodega_id')
+                         'pf.fecha_emision', 'sg.bodega_id', 'um.nombre as unidad_medida')
+                ->selectRaw('(php.cantidad * COALESCE(umv.unidad_venta, 1)) as cantidad_inventario')
                 ->selectRaw("DATE(TIMESTAMPADD(DAY, COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7), COALESCE(pf.created_at, CONCAT(COALESCE(pf.fecha_emision, CURDATE()), ' 00:00:00')))) as fecha_vencimiento_reserva")
                 ->get();
 
             $cacheReservaCompleta = [];
             $reservasFiltradas = $reservasRaw->filter(function ($r) use (&$cacheReservaCompleta) {
-                return $this->prefacturaTieneReservaCompleta((int) $r->prefactura_id, $cacheReservaCompleta);
+                return (int) ($r->flujo_id ?? 0) !== (int) $this->flujoId
+                    && $this->prefacturaTieneReservaCompleta((int) $r->prefactura_id, $cacheReservaCompleta);
             });
 
             $reservasDetalle = $reservasFiltradas
@@ -497,17 +501,20 @@ class RevicionInventario extends Component
 
             $reservadoPorProdSec = $reservasFiltradas
                 ->groupBy(fn($r) => $r->producto_id . '_' . $r->seccion_id)
-                ->map(fn($rows) => (float) $rows->sum('cantidad'))
+                ->map(fn($rows) => (float) $rows->sum('cantidad_inventario'))
                 ->toArray();
 
             $reservadoGlobalPorProd = $reservasFiltradas
                 ->filter(fn($r) => (int) ($r->bodega_id ?? 0) !== 18)
                 ->groupBy('producto_id')
-                ->map(fn($rows) => (float) $rows->sum('cantidad'))
+                ->map(fn($rows) => (float) $rows->sum('cantidad_inventario'))
                 ->toArray();
         }
 
         foreach ($prods as $i => $prod) {
+            $factorUnidad     = max(1.0, (float) ($prod->factor_unidad ?? 1));
+            $unidadMedida     = trim((string) ($prod->unidad_medida ?? 'UNIDAD'));
+            $cantidadSolicitadaInventario = (float) $prod->cantidad * $factorUnidad;
             $rawStock         = null;
             $reservado        = null;
             $disponible       = null;
@@ -519,20 +526,24 @@ class RevicionInventario extends Component
             if (!$this->devuelto && !$sinExistencia && $prod->producto_id && $prod->seccion_id) {
                 if ($this->esOfertaExpo) {
                     $stockExpo = ExpoStock::resumen((int) $prod->producto_id, $bodegasExpo);
-                    $rawStock = $stockExpo['existencia'];
-                    $reservado = $stockExpo['reservado'];
-                    $disponible = $stockExpo['disponible'];
+                    $rawStockInventario = $stockExpo['existencia'];
+                    $reservadoInventario = $stockExpo['reservado'];
+                    $disponibleInventario = $stockExpo['disponible'];
                 } else {
-                    $rawStock  = (float) DB::table('recibido_bodega')
+                    $rawStockInventario = (float) DB::table('recibido_bodega')
                         ->where('producto_id', $prod->producto_id)
                         ->where('seccion_id',  $prod->seccion_id)
                         ->where('cantidad_disponible', '>', 0)
                         ->sum('cantidad_disponible');
 
-                    $reservado = (float) ($reservadoPorProdSec[$prod->producto_id . '_' . $prod->seccion_id] ?? 0.0);
-                    $disponible = max(0.0, $rawStock - $reservado);
+                    $reservadoInventario = (float) ($reservadoPorProdSec[$prod->producto_id . '_' . $prod->seccion_id] ?? 0.0);
+                    $disponibleInventario = max(0.0, $rawStockInventario - $reservadoInventario);
                 }
-                $faltaStock = $disponible < (float) $prod->cantidad;
+                $faltaStock = $disponibleInventario < $cantidadSolicitadaInventario;
+
+                $rawStock = $rawStockInventario / $factorUnidad;
+                $reservado = $reservadoInventario / $factorUnidad;
+                $disponible = $disponibleInventario / $factorUnidad;
 
                 // ── Disponible Global: suma de todas las bodegas excepto Paperland (ID 18) ──
                 $rawStockGlobal = (float) DB::table('recibido_bodega as rb')
@@ -545,20 +556,27 @@ class RevicionInventario extends Component
 
                 $reservadoGlobal = (float) ($reservadoGlobalPorProd[$prod->producto_id] ?? 0.0);
 
-                $disponibleGlobal = max(0, (int) ($rawStockGlobal - $reservadoGlobal));
+                $disponibleGlobal = max(0.0, $rawStockGlobal - $reservadoGlobal) / $factorUnidad;
 
-                if ($faltaStock) {
-                    $this->stockErrors[] = [
-                        'idx'               => $i,
-                        'producto'          => $prod->nombre_producto,
-                        'solicitado'        => (int) $prod->cantidad,
-                        'disponible'        => (int) $disponible,
-                        'disponible_global' => $disponibleGlobal,
-                    ];
-                }
             }
 
-            $destinosLinea = $destinosBodega[(int) $prod->producto_id] ?? [];
+            $destinosLinea = array_map(function (array $destino) use ($factorUnidad, $unidadMedida, $reservadoPorProdSec, $prod) {
+                $stockInventario = (float) $destino['stock'];
+                $reservadoInventario = (float) ($reservadoPorProdSec[$prod->producto_id . '_' . $destino['seccion_id']] ?? 0.0);
+                $disponibleInventario = max(0.0, $stockInventario - $reservadoInventario);
+                $existenciaVenta = $stockInventario / $factorUnidad;
+                $reservadoVenta = $reservadoInventario / $factorUnidad;
+                $disponibleVenta = $disponibleInventario / $factorUnidad;
+                $stockFormateado = rtrim(rtrim(number_format($disponibleVenta, 4, '.', ','), '0'), '.');
+                $destino['stock_inventario'] = $stockInventario;
+                $destino['existencia'] = $existenciaVenta;
+                $destino['reservado'] = $reservadoVenta;
+                $destino['stock'] = $disponibleVenta;
+                $destino['text'] = trim($destino['bodega_nombre'] . ' - ' . $destino['seccion_descripcion'])
+                    . ' (Disponible: ' . $stockFormateado . ' ' . $unidadMedida . ')';
+
+                return $destino;
+            }, $destinosBodega[(int) $prod->producto_id] ?? []);
             $ubicacionActual = (int) $prod->bodega_id . '|' . (int) $prod->seccion_id;
             $ubicacionesValidas = array_column($destinosLinea, 'value');
             $destinoSuficiente = collect($destinosLinea)->first(
@@ -567,6 +585,25 @@ class RevicionInventario extends Component
             $ubicacionSeleccionada = in_array($ubicacionActual, $ubicacionesValidas, true)
                 ? $ubicacionActual
                 : ($destinoSuficiente['value'] ?? '');
+            $destinoSeleccionado = collect($destinosLinea)->firstWhere('value', $ubicacionSeleccionada);
+
+            if ($destinoSeleccionado) {
+                $rawStock = $destinoSeleccionado['existencia'];
+                $reservado = $destinoSeleccionado['reservado'];
+                $disponible = $destinoSeleccionado['stock'];
+                $faltaStock = $disponible < (float) $prod->cantidad;
+            }
+
+            if ($faltaStock) {
+                $this->stockErrors[] = [
+                    'idx'               => $i,
+                    'producto'          => $prod->nombre_producto,
+                    'solicitado'        => (float) $prod->cantidad,
+                    'disponible'        => (float) $disponible,
+                    'disponible_global' => $disponibleGlobal,
+                    'unidad'            => $unidadMedida,
+                ];
+            }
 
             $this->productos[] = [
                 'idx'             => $i,
@@ -577,8 +614,10 @@ class RevicionInventario extends Component
                 'bodega_id'       => $prod->bodega_id,
                 'bodega_actual_nombre' => $prod->bodega_actual_nombre,
                 'seccion_actual_descripcion' => $prod->seccion_actual_descripcion,
-                'unidad_medida'   => $prod->unidad_medida,
+                'unidad_medida'   => $unidadMedida,
+                'factor_unidad'   => $factorUnidad,
                 'cantidad'        => $prod->cantidad,
+                'cantidad_inventario_solicitada' => $cantidadSolicitadaInventario,
                 'producto_id'     => $prod->producto_id,
                 'seccion_id'      => $prod->seccion_id,
                 'resta_inventario'=> $prod->resta_inventario,
@@ -717,8 +756,7 @@ class RevicionInventario extends Component
             $seccionDestinoId
         );
 
-        $destinoTexto = trim($destino->bodega_nombre . ' - ' . $destino->seccion_descripcion
-            . ' (Existencia: ' . (int) $destino->stock . ')');
+        $destinoTexto = (string) $destinoPermitido['text'];
         $linea = DB::table('cotizacion_has_producto')
             ->where('cotizacion_id', $this->cotizacionId)
             ->where('indice', (int) $producto['indice'])
@@ -766,6 +804,7 @@ class RevicionInventario extends Component
             ]);
 
             DB::commit();
+            $factorUnidad = max(1.0, (float) ($producto['factor_unidad'] ?? 1));
             foreach ($this->productos as $key => $productoActual) {
                 if ((int) $productoActual['idx'] !== $idx) {
                     continue;
@@ -779,10 +818,10 @@ class RevicionInventario extends Component
                     'seccion_actual_descripcion' => $destino->seccion_descripcion,
                     'resta_inventario' => 1,
                     'sin_existencia' => false,
-                    'rawStock' => $stockDestino['existencia'],
-                    'reservado' => $stockDestino['reservado'],
-                    'disponible' => $stockDestino['disponible'],
-                    'falta_stock' => $stockDestino['disponible'] < (float) $productoActual['cantidad'],
+                    'rawStock' => $stockDestino['existencia'] / $factorUnidad,
+                    'reservado' => $stockDestino['reservado'] / $factorUnidad,
+                    'disponible' => $stockDestino['disponible'] / $factorUnidad,
+                    'falta_stock' => $stockDestino['disponible'] < (float) $productoActual['cantidad_inventario_solicitada'],
                     'reservas_detalle' => $stockDestino['reservas'],
                 ]);
                 break;
@@ -794,8 +833,9 @@ class RevicionInventario extends Component
                     'idx' => $linea['idx'],
                     'producto' => $linea['nombre_producto'],
                     'solicitado' => (int) $linea['cantidad'],
-                    'disponible' => (int) $linea['disponible'],
+                    'disponible' => (float) $linea['disponible'],
                     'disponible_global' => $linea['disponible_global'],
+                    'unidad' => $linea['unidad_medida'],
                 ])
                 ->values()
                 ->all();
@@ -838,7 +878,10 @@ class RevicionInventario extends Component
         foreach ($rows as $row) {
             $destinos[(int) $row->producto_id][] = [
                 'value' => (int) $row->bodega_id . '|' . (int) $row->seccion_id,
+                'bodega_id' => (int) $row->bodega_id,
+                'seccion_id' => (int) $row->seccion_id,
                 'bodega_nombre' => (string) $row->bodega_nombre,
+                'seccion_descripcion' => (string) $row->seccion_descripcion,
                 'stock' => (float) $row->stock,
                 'text' => trim($row->bodega_nombre . ' - ' . $row->seccion_descripcion . ' (Existencia: ' . (int) $row->stock . ')'),
             ];
@@ -859,16 +902,23 @@ class RevicionInventario extends Component
             ->join('prefactura as pf', 'pf.id', '=', 'php.prefactura_id')
             ->leftJoin('seccion as s', 's.id', '=', 'php.seccion_id')
             ->leftJoin('segmento as sg', 'sg.id', '=', 's.segmento_id')
+            ->leftJoin('unidad_medida_venta as umv', 'umv.id', '=', 'php.unidad_medida_venta_id')
+            ->leftJoin('unidad_medida as um', 'um.id', '=', 'umv.unidad_medida_id')
             ->where('pf.estado', 'activo')
             ->whereRaw("TIMESTAMPADD(DAY, COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7), COALESCE(pf.created_at, CONCAT(COALESCE(pf.fecha_emision, CURDATE()), ' 00:00:00'))) > NOW()")
+            ->where(function ($query) {
+                $query->whereNull('pf.flujo_id')
+                    ->orWhere('pf.flujo_id', '!=', $this->flujoId);
+            })
             ->where('php.producto_id', $productoId)
             ->where('php.seccion_id', $seccionId)
             ->where('php.resta_inventario', 1)
             ->select(
                 'php.producto_id', 'php.seccion_id', 'pf.id as prefactura_id',
                 'pf.flujo_id', 'pf.nombre_cliente', 'php.cantidad',
-                'pf.fecha_emision', 'sg.bodega_id'
+                'pf.fecha_emision', 'sg.bodega_id', 'um.nombre as unidad_medida'
             )
+            ->selectRaw('(php.cantidad * COALESCE(umv.unidad_venta, 1)) as cantidad_inventario')
             ->selectRaw("DATE(TIMESTAMPADD(DAY, COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7), COALESCE(pf.created_at, CONCAT(COALESCE(pf.fecha_emision, CURDATE()), ' 00:00:00')))) as fecha_vencimiento_reserva")
             ->get();
 
@@ -879,7 +929,7 @@ class RevicionInventario extends Component
                 $cacheReservaCompleta
             ))
             ->values();
-        $reservado = (float) $reservas->sum('cantidad');
+        $reservado = (float) $reservas->sum('cantidad_inventario');
 
         return [
             'existencia' => $existencia,
@@ -1704,12 +1754,17 @@ class RevicionInventario extends Component
             return (bool) $cache[$prefacturaId];
         }
 
-        $lineas = DB::table('prefactura_has_producto')
-            ->where('prefactura_id', $prefacturaId)
-            ->where('resta_inventario', 1)
-            ->whereNotNull('producto_id')
-            ->whereNotNull('seccion_id')
-            ->get(['producto_id', 'seccion_id', 'cantidad']);
+        $lineas = DB::table('prefactura_has_producto as php')
+            ->leftJoin('unidad_medida_venta as umv', 'umv.id', '=', 'php.unidad_medida_venta_id')
+            ->where('php.prefactura_id', $prefacturaId)
+            ->where('php.resta_inventario', 1)
+            ->whereNotNull('php.producto_id')
+            ->whereNotNull('php.seccion_id')
+            ->get([
+                'php.producto_id',
+                'php.seccion_id',
+                DB::raw('(php.cantidad * COALESCE(umv.unidad_venta, 1)) as cantidad_inventario'),
+            ]);
 
         foreach ($lineas as $linea) {
             $rawStock = (float) DB::table('recibido_bodega')
@@ -1718,7 +1773,7 @@ class RevicionInventario extends Component
                 ->where('cantidad_disponible', '>', 0)
                 ->sum('cantidad_disponible');
 
-            if ($rawStock + 0.0001 < (float) $linea->cantidad) {
+            if ($rawStock + 0.0001 < (float) $linea->cantidad_inventario) {
                 $cache[$prefacturaId] = false;
                 return false;
             }

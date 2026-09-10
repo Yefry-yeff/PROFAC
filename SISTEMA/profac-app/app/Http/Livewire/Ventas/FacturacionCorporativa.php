@@ -1132,15 +1132,15 @@ class FacturacionCorporativa extends Component
             $mensaje = "";
             $flag = false;
 
-            // Las prefacturas Expo ya fueron aprobadas por Inventario y se facturan tal como quedaron registradas.
-            if (!$facturacionExpoDesdePrefactura) {
-                for ($j = 0; $j < count($arrayInputs); $j++) {
+            for ($j = 0; $j < count($arrayInputs); $j++) {
 
                 $keyIdSeccion = "idSeccion" . $arrayInputs[$j];
                 $keyIdProducto = "idProducto" . $arrayInputs[$j];
                 $keyRestaInventario = "restaInventario" . $arrayInputs[$j];
                 $keyNombre = "nombre" . $arrayInputs[$j];
                 $keyBodega = "bodega" . $arrayInputs[$j];
+                $keyCantidad = "cantidad" . $arrayInputs[$j];
+                $keyIdUnidadVenta = "idUnidadVenta" . $arrayInputs[$j];
 
                 $excludePfClause = $prefacturaExcluirId > 0
                     ? "AND pf2.id != {$prefacturaExcluirId}"
@@ -1180,21 +1180,46 @@ class FacturacionCorporativa extends Component
                     ) AS cantidad_disponoble
                 ");
 
-                if ($request->$keyRestaInventario > $resultado->cantidad_disponoble) {
-                    $mensaje = $mensaje . "Unidades insuficientes para el producto: <b>" . $request->$keyNombre . "</b> en la bodega con sección :<b>" . $request->$keyBodega . "</b><br><br>";
+                $cantidadSolicitadaInventario = (float) $request->$keyRestaInventario;
+                $cantidadDisponibleInventario = (float) $resultado->cantidad_disponoble;
+
+                if ($cantidadSolicitadaInventario > $cantidadDisponibleInventario) {
+                    $cantidadSolicitadaVenta = (float) $request->$keyCantidad;
+                    $cantidadFaltanteInventario = $cantidadSolicitadaInventario - $cantidadDisponibleInventario;
+                    $formatearCantidad = static fn ($valor) => rtrim(rtrim(number_format((float) $valor, 4, '.', ','), '0'), '.');
+                    $unidadSolicitada = trim((string) (DB::table('unidad_medida_venta as umv')
+                        ->join('unidad_medida as um', 'um.id', '=', 'umv.unidad_medida_id')
+                        ->where('umv.id', (int) $request->$keyIdUnidadVenta)
+                        ->value('um.nombre') ?? 'UNIDAD DE VENTA'));
+                    $unidadInventario = trim((string) (DB::table('producto as p')
+                        ->leftJoin('unidad_medida as um', 'um.id', '=', 'p.unidad_medida_compra_id')
+                        ->where('p.id', (int) $request->$keyIdProducto)
+                        ->value('um.nombre') ?? 'UNIDAD'));
+
+                    $mensaje .= '<tr>'
+                        . '<td class="text-left">' . e($request->$keyNombre) . '<br><small>' . e($request->$keyBodega) . '</small></td>'
+                        . '<td>' . $formatearCantidad($cantidadSolicitadaVenta) . '</td>'
+                        . '<td>' . e($unidadSolicitada) . '</td>'
+                        . '<td>' . $formatearCantidad($cantidadDisponibleInventario) . '</td>'
+                        . '<td>' . e($unidadInventario) . '</td>'
+                        . '<td>' . $formatearCantidad($cantidadFaltanteInventario) . ' ' . e($unidadInventario) . '</td>'
+                        . '</tr>';
                     $flag = true;
                 }
-                }
+            }
 
-                if ($flag) {
-                    return response()->json([
-                        'icon' => "warning",
-                        'text' =>  '<p class="text-left">' . $mensaje . '</p>',
-                        'title' => 'Advertencia!',
-                        'idFactura' => 0,
+            if ($flag) {
+                return response()->json([
+                    'icon' => "warning",
+                    'text' => '<p class="text-left">No se puede generar la factura porque no hay inventario suficiente.</p>'
+                        . '<div class="table-responsive"><table class="table table-bordered table-sm">'
+                        . '<thead><tr><th>Producto</th><th>Cantidad solicitada</th><th>Unidad solicitada</th>'
+                        . '<th>Cantidad en bodega</th><th>Unidad en bodega</th><th>Faltante</th></tr></thead>'
+                        . '<tbody>' . $mensaje . '</tbody></table></div>',
+                    'title' => 'Inventario insuficiente',
+                    'idFactura' => 0,
 
-                    ], 200);
-                }
+                ], 200);
             }
             //comprobar existencia de producto en bodega
 
@@ -1426,7 +1451,7 @@ class FacturacionCorporativa extends Component
 
                 // dd($factura);
 
-                $this->restarUnidadesInventario($precios_producto_carga_id, $idPrecioSeleccionado, $precioSeleccionado, $restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $arrayInputs[$i], $tipoPrecio, $lineasExpoPorIndice[(string) $arrayInputs[$i]] ?? null, (float) $request->input('cantidadOfertaAplicada' . $arrayInputs[$i], 0), $facturacionExpoDesdePrefactura);
+                $this->restarUnidadesInventario($precios_producto_carga_id, $idPrecioSeleccionado, $precioSeleccionado, $restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $arrayInputs[$i], $tipoPrecio, $lineasExpoPorIndice[(string) $arrayInputs[$i]] ?? null, (float) $request->input('cantidadOfertaAplicada' . $arrayInputs[$i], 0));
             };
 
             if ($request->tipoPagoVenta == 2) { //si el tipo de pago es credito
@@ -2131,7 +2156,7 @@ class FacturacionCorporativa extends Component
 
 
 
-                array_push($this->arrayProductos, [
+                $productoFactura = [
                     "factura_id" => $idFactura,
                     "cotizacion_has_producto_id" => $cotizacionLineaId,
                     "cantidad_oferta_aplicada" => $cotizacionLineaId ? $cantidadOfertaSeccion : 0,
@@ -2161,7 +2186,36 @@ class FacturacionCorporativa extends Component
                     "precios_producto_carga_id" => $precios_producto_carga_id,
                     "created_at" => now(),
                     "updated_at" => now(),
-                ]);
+                ];
+
+                $productoExistenteIndex = null;
+                foreach ($this->arrayProductos as $index => $productoExistente) {
+                    if ((int) $productoExistente['factura_id'] === (int) $idFactura
+                        && (int) $productoExistente['producto_id'] === (int) $idProducto
+                        && (int) $productoExistente['lote'] === (int) $unidadesDisponibles->id
+                        && (string) $productoExistente['indice'] === (string) $indice) {
+                        $productoExistenteIndex = $index;
+                        break;
+                    }
+                }
+
+                if ($productoExistenteIndex === null) {
+                    $this->arrayProductos[] = $productoFactura;
+                } else {
+                    foreach ([
+                        'cantidad_oferta_aplicada',
+                        'numero_unidades_resta_inventario',
+                        'unidades_nota_credito_resta_inventario',
+                        'cantidad_s',
+                        'cantidad_para_entregar',
+                        'sub_total_s',
+                        'isv_s',
+                        'total_s',
+                    ] as $campoAcumulable) {
+                        $this->arrayProductos[$productoExistenteIndex][$campoAcumulable] += $productoFactura[$campoAcumulable];
+                    }
+                    $this->arrayProductos[$productoExistenteIndex]['updated_at'] = now();
+                }
 
                 array_push($this->arrayLogs, [
                     "origen" => $unidadesDisponibles->id,

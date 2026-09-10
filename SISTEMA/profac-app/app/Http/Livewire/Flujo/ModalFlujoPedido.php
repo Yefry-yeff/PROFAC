@@ -2365,8 +2365,11 @@ class ModalFlujoPedido extends Component
         }
         $pref = DB::table('prefactura')
             ->where('flujo_id', $this->flujoId)
-            ->when($prefacturaId, fn ($query) => $query->where('id', $prefacturaId))
-            ->whereIn('estado', ['activo', 'convertida'])
+            ->when(
+                $prefacturaId,
+                fn ($query) => $query->where('id', $prefacturaId),
+                fn ($query) => $query->whereIn('estado', ['activo', 'convertida'])
+            )
             ->orderByDesc('id')
             ->first();
 
@@ -2409,7 +2412,7 @@ class ModalFlujoPedido extends Component
             && app(SaldoLineasOferta::class)->pendientes($cotizacionId)
                 ->contains(fn($linea) => (float) $linea->cantidad_pendiente > 0);
 
-        if ($this->expoConSaldoPendiente) {
+        if ($this->expoConSaldoPendiente && ($pref->estado ?? null) !== 'inactive') {
             DB::table('flujo')
                 ->where('id', $this->flujoId)
                 ->where('tipo_tramite_id', '!=', 3)
@@ -3402,6 +3405,12 @@ class ModalFlujoPedido extends Component
 
         DB::beginTransaction();
         try {
+            $seccionExpo = DB::table('expo_oferta_seccion')
+                ->where('flujo_id', $this->flujoId)
+                ->where('prefactura_id', $prefacturaId)
+                ->lockForUpdate()
+                ->first();
+
             DB::table('prefactura')
                 ->where('id', $prefacturaId)
                 ->update(['estado' => 'inactive', 'updated_at' => now()]);
@@ -3412,6 +3421,75 @@ class ModalFlujoPedido extends Component
                 ->where('tramite_id', $prefacturaId)
                 ->update(['estado_id' => 7, 'updated_at' => now()]);
 
+            if ($seccionExpo) {
+                $cotizacionId = (int) $seccionExpo->cotizacion_id;
+
+                DB::table('expo_oferta_seccion')
+                    ->where('id', $seccionExpo->id)
+                    ->update([
+                        'estado' => 'DEVUELTA_SECCION',
+                        'prefactura_id' => null,
+                        'updated_by' => Auth::id(),
+                        'updated_at' => now(),
+                    ]);
+
+                DB::table('historico_flujo')
+                    ->where('flujo_id', $this->flujoId)
+                    ->whereIn('tipo_tramite_id', [9, 10])
+                    ->where('tramite_id', $cotizacionId)
+                    ->where('estado_id', '!=', 7)
+                    ->update([
+                        'estado_id' => 7,
+                        'observaciones' => 'Ciclo cerrado por anulación de prefactura Expo #' . $prefacturaId . '.',
+                        'updated_by' => Auth::id(),
+                        'updated_at' => now(),
+                    ]);
+
+                $revisionCredito = CreditoRevision::paraSeccion((int) $this->flujoId, $cotizacionId);
+                if ($revisionCredito) {
+                    $estadoCreditoAnterior = $revisionCredito->estado;
+                    $revisionCredito->update([
+                        'estado' => CreditoRevision::CANCELADO,
+                        'observaciones' => 'Revisión cancelada por anulación de prefactura Expo #' . $prefacturaId . '.',
+                        'usuario_revision' => Auth::id(),
+                        'ip_revision' => request()->ip(),
+                    ]);
+                    $revisionCredito->registrarHistorial(
+                        'prefactura_anulada',
+                        $estadoCreditoAnterior,
+                        CreditoRevision::CANCELADO,
+                        'La sección debe iniciar nuevamente desde Revisión de Crédito.',
+                        request()->ip()
+                    );
+                }
+
+                $seccionesPendientes = DB::table('historico_flujo')
+                    ->where('flujo_id', $this->flujoId)
+                    ->where('tipo_tramite_id', 11)
+                    ->where('tramite_id', $seccionExpo->cotizacion_origen_id)
+                    ->where('estado_id', 5)
+                    ->exists();
+
+                if (!$seccionesPendientes) {
+                    DB::table('historico_flujo')->insert([
+                        'flujo_id' => $this->flujoId,
+                        'tipo_tramite_id' => 11,
+                        'tramite_id' => $seccionExpo->cotizacion_origen_id,
+                        'estado_id' => 5,
+                        'observaciones' => 'Sección #' . $seccionExpo->numero . ' devuelta para edición por anulación de prefactura Expo.',
+                        'created_by' => Auth::id(),
+                        'updated_by' => Auth::id(),
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+
+                DB::table('flujo')->where('id', $this->flujoId)->update([
+                    'tipo_tramite_id' => 11,
+                    'updated_by' => Auth::id(),
+                    'updated_at' => now(),
+                ]);
+            } else {
             if ($cotizacionId) {
                 DB::table('historico_flujo')
                     ->where('flujo_id', $this->flujoId)
@@ -3443,6 +3521,7 @@ class ModalFlujoPedido extends Component
                 ->where('flujo_id', $this->flujoId)
                 ->where('tipo_tramite_id', 9)
                 ->delete();
+            }
 
             PrefacturaAuditoria::registrar(
                 'anulacion_prefactura',
@@ -3459,7 +3538,9 @@ class ModalFlujoPedido extends Component
             $this->confirmAccionPrefactura = null;
             $this->mostrarAutorizacionPrefactura = false;
             $this->accionAutorizacionPrefactura = null;
-            $this->mensajeExito = 'Prefactura #' . $prefacturaId . ' anulada. El flujo volvió a Ofertas.';
+            $this->mensajeExito = $seccionExpo
+                ? 'Prefactura #' . $prefacturaId . ' anulada. La sección Expo quedó disponible para edición y las revisiones posteriores fueron canceladas.'
+                : 'Prefactura #' . $prefacturaId . ' anulada. El flujo volvió a Ofertas.';
             $this->emit('pedidoActualizado');
             $this->recargar();
 

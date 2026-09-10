@@ -121,9 +121,9 @@
                                     @foreach ($stockErrors as $se)
                                     <tr style="border-bottom:1px solid #fce4cc;">
                                         <td style="padding:5px 10px; color:#2c3e50;">{{ $se['producto'] }}</td>
-                                        <td style="padding:5px 10px; text-align:center; font-weight:700; color:#e65100;">{{ $se['solicitado'] }}</td>
-                                        <td style="padding:5px 10px; text-align:center; font-weight:700; color:#b71c1c;">{{ $se['disponible'] }}</td>
-                                        <td style="padding:5px 10px; text-align:center; font-weight:700; color:#1565c0;">{{ $se['disponible_global'] ?? '—' }}</td>
+                                        <td style="padding:5px 10px; text-align:center; font-weight:700; color:#e65100;">{{ rtrim(rtrim(number_format((float) $se['solicitado'], 4, '.', ','), '0'), '.') }} {{ $se['unidad'] ?? '' }}</td>
+                                        <td style="padding:5px 10px; text-align:center; font-weight:700; color:#b71c1c;">{{ rtrim(rtrim(number_format((float) $se['disponible'], 4, '.', ','), '0'), '.') }} {{ $se['unidad'] ?? '' }}</td>
+                                        <td style="padding:5px 10px; text-align:center; font-weight:700; color:#1565c0;">{{ isset($se['disponible_global']) ? rtrim(rtrim(number_format((float) $se['disponible_global'], 4, '.', ','), '0'), '.') . ' ' . ($se['unidad'] ?? '') : '—' }}</td>
                                     </tr>
                                     @endforeach
                                 </tbody>
@@ -312,7 +312,7 @@
                                                                            border-radius:12px; padding:2px 12px; font-weight:700;
                                                                            font-size:13px; cursor:pointer;"
                                                                     title="Ver flujos con reserva">
-                                                                <i class="fa fa-lock mr-1" style="font-size:11px;"></i>{{ (int)$prod['reservado'] }}
+                                                                <i class="fa fa-lock mr-1" style="font-size:11px;"></i>{{ rtrim(rtrim(number_format((float) $prod['reservado'], 4, '.', ','), '0'), '.') }}
                                                             </button>
                                                         @else
                                                             <span style="background:#f1f5f9; color:#90a4ae; border-radius:12px; padding:2px 10px; font-size:13px;">0</span>
@@ -326,7 +326,7 @@
                                                     @if ($prod['rawStock'] !== null)
                                                         <span style="background:#f3e5f5; color:#6a1b9a;
                                                                      border-radius:12px; padding:2px 10px; font-weight:700; font-size:13px;">
-                                                            {{ (int)$prod['rawStock'] }}
+                                                            {{ rtrim(rtrim(number_format((float) $prod['rawStock'], 4, '.', ','), '0'), '.') }}
                                                         </span>
                                                     @else
                                                         <span style="color:#aaa; font-size:12px;">—</span>
@@ -338,7 +338,7 @@
                                                         <span style="background:{{ $prod['falta_stock'] ? '#fce4ec' : '#e8f5e9' }};
                                                                      color:{{ $prod['falta_stock'] ? '#b71c1c' : '#2e7d32' }};
                                                                      border-radius:12px; padding:2px 10px; font-weight:700; font-size:13px;">
-                                                            {{ (int)$prod['disponible'] }}
+                                                            {{ rtrim(rtrim(number_format((float) $prod['disponible'], 4, '.', ','), '0'), '.') }}
                                                         </span>
                                                     @else
                                                         <span style="color:#aaa; font-size:12px;">—</span>

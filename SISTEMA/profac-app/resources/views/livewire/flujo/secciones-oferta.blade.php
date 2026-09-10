@@ -50,7 +50,7 @@
                     <div class="expo-payment-panel mb-4">
                         <div class="d-flex align-items-center justify-content-between flex-wrap mb-3" style="gap:8px;">
                             <div>
-                                <h5 class="mb-1" style="color:#00695c;"><i class="mr-1 fa fa-calendar-check-o"></i>{{ $editarEstadoSeccion === 'DEVUELTA_INVENTARIO' ? 'Corregir sección devuelta por Inventario' : ($editarSeccionId ? 'Corregir sección rechazada por Crédito' : 'Condiciones de esta sección') }}</h5>
+                                <h5 class="mb-1" style="color:#00695c;"><i class="mr-1 fa fa-calendar-check-o"></i>{{ $editarEstadoSeccion === 'DEVUELTA_INVENTARIO' ? 'Corregir sección devuelta por Inventario' : ($editarEstadoSeccion === 'DEVUELTA_SECCION' ? 'Editar sección de prefactura anulada' : ($editarSeccionId ? 'Corregir sección rechazada por Crédito' : 'Condiciones de esta sección')) }}</h5>
                                 <small class="text-muted">{{ $editarEstadoSeccion === 'DEVUELTA_INVENTARIO' ? 'Las condiciones aprobadas por Crédito no pueden modificarse. La sección corregida volverá directamente a Revisión de Inventario.' : ($editarSeccionId ? 'La sección corregida volverá a Revisión de Crédito.' : 'Estos datos viajarán únicamente con esta sección a Revisión de Crédito.') }}</small>
                             </div>
                             @if (!$puedeCrear)
@@ -219,7 +219,7 @@
                                             <a class="btn btn-white btn-xs" target="_blank" href="/cotizacion/imprimir/{{ $seccion['cotizacion_id'] }}" title="Imprimir sección">
                                                 <i class="fa fa-print"></i>
                                             </a>
-                                            @if(in_array($seccion['estado'], ['RECHAZADA_CREDITO', 'DEVUELTA_INVENTARIO'], true))
+                                            @if(in_array($seccion['estado'], ['RECHAZADA_CREDITO', 'DEVUELTA_INVENTARIO', 'DEVUELTA_SECCION'], true))
                                             <a class="btn btn-danger btn-xs" href="{{ route('flujo.secciones_ofertas', ['flujo_id' => $flujoId, 'seccion_id' => $seccion['id']]) }}" title="Editar y reenviar">
                                                 <i class="fa fa-pencil"></i>
                                             </a>

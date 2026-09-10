@@ -54,12 +54,13 @@ class ExpoStock
             ->join('prefactura as pf', 'pf.id', '=', 'php.prefactura_id')
             ->join('seccion as s', 's.id', '=', 'php.seccion_id')
             ->join('segmento as sg', 'sg.id', '=', 's.segmento_id')
+            ->leftJoin('unidad_medida_venta as umv', 'umv.id', '=', 'php.unidad_medida_venta_id')
             ->where('pf.estado', 'activo')
             ->whereRaw("TIMESTAMPADD(DAY, COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7), COALESCE(pf.created_at, CONCAT(COALESCE(pf.fecha_emision, CURDATE()), ' 00:00:00'))) > NOW()")
             ->where('php.producto_id', $productoId)
             ->where('php.resta_inventario', 1)
             ->whereIn('sg.bodega_id', $bodegaIds)
-            ->sum('php.cantidad');
+            ->sum(DB::raw('php.cantidad * COALESCE(umv.unidad_venta, 1)'));
 
         return [
             'existencia' => $existencia,
