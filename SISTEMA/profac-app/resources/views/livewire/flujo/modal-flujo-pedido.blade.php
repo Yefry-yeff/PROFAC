@@ -1749,6 +1749,7 @@
                             'FACTURADA' => ['Facturada', '#2e7d32', '#e8f5e9'],
                             'RECHAZADA_CREDITO' => ['Rechazada por crédito', '#c62828', '#ffebee'],
                             'DEVUELTA_INVENTARIO' => ['Rechazada por inventario', '#e65100', '#fff3e0'],
+                            'DEVUELTA_SECCION' => ['Devuelta para edición', '#e65100', '#fff3e0'],
                             default => [str_replace('_', ' ', $estadoSeccion), '#546e7a', '#eceff1'],
                         };
                     @endphp
@@ -1766,7 +1767,7 @@
                         </div>
                         <div style="display:flex; gap:7px; flex-wrap:wrap; margin-top:9px;">
                             <a href="/cotizacion/imprimir/{{ $seccion['cotizacion_id'] }}" target="_blank" class="btn btn-white btn-xs"><i class="fa fa-print mr-1"></i>Imprimir</a>
-                            @if(in_array($estadoSeccion, ['RECHAZADA_CREDITO', 'DEVUELTA_INVENTARIO'], true))
+                            @if(in_array($estadoSeccion, ['RECHAZADA_CREDITO', 'DEVUELTA_INVENTARIO', 'DEVUELTA_SECCION'], true))
                             <a href="{{ route('flujo.secciones_ofertas', ['flujo_id' => $flujoId, 'seccion_id' => $seccion['id']]) }}" class="btn btn-danger btn-xs">
                                 <i class="fa fa-pencil mr-1"></i>Editar y reenviar
                             </a>
