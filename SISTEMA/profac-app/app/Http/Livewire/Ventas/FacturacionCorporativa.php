@@ -1093,7 +1093,10 @@ class FacturacionCorporativa extends Component
 
 
             $arrayTemporal = $request->arregloIdInputs;
-            $arrayInputs = explode(',', $arrayTemporal);
+            $arrayInputs = array_values(array_unique(array_filter(
+                array_map('trim', explode(',', (string) $arrayTemporal)),
+                static fn ($indice) => $indice !== ''
+            )));
 
             // Si la venta proviene de una prefactura, excluirla del stock reservado
             // para no contar como indisponible el stock que ella misma reservó.
