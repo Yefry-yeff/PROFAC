@@ -2847,10 +2847,11 @@ class ModalFlujoPedido extends Component
             ->where('vhp.factura_id', $facturaId)
             ->select(
                 DB::raw('COALESCE(p.nombre, CONCAT("Producto #", vhp.producto_id)) as nombre_producto'),
-                'vhp.cantidad',
+                DB::raw('SUM(vhp.cantidad_s) as cantidad'),
                 'vhp.precio_unidad',
-                DB::raw('COALESCE(vhp.total, vhp.total_s) as total')
+                DB::raw('SUM(vhp.total_s) as total')
             )
+            ->groupBy('vhp.indice', 'vhp.producto_id', 'p.nombre', 'vhp.precio_unidad')
             ->orderBy('vhp.indice')
             ->get()->map(fn($row) => (array) $row)->toArray();
         $vale = DB::table('vale')->where('factura_id', $facturaId)->whereNotIn('estado_id', [7])
