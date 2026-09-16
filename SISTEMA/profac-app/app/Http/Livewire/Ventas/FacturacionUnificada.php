@@ -423,6 +423,8 @@ class FacturacionUnificada extends Component
                 : DB::table('cotizacion_has_producto')
                     ->leftJoin('unidad_medida_venta as uv', 'uv.id', '=', 'cotizacion_has_producto.unidad_medida_venta_id')
                     ->leftJoin('unidad_medida as um', 'um.id', '=', 'uv.unidad_medida_id')
+                    ->leftJoin('precios_producto_carga as ppc', 'ppc.id', '=', 'cotizacion_has_producto.precios_producto_carga_id')
+                    ->leftJoin('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')
                     ->where('cotizacion_id', (int) $cotizId)
                     ->orderBy('indice')
                     ->get([
@@ -441,7 +443,9 @@ class FacturacionUnificada extends Component
                     'Bodega_id',
                     'seccion_id',
                     'resta_inventario',
-                    'precios_producto_carga_id',
+                    'cotizacion_has_producto.precios_producto_carga_id',
+                    'ppc.categoria_precios_id',
+                    'cp.nombre as categoria_precios_nombre',
                     'monto_descProducto',
                     ])->all();
 
