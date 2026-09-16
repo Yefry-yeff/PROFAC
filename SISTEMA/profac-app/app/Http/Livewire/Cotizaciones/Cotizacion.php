@@ -490,8 +490,10 @@ class Cotizacion extends Component
 
         $expoId = (int) $request->input('expo_id', 0);
         $continuarOfertaId = (int) $request->input('oferta_id_continuar', 0);
+        $duplicarOfertaId = (int) $request->input('duplicar_cotizacion_id', 0);
         $tipoVentaExpoId = ExpoConfig::tipoVentaId();
         $expoConfig = null;
+        $duplicandoOfertaExpo = false;
 
         if ($expoId <= 0 && $tipoVentaExpoId && (int) $request->tipo_venta_id === $tipoVentaExpoId) {
             return response()->json([
@@ -502,16 +504,30 @@ class Cotizacion extends Component
         }
 
         if ($expoId > 0) {
-            $expoConfig = ExpoConfig::detalleActivaParaUsuario(
-                $expoId,
-                Auth::id(),
-                (int) $request->seleccionarCliente
-            );
+            if ($duplicarOfertaId > 0) {
+                $flujoDuplicadoId = (int) $request->input('flujo_id', 0);
+                $clienteOrigenId = (int) DB::table('cotizacion')
+                    ->where('id', $duplicarOfertaId)
+                    ->value('cliente_id');
+                $expoConfig = $clienteOrigenId === (int) $request->seleccionarCliente
+                    ? ExpoConfig::detalleParaDuplicacion($expoId, $duplicarOfertaId, $flujoDuplicadoId, Auth::id())
+                    : null;
+                $duplicandoOfertaExpo = !empty($expoConfig);
+            } else {
+                $expoConfig = ExpoConfig::detalleActivaParaUsuario(
+                    $expoId,
+                    Auth::id(),
+                    (int) $request->seleccionarCliente
+                );
+            }
             if (!$expoConfig || !$tipoVentaExpoId) {
                 return response()->json([
                     'icon' => 'error',
                     'title' => 'Expo no disponible',
-                    'text' => 'La Expo ya no está activa o está fuera de vigencia.',
+                    'text' => $duplicarOfertaId > 0
+                        ? (ExpoConfig::motivoBloqueoDuplicacion($duplicarOfertaId, (int) $request->input('flujo_id', 0))
+                            ?: 'La oferta Expo no pertenece al cliente y flujo indicados.')
+                        : 'La Expo ya no está activa o está fuera de vigencia.',
                 ], 422);
             }
 
@@ -713,9 +729,82 @@ class Cotizacion extends Component
             }
         }
 
+        if (!$expoConfig && !$request->boolean('confirmar_precio_bajo_escala')) {
+            $columnasPrecio = [
+                'pb' => 'precio_base_venta',
+                'p1' => 'precio_a',
+                'p2' => 'precio_b',
+                'p3' => 'precio_c',
+                'p4' => 'precio_d',
+            ];
+            $productosDebajoEscala = [];
+
+            foreach ($arrayInputs as $indice) {
+                $productoId = (int) $request->input('idProducto' . $indice, 0);
+                $precioCargaId = (int) $request->input('precios_producto_carga_id' . $indice, 0);
+                $precioIngresado = (float) $request->input('precio' . $indice, 0);
+                $precioSeleccionadoId = (string) $request->input('idPrecioSeleccionado' . $indice, '');
+                $columnaPrecio = $columnasPrecio[$precioSeleccionadoId] ?? null;
+
+                if (!$columnaPrecio || $productoId <= 0 || $precioCargaId <= 0) {
+                    continue;
+                }
+
+                $referenciaEscala = DB::table('precios_producto_carga')
+                    ->where('id', $precioCargaId)
+                    ->where('producto_id', $productoId)
+                    ->first(['categoria_precios_id', $columnaPrecio]);
+
+                if (!$referenciaEscala) {
+                    continue;
+                }
+
+                $precioEscala = DB::table('precios_producto_carga')
+                    ->where('producto_id', $productoId)
+                    ->where('categoria_precios_id', $referenciaEscala->categoria_precios_id)
+                    ->where('estado_id', 1)
+                    ->orderByDesc('id')
+                    ->value($columnaPrecio);
+                $precioEscala ??= $referenciaEscala->{$columnaPrecio};
+
+                if (!is_null($precioEscala) && $precioIngresado + 0.005 < (float) $precioEscala) {
+                    $productosDebajoEscala[] = [
+                        'producto' => (string) $request->input('nombre' . $indice, 'Producto ID ' . $productoId),
+                        'precio' => round($precioIngresado, 2),
+                        'precio_escala' => round((float) $precioEscala, 2),
+                    ];
+                }
+            }
+
+            if (!empty($productosDebajoEscala)) {
+                return response()->json([
+                    'requiere_confirmacion_precio' => true,
+                    'title' => 'Precio debajo de escala',
+                    'text' => 'Los siguientes productos se encuentran debajo del precio de escala. ¿Seguro que desea continuar?',
+                    'productos' => $productosDebajoEscala,
+                ], 200);
+            }
+        }
+
         DB::beginTransaction();
 
-            if ($expoConfig && !DB::table('expo')->where('id', $expoId)->where('estado', 'Activo')
+            if ($duplicandoOfertaExpo && !ExpoConfig::detalleParaDuplicacion(
+                $expoId,
+                $duplicarOfertaId,
+                (int) $request->input('flujo_id'),
+                Auth::id()
+            )) {
+                DB::rollBack();
+                return response()->json([
+                    'icon' => 'error', 'title' => 'Oferta no duplicable',
+                    'text' => ExpoConfig::motivoBloqueoDuplicacion(
+                        $duplicarOfertaId,
+                        (int) $request->input('flujo_id')
+                    ) ?: 'La oferta Expo ya no está disponible para duplicarla en este flujo.',
+                ], 422);
+            }
+
+            if ($expoConfig && !$duplicandoOfertaExpo && !DB::table('expo')->where('id', $expoId)->where('estado', 'Activo')
                 ->where('fecha_inicio', '<=', now())
                 ->where(function ($query) {
                     $query->whereNull('fecha_fin')->orWhere('fecha_fin', '>=', now());
@@ -793,6 +882,7 @@ class Cotizacion extends Component
                     'cotizacion_id' => $cotizacion->id,
                     'created_by' => Auth::id(),
                     'estado' => 'PENDIENTE_FACTURACION',
+                    'flujo_id' => $duplicandoOfertaExpo ? (int) $request->input('flujo_id') : null,
                     'reglas_descuento_snapshot' => json_encode([
                         'version' => 5,
                         'tipo' => 'escala',
@@ -900,7 +990,7 @@ class Cotizacion extends Component
                 // Flujo sin pedido ya existente: verificar si está cancelado
                 $flujoDirecto = DB::table('flujo')->where('id', $flujoIdDirecto)->first(['estado_id']);
 
-                if ($flujoDirecto && (int) $flujoDirecto->estado_id !== $canceladoEstadoId) {
+                if ($flujoDirecto && ($duplicandoOfertaExpo || (int) $flujoDirecto->estado_id !== $canceladoEstadoId)) {
                     // Flujo activo: agregar nueva oferta al mismo flujo
                     DB::table('historico_flujo')->insert([
                         'flujo_id'        => $flujoIdDirecto,

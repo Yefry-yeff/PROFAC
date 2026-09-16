@@ -361,9 +361,18 @@ class FacturacionUnificada extends Component
             $this->esOfertaExpo = $esExpo;
             if ($esExpo) {
                 $this->filtrarProductosExpo = true;
-                $this->expoConfig = ($this->duplicandoOferta || $this->continuandoOfertaExpo)
-                    ? ExpoConfig::detalleActivaParaUsuario((int) $expoCotizacionId, Auth::id())
-                    : ExpoConfig::detalleParaFacturacion((int) $expoCotizacionId, (int) $cotizId, Auth::id());
+                if ($this->duplicandoOferta) {
+                    $this->expoConfig = ExpoConfig::detalleParaDuplicacion(
+                        (int) $expoCotizacionId,
+                        (int) $cotizId,
+                        (int) ($this->flujoVinculadoId ?: request()->get('flujoId')),
+                        Auth::id()
+                    );
+                } elseif ($this->continuandoOfertaExpo) {
+                    $this->expoConfig = ExpoConfig::detalleActivaParaUsuario((int) $expoCotizacionId, Auth::id());
+                } else {
+                    $this->expoConfig = ExpoConfig::detalleParaFacturacion((int) $expoCotizacionId, (int) $cotizId, Auth::id());
+                }
                 abort_unless($this->expoConfig, 403, $this->continuandoOfertaExpo
                     ? 'No tiene autorización para continuar esta Oferta Expo.'
                     : ($this->duplicandoOferta
@@ -882,9 +891,10 @@ class FacturacionUnificada extends Component
 
     public function seleccionarPrefactura(int $prefacturaId)
     {
+        $editandoFactura = request()->query('modo') === 'editar_factura';
         $pref = DB::table('prefactura')
             ->where('id', $prefacturaId)
-            ->where('estado', 'activo')
+            ->whereIn('estado', $editandoFactura ? ['activo', 'convertida'] : ['activo'])
             ->first();
 
         if (!$pref) return;
@@ -915,11 +925,20 @@ class FacturacionUnificada extends Component
             : null;
         $this->esOfertaExpo = !empty($expoCotizacion);
         if ($expoCotizacion) {
-            $this->expoConfig = ExpoConfig::detalleParaFacturacion(
-                (int) $expoCotizacion->expo_id,
-                (int) $pref->cotizacion_id,
-                Auth::id()
-            );
+            $this->expoConfig = $editandoFactura
+                ? ExpoConfig::detalleParaEditarFactura(
+                    (int) $expoCotizacion->expo_id,
+                    (int) $pref->cotizacion_id,
+                    (int) $pref->id,
+                    (int) $pref->flujo_id,
+                    (int) request()->query('autorizacion_id'),
+                    Auth::id()
+                )
+                : ExpoConfig::detalleParaFacturacion(
+                    (int) $expoCotizacion->expo_id,
+                    (int) $pref->cotizacion_id,
+                    Auth::id()
+                );
             abort_unless($this->expoConfig, 403, 'No tiene autorización para facturar esta Oferta Expo.');
             $snapshot = json_decode((string) ($expoCotizacion->reglas_descuento_snapshot ?? ''), true) ?: [];
             $this->reglasExpoOferta = array_key_exists('generales', $snapshot)

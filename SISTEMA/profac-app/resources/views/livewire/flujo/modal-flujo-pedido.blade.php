@@ -1220,7 +1220,7 @@
                                        font-size:11px; font-weight:700; cursor:pointer;">
                             <i class="mr-1 fa fa-copy"></i> Duplicar
                         </button>
-                        @if (!empty($ofertaSeleccionada['es_expo']) && !$facturaCompletada && !$esAnuDet && !$esVencDet)
+                        @if (!empty($ofertaSeleccionada['es_expo']) && !$facturaCompletada && !$esGanDet && !$esAnuDet && !$esVencDet)
                         <button type="button" wire:click="continuarOfertaExpo"
                                 style="background:linear-gradient(135deg,#00897b,#00695c); color:#fff;
                                        border:none; border-radius:8px; padding:5px 10px;
@@ -1468,7 +1468,7 @@
                         @elseif (!$mostrarSelectorClienteDuplicar)
                         {{-- Info: mismo flujo o nuevo flujo --}}
                         @if (!$flujoCancelado)
-                        @if (in_array(3, $flujoTipos) || in_array(5, $flujoTipos))
+                        @if (empty($ofertaSeleccionada['es_expo']) && (in_array(3, $flujoTipos) || in_array(5, $flujoTipos)))
                         <div style="background:#fff3e0; border:1px solid #ffcc80; border-radius:8px;
                                     padding:8px 12px; margin-bottom:8px; font-size:12px; color:#e65100; text-align:left;">
                             <i class="mr-1 fa fa-info-circle"></i>
@@ -1488,14 +1488,20 @@
                                     style="background:linear-gradient(135deg,#1a7efb,#0d6efd); color:#fff;
                                            border:none; border-radius:8px; padding:7px 16px;
                                            font-size:12px; font-weight:700; cursor:pointer;">
+                                @if (!empty($ofertaSeleccionada['es_expo']))
+                                <i class="mr-1 fa fa-copy"></i> Duplicar oferta
+                                @else
                                 <i class="mr-1 fa fa-user"></i> Mismo cliente
+                                @endif
                             </button>
+                            @if (empty($ofertaSeleccionada['es_expo']))
                             <button type="button" wire:click="iniciarDuplicarOtroCliente()"
                                     style="background:linear-gradient(135deg,#1ab394,#0fa37a); color:#fff;
                                            border:none; border-radius:8px; padding:7px 16px;
                                            font-size:12px; font-weight:700; cursor:pointer;">
                                 <i class="mr-1 fa fa-exchange"></i> Otro cliente
                             </button>
+                            @endif
                             <button type="button" wire:click="cancelarConfirmOferta"
                                     style="background:#f0f0f0; color:#555; border:none;
                                            border-radius:8px; padding:7px 14px; font-size:12px; cursor:pointer;">

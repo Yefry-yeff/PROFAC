@@ -80,6 +80,97 @@ class ExpoConfig
         return $expo ? self::construirDetalle($expo) : null;
     }
 
+    public static function detalleParaDuplicacion(int $expoId, int $cotizacionId, int $flujoId, ?int $usuarioId): ?array
+    {
+        if (!$usuarioId || !DB::table('expo_usuario')
+            ->where('expo_id', $expoId)
+            ->where('usuario_id', $usuarioId)
+            ->exists()) {
+            return null;
+        }
+
+        $ofertaPerteneceAlFlujo = DB::table('expo_cotizacion as ec')
+            ->where('ec.expo_id', $expoId)
+            ->where('ec.cotizacion_id', $cotizacionId)
+            ->where(function ($query) use ($cotizacionId, $flujoId) {
+                $query->where('ec.flujo_id', $flujoId)
+                    ->orWhereExists(function ($historico) use ($cotizacionId, $flujoId) {
+                        $historico->selectRaw('1')
+                            ->from('historico_flujo as hf')
+                            ->where('hf.flujo_id', $flujoId)
+                            ->where('hf.tipo_tramite_id', 2)
+                            ->where('hf.tramite_id', $cotizacionId);
+                    });
+            })
+            ->exists();
+        if (!$ofertaPerteneceAlFlujo || self::motivoBloqueoDuplicacion($cotizacionId, $flujoId)) {
+            return null;
+        }
+
+        $expo = DB::table('expo')->where('id', $expoId)->first();
+        return $expo ? self::construirDetalle($expo) : null;
+    }
+
+    public static function motivoBloqueoDuplicacion(int $cotizacionId, int $flujoId): ?string
+    {
+        $secciones = DB::table('expo_oferta_seccion')
+            ->where('expo_oferta_seccion.flujo_id', $flujoId)
+            ->where('expo_oferta_seccion.cotizacion_origen_id', $cotizacionId);
+
+        if ((clone $secciones)->where('expo_oferta_seccion.estado', 'FACTURADA')->exists()) {
+            return 'No es posible duplicar la oferta porque una de sus secciones ya fue facturada.';
+        }
+
+        if ((clone $secciones)
+            ->join('prefactura as pf', 'pf.id', '=', 'expo_oferta_seccion.prefactura_id')
+            ->where('pf.estado', 'activo')
+            ->exists()) {
+            return 'Debe anular las prefacturas activas de todas las secciones antes de duplicar la oferta.';
+        }
+
+        return null;
+    }
+
+    public static function detalleParaEditarFactura(int $expoId, int $cotizacionId, int $prefacturaId, int $flujoId, int $autorizacionId, ?int $usuarioId): ?array
+    {
+        if (!$usuarioId || !DB::table('expo_usuario')
+            ->where('expo_id', $expoId)
+            ->where('usuario_id', $usuarioId)
+            ->exists()) {
+            return null;
+        }
+
+        $edicionAutorizada = DB::table('prefactura as pf')
+            ->join('expo_cotizacion as ec', 'ec.cotizacion_id', '=', 'pf.cotizacion_id')
+            ->join('codigo_autorizacion as ca', function ($join) use ($autorizacionId, $flujoId) {
+                $join->where('ca.id', $autorizacionId)
+                    ->where('ca.flujo_id', $flujoId)
+                    ->where('ca.tipo_tramite', 'editar_factura')
+                    ->where('ca.estado_codigo_id', 2);
+            })
+            ->where('pf.id', $prefacturaId)
+            ->where('pf.flujo_id', $flujoId)
+            ->where('pf.cotizacion_id', $cotizacionId)
+            ->whereIn('pf.estado', ['activo', 'convertida'])
+            ->where('ec.expo_id', $expoId)
+            ->where('ca.users_id', $usuarioId)
+            ->whereExists(function ($query) use ($flujoId) {
+                $query->selectRaw('1')
+                    ->from('historico_flujo as hf')
+                    ->where('hf.flujo_id', $flujoId)
+                    ->where('hf.tipo_tramite_id', 3)
+                    ->where('hf.estado_id', '!=', 7)
+                    ->whereNotNull('hf.tramite_id');
+            })
+            ->exists();
+        if (!$edicionAutorizada) {
+            return null;
+        }
+
+        $expo = DB::table('expo')->where('id', $expoId)->first();
+        return $expo ? self::construirDetalle($expo) : null;
+    }
+
     public static function tipoVentaId(): ?int
     {
         $id = DB::table('tipo_venta')

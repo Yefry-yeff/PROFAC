@@ -18,6 +18,7 @@ use App\Models\ModelLogTranslados;
 use App\Services\Expo\LiquidacionOfertaExpo;
 use App\Services\Expo\SaldoLineasOferta;
 use App\Services\Expo\SeccionadorOfertaExpo;
+use App\Support\ExpoConfig;
 
 /**
  * Modal reutilizable "Flujo del Pedido".
@@ -2088,18 +2089,30 @@ class ModalFlujoPedido extends Component
 
         $cotizacionId = (int) $this->ofertaSeleccionada['id'];
         $clienteId    = (int) ($this->ofertaSeleccionada['cliente_id'] ?? $this->pedidoData['cliente_id'] ?? 0);
+        $esOfertaExpo = !empty($this->ofertaSeleccionada['es_expo']);
 
         $this->mensajeError                  = '';
         $this->clienteDuplicarError          = '';
         $this->productosPrecioEscalaCambiado = [];
         $this->preciosCambioMostrado         = false;
 
-        $facturaCompletada = in_array(3, $this->flujoTipos) || in_array(5, $this->flujoTipos);
+        if ($esOfertaExpo) {
+            $bloqueo = ExpoConfig::motivoBloqueoDuplicacion($cotizacionId, (int) $this->flujoId);
+            if ($bloqueo) {
+                $this->mensajeError = $bloqueo;
+                $this->confirmAccionOferta = null;
+                return;
+            }
+        }
+
+        $facturaCompletada = !$esOfertaExpo && (in_array(3, $this->flujoTipos) || in_array(5, $this->flujoTipos));
 
         // Construir URL base
         $url = '/proforma/cotizacion/2?from=flujo&duplicar=1&cotizacionId=' . $cotizacionId;
 
-        if ($mismoCliente) {
+        if ($esOfertaExpo) {
+            $url .= '&flujoId=' . (int) $this->flujoId;
+        } elseif ($mismoCliente) {
             if ($facturaCompletada) {
                 // Flujo con factura: nuevo flujo para el mismo cliente con escala actual
                 $url .= '&clienteId=' . $clienteId;
@@ -3048,6 +3061,17 @@ class ModalFlujoPedido extends Component
 
         $this->aplicacionPagoId = $aplicaciones->count() === 1 ? (int) $aplicaciones->first()->id : null;
         $this->saldoPendienteFactura = round((float) $aplicaciones->sum('saldo'), 2);
+        $esFlujoExpo = DB::table('historico_flujo as hf')
+            ->join('expo_cotizacion as ec', 'ec.cotizacion_id', '=', 'hf.tramite_id')
+            ->where('hf.flujo_id', $this->flujoId)
+            ->where('hf.tipo_tramite_id', 2)
+            ->exists();
+        $todasFacturasConAplicacion = $facturas->pluck('id')->diff($aplicaciones->pluck('factura_id')->unique())->isEmpty();
+        $cobroSaldado = $todasFacturasConAplicacion && $aplicaciones->isNotEmpty()
+            && (float) $this->saldoPendienteFactura <= 0;
+        $puedeFinalizarCobro = $esFlujoExpo
+            ? (float) $this->saldoPendienteFactura <= 0
+            : $cobroSaldado;
         $factura = $facturas->first();
 
         $this->cobroFacturaData = [
@@ -3091,7 +3115,8 @@ class ModalFlujoPedido extends Component
 
         // Sincronizar Cobro en historico_flujo con aplicacion_pagos:
         // - tramite_id del Cobro = aplicacion_pagos.id
-        // - si saldo <= 0 => estado_id del Cobro pasa a 1 (completado)
+        // - todas las facturas deben tener aplicación y saldo <= 0 para completar
+        // - si reaparece saldo o falta una aplicación, el Cobro vuelve a pendiente
         $cobroHist = DB::table('historico_flujo')
             ->where('flujo_id', $this->flujoId)
             ->where('tipo_tramite_id', 6)
@@ -3105,7 +3130,13 @@ class ModalFlujoPedido extends Component
                 $actualizarCobro['tramite_id'] = $this->aplicacionPagoId;
             }
 
-            if ((float) $this->saldoPendienteFactura <= 0 && (int) $cobroHist->estado_id !== 1) {
+            $estadoCobroEsperado = $cobroSaldado ? 1 : 5;
+            if (!$esFlujoExpo && (int) $cobroHist->estado_id !== $estadoCobroEsperado) {
+                $actualizarCobro['estado_id'] = $estadoCobroEsperado;
+                $actualizarCobro['observaciones'] = $cobroSaldado
+                    ? 'Cobro completado: todas las facturas activas del flujo tienen saldo <= 0'
+                    : 'Cobro pendiente: existen facturas activas con saldo o sin aplicación de pago';
+            } elseif ($esFlujoExpo && (float) $this->saldoPendienteFactura <= 0 && (int) $cobroHist->estado_id !== 1) {
                 $actualizarCobro['estado_id'] = 1;
                 $actualizarCobro['observaciones'] = 'Cobro completado: todas las facturas activas del flujo tienen saldo <= 0';
             }
@@ -3119,7 +3150,7 @@ class ModalFlujoPedido extends Component
         }
 
         // Finalizar solo cuando todas las condiciones del flujo completo estén resueltas.
-        if ((float) $this->saldoPendienteFactura <= 0) {
+        if ($puedeFinalizarCobro) {
             $entregaCompletada = DB::table('historico_flujo')
                 ->where('flujo_id', $this->flujoId)
                 ->where('tipo_tramite_id', 5)

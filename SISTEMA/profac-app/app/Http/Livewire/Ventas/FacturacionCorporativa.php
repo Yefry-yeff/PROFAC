@@ -92,6 +92,22 @@ class FacturacionCorporativa extends Component
         return $this->obtenerDiasCreditoAprobados($flujoId) ?? max(0, $diasCliente);
     }
 
+    private function flujoTieneCreditoAprobadoNormal(?int $flujoId): bool
+    {
+        if (!$flujoId) {
+            return false;
+        }
+
+        $revision = DB::table('credito_revision')
+            ->where('flujo_id', $flujoId)
+            ->latest('id')
+            ->first(['estado', 'cotizacion_id']);
+
+        return $revision
+            && $revision->estado === 'aprobado'
+            && !DB::table('expo_cotizacion')->where('cotizacion_id', $revision->cotizacion_id)->exists();
+    }
+
     private function resolveTeleAsesorId(Request $request): int
     {
         ClienteActoresAsignados::validar(
@@ -1077,7 +1093,11 @@ class FacturacionCorporativa extends Component
 
 
 
-            if ($request->tipoPagoVenta == 2 && !$facturacionExpoDesdePrefactura) {
+            $creditoAprobadoFlujoNormal = $this->flujoTieneCreditoAprobadoNormal(
+                $request->flujo_id ? (int) $request->flujo_id : null
+            );
+
+            if ($request->tipoPagoVenta == 2 && !$facturacionExpoDesdePrefactura && !$creditoAprobadoFlujoNormal) {
                 $comprobarCredito = $this->comprobarCreditoCliente($request->seleccionarCliente, $request->totalGeneral);
 
                 if ($comprobarCredito) {

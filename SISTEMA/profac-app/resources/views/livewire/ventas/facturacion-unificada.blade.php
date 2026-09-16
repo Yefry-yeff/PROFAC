@@ -6021,7 +6021,7 @@
         });
     }
 
-    function guardarVenta() {
+    function guardarVenta(confirmarPrecioBajoEscala = false) {
         var ultimaFactura = document.getElementById('ultima_factura');
         var motivoCierre = document.getElementById('motivo_cierre');
         if (ultimaFactura && ultimaFactura.checked && (!motivoCierre || !motivoCierre.value.trim())) {
@@ -6061,6 +6061,7 @@
         data.append("numeroInputs", numeroInputs);
         let text = arregloIdInputs.toString();
         data.append("arregloIdInputs", text);
+        data.set("confirmar_precio_bajo_escala", confirmarPrecioBajoEscala ? "1" : "0");
 
         // numero_venta está fuera del <form>; añadirlo manualmente
         var numeroVentaEl = document.getElementById('numero_venta');
@@ -6098,6 +6099,33 @@
 
                 if (data.requiere_ajuste_escala) {
                     confirmarAjustesEscalaAlGuardar(data.ajustes_escala || []);
+                    return;
+                }
+                if (data.requiere_confirmacion_precio) {
+                    document.getElementById("btn_venta_coorporativa").disabled = false;
+                    var escaparPrecio = function(valor) { return $('<div>').text(valor == null ? '' : String(valor)).html(); };
+                    var productosPrecio = (data.productos || []).map(function(producto) {
+                        return '<li style="margin-bottom:6px;text-align:left;">'
+                            + escaparPrecio(producto.producto)
+                            + ': <strong>L ' + Number(producto.precio).toFixed(2) + '</strong>'
+                            + ' (escala L ' + Number(producto.precio_escala).toFixed(2) + ')</li>';
+                    }).join('');
+
+                    Swal.fire({
+                        icon: 'warning',
+                        title: data.title,
+                        html: '<p>' + escaparPrecio(data.text) + '</p><ul style="max-height:260px;overflow:auto;padding-left:22px;">'
+                            + productosPrecio + '</ul>',
+                        showCancelButton: true,
+                        cancelButtonText: 'Cancelar',
+                        confirmButtonText: 'Continuar',
+                        confirmButtonColor: '#00897b',
+                        cancelButtonColor: '#6c757d'
+                    }).then(function(result) {
+                        if (result.isConfirmed) {
+                            guardarVenta(true);
+                        }
+                    });
                     return;
                 }
                 cambiosPrecioExpoConfirmados = false;

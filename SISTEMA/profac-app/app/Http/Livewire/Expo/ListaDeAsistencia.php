@@ -7,6 +7,7 @@ use Livewire\Component;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Maatwebsite\Excel\Facades\Excel;
+use Carbon\Carbon;
 use PDF;
 
 class ListaDeAsistencia extends Component
@@ -21,14 +22,15 @@ class ListaDeAsistencia extends Component
 
     public function mount(): void
     {
-        $expoId = $this->exposActivas()->pluck('id')->first();
+        $expoId = $this->exposDisponibles()->pluck('id')->first();
         $this->expoId = $expoId ? (string) $expoId : '';
     }
 
     public function render()
     {
-        $expos = $this->exposActivas();
+        $expos = $this->exposDisponibles();
         $expo = $expos->firstWhere('id', (int) $this->expoId);
+        $expoActiva = $expo ? $this->expoEstaActiva($expo) : false;
         $asistentes = collect();
         $clientesEncontrados = collect();
         $categoriasDescuento = collect();
@@ -37,7 +39,7 @@ class ListaDeAsistencia extends Component
             $categoriasDescuento = $this->categoriasDescuento((int) $expo->id);
             $asistentes = $this->cargarAsistentes((int) $expo->id);
             $busqueda = trim($this->busquedaCliente);
-            if (mb_strlen($busqueda) >= 2) {
+            if ($expoActiva && mb_strlen($busqueda) >= 2) {
                 $clientesEncontrados = DB::table('cliente as c')
                     ->where('c.estado_cliente_id', 1)
                     ->where('c.id', '<>', 1)
@@ -60,7 +62,7 @@ class ListaDeAsistencia extends Component
 
         return view('livewire.expo.listadeasistencia', compact(
             'expos', 'expo', 'asistentes', 'clientesEncontrados', 'categoriasDescuento',
-            'clienteDescuento'
+            'clienteDescuento', 'expoActiva'
         ));
     }
 
@@ -276,7 +278,7 @@ class ListaDeAsistencia extends Component
 
     public function descargarExcel()
     {
-        $expo = $this->expoActivaSeleccionada();
+        $expo = $this->expoSeleccionada();
         $filas = $this->cargarAsistentes((int) $expo->id)->map(fn ($cliente) => [
             $expo->nombre,
             $expo->fecha_inicio,
@@ -303,25 +305,43 @@ class ListaDeAsistencia extends Component
 
     public function descargarPdf()
     {
-        $expo = $this->expoActivaSeleccionada();
+        $expo = $this->expoSeleccionada();
         $asistentes = $this->cargarAsistentes((int) $expo->id);
         return PDF::loadView('pdf.expo-asistencia', compact('expo', 'asistentes'))
             ->setPaper('letter', 'landscape')
             ->download('asistencia_expo_' . $expo->id . '.pdf');
     }
 
-    private function exposActivas()
+    private function exposDisponibles()
     {
-        return DB::table('expo')->where('estado', 'Activo')
+        return DB::table('expo')
+            ->whereIn('estado', ['Activo', 'Cerrada'])
             ->where('fecha_inicio', '<=', now())
-            ->where(fn ($query) => $query->whereNull('fecha_fin')->orWhere('fecha_fin', '>=', now()))
-            ->orderByDesc('fecha_inicio')->get();
+            ->orderByRaw("CASE WHEN estado = 'Activo' AND (fecha_fin IS NULL OR fecha_fin >= NOW()) THEN 0 ELSE 1 END")
+            ->orderByDesc('fecha_inicio')
+            ->get();
+    }
+
+    private function expoSeleccionada(): object
+    {
+        $expo = $this->exposDisponibles()->firstWhere('id', (int) $this->expoId);
+        abort_unless($expo, 404, 'La exposición no está disponible.');
+        return $expo;
+    }
+
+    private function expoEstaActiva(object $expo): bool
+    {
+        $ahora = now();
+
+        return $expo->estado === 'Activo'
+            && Carbon::parse($expo->fecha_inicio)->lte($ahora)
+            && (!$expo->fecha_fin || Carbon::parse($expo->fecha_fin)->gte($ahora));
     }
 
     private function expoActivaSeleccionada(): object
     {
-        $expo = $this->exposActivas()->firstWhere('id', (int) $this->expoId);
-        abort_unless($expo, 404, 'La exposición no está activa.');
+        $expo = $this->expoSeleccionada();
+        abort_unless($this->expoEstaActiva($expo), 404, 'La exposición no está activa.');
         return $expo;
     }
 
