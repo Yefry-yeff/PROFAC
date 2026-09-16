@@ -633,7 +633,12 @@ class FacturacionCorporativa extends Component
     {
         try {
             $productoId          = $request->producto_id;
-            $categoriaEscalaId   = $request->cliente_categoria_escala_id;
+            $categoriaEscalaId   = (int) $request->input('cliente_categoria_escala_id', 0);
+            if (!$categoriaEscalaId && $request->filled('cliente_id')) {
+                $categoriaEscalaId = (int) DB::table('cliente')
+                    ->where('id', (int) $request->input('cliente_id'))
+                    ->value('cliente_categoria_escala_id');
+            }
             $expoId = (int) $request->input('expo_id', 0);
             $expo = $expoId > 0 ? ExpoConfig::detalleActivaParaUsuario($expoId, Auth::id()) : null;
 
@@ -652,18 +657,38 @@ class FacturacionCorporativa extends Component
                     ->whereIn('cp.id', $expo['escalas'])
                     ->where('cp.estado_id', 1)
                     ->orderByDesc('ppc.precio_a')
-                    ->get(['cp.id', DB::raw("CONCAT(cce.nombre_categoria, ' - ', cp.nombre) as nombre_categoria"), 'ppc.precio_a'])
+                    ->get(['cp.id', DB::raw("CONCAT(cce.nombre_categoria, ' - ', cp.nombre) as nombre_categoria"), 'ppc.id as precios_producto_carga_id', 'ppc.precio_a'])
                     ->all();
             } elseif ($categoriaEscalaId) {
                 // Filtrado: solo las categorías de precio ligadas al cce del cliente
                 // Si incluir_cp_inactivos=true, muestra también cp con estado_id=2 (p.ej. escalas archivadas)
                 $incluirInactivos = $request->boolean('incluir_cp_inactivos', false);
                 $filtroCpEstado   = $incluirInactivos ? '' : 'AND cp.estado_id = 1';
+                $soloCategoriaCliente = $request->boolean('solo_categoria_cliente', false);
 
-                $categorias = DB::SELECT("
+                if ($soloCategoriaCliente) {
+                    $categorias = DB::table('categoria_precios as cp')
+                        ->join('precios_producto_carga as ppc', function ($join) use ($productoId) {
+                            $join->on('ppc.categoria_precios_id', '=', 'cp.id')
+                                ->where('ppc.producto_id', $productoId)
+                                ->where('ppc.estado_id', 1);
+                        })
+                        ->where('cp.cliente_categoria_escala_id', $categoriaEscalaId)
+                        ->when(!$incluirInactivos, fn ($query) => $query->where('cp.estado_id', 1))
+                        ->orderBy('cp.nombre')
+                        ->get([
+                            'cp.id',
+                            'cp.nombre as nombre_categoria',
+                            'ppc.id as precios_producto_carga_id',
+                            'ppc.precio_a',
+                        ]);
+                } else {
+
+                    $categorias = DB::SELECT("
                     SELECT
                         cp.id,
                         cp.nombre AS nombre_categoria,
+                        ppc.id AS precios_producto_carga_id,
                         ppc.precio_a
                     FROM categoria_precios cp
                     INNER JOIN precios_producto_carga ppc
@@ -678,6 +703,7 @@ class FacturacionCorporativa extends Component
                     SELECT
                         cp2.id,
                         cp2.nombre AS nombre_categoria,
+                        ppc2.id AS precios_producto_carga_id,
                         ppc2.precio_a
                     FROM categoria_precios cp2
                     INNER JOIN precios_producto_carga ppc2
@@ -689,6 +715,7 @@ class FacturacionCorporativa extends Component
 
                     ORDER BY precio_a DESC
                 ", [$productoId, $categoriaEscalaId, $productoId]);
+                }
             } else {
                 // Fallback sin cliente: todas las categoria_precios activas para el producto
                 // Devuelve cp.id (no cce.id) para que sea coherente con /estatal/datos/producto
@@ -696,6 +723,7 @@ class FacturacionCorporativa extends Component
                     SELECT
                         cp.id,
                         CONCAT(cce.nombre_categoria, ' - ', cp.nombre) AS nombre_categoria,
+                        ppc.id AS precios_producto_carga_id,
                         ppc.precio_a
                     FROM precios_producto_carga ppc
                     INNER JOIN categoria_precios cp ON ppc.categoria_precios_id = cp.id

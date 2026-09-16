@@ -84,6 +84,63 @@
         }
         /* SweetAlert sobre modales de autorización */
         .swal-sobre-modal { z-index: 99999 !important; }
+        .swal2-container.precio-escala-container { padding: 16px !important; }
+        .swal2-popup.precio-escala-popup {
+            width: min(920px, calc(100vw - 32px)) !important;
+            max-height: calc(100vh - 32px); padding: 20px 22px 16px !important;
+            border-radius: 8px !important; overflow: hidden;
+        }
+        .precio-escala-popup .swal2-icon { width: 52px; height: 52px; margin: 0 auto 10px; }
+        .precio-escala-popup .swal2-icon .swal2-icon-content { font-size: 34px; }
+        .precio-escala-popup .swal2-title { padding: 0; color: #37474f; font-size: 21px; }
+        .precio-escala-popup .swal2-html-container {
+            max-height: calc(100vh - 220px); margin: 12px 0 0; padding: 0 2px 2px;
+            overflow-y: auto; color: #455a64;
+        }
+        .precio-escala-popup .swal2-actions { margin: 14px 0 0; }
+        .precio-escala-popup .swal2-styled { margin: 0 4px; padding: 8px 20px; font-size: 13px; }
+        .precio-escala-aviso {
+            display: flex; align-items: center; justify-content: space-between; gap: 12px;
+            margin-bottom: 10px; padding: 9px 12px; border-left: 4px solid #f39c12;
+            border-radius: 0 6px 6px 0; background: #fff8ed; color: #76511c;
+            font-size: 12px; line-height: 1.4; text-align: left;
+        }
+        .precio-escala-conteo {
+            flex-shrink: 0; padding: 3px 9px; border-radius: 12px;
+            background: #f39c12; color: #fff; font-size: 10px; font-weight: 800;
+        }
+        .precio-escala-tabla-contenedor {
+            max-height: 300px; overflow: auto; border: 1px solid #dfe4e8;
+            border-radius: 7px; background: #fff;
+        }
+        .precio-escala-tabla { width: 100%; min-width: 750px; border-collapse: collapse; font-size: 12px; }
+        .precio-escala-tabla th {
+            position: sticky; top: 0; z-index: 1; padding: 8px 10px;
+            border-bottom: 2px solid #d9dee2; background: #f5f7f8; color: #546e7a;
+            font-size: 10px; font-weight: 800; text-transform: uppercase; white-space: nowrap;
+        }
+        .precio-escala-tabla td { padding: 9px 10px; border-bottom: 1px solid #edf0f2; color: #37474f; }
+        .precio-escala-tabla tbody tr:last-child td { border-bottom: 0; }
+        .precio-escala-tabla tbody tr:nth-child(even) { background: #fafbfc; }
+        .precio-escala-tabla .codigo { color: #607d8b; font-weight: 700; white-space: nowrap; }
+        .precio-escala-tabla .producto { min-width: 250px; text-align: left; }
+        .precio-escala-tabla .categoria { text-align: center; }
+        .precio-escala-tabla .categoria span {
+            display: inline-block; min-width: 30px; padding: 3px 8px; border-radius: 4px;
+            background: #e0f2f1; color: #00796b; font-weight: 800;
+        }
+        .precio-escala-tabla .moneda { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+        .precio-escala-tabla .precio-colocado { color: #c45d00; font-weight: 800; }
+        @media (max-width: 575.5px) {
+            .swal2-container.precio-escala-container { padding: 8px !important; }
+            .swal2-popup.precio-escala-popup {
+                width: calc(100vw - 16px) !important; max-height: calc(100vh - 16px);
+                padding: 14px 12px 12px !important;
+            }
+            .precio-escala-popup .swal2-title { font-size: 18px; }
+            .precio-escala-popup .swal2-html-container { max-height: calc(100vh - 200px); }
+            .precio-escala-aviso { align-items: flex-start; }
+        }
         /* ── Carrito items ─────────────────────────────────────────── */
         .cart-item-card { transition: box-shadow .15s; }
         .cart-item-card:hover { box-shadow: 0 4px 18px rgba(27,94,32,.14) !important; }
@@ -2366,6 +2423,79 @@
         document.getElementById('tipo_factura_id').value = tipoFacturaConfig ? tipoFacturaConfig.id : '';
     }
 
+    function cargarEscalasPrecioOfertaFila(indice, categoriaPreferidaId, conservarPrecioUnitario) {
+        if (codigoActual !== 'cotizacion_clientes_a' || esOfertaExpo) return Promise.resolve(false);
+
+        var selector = document.getElementById('precios' + indice);
+        var productoId = document.getElementById('idProducto' + indice)?.value;
+        var clienteId = document.getElementById('seleccionarCliente')?.value;
+        var categoriaGrupoId = $('#categoria_cliente_venta_id').data('categoria-cliente-id') || null;
+        if (!selector || !productoId || !clienteId) return Promise.resolve(false);
+
+        return axios.post('/producto/categorias-disponibles', {
+            producto_id: productoId,
+            cliente_id: clienteId,
+            cliente_categoria_escala_id: categoriaGrupoId,
+            solo_categoria_cliente: 1
+        }).then(function(response) {
+            var categorias = response.data.categorias || [];
+            if (!categorias.length) return false;
+
+            var categoriaClienteId = $('#categoria_cliente_venta_id').data('categoria-precio-id') || null;
+            var categoriaSeleccionadaId = categoriaPreferidaId
+                || document.getElementById('escalaExpoId' + indice)?.value
+                || categoriaClienteId;
+            var seleccionada = categorias.find(function(categoria) {
+                return String(categoria.id) === String(categoriaSeleccionadaId);
+            }) || categorias.find(function(categoria) {
+                return String(categoria.id) === String(categoriaClienteId);
+            }) || categorias[0];
+
+            var htmlAnterior = selector.innerHTML;
+            selector.innerHTML = '';
+            categorias.forEach(function(categoria) {
+                var precio = Number(categoria.precio_a || 0).toFixed(2);
+                var esSeleccionada = String(categoria.id) === String(seleccionada.id);
+                var opcion = new Option(precio + ' - ' + categoria.nombre_categoria, precio, esSeleccionada, esSeleccionada);
+                opcion.setAttribute('data-id', 'p1');
+                opcion.setAttribute('data-categoria-precio-id', categoria.id);
+                opcion.setAttribute('data-precios-producto-carga-id', categoria.precios_producto_carga_id);
+                selector.add(opcion);
+            });
+
+            var escala = document.getElementById('escalaExpoId' + indice);
+            var precioCarga = document.getElementById('precios_producto_carga_id' + indice);
+            var precio = document.getElementById('precio' + indice);
+            if (escala) escala.value = seleccionada.id;
+            if (precioCarga) precioCarga.value = seleccionada.precios_producto_carga_id;
+            if (precio) {
+                precio.setAttribute('data-precio-escala', Number(seleccionada.precio_a).toFixed(2));
+                if (!conservarPrecioUnitario) {
+                    precio.value = Number(seleccionada.precio_a).toFixed(2);
+                    precio.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+            }
+
+            return htmlAnterior !== selector.innerHTML;
+        }).catch(function(error) {
+            console.warn('No se pudieron cargar las escalas del producto:', error);
+            return false;
+        });
+    }
+
+    function restaurarEscalasSeleccionablesOferta() {
+        if (codigoActual !== 'cotizacion_clientes_a' || esOfertaExpo) return Promise.resolve(false);
+
+        return Promise.all(arregloIdInputs.map(function(indice) {
+            var categoriaId = document.getElementById('escalaExpoId' + indice)?.value
+                || $('#categoria_cliente_venta_id').data('categoria-precio-id')
+                || $('#categoria_cliente_venta_id').val();
+            return cargarEscalasPrecioOfertaFila(indice, categoriaId, true);
+        })).then(function(resultados) {
+            return resultados.some(Boolean);
+        });
+    }
+
     function restaurarPreciosPactadosExpo() {
         if (!esFacturacionExpoDesdePrefactura || !Array.isArray(productosPactadosExpo)) return false;
 
@@ -2437,7 +2567,7 @@
             if (selector) {
                 selector.innerHTML = '';
                 selector.add(new Option(
-                    precioVigente.toFixed(2) + ' - Escala ' + (producto.escalaVigente || ''),
+                    precioVigente.toFixed(2) + ' - ' + (producto.escalaVigente || ''),
                     precioVigente.toFixed(2),
                     true,
                     true
@@ -2462,6 +2592,10 @@
         aplicarConfiguracionTipoFacturaActual();
         var preciosExpoCorregidos = restaurarPreciosPactadosExpo();
         var referenciasEscalaCorregidas = restaurarReferenciasEscalaPrefacturaNormal();
+        var escalasOfertaCorregidas = false;
+        var cargaEscalasOferta = restaurarEscalasSeleccionablesOferta().then(function(corregidas) {
+            escalasOfertaCorregidas = corregidas;
+        });
         var asesorTemporal = controlesTemporales.find(function(control) { return control.id === 'vendedor'; });
         var clienteTemporal = document.getElementById('seleccionarCliente');
         var cargaAsesor = Promise.resolve();
@@ -2478,9 +2612,9 @@
         if (vacio) vacio.classList.toggle('d-none', tieneProductos);
         actualizarContadorCarrito();
         calcularTotalesInicioPagina();
-        return Promise.all([cargaAsesor, cargaStocks]).finally(function() {
+        return Promise.all([cargaAsesor, cargaStocks, cargaEscalasOferta]).finally(function() {
             ventaTemporalRestaurando = false;
-            if (preciosExpoCorregidos || referenciasEscalaCorregidas) {
+            if (preciosExpoCorregidos || referenciasEscalaCorregidas || escalasOfertaCorregidas) {
                 ventaTemporalCambiosPendientes = true;
                 ventaTemporalRevision += 1;
                 return guardarVentaTemporal();
@@ -3457,6 +3591,8 @@
         axios.post('/producto/categorias-disponibles', {
             producto_id: productoId,
             cliente_categoria_escala_id: categoriaEscalaId,
+            cliente_id: clienteId,
+            solo_categoria_cliente: codigoActual === 'cotizacion_clientes_a' && !esOfertaExpo ? 1 : 0,
             expo_id: expoConfig ? expoConfig.id : null
         })
             .then(response => {
@@ -3839,10 +3975,14 @@
                     htmlSelectUnidades += '<option ' + sel + ' value="' + unidad.id + '" data-id="' + unidad.idUnidadVenta + '">' + unidad.nombre + '</option>';
                 });
 
-                // Determinar opciones de precios según configuración
+                // La Oferta carga después todas las escalas del grupo comercial del cliente.
                 let htmlprecios = '';
-                if (tipoFacturaConfig && tipoFacturaConfig.multiples_precios) {
-                    // Múltiples precios A/B/C/D (sin restricción)
+                if (codigoActual === 'cotizacion_clientes_a') {
+                    htmlprecios = '<option value="' + producto.precio1 + '" data-id="p1"'
+                        + ' data-categoria-precio-id="' + producto.categoria_precios_id + '"'
+                        + ' data-precios-producto-carga-id="' + producto.precios_producto_carga_id + '" selected>'
+                        + producto.precio1 + ' - seleccionada</option>';
+                } else if (tipoFacturaConfig && tipoFacturaConfig.multiples_precios) {
                     htmlprecios = '<option value="' + producto.precio1 + '" data-id="p1" selected>' + producto.precio1 + ' - A</option>';
                     if (producto.precio2) htmlprecios += '<option value="' + producto.precio2 + '" data-id="p2">' + producto.precio2 + ' - B</option>';
                     if (producto.precio3) htmlprecios += '<option value="' + producto.precio3 + '" data-id="p3">' + producto.precio3 + ' - C</option>';
@@ -3931,6 +4071,7 @@
                 document.getElementById('carritoVacio').classList.add('d-none');
                 document.getElementById('carritoTablaWrapper').classList.remove('d-none');
                 actualizarContadorCarrito();
+                cargarEscalasPrecioOfertaFila(numeroInputs, producto.categoria_precios_id || categoria_cliente_venta_id, true);
                 reiniciarCapturaProducto();
                 programarGuardadoTemporal();
                 enfocarCantidadCarrito(numeroInputs);
@@ -4866,9 +5007,23 @@
     }
 
     function validacionPrecio(idPrecios, idprecio) {
-        var idPrecioSeleccionado = idPrecios.options[idPrecios.selectedIndex].getAttribute("data-id");
+        var opcionSeleccionada = idPrecios.options[idPrecios.selectedIndex];
+        var idPrecioSeleccionado = opcionSeleccionada.getAttribute("data-id");
         var precioSeleccionado = idPrecios.value;
         var idprecioIngresado = idprecio.id;
+
+        if (codigoActual === 'cotizacion_clientes_a') {
+            var indice = idPrecios.id.replace('precios', '');
+            var categoriaPrecioId = opcionSeleccionada.getAttribute('data-categoria-precio-id');
+            var precioCargaId = opcionSeleccionada.getAttribute('data-precios-producto-carga-id');
+            var escala = document.getElementById('escalaExpoId' + indice);
+            var precioCarga = document.getElementById('precios_producto_carga_id' + indice);
+            if (escala && categoriaPrecioId) escala.value = categoriaPrecioId;
+            if (precioCarga && precioCargaId) precioCarga.value = precioCargaId;
+            document.getElementById(idprecioIngresado).setAttribute("data-precio-escala", precioSeleccionado);
+            programarGuardadoTemporal();
+            return;
+        }
 
         document.getElementById(idprecioIngresado).value = precioSeleccionado;
         // Guarda el precio de la escala seleccionada como referencia. No bloquea la escritura;
@@ -5694,14 +5849,42 @@
         });
     }
 
-    function confirmarGanadora(cotizacionId) {
-        axios.post('/cotizacion/marcar-ganadora', { cotizacion_id: cotizacionId }, { headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') } })
-            .then(function() {
+    function confirmarGanadora(cotizacionId, confirmarReinicio) {
+        axios.post('/cotizacion/marcar-ganadora', {
+            cotizacion_id: cotizacionId,
+            confirmar_reinicio: confirmarReinicio === true
+        }, { headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') } })
+            .then(function(response) {
+                var data = response.data || {};
+                if (data.requiere_confirmacion_prefactura) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'El flujo ya está en Prefactura',
+                        text: data.mensaje,
+                        showCancelButton: true,
+                        confirmButtonText: 'Continuar y reiniciar',
+                        cancelButtonText: 'Cancelar',
+                        confirmButtonColor: '#e65100'
+                    }).then(function(result) {
+                        if (result.isConfirmed) {
+                            confirmarGanadora(cotizacionId, true);
+                        }
+                    });
+                    return;
+                }
+
                 $('#modalOfertasGanadoras').modal('hide');
-                Swal.fire({ icon: 'success', title: '¡Ganadora seleccionada!', text: 'La oferta #' + cotizacionId + ' fue marcada como ganadora.' });
+                Swal.fire({
+                    icon: 'success',
+                    title: '¡Ganadora seleccionada!',
+                    text: data.mensaje || ('La oferta #' + cotizacionId + ' fue marcada como ganadora.')
+                });
             })
-            .catch(function() {
-                Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo marcar la oferta como ganadora.' });
+            .catch(function(error) {
+                var mensaje = error.response && error.response.data && error.response.data.error
+                    ? error.response.data.error
+                    : 'No se pudo marcar la oferta como ganadora.';
+                Swal.fire({ icon: 'error', title: 'Error', text: mensaje });
             });
     }
 
@@ -6104,23 +6287,46 @@
                 if (data.requiere_confirmacion_precio) {
                     document.getElementById("btn_venta_coorporativa").disabled = false;
                     var escaparPrecio = function(valor) { return $('<div>').text(valor == null ? '' : String(valor)).html(); };
+                    var monedaPrecio = function(valor) {
+                        return 'L. ' + Number(valor || 0).toLocaleString('es-HN', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        });
+                    };
                     var productosPrecio = (data.productos || []).map(function(producto) {
-                        return '<li style="margin-bottom:6px;text-align:left;">'
-                            + escaparPrecio(producto.producto)
-                            + ': <strong>L ' + Number(producto.precio).toFixed(2) + '</strong>'
-                            + ' (escala L ' + Number(producto.precio_escala).toFixed(2) + ')</li>';
+                        var categoria = String(producto.categoria || '—').replace(/^Escala\s+/i, '');
+                        return '<tr>'
+                            + '<td class="codigo">' + escaparPrecio(producto.codigo) + '</td>'
+                            + '<td class="producto">' + escaparPrecio(producto.producto) + '</td>'
+                            + '<td class="categoria"><span>' + escaparPrecio(categoria) + '</span></td>'
+                            + '<td class="moneda">' + monedaPrecio(producto.precio_escala) + '</td>'
+                            + '<td class="moneda precio-colocado">' + monedaPrecio(producto.precio) + '</td>'
+                            + '</tr>';
                     }).join('');
+                    var cantidadProductosPrecio = (data.productos || []).length;
 
                     Swal.fire({
                         icon: 'warning',
                         title: data.title,
-                        html: '<p>' + escaparPrecio(data.text) + '</p><ul style="max-height:260px;overflow:auto;padding-left:22px;">'
-                            + productosPrecio + '</ul>',
+                        width: 920,
+                        html: '<div class="precio-escala-aviso"><span>' + escaparPrecio(data.text) + '</span>'
+                            + '<span class="precio-escala-conteo">' + cantidadProductosPrecio + ' producto'
+                            + (cantidadProductosPrecio === 1 ? '' : 's') + '</span></div>'
+                            + '<div class="precio-escala-tabla-contenedor">'
+                            + '<table class="precio-escala-tabla">'
+                            + '<thead><tr><th style="text-align:left;">Cód.</th><th style="text-align:left;">Nombre del producto</th>'
+                            + '<th>Escala seleccionada</th><th style="text-align:right;">Precio de escala</th>'
+                            + '<th style="text-align:right;">Precio colocado</th></tr></thead>'
+                            + '<tbody>' + productosPrecio + '</tbody></table></div>',
                         showCancelButton: true,
                         cancelButtonText: 'Cancelar',
                         confirmButtonText: 'Continuar',
                         confirmButtonColor: '#00897b',
-                        cancelButtonColor: '#6c757d'
+                        cancelButtonColor: '#6c757d',
+                        customClass: {
+                            container: 'precio-escala-container',
+                            popup: 'precio-escala-popup'
+                        }
                     }).then(function(result) {
                         if (result.isConfirmed) {
                             guardarVenta(true);
@@ -6551,13 +6757,15 @@
                     carrito.insertAdjacentHTML('beforeend', _carritoCargaInicial.innerHTML);
                 }
                 _carritoCargaInicial = null;
-                normalizarFilasCarritoExpo();
-                calcularTotalesInicioPagina();
-                actualizarContadorCarrito();
-                if (esContinuandoOfertaExpo && arregloIdInputs.length === lineasOfertaContinuadaEsperadas) {
-                    ofertaContinuadaCargadaCompleta = true;
-                }
-                return actualizarStocksDisponiblesExpo();
+                return restaurarEscalasSeleccionablesOferta().then(function () {
+                    normalizarFilasCarritoExpo();
+                    calcularTotalesInicioPagina();
+                    actualizarContadorCarrito();
+                    if (esContinuandoOfertaExpo && arregloIdInputs.length === lineasOfertaContinuadaEsperadas) {
+                        ofertaContinuadaCargadaCompleta = true;
+                    }
+                    return actualizarStocksDisponiblesExpo();
+                });
             }).then(function () {
                 _cargaInicialEnLote = false;
                 ventaTemporalRestaurando = false;
@@ -6739,17 +6947,9 @@
                         htmlSelectUnidades += '<option ' + sel + ' value="' + u.id + '" data-id="' + u.idUnidadVenta + '">' + u.nombre + '</option>';
                     });
 
-                    // Precio de escala actual según el idPrecioSeleccionado de la oferta original
-                    var idEscala = ((prod.idPrecioSeleccionado || '') + '').toLowerCase().trim();
-                    var precioEscalaActual = parseFloat(prod.precioSeleccionado || 0);
+                    var precioEscalaActual = parseFloat(producto.precio1 || prod.precioSeleccionado || 0);
                     if (!(precioEscalaActual > 0)) {
-                        switch (idEscala) {
-                            case 'a': case 'p1': precioEscalaActual = parseFloat(producto.precio1 || 0); break;
-                            case 'b': case 'p2': precioEscalaActual = parseFloat(producto.precio2 || 0); break;
-                            case 'c': case 'p3': precioEscalaActual = parseFloat(producto.precio3 || 0); break;
-                            case 'd': case 'p4': precioEscalaActual = parseFloat(producto.precio4 || 0); break;
-                            default:             precioEscalaActual = parseFloat(producto.precio1 || 0); break;
-                        }
+                        precioEscalaActual = parseFloat(prod.precio_unidad || 0);
                     }
                     // PRECIO OPC = precio de escala actual; P. UNITARIO = precio que cobró el vendedor
                     var precioOpcFmt    = precioEscalaActual.toFixed(2);
@@ -6757,7 +6957,12 @@
 
                     // Precios
                     var htmlprecios = '';
-                    if (categoriaNombre !== '') {
+                    if (codigoActual === 'cotizacion_clientes_a') {
+                        htmlprecios = '<option value="' + precioOpcFmt + '" data-id="p1"'
+                            + ' data-categoria-precio-id="' + categoriaId + '"'
+                            + ' data-precios-producto-carga-id="' + producto.precios_producto_carga_id + '" selected>'
+                            + precioOpcFmt + ' - ' + (categoriaNombre || 'seleccionada') + '</option>';
+                    } else if (categoriaNombre !== '') {
                         htmlprecios = '<option value="' + precioOpcFmt + '" data-id="p1" selected>' + precioOpcFmt + ' - ' + categoriaNombre + '</option>';
                     } else if (tipoFacturaConfig && tipoFacturaConfig.multiples_precios) {
                         var escalaMap = { 'p1': 'A', 'a': 'A', 'p2': 'B', 'b': 'B', 'p3': 'C', 'c': 'C', 'p4': 'D', 'd': 'D' };
