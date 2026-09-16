@@ -140,6 +140,15 @@
             .precio-escala-popup .swal2-title { font-size: 18px; }
             .precio-escala-popup .swal2-html-container { max-height: calc(100vh - 200px); }
             .precio-escala-aviso { align-items: flex-start; }
+            .precio-escala-tabla { min-width: 0; table-layout: fixed; font-size: 9px; }
+            .precio-escala-tabla th { padding: 6px 3px; font-size: 8px; white-space: normal; }
+            .precio-escala-tabla td { padding: 7px 3px; overflow-wrap: anywhere; }
+            .precio-escala-tabla th:nth-child(1) { width: 10%; }
+            .precio-escala-tabla th:nth-child(2) { width: 36%; }
+            .precio-escala-tabla th:nth-child(3) { width: 16%; }
+            .precio-escala-tabla th:nth-child(4),
+            .precio-escala-tabla th:nth-child(5) { width: 19%; }
+            .precio-escala-tabla .moneda { white-space: normal; }
         }
         /* ── Carrito items ─────────────────────────────────────────── */
         .cart-item-card { transition: box-shadow .15s; }
