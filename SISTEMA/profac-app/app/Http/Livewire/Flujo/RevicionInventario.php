@@ -65,6 +65,12 @@ class RevicionInventario extends Component
     public string $filtroEstado     = '';
     public string $filtroRevisado   = '';
 
+    // ── Progreso temporal de revisión (24 horas por usuario/flujo/oferta) ─
+    public bool $modalTemporalVisible = false;
+    public ?int $temporalRevisionId = null;
+    public ?string $temporalActualizadoAt = null;
+    public ?string $temporalExpiraAt = null;
+
     // ── Observaciones por producto (para notas de reemplazo) ──────────────
     public array  $obsProducto      = [];     // ['idx' => 'texto obs']
 
@@ -323,6 +329,10 @@ class RevicionInventario extends Component
         $this->productosRevisados = [];
         $this->esOfertaExpo     = false;
         $this->bodegaExpoSeleccionada = [];
+        $this->modalTemporalVisible = false;
+        $this->temporalRevisionId = null;
+        $this->temporalActualizadoAt = null;
+        $this->temporalExpiraAt = null;
 
         $this->esOfertaExpo = $cotizacionId && DB::table('expo_oferta_seccion')
             ->where('flujo_id', $flujoId)
@@ -664,6 +674,10 @@ class RevicionInventario extends Component
                 $this->motivoDevolucionGuardado = trim($obsBody);
             }
         }
+
+        if (!$this->devuelto && !$this->soloVisualizacion) {
+            $this->buscarTemporalRevision();
+        }
     }
 
     public function cerrarDetalle(): void
@@ -687,6 +701,10 @@ class RevicionInventario extends Component
         $this->filtroBodega        = '';
         $this->filtroEstado        = '';
         $this->filtroRevisado      = '';
+        $this->modalTemporalVisible = false;
+        $this->temporalRevisionId   = null;
+        $this->temporalActualizadoAt = null;
+        $this->temporalExpiraAt     = null;
         $this->mensajeExito        = '';
         $this->mensajeError        = '';
         $this->modalReservasVisible = false;
@@ -695,6 +713,150 @@ class RevicionInventario extends Component
         $this->modalSinExistenciaVisible = false;
         $this->productosSinExistenciaModal = [];
         $this->motivoEdicionSinExistencia = '';
+    }
+
+    public function updatedProductosRevisados($value = null, $key = null): void
+    {
+        $this->guardarTemporalRevision();
+    }
+
+    public function updatedObsProducto($value = null, $key = null): void
+    {
+        $this->guardarTemporalRevision();
+    }
+
+    public function continuarTemporalRevision(): void
+    {
+        if (!$this->temporalRevisionId || !$this->flujoId || !$this->cotizacionId) {
+            $this->modalTemporalVisible = false;
+            return;
+        }
+
+        $temporal = DB::table('revision_inventario_temporal')
+            ->where('id', $this->temporalRevisionId)
+            ->where('usuario_id', Auth::id())
+            ->where('flujo_id', $this->flujoId)
+            ->where('cotizacion_id', $this->cotizacionId)
+            ->where('expira_at', '>', now())
+            ->first();
+
+        if (!$temporal) {
+            $this->modalTemporalVisible = false;
+            $this->temporalRevisionId = null;
+            $this->mensajeError = 'El progreso temporal venció o ya no está disponible.';
+            return;
+        }
+
+        $contenido = json_decode((string) $temporal->contenido, true) ?: [];
+        $lineasGuardadas = $contenido['lineas'] ?? [];
+        foreach ($this->productos as $producto) {
+            $idx = (int) $producto['idx'];
+            $lineaId = (string) ($producto['cotizacion_has_producto_id'] ?? '');
+            $lineaGuardada = $lineasGuardadas[$lineaId] ?? null;
+            if (!is_array($lineaGuardada)) {
+                continue;
+            }
+
+            $this->productosRevisados[$idx] = (bool) ($lineaGuardada['revisado'] ?? false);
+            $this->obsProducto[$idx] = (string) ($lineaGuardada['observacion'] ?? '');
+        }
+
+        $this->modalTemporalVisible = false;
+        $this->mensajeExito = 'Progreso temporal restaurado.';
+        $this->guardarTemporalRevision();
+    }
+
+    public function empezarRevisionDesdeCero(): void
+    {
+        $this->eliminarTemporalRevision($this->flujoId, $this->cotizacionId);
+        foreach ($this->productos as $producto) {
+            $this->productosRevisados[(int) $producto['idx']] = false;
+        }
+        $this->obsProducto = [];
+        $this->modalTemporalVisible = false;
+        $this->mensajeExito = 'Se inició una revisión nueva desde cero.';
+    }
+
+    private function buscarTemporalRevision(): void
+    {
+        DB::table('revision_inventario_temporal')->where('expira_at', '<=', now())->delete();
+
+        $temporal = DB::table('revision_inventario_temporal')
+            ->where('usuario_id', Auth::id())
+            ->where('flujo_id', $this->flujoId)
+            ->where('cotizacion_id', $this->cotizacionId)
+            ->where('expira_at', '>', now())
+            ->first(['id', 'updated_at', 'expira_at']);
+
+        if (!$temporal) {
+            return;
+        }
+
+        $this->temporalRevisionId = (int) $temporal->id;
+        $this->temporalActualizadoAt = (string) $temporal->updated_at;
+        $this->temporalExpiraAt = (string) $temporal->expira_at;
+        $this->modalTemporalVisible = true;
+    }
+
+    private function guardarTemporalRevision(): void
+    {
+        if (!$this->flujoId || !$this->cotizacionId || $this->devuelto
+            || $this->soloVisualizacion || $this->modalTemporalVisible) {
+            return;
+        }
+
+        $lineas = [];
+        foreach ($this->productos as $producto) {
+            $idx = (int) $producto['idx'];
+            $lineaId = (string) ($producto['cotizacion_has_producto_id'] ?? '');
+            if ($lineaId === '') {
+                continue;
+            }
+
+            $lineas[$lineaId] = [
+                'revisado' => !empty($this->productosRevisados[$idx]),
+                'observacion' => (string) ($this->obsProducto[$idx] ?? ''),
+            ];
+        }
+
+        $ahora = now();
+        $valores = [
+            'contenido' => json_encode(['lineas' => $lineas], JSON_UNESCAPED_UNICODE),
+            'expira_at' => $ahora->copy()->addHours(24),
+            'updated_at' => $ahora,
+        ];
+        DB::table('revision_inventario_temporal')->upsert([array_merge($valores, [
+            'usuario_id' => Auth::id(),
+            'flujo_id' => $this->flujoId,
+            'cotizacion_id' => $this->cotizacionId,
+            'created_at' => $ahora,
+        ])], ['usuario_id', 'flujo_id', 'cotizacion_id'], ['contenido', 'expira_at', 'updated_at']);
+
+        $this->temporalRevisionId = (int) DB::table('revision_inventario_temporal')
+            ->where('usuario_id', Auth::id())
+            ->where('flujo_id', $this->flujoId)
+            ->where('cotizacion_id', $this->cotizacionId)
+            ->value('id');
+
+        $this->temporalActualizadoAt = $ahora->toDateTimeString();
+        $this->temporalExpiraAt = $ahora->copy()->addHours(24)->toDateTimeString();
+    }
+
+    private function eliminarTemporalRevision(?int $flujoId, ?int $cotizacionId, bool $todosLosUsuarios = false): void
+    {
+        if (!$flujoId || !$cotizacionId) {
+            return;
+        }
+
+        DB::table('revision_inventario_temporal')
+            ->when(!$todosLosUsuarios, fn ($query) => $query->where('usuario_id', Auth::id()))
+            ->where('flujo_id', $flujoId)
+            ->where('cotizacion_id', $cotizacionId)
+            ->delete();
+
+        $this->temporalRevisionId = null;
+        $this->temporalActualizadoAt = null;
+        $this->temporalExpiraAt = null;
     }
 
     /**
@@ -842,6 +1004,7 @@ class RevicionInventario extends Component
 
             $this->mensajeError = '';
             $this->mensajeExito = 'Bodega reasignada a ' . $destinoTexto . '. La auditoría fue registrada.';
+            $this->guardarTemporalRevision();
         } catch (\Throwable $e) {
             DB::rollBack();
             $this->mensajeError = 'No se pudo reasignar la bodega: ' . $e->getMessage();
@@ -1240,6 +1403,17 @@ class RevicionInventario extends Component
 
         DB::beginTransaction();
         try {
+            $revisionActiva = DB::table('historico_flujo')
+                ->where('flujo_id', $this->flujoId)
+                ->where('tipo_tramite_id', 9)
+                ->where('tramite_id', $this->cotizacionId)
+                ->where('estado_id', 5)
+                ->lockForUpdate()
+                ->exists();
+            if (!$revisionActiva) {
+                throw new \RuntimeException('La revisión de inventario ya fue procesada por otro usuario.');
+            }
+
             // Crear prefactura
             $prefacturaId = DB::table('prefactura')->insertGetId([
                 'cotizacion_id'     => $this->cotizacionId,
@@ -1359,6 +1533,8 @@ class RevicionInventario extends Component
                 'updated_at'      => now(),
             ]);
 
+            $this->eliminarTemporalRevision($this->flujoId, $this->cotizacionId, true);
+
             DB::commit();
 
             $flujoIdCerrado = $this->flujoId;
@@ -1426,6 +1602,17 @@ class RevicionInventario extends Component
 
         DB::beginTransaction();
         try {
+            $revisionActiva = DB::table('historico_flujo')
+                ->where('flujo_id', $this->flujoId)
+                ->where('tipo_tramite_id', 9)
+                ->where('tramite_id', $this->cotizacionId)
+                ->where('estado_id', 5)
+                ->lockForUpdate()
+                ->exists();
+            if (!$revisionActiva) {
+                throw new \RuntimeException('La revisión de inventario ya fue procesada por otro usuario.');
+            }
+
             $seccionExpo = $this->cotizacionId
                 ? DB::table('expo_oferta_seccion')->where('cotizacion_id', $this->cotizacionId)->lockForUpdate()->first()
                 : null;
@@ -1496,6 +1683,8 @@ class RevicionInventario extends Component
                 'updated_by'      => Auth::id(),
                 'updated_at'      => now(),
             ]);
+
+            $this->eliminarTemporalRevision($this->flujoId, $this->cotizacionId, true);
 
             DB::commit();
 

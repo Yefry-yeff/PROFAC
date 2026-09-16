@@ -34,6 +34,46 @@
         </div>
         @endif
 
+        @if($modalTemporalVisible && $flujoId)
+        <div role="dialog" aria-modal="true" aria-labelledby="tituloTemporalRevision"
+             style="position:fixed; inset:0; z-index:2200; display:flex; align-items:center; justify-content:center;
+                    padding:20px; background:rgba(15,23,42,.58);">
+            <div style="width:100%; max-width:540px; overflow:hidden; border-radius:10px; background:#fff;
+                        box-shadow:0 24px 64px rgba(15,23,42,.3);">
+                <div style="display:flex; align-items:center; gap:12px; padding:16px 20px; background:#1a7efb; color:#fff;">
+                    <i class="fa fa-clock-o" style="font-size:22px;"></i>
+                    <div>
+                        <h5 id="tituloTemporalRevision" style="margin:0; color:#fff; font-size:16px; font-weight:800;">
+                            Revisión temporal encontrada
+                        </h5>
+                        <small style="color:rgba(255,255,255,.82);">Flujo #{{ $flujoId }} · Oferta #{{ $cotizacionId }}</small>
+                    </div>
+                </div>
+                <div style="padding:20px; color:#334155;">
+                    <p style="margin:0 0 14px; font-size:13px; line-height:1.55;">
+                        Tiene una revisión de inventario sin finalizar. Puede recuperar los productos revisados,
+                        las notas registradas o iniciar nuevamente.
+                    </p>
+                    <div style="padding:10px 12px; border:1px solid #dbeafe; border-radius:8px; background:#eff6ff;
+                                color:#475569; font-size:12px;">
+                        <div><strong>Último guardado:</strong> {{ $temporalActualizadoAt ? \Carbon\Carbon::parse($temporalActualizadoAt)->format('d/m/Y H:i') : '—' }}</div>
+                        <div><strong>Disponible hasta:</strong> {{ $temporalExpiraAt ? \Carbon\Carbon::parse($temporalExpiraAt)->format('d/m/Y H:i') : '—' }}</div>
+                    </div>
+                </div>
+                <div style="display:flex; justify-content:flex-end; gap:8px; padding:14px 20px; border-top:1px solid #e2e8f0; background:#f8fafc;">
+                    <button type="button" wire:click="empezarRevisionDesdeCero" wire:loading.attr="disabled"
+                            class="btn btn-default" style="border-radius:8px; font-weight:700;">
+                        <i class="fa fa-refresh mr-1"></i> Empezar desde cero
+                    </button>
+                    <button type="button" wire:click="continuarTemporalRevision" wire:loading.attr="disabled"
+                            class="btn btn-primary" style="border-radius:8px; font-weight:700;">
+                        <i class="fa fa-play mr-1"></i> Continuar revisión
+                    </button>
+                </div>
+            </div>
+        </div>
+        @endif
+
         {{-- ══════════════════════════════════════════════════════════════ --}}
         {{-- VISTA DETALLE (cuando hay un flujo seleccionado)              --}}
         {{-- ══════════════════════════════════════════════════════════════ --}}
@@ -67,6 +107,12 @@
                                 Cliente: <strong>{{ $flujoData['cliente'] ?? '—' }}</strong>
                                 <span style="opacity:.65;">|</span>
                                 Vendedor: <strong>{{ $flujoData['vendedor_nombre'] ?? '—' }}</strong>
+                            </small>
+                            @endif
+                            @if($temporalRevisionId && !$modalTemporalVisible && $temporalExpiraAt)
+                            <small style="color:rgba(255,255,255,.82); font-size:11px; display:block; margin-top:3px;">
+                                <i class="fa fa-clock-o mr-1"></i>
+                                Progreso temporal guardado · vence {{ \Carbon\Carbon::parse($temporalExpiraAt)->format('d/m/Y H:i') }}
                             </small>
                             @endif
                             @if($flujoData && $flujoData['pedido_id'])
