@@ -996,6 +996,7 @@ class RevisionCreditos extends Component
                     ->where('estado_id', 7)
                     ->update([
                         'estado_id'     => 5,
+                        'tramite_id'    => $this->cotizacionId,
                         'observaciones' => 'Reactivado. Crédito aprobado por ' . Auth::user()->name,
                         'updated_by'    => Auth::id(),
                         'updated_at'    => now(),

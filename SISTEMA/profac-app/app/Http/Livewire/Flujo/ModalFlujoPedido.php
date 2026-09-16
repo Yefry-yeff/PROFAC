@@ -217,11 +217,14 @@ class ModalFlujoPedido extends Component
             ? DB::table('historico_flujo')
                 ->where('flujo_id', $this->flujoId)
                 ->where(function ($q) use ($ganadoraActualId) {
-                    $q->where('estado_id', '!=', 7)
-                        ->orWhere(function ($revision) use ($ganadoraActualId) {
-                            $revision->whereIn('tipo_tramite_id', [9, 10])
-                                ->where('tramite_id', $ganadoraActualId);
-                        });
+                    $q->where(function ($otros) {
+                        $otros->whereNotIn('tipo_tramite_id', [9, 10])
+                            ->where('estado_id', '!=', 7);
+                    })->orWhere(function ($revision) use ($ganadoraActualId) {
+                        $revision->whereIn('tipo_tramite_id', [9, 10])
+                            ->where('estado_id', '!=', 7)
+                            ->where('tramite_id', $ganadoraActualId);
+                    });
                 })
                 ->pluck('tipo_tramite_id')
                 ->unique()
@@ -242,7 +245,9 @@ class ModalFlujoPedido extends Component
         $this->creditoVigente = $this->flujoId
             ? CreditoRevision::creditoVigenteParaFlujo($this->flujoId)
             : false;
-        $cr = $this->flujoId ? CreditoRevision::paraFlujo($this->flujoId) : null;
+        $cr = $this->flujoId && $ganadoraActualId
+            ? CreditoRevision::paraSeccion($this->flujoId, (int) $ganadoraActualId)
+            : null;
         $this->creditoRevisionData = $this->buildCreditoData($cr);
         $this->flujoCancelado = ($this->creditoRevisionData['estado'] ?? '') === CreditoRevision::RECHAZADO;
         // Detectar si hay un ciclo de Revisión de Crédito pendiente en historico_flujo
@@ -250,6 +255,7 @@ class ModalFlujoPedido extends Component
             ? DB::table('historico_flujo')
                 ->where('flujo_id', $this->flujoId)
                 ->where('tipo_tramite_id', 10)
+                ->where('tramite_id', $ganadoraActualId)
                 ->where('estado_id', 5)
                 ->exists()
             : false;
@@ -364,11 +370,14 @@ class ModalFlujoPedido extends Component
         $this->flujoTipos = DB::table('historico_flujo')
             ->where('flujo_id', $flujoId)
             ->where(function ($q) use ($ganadoraActualId) {
-                $q->where('estado_id', '!=', 7)
-                    ->orWhere(function ($revision) use ($ganadoraActualId) {
-                        $revision->whereIn('tipo_tramite_id', [9, 10])
-                            ->where('tramite_id', $ganadoraActualId);
-                    });
+                $q->where(function ($otros) {
+                    $otros->whereNotIn('tipo_tramite_id', [9, 10])
+                        ->where('estado_id', '!=', 7);
+                })->orWhere(function ($revision) use ($ganadoraActualId) {
+                    $revision->whereIn('tipo_tramite_id', [9, 10])
+                        ->where('estado_id', '!=', 7)
+                        ->where('tramite_id', $ganadoraActualId);
+                });
             })
             ->pluck('tipo_tramite_id')
             ->unique()
@@ -417,13 +426,16 @@ class ModalFlujoPedido extends Component
 
         // Crédito vigente
         $this->creditoVigente = CreditoRevision::creditoVigenteParaFlujo($flujoId);
-        $cr = CreditoRevision::paraFlujo($flujoId);
+        $cr = $ganadoraActualId
+            ? CreditoRevision::paraSeccion($flujoId, (int) $ganadoraActualId)
+            : null;
         $this->creditoRevisionData = $this->buildCreditoData($cr);
         $this->flujoCancelado = ($this->creditoRevisionData['estado'] ?? '') === CreditoRevision::RECHAZADO;
         // Detectar si hay un ciclo de Revisión de Crédito pendiente en historico_flujo
         $this->revisionCreditoPendiente = DB::table('historico_flujo')
             ->where('flujo_id', $flujoId)
             ->where('tipo_tramite_id', 10)
+            ->where('tramite_id', $ganadoraActualId)
             ->where('estado_id', 5)
             ->exists();
 
@@ -1588,6 +1600,17 @@ class ModalFlujoPedido extends Component
 
     private function cerrarCicloGanadoraAnterior(int $cotizacionNuevaId): bool
     {
+        $prefacturaExpoActiva = DB::table('prefactura as pf')
+            ->join('expo_cotizacion as ec', 'ec.cotizacion_id', '=', 'pf.cotizacion_id')
+            ->where('pf.flujo_id', $this->flujoId)
+            ->where('pf.estado', 'activo')
+            ->where('pf.cotizacion_id', '!=', $cotizacionNuevaId)
+            ->exists();
+
+        if ($prefacturaExpoActiva) {
+            throw new \RuntimeException('No se puede sustituir desde aquí una oferta Expo con prefacturas activas.');
+        }
+
         $cotizacionesAnteriores = DB::table('historico_flujo')
             ->where('flujo_id', $this->flujoId)
             ->where('tipo_tramite_id', 2)
@@ -1600,6 +1623,11 @@ class ModalFlujoPedido extends Component
             ->where('flujo_id', $this->flujoId)
             ->where('estado', 'activo')
             ->where('cotizacion_id', '!=', $cotizacionNuevaId)
+            ->whereNotExists(function ($query) {
+                $query->selectRaw('1')
+                    ->from('expo_cotizacion as ec')
+                    ->whereColumn('ec.cotizacion_id', 'prefactura.cotizacion_id');
+            })
             ->lockForUpdate()
             ->get();
 
@@ -1644,7 +1672,6 @@ class ModalFlujoPedido extends Component
         DB::table('historico_flujo')
             ->where('flujo_id', $this->flujoId)
             ->whereIn('tipo_tramite_id', [9, 10])
-            ->whereIn('tramite_id', $cotizacionesAnteriores->all())
             ->where('estado_id', '!=', 7)
             ->update([
                 'estado_id' => 7,
@@ -1654,7 +1681,6 @@ class ModalFlujoPedido extends Component
             ]);
 
         $revisionesAnteriores = CreditoRevision::where('flujo_id', $this->flujoId)
-            ->whereIn('cotizacion_id', $cotizacionesAnteriores->all())
             ->whereIn('estado', [CreditoRevision::PENDIENTE, CreditoRevision::APROBADO])
             ->lockForUpdate()
             ->get();
