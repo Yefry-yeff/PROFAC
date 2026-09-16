@@ -2433,7 +2433,7 @@
     }
 
     function cargarEscalasPrecioOfertaFila(indice, categoriaPreferidaId, conservarPrecioUnitario) {
-        if (codigoActual !== 'cotizacion_clientes_a' || esOfertaExpo) return Promise.resolve(false);
+        if ((codigoActual !== 'cotizacion_clientes_a' && !esEdicionNormalDesdePrefactura) || esOfertaExpo) return Promise.resolve(false);
 
         var selector = document.getElementById('precios' + indice);
         var productoId = document.getElementById('idProducto' + indice)?.value;
@@ -2493,7 +2493,7 @@
     }
 
     function restaurarEscalasSeleccionablesOferta() {
-        if (codigoActual !== 'cotizacion_clientes_a' || esOfertaExpo) return Promise.resolve(false);
+        if ((codigoActual !== 'cotizacion_clientes_a' && !esEdicionNormalDesdePrefactura) || esOfertaExpo) return Promise.resolve(false);
 
         return Promise.all(arregloIdInputs.map(function(indice) {
             var categoriaId = document.getElementById('escalaExpoId' + indice)?.value
@@ -5021,7 +5021,7 @@
         var precioSeleccionado = idPrecios.value;
         var idprecioIngresado = idprecio.id;
 
-        if (codigoActual === 'cotizacion_clientes_a') {
+        if (codigoActual === 'cotizacion_clientes_a' || esEdicionNormalDesdePrefactura) {
             var indice = idPrecios.id.replace('precios', '');
             var categoriaPrecioId = opcionSeleccionada.getAttribute('data-categoria-precio-id');
             var precioCargaId = opcionSeleccionada.getAttribute('data-precios-producto-carga-id');

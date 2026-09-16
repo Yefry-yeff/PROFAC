@@ -973,6 +973,8 @@ class FacturacionUnificada extends Component
         // Carrito exacto desde prefactura (sin recalcular valores)
         $this->productosParaCarrito = DB::table('prefactura_has_producto as php')
             ->leftJoin('cotizacion_has_producto as chp', 'chp.id', '=', 'php.cotizacion_has_producto_id')
+            ->leftJoin('precios_producto_carga as ppc_linea', 'ppc_linea.id', '=', 'php.precios_producto_carga_id')
+            ->leftJoin('categoria_precios as cp_linea', 'cp_linea.id', '=', 'ppc_linea.categoria_precios_id')
             ->where('php.prefactura_id', $prefacturaId)
             ->orderBy('php.indice')
             ->get([
@@ -993,6 +995,8 @@ class FacturacionUnificada extends Component
                 'php.precios_producto_carga_id',
                 'php.idPrecioSeleccionado',
                 'php.precioSeleccionado',
+                'ppc_linea.categoria_precios_id as categoria_prefactura_id',
+                'cp_linea.nombre as categoria_prefactura_nombre',
                 'chp.cantidad as cantidad_ofertada',
                 'chp.monto_descProducto',
                 'chp.precio_unidad as precio_pactado_expo',
@@ -1010,6 +1014,8 @@ class FacturacionUnificada extends Component
                     $producto['idPrecioSeleccionado'] = $r->escala_pactada_expo ?: 'p1';
                     $producto['precios_producto_carga_id'] = $r->precio_carga_pactado_expo;
                 } else {
+                    $producto['categoria_precios_id'] = (int) ($r->categoria_prefactura_id ?? 0);
+                    $producto['categoria_precios_nombre'] = $r->categoria_prefactura_nombre ?? '';
                     $selector = strtolower(trim((string) ($r->idPrecioSeleccionado ?? '')));
                     [$columnaPrecio, $escala] = match ($selector) {
                         'p1', 'a' => ['precio_a', 'A'],
