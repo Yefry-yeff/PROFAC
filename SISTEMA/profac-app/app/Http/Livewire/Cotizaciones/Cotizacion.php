@@ -1330,12 +1330,6 @@ class Cotizacion extends Component
         }
 
         $prefacturaActiva = DB::table('prefactura as pf')
-            ->join('historico_flujo as ho', function ($join) use ($hf) {
-                $join->on('ho.tramite_id', '=', 'pf.cotizacion_id')
-                    ->where('ho.flujo_id', $hf->flujo_id)
-                    ->where('ho.tipo_tramite_id', 2)
-                    ->where('ho.observaciones', 'ganadora');
-            })
             ->where('pf.flujo_id', $hf->flujo_id)
             ->where('pf.estado', 'activo')
             ->where('pf.cotizacion_id', '!=', $id)
