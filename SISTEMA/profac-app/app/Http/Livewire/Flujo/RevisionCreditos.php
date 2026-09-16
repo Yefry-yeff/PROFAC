@@ -423,6 +423,19 @@ class RevisionCreditos extends Component
                 ->get()
                 ->map(fn($r) => (array) $r)
                 ->toArray();
+
+            if (!$this->esSeccionExpo && !collect($this->historialCredito)->contains('accion', 'creado')) {
+                $this->historialCredito[] = [
+                    'accion' => 'creado',
+                    'estado_anterior' => null,
+                    'estado_nuevo' => CreditoRevision::PENDIENTE,
+                    'descripcion' => 'Oferta #' . $this->cotizacionId . ' enviada a Revisión de Crédito.',
+                    'fecha_evento' => $cr->created_at,
+                    'usuario_nombre' => $cr->usuario_revision
+                        ? DB::table('users')->where('id', $cr->usuario_revision)->value('name')
+                        : null,
+                ];
+            }
         } else {
             $this->estadoCredito          = CreditoRevision::PENDIENTE;
             $this->fechaAprobacionActual  = null;

@@ -1474,7 +1474,7 @@ class Cotizacion extends Component
                     . ' | Días solicitados: ' . $diasSolicitados
                     . ' | Total oferta: L ' . number_format((float) $ofertaNueva->total, 2, '.', ',');
 
-                CreditoRevision::create([
+                $revisionCreditoNueva = CreditoRevision::create([
                     'flujo_id' => $hf->flujo_id,
                     'cotizacion_id' => $id,
                     'estado' => CreditoRevision::PENDIENTE,
@@ -1485,6 +1485,13 @@ class Cotizacion extends Component
                     'usuario_revision' => Auth::id(),
                     'ip_revision' => $request->ip(),
                 ]);
+                $revisionCreditoNueva->registrarHistorial(
+                    'creado',
+                    null,
+                    CreditoRevision::PENDIENTE,
+                    'Oferta #' . $id . ' enviada a Revisión de Crédito.',
+                    $request->ip()
+                );
 
                 DB::table('historico_flujo')->insert([
                     'flujo_id' => $hf->flujo_id,

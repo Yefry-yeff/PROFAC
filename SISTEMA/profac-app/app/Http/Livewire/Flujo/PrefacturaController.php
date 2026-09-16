@@ -503,7 +503,7 @@ class PrefacturaController
                         'ip_revision'      => request()->ip(),
                     ]);
                 } else {
-                    CreditoRevision::create([
+                    $crPendiente = CreditoRevision::create([
                         'flujo_id'         => $flujoId,
                         'cotizacion_id'    => $cotizacionId,
                         'estado'           => CreditoRevision::PENDIENTE,
@@ -511,6 +511,16 @@ class PrefacturaController
                         'usuario_revision' => Auth::id(),
                         'ip_revision'      => request()->ip(),
                     ]);
+                }
+
+                if (!$crPendiente->historial()->exists()) {
+                    $crPendiente->registrarHistorial(
+                        'creado',
+                        null,
+                        CreditoRevision::PENDIENTE,
+                        'Oferta #' . $cotizacionId . ' enviada a Revisión de Crédito.',
+                        request()->ip()
+                    );
                 }
 
                 // 5. Avanzar flujo al paso 10 (Revisión de Crédito)
