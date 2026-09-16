@@ -53,7 +53,10 @@
         .cmp-total strong { display:block; margin-top:2px; color:#263238; font-size:16px; font-variant-numeric:tabular-nums; }
         .cmp-total.grand { background:#f0faf7; }
         .cmp-total.grand strong { color:#08745f; font-size:19px; }
-        .cmp-save { margin:10px 14px; min-width:150px; border:0; border-radius:6px; background:linear-gradient(135deg,#e35f0d,#ef8d32); color:#fff; font-size:12px; font-weight:800; }
+        .cmp-shell button.cmp-save { margin:10px 14px; min-width:150px; border:0; border-radius:6px; background:linear-gradient(135deg,#e35f0d,#ef8d32) !important; color:#fff !important; font-size:12px; font-weight:800; }
+        .cmp-shell button.cmp-save:hover,
+        .cmp-shell button.cmp-save:focus { background:linear-gradient(135deg,#cb5008,#df7920) !important; color:#fff !important; }
+        .cmp-shell button.cmp-save:disabled { cursor:not-allowed; opacity:.65; }
         .cmp-temp-list { max-height:310px; overflow:auto; text-align:left; }
         .cmp-temp-item { display:flex; align-items:center; gap:9px; margin-bottom:7px; padding:10px; border:1px solid #e1e7e9; border-radius:6px; cursor:pointer; }
         .cmp-temp-item input { flex:0 0 auto; }
