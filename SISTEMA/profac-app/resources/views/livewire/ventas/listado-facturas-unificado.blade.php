@@ -216,6 +216,11 @@
                     <div class="fact-card-header">
                         <h5><i class="fa fa-file-text"></i> Listado de Facturas</h5>
                         <div class="d-flex" style="gap:8px;">
+                            @if($tipoVenta === 'estatal')
+                            <button type="button" class="btn-fact-filter" onclick="exportarFacturasDetallePdf()">
+                                <i class="fa fa-file-pdf-o mr-1"></i>PDF detalle
+                            </button>
+                            @endif
                             <button type="button" class="btn-fact-filter" onclick="exportarFacturasExcel()">
                                 <i class="fa fa-file-excel-o mr-1"></i>Excel
                             </button>
@@ -608,6 +613,27 @@
                     }
                 }, 400);
 
+                form.trigger('submit');
+                setTimeout(function() { form.remove(); }, 1500);
+            }
+
+            function exportarFacturasDetallePdf() {
+                var form = $('<form method="POST" target="_blank"></form>')
+                    .attr('action', '/lista/facturas/estatal/exportar-pdf-detalle');
+                var fields = {
+                    _token: $('meta[name="csrf-token"]').attr('content'),
+                    tipo: filtros.tipo || tipoVenta,
+                    filtroCai: filtros.cai || '',
+                    filtroCliente: filtros.cliente || '',
+                    filtroVendedor: filtros.vendedor || '',
+                    filtroFacturador: filtros.facturador || '',
+                    filtroDesde: filtros.desde || '',
+                    filtroHasta: filtros.hasta || ''
+                };
+                $.each(fields, function(key, value) {
+                    form.append($('<input type="hidden">').attr('name', key).val(value));
+                });
+                $('body').append(form);
                 form.trigger('submit');
                 setTimeout(function() { form.remove(); }, 1500);
             }

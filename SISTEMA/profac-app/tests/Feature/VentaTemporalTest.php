@@ -73,6 +73,39 @@ class VentaTemporalTest extends TestCase
         $this->assertDatabaseMissing('venta_temporal', ['id' => $id]);
     }
 
+    public function test_consulta_agrupa_ofertas_por_titulo_y_conserva_la_ultima_guardada(): void
+    {
+        $usuario = User::findOrFail((int) DB::table('users')->min('id'));
+        $base = [
+            'usuario_id' => $usuario->id,
+            'tipo' => 'oferta',
+            'codigo_tipo' => 'cotizacion_clientes_a',
+            'url_reanudacion' => '/proforma/cotizacion/2',
+            'contenido' => '{}',
+            'expira_at' => now()->addDay(),
+            'created_at' => now()->subHour(),
+        ];
+        $anterior = DB::table('venta_temporal')->insertGetId(array_merge($base, [
+            'titulo' => 'Oferta - Cliente #2026-100',
+            'updated_at' => now()->subMinutes(10),
+        ]));
+        $reciente = DB::table('venta_temporal')->insertGetId(array_merge($base, [
+            'titulo' => '  OFERTA - CLIENTE #2026-100  ',
+            'updated_at' => now(),
+        ]));
+        $distinta = DB::table('venta_temporal')->insertGetId(array_merge($base, [
+            'titulo' => 'Oferta - Otro cliente #2026-101',
+            'updated_at' => now()->subMinute(),
+        ]));
+
+        $response = $this->actingAs($usuario)->getJson('/ventas/temporales?tipo=oferta')->assertOk();
+        $ids = collect($response->json('data'))->pluck('id')->map(fn ($id) => (int) $id);
+
+        $this->assertTrue($ids->contains($reciente));
+        $this->assertTrue($ids->contains($distinta));
+        $this->assertFalse($ids->contains($anterior));
+    }
+
     public function test_rechaza_url_de_reanudacion_externa(): void
     {
         $usuario = User::findOrFail((int) DB::table('users')->min('id'));

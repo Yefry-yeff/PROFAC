@@ -36,7 +36,16 @@ class TemporalesVenta extends Component
     public function render()
     {
         $this->limpiarVencidos();
-        $temporales = $this->queryPropios()->orderByDesc('updated_at')->get();
+        $temporales = $this->queryPropios()
+            ->orderByDesc('updated_at')
+            ->orderByDesc('id')
+            ->get()
+            ->when($this->tipo === 'factura', function ($registros) {
+                return $registros->unique(function ($temporal) {
+                    $titulo = mb_strtolower(trim((string) $temporal->titulo));
+                    return $titulo !== '' ? $titulo : 'temporal-' . $temporal->id;
+                })->values();
+            });
 
         return view('livewire.flujo.temporales-venta', compact('temporales'));
     }

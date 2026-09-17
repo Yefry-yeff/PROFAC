@@ -1170,7 +1170,7 @@ class ReporteVentasCobros extends Component
 
             return Excel::download(
                 new ReporteVentasCobrosExport($rows, $usuario, $movimientos, $fastMode),
-                "ReporteVentasCobros_" . now()->format('Y-m-d') . ".xlsx"
+                "ReporteVentasCobros_" . now()->format('Y-m-d_H-i-s') . ".xlsx"
             );
         } catch (\Throwable $e) {
             return response()->json(['message' => $e->getMessage()], 500);

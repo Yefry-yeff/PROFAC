@@ -11,6 +11,7 @@ class ModelVentaProducto extends Model
     protected $table = 'venta_has_producto';
     protected $fillable = [
         'factura_id',
+        'cotizacion_has_producto_id',
         'producto_id',
         'lote',
         'numero_unidades_resta_inventario',

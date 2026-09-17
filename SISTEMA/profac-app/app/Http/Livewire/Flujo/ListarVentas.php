@@ -13,6 +13,7 @@ class ListarVentas extends Component
     public $filtroEstado = '';
     public $filtroFecha  = '';
     public $filtroNumero = '';
+    public $filtroTipoVenta = '';
     public $sortColOfr   = 'created_at';
     public $sortDirOfr   = 'desc';
 
@@ -23,7 +24,9 @@ class ListarVentas extends Component
     // ── Paginación y datos ────────────────────────────────────────────────
     public int $paginaOfr = 1;
     public int $perPage   = 5;
+    public int $totalRegistros = 0;
     public $registros     = [];
+    public $tiposVenta    = [];
 
     // ── Confirmación de cancelación ──────────────────────────────────────────
     public $pedidoAnularId   = null;
@@ -61,6 +64,11 @@ class ListarVentas extends Component
         $roles = Auth::user()->rolesIds();
         $this->esAdmin = in_array(1, $roles, true);
         $this->puedeVerTodoHistorial = count(array_intersect($roles, [1, 16])) > 0;
+        $this->tiposVenta = DB::table('tipo_venta')
+            ->where('id', '!=', 5)
+            ->orderBy('descripcion')
+            ->get(['id', 'descripcion'])
+            ->toArray();
         $this->cargarRegistros();
 
         // Si viene desde una notificación (?flujo_id=X), resolver pedido_id en PHP.
@@ -82,6 +90,7 @@ class ListarVentas extends Component
     public function updatedFiltroEstado() { $this->paginaOfr = 1; $this->cargarRegistros(); }
     public function updatedFiltroFecha() { $this->paginaOfr = 1; $this->cargarRegistros(); }
     public function updatedFiltroNumero() { $this->paginaOfr = 1; $this->cargarRegistros(); }
+    public function updatedFiltroTipoVenta() { $this->paginaOfr = 1; $this->cargarRegistros(); }
 
     public function sortByOfr(string $column): void
     {
@@ -135,26 +144,35 @@ class ListarVentas extends Component
     {
         if ($this->paginaOfr > 1) {
             $this->paginaOfr--;
+            $this->cargarRegistros();
         }
     }
 
     public function ofrNext(): void
     {
-        $total = count($this->registros);
-        $lastPage = max(1, (int) ceil($total / $this->perPage));
+        $lastPage = max(1, (int) ceil($this->totalRegistros / $this->perPage));
         if ($this->paginaOfr < $lastPage) {
             $this->paginaOfr++;
+            $this->cargarRegistros();
         }
     }
 
     private function cargarRegistros(): void
     {
+        $ultimaRevisionCredito = DB::table('credito_revision')
+            ->selectRaw('flujo_id, MAX(id) as credito_revision_id')
+            ->groupBy('flujo_id');
+
         // Una fila por flujo — estado = tipo_tramite_id actual del flujo
         $q = DB::table('flujo as f')
             ->leftJoin('tipos_tramites as tt', 'tt.id', '=', 'f.tipo_tramite_id')
             ->leftJoin('pedido as p', DB::raw('CAST(f.identificacion AS UNSIGNED)'), '=', 'p.id')
             ->leftJoin('cliente as c', 'c.id', '=', 'p.cliente_id')
             ->leftJoin('cotizacion as co', DB::raw('CAST(f.identificacion AS UNSIGNED)'), '=', 'co.id')
+            ->leftJoinSub($ultimaRevisionCredito, 'ucr', function ($join) {
+                $join->on('ucr.flujo_id', '=', 'f.id');
+            })
+            ->leftJoin('credito_revision as cr_actual', 'cr_actual.id', '=', 'ucr.credito_revision_id')
             ->select(
                 'f.id as flujo_id',
                 'f.created_at',
@@ -162,6 +180,7 @@ class ListarVentas extends Component
                 DB::raw("COALESCE(f.nombre, c.nombre, co.nombre_cliente, '—') as cliente"),
                 DB::raw("COALESCE(f.cliente_rtn, c.rtn, co.RTN, '—') as rtn"),
                 DB::raw("CASE
+                    WHEN cr_actual.estado = 'rechazado' THEN 'rechazado_creditos'
                     WHEN f.estado_id = 4 OR p.estado = 'cancelado' THEN 'cancelado'
                     ELSE COALESCE(tt.nombre, 'sin_flujo')
                  END as estado_flujo"),
@@ -185,6 +204,15 @@ class ListarVentas extends Component
                     END
                 ) as documento_display"),
                 DB::raw('COALESCE((SELECT COUNT(*) FROM historico_flujo hf2 WHERE hf2.flujo_id = f.id AND hf2.tipo_tramite_id = 2), 0) as total_ofertas'),
+                DB::raw("(SELECT GROUP_CONCAT(DISTINCT CASE
+                            WHEN ec.cotizacion_id IS NOT NULL THEN 'Expo'
+                            ELSE COALESCE(tv.descripcion, 'Sin tipo')
+                         END ORDER BY 1 SEPARATOR ', ')
+                         FROM historico_flujo hft
+                         INNER JOIN cotizacion ct ON ct.id = hft.tramite_id
+                         LEFT JOIN tipo_venta tv ON tv.id = ct.tipo_venta_id
+                         LEFT JOIN expo_cotizacion ec ON ec.cotizacion_id = ct.id
+                         WHERE hft.flujo_id = f.id AND hft.tipo_tramite_id = 2) as tipos_venta"),
                 DB::raw("CASE WHEN p.id IS NULL THEN 'cotizacion' ELSE 'pedido' END as origen")
             );
 
@@ -244,16 +272,14 @@ class ListarVentas extends Component
         if (trim($this->filtroNumero) !== '') {
             $num = trim($this->filtroNumero);
             $q->where(function ($sub) use ($num) {
-                $sub->whereExists(function ($q2) use ($num) {
-                    $q2->select(DB::raw(1))
+                $sub->whereIn('f.id', function ($q2) use ($num) {
+                    $q2->select('hfx.flujo_id')
                        ->from('historico_flujo as hfx')
-                       ->whereColumn('hfx.flujo_id', 'f.id')
                        ->where('hfx.tramite_id', (int) $num);
-                })->orWhereExists(function ($q2) use ($num) {
-                    $q2->select(DB::raw(1))
+                })->orWhereIn('f.id', function ($q2) use ($num) {
+                    $q2->select('hfx2.flujo_id')
                        ->from('historico_flujo as hfx2')
                        ->join('factura as fx', 'fx.id', '=', 'hfx2.tramite_id')
-                       ->whereColumn('hfx2.flujo_id', 'f.id')
                        ->where('hfx2.tipo_tramite_id', 3)
                        ->where('fx.cai', 'LIKE', '%' . $num . '%');
                 });
@@ -272,17 +298,14 @@ class ListarVentas extends Component
                     ->orWhere('c.rtn', 'LIKE', $term)
                     ->orWhere('co.RTN', 'LIKE', $term)
                     ->orWhere('f.id', 'LIKE', $term)
-                    ->orWhereExists(function ($q2) use ($termRaw) {
-                        $q2->select(DB::raw(1))
+                    ->orWhereIn('f.id', function ($q2) use ($termRaw) {
+                        $q2->select('hfx.flujo_id')
                            ->from('historico_flujo as hfx')
-                           ->whereColumn('hfx.flujo_id', 'f.id')
                            ->where('hfx.tramite_id', 'LIKE', '%' . $termRaw . '%');
-                    })
-                    ->orWhereExists(function ($q2) use ($termRaw) {
-                        $q2->select(DB::raw(1))
+                    })->orWhereIn('f.id', function ($q2) use ($termRaw) {
+                        $q2->select('hfx2.flujo_id')
                            ->from('historico_flujo as hfx2')
                            ->join('factura as fx', 'fx.id', '=', 'hfx2.tramite_id')
-                           ->whereColumn('hfx2.flujo_id', 'f.id')
                            ->where('hfx2.tipo_tramite_id', 3)
                            ->where('fx.cai', 'LIKE', '%' . $termRaw . '%');
                     });
@@ -293,13 +316,22 @@ class ListarVentas extends Component
         if ($this->filtroEstado !== '') {
             if ($this->filtroEstado === 'sin_flujo') {
                 $q->whereNull('tt.id');
+            } elseif ($this->filtroEstado === 'rechazado_creditos') {
+                $q->where('cr_actual.estado', 'rechazado');
             } elseif ($this->filtroEstado === 'cancelado') {
                 $q->where(function ($sub) {
                     $sub->where('f.estado_id', 4)
                         ->orWhere('p.estado', 'cancelado');
+                })->where(function ($sub) {
+                    $sub->whereNull('cr_actual.estado')
+                        ->orWhere('cr_actual.estado', '!=', 'rechazado');
                 });
             } else {
                 $q->where('tt.nombre', $this->filtroEstado)
+                  ->where(function ($sub) {
+                      $sub->whereNull('cr_actual.estado')
+                          ->orWhere('cr_actual.estado', '!=', 'rechazado');
+                  })
                   ->where(function ($sub) {
                       $sub->where('f.estado_id', '!=', 4)->orWhereNull('f.estado_id');
                   })
@@ -312,6 +344,23 @@ class ListarVentas extends Component
         // Filtro por fecha
         if ($this->filtroFecha !== '') {
             $q->whereDate('f.created_at', $this->filtroFecha);
+        }
+
+        if ($this->filtroTipoVenta !== '') {
+            $q->whereExists(function ($sub) {
+                $sub->select(DB::raw(1))
+                    ->from('historico_flujo as hft')
+                    ->join('cotizacion as ct', 'ct.id', '=', 'hft.tramite_id')
+                    ->leftJoin('expo_cotizacion as ec', 'ec.cotizacion_id', '=', 'ct.id')
+                    ->whereColumn('hft.flujo_id', 'f.id')
+                    ->where('hft.tipo_tramite_id', 2)
+                    ->when($this->filtroTipoVenta === 'expo', function ($expo) {
+                        $expo->whereNotNull('ec.cotizacion_id');
+                    }, function ($tipo) {
+                        $tipo->whereNull('ec.cotizacion_id')
+                            ->where('ct.tipo_venta_id', (int) $this->filtroTipoVenta);
+                    });
+            });
         }
 
         $dir = strtolower($this->sortDirOfr) === 'asc' ? 'asc' : 'desc';
@@ -337,7 +386,13 @@ class ListarVentas extends Component
                 break;
         }
 
-        $this->registros = $q->get()->toArray();
+        $this->totalRegistros = (clone $q)->reorder()->count('f.id');
+        $ultimaPagina = max(1, (int) ceil($this->totalRegistros / $this->perPage));
+        $this->paginaOfr = min($this->paginaOfr, $ultimaPagina);
+        $this->registros = $q
+            ->forPage($this->paginaOfr, $this->perPage)
+            ->get()
+            ->toArray();
     }
 
     // ── Limpiar filtros ────────────────────────────────────────────────────
@@ -347,6 +402,7 @@ class ListarVentas extends Component
         $this->filtroEstado    = '';
         $this->filtroFecha     = '';
         $this->filtroNumero    = '';
+        $this->filtroTipoVenta = '';
         $this->paginaOfr       = 1;
         $this->cargarRegistros();
     }

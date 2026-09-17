@@ -363,12 +363,20 @@
                                 </div>
                                 <div class="col-md-4">
                                     <div class="form-group">
-                                        <label>Monto Disponible</label>
+                                        <label>Disponible para Crédito</label>
                                         <div class="input-group">
                                             <div class="input-group-prepend"><span class="input-group-text">L</span></div>
-                                            <input type="text" id="cred_monto_disponible" class="form-control" readonly style="background:#f8f9fa; cursor:default;" tabindex="-1">
+                                            <input type="text" id="cred_monto_disponible" class="form-control" readonly
+                                                onclick="abrirMovimientosCreditoCliente()"
+                                                title="Ver detalle del disponible para crédito"
+                                                style="background:#f8f9fa; cursor:pointer; color:#1565c0; font-weight:700;" tabindex="-1">
+                                            <div class="input-group-append">
+                                                <button type="button" class="btn btn-outline-secondary" onclick="abrirMovimientosCreditoCliente()" title="Ver movimientos del crédito">
+                                                    <i class="fa fa-list-alt"></i>
+                                                </button>
+                                            </div>
                                         </div>
-                                        <small class="text-muted">Calculado automáticamente por el sistema</small>
+                                        <small class="text-muted">Crédito aprobado menos facturaciones y pendientes de facturar.</small>
                                     </div>
                                 </div>
                                 <div class="col-md-4">
@@ -640,6 +648,63 @@
                             <i class="fa fa-upload"></i> Reemplazar
                         </button>
                     </div>
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        body .wrapper.wrapper-content.animated.fadeInRight {
+            animation: none !important;
+            transform: none !important;
+        }
+
+        #modalMovimientosCreditoCliente.show {
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+            padding: 20px !important;
+        }
+    </style>
+    <div class="modal fade" id="modalMovimientosCreditoCliente" tabindex="-1" role="dialog" aria-labelledby="modalMovimientosCreditoClienteLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document"
+            style="width:100%; max-width:1100px; max-height:calc(100vh - 40px); margin:0;">
+            <div class="modal-content" style="max-height:calc(100vh - 40px); overflow:hidden;">
+                <div class="modal-header" style="background:#37474f; color:#fff;">
+                    <h5 class="modal-title" id="modalMovimientosCreditoClienteLabel"><i class="fa fa-list-alt mr-2"></i>Movimientos del crédito</h5>
+                    <button type="button" class="close" data-dismiss="modal" style="color:#fff;"><span>&times;</span></button>
+                </div>
+                <div class="modal-body" style="overflow-y:auto;">
+                    <div id="credito_movimientos_loading" class="text-center text-muted py-4">
+                        <i class="fa fa-spinner fa-spin mr-1"></i> Cargando movimientos...
+                    </div>
+                    <div id="credito_movimientos_contenido" style="display:none;">
+                        <div class="row mb-4" id="credito_movimientos_resumen"></div>
+                        <h6 class="font-weight-bold">Monto en facturaciones</h6>
+                        <div class="table-responsive mb-4">
+                            <table class="table table-sm table-striped">
+                                <thead><tr><th>Factura</th><th>Fecha</th><th class="text-right">Total</th><th class="text-right">Saldo pendiente</th></tr></thead>
+                                <tbody id="credito_movimientos_cuentas"></tbody>
+                            </table>
+                        </div>
+                        <h6 class="font-weight-bold">Pendientes de facturar</h6>
+                        <div class="table-responsive mb-4">
+                            <table class="table table-sm table-striped">
+                                <thead><tr><th>Fecha aprobación</th><th>Oferta / flujo</th><th>Usuario</th><th class="text-right">Monto</th></tr></thead>
+                                <tbody id="credito_movimientos_pendientes"></tbody>
+                            </table>
+                        </div>
+                        <h6 class="font-weight-bold">Auditoría de crédito</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped">
+                                <thead><tr><th>Fecha</th><th>Oferta / flujo</th><th>Usuario</th><th>Detalle</th><th class="text-right">Monto</th><th class="text-right">Saldo anterior</th><th class="text-right">Saldo resultante</th></tr></thead>
+                                <tbody id="credito_movimientos_aprobaciones"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
                     <button type="button" class="btn btn-default" data-dismiss="modal">Cerrar</button>
                 </div>
             </div>

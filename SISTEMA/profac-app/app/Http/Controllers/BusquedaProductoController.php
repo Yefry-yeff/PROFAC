@@ -2,11 +2,26 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\ExpoConfig;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class BusquedaProductoController extends Controller
 {
+    private function configuracionExpo(Request $request): ?array
+    {
+        $expoId = (int) $request->get('expo_id', 0);
+        if ($expoId <= 0) {
+            return null;
+        }
+
+        $expo = ExpoConfig::detalleActivaParaUsuario($expoId, Auth::id());
+        abort_unless($expo, 403, 'No tiene autorización para consultar productos de esta Expo.');
+
+        return $expo;
+    }
+
     /**
      * Búsqueda rápida de productos con soporte multi-palabra.
      * Ejemplo: "pegamento cola blanca" encuentra "pegamento blanco cola blanca"
@@ -20,6 +35,9 @@ class BusquedaProductoController extends Controller
         $marcaId  = $request->get('marca_id', '');
         $conStock = (bool) $request->get('con_stock', 0);
         $bodegaId = $request->get('bodega_id', '');
+        $excluirCategoriaPrecioId = (int) $request->get('excluir_categoria_precio_id', 0);
+        $expo = $this->configuracionExpo($request);
+        $bodegasExpo = $expo['bodegas'] ?? [];
         $page     = max(1, (int) $request->get('page', 1));
         $perPage  = 12;
 
@@ -32,9 +50,11 @@ class BusquedaProductoController extends Controller
         // resultados de la página, evitando el costoso JOIN+GROUP BY global.
         $query = DB::table('producto as p')
             ->leftJoin('marca as m', 'm.id', '=', 'p.marca_id')
+            ->leftJoin('unidad_medida as um', 'um.id', '=', 'p.unidad_medida_compra_id')
             ->select([
                 'p.id', 'p.nombre', 'p.codigo_barra', 'p.codigo_estatal',
-                'p.isv', 'm.nombre as marca_nombre',
+                'p.isv', 'p.unidadad_compra', 'p.unidad_medida_compra_id',
+                'um.nombre as unidad_medida_compra_nombre', 'm.nombre as marca_nombre',
             ])
             ->where('p.estado_producto_id', 1);
 
@@ -61,8 +81,26 @@ class BusquedaProductoController extends Controller
             $query->where('p.marca_id', (int) $marcaId);
         }
 
+        if ($excluirCategoriaPrecioId > 0) {
+            $query->whereNotExists(function ($sub) use ($excluirCategoriaPrecioId) {
+                $sub->select(DB::raw(1))
+                    ->from('precios_producto_carga as ppc_excluir')
+                    ->whereColumn('ppc_excluir.producto_id', 'p.id')
+                    ->where('ppc_excluir.categoria_precios_id', $excluirCategoriaPrecioId)
+                    ->where('ppc_excluir.estado_id', 1);
+            });
+            $query->addSelect([
+                'ultimo_precio_base' => DB::table('precios_producto_carga as ppc_ultimo')
+                    ->select('ppc_ultimo.precio_base_venta')
+                    ->whereColumn('ppc_ultimo.producto_id', 'p.id')
+                    ->orderByRaw('ppc_ultimo.categoria_precios_id = ? DESC', [$excluirCategoriaPrecioId])
+                    ->orderByDesc('ppc_ultimo.id')
+                    ->limit(1),
+            ]);
+        }
+
         // Filtro de stock: WHERE EXISTS (más rápido que JOIN+GROUP BY+HAVING)
-        if ($conStock) {
+        if ($conStock && !$expo) {
             $query->whereExists(function ($sub) {
                 $sub->select(DB::raw(1))
                     ->from('recibido_bodega')
@@ -72,7 +110,7 @@ class BusquedaProductoController extends Controller
         }
 
         // Filtro por bodega (opcional — solo cuando se pasa bodega_id explícitamente)
-        if ($bodegaId !== '' && $bodegaId !== null) {
+        if (!$expo && $bodegaId !== '' && $bodegaId !== null) {
             $query->whereExists(function ($sub) use ($bodegaId) {
                 $sub->select(DB::raw(1))
                     ->from('recibido_bodega as rb_bq')
@@ -81,6 +119,18 @@ class BusquedaProductoController extends Controller
                     ->whereColumn('rb_bq.producto_id', 'p.id')
                     ->whereRaw('rb_bq.cantidad_disponible > 0')
                     ->where('sg_bq.bodega_id', (int) $bodegaId);
+            });
+        }
+
+        if ($expo) {
+            $query->whereExists(function ($sub) use ($expo) {
+                $sub->select(DB::raw(1))
+                    ->from('precios_producto_carga as ppc_expo')
+                    ->join('categoria_precios as cp_expo', 'cp_expo.id', '=', 'ppc_expo.categoria_precios_id')
+                    ->whereColumn('ppc_expo.producto_id', 'p.id')
+                    ->where('ppc_expo.estado_id', 1)
+                    ->where('cp_expo.estado_id', 1)
+                    ->whereIn('ppc_expo.categoria_precios_id', $expo['escalas']);
             });
         }
 
@@ -112,6 +162,11 @@ class BusquedaProductoController extends Controller
                        ->join('segmento as sg_sk', 'sg_sk.id', '=', 'sc_sk.segmento_id')
                        ->where('sg_sk.bodega_id', (int) $bodegaId);
             }
+            if ($bodegasExpo) {
+                $stockQ->join('seccion as sc_expo_sk', 'sc_expo_sk.id', '=', 'recibido_bodega.seccion_id')
+                    ->join('segmento as sg_expo_sk', 'sg_expo_sk.id', '=', 'sc_expo_sk.segmento_id')
+                    ->whereIn('sg_expo_sk.bodega_id', $bodegasExpo);
+            }
             $stockMap = $stockQ->groupBy('producto_id')->get()->keyBy('producto_id');
 
             $imgMap = DB::table('img_producto')
@@ -122,7 +177,9 @@ class BusquedaProductoController extends Controller
 
             $items->each(function ($item) use ($stockMap, $imgMap) {
                 $item->stock  = isset($stockMap[$item->id]) ? (float) $stockMap[$item->id]->stock : 0;
-                $item->imagen = isset($imgMap[$item->id])  ? $imgMap[$item->id]->url_img : null;
+                $item->imagen = isset($imgMap[$item->id])
+                    ? $this->imagenDisponible($imgMap[$item->id]->url_img)
+                    : null;
             });
         }
 
@@ -170,6 +227,8 @@ class BusquedaProductoController extends Controller
     {
         session()->save();
         $bodegaId = $request->get('bodega_id', '');
+        $expo = $this->configuracionExpo($request);
+        $bodegasExpo = $expo['bodegas'] ?? [];
 
         // Solo JOIN con venta_has_producto (necesario para SUM+GROUP BY de ventas)
         // recibido_bodega e img_producto se consultan aparte para evitar producto
@@ -177,12 +236,19 @@ class BusquedaProductoController extends Controller
         $tvQuery = DB::table('producto as p')
             ->join('venta_has_producto as vhp', 'vhp.producto_id', '=', 'p.id')
             ->leftJoin('marca as m', 'm.id', '=', 'p.marca_id')
+            ->leftJoin('unidad_medida as um', 'um.id', '=', 'p.unidad_medida_compra_id')
             ->select([
                 'p.id', 'p.nombre', 'p.codigo_barra', 'p.codigo_estatal', 'p.isv',
+                'p.unidadad_compra', 'p.unidad_medida_compra_id',
+                'um.nombre as unidad_medida_compra_nombre',
                 'm.nombre as marca_nombre',
                 DB::raw('SUM(vhp.cantidad) as total_vendido'),
             ])
-            ->groupBy('p.id', 'p.nombre', 'p.codigo_barra', 'p.codigo_estatal', 'p.isv', 'm.nombre')
+            ->groupBy(
+                'p.id', 'p.nombre', 'p.codigo_barra', 'p.codigo_estatal', 'p.isv',
+                'p.unidadad_compra', 'p.unidad_medida_compra_id',
+                'um.nombre', 'm.nombre'
+            )
             ->orderByDesc('total_vendido')
             ->limit(12);
 
@@ -199,6 +265,18 @@ class BusquedaProductoController extends Controller
             });
         }
 
+        if ($bodegasExpo) {
+            $tvQuery->whereExists(function ($sub) use ($bodegasExpo) {
+                $sub->select(DB::raw(1))
+                    ->from('recibido_bodega as rb_expo_tv')
+                    ->join('seccion as sc_expo_tv', 'sc_expo_tv.id', '=', 'rb_expo_tv.seccion_id')
+                    ->join('segmento as sg_expo_tv', 'sg_expo_tv.id', '=', 'sc_expo_tv.segmento_id')
+                    ->whereColumn('rb_expo_tv.producto_id', 'p.id')
+                    ->whereRaw('rb_expo_tv.cantidad_disponible > 0')
+                    ->whereIn('sg_expo_tv.bodega_id', $bodegasExpo);
+            });
+        }
+
         $items = $tvQuery->get();
 
         if ($items->isNotEmpty()) {
@@ -207,8 +285,13 @@ class BusquedaProductoController extends Controller
             $stockMap = DB::table('recibido_bodega')
                 ->select('producto_id', DB::raw('SUM(cantidad_disponible) as stock'))
                 ->whereIn('producto_id', $ids)
-                ->groupBy('producto_id')
-                ->get()->keyBy('producto_id');
+                ->whereRaw('cantidad_disponible > 0');
+            if ($bodegasExpo) {
+                $stockMap->join('seccion as sc_expo_tv_sk', 'sc_expo_tv_sk.id', '=', 'recibido_bodega.seccion_id')
+                    ->join('segmento as sg_expo_tv_sk', 'sg_expo_tv_sk.id', '=', 'sc_expo_tv_sk.segmento_id')
+                    ->whereIn('sg_expo_tv_sk.bodega_id', $bodegasExpo);
+            }
+            $stockMap = $stockMap->groupBy('producto_id')->get()->keyBy('producto_id');
 
             $imgMap = DB::table('img_producto')
                 ->select('producto_id', 'url_img')
@@ -218,10 +301,23 @@ class BusquedaProductoController extends Controller
 
             $items->each(function ($item) use ($stockMap, $imgMap) {
                 $item->stock  = isset($stockMap[$item->id]) ? (float) $stockMap[$item->id]->stock : 0;
-                $item->imagen = isset($imgMap[$item->id])  ? $imgMap[$item->id]->url_img : null;
+                $item->imagen = isset($imgMap[$item->id])
+                    ? $this->imagenDisponible($imgMap[$item->id]->url_img)
+                    : null;
             });
         }
 
         return response()->json($items);
+    }
+
+    private function imagenDisponible(?string $ruta): ?string
+    {
+        if (!$ruta) {
+            return null;
+        }
+
+        $rutaRelativa = ltrim(str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $ruta), DIRECTORY_SEPARATOR);
+
+        return is_file(public_path('catalogo' . DIRECTORY_SEPARATOR . $rutaRelativa)) ? $ruta : null;
     }
 }

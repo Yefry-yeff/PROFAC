@@ -6,6 +6,7 @@ use App\Support\ExpoConfig;
 use Livewire\Component;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use App\Services\Expo\SeccionadorOfertaExpo;
 
 /**
  * Dos pestanas:
@@ -24,6 +25,7 @@ class ListarPedidosParaOfertar extends Component
 
     // Filtros y sort - Pestana 2 (ofertas)
     public $busquedaOfr  = '';
+    public $filtroTipoVenta = '';
     public $sortColOfr   = 'created_at';
     public $sortDirOfr   = 'desc';
 
@@ -35,6 +37,7 @@ class ListarPedidosParaOfertar extends Component
     // Datos
     public $pedidos = [];
     public $ofertas = [];
+    public $tiposVenta = [];
     public $expoActiva = null;
 
     // Mensajes flash
@@ -49,11 +52,17 @@ class ListarPedidosParaOfertar extends Component
     public function mount(): void
     {
         $this->expoActiva = ExpoConfig::detalleActivaParaUsuario(null, Auth::id());
+        $this->tiposVenta = DB::table('tipo_venta')
+            ->where('id', '!=', 5)
+            ->orderBy('descripcion')
+            ->get(['id', 'descripcion'])
+            ->toArray();
         $this->cargar();
     }
 
     public function updatedBusquedaPed(): void { $this->paginaPed = 1; $this->cargarPedidos(); }
     public function updatedBusquedaOfr(): void { $this->paginaOfr = 1; $this->cargarOfertas(); }
+    public function updatedFiltroTipoVenta(): void { $this->paginaOfr = 1; $this->cargarOfertas(); }
 
     // PAGINACION
 
@@ -205,6 +214,15 @@ class ListarPedidosParaOfertar extends Component
                 'tt.nombre as estado_flujo',
                 DB::raw('(SELECT COUNT(*) FROM historico_flujo hf WHERE hf.flujo_id = f.id AND hf.tipo_tramite_id = 2) as total_ofertas'),
                 DB::raw("(SELECT COUNT(*) FROM historico_flujo hf WHERE hf.flujo_id = f.id AND hf.tipo_tramite_id = 2 AND hf.observaciones = 'ganadora') as tiene_ganadora"),
+                DB::raw("(SELECT GROUP_CONCAT(DISTINCT CASE
+                            WHEN ec.cotizacion_id IS NOT NULL THEN 'Expo'
+                            ELSE COALESCE(tv.descripcion, 'Sin tipo')
+                         END ORDER BY 1 SEPARATOR ', ')
+                         FROM historico_flujo hft
+                         INNER JOIN cotizacion ct ON ct.id = hft.tramite_id
+                         LEFT JOIN tipo_venta tv ON tv.id = ct.tipo_venta_id
+                         LEFT JOIN expo_cotizacion ec ON ec.cotizacion_id = ct.id
+                         WHERE hft.flujo_id = f.id AND hft.tipo_tramite_id = 2) as tipos_venta"),
                 DB::raw("'pedido' as origen")
             );
 
@@ -245,6 +263,15 @@ class ListarPedidosParaOfertar extends Component
                 'tt.nombre as estado_flujo',
                 DB::raw('(SELECT COUNT(*) FROM historico_flujo hf WHERE hf.flujo_id = f.id AND hf.tipo_tramite_id = 2) as total_ofertas'),
                 DB::raw("(SELECT COUNT(*) FROM historico_flujo hf WHERE hf.flujo_id = f.id AND hf.tipo_tramite_id = 2 AND hf.observaciones = 'ganadora') as tiene_ganadora"),
+                DB::raw("(SELECT GROUP_CONCAT(DISTINCT CASE
+                            WHEN ec.cotizacion_id IS NOT NULL THEN 'Expo'
+                            ELSE COALESCE(tv.descripcion, 'Sin tipo')
+                         END ORDER BY 1 SEPARATOR ', ')
+                         FROM historico_flujo hft
+                         INNER JOIN cotizacion ct ON ct.id = hft.tramite_id
+                         LEFT JOIN tipo_venta tv ON tv.id = ct.tipo_venta_id
+                         LEFT JOIN expo_cotizacion ec ON ec.cotizacion_id = ct.id
+                         WHERE hft.flujo_id = f.id AND hft.tipo_tramite_id = 2) as tipos_venta"),
                 DB::raw("'cotizacion' as origen")
             );
 
@@ -262,6 +289,28 @@ class ListarPedidosParaOfertar extends Component
                     $s->where('o.nombre_cliente', 'LIKE', $like)->orWhere('o.RTN', 'LIKE', $like);
                 });
             }
+        }
+
+        if ($this->filtroTipoVenta !== '') {
+            $aplicarFiltroTipo = function ($query): void {
+                $query->whereExists(function ($sub) {
+                    $sub->select(DB::raw(1))
+                        ->from('historico_flujo as hft')
+                        ->join('cotizacion as ct', 'ct.id', '=', 'hft.tramite_id')
+                        ->leftJoin('expo_cotizacion as ec', 'ec.cotizacion_id', '=', 'ct.id')
+                        ->whereColumn('hft.flujo_id', 'f.id')
+                        ->where('hft.tipo_tramite_id', 2)
+                        ->when($this->filtroTipoVenta === 'expo', function ($expo) {
+                            $expo->whereNotNull('ec.cotizacion_id');
+                        }, function ($tipo) {
+                            $tipo->whereNull('ec.cotizacion_id')
+                                ->where('ct.tipo_venta_id', (int) $this->filtroTipoVenta);
+                        });
+                });
+            };
+
+            $aplicarFiltroTipo($qA);
+            $aplicarFiltroTipo($qB);
         }
 
         $colMap = [
@@ -285,6 +334,24 @@ class ListarPedidosParaOfertar extends Component
 
     public function marcarGanadora(int $flujoId, int $ofertaId): void
     {
+        if (DB::table('expo_cotizacion')->where('cotizacion_id', $ofertaId)->exists()) {
+            try {
+                app(SeccionadorOfertaExpo::class)->iniciarSeccionado(
+                    $flujoId,
+                    $ofertaId,
+                    (int) Auth::id()
+                );
+                $this->mensajeExito = 'Oferta Expo #' . $ofertaId . ' enviada a Secciones de Ofertas.';
+                $this->mensajeError = '';
+                $this->redirect(route('flujo.secciones_ofertas', ['flujo_id' => $flujoId]));
+                return;
+            } catch (\Throwable $e) {
+                $this->mensajeError = 'Error: ' . $e->getMessage();
+                $this->mensajeExito = '';
+            }
+            return;
+        }
+
         DB::beginTransaction();
         try {
             // Verificar si la revisión de inventario está activa

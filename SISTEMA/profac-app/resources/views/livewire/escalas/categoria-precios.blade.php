@@ -855,6 +855,10 @@ a.btn.btn-pf-primary:hover {
                 <span class="tab-num">2</span>
                 <i class="fa fa-upload mr-1"></i> Importar Plantilla
             </button>
+            <button class="pf-wizard-tab" id="tabEditar" onclick="switchWizardTab('editar')">
+                <span class="tab-num">3</span>
+                <i class="fa fa-pencil-square-o mr-1"></i> Editar precios base
+            </button>
         </div>
     </div>
 
@@ -877,7 +881,7 @@ a.btn.btn-pf-primary:hover {
                 </div>
 
                 {{-- Tipo de categoría --}}
-                <div class="filtro-item" id="containerTipoCategoria" style="display:none;">
+                <div class="filtro-item" id="containerTipoCategoria">
                     <select id="tipoCategoria" name="tipoCategoria" class="form-control select2bs4 filtro-select">
                         <option value="">Tipo de categoría</option>
                         <option value="escalable">Escalable</option>
@@ -886,7 +890,7 @@ a.btn.btn-pf-primary:hover {
                 </div>
 
                 {{-- Filtrar por --}}
-                <div class="filtro-item" id="containerTipoFiltro" style="display:none;">
+                <div class="filtro-item" id="containerTipoFiltro">
                     <select id="tipoFiltro" name="tipoFiltro" class="form-control select2bs4 filtro-select">
                         <option value="">Filtrar por</option>
                         <option value="1">Marca</option>
@@ -896,9 +900,11 @@ a.btn.btn-pf-primary:hover {
 
                 {{-- Lista dinámica --}}
                 <div class="filtro-item" id="containerListaFiltro" style="display:none;">
-                    <select id="listaTipoFiltro" name="listaTipoFiltro" class="form-control select2bs4 filtro-select">
-                        <option value="">Seleccione...</option>
-                    </select>
+                    <select id="listaTipoFiltro" name="listaTipoFiltro[]" multiple style="display:none;"></select>
+                    <button type="button" id="btnAbrirFiltroProductos" class="btn btn-outline-secondary btn-block filtro-select text-left">
+                        <i class="fa fa-list mr-1"></i>
+                        <span id="resumenFiltroProductos">Seleccionar opciones</span>
+                    </button>
                 </div>
 
                 {{-- Categoría de cliente --}}
@@ -1041,17 +1047,15 @@ a.btn.btn-pf-primary:hover {
             </div>
         </div>
 
-    </div>{{-- /pf-wizard-body --}}
-</div>{{-- /pf-wizard-card --}}
-
 {{-- ═══════════════════════════════════════════════════════
      EDITOR MANUAL DE PRECIOS BASE
 ═══════════════════════════════════════════════════════ --}}
-<div class="pf-wizard-card mt-3" id="cardEditorPrecios">
-    <div class="pf-wizard-header">
-        <h6><i class="fa fa-pencil-square-o mr-2"></i>Editar Precios Base Manualmente</h6>
+<div class="pf-wizard-pane" id="paneEditar">
+<div id="cardEditorPrecios">
+    <div class="pf-step-label">
+        <i class="fa fa-pencil-square-o mr-1"></i> Editar precios base manualmente
     </div>
-    <div class="pf-wizard-body">
+    <div>
 
         {{-- PASO 1: Categoría de cliente --}}
         <div class="pf-step-label"><i class="fa fa-users"></i> Paso 1 — Categoría de cliente</div>
@@ -1105,6 +1109,12 @@ a.btn.btn-pf-primary:hover {
                         style="background:linear-gradient(135deg,#f39c12 0%,#e67e22 100%) !important;color:#fff !important;border:none;height:35px;padding:0 16px;font-size:.8rem;"
                         onclick="cargarEditorPrecios(1)">
                     <i class="fa fa-search mr-1"></i> Buscar
+                </button>
+                <button type="button" class="btn btn-sm btn-success" onclick="abrirAgregarProductoPrecio()" style="height:35px;font-size:.8rem;">
+                    <i class="fa fa-plus mr-1"></i> Agregar producto
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-success" onclick="descargarProductosEditor()" style="height:35px;font-size:.8rem;">
+                    <i class="fa fa-file-excel-o mr-1"></i> Descargar Excel
                 </button>
             </div>
         </div>
@@ -1164,6 +1174,124 @@ a.btn.btn-pf-primary:hover {
 
     </div>
 </div>
+</div>
+
+    </div>{{-- /pf-wizard-body --}}
+</div>{{-- /pf-wizard-card --}}
+
+<div class="modal fade" id="modalAgregarProductoPrecio" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document" style="max-width:620px;">
+        <div class="modal-content">
+            <div class="modal-header" style="background:var(--pf-grad);color:#fff;">
+                <h6 class="modal-title mb-0"><i class="fa fa-plus-circle mr-1"></i>Agregar producto a la categoría de precio</h6>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Cerrar"><span aria-hidden="true">&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <div id="editorAgregarSeleccion" class="alert alert-light border mb-3" style="font-size:.8rem;"></div>
+                <div class="form-group mb-0">
+                    <label for="editorAgregarBase" class="font-weight-bold small">Precio base</label>
+                    <input type="number" id="editorAgregarBase" min="0.01" step="0.01" class="form-control" placeholder="0.00">
+                    <div id="editorUltimoPrecioBase" class="mt-2 px-2 py-1 border rounded" style="display:none;background:#f8fafc;color:#52616b;font-size:.76rem;"></div>
+                    <small class="text-muted">Los precios A, B, C y D se calcularán con los porcentajes de la categoría seleccionada.</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Cancelar</button>
+                <button type="button" id="btnConfirmarAgregarPrecio" class="btn btn-success" onclick="confirmarAgregarProductoPrecio()" disabled>
+                    <i class="fa fa-plus mr-1"></i>Agregar producto
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalHistorialPrecioProducto" tabindex="-1" role="dialog" aria-labelledby="tituloHistorialPrecioProducto" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header" style="background:var(--pf-grad);color:#fff;">
+                <div>
+                    <small style="color:rgba(255,255,255,.82);">Histórico de precios base y escalas</small>
+                    <h6 class="modal-title mb-0" id="tituloHistorialPrecioProducto">Producto</h6>
+                </div>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Cerrar"><span aria-hidden="true">&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <div id="historialPrecioResumen" class="mb-3"></div>
+                <div id="historialPrecioCargando" class="text-center py-5">
+                    <div class="spinner-border text-warning" role="status"><span class="sr-only">Cargando...</span></div>
+                    <div class="mt-2 text-muted small">Cargando histórico...</div>
+                </div>
+                <div id="historialPrecioContenido" class="table-responsive" style="display:none;">
+                    <table class="table table-sm table-hover mb-0" id="tablaHistorialPrecioProducto">
+                        <thead>
+                            <tr>
+                                <th>Versión</th>
+                                <th>Fecha de registro</th>
+                                <th>Última actualización</th>
+                                <th class="text-right">Precio Base</th>
+                                <th class="text-right historial-col-a">A</th>
+                                <th class="text-right historial-col-b">B</th>
+                                <th class="text-right historial-col-c">C</th>
+                                <th class="text-right historial-col-d">D</th>
+                                <th>Usuario</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div id="historialPrecioError" class="alert alert-danger mb-0" style="display:none;"></div>
+            </div>
+            <div class="modal-footer">
+                <small class="text-muted mr-auto">El porcentaje efectivo se calcula a partir del precio base y el valor guardado en cada versión.</small>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<x-buscador-producto
+    id-modal="buscadorProductoPrecio"
+    callback="seleccionarProductoParaPrecio"
+    extra-params-callback="parametrosBuscadorProductoPrecio"
+    :con-stock-default="false"
+    :use-top-preview="false"
+/>
+
+<div class="modal fade" id="modalSeleccionFiltrosProductos" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document" style="max-width:620px;">
+        <div class="modal-content">
+            <div class="modal-header" style="background:var(--pf-grad);color:#fff;">
+                <h6 class="modal-title mb-0" id="tituloModalFiltrosProductos">Seleccionar opciones</h6>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Cerrar"><span aria-hidden="true">&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <div class="input-group input-group-sm mb-2">
+                    <div class="input-group-prepend"><span class="input-group-text"><i class="fa fa-search"></i></span></div>
+                    <input type="text" id="buscarFiltroProductos" class="form-control" placeholder="Buscar...">
+                </div>
+                <div class="custom-control custom-checkbox mb-2">
+                    <input type="checkbox" class="custom-control-input" id="seleccionarTodosFiltrosProductos">
+                    <label class="custom-control-label font-weight-bold" for="seleccionarTodosFiltrosProductos">Seleccionar todas</label>
+                </div>
+                <div id="listaModalFiltrosProductos" class="border rounded p-2" style="max-height:360px;overflow-y:auto;"></div>
+                <div id="cargandoModalFiltrosProductos" class="text-center text-muted py-4" style="display:none;">
+                    <i class="fa fa-spinner fa-spin mr-1"></i> Cargando opciones...
+                </div>
+                <div class="mt-3">
+                    <div class="small font-weight-bold text-muted mb-1">Seleccionadas</div>
+                    <div id="chipsFiltrosProductos" class="d-flex flex-wrap" style="gap:5px;"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <span id="conteoFiltrosProductos" class="text-muted small mr-auto">0 seleccionadas</span>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-pf-primary" id="btnConfirmarFiltrosProductos">
+                    <i class="fa fa-check mr-1"></i> Aplicar selección
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <style>
 /* ── Editor de precios ── */
@@ -1212,6 +1340,47 @@ a.btn.btn-pf-primary:hover {
 .btn-editor-save:disabled { opacity: .6; cursor: not-allowed; }
 #tbl_editor_precios tbody tr.row-saved { background: #eafaf1 !important; transition: background .5s; }
 #tbl_editor_precios td { vertical-align: middle; padding: 5px 8px; font-size: .82rem; }
+.editor-product-history {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: #1f5f8b;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 600;
+    padding: 0;
+    text-align: left;
+}
+.editor-product-history:hover { color: #d35400; text-decoration: underline; }
+.editor-product-history:focus { outline: 2px solid rgba(230,126,34,.35); outline-offset: 2px; }
+#modalHistorialPrecioProducto { z-index: 4010 !important; }
+#modalHistorialPrecioProducto .modal-dialog {
+    max-width: 1180px;
+    width: calc(100vw - 40px);
+}
+#modalHistorialPrecioProducto .modal-body { max-height: 72vh; overflow-y: auto; }
+#tablaHistorialPrecioProducto { min-width: 980px; }
+#tablaHistorialPrecioProducto thead th {
+    background: #f8f0e6;
+    border-bottom: 2px solid #edc896;
+    color: #6f4309;
+    font-size: .72rem;
+    padding: 8px;
+    position: sticky;
+    top: 0;
+    white-space: nowrap;
+    z-index: 2;
+}
+#tablaHistorialPrecioProducto td { font-size: .78rem; padding: 8px; vertical-align: middle; }
+#tablaHistorialPrecioProducto .historial-precio-valor { display: block; font-size: .88rem; font-weight: 700; white-space: nowrap; }
+#tablaHistorialPrecioProducto .historial-precio-porc { display: block; font-size: .68rem; white-space: nowrap; }
+#tablaHistorialPrecioProducto .historial-col-a { color: #2471a3; }
+#tablaHistorialPrecioProducto .historial-col-b { color: #1e8449; }
+#tablaHistorialPrecioProducto .historial-col-c { color: #c0392b; }
+#tablaHistorialPrecioProducto .historial-col-d { color: #7d3c98; }
+@media (max-width: 767px) {
+    #modalHistorialPrecioProducto .modal-dialog { margin: 8px; width: calc(100vw - 16px); }
+}
 </style>
 
 
@@ -1555,6 +1724,101 @@ a.btn.btn-pf-primary:hover {
         const barProgressPrecios = $('#barImportPrecios');
         const msgImportPrecios = $('#msgImportPrecios');
         const formSubirExcel = $('#formSubirExcel');
+        let opcionesFiltroProductos = [];
+        let seleccionTemporalFiltros = new Set();
+
+        function renderizarChipsFiltros() {
+            const chips = Array.from(seleccionTemporalFiltros).map(function(id) {
+                const item = opcionesFiltroProductos.find(function(opcion) { return String(opcion.id) === String(id); });
+                if (!item) return '';
+                return '<span class="badge badge-light border py-1 px-2" style="font-size:.75rem;">' +
+                    $('<div>').text(item.nombre).html() +
+                    ' <button type="button" class="btn-quitar-chip border-0 bg-transparent p-0 ml-1 text-danger" data-id="' + id + '" aria-label="Quitar">&times;</button>' +
+                '</span>';
+            }).join('');
+            $('#chipsFiltrosProductos').html(chips || '<span class="text-muted small">Ninguna selección</span>');
+        }
+
+        function actualizarConteoFiltros() {
+            const cantidad = seleccionTemporalFiltros.size;
+            $('#conteoFiltrosProductos').text(cantidad + (cantidad === 1 ? ' seleccionada' : ' seleccionadas'));
+            renderizarChipsFiltros();
+        }
+
+        function renderizarFiltrosProductos() {
+            const termino = $('#buscarFiltroProductos').val().trim().toLowerCase();
+            const visibles = opcionesFiltroProductos.filter(function(item) {
+                return !termino || item.nombre.toLowerCase().indexOf(termino) !== -1;
+            });
+            const html = visibles.map(function(item) {
+                const id = String(item.id);
+                const checked = seleccionTemporalFiltros.has(id) ? ' checked' : '';
+                return '<div class="custom-control custom-checkbox py-1">' +
+                    '<input type="checkbox" class="custom-control-input filtro-producto-check" id="filtro-producto-' + id + '" value="' + id + '"' + checked + '>' +
+                    '<label class="custom-control-label" for="filtro-producto-' + id + '">' + $('<div>').text(item.nombre).html() + '</label>' +
+                '</div>';
+            }).join('');
+            $('#listaModalFiltrosProductos').html(html || '<div class="text-muted text-center py-3">Sin resultados</div>');
+            actualizarConteoFiltros();
+        }
+
+        function abrirModalFiltrosProductos() {
+            const tipo = $('#tipoFiltro').val();
+            if (!tipo) return;
+            const esMarca = tipo === '1';
+            $('#tituloModalFiltrosProductos').text(esMarca ? 'Seleccionar marcas' : 'Seleccionar categorías de producto');
+            $('#buscarFiltroProductos').val('');
+            $('#seleccionarTodosFiltrosProductos').prop('checked', false);
+            seleccionTemporalFiltros = new Set(($('#listaTipoFiltro').val() || []).map(String));
+            $('#listaModalFiltrosProductos').empty();
+            $('#cargandoModalFiltrosProductos').show();
+            $('#modalSeleccionFiltrosProductos').modal('show');
+
+            $.getJSON(esMarca ? '/filtros/marca' : '/filtros/categoria')
+                .done(function(data) {
+                    opcionesFiltroProductos = data || [];
+                    renderizarFiltrosProductos();
+                })
+                .fail(function() {
+                    $('#listaModalFiltrosProductos').html('<div class="text-danger text-center py-3">No se pudieron cargar las opciones.</div>');
+                })
+                .always(function() { $('#cargandoModalFiltrosProductos').hide(); });
+        }
+
+        $('#btnAbrirFiltroProductos').on('click', abrirModalFiltrosProductos);
+        $('#buscarFiltroProductos').on('input', renderizarFiltrosProductos);
+        $('#listaModalFiltrosProductos').on('change', '.filtro-producto-check', function() {
+            if (this.checked) seleccionTemporalFiltros.add(String(this.value));
+            else seleccionTemporalFiltros.delete(String(this.value));
+            actualizarConteoFiltros();
+        });
+        $('#chipsFiltrosProductos').on('click', '.btn-quitar-chip', function() {
+            seleccionTemporalFiltros.delete(String($(this).data('id')));
+            renderizarFiltrosProductos();
+        });
+        $('#seleccionarTodosFiltrosProductos').on('change', function() {
+            $('#listaModalFiltrosProductos .filtro-producto-check').each(function() {
+                this.checked = $('#seleccionarTodosFiltrosProductos').prop('checked');
+                if (this.checked) seleccionTemporalFiltros.add(String(this.value));
+                else seleccionTemporalFiltros.delete(String(this.value));
+            });
+            actualizarConteoFiltros();
+        });
+        $('#btnConfirmarFiltrosProductos').on('click', function() {
+            const seleccionados = Array.from(seleccionTemporalFiltros);
+            if (!seleccionados.length) {
+                Swal.fire({ icon: 'warning', title: 'Selección requerida', text: 'Seleccione al menos una opción.' });
+                return;
+            }
+            const $lista = $('#listaTipoFiltro').empty();
+            seleccionados.forEach(function(id) {
+                const item = opcionesFiltroProductos.find(function(opcion) { return String(opcion.id) === String(id); });
+                if (item) $lista.append(new Option(item.nombre, item.id, true, true));
+            });
+            $('#resumenFiltroProductos').text(seleccionados.length + (seleccionados.length === 1 ? ' opción seleccionada' : ' opciones seleccionadas'));
+            $lista.trigger('change');
+            $('#modalSeleccionFiltrosProductos').modal('hide');
+        });
 
         // Gestión dinámica de filtros según tipo de plantilla
         $('#tipoPlantilla').on('change', function() {
@@ -1574,6 +1838,7 @@ a.btn.btn-pf-primary:hover {
             $('#containerCatCliente').hide();
             $('#catClienteSelect').val(null).trigger('change');
             $('#containerCatPrecios').hide();
+            $('#containerTipoCategoria, #containerTipoFiltro').show();
 
             // Limpiar archivo y mensajes
             fileInputPrecios.val('');
@@ -1610,10 +1875,8 @@ a.btn.btn-pf-primary:hover {
 
         // Al cambiar tipo de categoría
         $('#tipoCategoria').on('change', function() {
-            if ($(this).val()) {
-                $('#containerTipoFiltro').show();
-            } else {
-                $('#containerTipoFiltro').hide();
+            $('#containerTipoFiltro').show();
+            if (!$(this).val()) {
                 $('#containerListaFiltro').hide();
                 $('#catClienteSelect').val(null).trigger('change');
                 $('#containerCatCliente').hide();
@@ -1627,6 +1890,9 @@ a.btn.btn-pf-primary:hover {
         $('#tipoFiltro').on('change', function() {
             if ($(this).val()) {
                 $('#containerListaFiltro').show();
+                $('#listaTipoFiltro').empty().trigger('change');
+                $('#resumenFiltroProductos').text('Seleccionar opciones');
+                abrirModalFiltrosProductos();
             } else {
                 $('#containerListaFiltro').hide();
                 $('#catClienteSelect').val(null).trigger('change');
@@ -2192,7 +2458,7 @@ a.btn.btn-pf-primary:hover {
     <script>
     // ── Wizard tab switcher (global, usado por onclick en el HTML) ──
     function switchWizardTab(tab) {
-        var tabs = ['descargar', 'importar'];
+        var tabs = ['descargar', 'importar', 'editar'];
         tabs.forEach(function(t) {
             var key  = t.charAt(0).toUpperCase() + t.slice(1);
             var btn  = document.getElementById('tab'  + key);
@@ -2215,6 +2481,7 @@ a.btn.btn-pf-primary:hover {
     var _editorTotal  = 0;
     var _editorCatId  = null;
     var _editorBuscar = '';
+    var _editorProductoAgregar = null;
 
     $(document).ready(function() {
 
@@ -2286,6 +2553,7 @@ a.btn.btn-pf-primary:hover {
         $('#editorBuscarProd').on('keydown', function(e) {
             if (e.key === 'Enter') cargarEditorPrecios(1);
         });
+
     });
 
     /* ─── Cargar tabla de productos ─── */
@@ -2347,7 +2615,11 @@ a.btn.btn-pf-primary:hover {
                 'data-porc-d': row.porc_precio_d
             });
             tr.append($('<td>').text(row.codigo).css({ color: '#999', fontSize: '.72rem', whiteSpace:'nowrap' }));
-            tr.append($('<td>').text(row.nombre));
+            var nombreProducto = $('<button type="button" class="editor-product-history">')
+                .text(row.nombre)
+                .attr('title', 'Ver histórico de precios')
+                .on('click', function() { abrirHistorialPrecioProducto(row.id); });
+            tr.append($('<td>').append(nombreProducto));
 
             var inputBase = $('<input>').attr({
                 type: 'number', step: '0.01', min: '0.01',
@@ -2369,11 +2641,163 @@ a.btn.btn-pf-primary:hover {
             tr.append($('<td class="td-pc text-right">').css('color','#c0392b').text(_calc(row.precio_base_venta, row.porc_precio_c)));
             tr.append($('<td class="td-pd text-right">').css('color','#7d3c98').text(_calc(row.precio_base_venta, row.porc_precio_d)));
 
-            var btnSave = $('<button class="btn-editor-save">').html('<i class="fa fa-save"></i> Guardar')
+            var btnSave = $('<button class="btn-editor-save mr-1">').html('<i class="fa fa-save"></i> Guardar')
                 .on('click', function() { _guardarBase(row.id, tr); });
-            tr.append($('<td class="text-center">').append(btnSave));
+            var btnDelete = $('<button class="btn btn-sm btn-outline-danger" title="Eliminar de esta categoría">').html('<i class="fa fa-trash"></i>')
+                .on('click', function() { _eliminarProductoPrecio(row.id, row.nombre); });
+            tr.append($('<td class="text-center" style="white-space:nowrap;">').append(btnSave, btnDelete));
             tbody.append(tr);
         });
+    }
+
+    window.abrirHistorialPrecioProducto = function(precioId) {
+        $('#tituloHistorialPrecioProducto').text('Histórico del producto');
+        $('#historialPrecioResumen').empty();
+        $('#tablaHistorialPrecioProducto tbody').empty();
+        $('#historialPrecioContenido, #historialPrecioError').hide();
+        $('#historialPrecioCargando').show();
+        $('#modalHistorialPrecioProducto').modal('show');
+
+        $.get('/precios/producto/historial', { precio_id: precioId })
+            .done(function(res) {
+                $('#tituloHistorialPrecioProducto').text(res.producto);
+                $('#historialPrecioResumen').html(
+                    '<div class="d-flex flex-wrap align-items-center" style="gap:8px;">' +
+                    '<span class="badge badge-light border px-2 py-1">Código: <strong>' + res.producto_id + '</strong></span>' +
+                    '<span class="badge badge-light border px-2 py-1">Categoría: <strong>' + _escaparHtml(res.categoria) + '</strong></span>' +
+                    '<span class="badge badge-light border px-2 py-1">Versiones: <strong>' + res.total + '</strong></span>' +
+                    '</div>'
+                );
+
+                var tbody = $('#tablaHistorialPrecioProducto tbody').empty();
+                $.each(res.historial || [], function(index, item) {
+                    var estado = item.vigente
+                        ? '<span class="badge badge-success">Vigente</span>'
+                        : '<span class="badge badge-secondary">Histórico</span>';
+                    var celdaNivel = function(nivel, clase) {
+                        return '<td class="text-right ' + clase + '">' +
+                            '<span class="historial-precio-valor">L. ' + _formatoPrecioHistorial(nivel.valor) + '</span>' +
+                            '<span class="historial-precio-porc">' + _formatoPorcentajeHistorial(nivel.porcentaje) + '%</span></td>';
+                    };
+                    tbody.append('<tr>' +
+                        '<td><strong>#' + item.id + '</strong><br>' + estado + '</td>' +
+                        '<td style="white-space:nowrap;">' + _formatoFechaHistorial(item.fecha_registro) + '</td>' +
+                        '<td style="white-space:nowrap;">' + _formatoFechaHistorial(item.fecha_actualizacion) + '</td>' +
+                        '<td class="text-right"><span class="historial-precio-valor">L. ' + _formatoPrecioHistorial(item.precio_base) + '</span></td>' +
+                        celdaNivel(item.a, 'historial-col-a') +
+                        celdaNivel(item.b, 'historial-col-b') +
+                        celdaNivel(item.c, 'historial-col-c') +
+                        celdaNivel(item.d, 'historial-col-d') +
+                        '<td>' + _escaparHtml(item.usuario) + '</td>' +
+                        '</tr>');
+                });
+
+                $('#historialPrecioCargando').hide();
+                $('#historialPrecioContenido').show();
+            })
+            .fail(function(xhr) {
+                $('#historialPrecioCargando').hide();
+                $('#historialPrecioError')
+                    .text(xhr.responseJSON?.error || 'No se pudo cargar el histórico de precios.')
+                    .show();
+            });
+    };
+
+    function _formatoPrecioHistorial(valor) {
+        return (parseFloat(valor) || 0).toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function _formatoPorcentajeHistorial(valor) {
+        return (parseFloat(valor) || 0).toLocaleString('es-HN', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    }
+
+    function _formatoFechaHistorial(valor) {
+        if (!valor) return 'Sin registro';
+        var fecha = new Date(String(valor).replace(' ', 'T'));
+        if (isNaN(fecha.getTime())) return _escaparHtml(valor);
+        return fecha.toLocaleString('es-HN', { dateStyle: 'short', timeStyle: 'short' });
+    }
+
+    window.abrirAgregarProductoPrecio = function() {
+        if (!_editorCatId) return;
+        _editorProductoAgregar = null;
+        window.abrirBuscador_buscadorProductoPrecio('', true);
+    };
+
+    window.parametrosBuscadorProductoPrecio = function() {
+        return { excluir_categoria_precio_id: _editorCatId };
+    };
+
+    window.seleccionarProductoParaPrecio = function(producto) {
+        _editorProductoAgregar = producto;
+        $('#editorAgregarSeleccion').html('<strong>' + _escaparHtml(producto.nombre) + '</strong><br><small>ID ' + producto.id + ' · Código ' + _escaparHtml(producto.codigo_barra || 'Sin código') + '</small>');
+        var ultimoPrecioBase = parseFloat(producto.ultimo_precio_base || 0);
+        $('#editorAgregarBase').val(ultimoPrecioBase > 0 ? ultimoPrecioBase.toFixed(2) : '');
+        $('#editorUltimoPrecioBase')
+            .toggle(ultimoPrecioBase > 0)
+            .html(ultimoPrecioBase > 0
+                ? '<i class="fa fa-history mr-1"></i>Último precio base registrado: <strong>L. ' + ultimoPrecioBase.toFixed(2) + '</strong>'
+                : '');
+        $('#btnConfirmarAgregarPrecio').prop('disabled', false);
+        $('#buscadorProductoPrecio').one('hidden.bs.modal', function() {
+            $('#modalAgregarProductoPrecio').modal('show');
+            setTimeout(function() { $('#editorAgregarBase').trigger('focus'); }, 200);
+        });
+    };
+
+    window.confirmarAgregarProductoPrecio = function() {
+        var precioBase = parseFloat($('#editorAgregarBase').val());
+        if (!_editorProductoAgregar || !precioBase || precioBase <= 0) {
+            Swal.fire({ icon: 'warning', title: 'Datos incompletos', text: 'Seleccione un producto e indique un precio base mayor que cero.', confirmButtonColor: '#e67e22' });
+            return;
+        }
+        var $btn = $('#btnConfirmarAgregarPrecio').prop('disabled', true).html('<i class="fa fa-spinner fa-spin mr-1"></i>Agregando...');
+        $.post('/precios/producto/agregar', {
+            _token: $('meta[name="csrf-token"]').attr('content'),
+            categoria_id: _editorCatId,
+            producto_id: _editorProductoAgregar.id,
+            precio_base: precioBase
+        }).done(function(res) {
+            $('#modalAgregarProductoPrecio').modal('hide');
+            cargarEditorPrecios(1);
+            Swal.fire({ icon: 'success', title: 'Producto agregado', text: res.text, confirmButtonColor: '#27ae60' });
+        }).fail(function(xhr) {
+            Swal.fire({ icon: 'error', title: 'No se pudo agregar', text: xhr.responseJSON?.text || 'Ocurrió un error al agregar el producto.', confirmButtonColor: '#e67e22' });
+        }).always(function() {
+            $btn.prop('disabled', false).html('<i class="fa fa-plus mr-1"></i>Agregar producto');
+        });
+    };
+
+    function _eliminarProductoPrecio(precioId, nombre) {
+        Swal.fire({
+            icon: 'warning', title: 'Eliminar producto',
+            text: '¿Eliminar "' + nombre + '" de esta categoría de precio?',
+            showCancelButton: true, confirmButtonText: 'Sí, eliminar', cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#c0392b'
+        }).then(function(result) {
+            if (!result.value) return;
+            $.post('/precios/producto/eliminar', {
+                _token: $('meta[name="csrf-token"]').attr('content'),
+                categoria_id: _editorCatId,
+                precio_id: precioId
+            }).done(function(res) {
+                cargarEditorPrecios(_editorPage);
+                Swal.fire({ icon: 'success', title: 'Producto eliminado', text: res.text, confirmButtonColor: '#27ae60' });
+            }).fail(function(xhr) {
+                Swal.fire({ icon: 'error', title: 'No se pudo eliminar', text: xhr.responseJSON?.text || 'Ocurrió un error.', confirmButtonColor: '#e67e22' });
+            });
+        });
+    }
+
+    window.descargarProductosEditor = function() {
+        var categoriaClienteId = $('#editorCatClienteSel').val();
+        if (!_editorCatId || !categoriaClienteId) return;
+        window.location.href = '/descargar/productos/filtros?cat_cliente_id=' + encodeURIComponent(categoriaClienteId)
+            + '&cat_precio_id=' + encodeURIComponent(_editorCatId);
+    };
+
+    function _escaparHtml(valor) {
+        return $('<div>').text(valor == null ? '' : String(valor)).html();
     }
 
     function _calc(base, porc) {

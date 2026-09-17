@@ -1,7 +1,24 @@
 <div>
     @push('styles')
         <style>
-
+            :root { --tr-orange:#e65100; --tr-amber:#f9a826; --tr-green:#087f5b; --tr-border:#e4e9ef; }
+            .tr-card { overflow:hidden; border:1px solid var(--tr-border); border-radius:10px; background:#fff; box-shadow:0 5px 18px rgba(41,55,66,.08); }
+            .tr-card-head { padding:14px 18px; background:linear-gradient(135deg,var(--tr-orange),var(--tr-amber)); color:#fff; }
+            .tr-card-head h3 { margin:0; color:#fff; font-size:16px; font-weight:800; }
+            .tr-card-head small { color:rgba(255,255,255,.86); }
+            .tr-card-body { padding:18px; }
+            .tr-product-picker { display:flex; align-items:end; gap:10px; width:100%; }
+            .tr-product-picker > div { flex:1 1 auto; min-width:0; }
+            .tr-product-field { min-height:40px; border:1.5px solid #dbe2e8; border-radius:7px; background:#f8fafb; font-weight:700; }
+            button.tr-btn-search { display:inline-flex; flex:0 0 auto; align-items:center; justify-content:center; min-height:40px; padding:0 18px; white-space:nowrap; border:1px solid var(--tr-green)!important; border-radius:7px; background:var(--tr-green)!important; color:#fff!important; font-weight:800; }
+            button.tr-btn-search:hover, button.tr-btn-search:focus, button.tr-btn-search:active { border-color:#066b4d!important; background:#066b4d!important; color:#fff!important; }
+            .tr-location-note { margin:14px 0 10px; padding:9px 12px; border-left:4px solid var(--tr-green); border-radius:5px; background:#e8f5ef; color:#285c4b; font-size:12px; }
+            .tr-table thead th { border-color:#dfe7e3; background:#edf7f2; color:#17664d; font-size:10px; text-transform:uppercase; letter-spacing:.3px; }
+            .tr-table td { vertical-align:middle; color:#455a64; font-size:12px; }
+            .tr-modal .modal-content { overflow:hidden; border:0; border-radius:10px; box-shadow:0 18px 45px rgba(31,44,54,.25); }
+            .tr-modal .modal-header { border:0; background:linear-gradient(135deg,var(--tr-orange),var(--tr-amber)); color:#fff; }
+            .tr-modal .modal-title, .tr-modal .close { color:#fff; }
+            @media(max-width:767px){ .tr-product-picker{flex-direction:column;align-items:stretch}.tr-btn-search{width:100%} }
         </style>
     @endpush
     <div class="row wrapper border-bottom white-bg page-heading">
@@ -22,66 +39,31 @@
     <div class="wrapper wrapper-content animated fadeInRight">
         <div class="row">
             <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                <div class="ibox ">
-                    <div class="ibox-title">
-                        <h3>Listado De Producto En Bodega</h3>
+                <div class="tr-card">
+                    <div class="tr-card-head">
+                        <h3><i class="fa fa-search mr-2"></i>Seleccionar producto</h3>
+                        <small>Busque el producto y seleccione la ubicación de origen del traslado.</small>
                     </div>
-                    <div class="ibox-content">
+                    <div class="tr-card-body">
                         <form id="selec_data_form" name="selec_data_form" data-parsley-validate>
-                            <div class="row">
-                                <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6 b-r">
-                                    <div>
-
-                                        <label for="selectBodega" class="col-form-label focus-label">Seleccionar
-                                            Bodega:</label>
-                                        <select id="selectBodega" class="form-group form-control" style=""
-                                            data-parsley-required>
-                                            <option value="" selected disabled>--Seleccionar una Bodega--</option>
-                                        </select>
-
-                                    </div>
-
-
-                                </div>
-
-
-                                <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6">
-
-                                    <label class="col-form-label focus-label">Seleccionar
-                                        Producto:</label>
-                                    <div class="input-group">
-                                        <input type="text" id="productoTraslado_nombre"
-                                               class="form-control" readonly
-                                               placeholder="-- Seleccionar un producto --"
-                                               data-parsley-required>
+                            <label for="productoTraslado_nombre">Producto <span class="text-danger">*</span></label>
+                            <div class="tr-product-picker">
+                                <div>
+                                        <input type="text" id="productoTraslado_nombre" class="form-control tr-product-field"
+                                               placeholder="Escriba nombre, código o ID" autocomplete="off" data-parsley-required
+                                               oninput="prepararNuevaBusquedaProductoTraslado(this.value)"
+                                               onkeydown="if(event.key==='Enter'){event.preventDefault();buscarPorCodigoTraslado(this.value);return false;}">
                                         <input type="hidden" id="selectProducto" value="">
-                                            <button type="button" id="btn_abrir_buscador_traslado"
-                                                    class="btn btn-info" disabled
-                                                    onclick="window['abrirBuscador_buscadorProductoTraslados']('')">
-                                                <i class="fa fa-search"></i> Buscar
-                                            </button>
-                                        </div>
-                                    </div>
-
                                 </div>
-
-
-
-
-
-
-                            </div>
+                                <button type="button" class="tr-btn-search" onclick="abrirBuscadorProductoTraslado()"><i class="fa fa-search mr-1"></i>Buscar producto</button>
+                                </div>
                         </form>
-                        <button type="submit" form="selec_data_form" class="btn btn-primary btn-lg mb-4 mt-3">Solicitar
-                            Producto</button>
 
-
-                        <hr>
-
-                        <h3 class=""><i class="fa-solid fa-warehouse  m-0 p-0" style="color: #1AA689"></i> <span
-                                id="total"></span></h3>
-                        <div class="table-responsive">
-                            <table id="tbl_translados" class="table table-striped table-bordered table-hover">
+                        <div id="ubicaciones_traslado_panel" style="display:none;">
+                            <div class="tr-location-note"><i class="fa fa-warehouse mr-1"></i><span id="producto_ubicaciones_traslado_texto"></span> Seleccione la ubicación de origen.</div>
+                            <h4 class="mb-2" style="color:#087f5b;font-size:14px;"><span id="total"></span></h4>
+                            <div class="table-responsive">
+                            <table id="tbl_translados" class="table table-bordered table-hover tr-table">
                                 <thead class="">
                                     <tr>
                                         <th>Cod Producto</th>
@@ -91,7 +73,7 @@
                                         <th>Bodega</th>
                                         <th>Sección</th>
                                         <th>Fecha Ingreso</th>
-                                        <th>Translado</th>
+                                        <th>Acción</th>
 
 
 
@@ -101,7 +83,7 @@
 
                                 </tbody>
                             </table>
-
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -113,7 +95,7 @@
 
 
     <!-- Modal para transferir producto a otra bodega-->
-    <div class="modal fade" id="modal_transladar_producto" tabindex="-1" role="dialog"
+    <div class="modal fade tr-modal" id="modal_transladar_producto" tabindex="-1" role="dialog"
         aria-labelledby="modal_transladar_productoLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered" role="document">
             <div class="modal-content">
@@ -290,14 +272,13 @@
     </div>
 
 
-    {{-- Buscador de productos filtrado por bodega (solo traslados) --}}
+    {{-- Buscador de productos con existencia --}}
     <x-buscador-producto id-modal="buscadorProductoTraslados"
                          callback="alSeleccionarProductoTraslado"
-                         bodega-id-var="__traslados_bodega_id"
-                         url-buscar="/translado/buscar/productos"
-                         url-top="/translado/buscar/top-trasladados"
-                         url-filtros="/translado/buscar"
-                         top-label="Más trasladados" />
+                         url-buscar="/productos/buscar"
+                         url-top="/productos/buscar/top-vendidos"
+                         url-filtros="/productos/buscar"
+                         top-label="Productos con existencia" />
 
     <!-- Modal para motivo del traslado (obligatorio al guardar) -->
     <div class="modal fade" id="modal_motivo_traslado" tabindex="-1" role="dialog"

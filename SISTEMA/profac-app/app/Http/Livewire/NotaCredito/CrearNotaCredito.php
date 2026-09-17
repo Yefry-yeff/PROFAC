@@ -64,10 +64,11 @@ class CrearNotaCredito extends Component
         (select name from users where id = factura.users_id) as facturador,
         factura.created_at as fechaRegistro,
         sub_total,
-        sub_total_grabado,
-        sub_total_excento,
+        CASE WHEN factura.tipo_venta_id = 3 THEN 0 ELSE sub_total_grabado END as sub_total_grabado,
+        CASE WHEN factura.tipo_venta_id = 3 THEN sub_total ELSE sub_total_excento END as sub_total_excento,
         total,
-        isv
+        CASE WHEN factura.tipo_venta_id = 3 THEN 0 ELSE isv END as isv,
+        factura.tipo_venta_id = 3 as es_exonerada
 
 
         from factura
@@ -127,6 +128,8 @@ class CrearNotaCredito extends Component
 
     public function obtenerProductos(Request $request){
 
+        $productosCarrito = collect(json_decode($request->input('productosCarrito', '[]'), true));
+
         $productos = DB::SELECT("
         select
             B.factura_id,
@@ -135,10 +138,10 @@ class CrearNotaCredito extends Component
             C.nombre,
             concat(F.nombre,' - ',D.descripcion ) as bodega,
             format(B.precio_unidad,2) as precio_unidad,
-            sum(B.cantidad) as cantidad,
+            max(B.cantidad_nota_credito) as cantidad,
             concat(H.nombre,' - ', G.unidad_venta ) as unidad_medida,
             format(B.sub_total,2) as sub_total,
-            format(B.isv,2) as isv,
+            format(CASE WHEN A.tipo_venta_id = 3 THEN 0 ELSE B.isv END,2) as isv,
             format(B.total,2) as total,
             C.isv as productoISV
         from factura A
@@ -157,9 +160,17 @@ class CrearNotaCredito extends Component
             inner join unidad_medida H
             on H.id = G.unidad_medida_id
         where A.id =".$request->idFactura."
-        group by B.seccion_id,  B.factura_id, B.producto_id,  C.nombre,  B.cantidad_nota_credito,  H.nombre, unidad_medida, C.isv, B.precio_unidad, B.sub_total,B.isv,B.total
+        group by B.seccion_id, B.factura_id, B.producto_id, C.nombre, H.nombre, unidad_medida, C.isv, B.precio_unidad, B.sub_total, B.isv, B.total, A.tipo_venta_id
         "
         );
+
+        foreach ($productos as $producto) {
+            $enCarrito = $productosCarrito->first(function ($item) use ($producto) {
+                return (int) ($item['productoId'] ?? 0) === (int) $producto->producto_id
+                    && (int) ($item['seccionId'] ?? 0) === (int) $producto->seccion_id;
+            });
+            $producto->cantidad = max(0, (float) $producto->cantidad - (float) ($enCarrito['cantidad'] ?? 0));
+        }
 
         return Datatables::of($productos)
         ->addColumn('opciones', function ($producto) {
@@ -168,7 +179,7 @@ class CrearNotaCredito extends Component
                 return
 
                 '<div class="text-center">
-                    <button  onclick="infoProducto('.$producto->factura_id.','.$producto->producto_id.','.$producto->seccion_id.')" class="btn btn-warning " >Devolución</button>
+                    <button onclick="infoProducto('.$producto->factura_id.','.$producto->producto_id.','.$producto->seccion_id.')" class="btn btn-warning" '.($producto->cantidad <= 0 ? 'disabled' : '').'>Devolución</button>
 
                 </div>';
 
@@ -198,15 +209,16 @@ class CrearNotaCredito extends Component
             D.descripcion as seccion,
 
             B.precio_unidad,
-            B.cantidad_nota_credito as cantidad,
+            max(B.cantidad_nota_credito) as cantidad,
             H.nombre as unidad_medida,
             B.unidad_medida_venta_id as idUnidadVenta ,
             G.unidad_venta,
-            C.isv as porcentajeISV,
-            B.isv as isVenta,
+            CASE WHEN A.tipo_venta_id = 3 THEN 0 ELSE C.isv END as porcentajeISV,
+            CASE WHEN A.tipo_venta_id = 3 THEN 0 ELSE B.isv END as isVenta,
             B.sub_total,
             A.porc_descuento,
-            B.total AS totalVenta
+            B.total AS totalVenta,
+            A.tipo_venta_id = 3 as esExonerada
 
         from factura A
         inner join venta_has_producto B
@@ -223,7 +235,10 @@ class CrearNotaCredito extends Component
         on G.id = B.unidad_medida_venta_id
         inner join unidad_medida H
         on H.id = G.unidad_medida_id
-        where B.producto_id = ".$request->idProducto." and A.id =".$request->idFactura." and B.seccion_id =".$request->idSeccion);
+        where B.producto_id = ".$request->idProducto." and A.id =".$request->idFactura." and B.seccion_id =".$request->idSeccion."
+        group by B.factura_id, B.producto_id, C.nombre, F.id, F.nombre, E.id, E.descripcion, D.id, D.descripcion,
+            B.precio_unidad, H.nombre, B.unidad_medida_venta_id, G.unidad_venta, C.isv, B.isv, B.sub_total,
+            A.porc_descuento, B.total, A.tipo_venta_id");
 
 
 
@@ -242,6 +257,39 @@ class CrearNotaCredito extends Component
         'error' => $e,
        ],402);
        }
+    }
+
+    public function obtenerProductosParaDevolucion(Request $request)
+    {
+        $request->validate([
+            'idFactura' => 'required|integer|exists:factura,id',
+        ]);
+
+        $productos = DB::table('factura as A')
+            ->join('venta_has_producto as B', 'A.id', '=', 'B.factura_id')
+            ->join('producto as C', 'C.id', '=', 'B.producto_id')
+            ->join('seccion as D', 'D.id', '=', 'B.seccion_id')
+            ->join('segmento as E', 'E.id', '=', 'D.segmento_id')
+            ->join('bodega as F', 'F.id', '=', 'E.bodega_id')
+            ->join('unidad_medida_venta as G', 'G.id', '=', 'B.unidad_medida_venta_id')
+            ->join('unidad_medida as H', 'H.id', '=', 'G.unidad_medida_id')
+            ->where('A.id', $request->idFactura)
+            ->groupBy(
+                'B.factura_id', 'B.producto_id', 'C.nombre', 'F.id', 'F.nombre', 'E.id', 'E.descripcion',
+                'D.id', 'D.descripcion', 'B.precio_unidad', 'H.nombre', 'B.unidad_medida_venta_id',
+                'G.unidad_venta', 'C.isv', 'B.isv', 'B.sub_total', 'A.porc_descuento', 'B.total', 'A.tipo_venta_id'
+            )
+            ->selectRaw('B.factura_id, B.producto_id, C.nombre as producto, F.id as bodegaId,
+                F.nombre as nombreBodega, E.id as segmentoId, E.descripcion as segmento, D.id as seccionId,
+                D.descripcion as seccion, B.precio_unidad, MAX(B.cantidad_nota_credito) as cantidad,
+                H.nombre as unidad_medida, B.unidad_medida_venta_id as idUnidadVenta, G.unidad_venta,
+                CASE WHEN A.tipo_venta_id = 3 THEN 0 ELSE C.isv END as porcentajeISV,
+                CASE WHEN A.tipo_venta_id = 3 THEN 0 ELSE B.isv END as isVenta, B.sub_total,
+                A.porc_descuento, B.total as totalVenta, A.tipo_venta_id = 3 as esExonerada')
+            ->havingRaw('MAX(B.cantidad_nota_credito) > 0')
+            ->get();
+
+        return response()->json(['productos' => $productos]);
     }
 
     public function obtenerMotivos(){
@@ -278,6 +326,16 @@ class CrearNotaCredito extends Component
 
         $arregloIdInputs = $request->arregloIdInputs;
 
+        $factura = DB::table('factura')->where('id', $request->idFactura)->first(['id', 'tipo_venta_id']);
+        if (!$factura) {
+            return response()->json([
+                'title' => 'Advertencia',
+                'icon' => 'warning',
+                'text' => 'No se encontró la factura especificada.',
+            ], 422);
+        }
+        $esFacturaExonerada = (int) $factura->tipo_venta_id === 3;
+
         // Validar si hay productos o es nota de crédito por descuento
         $esNotaPorDescuento = empty($arregloIdInputs) || !is_array($arregloIdInputs);
 
@@ -298,7 +356,7 @@ class CrearNotaCredito extends Component
 
                 $cantidadDisponible = DB::SELECTONE("select sum(unidades_nota_credito_resta_inventario) as cantidad from venta_has_producto where factura_id=".$request->idFactura." and producto_id= ".$idProducto." and seccion_id = ".$idSeccion);
 
-                if($cantidad  > $cantidadDisponible){
+                if($cantidad > (float) ($cantidadDisponible->cantidad ?? 0)){
                     $flagError = true;
                     $text1 =  $text1."<li>".$idProducto."-".$nombreProducto."</li>";
                 }
@@ -423,10 +481,10 @@ class CrearNotaCredito extends Component
         $notaCredito->total = round($request->totalGeneralCredito,2); */
 
         $notaCredito->sub_total = $request->subTotalGeneralCredito;
-        $notaCredito->sub_total_grabado = $request->subTotalGeneralGrabadoCredito;
-        $notaCredito->sub_total_excento = $request->subTotalGeneralExcentoCredito;
-        $notaCredito->isv =$request->isvGeneralCredito;
-        $notaCredito->total = $request->totalGeneralCredito;
+        $notaCredito->sub_total_grabado = $esFacturaExonerada ? 0 : $request->subTotalGeneralGrabadoCredito;
+        $notaCredito->sub_total_excento = $esFacturaExonerada ? $request->subTotalGeneralCredito : $request->subTotalGeneralExcentoCredito;
+        $notaCredito->isv = $esFacturaExonerada ? 0 : $request->isvGeneralCredito;
+        $notaCredito->total = $esFacturaExonerada ? $request->subTotalGeneralCredito : $request->totalGeneralCredito;
         $notaCredito->factura_id = $request->idFactura;
         $notaCredito->cai_id = $cai->id;
         $notaCredito->motivo_nota_credito_id = $request->motivo_nota;
@@ -491,8 +549,8 @@ class CrearNotaCredito extends Component
                 $productoNota->cantidad = $cantidad;
                 $productoNota->precio_unidad = $precio;
                 $productoNota->sub_total = $subTotal;
-                $productoNota->isv =  $isv;
-                $productoNota->total = $total;
+                $productoNota->isv = $esFacturaExonerada ? 0 : $isv;
+                $productoNota->total = $esFacturaExonerada ? $subTotal : $total;
                 $productoNota->unidad_medida_venta_id = $idUnidadMedida;
                 $productoNota->precios_producto_carga_id = DB::table('venta_has_producto')
                     ->where('factura_id', $request->idFactura)

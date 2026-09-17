@@ -4,6 +4,9 @@ namespace App\Http\Livewire\Ventas;
 
 use App\Support\ExpoConfig;
 use App\Support\ClienteActoresAsignados;
+use App\Services\Expo\LiquidacionOfertaExpo;
+use App\Services\Expo\RecalculadorFacturaExpo;
+use App\Services\Expo\SaldoLineasOferta;
 use Livewire\Component;
 
 
@@ -11,6 +14,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use DataTables;
 use Auth;
 use Validator;
@@ -88,8 +92,31 @@ class FacturacionCorporativa extends Component
         return $this->obtenerDiasCreditoAprobados($flujoId) ?? max(0, $diasCliente);
     }
 
+    private function flujoTieneCreditoAprobadoNormal(?int $flujoId): bool
+    {
+        if (!$flujoId) {
+            return false;
+        }
+
+        $revision = DB::table('credito_revision')
+            ->where('flujo_id', $flujoId)
+            ->latest('id')
+            ->first(['estado', 'cotizacion_id']);
+
+        return $revision
+            && $revision->estado === 'aprobado'
+            && !DB::table('expo_cotizacion')->where('cotizacion_id', $revision->cotizacion_id)->exists();
+    }
+
     private function resolveTeleAsesorId(Request $request): int
     {
+        ClienteActoresAsignados::validar(
+            (int) $request->seleccionarCliente,
+            (int) $request->vendedor,
+            ClienteActoresAsignados::ROL_ASESOR_COMERCIAL,
+            'vendedor'
+        );
+
         $teleAsesorId = $request->tele_asesor ? (int) $request->tele_asesor : Auth::id();
         ClienteActoresAsignados::validar(
             (int) $request->seleccionarCliente,
@@ -99,6 +126,68 @@ class FacturacionCorporativa extends Component
         );
 
         return $teleAsesorId;
+    }
+
+    private function aplicarImportesFirmadosExpo(Request $request, array $indices, array $lineasPorIndice): void
+    {
+        if (empty($lineasPorIndice)) {
+            return;
+        }
+
+        $lineas = DB::table('cotizacion_has_producto')
+            ->whereIn('id', array_values($lineasPorIndice))
+            ->get(['id', 'cantidad', 'monto_descProducto'])
+            ->keyBy('id');
+        $cambios = [];
+        $subtotalGeneral = 0.0;
+        $subtotalGrabado = 0.0;
+        $subtotalExento = 0.0;
+        $isvGeneral = 0.0;
+        $totalGeneral = 0.0;
+        $descuentoGeneral = 0.0;
+
+        foreach ($indices as $indice) {
+            $lineaId = (int) ($lineasPorIndice[(string) $indice] ?? 0);
+            $linea = $lineas[$lineaId];
+            $cantidad = (float) $request->input('cantidad' . $indice, 0);
+            $unidad = (float) $request->input('unidad' . $indice, 0);
+            $precio = (float) $request->input('precio' . $indice, 0);
+            $cantidadOfertada = (float) $linea->cantidad;
+            $descuento = $cantidadOfertada > 0
+                ? round((float) $linea->monto_descProducto * $cantidad / $cantidadOfertada, 2)
+                : 0.0;
+            $bruto = round($precio * $cantidad * $unidad, 2);
+            $descuento = min($descuento, $bruto);
+            $subtotal = round($bruto - $descuento, 2);
+            $porcentajeIsv = (float) $request->input('isv' . $indice, 0);
+            $isv = round($subtotal * $porcentajeIsv / 100, 2);
+            $total = round($subtotal + $isv, 2);
+
+            $cambios['acumuladoDescuento' . $indice] = $descuento;
+            $cambios['subTotal' . $indice] = $subtotal;
+            $cambios['isvProducto' . $indice] = $isv;
+            $cambios['total' . $indice] = $total;
+            $subtotalGeneral += $subtotal;
+            $isvGeneral += $isv;
+            $totalGeneral += $total;
+            $descuentoGeneral += $descuento;
+
+            if ($porcentajeIsv > 0) {
+                $subtotalGrabado += $subtotal;
+            } else {
+                $subtotalExento += $subtotal;
+            }
+        }
+
+        $request->merge(array_merge($cambios, [
+            'subTotalGeneral' => round($subtotalGeneral, 2),
+            'subTotalGeneralGrabado' => round($subtotalGrabado, 2),
+            'subTotalGeneralExcento' => round($subtotalExento, 2),
+            'isvGeneral' => round($isvGeneral, 2),
+            'totalGeneral' => round($totalGeneral, 2),
+            'porDescuento' => 0,
+            'porDescuentoCalculado' => round($descuentoGeneral, 2),
+        ]));
     }
 
     // Nota: Este componente solo se usa como controlador API.
@@ -300,6 +389,18 @@ class FacturacionCorporativa extends Component
                 return $row;
             }, $results);
 
+            $expoId = (int) $request->input('expo_id', 0);
+            if ($expoId > 0) {
+                $expo = ExpoConfig::detalleActivaParaUsuario($expoId, Auth::id());
+                if (!$expo) {
+                    return response()->json(['message' => 'La Expo no está activa o está fuera de vigencia.'], 422);
+                }
+                $results = array_values(array_filter(
+                    $results,
+                    fn ($row) => in_array((int) $row->idBodega, $expo['bodegas'], true)
+                ));
+            }
+
             $permitirSinExistencia = (int) ($request->permitir_sin_existencia ?? 0) === 1;
             if ($permitirSinExistencia) {
                 $results[] = (object) [
@@ -474,6 +575,8 @@ class FacturacionCorporativa extends Component
                 SELECT
                     p.id,
                     CONCAT(p.id,' - ',p.nombre) AS nombre,
+                    p.marca_id,
+                    COALESCE(m.nombre, 'SIN MARCA') AS marca,
                     p.isv,
                     p.ultimo_costo_compra AS ultimo_costo_compra,
                     ppc.precio_base_venta AS precio_base,
@@ -481,8 +584,10 @@ class FacturacionCorporativa extends Component
                     ppc.precio_b AS precio2,
                     ppc.precio_c AS precio3,
                     ppc.precio_d AS precio4,
-                    ppc.id AS precios_producto_carga_id
+                    ppc.id AS precios_producto_carga_id,
+                    ppc.categoria_precios_id
                 FROM producto p
+                LEFT JOIN marca m ON m.id = p.marca_id
                 JOIN precios_producto_carga ppc
                     ON ppc.producto_id = p.id
                     AND ppc.categoria_precios_id = :categoria_cliente_venta_id
@@ -528,7 +633,12 @@ class FacturacionCorporativa extends Component
     {
         try {
             $productoId          = $request->producto_id;
-            $categoriaEscalaId   = $request->cliente_categoria_escala_id;
+            $categoriaEscalaId   = (int) $request->input('cliente_categoria_escala_id', 0);
+            if (!$categoriaEscalaId && $request->filled('cliente_id')) {
+                $categoriaEscalaId = (int) DB::table('cliente')
+                    ->where('id', (int) $request->input('cliente_id'))
+                    ->value('cliente_categoria_escala_id');
+            }
             $expoId = (int) $request->input('expo_id', 0);
             $expo = $expoId > 0 ? ExpoConfig::detalleActivaParaUsuario($expoId, Auth::id()) : null;
 
@@ -547,18 +657,38 @@ class FacturacionCorporativa extends Component
                     ->whereIn('cp.id', $expo['escalas'])
                     ->where('cp.estado_id', 1)
                     ->orderByDesc('ppc.precio_a')
-                    ->get(['cp.id', DB::raw("CONCAT(cce.nombre_categoria, ' - ', cp.nombre) as nombre_categoria"), 'ppc.precio_a'])
+                    ->get(['cp.id', DB::raw("CONCAT(cce.nombre_categoria, ' - ', cp.nombre) as nombre_categoria"), 'ppc.id as precios_producto_carga_id', 'ppc.precio_a'])
                     ->all();
             } elseif ($categoriaEscalaId) {
                 // Filtrado: solo las categorías de precio ligadas al cce del cliente
                 // Si incluir_cp_inactivos=true, muestra también cp con estado_id=2 (p.ej. escalas archivadas)
                 $incluirInactivos = $request->boolean('incluir_cp_inactivos', false);
                 $filtroCpEstado   = $incluirInactivos ? '' : 'AND cp.estado_id = 1';
+                $soloCategoriaCliente = $request->boolean('solo_categoria_cliente', false);
 
-                $categorias = DB::SELECT("
+                if ($soloCategoriaCliente) {
+                    $categorias = DB::table('categoria_precios as cp')
+                        ->join('precios_producto_carga as ppc', function ($join) use ($productoId) {
+                            $join->on('ppc.categoria_precios_id', '=', 'cp.id')
+                                ->where('ppc.producto_id', $productoId)
+                                ->where('ppc.estado_id', 1);
+                        })
+                        ->where('cp.cliente_categoria_escala_id', $categoriaEscalaId)
+                        ->when(!$incluirInactivos, fn ($query) => $query->where('cp.estado_id', 1))
+                        ->orderBy('cp.nombre')
+                        ->get([
+                            'cp.id',
+                            'cp.nombre as nombre_categoria',
+                            'ppc.id as precios_producto_carga_id',
+                            'ppc.precio_a',
+                        ]);
+                } else {
+
+                    $categorias = DB::SELECT("
                     SELECT
                         cp.id,
                         cp.nombre AS nombre_categoria,
+                        ppc.id AS precios_producto_carga_id,
                         ppc.precio_a
                     FROM categoria_precios cp
                     INNER JOIN precios_producto_carga ppc
@@ -573,6 +703,7 @@ class FacturacionCorporativa extends Component
                     SELECT
                         cp2.id,
                         cp2.nombre AS nombre_categoria,
+                        ppc2.id AS precios_producto_carga_id,
                         ppc2.precio_a
                     FROM categoria_precios cp2
                     INNER JOIN precios_producto_carga ppc2
@@ -584,6 +715,7 @@ class FacturacionCorporativa extends Component
 
                     ORDER BY precio_a DESC
                 ", [$productoId, $categoriaEscalaId, $productoId]);
+                }
             } else {
                 // Fallback sin cliente: todas las categoria_precios activas para el producto
                 // Devuelve cp.id (no cce.id) para que sea coherente con /estatal/datos/producto
@@ -591,6 +723,7 @@ class FacturacionCorporativa extends Component
                     SELECT
                         cp.id,
                         CONCAT(cce.nombre_categoria, ' - ', cp.nombre) AS nombre_categoria,
+                        ppc.id AS precios_producto_carga_id,
                         ppc.precio_a
                     FROM precios_producto_carga ppc
                     INNER JOIN categoria_precios cp ON ppc.categoria_precios_id = cp.id
@@ -615,7 +748,8 @@ class FacturacionCorporativa extends Component
     }
 
     /**
-     * Al guardar la factura: avanza el flujo al trámite "Flujo conjunto" (tipo 7)
+    * Al guardar la factura completa: avanza el flujo al trámite "Flujo conjunto" (tipo 7).
+    * Una Oferta Expo con saldo permanece en Factura (tipo 3).
      * e inserta registros en historico_flujo:
      *   – Registro Factura:  tipo_tramite_id=3, tramite_id=factura.id,       estado_id=1
      *   – Registro Entrega:  tipo_tramite_id=5, tramite_id=NULL,             estado_id=5
@@ -628,9 +762,23 @@ class FacturacionCorporativa extends Component
         $flujoId   = (int) $request->input('flujo_id');
         $facturaId = (int) $request->input('factura_id');
         $pedidoIdReq = (int) $request->input('pedido_id');
+        $esExpoParcial = $request->boolean('expo_parcial');
 
         if (!$facturaId) {
             return response()->json(['ok' => false, 'message' => 'Datos incompletos.'], 422);
+        }
+
+        $prefacturaId = (int) $request->input('prefactura_id');
+        if ($prefacturaId > 0) {
+            $cotizacionExpoId = (int) DB::table('prefactura')
+                ->where('id', $prefacturaId)
+                ->value('cotizacion_id');
+
+            if ($cotizacionExpoId > 0 && DB::table('expo_cotizacion')->where('cotizacion_id', $cotizacionExpoId)->exists()) {
+                $esExpoParcial = app(SaldoLineasOferta::class)
+                    ->pendientes($cotizacionExpoId)
+                    ->contains(fn ($linea) => (float) $linea->cantidad_pendiente > 0);
+            }
         }
 
         // IDs según nuevo modelo de tipos de trámite:
@@ -701,9 +849,9 @@ class FacturacionCorporativa extends Component
                 ->where('id', $facturaId)
                 ->first(['nombre_cliente', 'rtn']);
 
-            // 1. Actualizar flujo al estado Flujo conjunto (Entrega + Cobro)
+            // 1. Una Expo parcial permanece en Factura hasta completar la oferta.
             DB::table('flujo')->where('id', $flujoId)->update([
-                'tipo_tramite_id' => $TIPO_FLUJO_CONJUNTO,
+                'tipo_tramite_id' => $esExpoParcial ? $TIPO_FACTURA : $TIPO_FLUJO_CONJUNTO,
                 'nombre'          => $facturaClienteData->nombre_cliente ?? null,
                 'cliente_rtn'     => $facturaClienteData->rtn ?? null,
                 'updated_by'      => Auth::id(),
@@ -716,28 +864,19 @@ class FacturacionCorporativa extends Component
             $existingFacturaRec = DB::table('historico_flujo')
                 ->where('flujo_id', $flujoId)
                 ->where('tipo_tramite_id', $TIPO_FACTURA)
+                ->where('tramite_id', $facturaId)
                 ->where('estado_id', '!=', 7)
-                ->orderByDesc('id')
-                ->first(['id', 'tramite_id']);
+                ->first(['id']);
 
-            if ($existingFacturaRec) {
-                if ((int) $existingFacturaRec->tramite_id !== $facturaId) {
-                    DB::table('historico_flujo')
-                        ->where('id', $existingFacturaRec->id)
-                        ->update([
-                            'tramite_id'    => $facturaId,
-                            'observaciones' => 'Factura #' . $facturaId . ' confirmada. Paso actual: Entregas y Cobros',
-                            'updated_by'    => Auth::id(),
-                            'updated_at'    => now(),
-                        ]);
-                }
-            } else {
+            if (!$existingFacturaRec) {
                 DB::table('historico_flujo')->insert([
                     'flujo_id'        => $flujoId,
                     'tipo_tramite_id' => $TIPO_FACTURA,
                     'tramite_id'      => $facturaId,
                     'estado_id'       => $ESTADO_ACTIVO,
-                    'observaciones'   => 'Factura #' . $facturaId . ' confirmada. Paso actual: Entregas y Cobros',
+                    'observaciones'   => $esExpoParcial
+                        ? 'Factura #' . $facturaId . ' confirmada. Estado: Factura parcial'
+                        : 'Factura #' . $facturaId . ' confirmada. Paso actual: Entregas y Cobros',
                     'created_by'      => Auth::id(),
                     'updated_by'      => Auth::id(),
                     'created_at'      => now(),
@@ -746,11 +885,13 @@ class FacturacionCorporativa extends Component
             }
 
             // 3. Registro de Entrega (tramite_id = NULL, estado Pendiente)
+            if (!$esExpoParcial) {
             $entregaExiste = DB::table('historico_flujo')
                 ->where('flujo_id', $flujoId)
                 ->where('tipo_tramite_id', $TIPO_ENTREGA)
                 ->whereNull('tramite_id')
                 ->where('estado_id', $ESTADO_PENDIENTE)
+                ->where('observaciones', 'Entrega pendiente — Factura #' . $facturaId)
                 ->exists();
 
             if (!$entregaExiste) {
@@ -766,8 +907,10 @@ class FacturacionCorporativa extends Component
                     'updated_at'      => now(),
                 ]);
             }
+            }
 
             // 4. Registro de Cobro (tramite_id = aplicacion_pagos.id para esta factura, estado Pendiente)
+            if (!$esExpoParcial) {
             $aplicacionPagoId = DB::table('aplicacion_pagos')
                 ->where('factura_id', $facturaId)
                 ->orderByDesc('id')
@@ -777,7 +920,13 @@ class FacturacionCorporativa extends Component
                 ->where('flujo_id', $flujoId)
                 ->where('tipo_tramite_id', $TIPO_COBRO)
                 ->where('estado_id', $ESTADO_PENDIENTE)
-                ->orderByDesc('id')
+                ->where(function ($query) use ($aplicacionPagoId, $facturaId) {
+                    if ($aplicacionPagoId) {
+                        $query->where('tramite_id', $aplicacionPagoId);
+                    } else {
+                        $query->where('observaciones', 'Cobro pendiente — Factura #' . $facturaId);
+                    }
+                })
                 ->first(['id', 'tramite_id']);
 
             if ($cobroPendiente) {
@@ -804,21 +953,33 @@ class FacturacionCorporativa extends Component
                     'updated_at'      => now(),
                 ]);
             }
+            }
 
             // 5. Cerrar prefactura activa vinculada al flujo (si existe).
             // Cuando la factura se genera manualmente (guardarVenta + confirmarFacturaFlujo),
             // la prefactura queda en 'activo' y sigue descontando stock disponible.
-            if ($flujoId) {
+            if ($flujoId && $request->filled('prefactura_id') && !$esExpoParcial) {
+                $prefacturaId = (int) $request->input('prefactura_id');
                 DB::table('prefactura')
                     ->where('flujo_id', $flujoId)
+                    ->where('id', $prefacturaId)
                     ->where('estado', 'activo')
                     ->update(['estado' => 'convertida', 'updated_at' => now()]);
+
+                DB::table('expo_oferta_seccion')
+                    ->where('prefactura_id', $prefacturaId)
+                    ->update([
+                        'estado' => 'FACTURADA',
+                        'updated_by' => Auth::id(),
+                        'updated_at' => now(),
+                    ]);
             }
 
             DB::commit();
 
-            // Notificar a los responsables de Entrega y Cobro (tipo 7 = Flujo conjunto)
-            try {
+            // Notificar solo cuando la oferta ya puede avanzar a Entrega y Cobro.
+            if (!$esExpoParcial) {
+                try {
                 $facturaCtx = DB::table('factura')
                     ->where('id', $facturaId)
                     ->first(['nombre_cliente', 'total', 'cai']);
@@ -831,17 +992,65 @@ class FacturacionCorporativa extends Component
                         'referencia' => 'Factura #' . ($facturaCtx?->cai ?? $facturaId),
                     ]
                 ));
-            } catch (\Throwable $notifEx) {
-                \Log::error('NotificacionFlujo dispatch failed (FacturacionCorporativa tipo=7)', [
-                    'flujo_id' => $flujoId,
-                    'error'    => $notifEx->getMessage(),
-                ]);
+                } catch (\Throwable $notifEx) {
+                    \Log::error('NotificacionFlujo dispatch failed (FacturacionCorporativa tipo=7)', [
+                        'flujo_id' => $flujoId,
+                        'error'    => $notifEx->getMessage(),
+                    ]);
+                }
             }
 
             return response()->json(['ok' => true, 'flujoId' => $flujoId]);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['ok' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function confirmarLiquidacionExpo(Request $request)
+    {
+        $datos = $request->validate([
+            'cotizacion_id' => 'required|integer|min:1',
+            'flujo_id' => 'required|integer|min:1',
+        ]);
+
+        $cotizacionId = (int) $datos['cotizacion_id'];
+        $flujoId = (int) $datos['flujo_id'];
+        $pertenece = DB::table('expo_cotizacion as ec')
+            ->join('historico_flujo as hf', 'hf.tramite_id', '=', 'ec.cotizacion_id')
+            ->where('ec.cotizacion_id', $cotizacionId)
+            ->where('ec.flujo_id', $flujoId)
+            ->where('hf.flujo_id', $flujoId)
+            ->where('hf.tipo_tramite_id', 2)
+            ->exists();
+
+        if (!$pertenece) {
+            return response()->json([
+                'icon' => 'warning',
+                'title' => 'Liquidación no disponible',
+                'text' => 'La Oferta Expo no pertenece al flujo indicado.',
+            ], 422);
+        }
+
+        try {
+            $resumen = app(LiquidacionOfertaExpo::class)->confirmar($cotizacionId, $flujoId, Auth::id());
+
+            return response()->json(['ok' => true, 'liquidacionExpo' => $resumen]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'icon' => 'warning',
+                'title' => 'No se pudo liquidar la oferta',
+                'text' => collect($e->errors())->flatten()->first(),
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'icon' => 'error',
+                'title' => 'Error de liquidación',
+                'text' => 'No se pudo aplicar el aumento de la Oferta Expo.',
+            ], 500);
         }
     }
 
@@ -881,6 +1090,15 @@ class FacturacionCorporativa extends Component
                 ], 401);
             }
 
+            $prefacturaExcluirId = (int) ($request->prefactura_id ?? 0);
+            $facturacionExpoDesdePrefactura = $prefacturaExcluirId > 0 && (
+                DB::table('expo_oferta_seccion')->where('prefactura_id', $prefacturaExcluirId)->exists()
+                || DB::table('prefactura as pf')
+                    ->join('expo_cotizacion as ec', 'ec.cotizacion_id', '=', 'pf.cotizacion_id')
+                    ->where('pf.id', $prefacturaExcluirId)
+                    ->exists()
+            );
+
             $teleAsesorId = $this->resolveTeleAsesorId($request);
             //
 
@@ -903,28 +1121,19 @@ class FacturacionCorporativa extends Component
 
 
 
-            if ($request->tipoPagoVenta == 2) {
-                // Si la factura proviene de un flujo con crédito aprobado formalmente
-                // (credito_revision.estado = 'aprobado'), omitir la verificación del
-                // límite global del cliente — la aprobación explícita ya lo cubre.
-                $flujoIdReq = (int) ($request->flujo_id ?? 0);
-                $creditoAprobadoPorFlujo = $flujoIdReq
-                    ? \Illuminate\Support\Facades\DB::table('credito_revision')
-                        ->where('flujo_id', $flujoIdReq)
-                        ->where('estado', 'aprobado')
-                        ->exists()
-                    : false;
+            $creditoAprobadoFlujoNormal = $this->flujoTieneCreditoAprobadoNormal(
+                $request->flujo_id ? (int) $request->flujo_id : null
+            );
 
-                if (!$creditoAprobadoPorFlujo) {
-                    $comprobarCredito = $this->comprobarCreditoCliente($request->seleccionarCliente, $request->totalGeneral);
+            if ($request->tipoPagoVenta == 2 && !$facturacionExpoDesdePrefactura && !$creditoAprobadoFlujoNormal) {
+                $comprobarCredito = $this->comprobarCreditoCliente($request->seleccionarCliente, $request->totalGeneral);
 
-                    if ($comprobarCredito) {
-                        return response()->json([
-                            'icon' => 'warning',
-                            'title' => 'Advertencia!',
-                            'text' => 'El cliente ' . $request->nombre_cliente_ventas . ', no cuenta con crédito suficiente . Por el momento no se puede emitir factura a este cliente.',
-                        ], 401);
-                    }
+                if ($comprobarCredito) {
+                    return response()->json([
+                        'icon' => 'warning',
+                        'title' => 'Advertencia!',
+                        'text' => 'El cliente ' . $request->nombre_cliente_ventas . ', no cuenta con crédito suficiente para esta factura parcial.',
+                    ], 401);
                 }
             }
 
@@ -932,11 +1141,13 @@ class FacturacionCorporativa extends Component
 
 
             $arrayTemporal = $request->arregloIdInputs;
-            $arrayInputs = explode(',', $arrayTemporal);
+            $arrayInputs = array_values(array_unique(array_filter(
+                array_map('trim', explode(',', (string) $arrayTemporal)),
+                static fn ($indice) => $indice !== ''
+            )));
 
             // Si la venta proviene de una prefactura, excluirla del stock reservado
             // para no contar como indisponible el stock que ella misma reservó.
-            $prefacturaExcluirId = (int) ($request->prefactura_id ?? 0);
 
             // En modo editar_factura: sumar de vuelta el stock de la factura original
             // para no bloquear la edición por el stock que ya estaba descontado.
@@ -969,7 +1180,6 @@ class FacturacionCorporativa extends Component
             $mensaje = "";
             $flag = false;
 
-            //comprobar existencia de producto en bodega
             for ($j = 0; $j < count($arrayInputs); $j++) {
 
                 $keyIdSeccion = "idSeccion" . $arrayInputs[$j];
@@ -977,6 +1187,8 @@ class FacturacionCorporativa extends Component
                 $keyRestaInventario = "restaInventario" . $arrayInputs[$j];
                 $keyNombre = "nombre" . $arrayInputs[$j];
                 $keyBodega = "bodega" . $arrayInputs[$j];
+                $keyCantidad = "cantidad" . $arrayInputs[$j];
+                $keyIdUnidadVenta = "idUnidadVenta" . $arrayInputs[$j];
 
                 $excludePfClause = $prefacturaExcluirId > 0
                     ? "AND pf2.id != {$prefacturaExcluirId}"
@@ -1016,8 +1228,30 @@ class FacturacionCorporativa extends Component
                     ) AS cantidad_disponoble
                 ");
 
-                if ($request->$keyRestaInventario > $resultado->cantidad_disponoble) {
-                    $mensaje = $mensaje . "Unidades insuficientes para el producto: <b>" . $request->$keyNombre . "</b> en la bodega con sección :<b>" . $request->$keyBodega . "</b><br><br>";
+                $cantidadSolicitadaInventario = (float) $request->$keyRestaInventario;
+                $cantidadDisponibleInventario = (float) $resultado->cantidad_disponoble;
+
+                if ($cantidadSolicitadaInventario > $cantidadDisponibleInventario) {
+                    $cantidadSolicitadaVenta = (float) $request->$keyCantidad;
+                    $cantidadFaltanteInventario = $cantidadSolicitadaInventario - $cantidadDisponibleInventario;
+                    $formatearCantidad = static fn ($valor) => rtrim(rtrim(number_format((float) $valor, 4, '.', ','), '0'), '.');
+                    $unidadSolicitada = trim((string) (DB::table('unidad_medida_venta as umv')
+                        ->join('unidad_medida as um', 'um.id', '=', 'umv.unidad_medida_id')
+                        ->where('umv.id', (int) $request->$keyIdUnidadVenta)
+                        ->value('um.nombre') ?? 'UNIDAD DE VENTA'));
+                    $unidadInventario = trim((string) (DB::table('producto as p')
+                        ->leftJoin('unidad_medida as um', 'um.id', '=', 'p.unidad_medida_compra_id')
+                        ->where('p.id', (int) $request->$keyIdProducto)
+                        ->value('um.nombre') ?? 'UNIDAD'));
+
+                    $mensaje .= '<tr>'
+                        . '<td class="text-left">' . e($request->$keyNombre) . '<br><small>' . e($request->$keyBodega) . '</small></td>'
+                        . '<td>' . $formatearCantidad($cantidadSolicitadaVenta) . '</td>'
+                        . '<td>' . e($unidadSolicitada) . '</td>'
+                        . '<td>' . $formatearCantidad($cantidadDisponibleInventario) . '</td>'
+                        . '<td>' . e($unidadInventario) . '</td>'
+                        . '<td>' . $formatearCantidad($cantidadFaltanteInventario) . ' ' . e($unidadInventario) . '</td>'
+                        . '</tr>';
                     $flag = true;
                 }
             }
@@ -1025,8 +1259,12 @@ class FacturacionCorporativa extends Component
             if ($flag) {
                 return response()->json([
                     'icon' => "warning",
-                    'text' =>  '<p class="text-left">' . $mensaje . '</p>',
-                    'title' => 'Advertencia!',
+                    'text' => '<p class="text-left">No se puede generar la factura porque no hay inventario suficiente.</p>'
+                        . '<div class="table-responsive"><table class="table table-bordered table-sm">'
+                        . '<thead><tr><th>Producto</th><th>Cantidad solicitada</th><th>Unidad solicitada</th>'
+                        . '<th>Cantidad en bodega</th><th>Unidad en bodega</th><th>Faltante</th></tr></thead>'
+                        . '<tbody>' . $mensaje . '</tbody></table></div>',
+                    'title' => 'Inventario insuficiente',
                     'idFactura' => 0,
 
                 ], 200);
@@ -1049,6 +1287,9 @@ class FacturacionCorporativa extends Component
 
             DB::beginTransaction();
 
+            $lineasExpoPorIndice = app(SaldoLineasOferta::class)
+                ->validarSolicitudFactura($request, $arrayInputs);
+            app(RecalculadorFacturaExpo::class)->aplicar($request, $arrayInputs);
 
 
 
@@ -1258,7 +1499,7 @@ class FacturacionCorporativa extends Component
 
                 // dd($factura);
 
-                $this->restarUnidadesInventario($precios_producto_carga_id, $idPrecioSeleccionado, $precioSeleccionado, $restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $arrayInputs[$i], $tipoPrecio);
+                $this->restarUnidadesInventario($precios_producto_carga_id, $idPrecioSeleccionado, $precioSeleccionado, $restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $arrayInputs[$i], $tipoPrecio, $lineasExpoPorIndice[(string) $arrayInputs[$i]] ?? null, (float) $request->input('cantidadOfertaAplicada' . $arrayInputs[$i], 0));
             };
 
             if ($request->tipoPagoVenta == 2) { //si el tipo de pago es credito
@@ -1297,6 +1538,20 @@ class FacturacionCorporativa extends Component
                 }
             }
 
+            $liquidacionExpo = null;
+            $cotizacionId = (int) ($request->cotizacion_id ?? 0);
+            $flujoId = (int) ($request->flujo_id ?? 0);
+            if ($cotizacionId > 0 && $flujoId > 0 && DB::table('expo_cotizacion')->where('cotizacion_id', $cotizacionId)->exists()) {
+                $liquidacionExpo = app(LiquidacionOfertaExpo::class)->procesar(
+                    $cotizacionId,
+                    $flujoId,
+                    (int) $factura->id,
+                    $request->boolean('ultima_factura'),
+                    $request->motivo_cierre,
+                    Auth::id()
+                );
+            }
+
             DB::commit();
 
             if (($request->modo ?? null) === 'editar_factura' && !empty($request->prefactura_id) && !empty($request->autorizacion_id)) {
@@ -1324,11 +1579,34 @@ class FacturacionCorporativa extends Component
                 </div>',
                 'title' => 'Exito!',
                 'idFactura' => $factura->id,
-                'numeroVenta' => $numeroVenta->numero
+                'numeroVenta' => $numeroVenta->numero,
+                'liquidacionExpo' => $liquidacionExpo,
 
             ], 200);
+        } catch (ValidationException $e) {
+            if (DB::transactionLevel()) {
+                DB::rollBack();
+            }
+
+            $errores = $e->errors();
+            $esPrecioExpoMenor = array_key_exists('precio_expo_menor', $errores);
+            $esPrecioExpoDistinto = array_key_exists('precio_expo_distinto', $errores);
+            $esAutorizacionSr = array_key_exists('autorizacion_sr', $errores);
+
+            return response()->json([
+                'icon' => 'warning',
+                'title' => $esPrecioExpoMenor
+                    ? 'Precio menor al pactado'
+                    : ($esPrecioExpoDistinto
+                        ? 'Precio diferente al pactado'
+                        : ($esAutorizacionSr ? 'Autorización SR requerida' : 'Cantidad Expo no disponible')),
+                'text' => collect($errores)->flatten()->first(),
+                'errors' => $errores,
+            ], 422);
         } catch (QueryException $e) {
-            DB::rollback();
+            if (DB::transactionLevel()) {
+                DB::rollBack();
+            }
 
             return response()->json([
                 'error' => 'Ha ocurrido un error al realizar la factura.',
@@ -1338,6 +1616,17 @@ class FacturacionCorporativa extends Component
                 'idFactura' => $factura->id ?? null,
                 'mensajeError' => $e
             ], 402);
+        } catch (\Throwable $e) {
+            if (DB::transactionLevel()) {
+                DB::rollBack();
+            }
+            report($e);
+
+            return response()->json([
+                'icon' => 'error',
+                'title' => 'Error al guardar la factura',
+                'text' => 'No se completó la factura ni su liquidación Expo.',
+            ], 500);
         }
     }
 
@@ -1813,7 +2102,7 @@ class FacturacionCorporativa extends Component
         }
     }
 
-    public function restarUnidadesInventario($precios_producto_carga_id,$idPrecioSeleccionado,$precioSeleccionado , $unidadesRestarInv, $idProducto, $idSeccion, $idFactura, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $indice, $tipoPrecio = '2')
+    public function restarUnidadesInventario($precios_producto_carga_id,$idPrecioSeleccionado,$precioSeleccionado , $unidadesRestarInv, $idProducto, $idSeccion, $idFactura, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $indice, $tipoPrecio = '2', $cotizacionLineaId = null, $cantidadOfertaAplicada = 0, bool $permitirFaltanteExpo = false)
     {
         try {
 
@@ -1830,13 +2119,35 @@ class FacturacionCorporativa extends Component
                         from recibido_bodega
                             where seccion_id = " . $idSeccion . " and
                             producto_id = " . $idProducto . " and
-                            cantidad_disponible <>0
+                            cantidad_disponible > 0
                             order by created_at asc
                         limit 1
                         ");
 
 
-                if ($unidadesDisponibles->cantidad_disponible == $unidadesRestar) {
+                if (!$unidadesDisponibles && $permitirFaltanteExpo) {
+                    $unidadesDisponibles = DB::table('recibido_bodega')
+                        ->where('seccion_id', $idSeccion)
+                        ->where('producto_id', $idProducto)
+                        ->orderBy('created_at')
+                        ->first(['id', 'cantidad_disponible']);
+
+                    if (!$unidadesDisponibles) {
+                        throw new \RuntimeException("El producto {$idProducto} no tiene un lote registrado para facturar la prefactura Expo.");
+                    }
+
+                    $registroResta = $unidadesRestar;
+                    $lote = ModelRecibirBodega::find($unidadesDisponibles->id);
+                    $lote->cantidad_disponible = (float) $lote->cantidad_disponible - $registroResta;
+                    $lote->save();
+                    $unidadesRestar = 0;
+                    $subTotalSecccionado = round(($precioUnidad * $registroResta), 4);
+                    $isvSecccionado = round(($subTotalSecccionado * ($ivsProducto / 100)), 4);
+                    $totalSecccionado = round(($isvSecccionado + $subTotalSecccionado), 4);
+                    $cantidadSeccion = $registroResta / $unidad;
+                } else if (!$unidadesDisponibles) {
+                    throw new \RuntimeException("No hay inventario disponible para el producto {$idProducto}.");
+                } else if ($unidadesDisponibles->cantidad_disponible == $unidadesRestar) {
 
                     $diferencia = $unidadesDisponibles->cantidad_disponible - $unidadesRestar;
                     $lote = ModelRecibirBodega::find($unidadesDisponibles->id);
@@ -1888,10 +2199,15 @@ class FacturacionCorporativa extends Component
                     $cantidadSeccion = $registroResta / $unidad;
                 };
 
+                $cantidadOfertaSeccion = min((float) $cantidadOfertaAplicada, (float) $cantidadSeccion);
+                $cantidadOfertaAplicada -= $cantidadOfertaSeccion;
 
 
-                array_push($this->arrayProductos, [
+
+                $productoFactura = [
                     "factura_id" => $idFactura,
+                    "cotizacion_has_producto_id" => $cotizacionLineaId,
+                    "cantidad_oferta_aplicada" => $cotizacionLineaId ? $cantidadOfertaSeccion : 0,
                     "producto_id" => $idProducto,
                     "lote" => $unidadesDisponibles->id,
                     "indice" => $indice,
@@ -1918,7 +2234,36 @@ class FacturacionCorporativa extends Component
                     "precios_producto_carga_id" => $precios_producto_carga_id,
                     "created_at" => now(),
                     "updated_at" => now(),
-                ]);
+                ];
+
+                $productoExistenteIndex = null;
+                foreach ($this->arrayProductos as $index => $productoExistente) {
+                    if ((int) $productoExistente['factura_id'] === (int) $idFactura
+                        && (int) $productoExistente['producto_id'] === (int) $idProducto
+                        && (int) $productoExistente['lote'] === (int) $unidadesDisponibles->id
+                        && (string) $productoExistente['indice'] === (string) $indice) {
+                        $productoExistenteIndex = $index;
+                        break;
+                    }
+                }
+
+                if ($productoExistenteIndex === null) {
+                    $this->arrayProductos[] = $productoFactura;
+                } else {
+                    foreach ([
+                        'cantidad_oferta_aplicada',
+                        'numero_unidades_resta_inventario',
+                        'unidades_nota_credito_resta_inventario',
+                        'cantidad_s',
+                        'cantidad_para_entregar',
+                        'sub_total_s',
+                        'isv_s',
+                        'total_s',
+                    ] as $campoAcumulable) {
+                        $this->arrayProductos[$productoExistenteIndex][$campoAcumulable] += $productoFactura[$campoAcumulable];
+                    }
+                    $this->arrayProductos[$productoExistenteIndex]['updated_at'] = now();
+                }
 
                 array_push($this->arrayLogs, [
                     "origen" => $unidadesDisponibles->id,
@@ -1952,12 +2297,45 @@ class FacturacionCorporativa extends Component
         }
     }
 
+    private function esFacturaExpoParaImpresion(int $facturaId, int $tipoVentaId): bool
+    {
+        if ($tipoVentaId === ExpoConfig::tipoVentaId()) {
+            return true;
+        }
+
+        if (DB::table('venta_has_producto as vhp')
+            ->join('cotizacion_has_producto as chp', 'chp.id', '=', 'vhp.cotizacion_has_producto_id')
+            ->join('expo_cotizacion as ec', 'ec.cotizacion_id', '=', 'chp.cotizacion_id')
+            ->where('vhp.factura_id', $facturaId)
+            ->exists()) {
+            return true;
+        }
+
+        if (DB::table('prefactura_auditoria as pa')
+            ->join('prefactura as pf', 'pf.id', '=', 'pa.prefactura_id')
+            ->join('expo_cotizacion as ec', 'ec.cotizacion_id', '=', 'pf.cotizacion_id')
+            ->where('pa.factura_id', $facturaId)
+            ->exists()) {
+            return true;
+        }
+
+        return DB::table('historico_flujo as hf')
+            ->join('expo_cotizacion as ec', 'ec.flujo_id', '=', 'hf.flujo_id')
+            ->where('hf.tramite_id', $facturaId)
+            ->whereIn('hf.tipo_tramite_id', [3, 5])
+            ->exists();
+    }
+
     public function imprimirFacturaCoorporativa($idFactura)
     {
         $tipoVentaId = (int) (DB::table('factura')->where('id', $idFactura)->value('tipo_venta_id') ?? 0);
         if ($tipoVentaId === 3) {
             return (new VentasExoneradasController())->imprimirFacturaExonerada($idFactura);
         }
+        $esFacturaExpo = $this->esFacturaExpoParaImpresion((int) $idFactura, $tipoVentaId);
+        $precioProductoSql = $esFacturaExpo
+            ? 'FORMAT(SUM(B.sub_total_s) / NULLIF(SUM(B.cantidad_s), 0), 2)'
+            : 'FORMAT(B.precio_unidad, 2)';
 
         $cai = DB::SELECTONE("
         select
@@ -2058,7 +2436,7 @@ class FacturacionCorporativa extends Component
                 if(COALESCE(NULLIF(MIN(B.tipo_precio), ''), if(MIN(B.isv_s) = 0, '1', '2')) = '1', 'SI' , 'NO' ) as excento,
                 if(B.seccion_id = 0, 'N/A',H.nombre) as bodega,
                 if(B.seccion_id = 0, 'N/A',REPLACE(REPLACE(F.descripcion,'Seccion',''),' ', '')) as seccion,
-                FORMAT(B.precio_unidad,2) as precio,
+                " . $precioProductoSql . " as precio,
                 REPLACE(sum(B.cantidad_s), '.00', '') as cantidad,
                 FORMAT(sum(B.sub_total_s),2) as importe
             from factura A
@@ -2079,7 +2457,7 @@ class FacturacionCorporativa extends Component
             inner join bodega H
             on G.bodega_id = H.id
             where A.id=" . $idFactura . "
-            group by codigo, descripcion, medida, bodega, seccion, precio,B.indice
+            group by codigo, descripcion, medida, bodega, seccion, B.precio_unidad,B.indice
             order by B.indice asc
             ) A"
 
@@ -2137,6 +2515,10 @@ class FacturacionCorporativa extends Component
         if ($tipoVentaId === 3) {
             return (new VentasExoneradasController())->imprimirFacturaExoneradaCopia($idFactura);
         }
+        $esFacturaExpo = $this->esFacturaExpoParaImpresion((int) $idFactura, $tipoVentaId);
+        $precioProductoSql = $esFacturaExpo
+            ? 'FORMAT(SUM(B.sub_total_s) / NULLIF(SUM(B.cantidad_s), 0), 2)'
+            : 'B.precio_unidad';
 
         $cai = DB::SELECTONE("
         select
@@ -2242,7 +2624,7 @@ class FacturacionCorporativa extends Component
                 if(COALESCE(NULLIF(MIN(B.tipo_precio), ''), if(MIN(B.isv_s) = 0, '1', '2')) = '1', 'SI' , 'NO' ) as excento,
                 if(B.seccion_id = 0, 'N/A',H.nombre) as bodega,
                 if(B.seccion_id = 0, 'N/A',REPLACE(REPLACE(F.descripcion,'Seccion',''),' ', '')) as seccion,
-                B.precio_unidad as precio,
+                " . $precioProductoSql . " as precio,
                 REPLACE(sum(B.cantidad_s), '.00', '') as cantidad,
                 format(sum(B.sub_total_s),2) as importe
             from factura A
@@ -2263,7 +2645,7 @@ class FacturacionCorporativa extends Component
             inner join bodega H
             on G.bodega_id = H.id
             where A.id=" . $idFactura . "
-            group by codigo, descripcion, medida, bodega, seccion, precio,B.indice
+            group by codigo, descripcion, medida, bodega, seccion, B.precio_unidad,B.indice
             order by B.indice asc
             ) A"
 
@@ -2590,12 +2972,21 @@ class FacturacionCorporativa extends Component
     public function listadoVendedores(Request $request)
     {
         $search = trim($request->get('search', ''));
+        $clienteId = (int) $request->get('cliente_id');
 
-        $query = DB::table('users')->where('estado_id', 1);
+        $query = DB::table('cliente_usuario as cu')
+            ->join('users as u', 'u.id', '=', 'cu.usuario_id')
+            ->where('cu.cliente_id', $clienteId)
+            ->where('cu.rol_id', ClienteActoresAsignados::ROL_ASESOR_COMERCIAL)
+            ->where('u.estado_id', 1);
         if ($search !== '') {
-            $query->where('name', 'like', '%' . $search . '%');
+            $query->where('u.name', 'like', '%' . $search . '%');
         }
-        $listadoVendedores = $query->select('id', DB::raw('name as text'))->get();
+        $listadoVendedores = $query
+            ->select('u.id', DB::raw('u.name as text'))
+            ->distinct()
+            ->orderBy('u.name')
+            ->get();
 
         return response()->json([
             'results' => $listadoVendedores,

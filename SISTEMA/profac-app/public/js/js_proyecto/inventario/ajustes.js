@@ -137,10 +137,10 @@ function obtenerMotivos() {
 }
 
 
-function datosProducto(idProducto, idRecibido, cantidadDisponible) {
+function datosProducto(idProducto, idsRecibido, cantidadDisponible) {
     axios.post('/ajustes/datos/producto', {
             id: idProducto,
-            idRecibido: idRecibido
+            idRecibido: idsRecibido.split(',')[0]
         })
         .then(response => {
 
@@ -159,7 +159,7 @@ function datosProducto(idProducto, idRecibido, cantidadDisponible) {
             document.getElementById('idProducto').value = data.id;
             document.getElementById('nombre_producto').value = data.nombre;
 
-            document.getElementById('idRecibido').value = idRecibido
+            document.getElementById('idRecibido').value = idsRecibido
             document.getElementById('cantidad_dispo').value = cantidadDisponible;
 
             let htmlUnidades =
@@ -254,7 +254,7 @@ function agregarProductoLista() {
     let html = `
         <tr id="tr${contador}">
             <td>
-                <button class="btn btn-danger text-center" type="button" onclick="eliminarInput(${contador},${idRecibido})"" >
+                <button class="btn btn-danger text-center" type="button" onclick="eliminarInput(${contador})" >
                     <i class="fa-regular fa-rectangle-xmark"></i>
                 </button>
             </dt>
@@ -400,7 +400,8 @@ function calcularTotalUnidades() {
     return;
 }
 
-function eliminarInput(id, idRecibido) {
+function eliminarInput(id) {
+    let idRecibido = document.getElementById('idRecibido' + id).value;
     const element = document.getElementById("tr" + id);
     element.remove();
 

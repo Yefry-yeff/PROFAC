@@ -62,6 +62,14 @@ class CreditoRevision extends Model
                      ->first();
     }
 
+    public static function paraSeccion(int $flujoId, int $cotizacionId): ?self
+    {
+        return static::where('flujo_id', $flujoId)
+                     ->where('cotizacion_id', $cotizacionId)
+                     ->latest('id')
+                     ->first();
+    }
+
     /**
      * Verifica si el flujo conserva una aprobación de crédito.
      * El contrato aprobado es la cantidad de días; cada documento calcula

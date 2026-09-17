@@ -303,9 +303,6 @@
         </div>
     </div>
 
-    {{-- Modal flujo del pedido (reutilizable) --}}
-    @livewire('flujo.modal-flujo-pedido')
-
     <div wire:loading class="text-center py-3">
         <i class="fa fa-spinner fa-spin" style="color:#0097a7; font-size:20px;"></i>
     </div>

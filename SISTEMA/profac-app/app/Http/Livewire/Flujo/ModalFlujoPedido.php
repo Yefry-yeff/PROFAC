@@ -15,6 +15,10 @@ use App\Models\ConfiguracionCodigoAutorizacion;
 use App\Models\ModelRecibirBodega;
 use App\Models\ModelCliente;
 use App\Models\ModelLogTranslados;
+use App\Services\Expo\LiquidacionOfertaExpo;
+use App\Services\Expo\SaldoLineasOferta;
+use App\Services\Expo\SeccionadorOfertaExpo;
+use App\Support\ExpoConfig;
 
 /**
  * Modal reutilizable "Flujo del Pedido".
@@ -48,6 +52,8 @@ class ModalFlujoPedido extends Component
     // ── Revisión de Crédito ───────────────────────────────────────────────
     public array  $creditoRevisionData   = [];    // datos del registro credito_revision activo
     public bool   $creditoVigente        = false; // true si hay aprobación no vencida
+    public array  $seccionesExpoData     = [];
+    public bool   $seccionesExpoCompletas = false;
 
     // ── Revisión de Inventario: historial de ciclos ──────────────────────────────────────
     public array $revisionHistorial = [];   // ciclos con datos de revisor/aprobador
@@ -79,6 +85,7 @@ class ModalFlujoPedido extends Component
 
     // ── Prefactura del flujo activo ───────────────────────────────────────
     public $prefacturaData          = null;
+    public array $prefacturasData   = [];
     public $stockErrors             = [];  // errores de inventario al crear prefactura
     public $confirmAccionPrefactura = null; // null | 'revertir' | 'anular'
     public $vencimientoProcesado    = false; // true cuando se procesó el vencimiento en esta carga
@@ -87,6 +94,8 @@ class ModalFlujoPedido extends Component
     public array $prefacturaStockFaltante = [];
     public bool $prefacturaReservaCompleta = true;
     public array $prefacturaReservaFaltante = [];
+    public bool $prefacturaEsExpo = false;
+    public bool $expoConSaldoPendiente = false;
     public $mostrarAutorizacionPrefactura = false;
     public $accionAutorizacionPrefactura  = null;
     public $codigoAutorizacion            = '';
@@ -96,6 +105,10 @@ class ModalFlujoPedido extends Component
 
     // ── Factura del flujo activo ─────────────────────────────────────────
     public $facturaData          = null;
+    public array $facturasData   = [];
+    public array $notasCreditoData = [];
+    public ?array $liquidacionExpoPendiente = null;
+    public ?int $facturaSeleccionadaId = null;
     public $confirmAccionFactura = null; // null | 'anular'
     public $motivoAnulacionFactura = '';
     public $saldoPendienteFactura = null;
@@ -154,6 +167,13 @@ class ModalFlujoPedido extends Component
             ->where('tipo_flujo_id', 1)
             ->value('id');
 
+        $ganadoraActualId = $this->flujoId
+            ? $this->resolverCotizacionRevisionActual((int) $this->flujoId)
+            : null;
+        $tieneSeccionesExpo = $this->flujoId
+            ? DB::table('expo_oferta_seccion')->where('flujo_id', $this->flujoId)->exists()
+            : false;
+
         // Derivar el paso activo del estado actual del flujo
         $flujoInfo = $this->flujoId
             ? DB::table('flujo as f')
@@ -165,6 +185,7 @@ class ModalFlujoPedido extends Component
         $tramiteStepMap = [
             1  => 'pedido',
             2  => 'ofertas',
+            11 => 'secciones_ofertas',
             10 => 'revision_credito',     // Revisión de Crédito (nuevo)
             9  => 'revision_inventario',   // Revision de Inventario
             4  => 'prefactura',
@@ -173,6 +194,7 @@ class ModalFlujoPedido extends Component
             8  => 'finalizado',
             'pedido'                 => 'pedido',
             'Ofertas'                => 'ofertas',
+            'Secciones de Ofertas'   => 'secciones_ofertas',
             'Revision de Credito'    => 'revision_credito',
             'Revision de Inventario' => 'revision_inventario',
             'prefactura'             => 'prefactura',
@@ -193,10 +215,20 @@ class ModalFlujoPedido extends Component
         $this->flujoTipos = $this->flujoId
             ? DB::table('historico_flujo')
                 ->where('flujo_id', $this->flujoId)
-                ->where(function ($q) {
-                    // Incluir activos + registros de revisión aunque estén inactivados (devueltos)
-                    $q->where('estado_id', '!=', 7)
-                      ->orWhereIn('tipo_tramite_id', [9, 10]);
+                ->where(function ($q) use ($ganadoraActualId, $tieneSeccionesExpo) {
+                    $q->where(function ($otros) {
+                        $otros->whereNotIn('tipo_tramite_id', [9, 10])
+                            ->where('estado_id', '!=', 7);
+                    })->orWhere(function ($revision) use ($ganadoraActualId, $tieneSeccionesExpo) {
+                        $revision->whereIn('tipo_tramite_id', [9, 10])
+                            ->where('tramite_id', $ganadoraActualId)
+                            ->where(function ($estado) use ($tieneSeccionesExpo) {
+                                $estado->where('estado_id', '!=', 7);
+                                if (!$tieneSeccionesExpo) {
+                                    $estado->orWhere('tipo_tramite_id', 9);
+                                }
+                            });
+                    });
                 })
                 ->pluck('tipo_tramite_id')
                 ->unique()
@@ -207,6 +239,7 @@ class ModalFlujoPedido extends Component
         $this->cargarEstadosEntregaCobro();
         $this->cargarRevisionHistorial();
         $this->cargarOfertasPedido();
+        $this->cargarSeccionesExpo();
 
         // Config revisión de inventario
         $cfgRev = DB::table('configuracion_revision_inventario')->first();
@@ -216,7 +249,9 @@ class ModalFlujoPedido extends Component
         $this->creditoVigente = $this->flujoId
             ? CreditoRevision::creditoVigenteParaFlujo($this->flujoId)
             : false;
-        $cr = $this->flujoId ? CreditoRevision::paraFlujo($this->flujoId) : null;
+        $cr = $this->flujoId && $ganadoraActualId
+            ? CreditoRevision::paraSeccion($this->flujoId, (int) $ganadoraActualId)
+            : null;
         $this->creditoRevisionData = $this->buildCreditoData($cr);
         $this->flujoCancelado = ($this->creditoRevisionData['estado'] ?? '') === CreditoRevision::RECHAZADO;
         // Detectar si hay un ciclo de Revisión de Crédito pendiente en historico_flujo
@@ -224,6 +259,7 @@ class ModalFlujoPedido extends Component
             ? DB::table('historico_flujo')
                 ->where('flujo_id', $this->flujoId)
                 ->where('tipo_tramite_id', 10)
+                ->where('tramite_id', $ganadoraActualId)
                 ->where('estado_id', 5)
                 ->exists()
             : false;
@@ -242,6 +278,7 @@ class ModalFlujoPedido extends Component
         $this->stockErrors             = [];
         $this->prefacturaData          = null;
         $this->facturaData             = null;
+        $this->notasCreditoData        = [];
         $this->confirmAccionFactura    = null;
         if ($pasoFinal === 'prefactura') {
             $this->cargarPrefactura();
@@ -255,6 +292,12 @@ class ModalFlujoPedido extends Component
             $this->cargarHistorialEntregasFactura();
         }
         $this->cargarEstadoCobroFactura();
+        if ($this->tienePrefacturasExpoActivas()) {
+            $this->pasoActivo = 'prefactura';
+            $this->limpiarSeleccionPrefactura();
+        } elseif ($this->expoConSaldoPendiente) {
+            $this->pasoActivo = 'factura';
+        }
         $this->showModal               = true;
         $this->dispatchBrowserEvent('fmp-show');
     }
@@ -322,12 +365,27 @@ class ModalFlujoPedido extends Component
         $this->pedidoDetalles = [];
         $this->flujoId        = $flujoId;
 
+        $ganadoraActualId = $this->resolverCotizacionRevisionActual($flujoId);
+        $tieneSeccionesExpo = DB::table('expo_oferta_seccion')
+            ->where('flujo_id', $flujoId)
+            ->exists();
+
         $this->flujoTipos = DB::table('historico_flujo')
             ->where('flujo_id', $flujoId)
-            ->where(function ($q) {
-                // Incluir activos + registros de revisión aunque estén inactivados (devueltos)
-                $q->where('estado_id', '!=', 7)
-                  ->orWhereIn('tipo_tramite_id', [9, 10]);
+            ->where(function ($q) use ($ganadoraActualId, $tieneSeccionesExpo) {
+                $q->where(function ($otros) {
+                    $otros->whereNotIn('tipo_tramite_id', [9, 10])
+                        ->where('estado_id', '!=', 7);
+                })->orWhere(function ($revision) use ($ganadoraActualId, $tieneSeccionesExpo) {
+                    $revision->whereIn('tipo_tramite_id', [9, 10])
+                        ->where('tramite_id', $ganadoraActualId)
+                        ->where(function ($estado) use ($tieneSeccionesExpo) {
+                            $estado->where('estado_id', '!=', 7);
+                            if (!$tieneSeccionesExpo) {
+                                $estado->orWhere('tipo_tramite_id', 9);
+                            }
+                        });
+                });
             })
             ->pluck('tipo_tramite_id')
             ->unique()
@@ -346,6 +404,7 @@ class ModalFlujoPedido extends Component
         $tramiteStepMap = [
             1  => 'ofertas',
             2  => 'ofertas',
+            11 => 'secciones_ofertas',
             10 => 'revision_credito',      // Revisión de Crédito (nuevo)
             9  => 'revision_inventario',   // Revision de Inventario
             4  => 'prefactura',
@@ -356,6 +415,7 @@ class ModalFlujoPedido extends Component
             8  => 'finalizado',
             'pedido'                 => 'ofertas',   // sin pedido, arrancamos en ofertas
             'Ofertas'                => 'ofertas',
+            'Secciones de Ofertas'   => 'secciones_ofertas',
             'Revision de Credito'    => 'revision_credito',
             'Revision de Inventario' => 'revision_inventario',
             'prefactura'             => 'prefactura',
@@ -366,6 +426,7 @@ class ModalFlujoPedido extends Component
 
         $this->cargarRevisionHistorial();
         $this->cargarOfertasPedido();
+        $this->cargarSeccionesExpo();
 
         // Config revisión de inventario
         $cfgRev = DB::table('configuracion_revision_inventario')->first();
@@ -373,13 +434,16 @@ class ModalFlujoPedido extends Component
 
         // Crédito vigente
         $this->creditoVigente = CreditoRevision::creditoVigenteParaFlujo($flujoId);
-        $cr = CreditoRevision::paraFlujo($flujoId);
+        $cr = $ganadoraActualId
+            ? CreditoRevision::paraSeccion($flujoId, (int) $ganadoraActualId)
+            : null;
         $this->creditoRevisionData = $this->buildCreditoData($cr);
         $this->flujoCancelado = ($this->creditoRevisionData['estado'] ?? '') === CreditoRevision::RECHAZADO;
         // Detectar si hay un ciclo de Revisión de Crédito pendiente en historico_flujo
         $this->revisionCreditoPendiente = DB::table('historico_flujo')
             ->where('flujo_id', $flujoId)
             ->where('tipo_tramite_id', 10)
+            ->where('tramite_id', $ganadoraActualId)
             ->where('estado_id', 5)
             ->exists();
 
@@ -416,6 +480,12 @@ class ModalFlujoPedido extends Component
             $this->cargarHistorialEntregasFactura();
         }
         $this->cargarEstadoCobroFactura();
+        if ($this->tienePrefacturasExpoActivas()) {
+            $this->pasoActivo = 'prefactura';
+            $this->limpiarSeleccionPrefactura();
+        } elseif ($this->expoConSaldoPendiente) {
+            $this->pasoActivo = 'factura';
+        }
         $this->showModal               = true;
         $this->dispatchBrowserEvent('fmp-show');
     }
@@ -440,6 +510,33 @@ class ModalFlujoPedido extends Component
             $data['usuario_revision_nombre'] = '—';
         }
         return $data;
+    }
+
+    private function resolverCotizacionRevisionActual(int $flujoId): ?int
+    {
+        $ganadoraActualId = DB::table('historico_flujo')
+            ->where('flujo_id', $flujoId)
+            ->where('tipo_tramite_id', 2)
+            ->where('observaciones', 'ganadora')
+            ->orderByDesc('id')
+            ->value('tramite_id');
+
+        if ($ganadoraActualId) {
+            return (int) $ganadoraActualId;
+        }
+
+        if (DB::table('expo_oferta_seccion')->where('flujo_id', $flujoId)->exists()) {
+            return null;
+        }
+
+        $cotizacionRevisionId = DB::table('historico_flujo')
+            ->where('flujo_id', $flujoId)
+            ->whereIn('tipo_tramite_id', [9, 10])
+            ->whereNotNull('tramite_id')
+            ->orderByDesc('id')
+            ->value('tramite_id');
+
+        return $cotizacionRevisionId ? (int) $cotizacionRevisionId : null;
     }
 
     private function diasVigenciaPrefactura(int $flujoId): int
@@ -518,6 +615,7 @@ class ModalFlujoPedido extends Component
         $this->revisionHistorial       = [];
         $this->revisionDevuelta        = false;
         $this->creditoRevisionData     = [];
+        $this->seccionesExpoData       = [];
         $this->creditoVigente          = false;
         $this->revisionCreditoPendiente = false;
         $this->flujoCancelado          = false;
@@ -535,6 +633,10 @@ class ModalFlujoPedido extends Component
 
     public function seleccionarPaso(string $paso): void
     {
+        if ($this->expoConSaldoPendiente && $paso === 'finalizado') {
+            $paso = 'factura';
+        }
+
         $this->pasoActivo           = $paso;
         $this->ofertaSeleccionada   = null;
         $this->confirmAccion        = null;
@@ -547,6 +649,9 @@ class ModalFlujoPedido extends Component
 
         if ($paso === 'ofertas') {
             $this->cargarOfertasPedido();
+        }
+        if (in_array($paso, ['secciones_ofertas', 'revision_credito', 'revision_inventario', 'prefactura'], true)) {
+            $this->cargarSeccionesExpo();
         }
         if ($paso === 'revision_credito') {
             // Solo lectura en el modal: recargar datos del crédito
@@ -565,15 +670,21 @@ class ModalFlujoPedido extends Component
             $this->cargarRevisionHistorial();
         }
         if ($paso === 'prefactura') {
-            $this->cargarPrefactura();
+            if ($this->tieneSeccionesExpoConPrefactura()) {
+                $this->limpiarSeleccionPrefactura();
+            } else {
+                $this->cargarPrefactura();
+            }
         }
         if ($paso === 'factura') {
             $this->cargarFactura();
         }
         if ($paso === 'cobro') {
+            $this->cargarFactura();
             $this->cargarEstadoCobroFactura();
         }
         if ($paso === 'entrega') {
+            $this->cargarFactura();
             $this->cargarHistorialEntregasFactura();
         }
         $this->tiposFacturacion  = [];
@@ -785,6 +896,12 @@ class ModalFlujoPedido extends Component
             ->join('cotizacion as c', 'c.id', '=', 'hf.tramite_id')
             ->where('hf.flujo_id', $this->flujoId)
             ->where('hf.tipo_tramite_id', 2)
+            ->whereNotExists(function ($query) {
+                $query->selectRaw('1')
+                    ->from('expo_oferta_seccion as eos_oferta')
+                    ->whereColumn('eos_oferta.flujo_id', 'hf.flujo_id')
+                    ->whereColumn('eos_oferta.cotizacion_id', 'hf.tramite_id');
+            })
             ->select(
                 'hf.id as hf_id',
                 'hf.tramite_id as cotizacion_id',
@@ -794,6 +911,7 @@ class ModalFlujoPedido extends Component
                 'c.total',
                 'c.cliente_id',
                 'c.estado_id as cotizacion_estado_id',   // 1=activo, 2=inactivo por precios
+                DB::raw('EXISTS(SELECT 1 FROM expo_cotizacion ec WHERE ec.cotizacion_id = c.id) as es_expo'),
                 DB::raw("(SELECT cce.nombre_categoria
                           FROM cotizacion_has_producto chp
                           INNER JOIN precios_producto_carga ppc ON ppc.id = chp.precios_producto_carga_id
@@ -820,11 +938,14 @@ class ModalFlujoPedido extends Component
             return;
         }
 
+        $ganadoraActualId = $this->resolverCotizacionRevisionActual((int) $this->flujoId);
+
         $records = DB::table('historico_flujo as hf')
             ->leftJoin('users as rev', 'rev.id', '=', 'hf.created_by')
             ->leftJoin('users as apr', 'apr.id', '=', 'hf.updated_by')
             ->where('hf.flujo_id', $this->flujoId)
             ->where('hf.tipo_tramite_id', 9)
+            ->when($ganadoraActualId, fn ($query) => $query->where('hf.tramite_id', $ganadoraActualId))
             ->orderBy('hf.id')
             ->select(
                 'hf.id',
@@ -849,6 +970,70 @@ class ModalFlujoPedido extends Component
         $this->revisionDevuelta = $ultima !== null && (int) ($ultima['estado_id'] ?? 0) === 7;
     }
 
+    private function cargarSeccionesExpo(): void
+    {
+        if (!$this->flujoId) {
+            $this->seccionesExpoData = [];
+            $this->seccionesExpoCompletas = false;
+            return;
+        }
+
+        $latestCredito = DB::table('credito_revision')
+            ->select('flujo_id', 'cotizacion_id', DB::raw('MAX(id) as max_id'))
+            ->whereNotNull('cotizacion_id')
+            ->groupBy('flujo_id', 'cotizacion_id');
+        $latestInventario = DB::table('historico_flujo')
+            ->select('flujo_id', 'tramite_id', DB::raw('MAX(id) as max_id'))
+            ->where('tipo_tramite_id', 9)
+            ->whereNotNull('tramite_id')
+            ->groupBy('flujo_id', 'tramite_id');
+
+        $secciones = DB::table('expo_oferta_seccion as eos')
+            ->join('cotizacion as c', 'c.id', '=', 'eos.cotizacion_id')
+            ->leftJoinSub($latestCredito, 'lcr', function ($join) {
+                $join->on('lcr.flujo_id', '=', 'eos.flujo_id')
+                    ->on('lcr.cotizacion_id', '=', 'eos.cotizacion_id');
+            })
+            ->leftJoin('credito_revision as cr', 'cr.id', '=', 'lcr.max_id')
+            ->leftJoinSub($latestInventario, 'linv', function ($join) {
+                $join->on('linv.flujo_id', '=', 'eos.flujo_id')
+                    ->on('linv.tramite_id', '=', 'eos.cotizacion_id');
+            })
+            ->leftJoin('historico_flujo as hi', 'hi.id', '=', 'linv.max_id')
+            ->leftJoin('prefactura as pf', 'pf.id', '=', 'eos.prefactura_id')
+            ->where('eos.flujo_id', $this->flujoId)
+            ->orderBy('eos.numero')
+            ->get([
+                'eos.id', 'eos.numero', 'eos.nombre', 'eos.estado', 'eos.cotizacion_origen_id',
+                'eos.cotizacion_id', 'eos.prefactura_id', 'eos.finaliza_seccionado',
+                'c.nombre_cliente', 'c.total', 'c.fecha_emision', 'c.fecha_vencimiento', 'c.tipo_pago_id',
+                'cr.estado as credito_estado', 'cr.motivo_rechazo as credito_motivo',
+                'cr.observaciones as credito_observaciones', 'cr.fecha_aprobacion as credito_fecha',
+                'hi.estado_id as inventario_estado_id', 'hi.observaciones as inventario_observaciones',
+                'hi.updated_at as inventario_fecha', 'pf.estado as prefactura_estado',
+                'pf.fecha_emision as prefactura_fecha', 'pf.fecha_vencimiento as prefactura_vencimiento',
+            ]);
+
+        $productos = DB::table('cotizacion_has_producto')
+            ->whereIn('cotizacion_id', $secciones->pluck('cotizacion_id'))
+            ->orderBy('indice')
+            ->get(['cotizacion_id', 'nombre_producto', 'cantidad'])
+            ->groupBy('cotizacion_id');
+
+        $this->seccionesExpoData = $secciones->map(function ($seccion) use ($productos) {
+            $data = (array) $seccion;
+            $data['productos'] = $productos->get($seccion->cotizacion_id, collect())
+                ->map(fn ($producto) => (array) $producto)
+                ->all();
+            return $data;
+        })->all();
+
+        $cotizacionOrigenId = (int) ($secciones->first()->cotizacion_origen_id ?? 0);
+        $this->seccionesExpoCompletas = $cotizacionOrigenId > 0
+            && !app(SeccionadorOfertaExpo::class)->pendientes($cotizacionOrigenId)
+                ->contains(fn ($linea) => (float) $linea->cantidad_pendiente > 0);
+    }
+
     public function verOferta(int $cotizacionId): void
     {
         try {
@@ -861,7 +1046,8 @@ class ModalFlujoPedido extends Component
                 ->select(
                     'c.id', 'c.nombre_cliente', 'c.RTN', 'c.total', 'c.isv',
                     'c.estado_id as cotizacion_estado_id',
-                    'hf.observaciones as hf_observaciones'
+                    'hf.observaciones as hf_observaciones',
+                    DB::raw('EXISTS(SELECT 1 FROM expo_cotizacion ec WHERE ec.cotizacion_id = c.id) as es_expo')
                 )
                 ->orderByDesc('hf.id')
                 ->first();
@@ -959,6 +1145,44 @@ class ModalFlujoPedido extends Component
         $this->motivoEdicionSinExistencia = '';
         $this->mensajeExito        = '';
         $this->mensajeError        = '';
+    }
+
+    public function continuarOfertaExpo(): void
+    {
+        $cotizacionId = (int) ($this->ofertaSeleccionada['id'] ?? 0);
+        $expoId = DB::table('expo_cotizacion')
+            ->where('cotizacion_id', $cotizacionId)
+            ->where('estado', 'PENDIENTE_FACTURACION')
+            ->whereNotExists(function ($query) use ($cotizacionId) {
+                $query->selectRaw('1')->from('cotizacion_has_producto as chp')
+                    ->join('prefactura_has_producto as php', 'php.cotizacion_has_producto_id', '=', 'chp.id')
+                    ->where('chp.cotizacion_id', $cotizacionId);
+            })
+            ->whereNotExists(function ($query) use ($cotizacionId) {
+                $query->selectRaw('1')->from('cotizacion_has_producto as chp')
+                    ->join('venta_has_producto as vhp', 'vhp.cotizacion_has_producto_id', '=', 'chp.id')
+                    ->where('chp.cotizacion_id', $cotizacionId);
+            })
+            ->value('expo_id');
+
+        if (!$cotizacionId || !$expoId) {
+            $this->mensajeError = 'La oferta Expo ya no está disponible para continuarla.';
+            return;
+        }
+
+        $url = '/proforma/cotizacion/2?from=flujo&continuar_expo=1&expo=' . (int) $expoId
+            . '&cotizacionId=' . $cotizacionId;
+        $temporalId = DB::table('venta_temporal')
+            ->where('usuario_id', Auth::id())
+            ->where('tipo', 'oferta')
+            ->where('url_reanudacion', 'like', '%cotizacionId=' . $cotizacionId . '%')
+            ->orderByDesc('updated_at')
+            ->orderByDesc('id')
+            ->value('id');
+        if ($temporalId) {
+            $url .= '&temporal_id=' . (int) $temporalId;
+        }
+        $this->dispatchBrowserEvent('abrir-nueva-pestana', ['url' => $url]);
     }
 
     public function abrirEdicionProductosSinExistencia(): void
@@ -1397,12 +1621,143 @@ class ModalFlujoPedido extends Component
         }
 
         // Todo válido: abrir formulario de nueva oferta con el cliente pre-seleccionado
-        $url = '/proforma/cotizacion/2?from=flujo&cotizacionId=' . $cotizacionId
+        $url = '/proforma/cotizacion/2?from=flujo&duplicar=1&cotizacionId=' . $cotizacionId
              . '&clienteId=' . $this->clienteDuplicarId;
 
         $this->mostrarSelectorClienteDuplicar = false;
         $this->clienteDuplicarError           = '';
         $this->dispatchBrowserEvent('abrir-nueva-pestana', ['url' => $url]);
+    }
+
+    private function cerrarCicloGanadoraAnterior(int $cotizacionNuevaId): bool
+    {
+        $prefacturaExpoActiva = DB::table('prefactura as pf')
+            ->join('expo_cotizacion as ec', 'ec.cotizacion_id', '=', 'pf.cotizacion_id')
+            ->where('pf.flujo_id', $this->flujoId)
+            ->where('pf.estado', 'activo')
+            ->where('pf.cotizacion_id', '!=', $cotizacionNuevaId)
+            ->exists();
+
+        if ($prefacturaExpoActiva) {
+            throw new \RuntimeException('No se puede sustituir desde aquí una oferta Expo con prefacturas activas.');
+        }
+
+        $cotizacionesAnteriores = DB::table('historico_flujo')
+            ->where('flujo_id', $this->flujoId)
+            ->where('tipo_tramite_id', 2)
+            ->where('observaciones', 'ganadora')
+            ->where('tramite_id', '!=', $cotizacionNuevaId)
+            ->lockForUpdate()
+            ->pluck('tramite_id');
+
+        $prefacturasAnteriores = DB::table('prefactura')
+            ->where('flujo_id', $this->flujoId)
+            ->where('estado', 'activo')
+            ->where('cotizacion_id', '!=', $cotizacionNuevaId)
+            ->whereNotExists(function ($query) {
+                $query->selectRaw('1')
+                    ->from('expo_cotizacion as ec')
+                    ->whereColumn('ec.cotizacion_id', 'prefactura.cotizacion_id');
+            })
+            ->lockForUpdate()
+            ->get();
+
+        $cotizacionesAnteriores = $cotizacionesAnteriores
+            ->merge($prefacturasAnteriores->pluck('cotizacion_id'))
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($cotizacionesAnteriores->isEmpty()) {
+            return false;
+        }
+
+        foreach ($prefacturasAnteriores as $prefactura) {
+            DB::table('prefactura')->where('id', $prefactura->id)->update([
+                'estado' => 'inactive',
+                'updated_at' => now(),
+            ]);
+
+            DB::table('historico_flujo')
+                ->where('flujo_id', $this->flujoId)
+                ->where('tipo_tramite_id', 4)
+                ->where('tramite_id', $prefactura->id)
+                ->update([
+                    'estado_id' => 7,
+                    'observaciones' => 'Prefactura sustituida por oferta #' . $cotizacionNuevaId . '.',
+                    'updated_by' => Auth::id(),
+                    'updated_at' => now(),
+                ]);
+
+            PrefacturaAuditoria::registrar(
+                'reemplazo_oferta_ganadora',
+                (int) $prefactura->id,
+                null,
+                (array) $prefactura,
+                ['estado' => 'inactive', 'oferta_nueva_id' => $cotizacionNuevaId],
+                'Prefactura sustituida por una nueva oferta ganadora.'
+            );
+        }
+
+        DB::table('historico_flujo')
+            ->where('flujo_id', $this->flujoId)
+            ->whereIn('tipo_tramite_id', [9, 10])
+            ->where('estado_id', '!=', 7)
+            ->update([
+                'estado_id' => 7,
+                'observaciones' => 'Ciclo cerrado al sustituir la oferta ganadora por oferta #' . $cotizacionNuevaId . '.',
+                'updated_by' => Auth::id(),
+                'updated_at' => now(),
+            ]);
+
+        $revisionesAnteriores = CreditoRevision::where('flujo_id', $this->flujoId)
+            ->whereIn('estado', [CreditoRevision::PENDIENTE, CreditoRevision::APROBADO])
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($revisionesAnteriores as $revisionAnterior) {
+            $estadoAnterior = $revisionAnterior->estado;
+            $revisionAnterior->update([
+                'estado' => CreditoRevision::CANCELADO,
+                'observaciones' => 'Revisión cancelada al sustituir la oferta ganadora por oferta #' . $cotizacionNuevaId . '.',
+                'usuario_revision' => Auth::id(),
+                'ip_revision' => request()->ip(),
+            ]);
+            $revisionAnterior->registrarHistorial(
+                'oferta_ganadora_sustituida',
+                $estadoAnterior,
+                CreditoRevision::CANCELADO,
+                'El flujo reinicia Revisión de Crédito con la oferta #' . $cotizacionNuevaId . '.',
+                request()->ip()
+            );
+        }
+
+        DB::table('historico_flujo')
+            ->where('flujo_id', $this->flujoId)
+            ->where('tipo_tramite_id', 2)
+            ->whereIn('tramite_id', $cotizacionesAnteriores->all())
+            ->update([
+                'observaciones' => 'QuitadaGanadora: sustituida por oferta #' . $cotizacionNuevaId,
+                'updated_by' => Auth::id(),
+                'updated_at' => now(),
+            ]);
+
+        foreach ($cotizacionesAnteriores as $cotizacionAnteriorId) {
+            DB::table('cotizacion_estado')->insert([
+                'cotizacion_id' => $cotizacionAnteriorId,
+                'flujo_id' => $this->flujoId,
+                'ganadora' => 2,
+                'comentario' => 'Ganadora sustituida por oferta #' . $cotizacionNuevaId . '.',
+                'estado_id' => 1,
+                'created_by' => Auth::id(),
+                'updated_by' => Auth::id(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        return true;
     }
 
     public function ganadoraOferta(): void
@@ -1413,6 +1768,27 @@ class ModalFlujoPedido extends Component
         $cotizacion   = DB::table('cotizacion')->where('id', $cotizacionId)->first();
         if (!$cotizacion) { $this->mensajeError = 'Oferta no encontrada.'; return; }
 
+        if (DB::table('expo_cotizacion')->where('cotizacion_id', $cotizacionId)->exists()) {
+            try {
+                app(SeccionadorOfertaExpo::class)->iniciarSeccionado(
+                    (int) $this->flujoId,
+                    $cotizacionId,
+                    (int) Auth::id()
+                );
+                $this->confirmAccionOferta = null;
+                $this->ofertaSeleccionada = null;
+                $this->comentarioCreditoGanadora = '';
+                $this->mensajeExito = 'Oferta Expo #' . $cotizacionId . ' marcada como ganadora. Cree sus secciones antes de enviarlas a revisión.';
+                $this->emit('pedidoActualizado');
+                $this->dispatchBrowserEvent('fmp-redirigir', [
+                    'url' => route('flujo.secciones_ofertas', ['flujo_id' => $this->flujoId]),
+                ]);
+            } catch (\Throwable $e) {
+                $this->mensajeError = 'Error al iniciar las secciones de la oferta Expo: ' . $e->getMessage();
+            }
+            return;
+        }
+
         // ── Verificar si la revisión de inventario está activada ──────────
         $configRevision = DB::table('configuracion_revision_inventario')->first();
         $revisionActiva = $configRevision && (bool) $configRevision->activo;
@@ -1420,13 +1796,13 @@ class ModalFlujoPedido extends Component
         if ($revisionActiva) {
             // ── NUEVO FLUJO: Oferta Ganadora → Revisión de Crédito → Revisión de Inventario ──
             //
-            // Excepción: si ya existe un crédito APROBADO y VIGENTE para este flujo,
-            // saltarse la Revisión de Crédito e ir directamente a Revisión de Inventario.
-            $creditoVigente = CreditoRevision::creditoVigenteParaFlujo($this->flujoId);
-
             DB::beginTransaction();
             try {
                 $comentarioCredito = trim((string) $this->comentarioCreditoGanadora);
+                $cicloAnteriorCerrado = $this->cerrarCicloGanadoraAnterior($cotizacionId);
+                // Una nueva ganadora que sustituye un ciclo existente debe solicitar su propio crédito.
+                $creditoVigente = !$cicloAnteriorCerrado
+                    && CreditoRevision::creditoVigenteParaFlujo($this->flujoId);
                 // 1. Quitar ganadora anterior si existe
                 DB::table('historico_flujo')
                     ->where('flujo_id', $this->flujoId)
@@ -1570,7 +1946,7 @@ class ModalFlujoPedido extends Component
                             'ip_revision'      => request()->ip(),
                         ]);
                     } else {
-                        CreditoRevision::create([
+                        $crPendiente = CreditoRevision::create([
                             'flujo_id'         => $this->flujoId,
                             'cotizacion_id'    => $cotizacionId,
                             'estado'           => CreditoRevision::PENDIENTE,
@@ -1578,6 +1954,16 @@ class ModalFlujoPedido extends Component
                             'usuario_revision' => Auth::id(),
                             'ip_revision'      => request()->ip(),
                         ]);
+                    }
+
+                    if (!$crPendiente->historial()->exists()) {
+                        $crPendiente->registrarHistorial(
+                            'creado',
+                            null,
+                            CreditoRevision::PENDIENTE,
+                            'Oferta #' . $cotizacionId . ' enviada a Revisión de Crédito.',
+                            request()->ip()
+                        );
                     }
 
                     // 5. Avanzar flujo al paso Revisión de Crédito
@@ -1640,6 +2026,10 @@ class ModalFlujoPedido extends Component
                 $reservado = (float) DB::table('prefactura_has_producto as php')
                     ->join('prefactura as pf', 'pf.id', '=', 'php.prefactura_id')
                     ->where('pf.estado', 'activo')
+                    ->where(function ($query) use ($cotizacionId) {
+                        $query->where('pf.flujo_id', '!=', $this->flujoId)
+                            ->orWhere('pf.cotizacion_id', $cotizacionId);
+                    })
                     ->whereRaw("TIMESTAMPADD(DAY, COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7), COALESCE(pf.created_at, CONCAT(COALESCE(pf.fecha_emision, CURDATE()), ' 00:00:00'))) > NOW()")
                     ->where('php.producto_id', $prod->producto_id)
                     ->where('php.seccion_id',  $prod->seccion_id)
@@ -1667,6 +2057,7 @@ class ModalFlujoPedido extends Component
         DB::beginTransaction();
         try {
             $comentarioCredito = trim((string) $this->comentarioCreditoGanadora);
+            $this->cerrarCicloGanadoraAnterior($cotizacionId);
             // ── 2. Quitar ganadora anterior si existe ──────────────────────
             DB::table('historico_flujo')
                 ->where('flujo_id', $this->flujoId)
@@ -1736,6 +2127,7 @@ class ModalFlujoPedido extends Component
             foreach ($productos as $prod) {
                 $prefProds[] = [
                     'prefactura_id'            => $prefacturaId,
+                    'cotizacion_has_producto_id' => $prod->id,
                     'producto_id'              => $prod->producto_id,
                     'indice'                   => $prod->indice,
                     'nombre_producto'          => $prod->nombre_producto,
@@ -1911,18 +2303,30 @@ class ModalFlujoPedido extends Component
 
         $cotizacionId = (int) $this->ofertaSeleccionada['id'];
         $clienteId    = (int) ($this->ofertaSeleccionada['cliente_id'] ?? $this->pedidoData['cliente_id'] ?? 0);
+        $esOfertaExpo = !empty($this->ofertaSeleccionada['es_expo']);
 
         $this->mensajeError                  = '';
         $this->clienteDuplicarError          = '';
         $this->productosPrecioEscalaCambiado = [];
         $this->preciosCambioMostrado         = false;
 
-        $facturaCompletada = in_array(3, $this->flujoTipos) || in_array(5, $this->flujoTipos);
+        if ($esOfertaExpo) {
+            $bloqueo = ExpoConfig::motivoBloqueoDuplicacion($cotizacionId, (int) $this->flujoId);
+            if ($bloqueo) {
+                $this->mensajeError = $bloqueo;
+                $this->confirmAccionOferta = null;
+                return;
+            }
+        }
+
+        $facturaCompletada = !$esOfertaExpo && (in_array(3, $this->flujoTipos) || in_array(5, $this->flujoTipos));
 
         // Construir URL base
-        $url = '/proforma/cotizacion/2?from=flujo&cotizacionId=' . $cotizacionId;
+        $url = '/proforma/cotizacion/2?from=flujo&duplicar=1&cotizacionId=' . $cotizacionId;
 
-        if ($mismoCliente) {
+        if ($esOfertaExpo) {
+            $url .= '&flujoId=' . (int) $this->flujoId;
+        } elseif ($mismoCliente) {
             if ($facturaCompletada) {
                 // Flujo con factura: nuevo flujo para el mismo cliente con escala actual
                 $url .= '&clienteId=' . $clienteId;
@@ -2173,10 +2577,12 @@ class ModalFlujoPedido extends Component
         return $productosConCambio;
     }
 
-    private function cargarPrefactura(): void
+    private function cargarPrefactura(?int $prefacturaId = null): void
     {
         if (!$this->flujoId) {
             $this->prefacturaData = null;
+            $this->prefacturaEsExpo = false;
+            $this->expoConSaldoPendiente = false;
             $this->prefacturaVencida = false;
             $this->prefacturaPuedeFacturar = true;
             $this->prefacturaStockFaltante = [];
@@ -2186,12 +2592,24 @@ class ModalFlujoPedido extends Component
         }
         $pref = DB::table('prefactura')
             ->where('flujo_id', $this->flujoId)
-            ->whereIn('estado', ['activo', 'convertida'])
+            ->when(
+                $prefacturaId,
+                fn ($query) => $query->where('id', $prefacturaId),
+                fn ($query) => $query->whereIn('estado', ['activo', 'convertida'])
+            )
             ->orderByDesc('id')
             ->first();
 
+        $this->prefacturasData = DB::table('prefactura')
+            ->where('flujo_id', $this->flujoId)
+            ->orderBy('id')
+            ->get(['id', 'estado', 'fecha_emision', 'fecha_vencimiento', 'total'])
+            ->map(fn($row) => (array) $row)->toArray();
+
         if (!$pref) {
             $this->prefacturaData = null;
+            $this->prefacturaEsExpo = false;
+            $this->expoConSaldoPendiente = false;
             $this->prefacturaVencida = false;
             $this->prefacturaPuedeFacturar = true;
             $this->prefacturaStockFaltante = [];
@@ -2211,6 +2629,34 @@ class ModalFlujoPedido extends Component
             ->toArray();
 
         $this->prefacturaData = array_merge((array) $pref, ['productos' => $productos]);
+        $cotizacionId = (int) ($pref->cotizacion_id ?? 0);
+        $this->prefacturaEsExpo = DB::table('expo_oferta_seccion')
+            ->where('prefactura_id', $pref->id)
+            ->exists()
+            || ($cotizacionId > 0 && DB::table('expo_cotizacion')->where('cotizacion_id', $cotizacionId)->exists());
+        $this->expoConSaldoPendiente = $cotizacionId > 0
+            && DB::table('expo_cotizacion')->where('cotizacion_id', $cotizacionId)->exists()
+            && app(SaldoLineasOferta::class)->pendientes($cotizacionId)
+                ->contains(fn($linea) => (float) $linea->cantidad_pendiente > 0);
+
+        if ($this->expoConSaldoPendiente && ($pref->estado ?? null) !== 'inactive') {
+            DB::table('flujo')
+                ->where('id', $this->flujoId)
+                ->where('tipo_tramite_id', '!=', 3)
+                ->update([
+                    'tipo_tramite_id' => 3,
+                    'updated_by' => Auth::id(),
+                    'updated_at' => now(),
+                ]);
+        }
+
+        if ($this->prefacturaEsExpo) {
+            $this->prefacturaStockFaltante = [];
+            $this->prefacturaPuedeFacturar = true;
+            $this->prefacturaReservaCompleta = true;
+            $this->prefacturaReservaFaltante = [];
+            return;
+        }
 
         // Regla todo-o-nada de reserva: si no cubre cantidades completas, no debe apartar.
         $this->prefacturaReservaFaltante = $this->obtenerFaltantesInventarioPrefactura((int) $pref->id, true);
@@ -2230,6 +2676,53 @@ class ModalFlujoPedido extends Component
                 $this->prefacturaPuedeFacturar = false;
             }
         }
+    }
+
+    private function tieneSeccionesExpoConPrefactura(): bool
+    {
+        return collect($this->seccionesExpoData)
+            ->contains(fn (array $seccion) => !empty($seccion['prefactura_id']));
+    }
+
+    private function tienePrefacturasExpoActivas(): bool
+    {
+        return collect($this->seccionesExpoData)->contains(
+            fn (array $seccion) => !empty($seccion['prefactura_id'])
+                && ($seccion['prefactura_estado'] ?? null) === 'activo'
+        );
+    }
+
+    private function limpiarSeleccionPrefactura(): void
+    {
+        $this->prefacturaData = null;
+        $this->prefacturaEsExpo = false;
+        $this->prefacturaVencida = false;
+        $this->prefacturaPuedeFacturar = true;
+        $this->prefacturaStockFaltante = [];
+        $this->prefacturaReservaCompleta = true;
+        $this->prefacturaReservaFaltante = [];
+    }
+
+    public function seleccionarPrefacturaExpo(int $prefacturaId): void
+    {
+        if ((int) ($this->prefacturaData['id'] ?? 0) === $prefacturaId) {
+            $this->limpiarSeleccionPrefactura();
+            return;
+        }
+
+        $perteneceAlFlujo = DB::table('expo_oferta_seccion')
+            ->where('flujo_id', $this->flujoId)
+            ->where('prefactura_id', $prefacturaId)
+            ->exists();
+
+        if (!$perteneceAlFlujo) {
+            $this->mensajeError = 'La prefactura seleccionada no pertenece a este flujo Expo.';
+            return;
+        }
+
+        $this->cargarPrefactura($prefacturaId);
+        $this->confirmAccionPrefactura = null;
+        $this->mensajeError = '';
     }
 
     public function confirmarAccionPrefactura(string $accion): void
@@ -2371,8 +2864,10 @@ class ModalFlujoPedido extends Component
     public function facturarPrefacturaDirecta(): void
     {
         if (!$this->prefacturaData || !$this->flujoId) return;
+        $this->mensajeError = '';
 
-        if ($this->prefacturaVencida) {
+        $cotizacionId = (int) ($this->prefacturaData['cotizacion_id'] ?? 0);
+        if (!$this->prefacturaEsExpo && $this->prefacturaVencida) {
             $faltantes = $this->obtenerFaltantesInventarioPrefactura((int) $this->prefacturaData['id'], true);
             $this->prefacturaStockFaltante = $faltantes;
             $this->prefacturaPuedeFacturar = empty($faltantes);
@@ -2425,10 +2920,21 @@ class ModalFlujoPedido extends Component
             }
         }
 
+        $clienteId = (int) ($this->prefacturaData['cliente_id'] ?? 0);
+        if (!$clienteId && $cotizacionId) {
+            $clienteId = (int) DB::table('cotizacion')
+                ->where('id', $cotizacionId)
+                ->value('cliente_id');
+        }
+        if (!$clienteId) {
+            $this->mensajeError = 'La prefactura no tiene un cliente válido para seleccionar el tele asesor.';
+            return;
+        }
+
         $this->dispatchBrowserEvent('fmp-facturar-directo', [
             'url'       => '/prefactura/' . (int) $this->prefacturaData['id'] . '/facturar-directo',
             'tipo_pago' => $tipoPago,
-            'cliente_id' => (int) ($this->pedidoData['cliente_id'] ?? 0),
+            'cliente_id' => $clienteId,
             'tele_asesor_id' => Auth::id(),
             'tele_asesor_nombre' => Auth::user()->name ?? '',
         ]);
@@ -2462,65 +2968,149 @@ class ModalFlujoPedido extends Component
 
     private function cargarFactura(): void
     {
-        $facturaId = $this->obtenerFacturaIdFlujo();
-        if (!$facturaId) {
+        $this->cargarPrefactura();
+        $this->cargarLiquidacionExpoPendiente();
+        $facturaIds = $this->obtenerFacturaIdsFlujo();
+        if (empty($facturaIds)) {
             $this->facturaData = null;
+            $this->facturasData = [];
+            $this->notasCreditoData = [];
             return;
         }
 
-        $factura = DB::table('factura')
-            ->where('id', $facturaId)
-            ->first();
+        $this->facturasData = collect($facturaIds)
+            ->map(fn($facturaId) => $this->construirFacturaData((int) $facturaId))
+            ->filter()
+            ->values()
+            ->all();
+        $this->facturaData = empty($this->facturasData) ? null : end($this->facturasData);
 
-        if (!$factura) {
-            $this->facturaData = null;
+        $this->saldoPendienteFactura = isset($this->facturaData['pendiente_cobro'])
+            ? (float) $this->facturaData['pendiente_cobro']
+            : null;
+        $this->cargarNotasCreditoFlujo();
+    }
+
+    private function cargarLiquidacionExpoPendiente(): void
+    {
+        $this->liquidacionExpoPendiente = null;
+        if (!$this->flujoId) {
             return;
+        }
+
+        $cotizacionId = DB::table('expo_cotizacion')
+            ->where('flujo_id', $this->flujoId)
+            ->where('estado', 'PENDIENTE_LIQUIDACION')
+            ->value('cotizacion_id');
+        if (!$cotizacionId) {
+            return;
+        }
+
+        try {
+            $this->liquidacionExpoPendiente = app(LiquidacionOfertaExpo::class)
+                ->previsualizar((int) $cotizacionId, (int) $this->flujoId);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
+
+    private function cargarNotasCreditoFlujo(): void
+    {
+        $facturaIds = $this->obtenerFacturaIdsFlujo();
+        if (empty($facturaIds)) {
+            $this->notasCreditoData = [];
+            return;
+        }
+
+        $notaIdsExpo = DB::table('expo_cotizacion as ec')
+            ->join('historico_flujo as hf', 'hf.tramite_id', '=', 'ec.cotizacion_id')
+            ->where('hf.flujo_id', $this->flujoId)
+            ->where('hf.tipo_tramite_id', 2)
+            ->whereNotNull('ec.nota_credito_id')
+            ->pluck('ec.nota_credito_id');
+
+        $notas = DB::table('nota_credito as nc')
+            ->leftJoin('nota_credito_creditos as ncc', 'ncc.nota_credito_id', '=', 'nc.id')
+            ->where(function ($query) use ($facturaIds, $notaIdsExpo) {
+                $query->whereIn('nc.factura_id', $facturaIds);
+                if ($notaIdsExpo->isNotEmpty()) {
+                    $query->orWhereIn('nc.id', $notaIdsExpo);
+                }
+            })
+            ->orderBy('nc.fecha')
+            ->orderBy('nc.id')
+            ->get([
+                'nc.id', 'nc.numero_nota', 'nc.cai', 'nc.fecha', 'nc.total', 'nc.estado_nota_id',
+                'ncc.id as credito_id', 'ncc.monto_aplicado', 'ncc.saldo_disponible', 'ncc.estado as estado_credito',
+            ]);
+
+        $creditoIds = $notas->pluck('credito_id')->filter()->all();
+        $aplicaciones = DB::table('nota_credito_movimientos as ncm')
+            ->leftJoin('factura as f', 'f.id', '=', 'ncm.factura_id')
+            ->whereIn('ncm.credito_id', $creditoIds)
+            ->where('ncm.tipo', 'aplicacion')
+            ->orderBy('ncm.fecha_movimiento')
+            ->orderBy('ncm.id')
+            ->get(['ncm.credito_id', 'ncm.factura_id', 'f.cai as factura', 'ncm.monto', 'ncm.fecha_movimiento'])
+            ->groupBy('credito_id');
+
+        $this->notasCreditoData = $notas->map(function ($nota) use ($aplicaciones) {
+            $data = (array) $nota;
+            $data['aplicaciones'] = collect($aplicaciones[$nota->credito_id] ?? [])
+                ->map(fn($movimiento) => (array) $movimiento)->all();
+            return $data;
+        })->all();
+    }
+
+    private function construirFacturaData(int $facturaId): ?array
+    {
+        $factura = DB::table('factura')->where('id', $facturaId)->first();
+        if (!$factura) {
+            return null;
         }
 
         $productos = DB::table('venta_has_producto as vhp')
             ->leftJoin('producto as p', 'p.id', '=', 'vhp.producto_id')
-            ->where('vhp.factura_id', $factura->id)
+            ->where('vhp.factura_id', $facturaId)
             ->select(
                 DB::raw('COALESCE(p.nombre, CONCAT("Producto #", vhp.producto_id)) as nombre_producto'),
-                'vhp.cantidad',
+                DB::raw('SUM(vhp.cantidad_s) as cantidad'),
                 'vhp.precio_unidad',
-                DB::raw('COALESCE(vhp.total, vhp.total_s) as total')
+                DB::raw('SUM(vhp.total_s) as total')
             )
+            ->groupBy('vhp.indice', 'vhp.producto_id', 'p.nombre', 'vhp.precio_unidad')
             ->orderBy('vhp.indice')
-            ->get()
-            ->map(fn($r) => (array) $r)
-            ->toArray();
+            ->get()->map(fn($row) => (array) $row)->toArray();
+        $vale = DB::table('vale')->where('factura_id', $facturaId)->whereNotIn('estado_id', [7])
+            ->orderByDesc('id')->first(['id', 'numero_vale']);
+        $esExonerada = (int) ($factura->tipo_venta_id ?? 0) === 3;
 
-        // ── Vale vinculado a esta factura ───────────────────────────────
-        $valeData = DB::table('vale')
-            ->where('factura_id', $factura->id)
-            ->whereNotIn('estado_id', [7]) // excluir anulados
-            ->orderByDesc('id')
-            ->first(['id', 'numero_vale']);
+        return array_merge((array) $factura, [
+            'productos' => $productos,
+            'print_url' => $esExonerada ? '/exonerado/factura/' . $facturaId : '/factura/cooporativo/' . $facturaId,
+            'print_copia_url' => $esExonerada ? '/exonerado/facturaCopia/' . $facturaId : '/factura/cooporativoCopia/' . $facturaId,
+            'print_acta_rec_url' => $esExonerada ? '/exonerado/actaRec/' . $facturaId : '/facturaCoor/actaRec/' . $facturaId,
+            'vale_id' => $vale?->id,
+            'vale_numero' => $vale?->numero_vale,
+        ]);
+    }
 
-        $printUrl = '/factura/cooporativo/' . $factura->id;
-        $printCopiaUrl = '/factura/cooporativoCopia/' . $factura->id;
-        $printActaRecUrl = '/facturaCoor/actaRec/' . $factura->id;
-        if ((int) ($factura->tipo_venta_id ?? 0) === 3) {
-            $printUrl = '/exonerado/factura/' . $factura->id;
-            $printCopiaUrl = '/exonerado/facturaCopia/' . $factura->id;
-            $printActaRecUrl = '/exonerado/actaRec/' . $factura->id;
+    /** @return array<int, int> */
+    private function obtenerFacturaIdsFlujo(): array
+    {
+        if (!$this->flujoId) {
+            return [];
         }
 
-        $this->facturaData = array_merge((array) $factura, [
-            'productos'      => $productos,
-            'historico_id'   => null,
-            'tramite_tipo_id'=> 3,
-            'print_url'      => $printUrl,
-            'print_copia_url'=> $printCopiaUrl,
-            'print_acta_rec_url' => $printActaRecUrl,
-            'vale_id'        => $valeData ? $valeData->id : null,
-            'vale_numero'    => $valeData ? $valeData->numero_vale : null,
-        ]);
-
-        $this->saldoPendienteFactura = isset($factura->pendiente_cobro)
-            ? (float) $factura->pendiente_cobro
-            : null;
+        return DB::table('historico_flujo as hf')
+            ->join('factura as f', 'f.id', '=', 'hf.tramite_id')
+            ->where('hf.flujo_id', $this->flujoId)
+            ->whereIn('hf.tipo_tramite_id', [3, 5])
+            ->orderBy('f.fecha_emision')
+            ->orderBy('f.id')
+            ->pluck('f.id')
+            ->map(fn($id) => (int) $id)
+            ->unique()->values()->all();
     }
 
     private function obtenerFacturaIdFlujo(): ?int
@@ -2612,8 +3202,8 @@ class ModalFlujoPedido extends Component
             return;
         }
 
-        $facturaId = $this->obtenerFacturaIdFlujo();
-        if (!$facturaId) {
+        $facturaIds = $this->obtenerFacturaIdsFlujo();
+        if (empty($facturaIds)) {
             $this->historialEntregasFactura = [];
             return;
         }
@@ -2632,11 +3222,12 @@ class ModalFlujoPedido extends Component
             ->leftJoinSub($miembrosSnapshot, 'ms', function ($join) {
                 $join->on('ms.distribucion_entrega_id', '=', 'de.id');
             })
-            ->where('def.factura_id', $facturaId)
+            ->whereIn('def.factura_id', $facturaIds)
             ->orderBy('de.fecha_programada')
             ->orderBy('de.id')
             ->get([
                 'de.id as distribucion_id',
+                'def.factura_id',
                 'de.fecha_programada',
                 'de.estado_id',
                 'ee.nombre_equipo',
@@ -2660,8 +3251,8 @@ class ModalFlujoPedido extends Component
             return;
         }
 
-        $facturaId = $this->obtenerFacturaIdFlujo();
-        if (!$facturaId) {
+        $facturaIds = $this->obtenerFacturaIdsFlujo();
+        if (empty($facturaIds)) {
             $this->saldoPendienteFactura = null;
             $this->cobroFacturaData = null;
             $this->historialPagosFactura = [];
@@ -2669,33 +3260,39 @@ class ModalFlujoPedido extends Component
             return;
         }
 
-        $factura = DB::table('factura')
-            ->where('id', $facturaId)
-            ->first(['id', 'cai', 'nombre_cliente', 'total', 'fecha_emision', 'created_at', 'pendiente_cobro']);
-
-        $ap = DB::table('aplicacion_pagos')
-            ->where('factura_id', $facturaId)
-            ->where('estado', 1)
-            ->orderByDesc('id')
-            ->first(['id', 'saldo', 'credito_abonos', 'created_at', 'updated_at']);
-
-        if (!$ap) {
-            $ap = DB::table('aplicacion_pagos')
-                ->where('factura_id', $facturaId)
-                ->orderByDesc('id')
-                ->first(['id', 'saldo', 'credito_abonos', 'created_at', 'updated_at']);
+        $facturas = DB::table('factura')->whereIn('id', $facturaIds)->where('estado_venta_id', 1)
+            ->orderBy('fecha_emision')->orderBy('id')
+            ->get(['id', 'cai', 'nombre_cliente', 'total', 'fecha_emision', 'created_at', 'pendiente_cobro']);
+        if ($facturas->isEmpty()) {
+            $this->saldoPendienteFactura = null;
+            $this->cobroFacturaData = null;
+            $this->historialPagosFactura = [];
+            $this->aplicacionPagoId = null;
+            return;
         }
+        $aplicaciones = DB::table('aplicacion_pagos')->whereIn('factura_id', $facturaIds)->where('estado', 1)
+            ->orderBy('id')->get(['id', 'factura_id', 'saldo', 'credito_abonos', 'created_at', 'updated_at']);
 
-        $this->aplicacionPagoId = $ap ? (int) $ap->id : null;
-        $this->saldoPendienteFactura = $ap
-            ? (float) $ap->saldo
-            : (float) ($factura->pendiente_cobro ?? 0);
+        $this->aplicacionPagoId = $aplicaciones->count() === 1 ? (int) $aplicaciones->first()->id : null;
+        $this->saldoPendienteFactura = round((float) $aplicaciones->sum('saldo'), 2);
+        $esFlujoExpo = DB::table('historico_flujo as hf')
+            ->join('expo_cotizacion as ec', 'ec.cotizacion_id', '=', 'hf.tramite_id')
+            ->where('hf.flujo_id', $this->flujoId)
+            ->where('hf.tipo_tramite_id', 2)
+            ->exists();
+        $todasFacturasConAplicacion = $facturas->pluck('id')->diff($aplicaciones->pluck('factura_id')->unique())->isEmpty();
+        $cobroSaldado = $todasFacturasConAplicacion && $aplicaciones->isNotEmpty()
+            && (float) $this->saldoPendienteFactura <= 0;
+        $puedeFinalizarCobro = $esFlujoExpo
+            ? (float) $this->saldoPendienteFactura <= 0
+            : $cobroSaldado;
+        $factura = $facturas->first();
 
         $this->cobroFacturaData = [
-            'id'           => (int) $factura->id,
-            'cai'          => $factura->cai,
+            'id'           => $facturas->pluck('id')->implode(', '),
+            'cai'          => $facturas->pluck('cai')->implode(', '),
             'nombre'       => $factura->nombre_cliente,
-            'total'        => (float) ($factura->total ?? 0),
+            'total'        => (float) $facturas->sum('total'),
             'fecha_emision'=> $factura->fecha_emision ?? $factura->created_at,
         ];
 
@@ -2703,12 +3300,13 @@ class ModalFlujoPedido extends Component
             ->leftJoin('users as u', 'u.id', '=', 'ac.usr_registro')
             ->leftJoin('tipo_pago_cobro as tpc', 'tpc.id', '=', 'ac.id_tipo_pago_cobro')
             ->leftJoin('banco as b', 'b.id', '=', 'ac.banco_id')
-            ->where('ac.factura_id', $facturaId)
+            ->whereIn('ac.factura_id', $facturaIds)
             ->where('ac.estado_abono', 1)
             ->orderByDesc('ac.fecha_pago')
             ->orderByDesc('ac.id')
             ->get([
                 'ac.id',
+                'ac.factura_id',
                 'ac.monto_abonado',
                 'ac.fecha_pago',
                 'ac.numero_recibo',
@@ -2723,9 +3321,16 @@ class ModalFlujoPedido extends Component
 
         $this->historialPagosFactura = $historial;
 
+        if ($this->expoConSaldoPendiente) {
+            $this->estadoEntrega = null;
+            $this->estadoCobro = null;
+            return;
+        }
+
         // Sincronizar Cobro en historico_flujo con aplicacion_pagos:
         // - tramite_id del Cobro = aplicacion_pagos.id
-        // - si saldo <= 0 => estado_id del Cobro pasa a 1 (completado)
+        // - todas las facturas deben tener aplicación y saldo <= 0 para completar
+        // - si reaparece saldo o falta una aplicación, el Cobro vuelve a pendiente
         $cobroHist = DB::table('historico_flujo')
             ->where('flujo_id', $this->flujoId)
             ->where('tipo_tramite_id', 6)
@@ -2739,9 +3344,15 @@ class ModalFlujoPedido extends Component
                 $actualizarCobro['tramite_id'] = $this->aplicacionPagoId;
             }
 
-            if ((float) $this->saldoPendienteFactura <= 0 && (int) $cobroHist->estado_id !== 1) {
+            $estadoCobroEsperado = $cobroSaldado ? 1 : 5;
+            if (!$esFlujoExpo && (int) $cobroHist->estado_id !== $estadoCobroEsperado) {
+                $actualizarCobro['estado_id'] = $estadoCobroEsperado;
+                $actualizarCobro['observaciones'] = $cobroSaldado
+                    ? 'Cobro completado: todas las facturas activas del flujo tienen saldo <= 0'
+                    : 'Cobro pendiente: existen facturas activas con saldo o sin aplicación de pago';
+            } elseif ($esFlujoExpo && (float) $this->saldoPendienteFactura <= 0 && (int) $cobroHist->estado_id !== 1) {
                 $actualizarCobro['estado_id'] = 1;
-                $actualizarCobro['observaciones'] = 'Cobro completado por saldo <= 0 (Factura #' . $facturaId . ')';
+                $actualizarCobro['observaciones'] = 'Cobro completado: todas las facturas activas del flujo tienen saldo <= 0';
             }
 
             if (!empty($actualizarCobro)) {
@@ -2752,8 +3363,8 @@ class ModalFlujoPedido extends Component
             }
         }
 
-        // Si Cobro quedó completado y Entrega está completada, mover flujo a Finalizado (tipo 8)
-        if ((float) $this->saldoPendienteFactura <= 0) {
+        // Finalizar solo cuando todas las condiciones del flujo completo estén resueltas.
+        if ($puedeFinalizarCobro) {
             $entregaCompletada = DB::table('historico_flujo')
                 ->where('flujo_id', $this->flujoId)
                 ->where('tipo_tramite_id', 5)
@@ -2761,7 +3372,20 @@ class ModalFlujoPedido extends Component
                 ->where('estado_id', '!=', 7)
                 ->exists();
 
-            if ($entregaCompletada) {
+            $ofertaExpo = DB::table('expo_cotizacion as ec')
+                ->join('historico_flujo as hf', 'hf.tramite_id', '=', 'ec.cotizacion_id')
+                ->where('hf.flujo_id', $this->flujoId)
+                ->where('hf.tipo_tramite_id', 2)
+                ->first(['ec.estado']);
+            $liquidacionCompletada = !$ofertaExpo || $ofertaExpo->estado === 'LIQUIDADA';
+
+            $entregasPendientes = DB::table('distribuciones_entrega_facturas as def')
+                ->join('distribuciones_entrega as de', 'de.id', '=', 'def.distribucion_entrega_id')
+                ->whereIn('def.factura_id', $facturaIds)
+                ->whereNotIn('de.estado_id', [3, 4])
+                ->exists();
+
+            if ($entregaCompletada && !$entregasPendientes && $liquidacionCompletada) {
                 DB::table('flujo')
                     ->where('id', $this->flujoId)
                     ->update([
@@ -2775,9 +3399,10 @@ class ModalFlujoPedido extends Component
         $this->cargarEstadosEntregaCobro();
     }
 
-    public function confirmarAccionFactura(string $accion): void
+    public function confirmarAccionFactura(string $accion, ?int $facturaId = null): void
     {
         $this->confirmAccionFactura    = $accion;
+        $this->facturaSeleccionadaId   = $facturaId;
         $this->confirmAccionPrefactura = null;
         $this->mensajeError            = '';
     }
@@ -2785,13 +3410,14 @@ class ModalFlujoPedido extends Component
     public function cancelarConfirmFactura(): void
     {
         $this->confirmAccionFactura   = null;
+        $this->facturaSeleccionadaId  = null;
         $this->motivoAnulacionFactura = '';
         $this->mensajeError           = '';
     }
 
     public function anularFactura(): void
     {
-        if (!$this->facturaData || !$this->flujoId) return;
+        if (!$this->facturaSeleccionadaId || !$this->flujoId) return;
 
         $motivo = trim($this->motivoAnulacionFactura);
         if ($motivo === '') {
@@ -2799,7 +3425,34 @@ class ModalFlujoPedido extends Component
             return;
         }
 
-        $facturaId = (int) $this->facturaData['id'];
+        $facturaId = (int) $this->facturaSeleccionadaId;
+        $perteneceAlFlujo = DB::table('historico_flujo as hf')
+            ->join('factura as f', 'f.id', '=', 'hf.tramite_id')
+            ->where('hf.flujo_id', $this->flujoId)
+            ->whereIn('hf.tipo_tramite_id', [3, 5])
+            ->where('f.id', $facturaId)
+            ->where('f.estado_venta_id', 1)
+            ->exists();
+        if (!$perteneceAlFlujo) {
+            $this->mensajeError = 'La factura seleccionada no está activa en este flujo.';
+            return;
+        }
+
+        $ofertaExpo = DB::table('expo_cotizacion as ec')
+            ->join('historico_flujo as hf', 'hf.tramite_id', '=', 'ec.cotizacion_id')
+            ->where('hf.flujo_id', $this->flujoId)
+            ->where('hf.tipo_tramite_id', 2)
+            ->first(['ec.estado', 'ec.nota_credito_id']);
+        $notaAplicada = DB::table('nota_credito_movimientos')->where('factura_id', $facturaId)->where('tipo', 'aplicacion')->exists();
+        if ($notaAplicada || ($ofertaExpo && !in_array($ofertaExpo->estado, ['PENDIENTE_FACTURACION', 'FACTURACION_PARCIAL'], true))) {
+            $this->mensajeError = 'La factura requiere reversión o validación contable antes de anularse porque la Oferta Expo está cerrada o tiene una nota aplicada.';
+            return;
+        }
+
+        if (DB::table('abonos_creditos')->where('factura_id', $facturaId)->where('estado_abono', 1)->exists()) {
+            $this->mensajeError = 'La factura tiene cobros activos. Contabilidad debe revertirlos antes de anularla.';
+            return;
+        }
 
         DB::beginTransaction();
         try {
@@ -2859,6 +3512,15 @@ class ModalFlujoPedido extends Component
                 ->where('factura_id', $facturaId)
                 ->update(['estado' => 2, 'updated_at' => now()]);
 
+            DB::table('distribuciones_entrega_facturas')
+                ->where('factura_id', $facturaId)
+                ->where('estado_entrega', '!=', 'anulada')
+                ->update([
+                    'estado_entrega' => 'anulada',
+                    'motivo_anulacion' => 'Factura #' . $facturaId . ' anulada: ' . $motivo,
+                    'updated_at' => now(),
+                ]);
+
             // 1) Inactivar registro de factura en historico_flujo
             DB::table('historico_flujo')
                 ->where('flujo_id', $this->flujoId)
@@ -2870,99 +3532,11 @@ class ModalFlujoPedido extends Component
                     'updated_at'    => now(),
                 ]);
 
-            // 2) Inactivar registros de Entrega (tipo 5) y Cobro (tipo 6)
-            DB::table('historico_flujo')
-                ->where('flujo_id', $this->flujoId)
-                ->whereIn('tipo_tramite_id', [5, 6])
-                ->whereIn('estado_id', [1, 5])
-                ->update([
-                    'estado_id'     => 7,
-                    'observaciones' => 'Anulado por anulación de Factura #' . $facturaId . '. Motivo: ' . $motivo,
-                    'updated_at'    => now(),
-                ]);
-
-            // 3) Inactivar la prefactura más reciente de este flujo (sin filtrar por estado,
-            //    porque tras facturar el estado puede haber cambiado a 'facturado' u otro).
-            $prefActiva = DB::table('prefactura')
-                ->where('flujo_id', $this->flujoId)
-                ->orderByDesc('id')
-                ->first();
-
-            if ($prefActiva) {
-                DB::table('prefactura')
-                    ->where('id', $prefActiva->id)
-                    ->update(['estado' => 'inactive', 'updated_at' => now()]);
-
-                DB::table('historico_flujo')
-                    ->where('flujo_id', $this->flujoId)
-                    ->where('tipo_tramite_id', 4)
-                    ->where('tramite_id', $prefActiva->id)
-                    ->update([
-                        'estado_id'     => 7,
-                        'observaciones' => 'Inactivada por anulación de Factura #' . $facturaId . '. Motivo: ' . $motivo,
-                        'updated_at'    => now(),
-                    ]);
-            }
-
-            // 4) Quitar ganadora — buscar directamente en historico_flujo (más fiable que
-            //    vía prefactura, cuyo cotizacion_id podría ser null o indisponible).
-            $cotizacionId = DB::table('historico_flujo')
-                ->where('flujo_id', $this->flujoId)
-                ->where('tipo_tramite_id', 2)
-                ->where('observaciones', 'ganadora')
-                ->value('tramite_id');
-
-            if ($cotizacionId) {
-                DB::table('historico_flujo')
-                    ->where('flujo_id', $this->flujoId)
-                    ->where('tipo_tramite_id', 2)
-                    ->where('tramite_id', $cotizacionId)
-                    ->where('observaciones', 'ganadora')
-                    ->update([
-                        'observaciones' => 'QuitadaGanadora: Factura anulada. Motivo: ' . $motivo,
-                        'updated_at'    => now(),
-                    ]);
-
-                DB::table('cotizacion_estado')->insert([
-                    'cotizacion_id' => $cotizacionId,
-                    'flujo_id'      => $this->flujoId,
-                    'ganadora'      => 2,
-                    'comentario'    => 'Factura #' . $facturaId . ' anulada. Motivo: ' . $motivo,
-                    'estado_id'     => 1,
-                    'created_by'    => Auth::id(),
-                    'updated_by'    => Auth::id(),
-                    'created_at'    => now(),
-                    'updated_at'    => now(),
-                ]);
-            }
-
-            // 5) Resetear ciclo de Rev. Inventario para que empiece desde cero
-            DB::table('historico_flujo')
-                ->where('flujo_id', $this->flujoId)
-                ->where('tipo_tramite_id', 9)
-                ->delete();
-
-            // 6) Resetear ciclo de Rev. Crédito (historico_flujo tipo=10).
-            //    El registro en credito_revision se conserva para que creditoVigenteParaFlujo()
-            //    pueda omitir Rev. Crédito si el crédito sigue vigente al re-seleccionar ganadora.
-            DB::table('historico_flujo')
-                ->where('flujo_id', $this->flujoId)
-                ->where('tipo_tramite_id', 10)
-                ->delete();
-
-            // 7) Retroceder flujo a Ofertas
-            DB::table('flujo')->where('id', $this->flujoId)->update([
-                'tipo_tramite_id' => 2,
-                'updated_by'      => Auth::id(),
-                'updated_at'      => now(),
-            ]);
-
             DB::commit();
             $this->confirmAccionFactura   = null;
+            $this->facturaSeleccionadaId  = null;
             $this->motivoAnulacionFactura = '';
-            $this->facturaData            = null;
-            $this->saldoPendienteFactura  = null;
-            $this->mensajeExito = 'Factura #' . $facturaId . ' anulada. El flujo volvió a Ofertas.';
+            $this->mensajeExito = 'Factura #' . $facturaId . ' anulada sin afectar las demás facturas ni la oferta ganadora.';
             $this->emit('pedidoActualizado');
             $this->recargar();
         } catch (\Exception $e) {
@@ -3077,6 +3651,12 @@ class ModalFlujoPedido extends Component
 
         DB::beginTransaction();
         try {
+            $seccionExpo = DB::table('expo_oferta_seccion')
+                ->where('flujo_id', $this->flujoId)
+                ->where('prefactura_id', $prefacturaId)
+                ->lockForUpdate()
+                ->first();
+
             DB::table('prefactura')
                 ->where('id', $prefacturaId)
                 ->update(['estado' => 'inactive', 'updated_at' => now()]);
@@ -3087,6 +3667,75 @@ class ModalFlujoPedido extends Component
                 ->where('tramite_id', $prefacturaId)
                 ->update(['estado_id' => 7, 'updated_at' => now()]);
 
+            if ($seccionExpo) {
+                $cotizacionId = (int) $seccionExpo->cotizacion_id;
+
+                DB::table('expo_oferta_seccion')
+                    ->where('id', $seccionExpo->id)
+                    ->update([
+                        'estado' => 'DEVUELTA_SECCION',
+                        'prefactura_id' => null,
+                        'updated_by' => Auth::id(),
+                        'updated_at' => now(),
+                    ]);
+
+                DB::table('historico_flujo')
+                    ->where('flujo_id', $this->flujoId)
+                    ->whereIn('tipo_tramite_id', [9, 10])
+                    ->where('tramite_id', $cotizacionId)
+                    ->where('estado_id', '!=', 7)
+                    ->update([
+                        'estado_id' => 7,
+                        'observaciones' => 'Ciclo cerrado por anulación de prefactura Expo #' . $prefacturaId . '.',
+                        'updated_by' => Auth::id(),
+                        'updated_at' => now(),
+                    ]);
+
+                $revisionCredito = CreditoRevision::paraSeccion((int) $this->flujoId, $cotizacionId);
+                if ($revisionCredito) {
+                    $estadoCreditoAnterior = $revisionCredito->estado;
+                    $revisionCredito->update([
+                        'estado' => CreditoRevision::CANCELADO,
+                        'observaciones' => 'Revisión cancelada por anulación de prefactura Expo #' . $prefacturaId . '.',
+                        'usuario_revision' => Auth::id(),
+                        'ip_revision' => request()->ip(),
+                    ]);
+                    $revisionCredito->registrarHistorial(
+                        'prefactura_anulada',
+                        $estadoCreditoAnterior,
+                        CreditoRevision::CANCELADO,
+                        'La sección debe iniciar nuevamente desde Revisión de Crédito.',
+                        request()->ip()
+                    );
+                }
+
+                $seccionesPendientes = DB::table('historico_flujo')
+                    ->where('flujo_id', $this->flujoId)
+                    ->where('tipo_tramite_id', 11)
+                    ->where('tramite_id', $seccionExpo->cotizacion_origen_id)
+                    ->where('estado_id', 5)
+                    ->exists();
+
+                if (!$seccionesPendientes) {
+                    DB::table('historico_flujo')->insert([
+                        'flujo_id' => $this->flujoId,
+                        'tipo_tramite_id' => 11,
+                        'tramite_id' => $seccionExpo->cotizacion_origen_id,
+                        'estado_id' => 5,
+                        'observaciones' => 'Sección #' . $seccionExpo->numero . ' devuelta para edición por anulación de prefactura Expo.',
+                        'created_by' => Auth::id(),
+                        'updated_by' => Auth::id(),
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+
+                DB::table('flujo')->where('id', $this->flujoId)->update([
+                    'tipo_tramite_id' => 11,
+                    'updated_by' => Auth::id(),
+                    'updated_at' => now(),
+                ]);
+            } else {
             if ($cotizacionId) {
                 DB::table('historico_flujo')
                     ->where('flujo_id', $this->flujoId)
@@ -3118,6 +3767,7 @@ class ModalFlujoPedido extends Component
                 ->where('flujo_id', $this->flujoId)
                 ->where('tipo_tramite_id', 9)
                 ->delete();
+            }
 
             PrefacturaAuditoria::registrar(
                 'anulacion_prefactura',
@@ -3134,7 +3784,9 @@ class ModalFlujoPedido extends Component
             $this->confirmAccionPrefactura = null;
             $this->mostrarAutorizacionPrefactura = false;
             $this->accionAutorizacionPrefactura = null;
-            $this->mensajeExito = 'Prefactura #' . $prefacturaId . ' anulada. El flujo volvió a Ofertas.';
+            $this->mensajeExito = $seccionExpo
+                ? 'Prefactura #' . $prefacturaId . ' anulada. La sección Expo quedó disponible para edición y las revisiones posteriores fueron canceladas.'
+                : 'Prefactura #' . $prefacturaId . ' anulada. El flujo volvió a Ofertas.';
             $this->emit('pedidoActualizado');
             $this->recargar();
 

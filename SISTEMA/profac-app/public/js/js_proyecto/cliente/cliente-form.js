@@ -579,6 +579,74 @@ function renderHistoricoCredito(rows) {
     cont.innerHTML = html;
 }
 
+function abrirMovimientosCreditoCliente() {
+    if (!clienteIdActual) {
+        mostrarAlerta('info', 'Cliente requerido', 'Guarde el cliente antes de consultar sus movimientos de crédito.');
+        return;
+    }
+
+    $('#credito_movimientos_loading').show().html('<i class="fa fa-spinner fa-spin mr-1"></i> Cargando movimientos...');
+    $('#credito_movimientos_contenido').hide();
+    $('#modalMovimientosCreditoCliente').modal('show');
+
+    axios.get('/clientes/credito/movimientos/' + clienteIdActual)
+        .then(function (response) {
+            renderMovimientosCreditoCliente(response.data || {});
+            $('#credito_movimientos_loading').hide();
+            $('#credito_movimientos_contenido').show();
+        })
+        .catch(function () {
+            $('#credito_movimientos_loading').html('<span class="text-danger"><i class="fa fa-exclamation-triangle mr-1"></i>No se pudieron cargar los movimientos.</span>');
+        });
+}
+
+function renderMovimientosCreditoCliente(detalle) {
+    var moneda = function (valor) {
+        return Number(valor || 0).toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    };
+
+    $('#credito_movimientos_resumen').html(
+        '<div class="col-md-3"><strong>Crédito aprobado:</strong><br>L ' + moneda(detalle.credito_aprobado) + '</div>' +
+        '<div class="col-md-3"><strong>Monto en facturaciones:</strong><br>L ' + moneda(detalle.monto_facturaciones) + '</div>' +
+        '<div class="col-md-3"><strong>Pendientes de facturar:</strong><br>L ' + moneda(detalle.pendiente_facturar) + '</div>' +
+        '<div class="col-md-3"><strong>Disponible para Crédito:</strong><br>L ' + moneda(detalle.saldo_pendiente) + '</div>'
+    );
+
+    var cuentas = (detalle.cuentas || []).map(function (cuenta) {
+        return '<tr>' +
+            '<td>#' + escapeHtml(cuenta.numero_factura || cuenta.factura_id || '—') + '</td>' +
+            '<td>' + escapeHtml(cuenta.fecha_emision ? formatFecha(cuenta.fecha_emision) : '—') + '</td>' +
+            '<td class="text-right">L ' + moneda(cuenta.total_factura_cargo) + '</td>' +
+            '<td class="text-right font-weight-bold">L ' + moneda(cuenta.saldo) + '</td>' +
+            '</tr>';
+    }).join('');
+    $('#credito_movimientos_cuentas').html(cuentas || '<tr><td colspan="4" class="text-center text-muted">No hay cuentas pendientes.</td></tr>');
+
+    var pendientes = (detalle.pendientes_facturar || []).map(function (pendiente) {
+        return '<tr>' +
+            '<td>' + escapeHtml(pendiente.fecha_aprobacion ? formatFecha(pendiente.fecha_aprobacion) : '—') + '</td>' +
+            '<td>Oferta #' + escapeHtml(pendiente.cotizacion_id || '—') + ' / Flujo #' + escapeHtml(pendiente.flujo_id || '—') + '</td>' +
+            '<td>' + escapeHtml(pendiente.usuario || '—') + '</td>' +
+            '<td class="text-right font-weight-bold">L ' + moneda(pendiente.monto) + '</td>' +
+            '</tr>';
+    }).join('');
+    $('#credito_movimientos_pendientes').html(pendientes || '<tr><td colspan="4" class="text-center text-muted">No hay ofertas aprobadas pendientes de facturar.</td></tr>');
+
+    var aprobaciones = (detalle.aprobaciones || []).map(function (movimiento) {
+        var saldoResultante = Number(movimiento.saldo_resultante || 0);
+        return '<tr>' +
+            '<td>' + escapeHtml(formatFecha(movimiento.created_at)) + '</td>' +
+            '<td>Oferta #' + escapeHtml(movimiento.cotizacion_id || '—') + ' / Flujo #' + escapeHtml(movimiento.flujo_id || '—') + '</td>' +
+            '<td>' + escapeHtml(movimiento.usuario || '—') + '</td>' +
+            '<td>' + escapeHtml(movimiento.descripcion || '—') + '</td>' +
+            '<td class="text-right">L ' + moneda(movimiento.monto) + '</td>' +
+            '<td class="text-right">L ' + moneda(movimiento.saldo_anterior) + '</td>' +
+            '<td class="text-right font-weight-bold ' + (saldoResultante < 0 ? 'text-danger' : '') + '">L ' + moneda(saldoResultante) + '</td>' +
+            '</tr>';
+    }).join('');
+    $('#credito_movimientos_aprobaciones').html(aprobaciones || '<tr><td colspan="7" class="text-center text-muted">No hay movimientos auditados con este detalle.</td></tr>');
+}
+
 /* ============================================================
    OBSERVACIONES
    ============================================================ */

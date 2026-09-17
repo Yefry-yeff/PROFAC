@@ -13,11 +13,7 @@ use Validator;
 
 
 
-use App\Models\Modelproveedores;
-use App\Models\ModelProducto;
 use App\Models\ModelTipoPago;
-use App\Models\ModelCompra;
-use App\Models\ModelCompraProducto;
 
 
 
@@ -36,8 +32,19 @@ class CompraProducto extends Component
     public function listarProveedores(Request $request){
 
         try {
-
-            $proveedores = DB::SELECT("select id, concat(id,' - ',nombre) as text  from proveedores where estado_id = 1 and (id LIKE '%".$request->search."%' or nombre Like '%".$request->search."%') limit 15");
+            session()->save();
+            $busqueda = trim((string) $request->get('search', ''));
+            $proveedores = DB::table('proveedores')
+                ->where('estado_id', 1)
+                ->when($busqueda !== '', function ($query) use ($busqueda) {
+                    $query->where(function ($subquery) use ($busqueda) {
+                        $subquery->where('id', 'LIKE', "%{$busqueda}%")
+                            ->orWhere('nombre', 'LIKE', "%{$busqueda}%");
+                    });
+                })
+                ->orderBy('nombre')
+                ->limit(15)
+                ->get(['id', DB::raw("CONCAT(id, ' - ', nombre) as text")]);
 
             return response()->json([
                 "results" => $proveedores,
@@ -73,8 +80,19 @@ class CompraProducto extends Component
     public function listarProductos(Request $request){
 
         try {
-
-            $productos = DB::SELECT("select id, concat(id, ' - ', nombre, ' - ',codigo_barra) as 'text' from producto proveedores where id LIKE '%".$request->search."%' or nombre Like '%".$request->search."%' or codigo_barra Like '%".$request->search."%' limit 15");
+            $busqueda = trim((string) $request->get('search', ''));
+            $productos = DB::table('producto')
+                ->where('estado_producto_id', 1)
+                ->when($busqueda !== '', function ($query) use ($busqueda) {
+                    $query->where(function ($subquery) use ($busqueda) {
+                        $subquery->where('id', 'LIKE', "%{$busqueda}%")
+                            ->orWhere('nombre', 'LIKE', "%{$busqueda}%")
+                            ->orWhere('codigo_barra', 'LIKE', "%{$busqueda}%");
+                    });
+                })
+                ->orderBy('nombre')
+                ->limit(15)
+                ->get(['id', DB::raw("CONCAT(id, ' - ', nombre, ' - ', COALESCE(codigo_barra, '')) as text")]);
 
             return response()->json([
                 "results" => $productos,
@@ -121,27 +139,33 @@ class CompraProducto extends Component
 
 
     public function obtenerDatosProducto(Request $request){
+        $request->validate([
+            'id' => 'required|integer|min:1',
+        ]);
 
         try {
+            $producto = DB::table('producto as p')
+                ->join('unidad_medida as um', 'p.unidad_medida_compra_id', '=', 'um.id')
+                ->where('p.id', $request->integer('id'))
+                ->where('p.estado_producto_id', 1)
+                ->select([
+                    'p.id',
+                    DB::raw("CONCAT(p.id, ' - ', p.nombre) as nombre"),
+                    'p.isv',
+                    DB::raw("CONCAT(um.nombre, ' - ', p.unidadad_compra) as unidad"),
+                    'p.unidadad_compra',
+                    'p.unidad_medida_compra_id',
+                ])
+                ->first();
 
-
-            $producto = DB::SELECT("
-            select
-            A.id,
-            concat(A.id,' - ',A.nombre) as nombre,
-            A.isv,
-            concat(B.nombre,' - ',A.unidadad_compra) as unidad,
-            A.unidadad_compra,
-            A.unidad_medida_compra_id
-            from producto A
-            inner join unidad_medida B
-            on A.unidad_medida_compra_id= B.id
-            where A.id = ".$request['id']."
-            ");
-
+            if (!$producto) {
+                return response()->json([
+                    'message' => 'El producto no existe o está inactivo.',
+                ], 404);
+            }
 
             return response()->json([
-                "producto" => $producto[0],
+                'producto' => $producto,
             ], 200);
 
         } catch (QueryException $e) {
@@ -194,35 +218,29 @@ class CompraProducto extends Component
 
 
     public function guardarCompra(Request $request){
-
-        //dd($request->all());
-       $validator = Validator::make($request->all(), [
-            'numero_emision' => 'required',
-            'numero_factura' => 'required',
-            'tipoPagoCompra' => 'required',
-            'fecha_vencimiento' => 'required',
-            'fecha_emision' => 'required',
-            'fecha_entrega' => 'required',
-            'subTotalGeneral' => 'required',
-            'isvGeneral' => 'required',
-            'totalGeneral' => 'required',           
-            'numeroInputs' => 'required',
-            'seleccionarProveedorId' => 'required',
-
-
-
+        $validator = Validator::make($request->all(), [
+            'numero_factura' => 'required|string|max:255',
+            'cai' => 'nullable|string|max:255',
+            'tipoPagoCompra' => 'required|integer',
+            'fecha_vencimiento' => 'required|date',
+            'fecha_emision' => 'required|date',
+            'fecha_entrega' => 'required|date',
+            'seleccionarProveedorId' => 'required|integer|exists:proveedores,id',
+            'productos' => 'required|array|min:1|max:2000',
+            'productos.*.producto_id' => 'required|integer|distinct',
+            'productos.*.precio' => 'required|numeric|min:0',
+            'productos.*.cantidad' => 'required|integer|min:1',
+            'productos.*.fecha_expiracion' => 'nullable|date',
         ],[
-            'numero_emision' => 'Número emision es requerido',
-            'numero_factura' => 'Número Factura es requerido',
-            'tipoPagoCompra' => 'Tipo de Pago es requerido',
-            'fecha_vencimiento' => 'Fecha de Vencimiento es requerido',
-            'fecha_emision' => 'Fecha de emisión es requerido ',
-            'fecha_entrega' => 'Fecha de entrega es requerido',
-            'subTotalGeneral' => 'Sub total es requerido',
-            'isvGeneral' => 'ISV es requerido',
-            'totalGeneral' => 'Total General es requerido',          
-            'numeroInputs' => 'numeroInputs es requerido',
-            'seleccionarProveedorId' => 'Proveedor es requerido',
+            'numero_factura.required' => 'Número Factura es requerido',
+            'tipoPagoCompra.required' => 'Tipo de Pago es requerido',
+            'fecha_vencimiento.required' => 'Fecha de Vencimiento es requerido',
+            'fecha_emision.required' => 'Fecha de emisión es requerido',
+            'fecha_entrega.required' => 'Fecha de entrega es requerido',
+            'seleccionarProveedorId.required' => 'Proveedor es requerido',
+            'productos.required' => 'Debe agregar al menos un producto a la compra.',
+            'productos.min' => 'Debe agregar al menos un producto a la compra.',
+            'productos.*.producto_id.distinct' => 'No se permiten productos duplicados.',
         ]);
 
         if ($validator->fails()) {
@@ -232,126 +250,146 @@ class CompraProducto extends Component
             ], 406);
         }
 
-        $valorPrimeraCompra =0;
-        $costoPromedio=0;
-        $valorCostoActual=0;
-
         try {
+            $resultado = DB::transaction(function () use ($request) {
+                $items = collect($request->input('productos'));
+                $ids = $items->pluck('producto_id')->map(fn ($id) => (int) $id)->all();
+                $productos = DB::table('producto')
+                    ->whereIn('id', $ids)
+                    ->where('estado_producto_id', 1)
+                    ->get(['id', 'isv', 'unidadad_compra', 'unidad_medida_compra_id'])
+                    ->keyBy('id');
 
-            DB::beginTransaction();
-            $ordenNumero = DB::selectOne("select count(id) as 'numero' from compra");
-
-            $guardarCompra = new ModelCompra;
-            $guardarCompra->numero_factura = trim($request->numero_factura);
-            $guardarCompra->codigo_cai = trim(strtoupper($request->cai));
-            $guardarCompra->fecha_vencimiento = $request['fecha_vencimiento'];
-            $guardarCompra->fecha_emision = $request->fecha_emision;
-            $guardarCompra->fecha_recepcion = $request->fecha_entrega;
-            $guardarCompra->isv_compra = $request->isvGeneral;
-            $guardarCompra->sub_total =$request->subTotalGeneral ;
-            $guardarCompra->total =$request->totalGeneral;
-            $guardarCompra->debito =$request->totalGeneral;
-            $guardarCompra->proveedores_id =$request->seleccionarProveedorId ;
-            $guardarCompra->users_id = Auth::user()->id ;
-            $guardarCompra->tipo_compra_id = $request->tipoPagoCompra;
-            $guardarCompra->numero_orden =date("Y")."-".$ordenNumero->numero+1;
-            $guardarCompra->monto_retencion = 0;
-            $guardarCompra->estado_compra_id =1;
-            $guardarCompra->retenciones_id = 2;
-
-            $guardarCompra->save();
-
-            $idCompra = $guardarCompra->id;
-
-            //dd( $guardarCompra);
-
-
-
-            $arrayTemporal = $request->arregloIdInputs;            
-            $arrayInputs = explode(',', $arrayTemporal);
-
-
-            for ($i=0; $i < count($arrayInputs) ; $i++) {
-
-
-
-                $idProducto = 'idProducto'.$arrayInputs[$i];
-                $precio='precio'.$arrayInputs[$i];
-                $cantidad='cantidad'.$arrayInputs[$i];
-                $vencimiento='vencimiento'.$arrayInputs[$i];
-                $subTotal='subTotal'.$arrayInputs[$i];
-                $isvProducto='isvProducto'.$arrayInputs[$i];
-                $total='total'.$arrayInputs[$i];
-                $unidadesCompra='unidadesCompra'.$arrayInputs[$i];
-                $medidaCompraId = 'medidaCompraId'.$arrayInputs[$i];
-
-
-
-                $producto = ModelProducto::find($request->$idProducto);
-
-                $primerCompraAnio = DB::SELECTONE("
-                select
-                B.precio_unidad,
-                B.isv
-                from compra A
-                inner join compra_has_producto B
-                on A.id = B.compra_id
-                where YEAR(A.fecha_emision)=YEAR(NOW()) and B.producto_id = ".$request->$idProducto."
-                order by A.fecha_emision ASC limit 1");
-
-                if(!empty($primerCompraAnio)){//verdadero si tiene un valor
-                    $valorPrimeraCompra =$primerCompraAnio->precio_unidad + $primerCompraAnio->precio_unidad*($producto->isv/100);
-                    $valorCostoActual = $request->$precio + ($request->$precio*($producto->isv/100));
-
-                    $costoPromedio = round((($valorPrimeraCompra+$valorCostoActual)/2),2);
-
-                }else{
-                    $valorCostoActual = $request->$precio + $request->$precio*($producto->isv/100);
-
-                    $costoPromedio = $request->$precio + $request->$precio*($producto->isv/100);
+                if ($productos->count() !== count($ids)) {
+                    abort(422, 'Uno o más productos no existen o están inactivos.');
                 }
 
+                $primerasCompras = DB::table('compra_has_producto as cp')
+                    ->join('compra as c', 'c.id', '=', 'cp.compra_id')
+                    ->whereIn('cp.producto_id', $ids)
+                    ->whereYear('c.fecha_emision', now()->year)
+                    ->orderBy('c.fecha_emision')
+                    ->orderBy('c.id')
+                    ->get(['cp.producto_id', 'cp.precio_unidad'])
+                    ->unique('producto_id')
+                    ->keyBy('producto_id');
 
+                $lineas = [];
+                $costos = [];
+                $subtotalGeneral = 0;
+                $isvGeneral = 0;
+                $totalGeneral = 0;
 
-                $producto = ModelProducto::find($request->$idProducto);
-                $producto->ultimo_costo_compra =  $valorCostoActual;
-                $producto->costo_promedio = $costoPromedio;
-               // $producto->precio_base = $valorCostoActual;
-                $producto->save();
+                foreach ($items as $item) {
+                    $productoId = (int) $item['producto_id'];
+                    $producto = $productos[$productoId];
+                    $precio = round((float) $item['precio'], 2);
+                    $cantidad = (int) $item['cantidad'];
+                    $unidadesCompra = (int) $producto->unidadad_compra;
+                    $subtotal = round($precio * $cantidad * $unidadesCompra, 2);
+                    $isv = round($subtotal * ((float) $producto->isv / 100), 2);
+                    $total = round($subtotal + $isv, 2);
+                    $costoActual = round($precio + ($precio * ((float) $producto->isv / 100)), 2);
+                    $primeraCompra = $primerasCompras->get($productoId);
+                    $costoPromedio = $costoActual;
 
+                    if ($primeraCompra) {
+                        $primerCosto = (float) $primeraCompra->precio_unidad;
+                        $primerCosto += $primerCosto * ((float) $producto->isv / 100);
+                        $costoPromedio = round(($primerCosto + $costoActual) / 2, 2);
+                    }
 
+                    $lineas[] = [
+                        'producto_id' => $productoId,
+                        'precio_unidad' => $precio,
+                        'cantidad_ingresada' => $cantidad,
+                        'cantidad_sin_asignar' => $cantidad,
+                        'fecha_expiracion' => ($item['fecha_expiracion'] ?? null) ?: null,
+                        'sub_total_producto' => $subtotal,
+                        'isv' => $isv,
+                        'precio_total' => $total,
+                        'cantidad_disponible' => 0,
+                        'unidades_compra' => $unidadesCompra,
+                        'unidad_compra_id' => (int) $producto->unidad_medida_compra_id,
+                    ];
+                    $costos[$productoId] = [$costoActual, $costoPromedio];
+                    $subtotalGeneral += $subtotal;
+                    $isvGeneral += $isv;
+                    $totalGeneral += $total;
+                }
 
-                $productoCompra = new ModelCompraProducto;
-                $productoCompra->compra_id = $idCompra;
-                $productoCompra->producto_id = $request->$idProducto;
-                $productoCompra->precio_unidad = $request->$precio;
-                $productoCompra->cantidad_ingresada = $request->$cantidad;
-                $productoCompra->cantidad_sin_asignar = $request->$cantidad;
-                $productoCompra->fecha_expiracion = $request->$vencimiento;
-                $productoCompra->sub_total_producto=$request->$subTotal;
-                $productoCompra->isv = $request->$isvProducto;
-                $productoCompra->precio_total = $request->$total;
-                $productoCompra->cantidad_disponible = 0;
-                $productoCompra->unidades_compra = $request->$unidadesCompra;
-                $productoCompra->unidad_compra_id= $request->$medidaCompraId;
+                $siguienteOrden = ((int) DB::table('compra')->count()) + 1;
+                $ahora = now();
+                $idCompra = DB::table('compra')->insertGetId([
+                    'numero_factura' => trim($request->numero_factura),
+                    'codigo_cai' => trim(strtoupper((string) $request->cai)),
+                    'fecha_vencimiento' => $request->fecha_vencimiento,
+                    'fecha_emision' => $request->fecha_emision,
+                    'fecha_recepcion' => $request->fecha_entrega,
+                    'isv_compra' => round($isvGeneral, 2),
+                    'sub_total' => round($subtotalGeneral, 2),
+                    'total' => round($totalGeneral, 2),
+                    'debito' => round($totalGeneral, 2),
+                    'proveedores_id' => (int) $request->seleccionarProveedorId,
+                    'users_id' => Auth::id(),
+                    'tipo_compra_id' => (int) $request->tipoPagoCompra,
+                    'numero_orden' => date('Y') . '-' . $siguienteOrden,
+                    'monto_retencion' => 0,
+                    'estado_compra_id' => 1,
+                    'retenciones_id' => 2,
+                    'created_at' => $ahora,
+                    'updated_at' => $ahora,
+                ]);
 
-                $productoCompra->save();
+                foreach ($lineas as &$linea) {
+                    $linea['compra_id'] = $idCompra;
+                    $linea['created_at'] = $ahora;
+                    $linea['updated_at'] = $ahora;
+                }
+                unset($linea);
 
+                foreach (array_chunk($lineas, 500) as $bloque) {
+                    DB::table('compra_has_producto')->insert($bloque);
+                }
 
-            }
+                foreach (array_chunk($costos, 250, true) as $bloqueCostos) {
+                    $ultimoCostoCase = 'CASE id ';
+                    $costoPromedioCase = 'CASE id ';
+                    foreach ($bloqueCostos as $productoId => [$ultimoCosto, $costoPromedio]) {
+                        $ultimoCostoCase .= "WHEN {$productoId} THEN {$ultimoCosto} ";
+                        $costoPromedioCase .= "WHEN {$productoId} THEN {$costoPromedio} ";
+                    }
+                    $ultimoCostoCase .= 'END';
+                    $costoPromedioCase .= 'END';
 
-            DB::commit();
+                    DB::table('producto')
+                        ->whereIn('id', array_keys($bloqueCostos))
+                        ->update([
+                            'ultimo_costo_compra' => DB::raw($ultimoCostoCase),
+                            'costo_promedio' => DB::raw($costoPromedioCase),
+                            'updated_at' => $ahora,
+                        ]);
+                }
+
+                return [
+                    'id' => $idCompra,
+                    'subtotal' => round($subtotalGeneral, 2),
+                    'isv' => round($isvGeneral, 2),
+                    'total' => round($totalGeneral, 2),
+                ];
+            }, 3);
 
             return response()->json([
-                'message' => 'Creado con exito.',
-
+                'message' => 'Compra creada con éxito.',
+                'compra' => $resultado,
             ], 200);
 
-        } catch (QueryException $e) {
+        } catch (\Throwable $e) {
+            report($e);
+            $status = method_exists($e, 'getStatusCode') ? $e->getStatusCode() : 500;
             return response()->json([
                 'message' => 'Ha ocurrido un error al realizar la compra.',
-                'error' => $e,
-            ], 402);
+            ], $status);
         }
 
     }

@@ -34,6 +34,46 @@
         </div>
         @endif
 
+        @if($modalTemporalVisible && $flujoId)
+        <div role="dialog" aria-modal="true" aria-labelledby="tituloTemporalRevision"
+             style="position:fixed; inset:0; z-index:2200; display:flex; align-items:center; justify-content:center;
+                    padding:20px; background:rgba(15,23,42,.58);">
+            <div style="width:100%; max-width:540px; overflow:hidden; border-radius:10px; background:#fff;
+                        box-shadow:0 24px 64px rgba(15,23,42,.3);">
+                <div style="display:flex; align-items:center; gap:12px; padding:16px 20px; background:#1a7efb; color:#fff;">
+                    <i class="fa fa-clock-o" style="font-size:22px;"></i>
+                    <div>
+                        <h5 id="tituloTemporalRevision" style="margin:0; color:#fff; font-size:16px; font-weight:800;">
+                            Revisión temporal encontrada
+                        </h5>
+                        <small style="color:rgba(255,255,255,.82);">Flujo #{{ $flujoId }} · Oferta #{{ $cotizacionId }}</small>
+                    </div>
+                </div>
+                <div style="padding:20px; color:#334155;">
+                    <p style="margin:0 0 14px; font-size:13px; line-height:1.55;">
+                        Tiene una revisión de inventario sin finalizar. Puede recuperar los productos revisados,
+                        las notas registradas o iniciar nuevamente.
+                    </p>
+                    <div style="padding:10px 12px; border:1px solid #dbeafe; border-radius:8px; background:#eff6ff;
+                                color:#475569; font-size:12px;">
+                        <div><strong>Último guardado:</strong> {{ $temporalActualizadoAt ? \Carbon\Carbon::parse($temporalActualizadoAt)->format('d/m/Y H:i') : '—' }}</div>
+                        <div><strong>Disponible hasta:</strong> {{ $temporalExpiraAt ? \Carbon\Carbon::parse($temporalExpiraAt)->format('d/m/Y H:i') : '—' }}</div>
+                    </div>
+                </div>
+                <div style="display:flex; justify-content:flex-end; gap:8px; padding:14px 20px; border-top:1px solid #e2e8f0; background:#f8fafc;">
+                    <button type="button" wire:click="empezarRevisionDesdeCero" wire:loading.attr="disabled"
+                            class="btn btn-default" style="border-radius:8px; font-weight:700;">
+                        <i class="fa fa-refresh mr-1"></i> Empezar desde cero
+                    </button>
+                    <button type="button" wire:click="continuarTemporalRevision" wire:loading.attr="disabled"
+                            class="btn btn-primary" style="border-radius:8px; font-weight:700;">
+                        <i class="fa fa-play mr-1"></i> Continuar revisión
+                    </button>
+                </div>
+            </div>
+        </div>
+        @endif
+
         {{-- ══════════════════════════════════════════════════════════════ --}}
         {{-- VISTA DETALLE (cuando hay un flujo seleccionado)              --}}
         {{-- ══════════════════════════════════════════════════════════════ --}}
@@ -48,13 +88,31 @@
                         <div>
                             <h5 style="color:#fff; margin:0; font-weight:700; font-size:15px;">
                                 <i class="mr-2 fa fa-search"></i>
-                                Revisando Flujo #{{ $flujoId }}
+                                Revisando Flujo #{{ $flujoId }} · Oferta #{{ $cotizacionId }}
+                                @if($esOfertaExpo)
+                                <span style="display:inline-block; background:#e0f2f1; color:#00695c;
+                                             border:1px solid #80cbc4; border-radius:4px; padding:2px 6px;
+                                             font-size:10px; font-weight:800; margin-left:5px; vertical-align:middle;">
+                                    EXPO
+                                </span>
+                                @endif
+                                @if($estadoSeccion)
+                                    <span style="background:rgba(255,255,255,.2); border-radius:20px; padding:2px 10px; font-size:11px; margin-left:7px;">
+                                        {{ str_replace('_', ' ', $estadoSeccion) }}
+                                    </span>
+                                @endif
                             </h5>
                             @if($flujoData)
                             <small style="color:rgba(255,255,255,.88); font-size:11px; display:block; margin-top:3px;">
                                 Cliente: <strong>{{ $flujoData['cliente'] ?? '—' }}</strong>
                                 <span style="opacity:.65;">|</span>
                                 Vendedor: <strong>{{ $flujoData['vendedor_nombre'] ?? '—' }}</strong>
+                            </small>
+                            @endif
+                            @if($temporalRevisionId && !$modalTemporalVisible && $temporalExpiraAt)
+                            <small style="color:rgba(255,255,255,.82); font-size:11px; display:block; margin-top:3px;">
+                                <i class="fa fa-clock-o mr-1"></i>
+                                Progreso temporal guardado · vence {{ \Carbon\Carbon::parse($temporalExpiraAt)->format('d/m/Y H:i') }}
                             </small>
                             @endif
                             @if($flujoData && $flujoData['pedido_id'])
@@ -109,9 +167,9 @@
                                     @foreach ($stockErrors as $se)
                                     <tr style="border-bottom:1px solid #fce4cc;">
                                         <td style="padding:5px 10px; color:#2c3e50;">{{ $se['producto'] }}</td>
-                                        <td style="padding:5px 10px; text-align:center; font-weight:700; color:#e65100;">{{ $se['solicitado'] }}</td>
-                                        <td style="padding:5px 10px; text-align:center; font-weight:700; color:#b71c1c;">{{ $se['disponible'] }}</td>
-                                        <td style="padding:5px 10px; text-align:center; font-weight:700; color:#1565c0;">{{ $se['disponible_global'] ?? '—' }}</td>
+                                        <td style="padding:5px 10px; text-align:center; font-weight:700; color:#e65100;">{{ rtrim(rtrim(number_format((float) $se['solicitado'], 4, '.', ','), '0'), '.') }} {{ $se['unidad'] ?? '' }}</td>
+                                        <td style="padding:5px 10px; text-align:center; font-weight:700; color:#b71c1c;">{{ rtrim(rtrim(number_format((float) $se['disponible'], 4, '.', ','), '0'), '.') }} {{ $se['unidad'] ?? '' }}</td>
+                                        <td style="padding:5px 10px; text-align:center; font-weight:700; color:#1565c0;">{{ isset($se['disponible_global']) ? rtrim(rtrim(number_format((float) $se['disponible_global'], 4, '.', ','), '0'), '.') . ' ' . ($se['unidad'] ?? '') : '—' }}</td>
                                     </tr>
                                     @endforeach
                                 </tbody>
@@ -206,12 +264,12 @@
                             </div>
                             @else
                             <div style="overflow-x:auto;">
-                                <table class="table table-hover table-sm mb-0" style="font-size:13px; margin:0;">
+                                <table class="table table-hover table-sm mb-0" style="font-size:13px; margin:0; min-width:1500px;">
                                     <thead style="background:#f8f9fc;">
                                         <tr>
                                             <th style="padding:10px 14px; color:#555; font-weight:700;">#</th>
                                             <th style="padding:10px 14px; color:#555; font-weight:700;">Producto</th>
-                                            <th style="padding:10px 14px; color:#555; font-weight:700;">Bodega</th>
+                                            <th style="padding:10px 14px; color:#555; font-weight:700; width:420px; min-width:420px;">Bodega</th>
                                             <th style="padding:10px 10px; color:#555; font-weight:700; white-space:nowrap;">Unidad</th>
                                             <th style="padding:10px 14px; text-align:center; color:#555; font-weight:700;">Cantidad</th>
                                             <th style="padding:10px 14px; text-align:center; color:#e65100; font-weight:700;">Reserva</th>
@@ -232,15 +290,50 @@
                                         </tr>
                                         @else
                                             @foreach ($this->productosFiltrados as $prod)
+                                            @php
+                                                $sinBodegaSuficiente = $esOfertaExpo
+                                                    && !$this->productoTieneBodegaSeleccionadaSuficiente($prod);
+                                                $alertaInventario = $prod['falta_stock'] || $sinBodegaSuficiente;
+                                                $destinoSeleccionado = collect($prod['destinos_bodega'] ?? [])->firstWhere(
+                                                    'value',
+                                                    (string) ($bodegaExpoSeleccionada[$prod['idx']] ?? '')
+                                                );
+                                                $textoBodegaSeleccionada = $destinoSeleccionado['text'] ?? ($prod['nombre_bodega'] ?? '—');
+                                            @endphp
                                             <tr style="border-bottom:1px solid #f0f0f0;
-                                                       {{ $prod['falta_stock'] ? 'background:#fff8f5;' : '' }}
-                                                       {{ !empty($productosRevisados[$prod['idx']]) ? 'box-shadow: inset 4px 0 0 #2e7d32;' : '' }}">
+                                                       {{ $alertaInventario ? 'background:#ffebee;' : '' }}
+                                                       {{ $alertaInventario ? 'box-shadow:inset 4px 0 0 #c62828;' : (!empty($productosRevisados[$prod['idx']]) ? 'box-shadow:inset 4px 0 0 #2e7d32;' : '') }}">
                                                 <td style="padding:8px 14px; color:#888;">{{ $loop->iteration }}</td>
                                                 <td style="padding:8px 14px; color:#2c3e50; font-weight:600;">
                                                     {{ $prod['nombre_producto'] }}
                                                 </td>
-                                                <td style="padding:8px 14px; color:#607d8b; font-size:12px;">
-                                                    {{ $prod['nombre_bodega'] ?? '—' }}
+                                                <td style="padding:8px 14px; color:#607d8b; font-size:12px; width:420px; min-width:420px;">
+                                                    @if(!$devuelto && !$soloVisualizacion)
+                                                    <div class="input-group input-group-sm" style="width:100%;">
+                                                                <select wire:model="bodegaExpoSeleccionada.{{ $prod['idx'] }}"
+                                                                    wire:change="guardarBodega({{ $prod['idx'] }})"
+                                                                    wire:loading.attr="disabled"
+                                                                    wire:target="guardarBodega({{ $prod['idx'] }})"
+                                                                    class="form-control"
+                                                                    style="{{ $sinBodegaSuficiente ? 'border:2px solid #c62828; color:#b71c1c; background-color:#fff5f5;' : '' }}"
+                                                                    title="{{ $textoBodegaSeleccionada }}">
+                                                                @if(empty($bodegaExpoSeleccionada[$prod['idx']]))
+                                                                    <option value="">Seleccione una bodega con existencia suficiente</option>
+                                                                @endif
+                                                                @forelse($prod['destinos_bodega'] as $destino)
+                                                                    <option value="{{ $destino['value'] }}">{{ $destino['text'] }}</option>
+                                                                @empty
+                                                                    <option value="">Sin existencia en bodegas</option>
+                                                                @endforelse
+                                                            </select>
+                                                        </div>
+                                                        <small style="display:block; margin-top:4px; color:{{ $sinBodegaSuficiente ? '#b71c1c' : '#607d8b' }};
+                                                                      font-weight:600; white-space:normal; overflow-wrap:anywhere; line-height:1.3;">
+                                                            {{ $textoBodegaSeleccionada }}
+                                                        </small>
+                                                    @else
+                                                        {{ $prod['nombre_bodega'] ?? '—' }}
+                                                    @endif
                                                 </td>
                                                 <td style="padding:8px 10px; color:#607d8b; font-size:12px; white-space:nowrap;">
                                                     <span style="background:#f1f5f9; color:#334155; border-radius:999px; padding:1px 8px; font-weight:600; display:inline-block; font-size:11px; line-height:1.2;">
@@ -265,7 +358,7 @@
                                                                            border-radius:12px; padding:2px 12px; font-weight:700;
                                                                            font-size:13px; cursor:pointer;"
                                                                     title="Ver flujos con reserva">
-                                                                <i class="fa fa-lock mr-1" style="font-size:11px;"></i>{{ (int)$prod['reservado'] }}
+                                                                <i class="fa fa-lock mr-1" style="font-size:11px;"></i>{{ rtrim(rtrim(number_format((float) $prod['reservado'], 4, '.', ','), '0'), '.') }}
                                                             </button>
                                                         @else
                                                             <span style="background:#f1f5f9; color:#90a4ae; border-radius:12px; padding:2px 10px; font-size:13px;">0</span>
@@ -279,7 +372,7 @@
                                                     @if ($prod['rawStock'] !== null)
                                                         <span style="background:#f3e5f5; color:#6a1b9a;
                                                                      border-radius:12px; padding:2px 10px; font-weight:700; font-size:13px;">
-                                                            {{ (int)$prod['rawStock'] }}
+                                                            {{ rtrim(rtrim(number_format((float) $prod['rawStock'], 4, '.', ','), '0'), '.') }}
                                                         </span>
                                                     @else
                                                         <span style="color:#aaa; font-size:12px;">—</span>
@@ -291,7 +384,7 @@
                                                         <span style="background:{{ $prod['falta_stock'] ? '#fce4ec' : '#e8f5e9' }};
                                                                      color:{{ $prod['falta_stock'] ? '#b71c1c' : '#2e7d32' }};
                                                                      border-radius:12px; padding:2px 10px; font-weight:700; font-size:13px;">
-                                                            {{ (int)$prod['disponible'] }}
+                                                            {{ rtrim(rtrim(number_format((float) $prod['disponible'], 4, '.', ','), '0'), '.') }}
                                                         </span>
                                                     @else
                                                         <span style="color:#aaa; font-size:12px;">—</span>
@@ -308,7 +401,17 @@
                                                     </div>
                                                 </td>
                                                 <td style="padding:8px 14px; text-align:center;">
-                                                    @if ($prod['sin_existencia'] ?? false)
+                                                    @if($sinBodegaSuficiente)
+                                                        <span style="background:#ffebee; color:#c62828; border:1px solid #ef9a9a; border-radius:8px;
+                                                                     padding:3px 10px; font-size:11px; font-weight:700;">
+                                                            <i class="fa fa-exclamation-triangle mr-1"></i>Bodega insuficiente
+                                                        </span>
+                                                    @elseif (($prod['sin_existencia'] ?? false) && !$esOfertaExpo && $this->productoTieneBodegaSeleccionadaSuficiente($prod))
+                                                        <span style="background:#e8f5e9; color:#2e7d32; border-radius:8px;
+                                                                     padding:3px 10px; font-size:11px; font-weight:700;">
+                                                            <i class="fa fa-check mr-1"></i>Bodega lista
+                                                        </span>
+                                                    @elseif ($prod['sin_existencia'] ?? false)
                                                         <span style="background:#ffebee; color:#c62828; border-radius:8px;
                                                                      padding:3px 10px; font-size:11px; font-weight:700;">
                                                             <i class="fa fa-ban mr-1"></i>Sin existencia
@@ -394,7 +497,8 @@
                                 && count($productos) > 0
                                 && collect($obsProducto)->filter()->isEmpty()
                                 && $this->todosProductosRevisados()
-                                && ! $this->tieneProductosSinExistencia();
+                                && ! $this->tieneProductosSinExistencia()
+                                && ! $this->tieneProductosExpoSinBodegaFisica();
 
                             $puedeDevolverOferta = $this->todosProductosRevisados();
 
@@ -404,7 +508,9 @@
                                     ? 'Elimine las notas/reemplazos antes de pasar a Prefactura'
                                     : ($this->tieneProductosSinExistencia()
                                         ? 'Hay productos marcados como sin existencia'
-                                        : 'Hay productos sin stock suficiente'));
+                                        : ($this->tieneProductosExpoSinBodegaFisica()
+                                            ? 'Seleccione una bodega física para todos los productos Expo'
+                                            : 'Hay productos sin stock suficiente')));
                         @endphp
                         <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center;">
                             {{-- Pasar a Prefactura --}}
@@ -632,6 +738,9 @@
                                                          padding:3px 10px; font-weight:700; font-size:12px;">
                                                 #{{ $reg['flujo_id'] }}
                                             </span>
+                                            @if(!empty($reg['seccion_nombre']))
+                                                <small class="d-block mt-1" style="color:#1565c0;">{{ $reg['seccion_nombre'] }}</small>
+                                            @endif
                                         </td>
                                         <td style="padding:10px 16px; color:#2c3e50; font-weight:600;">
                                             {{ $reg['cliente'] }}
@@ -645,6 +754,11 @@
                                                          padding:3px 10px; font-weight:700; font-size:12px;">
                                                 <i class="fa fa-trophy mr-1"></i>#{{ $reg['cotizacion_id'] }}
                                             </span>
+                                            @if(!empty($reg['seccion_numero']))
+                                            <span style="display:inline-block; margin-left:5px; background:#e0f2f1; color:#00695c;
+                                                         border:1px solid #80cbc4; border-radius:4px; padding:2px 6px;
+                                                         font-size:10px; font-weight:800; vertical-align:middle;">EXPO</span>
+                                            @endif
                                             @else
                                             <span style="color:#aaa; font-size:11px;">—</span>
                                             @endif
@@ -660,7 +774,7 @@
                                         </td>
                                         <td style="padding:10px 16px; text-align:center;">
                                             <button type="button"
-                                                    wire:click="seleccionarFlujo({{ $reg['flujo_id'] }})"
+                                                    wire:click="seleccionarFlujo({{ $reg['flujo_id'] }}, false{{ ($reg['seccion_numero'] ?? null) ? ', ' . $reg['cotizacion_id'] : '' }})"
                                                     style="background:linear-gradient(135deg,#1a7efb,#0d6efd); color:#fff;
                                                            border:none; border-radius:8px; padding:5px 14px;
                                                            font-size:12px; font-weight:700; cursor:pointer;">
@@ -738,6 +852,9 @@
                                                          padding:2px 8px; font-size:10px; font-weight:700; margin-left:4px;">
                                                 <i class="fa fa-reply mr-1"></i>Devuelto
                                             </span>
+                                            @if(!empty($reg['seccion_nombre']))
+                                                <small class="d-block mt-1" style="color:#e65100;">{{ $reg['seccion_nombre'] }}</small>
+                                            @endif
                                         </td>
                                         <td style="padding:10px 16px; color:#2c3e50; font-weight:600;">
                                             {{ $reg['cliente'] }}
@@ -751,6 +868,11 @@
                                                          padding:3px 10px; font-weight:700; font-size:12px;">
                                                 <i class="fa fa-trophy mr-1"></i>#{{ $reg['cotizacion_id'] }}
                                             </span>
+                                            @if(!empty($reg['seccion_numero']))
+                                            <span style="display:inline-block; margin-left:5px; background:#e0f2f1; color:#00695c;
+                                                         border:1px solid #80cbc4; border-radius:4px; padding:2px 6px;
+                                                         font-size:10px; font-weight:800; vertical-align:middle;">EXPO</span>
+                                            @endif
                                             @else
                                             <span style="color:#aaa; font-size:11px;">—</span>
                                             @endif
@@ -776,7 +898,7 @@
                                         </td>
                                         <td style="padding:10px 16px; text-align:center;">
                                             <button type="button"
-                                                    wire:click="seleccionarFlujo({{ $reg['flujo_id'] }})"
+                                                    wire:click="seleccionarFlujo({{ $reg['flujo_id'] }}, false, {{ $reg['cotizacion_id'] }})"
                                                     style="background:linear-gradient(135deg,#e67e22,#d35400); color:#fff;
                                                            border:none; border-radius:8px; padding:5px 14px;
                                                            font-size:12px; font-weight:700; cursor:pointer;">
@@ -852,6 +974,9 @@
                                                          padding:2px 8px; font-size:10px; font-weight:700; margin-left:4px;">
                                                 <i class="fa fa-check mr-1"></i>Aprobado
                                             </span>
+                                            @if(!empty($reg['seccion_nombre']))
+                                                <small class="d-block mt-1" style="color:#2e7d32;">{{ $reg['seccion_nombre'] }}</small>
+                                            @endif
                                         </td>
                                         <td style="padding:10px 16px; color:#2c3e50; font-weight:600;">
                                             {{ $reg['cliente'] }}
@@ -865,6 +990,11 @@
                                                          padding:3px 10px; font-weight:700; font-size:12px;">
                                                 <i class="fa fa-trophy mr-1"></i>#{{ $reg['cotizacion_id'] }}
                                             </span>
+                                            @if(!empty($reg['seccion_numero']))
+                                            <span style="display:inline-block; margin-left:5px; background:#e0f2f1; color:#00695c;
+                                                         border:1px solid #80cbc4; border-radius:4px; padding:2px 6px;
+                                                         font-size:10px; font-weight:800; vertical-align:middle;">EXPO</span>
+                                            @endif
                                             @else
                                             <span style="color:#aaa; font-size:11px;">—</span>
                                             @endif
@@ -890,7 +1020,7 @@
                                         </td>
                                         <td style="padding:10px 16px; text-align:center;">
                                             <button type="button"
-                                                    wire:click="seleccionarFlujo({{ $reg['flujo_id'] }}, true)"
+                                                    wire:click="seleccionarFlujo({{ $reg['flujo_id'] }}, true, {{ $reg['cotizacion_id'] }})"
                                                     style="background:linear-gradient(135deg,#2e7d32,#1b5e20); color:#fff;
                                                            border:none; border-radius:8px; padding:5px 14px;
                                                            font-size:12px; font-weight:700; cursor:pointer;">

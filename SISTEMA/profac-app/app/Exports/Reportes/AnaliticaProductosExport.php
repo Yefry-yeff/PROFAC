@@ -9,6 +9,7 @@ use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class AnaliticaProductosExport implements FromArray, WithHeadings, WithStyles, ShouldAutoSize
@@ -38,6 +39,18 @@ class AnaliticaProductosExport implements FromArray, WithHeadings, WithStyles, S
     {
         $sheet->freezePane('A2');
         $sheet->setAutoFilter($sheet->calculateWorksheetDimension());
+        $ultimaFila = count($this->rows) + 1;
+
+        foreach ($this->headings as $indice => $encabezado) {
+            $columna = Coordinate::stringFromColumnIndex($indice + 1);
+            if (preg_match('/\(L\)|Cant\.|Cantidad|Margen|Avance/i', $encabezado)) {
+                $sheet->getStyle("{$columna}2:{$columna}{$ultimaFila}")
+                    ->getNumberFormat()->setFormatCode('#,##0.00');
+            } elseif (preg_match('/^(Oferta #|Flujo|Ofertas|Facturas)$/i', $encabezado)) {
+                $sheet->getStyle("{$columna}2:{$columna}{$ultimaFila}")
+                    ->getNumberFormat()->setFormatCode('#,##0');
+            }
+        }
 
         return [
             1 => [

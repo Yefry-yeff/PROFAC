@@ -4,6 +4,7 @@ namespace App\Http\Livewire\Cotizaciones;
 
 use App\Support\ClienteActoresAsignados;
 use App\Support\ExpoConfig;
+use App\Support\ExpoStock;
 use Livewire\Component;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\File;
@@ -15,6 +16,7 @@ use Validator;
 use PDF;
 use Luecano\NumeroALetras\NumeroALetras;
 
+use App\Models\CreditoRevision;
 use App\Models\ModelCotizacion;
 use App\Models\ModelCotizacionProducto;
 
@@ -265,11 +267,22 @@ class Cotizacion extends Component
             'cliente_id' => 'required|integer|exists:cliente,id',
             'rol_id' => 'required|integer|in:2,3',
             'search' => 'nullable|string|max:150',
+            'todos_activos' => 'nullable|boolean',
         ]);
 
-        $usuarios = ClienteActoresAsignados::usuarios((int) $datos['cliente_id'], (int) $datos['rol_id']);
         $busqueda = trim((string) ($datos['search'] ?? ''));
-        if ($busqueda !== '') {
+        if (!empty($datos['todos_activos'])) {
+            $usuarios = DB::table('users')
+                ->where('estado_id', 1)
+                ->when($busqueda !== '', function ($query) use ($busqueda) {
+                    $query->where('name', 'like', '%' . $busqueda . '%');
+                })
+                ->orderBy('name')
+                ->get(['id', DB::raw('name as text')]);
+        } else {
+            $usuarios = ClienteActoresAsignados::usuarios((int) $datos['cliente_id'], (int) $datos['rol_id']);
+        }
+        if (empty($datos['todos_activos']) && $busqueda !== '') {
             $usuarios = $usuarios->filter(function ($usuario) use ($busqueda) {
                 return stripos($usuario->text, $busqueda) !== false;
             })->values();
@@ -285,6 +298,38 @@ class Cotizacion extends Component
     {
         $request->merge(['rol_id' => ClienteActoresAsignados::ROL_ASESOR_COMERCIAL]);
         return $this->listadoActoresAsignados($request);
+    }
+
+    public function listadoGestoresEntrega(Request $request)
+    {
+        $datos = $request->validate([
+            'search' => 'nullable|string|max:150',
+        ]);
+        $busqueda = trim((string) ($datos['search'] ?? ''));
+        $rolesElegibles = [
+            ClienteActoresAsignados::ROL_ASESOR_COMERCIAL,
+            ClienteActoresAsignados::ROL_TELE_ASESOR,
+            ClienteActoresAsignados::ROL_GESTOR_ENTREGA,
+        ];
+
+        $usuarios = DB::table('users as u')
+            ->where('u.estado_id', 1)
+            ->where(function ($query) use ($rolesElegibles) {
+                $query->whereIn('u.rol_id', $rolesElegibles)
+                    ->orWhereExists(function ($subquery) use ($rolesElegibles) {
+                        $subquery->select(DB::raw(1))
+                            ->from('usuario_rol as ur')
+                            ->whereColumn('ur.usuario_id', 'u.id')
+                            ->whereIn('ur.rol_id', $rolesElegibles);
+                    });
+            })
+            ->when($busqueda !== '', function ($query) use ($busqueda) {
+                $query->where('u.name', 'like', '%' . $busqueda . '%');
+            })
+            ->orderBy('u.name')
+            ->get(['u.id', DB::raw('u.name as text')]);
+
+        return response()->json(['results' => $usuarios]);
     }
 
     public function obtenerAsesorAsignado(Request $request)
@@ -445,8 +490,11 @@ class Cotizacion extends Component
         $arrayProductos = [];
 
         $expoId = (int) $request->input('expo_id', 0);
+        $continuarOfertaId = (int) $request->input('oferta_id_continuar', 0);
+        $duplicarOfertaId = (int) $request->input('duplicar_cotizacion_id', 0);
         $tipoVentaExpoId = ExpoConfig::tipoVentaId();
         $expoConfig = null;
+        $duplicandoOfertaExpo = false;
 
         if ($expoId <= 0 && $tipoVentaExpoId && (int) $request->tipo_venta_id === $tipoVentaExpoId) {
             return response()->json([
@@ -457,13 +505,98 @@ class Cotizacion extends Component
         }
 
         if ($expoId > 0) {
-            $expoConfig = ExpoConfig::detalleActivaParaUsuario($expoId, Auth::id());
+            if ($duplicarOfertaId > 0) {
+                $flujoDuplicadoId = (int) $request->input('flujo_id', 0);
+                $clienteOrigenId = (int) DB::table('cotizacion')
+                    ->where('id', $duplicarOfertaId)
+                    ->value('cliente_id');
+                $expoConfig = $clienteOrigenId === (int) $request->seleccionarCliente
+                    ? ExpoConfig::detalleParaDuplicacion($expoId, $duplicarOfertaId, $flujoDuplicadoId, Auth::id())
+                    : null;
+                $duplicandoOfertaExpo = !empty($expoConfig);
+            } else {
+                $expoConfig = ExpoConfig::detalleActivaParaUsuario(
+                    $expoId,
+                    Auth::id(),
+                    (int) $request->seleccionarCliente
+                );
+            }
             if (!$expoConfig || !$tipoVentaExpoId) {
                 return response()->json([
                     'icon' => 'error',
                     'title' => 'Expo no disponible',
-                    'text' => 'La Expo ya no está activa o está fuera de vigencia.',
+                    'text' => $duplicarOfertaId > 0
+                        ? (ExpoConfig::motivoBloqueoDuplicacion($duplicarOfertaId, (int) $request->input('flujo_id', 0))
+                            ?: 'La oferta Expo no pertenece al cliente y flujo indicados.')
+                        : 'La Expo ya no está activa o está fuera de vigencia.',
                 ], 422);
+            }
+
+            $ajustesEscala = [];
+            $productosSinEscala = [];
+            foreach ($arrayInputs as $indice) {
+                $precioCargaId = (int) $request->input('precios_producto_carga_id' . $indice, 0);
+                $productoId = (int) $request->input('idProducto' . $indice, 0);
+                $precioAnterior = (float) $request->input('precio' . $indice, 0);
+                $referencia = DB::table('precios_producto_carga')
+                    ->where('id', $precioCargaId)
+                    ->first(['producto_id', 'categoria_precios_id']);
+                $precioActivo = $referencia
+                    ? DB::table('precios_producto_carga as ppc')
+                        ->leftJoin('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')
+                        ->where('ppc.producto_id', $productoId ?: (int) $referencia->producto_id)
+                        ->where('ppc.categoria_precios_id', (int) $referencia->categoria_precios_id)
+                        ->where('ppc.estado_id', 1)
+                        ->orderByDesc('ppc.id')
+                        ->first(['ppc.id', 'ppc.precio_a', 'cp.nombre as categoria'])
+                    : null;
+
+                if (!$precioActivo && $productoId > 0 && !empty($expoConfig['escalas'])) {
+                    $precioActivo = DB::table('precios_producto_carga as ppc')
+                        ->leftJoin('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')
+                        ->where('ppc.producto_id', $productoId)
+                        ->whereIn('ppc.categoria_precios_id', $expoConfig['escalas'])
+                        ->where('ppc.estado_id', 1)
+                        ->orderByDesc('ppc.id')
+                        ->first(['ppc.id', 'ppc.precio_a', 'ppc.categoria_precios_id', 'cp.nombre as categoria']);
+                }
+
+                if (!$precioActivo) {
+                    $productosSinEscala[] = (string) $request->input('nombre' . $indice, 'Producto ID ' . $productoId);
+                    continue;
+                }
+
+                $precioNuevo = (float) $precioActivo->precio_a;
+                if ((int) $precioActivo->id !== $precioCargaId || abs($precioAnterior - $precioNuevo) > 0.005) {
+                    $ajustesEscala[] = [
+                        'indice' => (int) $indice,
+                        'producto' => (string) $request->input('nombre' . $indice, 'Producto ID ' . $productoId),
+                        'precio_anterior' => $precioAnterior,
+                        'precio_nuevo' => $precioNuevo,
+                        'precio_carga_id' => (int) $precioActivo->id,
+                        'categoria_anterior' => (string) (DB::table('categoria_precios')
+                            ->where('id', (int) ($referencia->categoria_precios_id ?? 0))
+                            ->value('nombre') ?? 'Escala anterior'),
+                        'categoria' => $precioActivo->categoria ?? 'Escala vigente',
+                        'accion' => 'cargar',
+                    ];
+                }
+            }
+
+            if (!empty($productosSinEscala)) {
+                return response()->json([
+                    'icon' => 'error',
+                    'title' => 'Escala no disponible',
+                    'text' => 'No se puede guardar porque estos productos no tienen una escala vigente: '
+                        . implode(', ', $productosSinEscala),
+                ], 422);
+            }
+
+            if (!empty($ajustesEscala)) {
+                return response()->json([
+                    'requiere_ajuste_escala' => true,
+                    'ajustes_escala' => $ajustesEscala,
+                ]);
             }
 
             $ventaBruta = 0.0;
@@ -477,18 +610,27 @@ class Cotizacion extends Component
                     ], 422);
                 }
 
-                $restaInventario = (float) $request->input('restaInventario' . $indice, 0);
-                $bodegaId = (int) $request->input('idBodega' . $indice, 0);
-                if ($restaInventario > 0 && !in_array($bodegaId, $expoConfig['bodegas'], true)) {
+                $productoId = (int) $request->input('idProducto' . $indice, 0);
+                $cantidadBase = (float) $request->input('cantidad' . $indice, 0)
+                    * (float) $request->input('unidad' . $indice, 0);
+                if ($productoId <= 0 || $cantidadBase <= 0) {
                     return response()->json([
-                        'icon' => 'error', 'title' => 'Bodega no permitida',
-                        'text' => 'Uno de los productos utiliza una bodega que no pertenece a la Expo.',
+                        'icon' => 'error', 'title' => 'Cantidad no válida',
+                        'text' => 'Todos los productos de la Oferta Expo deben tener una cantidad válida.',
                     ], 422);
                 }
-
                 $ventaBruta += (float) $request->input('precio' . $indice, 0)
-                    * (float) $request->input('cantidad' . $indice, 0)
-                    * (float) $request->input('unidad' . $indice, 0);
+                    * $cantidadBase;
+            }
+
+            $ubicacionVirtualExpo = ExpoStock::ubicacionVirtual();
+            foreach ($arrayInputs as $indice) {
+                $request->merge([
+                    'idBodega' . $indice => $ubicacionVirtualExpo['bodega_id'],
+                    'idSeccion' . $indice => $ubicacionVirtualExpo['seccion_id'],
+                    'bodega' . $indice => $ubicacionVirtualExpo['nombre_bodega'],
+                    'restaInventario' . $indice => 1,
+                ]);
             }
 
             $porcentajeExpo = 0.0;
@@ -502,11 +644,205 @@ class Cotizacion extends Component
                 'tipo_venta_id' => $tipoVentaExpoId,
                 'porDescuento' => $porcentajeExpo,
             ]);
+
+            $lineasDescuento = [];
+            foreach ($arrayInputs as $indice) {
+                $productoId = (int) $request->input('idProducto' . $indice, 0);
+                $precioCargaId = (int) $request->input('precios_producto_carga_id' . $indice, 0);
+                $escala = DB::table('precios_producto_carga as ppc')
+                    ->leftJoin('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')
+                    ->where('ppc.id', $precioCargaId)
+                    ->first(['ppc.categoria_precios_id', 'cp.nombre as escala']);
+                $lineasDescuento[$indice] = [
+                    'producto_id' => $productoId,
+                    'producto' => (string) $request->input('nombre' . $indice, 'Producto ID ' . $productoId),
+                    'escala_id' => (int) ($escala->categoria_precios_id ?? 0),
+                    'escala' => (string) ($escala->escala ?? 'SIN ESCALA'),
+                    'precio_unitario' => (float) $request->input('precio' . $indice, 0),
+                    'cantidad' => (float) $request->input('cantidad' . $indice, 0),
+                    'unidad' => (float) $request->input('unidad' . $indice, 0),
+                    'subtotal_bruto' => (float) $request->input('precio' . $indice, 0)
+                        * (float) $request->input('cantidad' . $indice, 0)
+                        * (float) $request->input('unidad' . $indice, 0),
+                ];
+            }
+            $calculoServidor = app(\App\Services\Expo\CalculadorDescuentosExpo::class)->calcular(
+                array_values($lineasDescuento),
+                [
+                    'version' => 5,
+                    'tipo' => 'escala',
+                    'generales' => $expoConfig['descuentos'],
+                    'escalas' => $expoConfig['descuentos_escala'],
+                    'descuentos_forzados' => $expoConfig['descuentos_forzados'] ?? [],
+                ]
+            );
+            $porcentajesEscala = $calculoServidor['porcentajes_escala'];
+            $detallesNoPermitidos = [];
+            foreach ($lineasDescuento as $indice => $linea) {
+                $porcentajeEscala = (float) ($porcentajesEscala[$linea['escala_id']] ?? 0);
+                $porcentajeGeneral = (float) $calculoServidor['porcentaje_general'];
+                $descuentoEscala = round($linea['subtotal_bruto'] * $porcentajeEscala / 100, 2);
+                $descuentoGeneral = round(($linea['subtotal_bruto'] - $descuentoEscala) * $porcentajeGeneral / 100, 2);
+                $maximoPermitido = $descuentoEscala + $descuentoGeneral;
+                $descuentoEnviado = (float) $request->input('acumuladoDescuento' . $indice, 0);
+                if ($descuentoEnviado > $maximoPermitido + 0.01) {
+                    $detallesNoPermitidos[] = [
+                        'indice' => (int) $indice,
+                        'producto_id' => $linea['producto_id'],
+                        'producto' => $linea['producto'],
+                        'escala_id' => $linea['escala_id'],
+                        'escala' => $linea['escala'],
+                        'precio_unitario' => round($linea['precio_unitario'], 2),
+                        'cantidad' => $linea['cantidad'],
+                        'unidad' => $linea['unidad'],
+                        'subtotal_bruto' => round($linea['subtotal_bruto'], 2),
+                        'porcentaje_escala_permitido' => $porcentajeEscala,
+                        'porcentaje_general_permitido' => $porcentajeGeneral,
+                        'descuento_enviado' => round($descuentoEnviado, 2),
+                        'descuento_maximo_permitido' => round($maximoPermitido, 2),
+                        'exceso' => round($descuentoEnviado - $maximoPermitido, 2),
+                        'motivo' => 'El descuento enviado supera el permitido por monto, escala de precios y asistencia.',
+                    ];
+                }
+            }
+
+            if (!empty($detallesNoPermitidos)) {
+                \Log::warning('Oferta Expo rechazada por descuentos no permitidos', [
+                    'usuario_id' => Auth::id(),
+                    'expo_id' => $expoId,
+                    'cliente_id' => (int) $request->seleccionarCliente,
+                    'subtotal_bruto' => $calculoServidor['total_bruto'],
+                    'subtotal_neto_permitido' => $calculoServidor['subtotal_neto'],
+                    'productos' => $detallesNoPermitidos,
+                ]);
+
+                return response()->json([
+                    'icon' => 'error',
+                    'title' => 'Descuento Expo no permitido',
+                    'text' => count($detallesNoPermitidos) . ' producto(s) tienen un descuento mayor al permitido.',
+                    'detalles_descuento_expo' => $detallesNoPermitidos,
+                    'resumen_descuento_expo' => [
+                        'subtotal_bruto' => $calculoServidor['total_bruto'],
+                        'subtotal_neto_permitido' => $calculoServidor['subtotal_neto'],
+                        'porcentaje_general_permitido' => $calculoServidor['porcentaje_general'],
+                    ],
+                ], 422);
+            }
+        }
+
+        if (!$expoConfig) {
+            $categoriaClienteEscalaId = (int) DB::table('cliente')
+                ->where('id', (int) $request->seleccionarCliente)
+                ->value('cliente_categoria_escala_id');
+
+            foreach ($arrayInputs as $indice) {
+                $productoId = (int) $request->input('idProducto' . $indice, 0);
+                $precioCargaId = (int) $request->input('precios_producto_carga_id' . $indice, 0);
+                $escalaPermitida = $categoriaClienteEscalaId > 0
+                    && DB::table('precios_producto_carga as ppc')
+                        ->join('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')
+                        ->where('ppc.id', $precioCargaId)
+                        ->where('ppc.producto_id', $productoId)
+                        ->where('ppc.estado_id', 1)
+                        ->where('cp.estado_id', 1)
+                        ->where('cp.cliente_categoria_escala_id', $categoriaClienteEscalaId)
+                        ->exists();
+
+                if (!$escalaPermitida) {
+                    return response()->json([
+                        'icon' => 'error',
+                        'title' => 'Escala no permitida',
+                        'text' => 'Uno de los productos utiliza una escala que no pertenece a la categoría del cliente.',
+                    ], 422);
+                }
+            }
+        }
+
+        if (!$expoConfig && !$request->boolean('confirmar_precio_bajo_escala')) {
+            $columnasPrecio = [
+                'pb' => 'precio_base_venta',
+                'p1' => 'precio_a',
+                'p2' => 'precio_b',
+                'p3' => 'precio_c',
+                'p4' => 'precio_d',
+            ];
+            $productosDebajoEscala = [];
+
+            foreach ($arrayInputs as $indice) {
+                $productoId = (int) $request->input('idProducto' . $indice, 0);
+                $precioCargaId = (int) $request->input('precios_producto_carga_id' . $indice, 0);
+                $precioIngresado = (float) $request->input('precio' . $indice, 0);
+                $precioSeleccionadoId = (string) $request->input('idPrecioSeleccionado' . $indice, '');
+                $columnaPrecio = $columnasPrecio[$precioSeleccionadoId] ?? null;
+
+                if (!$columnaPrecio || $productoId <= 0 || $precioCargaId <= 0) {
+                    continue;
+                }
+
+                $referenciaEscala = DB::table('precios_producto_carga as ppc')
+                    ->join('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')
+                    ->join('producto as p', 'p.id', '=', 'ppc.producto_id')
+                    ->where('ppc.id', $precioCargaId)
+                    ->where('ppc.producto_id', $productoId)
+                    ->first([
+                        'ppc.categoria_precios_id',
+                        'ppc.' . $columnaPrecio,
+                        'cp.nombre as categoria_precio',
+                        'p.nombre as producto_nombre',
+                    ]);
+
+                if (!$referenciaEscala) {
+                    continue;
+                }
+
+                $precioEscala = DB::table('precios_producto_carga')
+                    ->where('producto_id', $productoId)
+                    ->where('categoria_precios_id', $referenciaEscala->categoria_precios_id)
+                    ->where('estado_id', 1)
+                    ->orderByDesc('id')
+                    ->value($columnaPrecio);
+                $precioEscala ??= $referenciaEscala->{$columnaPrecio};
+
+                if (!is_null($precioEscala) && $precioIngresado + 0.005 < (float) $precioEscala) {
+                    $productosDebajoEscala[] = [
+                        'codigo' => $productoId,
+                        'producto' => (string) $referenciaEscala->producto_nombre,
+                        'categoria' => (string) $referenciaEscala->categoria_precio,
+                        'precio' => round($precioIngresado, 2),
+                        'precio_escala' => round((float) $precioEscala, 2),
+                    ];
+                }
+            }
+
+            if (!empty($productosDebajoEscala)) {
+                return response()->json([
+                    'requiere_confirmacion_precio' => true,
+                    'title' => 'Precio debajo de escala',
+                    'text' => 'Los siguientes productos se encuentran debajo del precio de escala. ¿Seguro que desea continuar?',
+                    'productos' => $productosDebajoEscala,
+                ], 200);
+            }
         }
 
         DB::beginTransaction();
 
-            if ($expoConfig && !DB::table('expo')->where('id', $expoId)->where('estado', 'Activo')
+            if ($duplicandoOfertaExpo && !ExpoConfig::detalleParaDuplicacion(
+                $expoId,
+                $duplicarOfertaId,
+                (int) $request->input('flujo_id'),
+                Auth::id()
+            )) {
+                DB::rollBack();
+                return response()->json([
+                    'icon' => 'error', 'title' => 'Oferta no duplicable',
+                    'text' => ExpoConfig::motivoBloqueoDuplicacion(
+                        $duplicarOfertaId,
+                        (int) $request->input('flujo_id')
+                    ) ?: 'La oferta Expo ya no está disponible para duplicarla en este flujo.',
+                ], 422);
+            }
+
+            if ($expoConfig && !$duplicandoOfertaExpo && !DB::table('expo')->where('id', $expoId)->where('estado', 'Activo')
                 ->where('fecha_inicio', '<=', now())
                 ->where(function ($query) {
                     $query->whereNull('fecha_fin')->orWhere('fecha_fin', '>=', now());
@@ -518,7 +854,41 @@ class Cotizacion extends Component
                 ], 422);
             }
 
-            $cotizacion = new ModelCotizacion();
+            $esActualizacionExpo = false;
+            $cotizacion = null;
+            if ($continuarOfertaId > 0) {
+                $expoCotizacionEditable = DB::table('expo_cotizacion as ec')
+                    ->where('ec.cotizacion_id', $continuarOfertaId)
+                    ->where('ec.expo_id', $expoId)
+                    ->where('ec.estado', 'PENDIENTE_FACTURACION')
+                    ->whereNotExists(function ($query) {
+                        $query->selectRaw('1')->from('cotizacion_has_producto as chp')
+                            ->join('prefactura_has_producto as php', 'php.cotizacion_has_producto_id', '=', 'chp.id')
+                            ->whereColumn('chp.cotizacion_id', 'ec.cotizacion_id');
+                    })
+                    ->whereNotExists(function ($query) {
+                        $query->selectRaw('1')->from('cotizacion_has_producto as chp')
+                            ->join('venta_has_producto as vhp', 'vhp.cotizacion_has_producto_id', '=', 'chp.id')
+                            ->whereColumn('chp.cotizacion_id', 'ec.cotizacion_id');
+                    })
+                    ->lockForUpdate()
+                    ->first();
+                $cotizacion = $expoCotizacionEditable
+                    ? ModelCotizacion::where('id', $continuarOfertaId)->where('estado_id', 1)->lockForUpdate()->first()
+                    : null;
+
+                if (!$expoConfig || !$cotizacion) {
+                    DB::rollBack();
+                    return response()->json([
+                        'icon' => 'error',
+                        'title' => 'Oferta no editable',
+                        'text' => 'La oferta Expo ya no está disponible para continuarla.',
+                    ], 422);
+                }
+                $esActualizacionExpo = true;
+            }
+
+            $cotizacion ??= new ModelCotizacion();
             $cotizacion->nombre_cliente = $request->nombre_cliente_ventas;
             $cotizacion->RTN = $request->rtn_ventas;
             $cotizacion->fecha_emision = $request->fecha_emision;
@@ -539,14 +909,25 @@ class Cotizacion extends Component
             $cotizacion->nota = $request->nota_comen ?? $request->nota;
             $cotizacion->tipo_pago_id = $request->tipoPagoVenta ?: null;
             $cotizacion->estado_id  = 1;
-            $cotizacion->created_by = Auth::id();
+            if (!$esActualizacionExpo) {
+                $cotizacion->created_by = Auth::id();
+            }
             $cotizacion->save();
 
-            if ($expoConfig) {
+            if ($expoConfig && !$esActualizacionExpo) {
                 DB::table('expo_cotizacion')->insert([
                     'expo_id' => $expoId,
                     'cotizacion_id' => $cotizacion->id,
                     'created_by' => Auth::id(),
+                    'estado' => 'PENDIENTE_FACTURACION',
+                    'flujo_id' => $duplicandoOfertaExpo ? (int) $request->input('flujo_id') : null,
+                    'reglas_descuento_snapshot' => json_encode([
+                        'version' => 5,
+                        'tipo' => 'escala',
+                        'generales' => $expoConfig['descuentos'],
+                        'escalas' => $expoConfig['descuentos_escala'],
+                        'descuentos_forzados' => $expoConfig['descuentos_forzados'] ?? [],
+                    ]),
                     'created_at' => now(),
                 ]);
             }
@@ -568,7 +949,16 @@ class Cotizacion extends Component
             // ID del estado "cancelado" para verificar flujos cancelados
             $canceladoEstadoId = (int) (DB::table('estado_venta')->where('descripcion', 'cancelado')->value('id') ?? 4);
 
-            if ($pedidoIdVinculado) {
+            if ($esActualizacionExpo) {
+                $flujoActual = DB::table('historico_flujo')
+                    ->where('tipo_tramite_id', 2)
+                    ->where('tramite_id', $cotizacion->id)
+                    ->orderByDesc('id')
+                    ->value('flujo_id');
+                $flujoIdDirecto = $flujoActual ? (int) $flujoActual : $flujoIdDirecto;
+                $flujoIdVinculado = null;
+                $flujoNuevo = null;
+            } elseif ($pedidoIdVinculado) {
                 // Flujo con pedido: buscar el flujo del pedido y agregar historico
                 $flujoExistente = DB::table('flujo')
                     ->where('identificacion', (string) $pedidoIdVinculado)
@@ -638,7 +1028,7 @@ class Cotizacion extends Component
                 // Flujo sin pedido ya existente: verificar si está cancelado
                 $flujoDirecto = DB::table('flujo')->where('id', $flujoIdDirecto)->first(['estado_id']);
 
-                if ($flujoDirecto && (int) $flujoDirecto->estado_id !== $canceladoEstadoId) {
+                if ($flujoDirecto && ($duplicandoOfertaExpo || (int) $flujoDirecto->estado_id !== $canceladoEstadoId)) {
                     // Flujo activo: agregar nueva oferta al mismo flujo
                     DB::table('historico_flujo')->insert([
                         'flujo_id'        => $flujoIdDirecto,
@@ -728,6 +1118,10 @@ class Cotizacion extends Component
                 ]);
             }
 
+            if ($esActualizacionExpo) {
+                DB::table('cotizacion_has_producto')->where('cotizacion_id', $cotizacion->id)->delete();
+            }
+
             for ($i = 0; $i < count($arrayInputs); $i++) {
 
                 $keyRestaInventario = "restaInventario" . $arrayInputs[$i];
@@ -815,6 +1209,32 @@ class Cotizacion extends Component
             //dd($arrayProductos);
         ModelCotizacionProducto::insert($arrayProductos);
 
+        if ($expoConfig) {
+            $lineasSnapshot = DB::table('cotizacion_has_producto as chp')
+                ->join('precios_producto_carga as ppc', 'ppc.id', '=', 'chp.precios_producto_carga_id')
+                ->leftJoin('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')
+                ->where('chp.cotizacion_id', $cotizacion->id)
+                ->orderBy('chp.indice')
+                ->get(['chp.id as linea_id', 'chp.producto_id', 'ppc.categoria_precios_id', 'cp.nombre as escala'])
+                ->map(fn ($linea) => [
+                    'linea_id' => (int) $linea->linea_id,
+                    'producto_id' => (int) $linea->producto_id,
+                    'escala_id' => (int) $linea->categoria_precios_id,
+                    'escala' => $linea->escala,
+                ])->all();
+
+            DB::table('expo_cotizacion')->where('cotizacion_id', $cotizacion->id)->update([
+                'reglas_descuento_snapshot' => json_encode([
+                    'version' => 5,
+                    'tipo' => 'escala',
+                    'generales' => $expoConfig['descuentos'],
+                    'escalas' => $expoConfig['descuentos_escala'],
+                    'descuentos_forzados' => $expoConfig['descuentos_forzados'] ?? [],
+                    'lineas' => $lineasSnapshot,
+                ]),
+            ]);
+        }
+
 
 
 
@@ -824,6 +1244,7 @@ class Cotizacion extends Component
             'text'      => 'Cotización guardada con éxito.',
             'title'     => 'Exito!',
             'idFactura' => $cotizacion->id,
+            'actualizada' => $esActualizacionExpo,
             'pedidoId'  => $pedidoIdVinculado ?: null,
             'flujoId'   => $flujoIdVinculado ?? $flujoIdDirecto ?? $flujoNuevo ?? null,
         ],200);
@@ -894,14 +1315,136 @@ class Cotizacion extends Component
             return response()->json(['error' => 'ID requerido'], 422);
         }
 
-        // Marcar en historico_flujo: esta oferta como ganadora, el resto como no-ganadora
         $hf = DB::table('historico_flujo')
             ->where('tramite_id', $id)
             ->where('tipo_tramite_id', 2)
             ->first();
 
-        if ($hf) {
-            // Quitar 'ganadora' de las otras ofertas del mismo flujo
+        if (!$hf) {
+            return response()->json(['error' => 'La oferta no pertenece a un flujo válido.'], 422);
+        }
+
+        $ofertaNueva = DB::table('cotizacion')->where('id', $id)->first();
+        if (!$ofertaNueva) {
+            return response()->json(['error' => 'Oferta no encontrada.'], 404);
+        }
+
+        $prefacturaActiva = DB::table('prefactura as pf')
+            ->where('pf.flujo_id', $hf->flujo_id)
+            ->where('pf.estado', 'activo')
+            ->where('pf.cotizacion_id', '!=', $id)
+            ->orderByDesc('pf.id')
+            ->first(['pf.id', 'pf.cotizacion_id', 'pf.cliente_id']);
+
+        $esOfertaExpo = DB::table('expo_cotizacion')->where('cotizacion_id', $id)->exists();
+        $esPrefacturaExpo = $prefacturaActiva
+            && DB::table('expo_cotizacion')->where('cotizacion_id', $prefacturaActiva->cotizacion_id)->exists();
+        $reemplazaPrefactura = $prefacturaActiva
+            && !$esOfertaExpo
+            && !$esPrefacturaExpo
+            && (int) $prefacturaActiva->cliente_id === (int) $ofertaNueva->cliente_id;
+
+        if ($reemplazaPrefactura && !$request->boolean('confirmar_reinicio')) {
+            return response()->json([
+                'requiere_confirmacion_prefactura' => true,
+                'prefactura_id' => (int) $prefacturaActiva->id,
+                'oferta_anterior_id' => (int) $prefacturaActiva->cotizacion_id,
+                'oferta_nueva_id' => $id,
+                'mensaje' => 'Este flujo ya se encuentra en Prefactura bajo la oferta #'
+                    . (int) $prefacturaActiva->cotizacion_id
+                    . '. Al continuar, se iniciará nuevamente el proceso desde Revisión de Créditos con la oferta #'
+                    . $id . '.',
+            ]);
+        }
+
+        DB::beginTransaction();
+        try {
+            if ($reemplazaPrefactura) {
+                $prefacturaBloqueada = DB::table('prefactura')
+                    ->where('id', $prefacturaActiva->id)
+                    ->where('flujo_id', $hf->flujo_id)
+                    ->where('cotizacion_id', $prefacturaActiva->cotizacion_id)
+                    ->where('estado', 'activo')
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$prefacturaBloqueada) {
+                    DB::rollBack();
+                    return response()->json([
+                        'error' => 'La prefactura anterior cambió de estado. Actualice el flujo e intente nuevamente.',
+                    ], 409);
+                }
+
+                DB::table('prefactura')->where('id', $prefacturaBloqueada->id)->update([
+                    'estado' => 'inactive',
+                    'updated_at' => now(),
+                ]);
+                DB::table('historico_flujo')
+                    ->where('flujo_id', $hf->flujo_id)
+                    ->where('tipo_tramite_id', 4)
+                    ->where('tramite_id', $prefacturaBloqueada->id)
+                    ->update([
+                        'estado_id' => 7,
+                        'observaciones' => 'Prefactura sustituida por oferta #' . $id . '.',
+                        'updated_by' => Auth::id(),
+                        'updated_at' => now(),
+                    ]);
+
+                DB::table('historico_flujo')
+                    ->where('flujo_id', $hf->flujo_id)
+                    ->where('tipo_tramite_id', 2)
+                    ->where('tramite_id', $prefacturaBloqueada->cotizacion_id)
+                    ->update([
+                        'observaciones' => 'QuitadaGanadora: sustituida por oferta #' . $id,
+                        'updated_by' => Auth::id(),
+                        'updated_at' => now(),
+                    ]);
+
+                DB::table('cotizacion_estado')->insert([
+                    'cotizacion_id' => $prefacturaBloqueada->cotizacion_id,
+                    'flujo_id' => $hf->flujo_id,
+                    'ganadora' => 2,
+                    'comentario' => 'Ganadora sustituida por oferta #' . $id . '; prefactura #' . $prefacturaBloqueada->id . ' inactivada.',
+                    'estado_id' => 1,
+                    'created_by' => Auth::id(),
+                    'updated_by' => Auth::id(),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+
+                DB::table('historico_flujo')
+                    ->where('flujo_id', $hf->flujo_id)
+                    ->whereIn('tipo_tramite_id', [9, 10])
+                    ->where('estado_id', '!=', 7)
+                    ->update([
+                        'estado_id' => 7,
+                        'observaciones' => 'Ciclo cerrado al sustituir la oferta ganadora por oferta #' . $id . '.',
+                        'updated_by' => Auth::id(),
+                        'updated_at' => now(),
+                    ]);
+
+                $revisionesAnteriores = CreditoRevision::where('flujo_id', $hf->flujo_id)
+                    ->whereIn('estado', [CreditoRevision::PENDIENTE, CreditoRevision::APROBADO])
+                    ->lockForUpdate()
+                    ->get();
+                foreach ($revisionesAnteriores as $revisionAnterior) {
+                    $estadoAnterior = $revisionAnterior->estado;
+                    $revisionAnterior->update([
+                        'estado' => CreditoRevision::CANCELADO,
+                        'observaciones' => 'Revisión cancelada al sustituir la oferta ganadora por oferta #' . $id . '.',
+                        'usuario_revision' => Auth::id(),
+                        'ip_revision' => $request->ip(),
+                    ]);
+                    $revisionAnterior->registrarHistorial(
+                        'oferta_ganadora_sustituida',
+                        $estadoAnterior,
+                        CreditoRevision::CANCELADO,
+                        'El flujo reinicia Revisión de Créditos con la oferta #' . $id . '.',
+                        $request->ip()
+                    );
+                }
+            }
+
             DB::table('historico_flujo')
                 ->where('flujo_id', $hf->flujo_id)
                 ->where('tipo_tramite_id', 2)
@@ -911,14 +1454,92 @@ class Cotizacion extends Component
             // Marcar esta como ganadora
             DB::table('historico_flujo')
                 ->where('id', $hf->id)
-                ->update(['observaciones' => 'ganadora', 'updated_at' => now()]);
+                ->update([
+                    'observaciones' => 'ganadora',
+                    'updated_by' => Auth::id(),
+                    'updated_at' => now(),
+                ]);
 
-            // Avanzar el flujo al estado "Prefactura" (tipo_tramite_id=3)
-            DB::table('flujo')->where('id', $hf->flujo_id)
-                ->update(['tipo_tramite_id' => 3, 'updated_by' => Auth::id(), 'updated_at' => now()]);
+            if ($reemplazaPrefactura) {
+                $fechaEmision = $ofertaNueva->fecha_emision
+                    ? \Carbon\Carbon::parse($ofertaNueva->fecha_emision)
+                    : now()->startOfDay();
+                $fechaVencimiento = $ofertaNueva->fecha_vencimiento
+                    ? \Carbon\Carbon::parse($ofertaNueva->fecha_vencimiento)
+                    : $fechaEmision->copy();
+                $diasSolicitados = max(0, $fechaEmision->diffInDays($fechaVencimiento, false));
+                $observacionCredito = 'Solicitud oferta #' . $id
+                    . ' | Emisión: ' . $fechaEmision->format('Y-m-d')
+                    . ' | Vence: ' . $fechaVencimiento->format('Y-m-d')
+                    . ' | Días solicitados: ' . $diasSolicitados
+                    . ' | Total oferta: L ' . number_format((float) $ofertaNueva->total, 2, '.', ',');
+
+                $revisionCreditoNueva = CreditoRevision::create([
+                    'flujo_id' => $hf->flujo_id,
+                    'cotizacion_id' => $id,
+                    'estado' => CreditoRevision::PENDIENTE,
+                    'fecha_emision_solicitada' => $fechaEmision->toDateString(),
+                    'fecha_vencimiento_solicitada' => $fechaVencimiento->toDateString(),
+                    'dias_credito_solicitados' => $diasSolicitados,
+                    'observaciones' => $observacionCredito,
+                    'usuario_revision' => Auth::id(),
+                    'ip_revision' => $request->ip(),
+                ]);
+                $revisionCreditoNueva->registrarHistorial(
+                    'creado',
+                    null,
+                    CreditoRevision::PENDIENTE,
+                    'Oferta #' . $id . ' enviada a Revisión de Crédito.',
+                    $request->ip()
+                );
+
+                DB::table('historico_flujo')->insert([
+                    'flujo_id' => $hf->flujo_id,
+                    'tipo_tramite_id' => 10,
+                    'tramite_id' => $id,
+                    'estado_id' => 5,
+                    'observaciones' => 'En Revisión de Crédito. Oferta #' . $id,
+                    'created_by' => Auth::id(),
+                    'updated_by' => Auth::id(),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+
+            DB::table('cotizacion_estado')->insert([
+                'cotizacion_id' => $id,
+                'flujo_id' => $hf->flujo_id,
+                'ganadora' => 1,
+                'comentario' => $reemplazaPrefactura
+                    ? 'Marcada como ganadora. Flujo reiniciado en Revisión de Créditos.'
+                    : 'Marcada como ganadora.',
+                'estado_id' => 1,
+                'created_by' => Auth::id(),
+                'updated_by' => Auth::id(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            DB::table('flujo')->where('id', $hf->flujo_id)->update([
+                'tipo_tramite_id' => $reemplazaPrefactura ? 10 : 3,
+                'updated_by' => Auth::id(),
+                'updated_at' => now(),
+            ]);
+
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json(['error' => 'No se pudo cambiar la oferta ganadora: ' . $e->getMessage()], 422);
         }
 
-        return response()->json(['success' => true, 'cotizacion_id' => $id]);
+        return response()->json([
+            'success' => true,
+            'cotizacion_id' => $id,
+            'reinicio_revision_credito' => (bool) $reemplazaPrefactura,
+            'mensaje' => $reemplazaPrefactura
+                ? 'La oferta #' . $id . ' fue marcada como ganadora y enviada a Revisión de Créditos.'
+                : 'La oferta #' . $id . ' fue marcada como ganadora.',
+        ]);
     }
 
     public function imprimirCotizacion($idFactura)
@@ -956,9 +1577,13 @@ class Cotizacion extends Component
             C.nombre,
             C.descripcion,
             IF(COALESCE(NULLIF(B.tipo_precio,''), IF(B.isv_producto > 0,'2','1')) = '1', 'SI', 'NO') as excento,
-            FORMAT(B.precio_unidad,2) as precio,
+            FORMAT(CASE WHEN B.cantidad > 0 THEN B.sub_total / B.cantidad ELSE B.precio_unidad END,2) as precio,
             FORMAT(B.cantidad,2) as cantidad,
-            FORMAT(B.sub_total,2) as importe,
+            FORMAT(ROUND(CASE WHEN B.cantidad > 0 THEN B.sub_total / B.cantidad ELSE B.precio_unidad END,2) * B.cantidad,2) as importe,
+            ROUND(CASE WHEN B.cantidad > 0 THEN B.sub_total / B.cantidad ELSE B.precio_unidad END,2) as precio_calculo,
+            B.cantidad as cantidad_calculo,
+            B.precio_unidad as precio_original,
+            B.isv_producto as porcentaje_isv,
             J.nombre as medida
 
             from cotizacion A
@@ -1000,6 +1625,48 @@ class Cotizacion extends Component
             from cotizacion where id = ".$idFactura
         );
 
+        $esExpo = DB::table('expo_cotizacion')->where('cotizacion_id', $idFactura)->exists();
+        if ($esExpo) {
+            $subtotalExpo = 0.0;
+            $subtotalGrabadoExpo = 0.0;
+            $subtotalExentoExpo = 0.0;
+            $isvExpo = 0.0;
+            $ventaBrutaExpo = 0.0;
+
+            foreach ($productos as $producto) {
+                $importeLinea = round((float) $producto->precio_calculo * (float) $producto->cantidad_calculo, 2);
+                $isvLinea = round($importeLinea * (float) $producto->porcentaje_isv / 100, 2);
+                $subtotalExpo += $importeLinea;
+                $isvExpo += $isvLinea;
+                $ventaBrutaExpo += (float) $producto->precio_original * (float) $producto->cantidad_calculo;
+                if ($producto->excento === 'SI') {
+                    $subtotalExentoExpo += $importeLinea;
+                } else {
+                    $subtotalGrabadoExpo += $importeLinea;
+                }
+            }
+
+            $subtotalExpo = round($subtotalExpo, 2);
+            $subtotalGrabadoExpo = round($subtotalGrabadoExpo, 2);
+            $subtotalExentoExpo = round($subtotalExentoExpo, 2);
+            $isvExpo = round($isvExpo, 2);
+            $descuentoExpo = round($ventaBrutaExpo - $subtotalExpo, 2);
+            $totalExpo = round($subtotalExpo + $isvExpo, 2);
+
+            $importes->monto_descuento = $descuentoExpo;
+            $importes->sub_total = $subtotalExpo;
+            $importes->sub_total_grabado = $subtotalGrabadoExpo;
+            $importes->sub_total_excento = $subtotalExentoExpo;
+            $importes->isv = $isvExpo;
+            $importes->total = $totalExpo;
+            $importesConCentavos->monto_descuento = number_format($descuentoExpo, 2);
+            $importesConCentavos->sub_total = number_format($subtotalExpo, 2);
+            $importesConCentavos->sub_total_grabado = number_format($subtotalGrabadoExpo, 2);
+            $importesConCentavos->sub_total_excento = number_format($subtotalExentoExpo, 2);
+            $importesConCentavos->isv = number_format($isvExpo, 2);
+            $importesConCentavos->total = number_format($totalExpo, 2);
+        }
+
 
         if( fmod($importes->total, 1) == 0.0 ){
             $flagCentavos = false;
@@ -1012,7 +1679,7 @@ class Cotizacion extends Component
         $formatter->apocope = true;
         $numeroLetras = $formatter->toMoney($importes->total, 2, 'LEMPIRAS', 'CENTAVOS');
 
-        $pdf = PDF::loadView('/pdf/cotizacion',compact('datos','productos','importes','importesConCentavos','flagCentavos','numeroLetras', 'tipoCot'))->setPaper('letter');
+        $pdf = PDF::loadView('/pdf/cotizacion',compact('datos','productos','importes','importesConCentavos','flagCentavos','numeroLetras', 'tipoCot', 'esExpo'))->setPaper('letter');
 
         return $pdf->stream("Cotizacion_NO_".$datos->codigo.".pdf");
 
@@ -1311,7 +1978,7 @@ class Cotizacion extends Component
                                 COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7),
                                 COALESCE(pf2.created_at, CONCAT(COALESCE(pf2.fecha_emision, CURDATE()), ' 00:00:00'))
                             ) > NOW()
-                            AND php2.producto_id = A.producto_id
+                            AND php2.producto_id = {$idProducto}
                             AND php2.seccion_id  = A.seccion_id
                             AND php2.resta_inventario = 1
                     ), 0)

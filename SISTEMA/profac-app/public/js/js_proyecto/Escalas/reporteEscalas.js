@@ -10,6 +10,7 @@ var _sincatLoaded      = false;
 var _sinprecioLoaded   = false;
 var _comisionesLoaded  = false;
 var _comparativoProdId = null;
+var _reporteProductoId = null;
 
 $(document).ready(function () {
 
@@ -24,8 +25,6 @@ $(document).ready(function () {
     var s2opts = { theme: 'bootstrap4', width: 'resolve' };
     $('#filtro-cat-cliente').select2($.extend({}, s2opts, { placeholder: 'Todas las categorías' }));
     $('#filtro-cat-precio').select2($.extend({}, s2opts, { placeholder: 'Todas las cat. de precio' }));
-    $('#tipoFiltro').select2($.extend({}, s2opts, { placeholder: 'Sin filtro adicional' }));
-    $('#listaTipoFiltro').select2($.extend({}, s2opts, { placeholder: 'Seleccione...' }));
     $('#filtro-resumen-cat-cliente').select2($.extend({}, s2opts, { placeholder: 'Todas' }));
     $('#filtro-comision-cat-cliente').select2($.extend({}, s2opts, { placeholder: 'Todas las categorías' }));
     $('#filtro-comision-rol').select2($.extend({}, s2opts, { placeholder: 'Todos los roles' }));
@@ -57,6 +56,9 @@ $(document).ready(function () {
 
     // -- Inicializar DataTable de precios (Tab 1) --
     inicializarTablaPrecios();
+    $('#tbl_precios_prod tbody').on('click', '.rpt-product-history', function () {
+        abrirHistorialPrecioProducto($(this).data('precio-id'));
+    });
 
     // -- Eventos de filtros del Tab 1 --
     $('#filtro-cat-cliente').on('change', function () {
@@ -65,23 +67,6 @@ $(document).ready(function () {
     });
 
     $('#filtro-cat-precio').on('change', function () {
-        tablaPrecios && tablaPrecios.ajax.reload(null, false);
-    });
-
-    $('#tipoFiltro').on('change', function () {
-        var tipo = $(this).val();
-        $('#listaTipoFiltro').val(null).trigger('change');
-        if (tipo) {
-            $('#wrapper-lista-filtro').slideDown(180);
-            $('#label-lista-filtro').html('<i class="fa fa-list"></i> ' + (tipo == '1' ? 'Marca' : 'Categoría de Producto'));
-            cargarListaFiltro(tipo);
-        } else {
-            $('#wrapper-lista-filtro').slideUp(180);
-            tablaPrecios && tablaPrecios.ajax.reload(null, false);
-        }
-    });
-
-    $('#listaTipoFiltro').on('change', function () {
         tablaPrecios && tablaPrecios.ajax.reload(null, false);
     });
 
@@ -129,16 +114,6 @@ function cargarCatPrecioSegunCliente(catClienteId) {
     });
 }
 
-function cargarListaFiltro(tipo) {
-    var url = tipo == '1' ? '/filtros/marca' : '/filtros/categoria';
-    var $s = $('#listaTipoFiltro');
-    $s.empty().append('<option value="">Seleccione...</option>');
-    $.get(url, function (data) {
-        data.forEach(function (r) { $s.append(new Option(r.nombre, r.id)); });
-        $s.trigger('change.select2');
-    });
-}
-
 function fmtEstado(estado) {
     return estado === 'Activo'
         ? '<span class="badge-activo">Activo</span>'
@@ -167,8 +142,7 @@ function inicializarTablaPrecios() {
             data: function (d) {
                 d.cat_cliente_ids  = $('#filtro-cat-cliente').val()  || '';
                 d.cat_precio_ids   = $('#filtro-cat-precio').val()   || '';
-                d.tipoFiltro       = $('#tipoFiltro').val()          || '';
-                d.lista_filtro_ids = $('#listaTipoFiltro').val()     || '';
+                d.producto_id      = _reporteProductoId || '';
             },
             error: function () {
                 Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudieron cargar los productos.' });
@@ -178,7 +152,17 @@ function inicializarTablaPrecios() {
             { data: 'id',                  width: '50px' },
             { data: 'categoria_cliente' },
             { data: 'codigo',              width: '110px' },
-            { data: 'producto' },
+            {
+                data: 'producto',
+                render: function (data, type, row) {
+                    if (type !== 'display') return data;
+                    return $('<button>', {
+                        type: 'button',
+                        class: 'rpt-product-history',
+                        title: 'Ver histórico de precios'
+                    }).attr('data-precio-id', row.precio_id).text(data).prop('outerHTML');
+                }
+            },
             { data: 'marca' },
             { data: 'categoria' },
             { data: 'escala_precio' },
@@ -192,16 +176,106 @@ function inicializarTablaPrecios() {
         pageLength: 25,
         lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
         responsive: true,
-        dom: '<"row align-items-center mb-2"<"col-sm-6"l><"col-sm-6"f>>rtip'
+        dom: '<"row align-items-center mb-2"<"col-sm-6"l>>rtip'
     });
+}
+
+function abrirProductoFiltroReporte() {
+    window.abrirBuscador_buscadorProductoReporteEscalas('');
+}
+
+function seleccionarProductoFiltroReporte(producto) {
+    _reporteProductoId = parseInt(producto.id, 10) || null;
+    var codigo = producto.codigo_barra || producto.codigo_estatal || ('ID ' + producto.id);
+    $('#filtro-producto-nombre').text(codigo + ' · ' + producto.nombre);
+    $('#btn-limpiar-producto-reporte').show();
+    tablaPrecios && tablaPrecios.ajax.reload();
+}
+
+function limpiarProductoFiltroReporte() {
+    _reporteProductoId = null;
+    $('#filtro-producto-nombre').text('Todos los productos');
+    $('#btn-limpiar-producto-reporte').hide();
+    tablaPrecios && tablaPrecios.ajax.reload();
+}
+
+function abrirHistorialPrecioProducto(precioId) {
+    $('#tituloHistorialPrecioProducto').text('Histórico del producto');
+    $('#historialPrecioResumen').empty();
+    $('#tablaHistorialPrecioProducto tbody').empty();
+    $('#historialPrecioContenido, #historialPrecioError').hide();
+    $('#historialPrecioCargando').show();
+    $('#modalHistorialPrecioProducto').modal('show');
+
+    $.get('/precios/producto/historial', { precio_id: precioId })
+        .done(function (res) {
+            $('#tituloHistorialPrecioProducto').text(res.producto);
+            $('#historialPrecioResumen').html(
+                '<div class="d-flex flex-wrap align-items-center" style="gap:8px;">' +
+                '<span class="badge badge-light border px-2 py-1">Código: <strong>' + res.producto_id + '</strong></span>' +
+                '<span class="badge badge-light border px-2 py-1">Categoría: <strong>' + escaparHtmlHistorial(res.categoria) + '</strong></span>' +
+                '<span class="badge badge-light border px-2 py-1">Versiones: <strong>' + res.total + '</strong></span>' +
+                '</div>'
+            );
+
+            var tbody = $('#tablaHistorialPrecioProducto tbody').empty();
+            $.each(res.historial || [], function (index, item) {
+                var estado = item.vigente
+                    ? '<span class="badge badge-success">Vigente</span>'
+                    : '<span class="badge badge-secondary">Histórico</span>';
+                var celdaNivel = function (nivel, clase) {
+                    return '<td class="text-right ' + clase + '">' +
+                        '<span class="historial-precio-valor">L. ' + formatoPrecioHistorial(nivel.valor) + '</span>' +
+                        '<span class="historial-precio-porc">' + formatoPorcentajeHistorial(nivel.porcentaje) + '%</span></td>';
+                };
+                tbody.append('<tr>' +
+                    '<td><strong>#' + item.id + '</strong><br>' + estado + '</td>' +
+                    '<td style="white-space:nowrap;">' + formatoFechaHistorial(item.fecha_registro) + '</td>' +
+                    '<td style="white-space:nowrap;">' + formatoFechaHistorial(item.fecha_actualizacion) + '</td>' +
+                    '<td class="text-right"><span class="historial-precio-valor">L. ' + formatoPrecioHistorial(item.precio_base) + '</span></td>' +
+                    celdaNivel(item.a, 'historial-col-a') +
+                    celdaNivel(item.b, 'historial-col-b') +
+                    celdaNivel(item.c, 'historial-col-c') +
+                    celdaNivel(item.d, 'historial-col-d') +
+                    '<td>' + escaparHtmlHistorial(item.usuario) + '</td>' +
+                    '</tr>');
+            });
+
+            $('#historialPrecioCargando').hide();
+            $('#historialPrecioContenido').show();
+        })
+        .fail(function (xhr) {
+            $('#historialPrecioCargando').hide();
+            $('#historialPrecioError')
+                .text(xhr.responseJSON && xhr.responseJSON.error ? xhr.responseJSON.error : 'No se pudo cargar el histórico de precios.')
+                .show();
+        });
+}
+
+function formatoPrecioHistorial(valor) {
+    return (parseFloat(valor) || 0).toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function formatoPorcentajeHistorial(valor) {
+    return (parseFloat(valor) || 0).toLocaleString('es-HN', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+}
+
+function formatoFechaHistorial(valor) {
+    if (!valor) return 'Sin registro';
+    var fecha = new Date(String(valor).replace(' ', 'T'));
+    if (isNaN(fecha.getTime())) return escaparHtmlHistorial(valor);
+    return fecha.toLocaleString('es-HN', { dateStyle: 'short', timeStyle: 'short' });
+}
+
+function escaparHtmlHistorial(valor) {
+    return $('<div>').text(valor == null ? '' : String(valor)).html();
 }
 
 function exportarPreciosProd() {
     var params = $.param({
         cat_cliente_id:  $('#filtro-cat-cliente').val()  || '',
         cat_precio_id:   $('#filtro-cat-precio').val()   || '',
-        tipoFiltro:      $('#tipoFiltro').val()          || '',
-        listaTipoFiltro: $('#listaTipoFiltro').val()     || ''
+        producto_id:     _reporteProductoId || ''
     });
     window.location.href = '/descargar/productos/filtros?' + params;
 }

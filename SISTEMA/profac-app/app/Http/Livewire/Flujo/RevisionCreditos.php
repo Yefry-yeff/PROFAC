@@ -34,8 +34,9 @@ class RevisionCreditos extends Component
 
     // ── Detalle del flujo seleccionado ────────────────────────────────────
     public ?int   $flujoId          = null;
-    protected     $flujoData        = null;
+    public ?array $flujoData        = null;
     public ?int   $cotizacionId     = null;
+    public bool   $esSeccionExpo    = false;
     public ?int   $clienteId        = null;
     public string $tipoPagoSolicitud = 'contado';
     public ?string $fechaEmisionOferta = null;
@@ -70,12 +71,19 @@ class RevisionCreditos extends Component
     // ── Datos crediticios actuales/edición ───────────────────────────────
     public float $montoCreditoActual      = 0.0;
     public float $montoDisponibleActual   = 0.0;
+    public float $montoDisponibleProyectado = 0.0;
     public int   $diasCreditoActual       = 0;
     public float $montoCreditoEditable    = 0.0;
     public string $montoCreditoEditableTexto = '0.00';
     public int   $diasCreditoEditable     = 0;
     public bool  $puedeAutorizar          = false;
     public array $bloqueosAutorizacion    = [];
+    public bool  $modalMovimientosCreditoVisible = false;
+    public array $detalleMovimientosCredito = [];
+    public bool  $modalAjusteCreditoVisible = false;
+    public string $nuevoCreditoClienteTexto = '0.00';
+    public int $nuevosDiasCreditoCliente = 0;
+    public string $motivoAjusteCredito = '';
 
     // ── Mensajes ──────────────────────────────────────────────────────────
     public string $mensajeExito = '';
@@ -90,7 +98,8 @@ class RevisionCreditos extends Component
         $this->cargar();
         $flujoId = request()->integer('flujo_id');
         if ($flujoId > 0) {
-            $this->seleccionarFlujo($flujoId);
+            $cotizacionId = request()->integer('cotizacion_id') ?: null;
+            $this->seleccionarFlujo($flujoId, $cotizacionId);
         }
     }
 
@@ -136,38 +145,36 @@ class RevisionCreditos extends Component
 
     private function buildBandejaQuery(string $term, string $tipo): array
     {
-        // Subquery: registro MÁS RECIENTE de revisión de crédito (tipo=10) por flujo
         $latestRevSub = DB::table('historico_flujo')
             ->select('flujo_id', DB::raw('MAX(id) as max_id'))
             ->where('tipo_tramite_id', 10)
             ->groupBy('flujo_id');
-
-        // Última oferta registrada en historial (fallback cuando no viene en hf.tramite_id)
         $latestOfertaSub = DB::table('historico_flujo')
             ->select('flujo_id', DB::raw('MAX(id) as max_id'))
             ->where('tipo_tramite_id', 2)
             ->groupBy('flujo_id');
-
-        // Último estado en credito_revision por flujo (evita duplicados por join múltiple)
-        $latestCreditoSub = DB::table('credito_revision')
+        $latestCreditoNormalSub = DB::table('credito_revision')
             ->select('flujo_id', DB::raw('MAX(id) as max_id'))
             ->groupBy('flujo_id');
 
-        $q = DB::table('flujo as f')
-            ->joinSub($latestRevSub, 'lrev', fn($j) => $j->on('lrev.flujo_id', '=', 'f.id'))
+        $normal = DB::table('flujo as f')
+            ->joinSub($latestRevSub, 'lrev', fn ($join) => $join->on('lrev.flujo_id', '=', 'f.id'))
             ->join('historico_flujo as hf', 'hf.id', '=', 'lrev.max_id')
-            ->leftJoinSub($latestOfertaSub, 'lof', fn($j) => $j->on('lof.flujo_id', '=', 'f.id'))
+            ->leftJoinSub($latestOfertaSub, 'lof', fn ($join) => $join->on('lof.flujo_id', '=', 'f.id'))
             ->leftJoin('historico_flujo as hfof', 'hfof.id', '=', 'lof.max_id')
             ->leftJoin('cotizacion as c', 'c.id', '=', 'hf.tramite_id')
             ->leftJoin('cotizacion as co', 'co.id', '=', 'hfof.tramite_id')
             ->leftJoin('pedido as p', DB::raw('CAST(f.identificacion AS UNSIGNED)'), '=', 'p.id')
-            ->leftJoinSub($latestCreditoSub, 'lcr', fn($j) => $j->on('lcr.flujo_id', '=', 'f.id'))
+            ->leftJoinSub($latestCreditoNormalSub, 'lcr', fn ($join) => $join->on('lcr.flujo_id', '=', 'f.id'))
             ->leftJoin('credito_revision as cr', 'cr.id', '=', 'lcr.max_id')
             ->leftJoin('users as ur', 'ur.id', '=', 'cr.usuario_revision')
+            ->whereNotExists(function ($query) {
+                $query->selectRaw('1')
+                    ->from('expo_oferta_seccion as eos_normal')
+                    ->whereColumn('eos_normal.flujo_id', 'f.id');
+            })
             ->select(
-                'f.id as flujo_id',
-                'f.identificacion',
-                'hf.created_at as fecha_revision',
+                'f.id as flujo_id', 'f.identificacion', 'hf.created_at as fecha_revision',
                 'hf.updated_at as fecha_accion',
                 DB::raw('COALESCE(hf.tramite_id, hfof.tramite_id, cr.cotizacion_id) as cotizacion_id'),
                 DB::raw('COALESCE(c.cliente_id, co.cliente_id) as cliente_id'),
@@ -177,8 +184,66 @@ class RevisionCreditos extends Component
                 DB::raw('COALESCE(cr.dias_credito_solicitados, GREATEST(DATEDIFF(COALESCE(c.fecha_vencimiento, co.fecha_vencimiento), COALESCE(c.fecha_emision, co.fecha_emision)), 0), 0) as dias_solicitados_credito'),
                 DB::raw("COALESCE(c.nombre_cliente, co.nombre_cliente, p.observaciones, CONCAT('Flujo #', f.id)) as cliente"),
                 DB::raw("COALESCE(c.RTN, co.RTN, '') as rtn"),
-                'hf.observaciones as obs_revision',
-                'hf.estado_id',
+                DB::raw('0 as es_expo'),
+                DB::raw('NULL as seccion_numero'), DB::raw('NULL as seccion_nombre'),
+                DB::raw('NULL as seccion_estado'), 'cr.estado as estado_credito',
+                'cr.fecha_aprobacion', 'cr.fecha_vencimiento_credito', 'cr.motivo_rechazo',
+                'cr.observaciones as obs_credito', 'ur.name as usuario_aprobador'
+            );
+
+        if ($tipo === 'llegando') {
+            $normal->where('f.tipo_tramite_id', 10)->where('hf.estado_id', 5);
+        } elseif ($tipo === 'aprobadas') {
+            $normal->where('hf.estado_id', 1);
+        } else {
+            $normal->where('hf.estado_id', 3);
+        }
+
+        if ($term !== '') {
+            $like = '%' . $term . '%';
+            $normal->where(function ($query) use ($term, $like) {
+                if (is_numeric($term)) {
+                    $query->where('f.id', (int) $term)->orWhere('f.identificacion', $term)
+                        ->orWhere('hf.tramite_id', (int) $term)->orWhere('hfof.tramite_id', (int) $term);
+                } else {
+                    $query->where('c.nombre_cliente', 'LIKE', $like)->orWhere('co.nombre_cliente', 'LIKE', $like)
+                        ->orWhere('c.RTN', 'LIKE', $like)->orWhere('co.RTN', 'LIKE', $like)
+                        ->orWhere('p.observaciones', 'LIKE', $like);
+                }
+            });
+        }
+
+        $latestCreditoExpoSub = DB::table('credito_revision')
+            ->select('flujo_id', 'cotizacion_id', DB::raw('MAX(id) as max_id'))
+            ->whereNotNull('cotizacion_id')
+            ->groupBy('flujo_id', 'cotizacion_id');
+
+        $expo = DB::table('credito_revision as cr')
+            ->joinSub($latestCreditoExpoSub, 'lcr', fn ($join) => $join->on('lcr.max_id', '=', 'cr.id'))
+            ->join('flujo as f', 'f.id', '=', 'cr.flujo_id')
+            ->join('cotizacion as c', 'c.id', '=', 'cr.cotizacion_id')
+            ->join('expo_oferta_seccion as eos', function ($join) {
+                $join->on('eos.cotizacion_id', '=', 'c.id')->on('eos.flujo_id', '=', 'f.id');
+            })
+            ->leftJoin('pedido as p', DB::raw('CAST(f.identificacion AS UNSIGNED)'), '=', 'p.id')
+            ->leftJoin('users as ur', 'ur.id', '=', 'cr.usuario_revision')
+            ->select(
+                'f.id as flujo_id',
+                'f.identificacion',
+                'cr.created_at as fecha_revision',
+                'cr.updated_at as fecha_accion',
+                'cr.cotizacion_id',
+                'c.cliente_id',
+                DB::raw('COALESCE(cr.fecha_emision_solicitada, c.fecha_emision) as fecha_emision_oferta'),
+                DB::raw('COALESCE(cr.fecha_vencimiento_solicitada, c.fecha_vencimiento) as fecha_vencimiento_oferta'),
+                DB::raw('COALESCE(c.total, 0) as monto_total_oferta'),
+                DB::raw('COALESCE(cr.dias_credito_solicitados, 0) as dias_solicitados_credito'),
+                DB::raw("COALESCE(c.nombre_cliente, p.observaciones, CONCAT('Flujo #', f.id)) as cliente"),
+                DB::raw("COALESCE(c.RTN, '') as rtn"),
+                DB::raw('1 as es_expo'),
+                'eos.numero as seccion_numero',
+                'eos.nombre as seccion_nombre',
+                'eos.estado as seccion_estado',
                 'cr.estado as estado_credito',
                 'cr.fecha_aprobacion',
                 'cr.fecha_vencimiento_credito',
@@ -189,45 +254,47 @@ class RevisionCreditos extends Component
 
         switch ($tipo) {
             case 'llegando':
-                // Flujos cuyo tipo actual es 10 y el historico pendiente (estado_id=5)
-                $q->where('f.tipo_tramite_id', 10)->where('hf.estado_id', 5);
+                $expo->where('cr.estado', CreditoRevision::PENDIENTE);
                 break;
             case 'aprobadas':
-                $q->where('hf.estado_id', 1);
+                $expo->where('cr.estado', CreditoRevision::APROBADO);
                 break;
             case 'rechazadas':
-                $q->where('hf.estado_id', 3);
+                $expo->whereIn('cr.estado', [CreditoRevision::RECHAZADO, CreditoRevision::CANCELADO]);
                 break;
         }
 
         if ($term !== '') {
             $like = '%' . $term . '%';
             if (is_numeric($term)) {
-                $q->where(function ($s) use ($term) {
+                $expo->where(function ($s) use ($term) {
                     $s->where('f.id', (int) $term)
                       ->orWhere('f.identificacion', $term)
-                      ->orWhere('hf.tramite_id', (int) $term)
-                      ->orWhere('hfof.tramite_id', (int) $term);
+                                            ->orWhere('cr.cotizacion_id', (int) $term)
+                                            ->orWhere('eos.numero', (int) $term);
                 });
             } else {
-                $q->where(function ($s) use ($like) {
+                $expo->where(function ($s) use ($like) {
                     $s->where('c.nombre_cliente', 'LIKE', $like)
-                      ->orWhere('co.nombre_cliente', 'LIKE', $like)
                       ->orWhere('c.RTN', 'LIKE', $like)
-                      ->orWhere('co.RTN', 'LIKE', $like)
+                                            ->orWhere('eos.nombre', 'LIKE', $like)
                       ->orWhere('p.observaciones', 'LIKE', $like);
                 });
             }
         }
 
-        return $q->orderByDesc('hf.created_at')->get()->map(fn($r) => (array) $r)->toArray();
+        return $normal->get()->concat($expo->get())
+            ->sortByDesc('fecha_revision')
+            ->map(fn ($registro) => (array) $registro)
+            ->values()
+            ->all();
     }
 
     // ─────────────────────────────────────────────────────────────────────
     // DETALLE DE FLUJO
     // ─────────────────────────────────────────────────────────────────────
 
-    public function seleccionarFlujo(int $flujoId): void
+    public function seleccionarFlujo(int $flujoId, ?int $cotizacionId = null): void
     {
         $this->flujoId          = $flujoId;
         $this->confirmAccion    = null;
@@ -244,26 +311,41 @@ class RevisionCreditos extends Component
         $this->numeroFormaF01     = null;
         $this->archivoFormaF01    = null;
 
-        // Info del flujo
+        $this->esSeccionExpo = $cotizacionId && DB::table('expo_oferta_seccion')
+            ->where('flujo_id', $flujoId)
+            ->where('cotizacion_id', $cotizacionId)
+            ->exists();
+        if ($this->esSeccionExpo) {
+            $this->cotizacionId = $cotizacionId;
+        } else {
+            $this->cotizacionId = DB::table('historico_flujo')
+                ->where('flujo_id', $flujoId)
+                ->where('tipo_tramite_id', 2)
+                ->where('observaciones', 'ganadora')
+                ->latest('id')
+                ->value('tramite_id');
+            $this->cotizacionId = $this->cotizacionId ?: DB::table('credito_revision')
+                ->where('flujo_id', $flujoId)->whereNotNull('cotizacion_id')->latest('id')->value('cotizacion_id');
+            $this->cotizacionId = $this->cotizacionId ?: DB::table('historico_flujo')
+                ->where('flujo_id', $flujoId)->where('tipo_tramite_id', 2)->latest('id')->value('tramite_id');
+        }
+
+        // Info del flujo y de la sección seleccionada
         $flujoResult = DB::table('flujo as f')
             ->leftJoin('pedido as p', DB::raw('CAST(f.identificacion AS UNSIGNED)'), '=', 'p.id')
             ->leftJoin('cliente as cl', 'cl.id', '=', 'p.cliente_id')
-            ->leftJoin('historico_flujo as hfof', function ($j) {
-                $j->on('hfof.flujo_id', '=', 'f.id')
-                  ->where('hfof.tipo_tramite_id', 2)
-                  ->where('hfof.observaciones', 'ganadora');
-            })
-            ->leftJoin('cotizacion as c', 'c.id', '=', 'hfof.tramite_id')
+                        ->leftJoin('cotizacion as c', fn ($join) => $join->on('c.id', '=', DB::raw((int) ($this->cotizacionId ?? 0))))
             ->where('f.id', $flujoId)
             ->select(
                 'f.id as flujo_id',
                 'f.identificacion',
                 'p.id as pedido_id',
                 DB::raw("COALESCE(c.nombre_cliente, cl.nombre, 'N/A') as cliente"),
+                DB::raw("COALESCE(c.RTN, cl.rtn, '') as rtn"),
                 DB::raw('COALESCE(c.cliente_id, cl.id) as cliente_id'),
                 'p.created_at as pedido_fecha',
                 'p.observaciones as pedido_obs',
-                'hfof.tramite_id as cotizacion_id',
+                'c.id as cotizacion_id',
                 'c.total as monto_total_oferta',
                 'c.nota as comentario_oferta',
                 'c.fecha_emision as fecha_emision_oferta',
@@ -295,73 +377,13 @@ class RevisionCreditos extends Component
         );
         $this->tipoPagoSolicitud = $this->diasSolicitadosCredito > 0 ? 'credito' : 'contado';
 
-        // Oferta ganadora
-        $hfGanadora = DB::table('historico_flujo')
-            ->where('flujo_id', $flujoId)
-            ->where('tipo_tramite_id', 2)
-            ->where('observaciones', 'ganadora')
-            ->orderByDesc('id')
-            ->first(['tramite_id']);
-
-        $this->cotizacionId = $hfGanadora ? (int) $hfGanadora->tramite_id : null;
-        $cotizacionIdCredito = DB::table('credito_revision')
-            ->where('flujo_id', $flujoId)
-            ->whereNotNull('cotizacion_id')
-            ->orderByDesc('id')
-            ->value('cotizacion_id');
-
-        $cotizacionIdUltimaOferta = DB::table('historico_flujo')
-            ->where('flujo_id', $flujoId)
-            ->where('tipo_tramite_id', 2)
-            ->orderByDesc('id')
-            ->value('tramite_id');
-
-        $candidatasCotizacion = array_values(array_unique(array_filter([
-            $this->cotizacionId,
-            $cotizacionIdCredito ? (int) $cotizacionIdCredito : null,
-            $cotizacionIdUltimaOferta ? (int) $cotizacionIdUltimaOferta : null,
-        ])));
-
-        $necesitaCompletarOferta =
-            !$this->fechaEmisionOferta ||
-            !$this->fechaVencimientoOferta ||
-            $this->montoTotalOferta <= 0;
-
-        if ($necesitaCompletarOferta && count($candidatasCotizacion) > 0) {
-            foreach ($candidatasCotizacion as $cotizacionCandId) {
-                $oferta = DB::table('cotizacion')
-                    ->where('id', $cotizacionCandId)
-                    ->first(['id', 'cliente_id', 'fecha_emision', 'fecha_vencimiento', 'total', 'nota']);
-
-                if (!$oferta) {
-                    continue;
-                }
-
-                if (!$this->cotizacionId) {
-                    $this->cotizacionId = (int) $oferta->id;
-                }
-                $this->clienteId = $this->clienteId ?: (int) ($oferta->cliente_id ?? 0);
-                $this->fechaEmisionOferta = $this->fechaEmisionOferta ?: ($oferta->fecha_emision ? Carbon::parse($oferta->fecha_emision)->toDateString() : null);
-                $this->fechaVencimientoOferta = $this->fechaVencimientoOferta ?: ($oferta->fecha_vencimiento ? Carbon::parse($oferta->fecha_vencimiento)->toDateString() : null);
-                if ($this->montoTotalOferta <= 0) {
-                    $this->montoTotalOferta = (float) ($oferta->total ?? 0);
-                }
-                if (!$this->comentarioOferta) {
-                    $this->comentarioOferta = trim((string) ($oferta->nota ?? '')) ?: null;
-                }
-            }
-
-            $this->diasSolicitadosCredito = $this->calcularDiasSolicitados($this->fechaEmisionOferta, $this->fechaVencimientoOferta);
-            $this->tipoPagoSolicitud = $this->diasSolicitadosCredito > 0 ? 'credito' : 'contado';
-        }
-
         $comentarioCreditoOferta = DB::table('flujo_oferta_credito_comentarios')
             ->where('flujo_id', $flujoId)
             ->when($this->cotizacionId, fn($q) => $q->where('tramite_id', $this->cotizacionId))
             ->orderByDesc('id')
             ->value('observacion');
 
-        if (!$comentarioCreditoOferta) {
+        if (!$comentarioCreditoOferta && !$this->esSeccionExpo) {
             $comentarioCreditoOferta = DB::table('flujo_oferta_credito_comentarios')
                 ->where('flujo_id', $flujoId)
                 ->orderByDesc('id')
@@ -373,7 +395,9 @@ class RevisionCreditos extends Component
         $this->cargarDatosCreditoCliente();
 
         // Estado del crédito
-        $cr = CreditoRevision::paraFlujo($flujoId);
+        $cr = $this->esSeccionExpo
+            ? CreditoRevision::paraSeccion($flujoId, (int) $this->cotizacionId)
+            : CreditoRevision::paraFlujo($flujoId);
         if ($cr) {
             $this->estadoCredito           = $cr->estado;
             $this->fechaAprobacionActual   = $cr->fecha_aprobacion
@@ -389,16 +413,20 @@ class RevisionCreditos extends Component
                 ? DB::table('users')->where('id', $cr->usuario_revision)->value('name')
                 : null;
 
-            // Historial
-            $this->historialCredito = DB::table('credito_revision_historial as crh')
-                ->leftJoin('users as u', 'u.id', '=', 'crh.usuario_id')
-                ->where('crh.credito_revision_id', $cr->id)
-                ->orderByDesc('crh.id')
-                ->select('crh.accion', 'crh.estado_anterior', 'crh.estado_nuevo',
-                         'crh.descripcion', 'crh.fecha_evento', 'u.name as usuario_nombre')
-                ->get()
-                ->map(fn($r) => (array) $r)
-                ->toArray();
+            // Expo conserva el historial de su sección; el flujo normal reúne todos sus ciclos.
+            if ($this->esSeccionExpo) {
+                $this->historialCredito = DB::table('credito_revision_historial as crh')
+                    ->leftJoin('users as u', 'u.id', '=', 'crh.usuario_id')
+                    ->where('crh.credito_revision_id', $cr->id)
+                    ->orderByDesc('crh.id')
+                    ->select('crh.accion', 'crh.estado_anterior', 'crh.estado_nuevo',
+                             'crh.descripcion', 'crh.fecha_evento', 'u.name as usuario_nombre')
+                    ->get()
+                    ->map(fn($r) => (array) $r)
+                    ->toArray();
+            } else {
+                $this->historialCredito = $this->cargarHistorialFlujoNormal($flujoId);
+            }
         } else {
             $this->estadoCredito          = CreditoRevision::PENDIENTE;
             $this->fechaAprobacionActual  = null;
@@ -411,11 +439,108 @@ class RevisionCreditos extends Component
         }
     }
 
+    private function cargarHistorialFlujoNormal(int $flujoId): array
+    {
+        $eventos = DB::table('credito_revision_historial as crh')
+            ->join('credito_revision as cr', 'cr.id', '=', 'crh.credito_revision_id')
+            ->leftJoin('users as u', 'u.id', '=', 'crh.usuario_id')
+            ->where('crh.flujo_id', $flujoId)
+            ->select(
+                'crh.id as evento_id',
+                'crh.credito_revision_id',
+                'cr.cotizacion_id',
+                'crh.accion',
+                'crh.estado_anterior',
+                'crh.estado_nuevo',
+                'crh.descripcion',
+                'crh.fecha_evento',
+                'u.name as usuario_nombre'
+            )
+            ->get()
+            ->map(fn ($registro) => (array) $registro);
+
+        $revisiones = DB::table('credito_revision as cr')
+            ->leftJoin('users as u', 'u.id', '=', 'cr.usuario_revision')
+            ->where('cr.flujo_id', $flujoId)
+            ->get([
+                'cr.id',
+                'cr.cotizacion_id',
+                'cr.created_at',
+                'u.name as usuario_nombre',
+            ]);
+
+        foreach ($revisiones as $revision) {
+            $tieneCreacion = $eventos->contains(fn ($evento) =>
+                (int) $evento['credito_revision_id'] === (int) $revision->id
+                && $evento['accion'] === 'creado'
+            );
+
+            if (!$tieneCreacion) {
+                $eventos->push([
+                    'evento_id' => 0,
+                    'credito_revision_id' => (int) $revision->id,
+                    'cotizacion_id' => $revision->cotizacion_id,
+                    'accion' => 'creado',
+                    'estado_anterior' => null,
+                    'estado_nuevo' => CreditoRevision::PENDIENTE,
+                    'descripcion' => 'Oferta #' . $revision->cotizacion_id . ' enviada a Revisión de Crédito.',
+                    'fecha_evento' => $revision->created_at,
+                    'usuario_nombre' => $revision->usuario_nombre,
+                ]);
+            }
+        }
+
+        $devolucionesInventario = DB::table('historico_flujo as hf')
+            ->leftJoin('users as u', 'u.id', '=', 'hf.updated_by')
+            ->where('hf.flujo_id', $flujoId)
+            ->where('hf.tipo_tramite_id', 9)
+            ->where('hf.estado_id', 7)
+            ->whereNotExists(function ($query) {
+                $query->selectRaw('1')
+                    ->from('expo_oferta_seccion as eos')
+                    ->whereColumn('eos.flujo_id', 'hf.flujo_id')
+                    ->whereColumn('eos.cotizacion_id', 'hf.tramite_id');
+            })
+            ->get([
+                'hf.id as evento_id',
+                'hf.tramite_id as cotizacion_id',
+                'hf.observaciones as descripcion',
+                'hf.updated_at as fecha_evento',
+                'u.name as usuario_nombre',
+            ])
+            ->map(fn ($registro) => [
+                'evento_id' => (int) $registro->evento_id,
+                'credito_revision_id' => null,
+                'cotizacion_id' => $registro->cotizacion_id,
+                'accion' => 'devuelto_inventario',
+                'estado_anterior' => 'en revisión',
+                'estado_nuevo' => 'devuelto',
+                'descripcion' => $registro->descripcion,
+                'fecha_evento' => $registro->fecha_evento,
+                'usuario_nombre' => $registro->usuario_nombre,
+            ]);
+
+        return $eventos
+            ->concat($devolucionesInventario)
+            ->sortByDesc(fn ($evento) => sprintf(
+                '%s-%010d',
+                Carbon::parse($evento['fecha_evento'])->format('YmdHis'),
+                (int) $evento['evento_id']
+            ))
+            ->values()
+            ->map(function ($evento) {
+                unset($evento['evento_id'], $evento['credito_revision_id']);
+                return $evento;
+            })
+            ->all();
+    }
+
     public function cerrarDetalle(): void
     {
         $this->flujoId                = null;
         $this->flujoData              = null;
         $this->cotizacionId           = null;
+        $this->esSeccionExpo          = false;
         $this->clienteId              = null;
         $this->tipoPagoSolicitud      = 'contado';
         $this->fechaEmisionOferta     = null;
@@ -439,12 +564,19 @@ class RevisionCreditos extends Component
         $this->observaciones          = '';
         $this->montoCreditoActual     = 0.0;
         $this->montoDisponibleActual  = 0.0;
+        $this->montoDisponibleProyectado = 0.0;
         $this->diasCreditoActual      = 0;
         $this->montoCreditoEditable   = 0.0;
         $this->montoCreditoEditableTexto = '0.00';
         $this->diasCreditoEditable    = 0;
         $this->puedeAutorizar         = false;
         $this->bloqueosAutorizacion   = [];
+        $this->modalMovimientosCreditoVisible = false;
+        $this->detalleMovimientosCredito = [];
+        $this->modalAjusteCreditoVisible = false;
+        $this->nuevoCreditoClienteTexto = '0.00';
+        $this->nuevosDiasCreditoCliente = 0;
+        $this->motivoAjusteCredito = '';
         $this->mensajeExito           = '';
         $this->mensajeError           = '';
     }
@@ -472,6 +604,7 @@ class RevisionCreditos extends Component
             $this->diasCreditoActual     = 0;
             $this->montoCreditoEditable  = 0.0;
             $this->diasCreditoEditable   = 0;
+            $this->montoDisponibleProyectado = -$this->montoTotalOferta;
             $this->bloqueosAutorizacion  = ['No se encontró cliente vinculado para validar crédito.'];
             $this->puedeAutorizar        = false;
             return;
@@ -492,7 +625,9 @@ class RevisionCreditos extends Component
         $this->montoCreditoEditable = $this->montoCreditoActual;
         $this->montoCreditoEditableTexto = number_format($this->montoCreditoEditable, 2, '.', ',');
         $this->diasCreditoEditable  = $this->diasCreditoActual;
-        $this->montoDisponibleActual = CreditoService::calcularDisponible((int) $this->clienteId, $this->montoCreditoEditable);
+        $detalleCredito = CreditoService::obtenerDetalleMovimientos((int) $this->clienteId);
+        $this->montoDisponibleActual = (float) $detalleCredito['saldo_pendiente'];
+        $this->montoDisponibleProyectado = $this->montoDisponibleActual - $this->montoTotalOferta;
 
         $this->evaluarReglasAutorizacion();
     }
@@ -529,6 +664,12 @@ class RevisionCreditos extends Component
 
     private function evaluarReglasAutorizacion(): void
     {
+        if (!$this->clienteId) {
+            $this->bloqueosAutorizacion = ['No se encontró cliente vinculado para validar crédito.'];
+            $this->puedeAutorizar = false;
+            return;
+        }
+
         // Facturas de contado no requieren validación de crédito
         if ($this->tipoPagoSolicitud === 'contado') {
             $this->bloqueosAutorizacion = [];
@@ -538,16 +679,168 @@ class RevisionCreditos extends Component
 
         $bloqueos = [];
 
-        if ($this->montoTotalOferta > $this->montoDisponibleActual) {
-            $bloqueos[] = 'El monto de la factura excede el crédito disponible del cliente.';
-        }
-
         if ($this->diasCreditoEditable > $this->diasSolicitadosCredito) {
             $bloqueos[] = 'Los días aprobados no pueden ser mayores que los días solicitados en el flujo.';
         }
 
         $this->bloqueosAutorizacion = $bloqueos;
         $this->puedeAutorizar = empty($bloqueos);
+    }
+
+    public function abrirMovimientosCredito(): void
+    {
+        if (!$this->clienteId) {
+            return;
+        }
+
+        $this->detalleMovimientosCredito = CreditoService::obtenerDetalleMovimientos($this->clienteId);
+        $this->modalMovimientosCreditoVisible = true;
+    }
+
+    public function cerrarMovimientosCredito(): void
+    {
+        $this->modalMovimientosCreditoVisible = false;
+    }
+
+    public function abrirAjusteCredito(): void
+    {
+        if (!$this->clienteId) {
+            $this->mensajeError = 'No se encontró cliente vinculado para modificar el crédito.';
+            return;
+        }
+
+        $this->nuevoCreditoClienteTexto = number_format($this->montoCreditoActual, 2, '.', ',');
+        $this->nuevosDiasCreditoCliente = $this->diasCreditoActual;
+        $this->motivoAjusteCredito = '';
+        $this->mensajeError = '';
+        $this->modalAjusteCreditoVisible = true;
+    }
+
+    public function cerrarAjusteCredito(): void
+    {
+        $this->modalAjusteCreditoVisible = false;
+        $this->motivoAjusteCredito = '';
+    }
+
+    public function guardarAjusteCredito(): void
+    {
+        if (!$this->clienteId || !$this->flujoId || !$this->cotizacionId) {
+            $this->mensajeError = 'No se encontró el cliente, flujo u oferta para registrar el ajuste.';
+            return;
+        }
+
+        $valorLimpio = str_replace(',', '', trim($this->nuevoCreditoClienteTexto));
+        if ($valorLimpio === '' || !is_numeric($valorLimpio) || (float) $valorLimpio < 0) {
+            $this->mensajeError = 'Ingrese un monto de crédito válido, igual o mayor que cero.';
+            return;
+        }
+
+        if ($this->nuevosDiasCreditoCliente < 0 || $this->nuevosDiasCreditoCliente > 365) {
+            $this->mensajeError = 'Los días de crédito deben estar entre 0 y 365.';
+            return;
+        }
+
+        $motivo = trim($this->motivoAjusteCredito);
+        if ($motivo === '') {
+            $this->mensajeError = 'Indique el motivo del cambio de crédito.';
+            return;
+        }
+
+        $nuevoCredito = round((float) $valorLimpio, 2);
+        $nuevosDiasCredito = (int) $this->nuevosDiasCreditoCliente;
+
+        DB::beginTransaction();
+        try {
+            $cliente = DB::table('cliente')
+                ->where('id', $this->clienteId)
+                ->lockForUpdate()
+                ->first(['credito_inicial', 'dias_credito', 'vendedor']);
+
+            if (!$cliente) {
+                throw new \RuntimeException('El cliente ya no existe.');
+            }
+
+            $creditoAnterior = DB::table('cliente_credito')
+                ->where('cliente_id', $this->clienteId)
+                ->orderByDesc('id')
+                ->lockForUpdate()
+                ->first();
+            $limiteAnterior = (float) ($creditoAnterior->credito ?? $cliente->credito_inicial ?? 0);
+            $diasAnteriores = (int) ($creditoAnterior->dias_credito ?? $cliente->dias_credito ?? 0);
+            $detalleAnterior = CreditoService::obtenerDetalleMovimientos($this->clienteId);
+            $disponibleAnterior = (float) $detalleAnterior['saldo_pendiente'];
+
+            DB::table('cliente')->where('id', $this->clienteId)->update([
+                'credito_inicial' => $nuevoCredito,
+                'dias_credito' => $nuevosDiasCredito,
+                'updated_at' => now(),
+            ]);
+
+            DB::table('cliente_credito')
+                ->where('cliente_id', $this->clienteId)
+                ->update(['activo' => 0, 'updated_at' => now()]);
+
+            DB::table('cliente_credito')->insert([
+                'cliente_id' => $this->clienteId,
+                'activo' => 1,
+                'credito_activo' => $creditoAnterior->credito_activo ?? ($nuevoCredito > 0 ? 1 : 0),
+                'credito' => $nuevoCredito,
+                'dias_credito' => $nuevosDiasCredito,
+                'fecha_vigencia' => $creditoAnterior->fecha_vigencia ?? null,
+                'vendedor_id' => $creditoAnterior->vendedor_id ?? $cliente->vendedor ?? null,
+                'referencias_bancarias' => $creditoAnterior->referencias_bancarias ?? null,
+                'referencias_comerciales' => $creditoAnterior->referencias_comerciales ?? null,
+                'metodo_pago' => $creditoAnterior->metodo_pago ?? null,
+                'letra_cambio' => $creditoAnterior->letra_cambio ?? 0,
+                'obs_letra_cambio' => $creditoAnterior->obs_letra_cambio ?? null,
+                'aval_solidario' => $creditoAnterior->aval_solidario ?? 0,
+                'obs_aval_solidario' => $creditoAnterior->obs_aval_solidario ?? null,
+                'autorizacion_gerencia' => $creditoAnterior->autorizacion_gerencia ?? null,
+                'users_id' => Auth::id(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            $detalleNuevo = CreditoService::obtenerDetalleMovimientos($this->clienteId);
+            $disponibleNuevo = (float) $detalleNuevo['saldo_pendiente'];
+            DB::table('cliente')->where('id', $this->clienteId)->update([
+                'credito' => $disponibleNuevo,
+                'updated_at' => now(),
+            ]);
+
+            $descripcion = 'Ajuste de crédito desde oferta #' . $this->cotizacionId
+                . ': L ' . number_format($limiteAnterior, 2)
+                . ' a L ' . number_format($nuevoCredito, 2)
+                . '; días ' . $diasAnteriores . ' a ' . $nuevosDiasCredito
+                . '. Motivo: ' . $motivo;
+            DB::table('log_credito')->insert([
+                'descripcion' => mb_substr($descripcion, 0, 200),
+                'tipo' => 'ajuste_credito_cliente',
+                'monto' => abs($nuevoCredito - $limiteAnterior),
+                'users_id' => Auth::id(),
+                'factura_id' => null,
+                'flujo_id' => $this->flujoId,
+                'cotizacion_id' => $this->cotizacionId,
+                'saldo_anterior' => $disponibleAnterior,
+                'saldo_resultante' => $disponibleNuevo,
+                'cliente_id' => $this->clienteId,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            DB::commit();
+
+            $this->modalAjusteCreditoVisible = false;
+            $this->motivoAjusteCredito = '';
+            $this->cargarDatosCreditoCliente();
+            $this->mensajeError = '';
+            $this->mensajeExito = 'Crédito del cliente actualizado de L '
+                . number_format($limiteAnterior, 2) . ' a L ' . number_format($nuevoCredito, 2)
+                . '. El cambio quedó auditado.';
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            $this->mensajeError = 'No se pudo actualizar el crédito del cliente: ' . $e->getMessage();
+        }
     }
 
     // DEPRECATED: Esta función ya no debe usarse.
@@ -672,12 +965,18 @@ class RevisionCreditos extends Component
         DB::beginTransaction();
         try {
             $ip = request()->ip();
+            $saldoAnterior = (float) CreditoService::obtenerDetalleMovimientos(
+                (int) $this->clienteId
+            )['saldo_pendiente'];
+            $saldoResultante = $saldoAnterior - (float) $this->montoTotalOferta;
 
             // Los datos de crédito editados en esta pantalla (monto, días) se persisten SOLO
             // en la tabla credito_revision de este flujo, sin modificar la configuración
             // global del cliente en la tabla cliente.
 
-            $cr             = CreditoRevision::where('flujo_id', $this->flujoId)->latest('id')->first();
+            $cr             = $this->esSeccionExpo
+                ? CreditoRevision::paraSeccion($this->flujoId, (int) $this->cotizacionId)
+                : CreditoRevision::paraFlujo($this->flujoId);
             $estadoAnterior = $cr ? $cr->estado : null;
 
             // Días de crédito aprobados por operación:
@@ -751,10 +1050,28 @@ class RevisionCreditos extends Component
                 $ip
             );
 
+            DB::table('log_credito')->insert([
+                'descripcion' => $saldoResultante < 0
+                    ? 'Saldo negativo por aprobación de oferta #' . $this->cotizacionId
+                    : 'Aprobación de crédito para oferta #' . $this->cotizacionId,
+                'tipo' => 'aprobacion_oferta',
+                'monto' => $this->montoTotalOferta,
+                'users_id' => Auth::id(),
+                'factura_id' => null,
+                'flujo_id' => $this->flujoId,
+                'cotizacion_id' => $this->cotizacionId,
+                'saldo_anterior' => $saldoAnterior,
+                'saldo_resultante' => $saldoResultante,
+                'cliente_id' => $this->clienteId,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
             // Cerrar historico_flujo tipo=10 como aprobado
             DB::table('historico_flujo')
                 ->where('flujo_id', $this->flujoId)
                 ->where('tipo_tramite_id', 10)
+                ->when($this->esSeccionExpo, fn ($query) => $query->where('tramite_id', $this->cotizacionId))
                 ->where('estado_id', 5)
                 ->update([
                     'estado_id'     => 1,
@@ -767,6 +1084,7 @@ class RevisionCreditos extends Component
             $revInvDevuelto = DB::table('historico_flujo')
                 ->where('flujo_id', $this->flujoId)
                 ->where('tipo_tramite_id', 9)
+                ->when($this->esSeccionExpo, fn ($query) => $query->where('tramite_id', $this->cotizacionId))
                 ->where('estado_id', 7)
                 ->exists();
 
@@ -774,9 +1092,11 @@ class RevisionCreditos extends Component
                 DB::table('historico_flujo')
                     ->where('flujo_id', $this->flujoId)
                     ->where('tipo_tramite_id', 9)
+                    ->when($this->esSeccionExpo, fn ($query) => $query->where('tramite_id', $this->cotizacionId))
                     ->where('estado_id', 7)
                     ->update([
                         'estado_id'     => 5,
+                        'tramite_id'    => $this->cotizacionId,
                         'observaciones' => 'Reactivado. Crédito aprobado por ' . Auth::user()->name,
                         'updated_by'    => Auth::id(),
                         'updated_at'    => now(),
@@ -795,9 +1115,17 @@ class RevisionCreditos extends Component
                 ]);
             }
 
+            DB::table('expo_oferta_seccion')
+                ->where('cotizacion_id', $this->cotizacionId)
+                ->update([
+                    'estado' => 'EN_REVISION_INVENTARIO',
+                    'updated_by' => Auth::id(),
+                    'updated_at' => now(),
+                ]);
+
             // Avanzar flujo a Revisión de Inventario
             DB::table('flujo')->where('id', $this->flujoId)->update([
-                'tipo_tramite_id' => 9,
+                'tipo_tramite_id' => $this->esSeccionExpo ? 11 : 9,
                 'updated_by'      => Auth::id(),
                 'updated_at'      => now(),
             ]);
@@ -826,7 +1154,10 @@ class RevisionCreditos extends Component
 
             $this->cerrarDetalle();
             $this->cargar();
-            $this->mensajeExito = 'Flujo #' . $flujoIdCerrado . ': Crédito aprobado y enviado a Revisión de Inventario.';
+            $this->mensajeExito = 'Flujo #' . $flujoIdCerrado . ': Crédito aprobado y enviado a Revisión de Inventario.'
+                . ($saldoResultante < 0
+                    ? ' El saldo disponible proyectado del cliente quedó en L ' . number_format($saldoResultante, 2) . '.'
+                    : '');
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -853,7 +1184,9 @@ class RevisionCreditos extends Component
         try {
             $ip = request()->ip();
 
-            $cr             = CreditoRevision::where('flujo_id', $this->flujoId)->latest('id')->first();
+            $cr             = $this->esSeccionExpo
+                ? CreditoRevision::paraSeccion($this->flujoId, (int) $this->cotizacionId)
+                : CreditoRevision::paraFlujo($this->flujoId);
             $estadoAnterior = $cr ? $cr->estado : null;
 
             if ($cr) {
@@ -889,6 +1222,7 @@ class RevisionCreditos extends Component
             DB::table('historico_flujo')
                 ->where('flujo_id', $this->flujoId)
                 ->where('tipo_tramite_id', 10)
+                ->when($this->esSeccionExpo, fn ($query) => $query->where('tramite_id', $this->cotizacionId))
                 ->where('estado_id', 5)
                 ->update([
                     'estado_id'     => 3,
@@ -897,34 +1231,74 @@ class RevisionCreditos extends Component
                     'updated_at'    => now(),
                 ]);
 
-            // Cancelar el flujo
+            $esSeccionExpo = $this->esSeccionExpo;
+
+            if ($esSeccionExpo) {
+                $seccionExpo = DB::table('expo_oferta_seccion')
+                    ->where('cotizacion_id', $this->cotizacionId)
+                    ->first(['cotizacion_origen_id']);
+                DB::table('expo_oferta_seccion')
+                    ->where('cotizacion_id', $this->cotizacionId)
+                    ->update([
+                        'estado' => 'RECHAZADA_CREDITO',
+                        'updated_by' => Auth::id(),
+                        'updated_at' => now(),
+                    ]);
+
+                if ($seccionExpo) {
+                    DB::table('historico_flujo')->insert([
+                        'flujo_id' => $this->flujoId,
+                        'tipo_tramite_id' => 11,
+                        'tramite_id' => $seccionExpo->cotizacion_origen_id,
+                        'estado_id' => 5,
+                        'observaciones' => 'Sección rechazada en Crédito. La oferta puede volver a seccionarse.',
+                        'created_by' => Auth::id(),
+                        'updated_by' => Auth::id(),
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                    DB::table('flujo')->where('id', $this->flujoId)->update([
+                        'tipo_tramite_id' => 11,
+                        'updated_by' => Auth::id(),
+                        'updated_at' => now(),
+                    ]);
+                }
+            }
+
+            // Las ofertas normales cancelan el flujo; una sección Expo sólo se rechaza a sí misma.
             $canceladoId = DB::table('estado_venta')
                 ->where('descripcion', 'cancelado')
                 ->value('id') ?? 4;
 
-            DB::table('flujo')
-                ->where('id', $this->flujoId)
-                ->update([
-                    'estado_id'       => $canceladoId,
-                    'tipo_tramite_id' => 10,
-                    'updated_by'      => Auth::id(),
-                    'updated_at'      => now(),
-                ]);
+            if (!$esSeccionExpo) {
+                DB::table('flujo')
+                    ->where('id', $this->flujoId)
+                    ->update([
+                        'estado_id'       => $canceladoId,
+                        'tipo_tramite_id' => 10,
+                        'updated_by'      => Auth::id(),
+                        'updated_at'      => now(),
+                    ]);
+            }
 
-            $cr->registrarHistorial(
-                'cancelado',
-                CreditoRevision::RECHAZADO,
-                CreditoRevision::CANCELADO,
-                'Flujo cancelado por rechazo de crédito.',
-                $ip
-            );
+            if (!$esSeccionExpo) {
+                $cr->registrarHistorial(
+                    'cancelado',
+                    CreditoRevision::RECHAZADO,
+                    CreditoRevision::CANCELADO,
+                    'Flujo cancelado por rechazo de crédito.',
+                    $ip
+                );
+            }
 
             DB::commit();
 
             $flujoIdCerrado = $this->flujoId;
             $this->cerrarDetalle();
             $this->cargar();
-            $this->mensajeExito = 'Flujo #' . $flujoIdCerrado . ': Crédito rechazado. El flujo ha sido cancelado.';
+            $this->mensajeExito = $esSeccionExpo
+                ? 'Flujo #' . $flujoIdCerrado . ': la sección fue rechazada en Crédito; las demás continúan su proceso.'
+                : 'Flujo #' . $flujoIdCerrado . ': Crédito rechazado. El flujo ha sido cancelado.';
 
         } catch (\Exception $e) {
             DB::rollBack();

@@ -2,11 +2,16 @@
 
 namespace App\Http\Livewire\FlujoDeVenta;
 
+use App\Exports\ArrayExport;
+use App\Services\Expo\GestorAumentoExpo;
+use App\Services\Expo\LiquidacionOfertaExpo;
 use Carbon\Carbon;
 use Livewire\Component;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
+use Maatwebsite\Excel\Facades\Excel;
 
 class Expo extends Component
 {
@@ -23,9 +28,27 @@ class Expo extends Component
     public $usuariosSeleccionados = [];
     public $busquedaUsuario = '';
     public $descuentos = [];
+    public $descuentosMarca = [];
+    public $mostrarModalDescuentoMarca = false;
+    public $marcaDescuentoSeleccionada = '';
+    public $marcaDescuentoGestionId = '';
+    public $marcaDescuentoEditandoId;
+    public $escalonesMarcaModal = [];
+    public $busquedaDescuentoMarca = '';
+    public $ordenDescuentoMarca = 'marca';
+    public $direccionDescuentoMarca = 'asc';
     public $mostrarFormulario = false;
     public $expoDetalle = [];
     public $mostrarDetalle = false;
+    public $motivoCierre = '';
+    public $motivoReapertura = '';
+    public $mostrarCierreExpo = false;
+    public $expoCierre = [];
+    public $cierreCandidatos = [];
+    public $facturasExcluidasCierre = [];
+    public $filtroCierre = '';
+    public $ofertasCierreSinAumento = 0;
+    public $flujoDetalleCierreId;
 
     public function nueva(): void
     {
@@ -62,6 +85,9 @@ class Expo extends Component
                 'venta_minima' => (string) $regla->venta_minima,
                 'porcentaje_descuento' => (string) $regla->porcentaje_descuento,
             ])->all();
+        $this->descuentosMarca = $this->cargarDescuentosMarca($id);
+        $this->marcaDescuentoGestionId = '';
+        $this->busquedaDescuentoMarca = '';
         $this->mostrarFormulario = true;
     }
 
@@ -86,6 +112,7 @@ class Expo extends Component
                 'venta_minima' => (string) $regla->venta_minima,
                 'porcentaje_descuento' => (string) $regla->porcentaje_descuento,
             ])->all();
+        $this->descuentosMarca = $this->cargarDescuentosMarca($id);
         $this->mostrarFormulario = true;
     }
 
@@ -141,6 +168,183 @@ class Expo extends Component
         }
     }
 
+    public function abrirModalDescuentoMarca(): void
+    {
+        $this->marcaDescuentoEditandoId = null;
+        $this->marcaDescuentoSeleccionada = '';
+        $this->escalonesMarcaModal = [[
+            'venta_minima' => '',
+            'porcentaje_descuento' => '',
+            'requiere_asistencia' => false,
+        ]];
+        $this->mostrarModalDescuentoMarca = true;
+        $this->resetValidation(['marcaDescuentoSeleccionada', 'escalonesMarcaModal']);
+    }
+
+    public function cerrarModalDescuentoMarca(): void
+    {
+        $this->mostrarModalDescuentoMarca = false;
+        $this->marcaDescuentoEditandoId = null;
+        $this->marcaDescuentoSeleccionada = '';
+        $this->escalonesMarcaModal = [];
+        $this->resetValidation(['marcaDescuentoSeleccionada', 'escalonesMarcaModal']);
+    }
+
+    public function editarDescuentoMarcaSeleccionado(): void
+    {
+        $marcaId = (int) $this->marcaDescuentoGestionId;
+        $reglas = collect($this->descuentosMarca)
+            ->where('marca_id', $marcaId)
+            ->sortBy(fn ($regla) => (float) str_replace(',', '', (string) ($regla['venta_minima'] ?? 0)))
+            ->values();
+
+        if (!$marcaId || $reglas->isEmpty()) {
+            $this->addError('marcaDescuentoGestionId', 'Seleccione una escala con descuento configurado.');
+            return;
+        }
+
+        $this->marcaDescuentoEditandoId = $marcaId;
+        $this->marcaDescuentoSeleccionada = (string) $marcaId;
+        $this->escalonesMarcaModal = $reglas->map(fn ($regla) => [
+            'venta_minima' => (string) ($regla['venta_minima'] ?? ''),
+            'porcentaje_descuento' => (string) ($regla['porcentaje_descuento'] ?? ''),
+            'requiere_asistencia' => (bool) ($regla['requiere_asistencia'] ?? false),
+        ])->all();
+        $this->mostrarModalDescuentoMarca = true;
+        $this->resetValidation(['marcaDescuentoGestionId', 'marcaDescuentoSeleccionada', 'escalonesMarcaModal']);
+    }
+
+    public function descargarDescuentosMarcaExcel(bool $todas = false)
+    {
+        abort_unless($this->expoEditandoId, 404, 'Debe editar una Expo para descargar sus descuentos.');
+        $marcaId = $todas ? null : (int) $this->marcaDescuentoGestionId;
+        $reglas = collect($this->descuentosMarca)
+            ->when($marcaId, fn ($items) => $items->where('marca_id', $marcaId));
+        abort_if($reglas->isEmpty(), 404, 'No hay descuentos por escala para descargar.');
+
+        $nombresMarca = DB::table('categoria_precios as cp')
+            ->join('cliente_categoria_escala as cce', 'cce.id', '=', 'cp.cliente_categoria_escala_id')
+            ->whereIn('cp.id', $reglas->pluck('marca_id')->map(fn ($id) => (int) $id)->unique())
+            ->pluck(DB::raw("CONCAT(cce.nombre_categoria, ' - ', cp.nombre)"), 'cp.id');
+        $filas = $reglas
+            ->sortBy(fn ($regla) => sprintf(
+                '%s-%015.2f',
+                $nombresMarca[(int) ($regla['marca_id'] ?? 0)] ?? '',
+                (float) str_replace(',', '', (string) ($regla['venta_minima'] ?? 0))
+            ))
+            ->map(fn ($regla) => [
+                $this->nombre,
+                $nombresMarca[(int) $regla['marca_id']] ?? ('Escala #' . $regla['marca_id']),
+                (float) str_replace(',', '', (string) $regla['venta_minima']),
+                (float) $regla['porcentaje_descuento'],
+                !empty($regla['requiere_asistencia']) ? 'Sí' : 'No',
+            ])->values()->all();
+
+        return Excel::download(new ArrayExport([
+            'Exposición', 'Escala de precios', 'Subtotal neto oferta desde', 'Descuento (%)', 'Requiere asistencia',
+        ], $filas), 'descuentos_escala_expo_' . $this->expoEditandoId . ($marcaId ? '_escala_' . $marcaId : '') . '.xlsx');
+    }
+
+    public function agregarEscalonMarcaModal(): void
+    {
+        $this->escalonesMarcaModal[] = [
+            'venta_minima' => '',
+            'porcentaje_descuento' => '',
+            'requiere_asistencia' => false,
+        ];
+    }
+
+    public function eliminarEscalonMarcaModal(int $indice): void
+    {
+        if (count($this->escalonesMarcaModal) <= 1) {
+            return;
+        }
+
+        unset($this->escalonesMarcaModal[$indice]);
+        $this->escalonesMarcaModal = array_values($this->escalonesMarcaModal);
+    }
+
+    public function guardarDescuentoMarcaModal(): void
+    {
+        foreach ($this->escalonesMarcaModal as &$escalon) {
+            $escalon['venta_minima'] = str_replace(',', '', (string) ($escalon['venta_minima'] ?? ''));
+        }
+        unset($escalon);
+
+        $this->validate([
+            'marcaDescuentoSeleccionada' => ['required', 'integer', Rule::in(array_map('intval', $this->escalasSeleccionadas))],
+            'escalonesMarcaModal' => 'required|array|min:1',
+            'escalonesMarcaModal.*.venta_minima' => 'required|numeric|min:0',
+            'escalonesMarcaModal.*.porcentaje_descuento' => 'required|numeric|min:0|max:100',
+            'escalonesMarcaModal.*.requiere_asistencia' => 'boolean',
+        ], [
+            'marcaDescuentoSeleccionada.required' => 'Seleccione una escala de precios.',
+            'escalonesMarcaModal.*.venta_minima.required' => 'Ingrese el subtotal neto mínimo.',
+            'escalonesMarcaModal.*.porcentaje_descuento.required' => 'Ingrese el porcentaje.',
+        ]);
+
+        $marcaId = (int) $this->marcaDescuentoSeleccionada;
+        $minimosExistentes = collect($this->descuentosMarca)
+            ->where('marca_id', $marcaId)
+            ->when($this->marcaDescuentoEditandoId, fn ($reglas) => $reglas->where('marca_id', '!=', $this->marcaDescuentoEditandoId))
+            ->pluck('venta_minima')
+            ->map(fn ($valor) => (string) (float) str_replace(',', '', (string) $valor));
+        $minimosNuevos = collect($this->escalonesMarcaModal)
+            ->pluck('venta_minima')
+            ->map(fn ($valor) => (string) (float) $valor);
+
+        if ($minimosNuevos->duplicates()->isNotEmpty() || $minimosNuevos->intersect($minimosExistentes)->isNotEmpty()) {
+            $this->addError('escalonesMarcaModal', 'La escala no puede repetir el mismo subtotal neto mínimo en dos escalones.');
+            return;
+        }
+
+        if ($this->marcaDescuentoEditandoId) {
+            $this->descuentosMarca = collect($this->descuentosMarca)
+                ->reject(fn ($regla) => (int) ($regla['marca_id'] ?? 0) === (int) $this->marcaDescuentoEditandoId)
+                ->values()->all();
+        }
+
+        foreach ($this->escalonesMarcaModal as $escalon) {
+            $this->descuentosMarca[] = [
+                'marca_id' => (string) $marcaId,
+                'venta_minima' => (string) $escalon['venta_minima'],
+                'porcentaje_descuento' => (string) $escalon['porcentaje_descuento'],
+                'requiere_asistencia' => (bool) ($escalon['requiere_asistencia'] ?? false),
+            ];
+        }
+
+        $this->marcaDescuentoGestionId = (string) $marcaId;
+        $this->cerrarModalDescuentoMarca();
+    }
+
+    public function eliminarDescuentoMarca(int $indice): void
+    {
+        if (isset($this->descuentosMarca[$indice])) {
+            $marcaEliminadaId = (int) ($this->descuentosMarca[$indice]['marca_id'] ?? 0);
+            unset($this->descuentosMarca[$indice]);
+            $this->descuentosMarca = array_values($this->descuentosMarca);
+            if ($marcaEliminadaId === (int) $this->marcaDescuentoGestionId
+                && !collect($this->descuentosMarca)->contains(fn ($regla) => (int) ($regla['marca_id'] ?? 0) === $marcaEliminadaId)) {
+                $this->marcaDescuentoGestionId = '';
+            }
+        }
+    }
+
+    public function ordenarDescuentosMarca(string $columna): void
+    {
+        if (!in_array($columna, ['marca', 'venta_minima', 'porcentaje_descuento'], true)) {
+            return;
+        }
+
+        if ($this->ordenDescuentoMarca === $columna) {
+            $this->direccionDescuentoMarca = $this->direccionDescuentoMarca === 'asc' ? 'desc' : 'asc';
+            return;
+        }
+
+        $this->ordenDescuentoMarca = $columna;
+        $this->direccionDescuentoMarca = 'asc';
+    }
+
     public function guardar(): void
     {
         $expoExistente = $this->expoEditandoId
@@ -149,6 +353,10 @@ class Expo extends Component
         abort_if($this->expoEditandoId && !$expoExistente, 404);
 
         foreach ($this->descuentos as &$regla) {
+            $regla['venta_minima'] = str_replace(',', '', (string) ($regla['venta_minima'] ?? ''));
+        }
+        unset($regla);
+        foreach ($this->descuentosMarca as &$regla) {
             $regla['venta_minima'] = str_replace(',', '', (string) ($regla['venta_minima'] ?? ''));
         }
         unset($regla);
@@ -178,12 +386,27 @@ class Expo extends Component
             'descuentos' => 'array',
             'descuentos.*.venta_minima' => 'required|numeric|min:0|distinct',
             'descuentos.*.porcentaje_descuento' => 'required|numeric|min:0|max:100',
+            'descuentosMarca' => 'array',
+            'descuentosMarca.*.marca_id' => ['required', 'integer', Rule::in(array_map('intval', $this->escalasSeleccionadas))],
+            'descuentosMarca.*.venta_minima' => 'required|numeric|min:0',
+            'descuentosMarca.*.porcentaje_descuento' => 'required|numeric|min:0|max:100',
+            'descuentosMarca.*.requiere_asistencia' => 'boolean',
         ], [
             'bodegasSeleccionadas.required' => 'Seleccione al menos una bodega.',
             'escalasSeleccionadas.required' => 'Seleccione al menos una escala.',
             'usuariosSeleccionados.required' => 'Agregue al menos un usuario autorizado.',
             'fechaFin.after' => 'La fecha final debe ser posterior a la fecha de inicio.',
         ]);
+
+        $escalonesMarca = collect($this->descuentosMarca)
+            ->groupBy(fn ($regla) => (int) ($regla['marca_id'] ?? 0));
+        foreach ($escalonesMarca as $reglas) {
+            $minimos = $reglas->pluck('venta_minima')->map(fn ($valor) => (string) (float) $valor);
+            if ($minimos->duplicates()->isNotEmpty()) {
+                $this->addError('descuentosMarca', 'Una escala no puede repetir el mismo subtotal neto mínimo en dos escalones.');
+                return;
+            }
+        }
 
         try {
             DB::beginTransaction();
@@ -193,6 +416,7 @@ class Expo extends Component
             $expoExistente = $this->expoEditandoId
                 ? DB::table('expo')->where('id', $this->expoEditandoId)->lockForUpdate()->first()
                 : null;
+            $snapshotAnterior = $expoExistente ? $this->snapshotExpo((int) $expoExistente->id) : null;
 
             if ($this->estado === 'Activo') {
                 $activa = DB::table('expo')->where('estado', 'Activo')
@@ -220,6 +444,7 @@ class Expo extends Component
                 DB::table('expo_escala')->where('expo_id', $expoId)->delete();
                 DB::table('expo_usuario')->where('expo_id', $expoId)->delete();
                 DB::table('expo_descuento')->where('expo_id', $expoId)->delete();
+                DB::table('expo_descuento_escala')->where('expo_id', $expoId)->delete();
             } else {
                 $expoId = DB::table('expo')->insertGetId([
                     'nombre' => $this->nombre,
@@ -258,6 +483,29 @@ class Expo extends Component
                 ]);
             }
 
+            foreach (array_values($this->descuentosMarca) as $orden => $regla) {
+                DB::table('expo_descuento_escala')->insert([
+                    'expo_id' => $expoId,
+                    'escala_id' => (int) $regla['marca_id'],
+                    'venta_minima' => $regla['venta_minima'],
+                    'porcentaje_descuento' => $regla['porcentaje_descuento'],
+                    'requiere_asistencia' => (bool) ($regla['requiere_asistencia'] ?? false),
+                    'orden' => $orden + 1,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+
+            $snapshotNuevo = $this->snapshotExpo($expoId);
+            $this->registrarHistorial(
+                $expoId,
+                $expoExistente ? 'ACTUALIZACION' : 'CREACION',
+                $expoExistente ? $this->resumirCambios($snapshotAnterior, $snapshotNuevo) : 'Se creó la configuración de la Expo.',
+                $snapshotAnterior,
+                $snapshotNuevo,
+                (int) Auth::id()
+            );
+
             DB::commit();
             session()->flash('success', $expoExistente ? 'Expo actualizada correctamente.' : 'Expo creada correctamente.');
             $this->resetForm();
@@ -283,6 +531,13 @@ class Expo extends Component
             ->first();
         abort_unless($expo, 404);
 
+        $columnasFlujo = ['ec.id', 'ec.cotizacion_id'];
+        foreach (['flujo_id', 'estado', 'aumento_aplicado', 'reapertura_autorizada'] as $columna) {
+            if (Schema::hasColumn('expo_cotizacion', $columna)) {
+                $columnasFlujo[] = 'ec.' . $columna;
+            }
+        }
+
         $this->expoDetalle = [
             'expo' => (array) $expo,
             'bodegas' => DB::table('expo_bodega as eb')->join('bodega as b', 'b.id', '=', 'eb.bodega_id')
@@ -296,6 +551,43 @@ class Expo extends Component
                 ->where('eu.expo_id', $id)->orderBy('u.name')->get(['u.name', 'u.email'])->map(fn ($usuario) => (array) $usuario)->all(),
             'descuentos' => DB::table('expo_descuento')->where('expo_id', $id)->orderBy('orden')
                 ->get(['venta_minima', 'porcentaje_descuento'])->map(fn ($regla) => (array) $regla)->all(),
+            'descuentos_escala' => DB::table('expo_descuento_escala as edm')
+                ->join('categoria_precios as cp', 'cp.id', '=', 'edm.escala_id')
+                ->where('edm.expo_id', $id)
+                ->orderBy('edm.orden')
+                ->get(['cp.nombre as escala', 'edm.venta_minima', 'edm.porcentaje_descuento', 'edm.requiere_asistencia'])
+                ->map(fn ($regla) => (array) $regla)->all(),
+            'historial_cambios' => DB::table('expo_historial_cambios as ehc')
+                ->join('users as u', 'u.id', '=', 'ehc.user_id')
+                ->where('ehc.expo_id', $id)
+                ->orderByDesc('ehc.created_at')
+                ->orderByDesc('ehc.id')
+                ->get(['ehc.accion', 'ehc.detalle', 'ehc.created_at', 'u.name as usuario'])
+                ->map(fn ($cambio) => (array) $cambio)->all(),
+            'exclusiones_aumento' => Schema::hasTable('expo_cotizacion_aumento_exclusion')
+                ? DB::table('expo_cotizacion_aumento_exclusion as ex')
+                    ->join('expo_cotizacion as ec', 'ec.id', '=', 'ex.expo_cotizacion_id')
+                    ->join('factura as f', 'f.id', '=', 'ex.factura_id')
+                    ->join('users as u', 'u.id', '=', 'ex.excluido_por')
+                    ->where('ec.expo_id', $id)
+                    ->whereNull('ex.anulada_at')
+                    ->orderByDesc('ex.id')
+                    ->get([
+                        'ec.cotizacion_id', 'f.id as factura_id', 'f.cai as factura',
+                        'f.nombre_cliente as cliente', 'ex.monto_exonerado',
+                        'u.name as excluido_por', 'ex.created_at',
+                    ])->map(fn ($exclusion) => (array) $exclusion)->all()
+                : [],
+            'flujos' => DB::table('expo_cotizacion as ec')
+                ->where('ec.expo_id', $id)
+                ->orderByDesc('ec.id')
+                ->get($columnasFlujo)
+                ->map(fn ($flujo) => array_merge([
+                    'flujo_id' => null,
+                    'estado' => 'PENDIENTE_FACTURACION',
+                    'aumento_aplicado' => 0,
+                    'reapertura_autorizada' => false,
+                ], (array) $flujo))->all(),
         ];
         $this->mostrarDetalle = true;
     }
@@ -306,14 +598,222 @@ class Expo extends Component
         $this->expoDetalle = [];
     }
 
+    public function abrirCierreExpo(int $expoId): void
+    {
+        $expo = DB::table('expo')->where('id', $expoId)->first();
+        abort_unless($expo, 404);
+        if ($expo->estado !== 'Activo') {
+            session()->flash('error', 'Solo una Expo activa puede finalizar su período de facturación.');
+            return;
+        }
+
+        $this->expoCierre = (array) $expo;
+        $this->cierreCandidatos = [];
+        $this->facturasExcluidasCierre = [];
+        $this->filtroCierre = '';
+        $this->motivoCierre = '';
+        $this->ofertasCierreSinAumento = 0;
+        $this->flujoDetalleCierreId = null;
+
+        $ofertas = DB::table('expo_cotizacion')
+            ->where('expo_id', $expoId)
+            ->whereIn('estado', ['PENDIENTE_FACTURACION', 'FACTURACION_PARCIAL'])
+            ->get();
+        foreach ($ofertas as $oferta) {
+            $flujoId = $this->resolverFlujoId((int) $oferta->cotizacion_id, $oferta->flujo_id);
+            if (!$flujoId) {
+                $this->ofertasCierreSinAumento++;
+                continue;
+            }
+
+            $resumen = app(LiquidacionOfertaExpo::class)->previsualizar((int) $oferta->cotizacion_id, $flujoId);
+            if ((float) $resumen['aumento_calculado'] <= 0.005) {
+                $this->ofertasCierreSinAumento++;
+                continue;
+            }
+
+            $facturas = collect($resumen['facturas'])->keyBy('id');
+            $distribucion = app(GestorAumentoExpo::class)->distribuir(
+                $resumen['facturas'],
+                (float) $resumen['aumento_calculado']
+            );
+            foreach ($distribucion as $asignacion) {
+                $factura = $facturas->get($asignacion['factura_id']);
+                if (!$factura || (float) $asignacion['monto'] <= 0.005) {
+                    continue;
+                }
+                $this->cierreCandidatos[] = array_merge($factura, [
+                    'expo_cotizacion_id' => (int) $oferta->id,
+                    'cotizacion_id' => (int) $oferta->cotizacion_id,
+                    'flujo_id' => $flujoId,
+                    'monto_aumento' => (float) $asignacion['monto'],
+                    'detalle_aumento' => [
+                        'total_facturado' => (float) $resumen['total_facturado'],
+                        'base_general' => (float) $resumen['base_general'],
+                        'porcentaje_general' => (float) $resumen['porcentaje_descuento'],
+                        'descuento_general' => (float) $resumen['descuento_general'],
+                        'tipo_descuento' => $resumen['tipo_descuento'] ?? 'marca',
+                        'descuento_marca' => (float) $resumen['descuento_marca_total'],
+                        'descuentos_marca' => $resumen['descuentos_marca'],
+                        'detalle_marcas' => $resumen['detalle_marcas'],
+                        'descuento_otorgado_oferta' => (float) $resumen['descuento_otorgado'],
+                        'descuento_ganado' => (float) $resumen['descuento_ganado'],
+                        'aumento_oferta' => (float) $resumen['aumento_calculado'],
+                        'descuento_otorgado_factura' => (float) $factura['descuento_otorgado'],
+                        'proporcion_factura' => (float) $resumen['descuento_otorgado'] > 0
+                            ? (float) $factura['descuento_otorgado'] / (float) $resumen['descuento_otorgado']
+                            : 0,
+                    ],
+                ]);
+            }
+        }
+
+        $this->mostrarDetalle = false;
+        $this->mostrarCierreExpo = true;
+        $this->resetValidation(['motivoCierre', 'facturasExcluidasCierre']);
+    }
+
+    public function alternarDetalleFlujoCierre(int $flujoId): void
+    {
+        $esCandidato = collect($this->cierreCandidatos)->contains(
+            fn (array $factura) => (int) $factura['flujo_id'] === $flujoId
+        );
+
+        $this->flujoDetalleCierreId = $esCandidato && (int) $this->flujoDetalleCierreId !== $flujoId
+            ? $flujoId
+            : null;
+    }
+
+    public function cerrarModalCierreExpo(): void
+    {
+        $this->mostrarCierreExpo = false;
+        $this->expoCierre = [];
+        $this->cierreCandidatos = [];
+        $this->facturasExcluidasCierre = [];
+        $this->filtroCierre = '';
+        $this->motivoCierre = '';
+        $this->flujoDetalleCierreId = null;
+        $this->resetValidation(['motivoCierre', 'facturasExcluidasCierre']);
+    }
+
+    public function cerrarExpo(int $expoId): void
+    {
+        $this->validate(['motivoCierre' => 'required|string|min:5|max:500']);
+
+        $facturasPermitidas = collect($this->cierreCandidatos)->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $facturasExcluidas = array_values(array_unique(array_map('intval', $this->facturasExcluidasCierre)));
+        if (array_diff($facturasExcluidas, $facturasPermitidas)) {
+            $this->addError('facturasExcluidasCierre', 'Una de las facturas seleccionadas ya no pertenece a esta revisión.');
+            return;
+        }
+
+        try {
+            DB::transaction(fn () => $this->cerrarExpoInternamente(
+                $expoId,
+                trim($this->motivoCierre),
+                (int) Auth::id(),
+                $facturasExcluidas
+            ), 3);
+
+            $totalExcluidas = count($facturasExcluidas);
+            $this->cerrarModalCierreExpo();
+            $this->cerrarDetalle();
+            session()->flash('success', 'La Expo fue cerrada y sus flujos incompletos fueron liquidados.'
+                . ($totalExcluidas ? " Se exoneraron {$totalExcluidas} factura(s) del aumento." : ''));
+        } catch (\Throwable $e) {
+            report($e);
+            session()->flash('error', 'No se pudo cerrar la Expo: ' . $e->getMessage());
+        }
+    }
+
+    public function reabrirExpo(int $expoId): void
+    {
+        $this->validate(['motivoReapertura' => 'required|string|min:5|max:500']);
+
+        try {
+            DB::transaction(function () use ($expoId) {
+                $expo = DB::table('expo')->where('id', $expoId)->lockForUpdate()->first();
+                abort_unless($expo, 404);
+                $snapshotAnterior = $this->snapshotExpo($expoId);
+                if (DB::table('expo')->where('estado', 'Activo')->where('id', '<>', $expoId)->exists()) {
+                    throw new \RuntimeException('Existe otra Expo activa. Ciérrela antes de reabrir esta Expo.');
+                }
+
+                foreach (DB::table('expo_cotizacion')->where('expo_id', $expoId)->lockForUpdate()->get() as $oferta) {
+                    $this->reabrirOferta($oferta, trim($this->motivoReapertura));
+                }
+
+                DB::table('expo')->where('id', $expoId)->update([
+                    'estado' => 'Activo',
+                    'cerrada_por' => null,
+                    'cerrada_at' => null,
+                    'motivo_cierre' => null,
+                    'updated_by' => Auth::id(),
+                    'updated_at' => now(),
+                ]);
+                $snapshotNuevo = $this->snapshotExpo($expoId);
+                $this->registrarHistorial(
+                    $expoId,
+                    'REAPERTURA',
+                    'Se reabrió la Expo completa y se revirtieron sus aumentos mediante disminuciones.',
+                    $snapshotAnterior,
+                    $snapshotNuevo,
+                    (int) Auth::id()
+                );
+            }, 3);
+
+            $this->motivoReapertura = '';
+            $this->cerrarDetalle();
+            session()->flash('success', 'La Expo fue reabierta y sus aumentos fueron revertidos mediante disminuciones.');
+        } catch (\Throwable $e) {
+            report($e);
+            session()->flash('error', 'No se pudo reabrir la Expo: ' . $e->getMessage());
+        }
+    }
+
+    public function reabrirFlujo(int $expoCotizacionId): void
+    {
+        $this->validate(['motivoReapertura' => 'required|string|min:5|max:500']);
+        $expoId = (int) ($this->expoDetalle['expo']['id'] ?? 0);
+
+        try {
+            DB::transaction(function () use ($expoCotizacionId) {
+                $oferta = DB::table('expo_cotizacion')->where('id', $expoCotizacionId)->lockForUpdate()->first();
+                abort_unless($oferta, 404);
+                $snapshotAnterior = $this->snapshotExpo((int) $oferta->expo_id);
+                $this->reabrirOferta($oferta, trim($this->motivoReapertura));
+                $this->registrarHistorial(
+                    (int) $oferta->expo_id,
+                    'REAPERTURA_FLUJO',
+                    "Se reabrió únicamente el flujo #{$oferta->flujo_id} de la oferta #{$oferta->cotizacion_id}.",
+                    $snapshotAnterior,
+                    $this->snapshotExpo((int) $oferta->expo_id),
+                    (int) Auth::id()
+                );
+            }, 3);
+
+            $this->motivoReapertura = '';
+            $this->verDetalle($expoId);
+            session()->flash('success', 'El flujo fue reabierto y su aumento fue revertido mediante una disminución.');
+        } catch (\Throwable $e) {
+            report($e);
+            session()->flash('error', 'No se pudo reabrir el flujo: ' . $e->getMessage());
+        }
+    }
+
     private function resetForm(): void
     {
         $this->reset([
             'expoEditandoId', 'expoDuplicandoId', 'nombre', 'descripcion', 'fechaInicio', 'fechaFin',
             'bodegasSeleccionadas', 'escalasSeleccionadas', 'usuariosSeleccionados',
-            'busquedaUsuario', 'descuentos', 'mostrarFormulario',
+            'busquedaUsuario', 'descuentos', 'descuentosMarca', 'mostrarFormulario',
+            'mostrarModalDescuentoMarca', 'marcaDescuentoSeleccionada', 'escalonesMarcaModal',
+            'marcaDescuentoGestionId', 'marcaDescuentoEditandoId',
+            'busquedaDescuentoMarca', 'ordenDescuentoMarca', 'direccionDescuentoMarca',
         ]);
         $this->estado = 'Inactivo';
+        $this->ordenDescuentoMarca = 'marca';
+        $this->direccionDescuentoMarca = 'asc';
         $this->resetValidation();
     }
 
@@ -337,6 +837,36 @@ class Expo extends Component
             ->where('cce.estado_id', 1)
             ->orderBy('cce.nombre_categoria')->orderBy('cp.nombre')
             ->get(['cp.id', DB::raw("CONCAT(cce.nombre_categoria, ' - ', cp.nombre) as nombre")]);
+        $marcas = $escalas;
+        $nombresMarca = $marcas->pluck('nombre', 'id');
+        $busquedaMarca = mb_strtolower(trim($this->busquedaDescuentoMarca));
+        $descuentosMarcaTabla = collect($this->descuentosMarca)
+            ->map(function ($regla, $indice) use ($nombresMarca) {
+                return [
+                    'indice' => (int) $indice,
+                    'marca_id' => (int) ($regla['marca_id'] ?? 0),
+                    'marca' => (string) ($nombresMarca[(int) ($regla['marca_id'] ?? 0)] ?? ('Escala #' . ($regla['marca_id'] ?? ''))),
+                    'venta_minima' => (float) str_replace(',', '', (string) ($regla['venta_minima'] ?? 0)),
+                    'porcentaje_descuento' => (float) ($regla['porcentaje_descuento'] ?? 0),
+                    'requiere_asistencia' => (bool) ($regla['requiere_asistencia'] ?? false),
+                ];
+            })
+            ->when($busquedaMarca !== '', fn ($reglas) => $reglas->filter(
+                fn ($regla) => str_contains(mb_strtolower($regla['marca']), $busquedaMarca)
+            ));
+        $descuentosMarcaTabla = $this->direccionDescuentoMarca === 'desc'
+            ? $descuentosMarcaTabla->sortByDesc($this->ordenDescuentoMarca)
+            : $descuentosMarcaTabla->sortBy($this->ordenDescuentoMarca);
+        $marcasConDescuento = $descuentosMarcaTabla
+            ->groupBy('marca_id')
+            ->map(fn ($reglas) => [
+                'marca_id' => (int) $reglas->first()['marca_id'],
+                'marca' => (string) $reglas->first()['marca'],
+                'total_escalones' => $reglas->count(),
+            ])->sortBy('marca')->values();
+        $descuentosMarcaSeleccionada = $this->marcaDescuentoGestionId === ''
+            ? collect()
+            : $descuentosMarcaTabla->where('marca_id', (int) $this->marcaDescuentoGestionId)->values();
 
         $usuariosAgregados = DB::table('users')
             ->whereIn('id', array_map('intval', $this->usuariosSeleccionados))
@@ -359,8 +889,23 @@ class Expo extends Component
         }
 
         return view('livewire.flujodeventa.expo', compact(
-            'expos', 'bodegas', 'escalas', 'usuariosAgregados', 'usuariosEncontrados'
+            'expos', 'bodegas', 'escalas', 'marcas', 'descuentosMarcaTabla',
+            'marcasConDescuento', 'descuentosMarcaSeleccionada', 'usuariosAgregados', 'usuariosEncontrados'
         ));
+    }
+
+    private function cargarDescuentosMarca(int $expoId): array
+    {
+        return DB::table('expo_descuento_escala')
+            ->where('expo_id', $expoId)
+            ->orderBy('orden')
+            ->get(['escala_id', 'venta_minima', 'porcentaje_descuento', 'requiere_asistencia'])
+            ->map(fn ($regla) => [
+                'marca_id' => (string) $regla->escala_id,
+                'venta_minima' => (string) $regla->venta_minima,
+                'porcentaje_descuento' => (string) $regla->porcentaje_descuento,
+                'requiere_asistencia' => (bool) $regla->requiere_asistencia,
+            ])->all();
     }
 
     private function idsBodegasDisponibles(): array
@@ -381,19 +926,196 @@ class Expo extends Component
 
     private function sincronizarExposVencidas(): void
     {
-        DB::table('expo')
+        $vencidas = DB::table('expo')
             ->where('estado', 'Activo')
             ->whereNotNull('fecha_fin')
             ->where('fecha_fin', '<=', now())
-            ->update([
-                'estado' => 'Inactivo',
-                'updated_by' => Auth::id(),
-                'updated_at' => now(),
-            ]);
+            ->get(['id', 'updated_by']);
+
+        foreach ($vencidas as $expo) {
+            $usuarioId = (int) (Auth::id() ?: $expo->updated_by);
+            DB::transaction(fn () => $this->cerrarExpoInternamente(
+                (int) $expo->id,
+                'Cierre automático por vencimiento del plazo de facturación.',
+                $usuarioId
+            ), 3);
+        }
     }
 
     private function estaFinalizada(object $expo): bool
     {
         return $expo->fecha_fin && Carbon::parse($expo->fecha_fin)->lte(now());
+    }
+
+    private function resolverFlujoId(int $cotizacionId, ?int $flujoId): ?int
+    {
+        if ($flujoId) {
+            return (int) $flujoId;
+        }
+
+        $id = DB::table('historico_flujo')
+            ->where('tramite_id', $cotizacionId)
+            ->where('tipo_tramite_id', 2)
+            ->value('flujo_id');
+
+        return $id ? (int) $id : null;
+    }
+
+    private function reabrirOferta(object $oferta, string $motivo): void
+    {
+        app(GestorAumentoExpo::class)->revertir((int) $oferta->id, (int) Auth::id());
+        $flujoId = $this->resolverFlujoId((int) $oferta->cotizacion_id, $oferta->flujo_id);
+        $tieneFacturas = $flujoId && DB::table('historico_flujo as hf')
+            ->join('factura as f', 'f.id', '=', 'hf.tramite_id')
+            ->where('hf.flujo_id', $flujoId)
+            ->whereIn('hf.tipo_tramite_id', [3, 5])
+            ->where('hf.estado_id', '<>', 7)
+            ->where('f.estado_venta_id', 1)
+            ->exists();
+
+        DB::table('expo_cotizacion')->where('id', $oferta->id)->update([
+            'estado' => $tieneFacturas ? 'FACTURACION_PARCIAL' : 'PENDIENTE_FACTURACION',
+            'reapertura_autorizada' => true,
+            'motivo_reapertura' => $motivo,
+            'reabierto_por' => Auth::id(),
+            'reabierto_at' => now(),
+            'aumento_aplicado' => 0,
+            'liquidado_por' => null,
+            'liquidado_at' => null,
+        ]);
+    }
+
+    private function cerrarExpoInternamente(int $expoId, string $motivo, int $usuarioId, array $facturasExcluidas = []): void
+    {
+        $expo = DB::table('expo')->where('id', $expoId)->lockForUpdate()->first();
+        abort_unless($expo, 404);
+        if ($expo->estado !== 'Activo') {
+            return;
+        }
+        $snapshotAnterior = $this->snapshotExpo($expoId);
+
+        DB::table('expo')->where('id', $expoId)->update([
+            'estado' => 'Cerrada',
+            'cerrada_por' => $usuarioId,
+            'cerrada_at' => now(),
+            'motivo_cierre' => $motivo,
+            'updated_by' => $usuarioId,
+            'updated_at' => now(),
+        ]);
+
+        $ofertas = DB::table('expo_cotizacion')
+            ->where('expo_id', $expoId)
+            ->whereIn('estado', ['PENDIENTE_FACTURACION', 'FACTURACION_PARCIAL'])
+            ->lockForUpdate()
+            ->get();
+        foreach ($ofertas as $oferta) {
+            $flujoId = $this->resolverFlujoId((int) $oferta->cotizacion_id, $oferta->flujo_id);
+            if ($flujoId) {
+                app(LiquidacionOfertaExpo::class)->procesar(
+                    (int) $oferta->cotizacion_id,
+                    $flujoId,
+                    null,
+                    true,
+                    $motivo,
+                    $usuarioId,
+                    false,
+                    $facturasExcluidas
+                );
+            } else {
+                DB::table('expo_cotizacion')->where('id', $oferta->id)->update([
+                    'estado' => 'LIQUIDADA',
+                    'cierre_manual' => true,
+                    'motivo_cierre' => $motivo,
+                    'cerrado_por' => $usuarioId,
+                    'cerrado_at' => now(),
+                    'total_facturado' => 0,
+                    'aumento_calculado' => 0,
+                    'aumento_aplicado' => 0,
+                    'liquidado_por' => $usuarioId,
+                    'liquidado_at' => now(),
+                ]);
+            }
+        }
+
+        $facturasExcluidas = array_values(array_unique(array_map('intval', $facturasExcluidas)));
+        $detalleCierre = $motivo;
+        if ($facturasExcluidas) {
+            $detalleCierre .= ' Facturas exoneradas del aumento: #' . implode(', #', $facturasExcluidas) . '.';
+        }
+        $this->registrarHistorial(
+            $expoId,
+            str_contains($motivo, 'vencimiento') ? 'CIERRE_AUTOMATICO' : 'CIERRE',
+            $detalleCierre,
+            $snapshotAnterior,
+            $this->snapshotExpo($expoId),
+            $usuarioId
+        );
+    }
+
+    private function snapshotExpo(int $expoId): array
+    {
+        $expo = DB::table('expo')->where('id', $expoId)->first();
+
+        return [
+            'nombre' => $expo->nombre,
+            'descripcion' => $expo->descripcion,
+            'estado' => $expo->estado,
+            'fecha_inicio' => $expo->fecha_inicio,
+            'fecha_fin' => $expo->fecha_fin,
+            'bodegas' => DB::table('expo_bodega')->where('expo_id', $expoId)->orderBy('bodega_id')->pluck('bodega_id')->all(),
+            'escalas' => DB::table('expo_escala')->where('expo_id', $expoId)->orderBy('escala_id')->pluck('escala_id')->all(),
+            'usuarios' => DB::table('expo_usuario')->where('expo_id', $expoId)->orderBy('usuario_id')->pluck('usuario_id')->all(),
+            'descuentos_totales' => DB::table('expo_descuento')->where('expo_id', $expoId)->orderBy('orden')
+                ->get(['venta_minima', 'porcentaje_descuento'])->map(fn ($regla) => (array) $regla)->all(),
+            'descuentos_escalas' => DB::table('expo_descuento_escala')->where('expo_id', $expoId)->orderBy('orden')
+                ->get(['escala_id', 'venta_minima', 'porcentaje_descuento', 'requiere_asistencia'])->map(fn ($regla) => (array) $regla)->all(),
+        ];
+    }
+
+    private function resumirCambios(?array $anterior, array $nuevo): string
+    {
+        if (!$anterior) {
+            return 'Se creó la configuración de la Expo.';
+        }
+
+        $etiquetas = [
+            'descripcion' => 'descripción',
+            'estado' => 'estado',
+            'fecha_fin' => 'fecha final',
+            'bodegas' => 'bodegas',
+            'escalas' => 'escalas',
+            'usuarios' => 'usuarios autorizados',
+            'descuentos_totales' => 'descuentos por total',
+            'descuentos_escalas' => 'descuentos por escala de precios',
+        ];
+        $cambios = [];
+        foreach ($etiquetas as $campo => $etiqueta) {
+            if (($anterior[$campo] ?? null) != ($nuevo[$campo] ?? null)) {
+                $cambios[] = $etiqueta;
+            }
+        }
+
+        return $cambios
+            ? 'Se modificó: ' . implode(', ', $cambios) . '.'
+            : 'Se guardó la configuración sin cambios funcionales.';
+    }
+
+    private function registrarHistorial(
+        int $expoId,
+        string $accion,
+        string $detalle,
+        ?array $anterior,
+        ?array $nuevo,
+        int $usuarioId
+    ): void {
+        DB::table('expo_historial_cambios')->insert([
+            'expo_id' => $expoId,
+            'accion' => $accion,
+            'detalle' => $detalle,
+            'datos_anteriores' => $anterior ? json_encode($anterior) : null,
+            'datos_nuevos' => $nuevo ? json_encode($nuevo) : null,
+            'user_id' => $usuarioId,
+            'created_at' => now(),
+        ]);
     }
 }

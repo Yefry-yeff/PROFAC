@@ -176,6 +176,37 @@
             background: #fff;
         }
         .expo-discount-table { margin: 0; }
+        .expo-brand-search { width: min(300px, 100%); }
+        .expo-brand-manager { display:grid; grid-template-columns:minmax(250px,1fr) auto; align-items:end; gap:10px; width:100%; }
+        .expo-brand-manager label { margin-bottom:4px; color:#7d3f00; font-size:10px; font-weight:800; text-transform:uppercase; }
+        .expo-brand-manager select { min-height:36px!important; border-color:#e0cbb0!important; }
+        .expo-brand-manager-actions { display:flex; justify-content:flex-end; gap:7px; flex-wrap:wrap; }
+        .expo-brand-manager-actions .btn { min-height:34px; border-radius:7px; font-size:10px; font-weight:700; white-space:nowrap; }
+        .expo-brand-table-scroll {
+            max-height: 292px;
+            overflow-y: auto;
+            overflow-x: auto;
+        }
+        .expo-brand-table-scroll .expo-discount-table { min-width: 620px; }
+        .expo-brand-table-scroll thead th {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+        }
+        .expo-brand-table-scroll tbody tr { height: 43px; }
+        .expo-sort-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 0;
+            border: 0;
+            background: transparent;
+            color: inherit;
+            font: inherit;
+            text-transform: inherit;
+        }
+        .expo-sort-button i { color: #a0aec0; font-size: 10px; }
+        .expo-sort-button.active i { color: #e65100; }
         .expo-discount-table thead th,
         .expo-history-table thead th {
             padding: 9px 12px;
@@ -229,7 +260,16 @@
         .expo-state-active { background: #e8f5e9; color: #2e7d32; }
         .expo-state-inactive { background: #eceff1; color: #607d8b; }
         .expo-config-counts { display: flex; flex-wrap: wrap; gap: 4px; }
-        .expo-row-actions { display: flex; justify-content: center; gap: 5px; }
+        .expo-row-actions { display:flex; justify-content:center; }
+        .expo-actions-toggle { display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border:1px solid #d8e0e7; border-radius:5px; background:#fff; color:#455a64; font-size:10px; font-weight:700; cursor:pointer; }
+        .expo-actions-popover { position:fixed; inset:auto; width:225px; margin:0; padding:5px; border:1px solid #dce3e8; border-radius:6px; background:#fff; box-shadow:0 10px 24px rgba(35,52,65,.18); }
+        .expo-actions-popover::backdrop { background:transparent; }
+        .expo-actions-popover .dropdown-item { display:flex; align-items:center; gap:9px; width:100%; padding:7px 9px; border:0; border-radius:4px; background:transparent; color:#40515b; font-size:11px; text-align:left; text-decoration:none; }
+        .expo-actions-popover .dropdown-item:hover { background:#f3f6f8; color:#20323d; }
+        .expo-actions-popover .dropdown-item i { width:14px; color:#607d8b; text-align:center; }
+        .expo-actions-popover .dropdown-item.report i { color:#1976d2; }
+        .expo-actions-popover .dropdown-item.close-expo i { color:#c62828; }
+        .expo-actions-popover .dropdown-divider { margin:4px 0; }
         .expo-config-chip {
             display: inline-flex;
             align-items: center;
@@ -254,7 +294,11 @@
             font-size: 11px !important;
             font-weight: 700 !important;
         }
-        .expo-detail-backdrop { position:fixed; inset:0; z-index:2050; display:flex; align-items:center; justify-content:center; padding:20px; background:rgba(27,39,51,.55); }
+        .expo-detail-backdrop { position:fixed; inset:0; z-index:10050; display:flex; align-items:center; justify-content:center; padding:20px; background:rgba(27,39,51,.55); }
+        .wrapper.wrapper-content.animated.fadeInRight:has(.expo-detail-backdrop) {
+            transform: none !important;
+            animation: none !important;
+        }
         .expo-detail-modal { width:min(900px, 100%); max-height:calc(100vh - 40px); overflow-y:auto; border-radius:10px; background:#fff; box-shadow:0 20px 55px rgba(0,0,0,.28); }
         .expo-detail-head { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; padding:17px 20px; background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; }
         .expo-detail-head h4 { margin:0; color:#fff; font-size:17px; font-weight:800; }
@@ -270,13 +314,66 @@
         .expo-detail-tag { padding:5px 9px; border-radius:6px; background:#f1f5f9; color:#455a64; font-size:11px; }
         .expo-detail-users { width:100%; margin:0; }
         .expo-detail-users td { padding:6px 8px; border-top:1px solid #f0f3f6; font-size:12px; }
+        .expo-close-action { color:#c62828!important; }
+        .expo-close-modal { width:min(1180px,100%); max-height:calc(100vh - 32px); overflow:hidden; border-radius:8px; background:#fff; box-shadow:0 20px 55px rgba(0,0,0,.28); }
+        .expo-close-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding:16px 20px; background:#8e2f2f; color:#fff; }
+        .expo-close-head h4 { margin:0 0 3px; color:#fff; font-size:17px; font-weight:800; }
+        .expo-close-head small { color:rgba(255,255,255,.82); }
+        .expo-close-body { max-height:calc(100vh - 105px); overflow-y:auto; padding:18px 20px; }
+        .expo-close-warning { display:flex; gap:10px; align-items:flex-start; padding:10px 12px; border:1px solid #f2c3c3; border-radius:7px; background:#fff5f5; color:#7f1d1d; font-size:12px; }
+        .expo-close-summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin:12px 0; }
+        .expo-close-metric { padding:9px 11px; border:1px solid #e2e8e5; border-radius:6px; background:#f8faf9; }
+        .expo-close-metric span { display:block; margin-bottom:2px; color:#75827c; font-size:9px; font-weight:800; text-transform:uppercase; }
+        .expo-close-metric strong { color:#263832; font-size:15px; }
+        .expo-close-toolbar { display:grid; grid-template-columns:minmax(240px,1fr) auto; gap:10px; align-items:center; margin-bottom:10px; }
+        .expo-close-search { position:relative; }
+        .expo-close-search i { position:absolute; top:10px; left:11px; color:#9aa6a0; }
+        .expo-close-search input { padding-left:33px; border-radius:6px; }
+        .expo-close-table { min-width:1080px; margin:0; font-size:11px; }
+        .expo-close-table th { padding:7px 8px!important; background:#f3f6f5; color:#607069; font-size:9px; text-transform:uppercase; white-space:nowrap; }
+        .expo-close-table td { padding:7px 8px!important; vertical-align:middle!important; border-color:#edf1ef!important; }
+        .expo-close-table tr.excluida { background:#fff8e8; }
+        .expo-close-invoice-button { display:inline-flex; align-items:center; gap:6px; padding:0; border:0; background:transparent; color:#1f5f8b; font-size:11px; font-weight:800; text-align:left; }
+        .expo-close-invoice-button:hover,
+        .expo-close-invoice-button:focus { color:#123f60; text-decoration:underline; outline:none; }
+        .expo-close-invoice-button i { font-size:9px; }
+        .expo-close-detail-row td { padding:0!important; background:#f7faf9; }
+        .expo-close-detail { padding:12px 14px; border-left:4px solid #2f7661; color:#344b43; }
+        .expo-close-detail-title { display:flex; align-items:center; gap:7px; margin-bottom:9px; color:#244b3e; font-size:11px; font-weight:800; }
+        .expo-close-detail-grid { display:grid; grid-template-columns:repeat(5,minmax(130px,1fr)); gap:7px; }
+        .expo-close-detail-metric { padding:7px 8px; border:1px solid #dce8e3; border-radius:5px; background:#fff; }
+        .expo-close-detail-metric span { display:block; color:#71827b; font-size:8px; font-weight:800; text-transform:uppercase; }
+        .expo-close-detail-metric strong { display:block; margin-top:2px; color:#263d35; font-size:12px; }
+        .expo-close-detail-formula { margin-top:8px; padding:8px 10px; border-radius:5px; background:#e9f4ef; font-size:10px; line-height:1.5; }
+        .expo-close-detail-reason { margin-top:7px; color:#536a62; font-size:10px; }
+        .expo-close-detail-tags { display:flex; flex-wrap:wrap; gap:5px; margin-top:7px; }
+        .expo-close-detail-tag { padding:3px 6px; border-radius:4px; background:#edf1f5; color:#485b68; font-size:9px; font-weight:700; }
+        .expo-close-detail-section { margin-top:10px; }
+        .expo-close-detail-section h6 { margin:0 0 5px; color:#536a62; font-size:9px; font-weight:800; text-transform:uppercase; }
+        .expo-close-breakdown-table { width:100%; margin:0; border:1px solid #dce6e2; background:#fff; font-size:10px; }
+        .expo-close-breakdown-table th { padding:5px 7px!important; background:#edf3f0!important; color:#5d7169!important; font-size:8px!important; }
+        .expo-close-breakdown-table td { padding:5px 7px!important; }
+        .expo-close-final-increase { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:10px; padding:9px 11px; border:1px solid #e7c0c0; border-radius:5px; background:#fff5f5; color:#742b2b; }
+        .expo-close-final-increase span { font-size:10px; font-weight:800; text-transform:uppercase; }
+        .expo-close-final-increase strong { font-size:17px; }
+        .expo-close-exclusions { min-height:42px; margin-top:10px; padding:9px 10px; border:1px dashed #e0ad54; border-radius:6px; background:#fffbf1; }
+        .expo-close-exclusions label { display:block; margin:0 0 5px; color:#8a5a0a; font-size:9px; font-weight:800; text-transform:uppercase; }
+        .expo-close-chip { display:inline-flex; align-items:center; gap:5px; margin:2px 4px 2px 0; padding:4px 7px; border-radius:5px; background:#fff0c7; color:#7a4b00; font-size:10px; font-weight:700; }
+        .expo-close-footer { display:flex; justify-content:flex-end; gap:8px; margin-top:12px; padding-top:12px; border-top:1px solid #e8eeeb; }
         @media (max-width: 767px) {
             .expo-panel .ibox-content { padding: 14px; }
             .expo-section { padding: 14px 12px 2px; }
             .expo-actions { flex-direction: column-reverse; }
             .expo-actions .btn { width: 100%; }
             .expo-panel .ibox-title { padding: 12px 14px; }
+            .expo-brand-manager { grid-template-columns:1fr; }
+            .expo-brand-manager-actions { justify-content:flex-start; }
+            .expo-brand-manager-actions .btn { flex:1 1 auto; }
             .expo-history-table { min-width: 880px; }
+            .expo-close-summary { grid-template-columns:repeat(2,minmax(0,1fr)); }
+            .expo-close-toolbar { grid-template-columns:1fr; }
+            .expo-close-body { padding:14px 12px; }
+            .expo-close-detail-grid { grid-template-columns:repeat(2,minmax(130px,1fr)); }
         }
     </style>
     @endpush
@@ -295,7 +392,7 @@
         </div>
     </div>
 
-    <div class="wrapper wrapper-content animated fadeInRight">
+    <div class="wrapper wrapper-content">
         
         @if (session()->has('success'))
             <div class="alert alert-success alert-dismissible fade show" role="alert">
@@ -471,48 +568,114 @@
                             </div>
 
                             <div class="expo-section">
-                            <div class="d-flex flex-wrap justify-content-between align-items-center mb-3" style="gap:8px;">
-                                <div class="expo-section-title mb-0" style="flex:1; min-width:200px;"><i class="fa fa-percent"></i>Reglas de descuento</div>
-                                <button type="button" wire:click="agregarDescuento" class="btn btn-sm btn-outline-warning" style="border-radius:7px; font-weight:700; font-size:11px;">
-                                    <i class="fa fa-plus mr-1"></i> Agregar regla
-                                </button>
-                            </div>
-                            <div class="table-responsive expo-discount-wrap mb-3">
-                                <table class="table table-sm expo-discount-table">
-                                    <thead>
-                                        <tr><th>Venta mínima (L.)</th><th>Descuento (%)</th><th style="width:60px;">Acción</th></tr>
-                                    </thead>
-                                    <tbody>
-                                        @forelse ($descuentos as $indice => $regla)
-                                            <tr wire:key="expo-descuento-{{ $indice }}">
-                                                <td>
-                                                    <input type="text" inputmode="decimal"
-                                                           wire:model.defer="descuentos.{{ $indice }}.venta_minima"
-                                                           class="form-control form-control-sm expo-money-input"
-                                                           placeholder="0.00" autocomplete="off"
-                                                           x-data="{}"
-                                                           x-init="$nextTick(() => { const amount = Number($el.value.replace(/,/g, '')); if (Number.isFinite(amount)) $el.value = amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); })"
-                                                           x-on:focus="$el.value = $el.value.replace(/,/g, '')"
-                                                           x-on:input="$el.value = $el.value.replace(/,/g, '').replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1')"
-                                                           x-on:blur="const amount = Number($el.value.replace(/,/g, '')); $el.value = Number.isFinite(amount) ? amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''">
-                                                    @error('descuentos.'.$indice.'.venta_minima') <small class="text-danger">{{ $message }}</small> @enderror
-                                                </td>
-                                                <td>
-                                                    <input type="number" step="0.01" min="0" max="100" wire:model.defer="descuentos.{{ $indice }}.porcentaje_descuento" class="form-control form-control-sm">
-                                                    @error('descuentos.'.$indice.'.porcentaje_descuento') <small class="text-danger">{{ $message }}</small> @enderror
-                                                </td>
-                                                <td class="text-center">
-                                                    <button type="button" wire:click="eliminarDescuento({{ $indice }})" class="btn btn-xs btn-white" title="Eliminar regla">
-                                                        <i class="fa fa-trash text-danger"></i>
+                                <div class="d-flex flex-wrap justify-content-between align-items-center mb-3" style="gap:8px;">
+                                    <div class="expo-section-title mb-0" style="flex:1; min-width:200px;"><i class="fa fa-list-alt"></i>Descuentos por escala de precios</div>
+                                    @unless($expoEditandoId)
+                                        <button type="button" wire:click="abrirModalDescuentoMarca" class="btn btn-sm btn-outline-warning" style="border-radius:7px; font-weight:700; font-size:11px; white-space:nowrap;">
+                                            <i class="fa fa-plus mr-1"></i> Agregar descuento
+                                        </button>
+                                    @endunless
+                                </div>
+                                @if($expoEditandoId)
+                                    <div class="expo-brand-manager mb-3">
+                                        <div>
+                                            <label for="expo-marca-descuento">Escala con descuento configurado</label>
+                                            <select id="expo-marca-descuento" wire:model="marcaDescuentoGestionId" class="form-control">
+                                                <option value="">Seleccione una escala ({{ $marcasConDescuento->count() }})</option>
+                                                @foreach($marcasConDescuento as $marcaDescuento)
+                                                    <option value="{{ $marcaDescuento['marca_id'] }}">{{ $marcaDescuento['marca'] }} · {{ $marcaDescuento['total_escalones'] }} escalón(es)</option>
+                                                @endforeach
+                                            </select>
+                                            @error('marcaDescuentoGestionId') <small class="text-danger">{{ $message }}</small> @enderror
+                                        </div>
+                                        <div class="expo-brand-manager-actions">
+                                            <button type="button" wire:click="abrirModalDescuentoMarca" class="btn btn-outline-warning"><i class="fa fa-plus mr-1"></i>Nueva escala</button>
+                                            <button type="button" wire:click="editarDescuentoMarcaSeleccionado" wire:loading.attr="disabled" class="btn btn-warning" @if($descuentosMarcaSeleccionada->isEmpty()) disabled @endif><i class="fa fa-pencil mr-1"></i>Editar</button>
+                                            <button type="button" wire:click="descargarDescuentosMarcaExcel" wire:loading.attr="disabled" class="btn btn-outline-success" @if($descuentosMarcaSeleccionada->isEmpty()) disabled @endif><i class="fa fa-file-excel-o mr-1"></i>Descargar escala</button>
+                                            <button type="button" wire:click="descargarDescuentosMarcaExcel(true)" wire:loading.attr="disabled" class="btn btn-outline-success" @if($marcasConDescuento->isEmpty()) disabled @endif><i class="fa fa-download mr-1"></i>Descargar todas</button>
+                                        </div>
+                                    </div>
+                                @else
+                                    <div class="input-group input-group-sm expo-brand-search mb-3">
+                                        <div class="input-group-prepend"><span class="input-group-text"><i class="fa fa-search"></i></span></div>
+                                        <input type="search" wire:model.debounce.250ms="busquedaDescuentoMarca" class="form-control" placeholder="Buscar por escala..." autocomplete="off">
+                                    </div>
+                                @endif
+                                <div class="expo-discount-wrap expo-brand-table-scroll mb-3">
+                                    <table class="table table-sm expo-discount-table">
+                                        <thead>
+                                            <tr>
+                                                <th>
+                                                    <button type="button" wire:click="ordenarDescuentosMarca('marca')" class="expo-sort-button {{ $ordenDescuentoMarca === 'marca' ? 'active' : '' }}">
+                                                        Escala de precios <i class="fa {{ $ordenDescuentoMarca === 'marca' ? ($direccionDescuentoMarca === 'asc' ? 'fa-sort-asc' : 'fa-sort-desc') : 'fa-sort' }}"></i>
                                                     </button>
-                                                </td>
+                                                </th>
+                                                <th>
+                                                    <button type="button" wire:click="ordenarDescuentosMarca('venta_minima')" class="expo-sort-button {{ $ordenDescuentoMarca === 'venta_minima' ? 'active' : '' }}">
+                                                        Subtotal neto desde (L.) <i class="fa {{ $ordenDescuentoMarca === 'venta_minima' ? ($direccionDescuentoMarca === 'asc' ? 'fa-sort-asc' : 'fa-sort-desc') : 'fa-sort' }}"></i>
+                                                    </button>
+                                                </th>
+                                                <th>
+                                                    <button type="button" wire:click="ordenarDescuentosMarca('porcentaje_descuento')" class="expo-sort-button {{ $ordenDescuentoMarca === 'porcentaje_descuento' ? 'active' : '' }}">
+                                                        Descuento (%) <i class="fa {{ $ordenDescuentoMarca === 'porcentaje_descuento' ? ($direccionDescuentoMarca === 'asc' ? 'fa-sort-asc' : 'fa-sort-desc') : 'fa-sort' }}"></i>
+                                                    </button>
+                                                </th>
+                                                <th>Asistencia</th>
+                                                <th style="width:60px;">Acción</th>
                                             </tr>
-                                        @empty
-                                            <tr><td colspan="3" class="text-center text-muted">Sin reglas de descuento.</td></tr>
-                                        @endforelse
-                                    </tbody>
-                                </table>
+                                        </thead>
+                                        <tbody>
+                                            @forelse ($expoEditandoId ? $descuentosMarcaSeleccionada : $descuentosMarcaTabla as $regla)
+                                                <tr wire:key="expo-descuento-marca-{{ $regla['indice'] }}">
+                                                    <td><strong>{{ $regla['marca'] }}</strong></td>
+                                                    <td>{{ number_format($regla['venta_minima'], 2) }}</td>
+                                                    <td>{{ number_format($regla['porcentaje_descuento'], 2) }}%</td>
+                                                    <td><span class="badge {{ $regla['requiere_asistencia'] ? 'badge-warning' : 'badge-light' }}">{{ $regla['requiere_asistencia'] ? 'Requerida' : 'No requerida' }}</span></td>
+                                                    <td class="text-center">
+                                                        <button type="button" wire:click="eliminarDescuentoMarca({{ $regla['indice'] }})" class="btn btn-xs btn-white" title="Eliminar regla de escala"><i class="fa fa-trash text-danger"></i></button>
+                                                    </td>
+                                                </tr>
+                                            @empty
+                                                <tr><td colspan="5" class="text-center text-muted py-3">{{ $expoEditandoId && $marcasConDescuento->isNotEmpty() ? 'Seleccione una escala para consultar y editar sus escalones.' : (trim($busquedaDescuentoMarca) !== '' ? 'No hay escalas que coincidan con la búsqueda.' : 'Sin escalones de descuento por escala.') }}</td></tr>
+                                            @endforelse
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
+
+                            <div class="expo-section">
+                                <div class="d-flex flex-wrap justify-content-between align-items-center mb-3" style="gap:8px;">
+                                    <div class="expo-section-title mb-0" style="flex:1; min-width:200px;"><i class="fa fa-percent"></i>Descuentos por total</div>
+                                    <button type="button" wire:click="agregarDescuento" class="btn btn-sm btn-outline-warning" style="border-radius:7px; font-weight:700; font-size:11px;">
+                                        <i class="fa fa-plus mr-1"></i> Agregar regla
+                                    </button>
+                                </div>
+                                <div class="table-responsive expo-discount-wrap mb-3">
+                                    <table class="table table-sm expo-discount-table">
+                                        <thead><tr><th>Subtotal neto desde (L.)</th><th>Descuento (%)</th><th style="width:60px;">Acción</th></tr></thead>
+                                        <tbody>
+                                            @forelse ($descuentos as $indice => $regla)
+                                                <tr wire:key="expo-descuento-{{ $indice }}">
+                                                    <td>
+                                                        <input type="text" inputmode="decimal" wire:model.defer="descuentos.{{ $indice }}.venta_minima"
+                                                               class="form-control form-control-sm expo-money-input" placeholder="0.00" autocomplete="off"
+                                                               x-data="{ formatMoney() { let raw = $el.value.replace(/,/g, '').replace(/[^0-9.]/g, ''); const point = raw.indexOf('.'); if (point !== -1) raw = raw.slice(0, point + 1) + raw.slice(point + 1).replace(/\./g, '').slice(0, 2); let parts = raw.split('.'); parts[0] = (parts[0] || '').replace(/^0+(?=\d)/, '').replace(/\B(?=(\d{3})+(?!\d))/g, ','); $el.value = parts[0] + (raw.includes('.') ? '.' + (parts[1] || '') : ''); } }"
+                                                               x-init="$nextTick(() => { formatMoney(); const amount = Number($el.value.replace(/,/g, '')); if (Number.isFinite(amount)) $el.value = amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); })"
+                                                               x-on:input="formatMoney()" x-on:blur="const amount = Number($el.value.replace(/,/g, '')); $el.value = Number.isFinite(amount) ? amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''">
+                                                        @error('descuentos.'.$indice.'.venta_minima') <small class="text-danger">{{ $message }}</small> @enderror
+                                                    </td>
+                                                    <td>
+                                                        <input type="number" step="0.01" min="0" max="100" wire:model.defer="descuentos.{{ $indice }}.porcentaje_descuento" class="form-control form-control-sm">
+                                                        @error('descuentos.'.$indice.'.porcentaje_descuento') <small class="text-danger">{{ $message }}</small> @enderror
+                                                    </td>
+                                                    <td class="text-center"><button type="button" wire:click="eliminarDescuento({{ $indice }})" class="btn btn-xs btn-white" title="Eliminar regla"><i class="fa fa-trash text-danger"></i></button></td>
+                                                </tr>
+                                            @empty
+                                                <tr><td colspan="3" class="text-center text-muted">Sin descuentos por total.</td></tr>
+                                            @endforelse
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
 
 
@@ -531,7 +694,7 @@
 
             <div class="ibox expo-panel">
                 <div class="ibox-title">
-                    <h5><i class="fa fa-history mr-2"></i>Historial de Expos</h5>
+                    <h5><i class="fa fa-list mr-2"></i>Expos configuradas</h5>
                     <small>{{ count($expos) }} configuración(es) registrada(s)</small>
                     <div class="ibox-tools">
                         @unless ($mostrarFormulario)
@@ -556,9 +719,10 @@
                                         $totalEscalas = DB::table('expo_escala')->where('expo_id', $expo->id)->count();
                                         $totalUsuarios = DB::table('expo_usuario')->where('expo_id', $expo->id)->count();
                                         $totalDescuentos = DB::table('expo_descuento')->where('expo_id', $expo->id)->count();
+                                        $totalDescuentosMarca = DB::table('expo_descuento_escala')->where('expo_id', $expo->id)->count();
                                         $expoFinalizada = $expo->fecha_fin && strtotime($expo->fecha_fin) <= time();
                                     @endphp
-                                    <tr class="expo-clickable" wire:click="verDetalle({{ $expo->id }})" title="Ver detalle completo">
+                                    <tr class="expo-clickable" wire:click="verDetalle({{ $expo->id }})" title="Ver detalle e historial de cambios">
                                         <td><span class="expo-name">{{ $expo->nombre }}</span><br><span class="expo-version">Versión #{{ $expo->id }}</span></td>
                                         <td>
                                             <span class="expo-state {{ $expo->estado === 'Activo' ? 'expo-state-active' : 'expo-state-inactive' }}">
@@ -574,18 +738,26 @@
                                                 <span class="expo-config-chip"><i class="fa fa-tags"></i>{{ $totalEscalas }} escala(s)</span>
                                                 <span class="expo-config-chip"><i class="fa fa-users"></i>{{ $totalUsuarios }} usuario(s)</span>
                                                 <span class="expo-config-chip"><i class="fa fa-percent"></i>{{ $totalDescuentos }} regla(s)</span>
+                                                <span class="expo-config-chip"><i class="fa fa-list-alt"></i>{{ $totalDescuentosMarca }} escala(s) con descuento</span>
                                             </div>
                                         </td>
                                         <td class="text-center">
-                                            <div class="expo-row-actions">
-                                                @unless ($expoFinalizada)
-                                                    <button type="button" wire:click.stop="editar({{ $expo->id }})" class="btn btn-xs btn-white" title="Editar Expo">
-                                                        <i class="fa fa-pencil text-primary"></i>
-                                                    </button>
-                                                @endunless
-                                                <button type="button" wire:click.stop="duplicar({{ $expo->id }})" class="btn btn-xs btn-white" title="Duplicar Expo">
-                                                    <i class="fa fa-clone" style="color:#e65100;"></i>
+                                            <div class="expo-row-actions" onclick="event.stopPropagation()">
+                                                <button type="button" class="expo-actions-toggle" popovertarget="expo-actions-{{ $expo->id }}" onclick="event.stopPropagation(); const rect=this.getBoundingClientRect(); const menu=document.getElementById('expo-actions-{{ $expo->id }}'); menu.style.top=(rect.bottom+4)+'px'; menu.style.left=Math.max(8, Math.min(window.innerWidth-233, rect.right-225))+'px';">
+                                                    <i class="fa fa-ellipsis-v"></i> Acciones <i class="fa fa-caret-down"></i>
                                                 </button>
+                                                <div id="expo-actions-{{ $expo->id }}" popover class="expo-actions-popover" onclick="event.stopPropagation()">
+                                                    <button type="button" onclick="this.closest('[popover]').hidePopover()" wire:click.stop="verDetalle({{ $expo->id }})" class="dropdown-item"><i class="fa fa-eye"></i>Ver detalle de la Expo</button>
+                                                    <a href="{{ url('/expo/reporte_de_expo') }}?expo_id={{ $expo->id }}" target="_blank" rel="noopener" class="dropdown-item report"><i class="fa fa-list-alt"></i>Reporte de flujos realizados</a>
+                                                    <div class="dropdown-divider"></div>
+                                                    @if($expo->estado === 'Activo')
+                                                        <button type="button" onclick="this.closest('[popover]').hidePopover()" wire:click.stop="abrirCierreExpo({{ $expo->id }})" class="dropdown-item close-expo"><i class="fa fa-lock"></i>Finalizar facturación</button>
+                                                    @endif
+                                                    @unless ($expoFinalizada)
+                                                        <button type="button" onclick="this.closest('[popover]').hidePopover()" wire:click.stop="editar({{ $expo->id }})" class="dropdown-item"><i class="fa fa-pencil"></i>Editar Expo</button>
+                                                    @endunless
+                                                    <button type="button" onclick="this.closest('[popover]').hidePopover()" wire:click.stop="duplicar({{ $expo->id }})" class="dropdown-item"><i class="fa fa-clone"></i>Duplicar Expo</button>
+                                                </div>
                                             </div>
                                         </td>
                                     </tr>
@@ -617,10 +789,275 @@
                             <div class="expo-detail-section"><h6><i class="fa fa-archive mr-1"></i>Bodegas</h6><div class="expo-detail-tags">@forelse($expoDetalle['bodegas'] as $item)<span class="expo-detail-tag">{{ $item }}</span>@empty<span class="text-muted small">Sin bodegas.</span>@endforelse</div></div>
                             <div class="expo-detail-section"><h6><i class="fa fa-tags mr-1"></i>Escalas</h6><div class="expo-detail-tags">@forelse($expoDetalle['escalas'] as $item)<span class="expo-detail-tag">{{ $item }}</span>@empty<span class="text-muted small">Sin escalas.</span>@endforelse</div></div>
                             <div class="expo-detail-section"><h6><i class="fa fa-percent mr-1"></i>Reglas de descuento</h6><div class="expo-detail-tags">@forelse($expoDetalle['descuentos'] as $regla)<span class="expo-detail-tag">Desde L {{ number_format($regla['venta_minima'], 2) }}: <strong>{{ number_format($regla['porcentaje_descuento'], 2) }}%</strong></span>@empty<span class="text-muted small">Sin descuentos.</span>@endforelse</div></div>
+                            <div class="expo-detail-section"><h6><i class="fa fa-list-alt mr-1"></i>Descuentos por escala de precios</h6><div class="expo-detail-tags">@forelse($expoDetalle['descuentos_escala'] as $regla)<span class="expo-detail-tag">{{ $regla['escala'] }} con subtotal neto desde L {{ number_format($regla['venta_minima'], 2) }}: <strong>{{ number_format($regla['porcentaje_descuento'], 2) }}%</strong>{{ $regla['requiere_asistencia'] ? ' · Requiere asistencia' : '' }}</span>@empty<span class="text-muted small">Sin descuentos por escala.</span>@endforelse</div></div>
                             <div class="expo-detail-section"><h6><i class="fa fa-users mr-1"></i>Usuarios autorizados</h6><table class="expo-detail-users"><tbody>@forelse($expoDetalle['usuarios'] as $usuario)<tr><td><strong>{{ $usuario['name'] }}</strong></td><td class="text-muted">{{ $usuario['email'] }}</td></tr>@empty<tr><td class="text-muted">Sin usuarios autorizados.</td></tr>@endforelse</tbody></table></div>
+                            <div class="expo-detail-section">
+                                <h6><i class="fa fa-history mr-1"></i>Historial de cambios de esta Expo</h6>
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-bordered mb-0">
+                                        <thead><tr><th>Fecha</th><th>Cambio</th><th>Detalle</th><th>Usuario</th></tr></thead>
+                                        <tbody>
+                                            @forelse($expoDetalle['historial_cambios'] as $cambio)
+                                                <tr>
+                                                    <td style="white-space:nowrap;">{{ date('d/m/Y H:i:s', strtotime($cambio['created_at'])) }}</td>
+                                                    <td><span class="expo-state expo-state-inactive">{{ str_replace('_', ' ', $cambio['accion']) }}</span></td>
+                                                    <td>{{ $cambio['detalle'] }}</td>
+                                                    <td>{{ $cambio['usuario'] }}</td>
+                                                </tr>
+                                            @empty
+                                                <tr><td colspan="4" class="text-muted text-center">Esta Expo aún no tiene cambios registrados.</td></tr>
+                                            @endforelse
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="expo-detail-section">
+                                <h6><i class="fa fa-exchange mr-1"></i>Control de facturación</h6>
+                                @if($detalle['estado'] === 'Activo')
+                                    <p class="text-muted small mb-2">Revise las ofertas incompletas y los movimientos antes de impedir nuevas facturas.</p>
+                                    <button type="button" wire:click="abrirCierreExpo({{ $detalle['id'] }})" wire:loading.attr="disabled" class="btn btn-danger btn-sm">
+                                        <i class="fa fa-lock mr-1"></i>Finalizar facturación Expo
+                                    </button>
+                                @elseif($detalle['estado'] === 'Cerrada')
+                                    <textarea wire:model.defer="motivoReapertura" class="form-control form-control-sm mb-2" maxlength="500" rows="2" placeholder="Motivo obligatorio para la reapertura"></textarea>
+                                    @error('motivoReapertura')<div class="text-danger small mb-2">{{ $message }}</div>@enderror
+                                    <button type="button" wire:click="reabrirExpo({{ $detalle['id'] }})" wire:loading.attr="disabled" class="btn btn-success btn-sm mb-2">
+                                        <i class="fa fa-unlock mr-1"></i>Reabrir Expo completa
+                                    </button>
+                                    <div class="table-responsive mt-2">
+                                        <table class="table table-sm table-bordered mb-0">
+                                            <thead><tr><th>Flujo</th><th>Oferta</th><th>Estado</th><th class="text-right">Aumento</th><th></th></tr></thead>
+                                            <tbody>
+                                            @forelse($expoDetalle['flujos'] as $flujo)
+                                                <tr>
+                                                    <td>#{{ $flujo['flujo_id'] ?: '-' }}</td>
+                                                    <td>#{{ $flujo['cotizacion_id'] }}</td>
+                                                    <td>{{ $flujo['estado'] }}</td>
+                                                    <td class="text-right">L {{ number_format($flujo['aumento_aplicado'] ?? 0, 2) }}</td>
+                                                    <td class="text-right">
+                                                        @if(in_array($flujo['estado'], ['LIQUIDADA', 'PENDIENTE_LIQUIDACION'], true))
+                                                            <button type="button" wire:click="reabrirFlujo({{ $flujo['id'] }})" wire:loading.attr="disabled" class="btn btn-xs btn-outline-success" title="Reabrir solo este flujo">
+                                                                <i class="fa fa-unlock"></i>
+                                                            </button>
+                                                        @endif
+                                                    </td>
+                                                </tr>
+                                            @empty
+                                                <tr><td colspan="5" class="text-muted text-center">Esta Expo no tiene flujos registrados.</td></tr>
+                                            @endforelse
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                @endif
+                            </div>
+                            @if(!empty($expoDetalle['exclusiones_aumento']))
+                                <div class="expo-detail-section">
+                                    <h6><i class="fa fa-ban mr-1"></i>Facturas exoneradas del aumento</h6>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-bordered mb-0">
+                                            <thead><tr><th>Oferta</th><th>Factura</th><th>Cliente</th><th class="text-right">Monto exonerado</th><th>Autorizado por</th><th>Fecha</th></tr></thead>
+                                            <tbody>
+                                            @foreach($expoDetalle['exclusiones_aumento'] as $exclusion)
+                                                <tr>
+                                                    <td>#{{ $exclusion['cotizacion_id'] }}</td>
+                                                    <td>{{ $exclusion['factura'] }} <small class="text-muted">(ID {{ $exclusion['factura_id'] }})</small></td>
+                                                    <td>{{ $exclusion['cliente'] }}</td>
+                                                    <td class="text-right">L {{ number_format($exclusion['monto_exonerado'], 2) }}</td>
+                                                    <td>{{ $exclusion['excluido_por'] }}</td>
+                                                    <td>{{ date('d/m/Y H:i', strtotime($exclusion['created_at'])) }}</td>
+                                                </tr>
+                                            @endforeach
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+            @endif
+
+            @if($mostrarCierreExpo && !empty($expoCierre))
+                @php
+                    $filtroNormalizado = mb_strtolower(trim($filtroCierre));
+                    $facturasExcluidasIds = array_map('intval', $facturasExcluidasCierre);
+                    $flujosCierre = collect($cierreCandidatos)->groupBy('flujo_id')->map(function ($facturas) {
+                        $primera = $facturas->first();
+                        return [
+                            'flujo_id' => (int) $primera['flujo_id'],
+                            'cotizacion_id' => (int) $primera['cotizacion_id'],
+                            'cliente' => $primera['cliente'],
+                            'facturas' => $facturas->values(),
+                            'descuento_otorgado' => $facturas->sum('descuento_otorgado'),
+                            'monto_aumento' => $facturas->sum('monto_aumento'),
+                            'detalle_aumento' => $primera['detalle_aumento'],
+                        ];
+                    })->values();
+                    $flujosFiltrados = $flujosCierre->filter(function ($flujo) use ($filtroNormalizado) {
+                        if ($filtroNormalizado === '') return true;
+                        $texto = collect($flujo['facturas'])->map(fn ($factura) => implode(' ', [
+                            $factura['numero'] ?? '', $factura['id'] ?? '', $factura['cliente'] ?? '',
+                            $factura['asesor'] ?? '', $factura['teleasesor'] ?? '', $factura['gestor'] ?? '',
+                        ]))->push($flujo['flujo_id'])->push($flujo['cotizacion_id'])->implode(' ');
+                        return str_contains(mb_strtolower($texto), $filtroNormalizado);
+                    });
+                    $seleccionadas = collect($cierreCandidatos)->filter(fn ($factura) => in_array((int) $factura['id'], $facturasExcluidasIds, true));
+                    $totalAumento = collect($cierreCandidatos)->sum('monto_aumento');
+                    $totalExonerado = $seleccionadas->sum('monto_aumento');
+                @endphp
+                <div class="expo-detail-backdrop" wire:click.self="cerrarModalCierreExpo">
+                    <div class="expo-close-modal">
+                        <div class="expo-close-head">
+                            <div>
+                                <h4><i class="fa fa-lock mr-2"></i>Finalizar facturación de {{ $expoCierre['nombre'] }}</h4>
+                                <small>Revise los aumentos antes de bloquear definitivamente nuevas facturas para estas ofertas.</small>
+                            </div>
+                            <button type="button" wire:click="cerrarModalCierreExpo" class="expo-detail-close" title="Cerrar"><i class="fa fa-times"></i></button>
+                        </div>
+                        <div class="expo-close-body">
+                            <div class="expo-close-warning">
+                                <i class="fa fa-exclamation-triangle mt-1"></i>
+                                <span>Al confirmar, la Expo quedará cerrada y sus ofertas ya no admitirán nuevas facturas. Solo se crearán aumentos cuando el descuento otorgado supere al ganado según el subtotal neto comprado y los escalones configurados para cada marca.</span>
+                            </div>
+
+                            <div class="expo-close-summary">
+                                <div class="expo-close-metric"><span>Ofertas con aumento</span><strong>{{ collect($cierreCandidatos)->pluck('cotizacion_id')->unique()->count() }}</strong></div>
+                                <div class="expo-close-metric"><span>Facturas afectadas</span><strong>{{ count($cierreCandidatos) }}</strong></div>
+                                <div class="expo-close-metric"><span>Aumento previsto</span><strong>L {{ number_format($totalAumento, 2) }}</strong></div>
+                                <div class="expo-close-metric"><span>Monto exonerado</span><strong>L {{ number_format($totalExonerado, 2) }}</strong></div>
+                            </div>
+
+                            @if($ofertasCierreSinAumento > 0)
+                                <div class="alert alert-success py-2 mb-2 small"><i class="fa fa-check-circle mr-1"></i>{{ $ofertasCierreSinAumento }} oferta(s) no generan aumento según el recálculo por monto general y por marca, o porque aún no recibieron descuento en una factura.</div>
+                            @endif
+
+                            <div class="expo-close-toolbar">
+                                <div class="expo-close-search">
+                                    <i class="fa fa-search"></i>
+                                    <input type="search" wire:model.debounce.300ms="filtroCierre" class="form-control form-control-sm" placeholder="Buscar factura, oferta, cliente, asesor, teleasesor o gestor">
+                                </div>
+                                <span class="text-muted small">{{ $flujosFiltrados->count() }} de {{ $flujosCierre->count() }} flujo(s) · {{ count($cierreCandidatos) }} factura(s)</span>
+                            </div>
+
+                            <div class="table-responsive" style="border:1px solid #dfe7e3;border-radius:6px;max-height:310px;overflow:auto;">
+                                <table class="table table-hover expo-close-table">
+                                    <thead><tr><th>Flujo</th><th>Oferta</th><th>Cliente</th><th class="text-center">Facturas</th><th class="text-right">Descuento otorgado</th><th class="text-right">Aumento</th></tr></thead>
+                                    <tbody>
+                                    @forelse($flujosFiltrados as $flujo)
+                                        <tr>
+                                            <td>
+                                                <button type="button" wire:click="alternarDetalleFlujoCierre({{ $flujo['flujo_id'] }})" class="expo-close-invoice-button" aria-expanded="{{ (int) $flujoDetalleCierreId === (int) $flujo['flujo_id'] ? 'true' : 'false' }}" title="Ver detalle consolidado del flujo">
+                                                    <i class="fa fa-chevron-{{ (int) $flujoDetalleCierreId === (int) $flujo['flujo_id'] ? 'up' : 'down' }}"></i>
+                                                    Flujo #{{ $flujo['flujo_id'] }}
+                                                </button>
+                                            </td>
+                                            <td>#{{ $flujo['cotizacion_id'] }}</td>
+                                            <td>{{ $flujo['cliente'] }}</td>
+                                            <td class="text-center"><strong>{{ $flujo['facturas']->count() }}</strong></td>
+                                            <td class="text-right">L {{ number_format($flujo['descuento_otorgado'], 2) }}</td>
+                                            <td class="text-right"><strong>L {{ number_format($flujo['monto_aumento'], 2) }}</strong></td>
+                                        </tr>
+                                        @if((int) $flujoDetalleCierreId === (int) $flujo['flujo_id'])
+                                            @php $aumento = $flujo['detalle_aumento']; @endphp
+                                            <tr class="expo-close-detail-row">
+                                                <td colspan="6">
+                                                    <div class="expo-close-detail">
+                                                        <div class="expo-close-detail-title"><i class="fa fa-calculator"></i>Detalle consolidado del flujo #{{ $flujo['flujo_id'] }}</div>
+                                                        <div class="expo-close-detail-grid">
+                                                            <div class="expo-close-detail-metric"><span>Compra acumulada</span><strong>L {{ number_format($aumento['total_facturado'], 2) }}</strong></div>
+                                                            <div class="expo-close-detail-metric"><span>Total en facturas</span><strong>{{ $flujo['facturas']->count() }}</strong></div>
+                                                            <div class="expo-close-detail-metric"><span>Descuento otorgado</span><strong>L {{ number_format($aumento['descuento_otorgado_oferta'], 2) }}</strong></div>
+                                                            <div class="expo-close-detail-metric"><span>Descuento ganado</span><strong>L {{ number_format($aumento['descuento_ganado'], 2) }}</strong></div>
+                                                            <div class="expo-close-detail-metric"><span>Diferencia</span><strong>L {{ number_format($aumento['aumento_oferta'], 2) }}</strong></div>
+                                                        </div>
+
+                                                        <div class="expo-close-detail-section">
+                                                            <h6>Detalle por factura</h6>
+                                                            <div class="table-responsive">
+                                                                <table class="table table-bordered expo-close-breakdown-table">
+                                                                    <thead><tr><th>Excluir</th><th>Factura</th><th class="text-right">Compra</th><th class="text-right">Descuento otorgado</th><th class="text-right">Participación</th><th class="text-right">Aumento</th><th>Asesor</th></tr></thead>
+                                                                    <tbody>
+                                                                    @foreach($flujo['facturas'] as $factura)
+                                                                        <tr class="{{ in_array((int) $factura['id'], $facturasExcluidasIds, true) ? 'excluida' : '' }}">
+                                                                            <td class="text-center"><input type="checkbox" wire:model="facturasExcluidasCierre" value="{{ $factura['id'] }}" aria-label="Excluir factura {{ $factura['numero'] }} del aumento"></td>
+                                                                            <td><strong>{{ $factura['numero'] }}</strong><br><small class="text-muted">ID {{ $factura['id'] }}</small></td>
+                                                                            <td class="text-right">L {{ number_format($factura['subtotal_bruto'], 2) }}</td>
+                                                                            <td class="text-right">L {{ number_format($factura['descuento_otorgado'], 2) }}</td>
+                                                                            <td class="text-right">{{ number_format($factura['detalle_aumento']['proporcion_factura'] * 100, 2) }}%</td>
+                                                                            <td class="text-right"><strong>L {{ number_format($factura['monto_aumento'], 2) }}</strong></td>
+                                                                            <td>{{ $factura['asesor'] }}</td>
+                                                                        </tr>
+                                                                    @endforeach
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="expo-close-detail-section">
+                                                            @php($detallePorEscala = ($aumento['tipo_descuento'] ?? 'marca') === 'escala')
+                                                            <h6>Detalle sumado por {{ $detallePorEscala ? 'escala de precios' : 'marca' }}</h6>
+                                                            <div class="table-responsive">
+                                                                <table class="table table-bordered expo-close-breakdown-table">
+                                                                    <thead><tr><th>{{ $detallePorEscala ? 'Escala' : 'Marca' }}</th><th class="text-right">Compra acumulada</th><th class="text-right">% {{ $detallePorEscala ? 'escala' : 'marca' }}</th><th class="text-right">Desc. {{ $detallePorEscala ? 'escala' : 'marca' }}</th><th class="text-right">Desc. general</th><th class="text-right">Total ganado</th><th class="text-right">Total otorgado</th></tr></thead>
+                                                                    <tbody>
+                                                                    @foreach($aumento['detalle_marcas'] as $marca)
+                                                                        <tr>
+                                                                            <td><strong>{{ $marca['marca'] }}</strong></td>
+                                                                            <td class="text-right">L {{ number_format($marca['subtotal_bruto'], 2) }}</td>
+                                                                            <td class="text-right">{{ number_format($marca['porcentaje_marca'], 2) }}%</td>
+                                                                            <td class="text-right">L {{ number_format($marca['descuento_marca'], 2) }}</td>
+                                                                            <td class="text-right">L {{ number_format($marca['descuento_general'], 2) }}</td>
+                                                                            <td class="text-right"><strong>L {{ number_format($marca['descuento_ganado'], 2) }}</strong></td>
+                                                                            <td class="text-right"><strong>L {{ number_format($marca['descuento_otorgado'], 2) }}</strong></td>
+                                                                        </tr>
+                                                                    @endforeach
+                                                                    </tbody>
+                                                                    <tfoot><tr><th colspan="5">Totales del flujo</th><th class="text-right">L {{ number_format($aumento['descuento_ganado'], 2) }}</th><th class="text-right">L {{ number_format($aumento['descuento_otorgado_oferta'], 2) }}</th></tr></tfoot>
+                                                                </table>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="expo-close-detail-formula">
+                                                            <strong>Cálculo:</strong> L {{ number_format($aumento['descuento_otorgado_oferta'], 2) }} otorgado − L {{ number_format($aumento['descuento_ganado'], 2) }} ganado por escalones = L {{ number_format($aumento['aumento_oferta'], 2) }} a recuperar. Este monto se distribuye entre las facturas según el descuento otorgado en cada una.
+                                                        </div>
+                                                        <div class="expo-close-final-increase"><span>Monto final del aumento del flujo</span><strong>L {{ number_format($flujo['monto_aumento'], 2) }}</strong></div>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        @endif
+                                    @empty
+                                        <tr><td colspan="6" class="text-center text-muted py-4">{{ count($cierreCandidatos) ? 'No hay resultados para este filtro.' : 'Ningún flujo requiere movimiento de aumento.' }}</td></tr>
+                                    @endforelse
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="expo-close-exclusions">
+                                <label>Facturas que no recibirán movimiento de aumento</label>
+                                @forelse($seleccionadas as $factura)
+                                    <span class="expo-close-chip"><i class="fa fa-ban"></i>{{ $factura['numero'] }} · L {{ number_format($factura['monto_aumento'], 2) }}</span>
+                                @empty
+                                    <span class="text-muted small">No ha seleccionado exclusiones.</span>
+                                @endforelse
+                                @error('facturasExcluidasCierre')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
+                            </div>
+
+                            <div class="form-group mt-3 mb-0">
+                                <label class="expo-label">Motivo del cierre <span class="text-danger">*</span></label>
+                                <textarea wire:model.defer="motivoCierre" class="form-control form-control-sm" maxlength="500" rows="2" placeholder="Explique por qué finaliza la facturación de esta Expo"></textarea>
+                                @error('motivoCierre')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
+                            </div>
+
+                            <div class="expo-close-footer">
+                                <button type="button" wire:click="cerrarModalCierreExpo" class="btn btn-default btn-sm">Cancelar</button>
+                                <button type="button" wire:click="cerrarExpo({{ $expoCierre['id'] }})" wire:loading.attr="disabled" class="btn btn-danger btn-sm">
+                                    <i class="fa fa-lock mr-1"></i>Bloquear facturación y aplicar movimientos
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
             @endif
         </div>
+        @include('livewire.flujodeventa.partials.modal-descuento-marca')
     </div>
