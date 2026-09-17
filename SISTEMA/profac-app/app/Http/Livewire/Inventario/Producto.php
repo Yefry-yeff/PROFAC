@@ -824,27 +824,39 @@ class Producto extends Component
         }
     }
 
-    public function eliminarImagen(Request $request){
+    public function eliminarImagen(Request $request)
+    {
+        $usuario = Auth::user();
+        $rolesPermitidos = [1, 5, 7, 9, 10];
 
+        if (!$usuario || empty(array_intersect($usuario->rolesIds(), $rolesPermitidos))) {
+            return response()->json([
+                'message' => 'No tiene permisos para eliminar imágenes de productos.',
+            ], 403);
+        }
 
+        $request->validate([
+            'urlImagen' => 'required|string',
+        ]);
 
-                //dd($request->urlImagen);
-                try{
-                    $user = ModelImagenProducto::where('url_img','=',$request->urlImagen);
-                    $user->delete();
+        try {
+            $imagen = ModelImagenProducto::where('url_img', $request->urlImagen)->first();
+            if (!$imagen) {
+                return response()->json([
+                    'message' => 'La imagen indicada no existe.',
+                ], 404);
+            }
 
-                    $carpetaPublic = public_path();
-                    $path = $carpetaPublic.'/catalogo/'.$request->urlImagen;
+            $imagen->delete();
+            File::delete(public_path('catalogo/' . $request->urlImagen));
 
-                    File::delete($path);
-
-                return 'exito';
-                } catch (QueryException $e) {
-                    return response()->json([
-                        'message' => 'Ha ocurrido un error al eliminar la imagen.',
-                        'errorTh' => $e,
-                    ], 402);
-                }
+            return 'exito';
+        } catch (QueryException $e) {
+            return response()->json([
+                'message' => 'Ha ocurrido un error al eliminar la imagen.',
+                'errorTh' => $e,
+            ], 402);
+        }
     }
 
     /**

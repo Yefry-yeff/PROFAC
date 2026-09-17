@@ -388,10 +388,16 @@
                                 @endfor
                             </ol>
                             <div class="carousel-inner">
-                                @php $comillas = '"'; @endphp
+                                @php
+                                    $comillas = '"';
+                                    $puedeEliminarImagen = count(array_intersect(
+                                        Auth::user()->rolesIds(),
+                                        [1, 5, 7, 9, 10]
+                                    )) > 0;
+                                @endphp
                                 @foreach ($imagenes as $imagen)
                                 <div class="carousel-item {{ $imagen->contador == 1 ? 'active' : '' }}">
-                                    @if (Auth::user()->rol_id == '1' || Auth::user()->rol_id == '5' || Auth::user()->rol_id == '7' || Auth::user()->rol_id == '9' || Auth::user()->rol_id == '10')
+                                    @if ($puedeEliminarImagen)
                                     <div class="text-center mb-2">
                                         <button class="btn-eliminar-img"
                                             onclick="eliminar({{ $comillas . $imagen->url_img . $comillas }})"
