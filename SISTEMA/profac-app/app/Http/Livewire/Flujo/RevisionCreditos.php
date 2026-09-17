@@ -413,16 +413,20 @@ class RevisionCreditos extends Component
                 ? DB::table('users')->where('id', $cr->usuario_revision)->value('name')
                 : null;
 
-            // Historial
-            $this->historialCredito = DB::table('credito_revision_historial as crh')
-                ->leftJoin('users as u', 'u.id', '=', 'crh.usuario_id')
-                ->where('crh.credito_revision_id', $cr->id)
-                ->orderByDesc('crh.id')
-                ->select('crh.accion', 'crh.estado_anterior', 'crh.estado_nuevo',
-                         'crh.descripcion', 'crh.fecha_evento', 'u.name as usuario_nombre')
-                ->get()
-                ->map(fn($r) => (array) $r)
-                ->toArray();
+            // Expo conserva el historial de su sección; el flujo normal reúne todos sus ciclos.
+            if ($this->esSeccionExpo) {
+                $this->historialCredito = DB::table('credito_revision_historial as crh')
+                    ->leftJoin('users as u', 'u.id', '=', 'crh.usuario_id')
+                    ->where('crh.credito_revision_id', $cr->id)
+                    ->orderByDesc('crh.id')
+                    ->select('crh.accion', 'crh.estado_anterior', 'crh.estado_nuevo',
+                             'crh.descripcion', 'crh.fecha_evento', 'u.name as usuario_nombre')
+                    ->get()
+                    ->map(fn($r) => (array) $r)
+                    ->toArray();
+            } else {
+                $this->historialCredito = $this->cargarHistorialFlujoNormal($flujoId);
+            }
         } else {
             $this->estadoCredito          = CreditoRevision::PENDIENTE;
             $this->fechaAprobacionActual  = null;
@@ -433,6 +437,102 @@ class RevisionCreditos extends Component
             $this->usuarioAprobadorActual = null;
             $this->historialCredito       = [];
         }
+    }
+
+    private function cargarHistorialFlujoNormal(int $flujoId): array
+    {
+        $eventos = DB::table('credito_revision_historial as crh')
+            ->join('credito_revision as cr', 'cr.id', '=', 'crh.credito_revision_id')
+            ->leftJoin('users as u', 'u.id', '=', 'crh.usuario_id')
+            ->where('crh.flujo_id', $flujoId)
+            ->select(
+                'crh.id as evento_id',
+                'crh.credito_revision_id',
+                'cr.cotizacion_id',
+                'crh.accion',
+                'crh.estado_anterior',
+                'crh.estado_nuevo',
+                'crh.descripcion',
+                'crh.fecha_evento',
+                'u.name as usuario_nombre'
+            )
+            ->get()
+            ->map(fn ($registro) => (array) $registro);
+
+        $revisiones = DB::table('credito_revision as cr')
+            ->leftJoin('users as u', 'u.id', '=', 'cr.usuario_revision')
+            ->where('cr.flujo_id', $flujoId)
+            ->get([
+                'cr.id',
+                'cr.cotizacion_id',
+                'cr.created_at',
+                'u.name as usuario_nombre',
+            ]);
+
+        foreach ($revisiones as $revision) {
+            $tieneCreacion = $eventos->contains(fn ($evento) =>
+                (int) $evento['credito_revision_id'] === (int) $revision->id
+                && $evento['accion'] === 'creado'
+            );
+
+            if (!$tieneCreacion) {
+                $eventos->push([
+                    'evento_id' => 0,
+                    'credito_revision_id' => (int) $revision->id,
+                    'cotizacion_id' => $revision->cotizacion_id,
+                    'accion' => 'creado',
+                    'estado_anterior' => null,
+                    'estado_nuevo' => CreditoRevision::PENDIENTE,
+                    'descripcion' => 'Oferta #' . $revision->cotizacion_id . ' enviada a Revisión de Crédito.',
+                    'fecha_evento' => $revision->created_at,
+                    'usuario_nombre' => $revision->usuario_nombre,
+                ]);
+            }
+        }
+
+        $devolucionesInventario = DB::table('historico_flujo as hf')
+            ->leftJoin('users as u', 'u.id', '=', 'hf.updated_by')
+            ->where('hf.flujo_id', $flujoId)
+            ->where('hf.tipo_tramite_id', 9)
+            ->where('hf.estado_id', 7)
+            ->whereNotExists(function ($query) {
+                $query->selectRaw('1')
+                    ->from('expo_oferta_seccion as eos')
+                    ->whereColumn('eos.flujo_id', 'hf.flujo_id')
+                    ->whereColumn('eos.cotizacion_id', 'hf.tramite_id');
+            })
+            ->get([
+                'hf.id as evento_id',
+                'hf.tramite_id as cotizacion_id',
+                'hf.observaciones as descripcion',
+                'hf.updated_at as fecha_evento',
+                'u.name as usuario_nombre',
+            ])
+            ->map(fn ($registro) => [
+                'evento_id' => (int) $registro->evento_id,
+                'credito_revision_id' => null,
+                'cotizacion_id' => $registro->cotizacion_id,
+                'accion' => 'devuelto_inventario',
+                'estado_anterior' => 'en revisión',
+                'estado_nuevo' => 'devuelto',
+                'descripcion' => $registro->descripcion,
+                'fecha_evento' => $registro->fecha_evento,
+                'usuario_nombre' => $registro->usuario_nombre,
+            ]);
+
+        return $eventos
+            ->concat($devolucionesInventario)
+            ->sortByDesc(fn ($evento) => sprintf(
+                '%s-%010d',
+                Carbon::parse($evento['fecha_evento'])->format('YmdHis'),
+                (int) $evento['evento_id']
+            ))
+            ->values()
+            ->map(function ($evento) {
+                unset($evento['evento_id'], $evento['credito_revision_id']);
+                return $evento;
+            })
+            ->all();
     }
 
     public function cerrarDetalle(): void
@@ -996,6 +1096,7 @@ class RevisionCreditos extends Component
                     ->where('estado_id', 7)
                     ->update([
                         'estado_id'     => 5,
+                        'tramite_id'    => $this->cotizacionId,
                         'observaciones' => 'Reactivado. Crédito aprobado por ' . Auth::user()->name,
                         'updated_by'    => Auth::id(),
                         'updated_at'    => now(),

@@ -322,6 +322,11 @@
                             $activo = $info['key'] === 'prefactura' && !$etapaExpoCompletada && $totalPrefacturaExpo > 0;
                             $pendiente = !$etapaExpoCompletada && !$activo;
                         }
+                        if (!$esFlujoExpo && $info['key'] === 'revision_credito' && $tieneRevisionCreditoAprobada) {
+                            $completado = true;
+                            $activo = false;
+                            $pendiente = false;
+                        }
                         $esSeleccionado = ($info['key'] === $pasoActivo);
                         $delay      = ($paso - 1) * 100;
                         // Rev. Inventario devuelta: mostrar como estado especial (naranja)
@@ -1220,7 +1225,7 @@
                                        font-size:11px; font-weight:700; cursor:pointer;">
                             <i class="mr-1 fa fa-copy"></i> Duplicar
                         </button>
-                        @if (!empty($ofertaSeleccionada['es_expo']) && !$facturaCompletada && !$esAnuDet && !$esVencDet)
+                        @if (!empty($ofertaSeleccionada['es_expo']) && !$facturaCompletada && !$esGanDet && !$esAnuDet && !$esVencDet)
                         <button type="button" wire:click="continuarOfertaExpo"
                                 style="background:linear-gradient(135deg,#00897b,#00695c); color:#fff;
                                        border:none; border-radius:8px; padding:5px 10px;
@@ -1468,7 +1473,7 @@
                         @elseif (!$mostrarSelectorClienteDuplicar)
                         {{-- Info: mismo flujo o nuevo flujo --}}
                         @if (!$flujoCancelado)
-                        @if (in_array(3, $flujoTipos) || in_array(5, $flujoTipos))
+                        @if (empty($ofertaSeleccionada['es_expo']) && (in_array(3, $flujoTipos) || in_array(5, $flujoTipos)))
                         <div style="background:#fff3e0; border:1px solid #ffcc80; border-radius:8px;
                                     padding:8px 12px; margin-bottom:8px; font-size:12px; color:#e65100; text-align:left;">
                             <i class="mr-1 fa fa-info-circle"></i>
@@ -1488,14 +1493,20 @@
                                     style="background:linear-gradient(135deg,#1a7efb,#0d6efd); color:#fff;
                                            border:none; border-radius:8px; padding:7px 16px;
                                            font-size:12px; font-weight:700; cursor:pointer;">
+                                @if (!empty($ofertaSeleccionada['es_expo']))
+                                <i class="mr-1 fa fa-copy"></i> Duplicar oferta
+                                @else
                                 <i class="mr-1 fa fa-user"></i> Mismo cliente
+                                @endif
                             </button>
+                            @if (empty($ofertaSeleccionada['es_expo']))
                             <button type="button" wire:click="iniciarDuplicarOtroCliente()"
                                     style="background:linear-gradient(135deg,#1ab394,#0fa37a); color:#fff;
                                            border:none; border-radius:8px; padding:7px 16px;
                                            font-size:12px; font-weight:700; cursor:pointer;">
                                 <i class="mr-1 fa fa-exchange"></i> Otro cliente
                             </button>
+                            @endif
                             <button type="button" wire:click="cancelarConfirmOferta"
                                     style="background:#f0f0f0; color:#555; border:none;
                                            border-radius:8px; padding:7px 14px; font-size:12px; cursor:pointer;">
@@ -1749,6 +1760,7 @@
                             'FACTURADA' => ['Facturada', '#2e7d32', '#e8f5e9'],
                             'RECHAZADA_CREDITO' => ['Rechazada por crédito', '#c62828', '#ffebee'],
                             'DEVUELTA_INVENTARIO' => ['Rechazada por inventario', '#e65100', '#fff3e0'],
+                            'DEVUELTA_SECCION' => ['Devuelta para edición', '#e65100', '#fff3e0'],
                             default => [str_replace('_', ' ', $estadoSeccion), '#546e7a', '#eceff1'],
                         };
                     @endphp
@@ -1766,7 +1778,7 @@
                         </div>
                         <div style="display:flex; gap:7px; flex-wrap:wrap; margin-top:9px;">
                             <a href="/cotizacion/imprimir/{{ $seccion['cotizacion_id'] }}" target="_blank" class="btn btn-white btn-xs"><i class="fa fa-print mr-1"></i>Imprimir</a>
-                            @if(in_array($estadoSeccion, ['RECHAZADA_CREDITO', 'DEVUELTA_INVENTARIO'], true))
+                            @if(in_array($estadoSeccion, ['RECHAZADA_CREDITO', 'DEVUELTA_INVENTARIO', 'DEVUELTA_SECCION'], true))
                             <a href="{{ route('flujo.secciones_ofertas', ['flujo_id' => $flujoId, 'seccion_id' => $seccion['id']]) }}" class="btn btn-danger btn-xs">
                                 <i class="fa fa-pencil mr-1"></i>Editar y reenviar
                             </a>
@@ -2111,16 +2123,22 @@
                 <div style="display:contents;">
                     @forelse(collect($seccionesExpoData)->filter(fn($seccion) => !empty($seccion['prefactura_id'])) as $seccion)
                         @php
-                        $prefActiva = ($seccion['prefactura_estado'] ?? '') === 'activo';
+                        $prefEstado = $seccion['prefactura_estado'] ?? '';
+                        [$prefEtiqueta, $prefColor, $prefFondo] = match ($prefEstado) {
+                            'activo' => ['LISTA PARA FACTURAR', '#00695c', '#e0f2f1'],
+                            'convertida' => ['FACTURADA', '#1565c0', '#e3f2fd'],
+                            'inactive' => ['ANULADA', '#c62828', '#ffebee'],
+                            default => ['SIN ESTADO', '#546e7a', '#eceff1'],
+                        };
                         $prefSeleccionada = (int) ($prefacturaData['id'] ?? 0) === (int) $seccion['prefactura_id'];
                         @endphp
                     <button type="button" wire:click="seleccionarPrefacturaExpo({{ $seccion['prefactura_id'] }})"
                             wire:key="prefactura-expo-{{ $seccion['prefactura_id'] }}"
                             aria-expanded="{{ $prefSeleccionada ? 'true' : 'false' }}"
-                            style="order:{{ $loop->index * 2 }}; background:{{ $prefSeleccionada ? '#f0fdfa' : '#fff' }}; border:{{ $prefSeleccionada ? '2px' : '1px' }} solid {{ $prefActiva ? '#80cbc4' : '#bbdefb' }}; border-left:4px solid {{ $prefActiva ? '#00897b' : '#1565c0' }}; border-radius:10px; padding:13px 15px; text-align:left; cursor:pointer;">
+                            style="order:{{ $loop->index * 2 }}; background:{{ $prefSeleccionada ? '#f0fdfa' : '#fff' }}; border:{{ $prefSeleccionada ? '2px' : '1px' }} solid {{ $prefColor }}; border-left:4px solid {{ $prefColor }}; border-radius:10px; padding:13px 15px; text-align:left; cursor:pointer;">
                         <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;">
                             <div><strong>{{ $seccion['nombre'] }}</strong><div style="font-size:11px; color:#78909c; margin-top:3px;">Prefactura #{{ $seccion['prefactura_id'] }} · Referencia #{{ $seccion['cotizacion_id'] }}</div></div>
-                            <span style="background:{{ $prefActiva ? '#e0f2f1' : '#e3f2fd' }}; color:{{ $prefActiva ? '#00695c' : '#1565c0' }}; border-radius:12px; padding:3px 10px; font-size:11px; font-weight:700; height:max-content;">{{ $prefActiva ? 'LISTA PARA FACTURAR' : 'FACTURADA' }}</span>
+                            <span style="background:{{ $prefFondo }}; color:{{ $prefColor }}; border-radius:12px; padding:3px 10px; font-size:11px; font-weight:700; height:max-content;">{{ $prefEtiqueta }}</span>
                         </div>
                         <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top:7px; font-size:11px; color:#546e7a;">
                             <span>{{ count($seccion['productos']) }} producto(s) · L {{ number_format($seccion['total'], 2) }}</span>
@@ -2136,7 +2154,9 @@
                 @if ($prefacturaData)
                 @php
                     $pref = $prefacturaData;
+                    $prefActiva = ($pref['estado'] ?? '') === 'activo';
                     $prefFacturada = ($pref['estado'] ?? '') === 'convertida';
+                    $prefAnulada = ($pref['estado'] ?? '') === 'inactive';
                     $indicePrefacturaSeleccionada = collect($seccionesExpoData)
                         ->filter(fn($seccion) => !empty($seccion['prefactura_id']))
                         ->values()
@@ -2176,6 +2196,10 @@
                             @if(($pref['estado'] ?? '') === 'convertida')
                             <span style="background:#e3f2fd; color:#1565c0; border-radius:8px; padding:1px 8px; font-size:10px; font-weight:700;">
                                 <i class="mr-1 fa fa-file-text"></i> Facturada
+                            </span>
+                            @elseif($prefAnulada)
+                            <span style="background:#ffebee; color:#c62828; border-radius:8px; padding:1px 8px; font-size:10px; font-weight:700;">
+                                <i class="mr-1 fa fa-ban"></i> Anulada
                             </span>
                             @else
                                 @if ($prefacturaReservaCompleta)
@@ -2225,7 +2249,7 @@
                     {{-- Botones de acción --}}
                     @if ($confirmAccionPrefactura === null)
                     <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:4px;">
-                        @if ($esFlujoExpo ? !$prefFacturada : !$facturaCompletada)
+                        @if ($esFlujoExpo ? $prefActiva : !$facturaCompletada)
 <button type="button" wire:click="solicitarAutorizacionPrefactura('revertir_prefactura')"
                                 style="background:linear-gradient(135deg,#1a7efb,#0d6efd); color:#fff;
                                        border:none; border-radius:8px; padding:6px 14px;
@@ -2248,7 +2272,7 @@
                             <i class="fa fa-print"></i> Imprimir prefactura
                         </a>
 
-                        @if ($esFlujoExpo ? !$prefFacturada : !$facturaCompletada)
+                        @if ($esFlujoExpo ? $prefActiva : !$facturaCompletada)
                         @if ($prefacturaPuedeFacturar)
                         <button id="btn-facturar-directo" type="button" wire:click="facturarPrefacturaDirecta"
                                 wire:loading.attr="disabled" wire:target="facturarPrefacturaDirecta"
@@ -3200,15 +3224,19 @@
                     .catch(function(error) {
                         setLoading(false);
                         var data = error.response ? error.response.data : {};
+                        var warningHtml = (data.warning && data.warning.includes('<')) ? data.warning : undefined;
+                        var tieneTablaInventario = warningHtml && warningHtml.includes('<table');
                         Swal.fire({
                             icon: data.icon || 'error',
                             title: data.title || 'Error',
-                            width: data.productos_escala_cambiada ? 'min(760px, calc(100vw - 28px))' : undefined,
+                            width: data.productos_escala_cambiada
+                                ? 'min(760px, calc(100vw - 28px))'
+                                : (tieneTablaInventario ? 'min(980px, calc(100vw - 28px))' : undefined),
                             customClass: data.productos_escala_cambiada ? { popup: 'fmp-price-alert' } : undefined,
                             confirmButtonText: data.productos_escala_cambiada ? 'Entendido' : 'OK',
                             confirmButtonColor: data.productos_escala_cambiada ? '#1570ef' : undefined,
                             text: data.text || data.warning || (data.detail && data.detail.text) || data.error || 'No se pudo facturar la prefactura.',
-                            html: (data.warning && data.warning.includes('<')) ? data.warning : undefined
+                            html: warningHtml
                         });
                     });
             });

@@ -92,6 +92,22 @@ class FacturacionCorporativa extends Component
         return $this->obtenerDiasCreditoAprobados($flujoId) ?? max(0, $diasCliente);
     }
 
+    private function flujoTieneCreditoAprobadoNormal(?int $flujoId): bool
+    {
+        if (!$flujoId) {
+            return false;
+        }
+
+        $revision = DB::table('credito_revision')
+            ->where('flujo_id', $flujoId)
+            ->latest('id')
+            ->first(['estado', 'cotizacion_id']);
+
+        return $revision
+            && $revision->estado === 'aprobado'
+            && !DB::table('expo_cotizacion')->where('cotizacion_id', $revision->cotizacion_id)->exists();
+    }
+
     private function resolveTeleAsesorId(Request $request): int
     {
         ClienteActoresAsignados::validar(
@@ -617,7 +633,12 @@ class FacturacionCorporativa extends Component
     {
         try {
             $productoId          = $request->producto_id;
-            $categoriaEscalaId   = $request->cliente_categoria_escala_id;
+            $categoriaEscalaId   = (int) $request->input('cliente_categoria_escala_id', 0);
+            if (!$categoriaEscalaId && $request->filled('cliente_id')) {
+                $categoriaEscalaId = (int) DB::table('cliente')
+                    ->where('id', (int) $request->input('cliente_id'))
+                    ->value('cliente_categoria_escala_id');
+            }
             $expoId = (int) $request->input('expo_id', 0);
             $expo = $expoId > 0 ? ExpoConfig::detalleActivaParaUsuario($expoId, Auth::id()) : null;
 
@@ -636,18 +657,38 @@ class FacturacionCorporativa extends Component
                     ->whereIn('cp.id', $expo['escalas'])
                     ->where('cp.estado_id', 1)
                     ->orderByDesc('ppc.precio_a')
-                    ->get(['cp.id', DB::raw("CONCAT(cce.nombre_categoria, ' - ', cp.nombre) as nombre_categoria"), 'ppc.precio_a'])
+                    ->get(['cp.id', DB::raw("CONCAT(cce.nombre_categoria, ' - ', cp.nombre) as nombre_categoria"), 'ppc.id as precios_producto_carga_id', 'ppc.precio_a'])
                     ->all();
             } elseif ($categoriaEscalaId) {
                 // Filtrado: solo las categorías de precio ligadas al cce del cliente
                 // Si incluir_cp_inactivos=true, muestra también cp con estado_id=2 (p.ej. escalas archivadas)
                 $incluirInactivos = $request->boolean('incluir_cp_inactivos', false);
                 $filtroCpEstado   = $incluirInactivos ? '' : 'AND cp.estado_id = 1';
+                $soloCategoriaCliente = $request->boolean('solo_categoria_cliente', false);
 
-                $categorias = DB::SELECT("
+                if ($soloCategoriaCliente) {
+                    $categorias = DB::table('categoria_precios as cp')
+                        ->join('precios_producto_carga as ppc', function ($join) use ($productoId) {
+                            $join->on('ppc.categoria_precios_id', '=', 'cp.id')
+                                ->where('ppc.producto_id', $productoId)
+                                ->where('ppc.estado_id', 1);
+                        })
+                        ->where('cp.cliente_categoria_escala_id', $categoriaEscalaId)
+                        ->when(!$incluirInactivos, fn ($query) => $query->where('cp.estado_id', 1))
+                        ->orderBy('cp.nombre')
+                        ->get([
+                            'cp.id',
+                            'cp.nombre as nombre_categoria',
+                            'ppc.id as precios_producto_carga_id',
+                            'ppc.precio_a',
+                        ]);
+                } else {
+
+                    $categorias = DB::SELECT("
                     SELECT
                         cp.id,
                         cp.nombre AS nombre_categoria,
+                        ppc.id AS precios_producto_carga_id,
                         ppc.precio_a
                     FROM categoria_precios cp
                     INNER JOIN precios_producto_carga ppc
@@ -662,6 +703,7 @@ class FacturacionCorporativa extends Component
                     SELECT
                         cp2.id,
                         cp2.nombre AS nombre_categoria,
+                        ppc2.id AS precios_producto_carga_id,
                         ppc2.precio_a
                     FROM categoria_precios cp2
                     INNER JOIN precios_producto_carga ppc2
@@ -673,6 +715,7 @@ class FacturacionCorporativa extends Component
 
                     ORDER BY precio_a DESC
                 ", [$productoId, $categoriaEscalaId, $productoId]);
+                }
             } else {
                 // Fallback sin cliente: todas las categoria_precios activas para el producto
                 // Devuelve cp.id (no cce.id) para que sea coherente con /estatal/datos/producto
@@ -680,6 +723,7 @@ class FacturacionCorporativa extends Component
                     SELECT
                         cp.id,
                         CONCAT(cce.nombre_categoria, ' - ', cp.nombre) AS nombre_categoria,
+                        ppc.id AS precios_producto_carga_id,
                         ppc.precio_a
                     FROM precios_producto_carga ppc
                     INNER JOIN categoria_precios cp ON ppc.categoria_precios_id = cp.id
@@ -1077,7 +1121,11 @@ class FacturacionCorporativa extends Component
 
 
 
-            if ($request->tipoPagoVenta == 2 && !$facturacionExpoDesdePrefactura) {
+            $creditoAprobadoFlujoNormal = $this->flujoTieneCreditoAprobadoNormal(
+                $request->flujo_id ? (int) $request->flujo_id : null
+            );
+
+            if ($request->tipoPagoVenta == 2 && !$facturacionExpoDesdePrefactura && !$creditoAprobadoFlujoNormal) {
                 $comprobarCredito = $this->comprobarCreditoCliente($request->seleccionarCliente, $request->totalGeneral);
 
                 if ($comprobarCredito) {
@@ -1132,15 +1180,15 @@ class FacturacionCorporativa extends Component
             $mensaje = "";
             $flag = false;
 
-            // Las prefacturas Expo ya fueron aprobadas por Inventario y se facturan tal como quedaron registradas.
-            if (!$facturacionExpoDesdePrefactura) {
-                for ($j = 0; $j < count($arrayInputs); $j++) {
+            for ($j = 0; $j < count($arrayInputs); $j++) {
 
                 $keyIdSeccion = "idSeccion" . $arrayInputs[$j];
                 $keyIdProducto = "idProducto" . $arrayInputs[$j];
                 $keyRestaInventario = "restaInventario" . $arrayInputs[$j];
                 $keyNombre = "nombre" . $arrayInputs[$j];
                 $keyBodega = "bodega" . $arrayInputs[$j];
+                $keyCantidad = "cantidad" . $arrayInputs[$j];
+                $keyIdUnidadVenta = "idUnidadVenta" . $arrayInputs[$j];
 
                 $excludePfClause = $prefacturaExcluirId > 0
                     ? "AND pf2.id != {$prefacturaExcluirId}"
@@ -1180,21 +1228,46 @@ class FacturacionCorporativa extends Component
                     ) AS cantidad_disponoble
                 ");
 
-                if ($request->$keyRestaInventario > $resultado->cantidad_disponoble) {
-                    $mensaje = $mensaje . "Unidades insuficientes para el producto: <b>" . $request->$keyNombre . "</b> en la bodega con sección :<b>" . $request->$keyBodega . "</b><br><br>";
+                $cantidadSolicitadaInventario = (float) $request->$keyRestaInventario;
+                $cantidadDisponibleInventario = (float) $resultado->cantidad_disponoble;
+
+                if ($cantidadSolicitadaInventario > $cantidadDisponibleInventario) {
+                    $cantidadSolicitadaVenta = (float) $request->$keyCantidad;
+                    $cantidadFaltanteInventario = $cantidadSolicitadaInventario - $cantidadDisponibleInventario;
+                    $formatearCantidad = static fn ($valor) => rtrim(rtrim(number_format((float) $valor, 4, '.', ','), '0'), '.');
+                    $unidadSolicitada = trim((string) (DB::table('unidad_medida_venta as umv')
+                        ->join('unidad_medida as um', 'um.id', '=', 'umv.unidad_medida_id')
+                        ->where('umv.id', (int) $request->$keyIdUnidadVenta)
+                        ->value('um.nombre') ?? 'UNIDAD DE VENTA'));
+                    $unidadInventario = trim((string) (DB::table('producto as p')
+                        ->leftJoin('unidad_medida as um', 'um.id', '=', 'p.unidad_medida_compra_id')
+                        ->where('p.id', (int) $request->$keyIdProducto)
+                        ->value('um.nombre') ?? 'UNIDAD'));
+
+                    $mensaje .= '<tr>'
+                        . '<td class="text-left">' . e($request->$keyNombre) . '<br><small>' . e($request->$keyBodega) . '</small></td>'
+                        . '<td>' . $formatearCantidad($cantidadSolicitadaVenta) . '</td>'
+                        . '<td>' . e($unidadSolicitada) . '</td>'
+                        . '<td>' . $formatearCantidad($cantidadDisponibleInventario) . '</td>'
+                        . '<td>' . e($unidadInventario) . '</td>'
+                        . '<td>' . $formatearCantidad($cantidadFaltanteInventario) . ' ' . e($unidadInventario) . '</td>'
+                        . '</tr>';
                     $flag = true;
                 }
-                }
+            }
 
-                if ($flag) {
-                    return response()->json([
-                        'icon' => "warning",
-                        'text' =>  '<p class="text-left">' . $mensaje . '</p>',
-                        'title' => 'Advertencia!',
-                        'idFactura' => 0,
+            if ($flag) {
+                return response()->json([
+                    'icon' => "warning",
+                    'text' => '<p class="text-left">No se puede generar la factura porque no hay inventario suficiente.</p>'
+                        . '<div class="table-responsive"><table class="table table-bordered table-sm">'
+                        . '<thead><tr><th>Producto</th><th>Cantidad solicitada</th><th>Unidad solicitada</th>'
+                        . '<th>Cantidad en bodega</th><th>Unidad en bodega</th><th>Faltante</th></tr></thead>'
+                        . '<tbody>' . $mensaje . '</tbody></table></div>',
+                    'title' => 'Inventario insuficiente',
+                    'idFactura' => 0,
 
-                    ], 200);
-                }
+                ], 200);
             }
             //comprobar existencia de producto en bodega
 
@@ -1426,7 +1499,7 @@ class FacturacionCorporativa extends Component
 
                 // dd($factura);
 
-                $this->restarUnidadesInventario($precios_producto_carga_id, $idPrecioSeleccionado, $precioSeleccionado, $restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $arrayInputs[$i], $tipoPrecio, $lineasExpoPorIndice[(string) $arrayInputs[$i]] ?? null, (float) $request->input('cantidadOfertaAplicada' . $arrayInputs[$i], 0), $facturacionExpoDesdePrefactura);
+                $this->restarUnidadesInventario($precios_producto_carga_id, $idPrecioSeleccionado, $precioSeleccionado, $restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $arrayInputs[$i], $tipoPrecio, $lineasExpoPorIndice[(string) $arrayInputs[$i]] ?? null, (float) $request->input('cantidadOfertaAplicada' . $arrayInputs[$i], 0));
             };
 
             if ($request->tipoPagoVenta == 2) { //si el tipo de pago es credito
@@ -2131,7 +2204,7 @@ class FacturacionCorporativa extends Component
 
 
 
-                array_push($this->arrayProductos, [
+                $productoFactura = [
                     "factura_id" => $idFactura,
                     "cotizacion_has_producto_id" => $cotizacionLineaId,
                     "cantidad_oferta_aplicada" => $cotizacionLineaId ? $cantidadOfertaSeccion : 0,
@@ -2161,7 +2234,36 @@ class FacturacionCorporativa extends Component
                     "precios_producto_carga_id" => $precios_producto_carga_id,
                     "created_at" => now(),
                     "updated_at" => now(),
-                ]);
+                ];
+
+                $productoExistenteIndex = null;
+                foreach ($this->arrayProductos as $index => $productoExistente) {
+                    if ((int) $productoExistente['factura_id'] === (int) $idFactura
+                        && (int) $productoExistente['producto_id'] === (int) $idProducto
+                        && (int) $productoExistente['lote'] === (int) $unidadesDisponibles->id
+                        && (string) $productoExistente['indice'] === (string) $indice) {
+                        $productoExistenteIndex = $index;
+                        break;
+                    }
+                }
+
+                if ($productoExistenteIndex === null) {
+                    $this->arrayProductos[] = $productoFactura;
+                } else {
+                    foreach ([
+                        'cantidad_oferta_aplicada',
+                        'numero_unidades_resta_inventario',
+                        'unidades_nota_credito_resta_inventario',
+                        'cantidad_s',
+                        'cantidad_para_entregar',
+                        'sub_total_s',
+                        'isv_s',
+                        'total_s',
+                    ] as $campoAcumulable) {
+                        $this->arrayProductos[$productoExistenteIndex][$campoAcumulable] += $productoFactura[$campoAcumulable];
+                    }
+                    $this->arrayProductos[$productoExistenteIndex]['updated_at'] = now();
+                }
 
                 array_push($this->arrayLogs, [
                     "origen" => $unidadesDisponibles->id,
@@ -2195,12 +2297,45 @@ class FacturacionCorporativa extends Component
         }
     }
 
+    private function esFacturaExpoParaImpresion(int $facturaId, int $tipoVentaId): bool
+    {
+        if ($tipoVentaId === ExpoConfig::tipoVentaId()) {
+            return true;
+        }
+
+        if (DB::table('venta_has_producto as vhp')
+            ->join('cotizacion_has_producto as chp', 'chp.id', '=', 'vhp.cotizacion_has_producto_id')
+            ->join('expo_cotizacion as ec', 'ec.cotizacion_id', '=', 'chp.cotizacion_id')
+            ->where('vhp.factura_id', $facturaId)
+            ->exists()) {
+            return true;
+        }
+
+        if (DB::table('prefactura_auditoria as pa')
+            ->join('prefactura as pf', 'pf.id', '=', 'pa.prefactura_id')
+            ->join('expo_cotizacion as ec', 'ec.cotizacion_id', '=', 'pf.cotizacion_id')
+            ->where('pa.factura_id', $facturaId)
+            ->exists()) {
+            return true;
+        }
+
+        return DB::table('historico_flujo as hf')
+            ->join('expo_cotizacion as ec', 'ec.flujo_id', '=', 'hf.flujo_id')
+            ->where('hf.tramite_id', $facturaId)
+            ->whereIn('hf.tipo_tramite_id', [3, 5])
+            ->exists();
+    }
+
     public function imprimirFacturaCoorporativa($idFactura)
     {
         $tipoVentaId = (int) (DB::table('factura')->where('id', $idFactura)->value('tipo_venta_id') ?? 0);
         if ($tipoVentaId === 3) {
             return (new VentasExoneradasController())->imprimirFacturaExonerada($idFactura);
         }
+        $esFacturaExpo = $this->esFacturaExpoParaImpresion((int) $idFactura, $tipoVentaId);
+        $precioProductoSql = $esFacturaExpo
+            ? 'FORMAT(SUM(B.sub_total_s) / NULLIF(SUM(B.cantidad_s), 0), 2)'
+            : 'FORMAT(B.precio_unidad, 2)';
 
         $cai = DB::SELECTONE("
         select
@@ -2301,7 +2436,7 @@ class FacturacionCorporativa extends Component
                 if(COALESCE(NULLIF(MIN(B.tipo_precio), ''), if(MIN(B.isv_s) = 0, '1', '2')) = '1', 'SI' , 'NO' ) as excento,
                 if(B.seccion_id = 0, 'N/A',H.nombre) as bodega,
                 if(B.seccion_id = 0, 'N/A',REPLACE(REPLACE(F.descripcion,'Seccion',''),' ', '')) as seccion,
-                FORMAT(B.precio_unidad,2) as precio,
+                " . $precioProductoSql . " as precio,
                 REPLACE(sum(B.cantidad_s), '.00', '') as cantidad,
                 FORMAT(sum(B.sub_total_s),2) as importe
             from factura A
@@ -2322,7 +2457,7 @@ class FacturacionCorporativa extends Component
             inner join bodega H
             on G.bodega_id = H.id
             where A.id=" . $idFactura . "
-            group by codigo, descripcion, medida, bodega, seccion, precio,B.indice
+            group by codigo, descripcion, medida, bodega, seccion, B.precio_unidad,B.indice
             order by B.indice asc
             ) A"
 
@@ -2380,6 +2515,10 @@ class FacturacionCorporativa extends Component
         if ($tipoVentaId === 3) {
             return (new VentasExoneradasController())->imprimirFacturaExoneradaCopia($idFactura);
         }
+        $esFacturaExpo = $this->esFacturaExpoParaImpresion((int) $idFactura, $tipoVentaId);
+        $precioProductoSql = $esFacturaExpo
+            ? 'FORMAT(SUM(B.sub_total_s) / NULLIF(SUM(B.cantidad_s), 0), 2)'
+            : 'B.precio_unidad';
 
         $cai = DB::SELECTONE("
         select
@@ -2485,7 +2624,7 @@ class FacturacionCorporativa extends Component
                 if(COALESCE(NULLIF(MIN(B.tipo_precio), ''), if(MIN(B.isv_s) = 0, '1', '2')) = '1', 'SI' , 'NO' ) as excento,
                 if(B.seccion_id = 0, 'N/A',H.nombre) as bodega,
                 if(B.seccion_id = 0, 'N/A',REPLACE(REPLACE(F.descripcion,'Seccion',''),' ', '')) as seccion,
-                B.precio_unidad as precio,
+                " . $precioProductoSql . " as precio,
                 REPLACE(sum(B.cantidad_s), '.00', '') as cantidad,
                 format(sum(B.sub_total_s),2) as importe
             from factura A
@@ -2506,7 +2645,7 @@ class FacturacionCorporativa extends Component
             inner join bodega H
             on G.bodega_id = H.id
             where A.id=" . $idFactura . "
-            group by codigo, descripcion, medida, bodega, seccion, precio,B.indice
+            group by codigo, descripcion, medida, bodega, seccion, B.precio_unidad,B.indice
             order by B.indice asc
             ) A"
 

@@ -1,0 +1,384 @@
+PRESENTACION COMERCIAL DE PROFAC
+=================================
+
+CONTROL INTEGRAL PARA UNA OPERACION MAS EFICIENTE
+
+Ventas, inventarios, creditos, cobros y logistica conectados en una sola plataforma.
+
+
+1. EL PROBLEMA QUE RESUELVE
+===========================
+
+Muchas empresas administran sus operaciones utilizando hojas de Excel separadas, sistemas que no se comunican y reportes preparados manualmente.
+
+Esta forma de trabajo puede provocar:
+
+- Informacion diferente entre departamentos.
+- Duplicidad de registros.
+- Errores de digitacion.
+- Pagos dificiles de identificar o comprobar.
+- Inventarios que no coinciden con las ventas.
+- Creditos sin seguimiento oportuno.
+- Entregas sin suficiente trazabilidad.
+- Demoras para obtener informacion gerencial confiable.
+
+Mensaje comercial:
+
+"El verdadero problema no es la falta de informacion, sino tenerla dispersa y no poder confiar en ella cuando se necesita tomar una decision."
+
+
+2. PROPUESTA DE VALOR
+=====================
+
+PROFAC centraliza y conecta la operacion completa de la empresa:
+
+Cliente -> Pedido -> Venta -> Facturacion -> Inventario -> Credito -> Cobro -> Pago -> Entrega -> Reportes
+
+Cada departamento participa en el mismo proceso y trabaja con la misma informacion.
+
+Principales beneficios:
+
+- Reduce la duplicidad de registros.
+- Disminuye los errores manuales.
+- Mejora la coordinacion entre departamentos.
+- Facilita el seguimiento de cada operacion.
+- Proporciona informacion gerencial centralizada.
+- Permite identificar problemas antes de que se conviertan en perdidas.
+
+Mensaje principal:
+
+"PROFAC centraliza ventas, inventarios, creditos, cobros, pagos y entregas, permitiendo que la gerencia controle toda la operacion desde una sola plataforma."
+
+
+3. DASHBOARDS PARA CONTROL GERENCIAL
+====================================
+
+Uno de los puntos mas fuertes de PROFAC son sus dashboards y herramientas de control.
+
+Estos permiten que la gerencia y los responsables de cada area supervisen:
+
+- Ventas realizadas.
+- Facturacion.
+- Comportamiento de productos.
+- Existencias de inventario.
+- Movimientos entre bodegas.
+- Creditos otorgados.
+- Saldos pendientes.
+- Cobros registrados.
+- Pagos aplicados.
+- Estado de las entregas.
+
+La informacion se presenta de manera resumida para facilitar la identificacion de operaciones que requieren atencion.
+
+Beneficios:
+
+- Mayor visibilidad sobre el funcionamiento de la empresa.
+- Indicadores basados en las operaciones registradas.
+- Menor tiempo invertido en reunir informacion.
+- Deteccion oportuna de pendientes y desviaciones.
+- Mejores decisiones gerenciales.
+
+Frase comercial:
+
+"PROFAC convierte los movimientos diarios de la empresa en indicadores que ayudan a tomar decisiones."
+
+
+4. CONTROL DE VENTAS DE PRINCIPIO A FIN
+=======================================
+
+PROFAC administra el proceso comercial completo:
+
+- Registro y administracion de clientes.
+- Pedidos.
+- Cotizaciones y ofertas.
+- Prefacturacion.
+- Facturacion.
+- Historial de operaciones.
+- Condiciones comerciales.
+- Precios segun cliente o categoria.
+- Seguimiento de documentos relacionados.
+
+Beneficios:
+
+- Evita volver a digitar la misma informacion.
+- Reduce errores entre pedido y factura.
+- Conserva el historial comercial del cliente.
+- Mejora el seguimiento de cada oportunidad.
+- Permite conocer que se vende, cuanto se vende y a quien se vende.
+- Facilita la coordinacion entre ventas, facturacion, bodega y cobros.
+
+Frase comercial:
+
+"Una venta no queda aislada en una factura. PROFAC conserva la trazabilidad desde la negociacion inicial hasta el cierre de la operacion."
+
+
+5. DASHBOARD Y CONTROL DE INVENTARIOS
+=====================================
+
+PROFAC permite controlar el inventario mas alla de una existencia general.
+
+Incluye:
+
+- Existencias por producto.
+- Control por bodega, seccion o ubicacion.
+- Entradas y salidas.
+- Traslados internos.
+- Ajustes de inventario.
+- Compras y recepcion de productos.
+- Manejo de lotes.
+- Kardex e historial de movimientos.
+- Identificacion de productos con baja rotacion.
+- Reportes de disponibilidad.
+
+Beneficios:
+
+- Reduce las diferencias de inventario.
+- Permite conocer donde se encuentra cada producto.
+- Facilita investigar faltantes y movimientos.
+- Ayuda a planificar compras y reposiciones.
+- Evita vender sin conocer la disponibilidad real.
+- Mejora el control sobre ajustes y traslados.
+- Proporciona trazabilidad de los movimientos de inventario.
+
+Frase comercial:
+
+"El dashboard de inventario no solamente muestra cuanto producto existe; permite entender donde esta, como se movio y que decisiones deben tomarse."
+
+
+6. GESTION DE CREDITOS Y CUENTAS POR COBRAR
+===========================================
+
+PROFAC permite controlar las ventas al credito y dar seguimiento a la recuperacion del dinero.
+
+Incluye:
+
+- Registro de condiciones de credito.
+- Seguimiento de facturas pendientes.
+- Saldos por cliente.
+- Fechas de vencimiento.
+- Historial de abonos.
+- Control de mora.
+- Estados de cuenta.
+- Cuentas por cobrar.
+- Aplicacion de notas de credito.
+- Reportes de cartera.
+
+Beneficios:
+
+- Facilita priorizar las gestiones de cobro.
+- Permite identificar clientes morosos.
+- Muestra cuanto dinero esta pendiente de recuperar.
+- Evita perder el historial de acuerdos y abonos.
+- Ayuda a evaluar el comportamiento crediticio del cliente.
+- Mejora la planificacion del flujo de efectivo.
+
+Frase comercial:
+
+"PROFAC permite que Credito y Cobros pase de reaccionar ante atrasos a administrar la cartera con informacion organizada."
+
+
+7. REGISTRO DE PAGOS Y COBROS BANCARIOS
+=======================================
+
+PROFAC permite registrar y controlar los pagos recibidos relacionados con las cuentas por cobrar.
+
+El sistema permite documentar:
+
+- Cliente que realizo el pago.
+- Factura o saldo al que se aplico.
+- Fecha del pago.
+- Monto recibido.
+- Forma o referencia de pago.
+- Aplicacion total o parcial.
+- Saldo restante.
+- Historial de abonos.
+- Anulaciones o correcciones autorizadas.
+- Cierre de la cuenta cuando el saldo ha sido completado.
+
+Beneficios:
+
+- Facilita relacionar cada deposito con la factura correspondiente.
+- Reduce la cantidad de pagos sin identificar.
+- Mantiene el historial completo del cobro.
+- Permite comprobar como se cancelo una factura.
+- Mejora la coordinacion entre bancos, caja, credito y contabilidad.
+- Disminuye el riesgo de aplicar un mismo pago mas de una vez.
+- Proporciona trazabilidad sobre la recuperacion de cada cuenta.
+
+Aclaracion comercial importante:
+
+PROFAC ofrece registro y control de pagos bancarios. No debe afirmarse que realiza conciliacion bancaria automatica si no existe una integracion directa con la entidad bancaria.
+
+Frase comercial:
+
+"Cada pago deja de ser un deposito aislado y se convierte en un movimiento identificado, aplicado y trazable dentro de la cuenta del cliente."
+
+
+8. PRECIOS ADAPTADOS A CADA CLIENTE
+===================================
+
+El sistema administra diferentes categorias y escalas de precios.
+
+Permite:
+
+- Clasificar clientes.
+- Definir categorias de precio.
+- Asignar precios por producto.
+- Manejar condiciones comerciales diferenciadas.
+- Realizar cargas masivas de precios.
+- Detectar productos sin precio configurado.
+- Comparar precios y cobertura.
+
+Beneficios:
+
+- Evita aplicar precios incorrectos.
+- Reduce la dependencia de listas externas.
+- Facilita actualizar catalogos.
+- Mantiene politicas comerciales consistentes.
+- Permite atender distintos segmentos de clientes.
+- Mejora el control sobre descuentos y condiciones de venta.
+
+Frase comercial:
+
+"Cada cliente recibe la condicion comercial que le corresponde, sin depender de la memoria del vendedor."
+
+
+9. LOGISTICA Y ENTREGAS
+=======================
+
+La operacion no termina al emitir una factura. PROFAC permite controlar el proceso de entrega.
+
+Incluye:
+
+- Organizacion de equipos de entrega.
+- Asignacion de facturas o pedidos.
+- Distribucion de entregas por fecha o zona.
+- Confirmacion de entregas realizadas.
+- Registro de evidencias.
+- Documentacion de incidencias.
+- Consulta del estado de cada entrega.
+
+Beneficios:
+
+- Ventas puede conocer si el pedido fue entregado.
+- Servicio al cliente puede responder con informacion verificable.
+- Logistica puede organizar mejor sus equipos y entregas.
+- Gerencia puede identificar retrasos o incidencias.
+- Se reduce la perdida de documentos y evidencias.
+- Mejora la experiencia del cliente despues de la venta.
+
+Frase comercial:
+
+"La operacion no termina cuando se imprime la factura; PROFAC permite acompanarla hasta que el cliente recibe su producto."
+
+
+10. REPORTES PARA TOMAR DECISIONES
+==================================
+
+PROFAC ofrece reportes operativos y gerenciales que pueden exportarse a Excel.
+
+Entre ellos:
+
+- Ventas y facturacion.
+- Libro de ventas.
+- Libro de cobros.
+- Cuentas por cobrar.
+- Cartera y saldos.
+- Inventarios y kardex.
+- Productos y precios.
+- Clientes.
+- Compras.
+- Entregas.
+- Movimientos y auditorias.
+
+Beneficios:
+
+- Reduce la preparacion manual de informacion.
+- Facilita realizar analisis adicionales en Excel.
+- Permite presentar resultados a gerencia.
+- Ayuda a responder auditorias.
+- Mantiene consistencia entre la operacion y los reportes.
+- Permite consultar la informacion desde diferentes perspectivas.
+
+Frase comercial:
+
+"La informacion se registra una vez y puede aprovecharse en diferentes reportes, sin reconstruirla manualmente."
+
+
+11. SEGURIDAD Y TRAZABILIDAD
+============================
+
+Cada usuario puede operar de acuerdo con su funcion dentro de la empresa.
+
+El sistema ofrece:
+
+- Roles y permisos.
+- Accesos por modulo.
+- Usuarios activos e inactivos.
+- Separacion de responsabilidades.
+- Historial de operaciones.
+- Registros de cambios y movimientos.
+- Control sobre acciones sensibles.
+
+Beneficios:
+
+- Protege la informacion empresarial.
+- Evita cambios no autorizados.
+- Permite identificar quien realizo una operacion.
+- Facilita establecer responsabilidades.
+- Mejora el control interno.
+- Proporciona evidencia para revisar movimientos sensibles.
+
+Frase comercial:
+
+"PROFAC no solamente almacena informacion; ayuda a protegerla y a establecer quien puede consultarla o modificarla."
+
+
+12. LOS CINCO ARGUMENTOS PRINCIPALES DE VENTA
+=============================================
+
+1. CONTROL INTEGRAL
+
+Conecta ventas, inventarios, creditos, cobros, pagos y entregas en una sola plataforma.
+
+2. DASHBOARDS GERENCIALES
+
+Transforma los registros diarios en indicadores que permiten supervisar la empresa y detectar situaciones que requieren atencion.
+
+3. TRAZABILIDAD
+
+Permite seguir cada operacion desde su origen hasta su cierre, incluyendo sus documentos, movimientos y responsables.
+
+4. REDUCCION DE ERRORES
+
+Disminuye la duplicidad de informacion, los registros dispersos y la dependencia de procesos manuales.
+
+5. INFORMACION PARA DECIDIR
+
+Ofrece reportes y exportaciones basados en las operaciones registradas, facilitando decisiones oportunas y fundamentadas.
+
+
+13. DISCURSO COMERCIAL BREVE
+============================
+
+"PROFAC es una plataforma de gestion que centraliza ventas, inventarios, creditos, cobros, pagos y entregas en un solo lugar.
+
+Su principal ventaja es que conecta todo el ciclo comercial. Una operacion puede iniciar como pedido, avanzar hasta la facturacion, relacionarse con el inventario, generar una cuenta por cobrar, registrar sus pagos y finalizar con la entrega al cliente.
+
+Los dashboards permiten que la gerencia conozca que se esta vendiendo, que productos estan disponibles, cuanto dinero esta pendiente de recuperar, que pagos se han recibido y cual es el estado de las entregas.
+
+Esto reduce tareas manuales, evita diferencias entre departamentos y proporciona informacion confiable para tomar decisiones."
+
+
+14. CIERRE COMERCIAL
+====================
+
+"PROFAC brinda a la empresa una vision completa de su operacion. La gerencia puede conocer que se esta vendiendo, que productos estan disponibles, cuanto dinero esta pendiente de cobro, que pagos se han recibido y cual es el estado de las entregas.
+
+Mas que digitalizar tareas, PROFAC conecta los departamentos para que todos trabajen con informacion centralizada, verificable y util para tomar decisiones."
+
+Pregunta recomendada para finalizar:
+
+"Actualmente, cuanto tiempo necesita su empresa para reunir informacion confiable de ventas, inventarios, creditos y cobros antes de tomar una decision?"
+
+Esta pregunta permite que el cliente valore el ahorro de tiempo, la mejora en el control y la reduccion del riesgo que ofrece PROFAC.

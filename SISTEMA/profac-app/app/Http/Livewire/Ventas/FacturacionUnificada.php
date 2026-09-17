@@ -361,9 +361,18 @@ class FacturacionUnificada extends Component
             $this->esOfertaExpo = $esExpo;
             if ($esExpo) {
                 $this->filtrarProductosExpo = true;
-                $this->expoConfig = ($this->duplicandoOferta || $this->continuandoOfertaExpo)
-                    ? ExpoConfig::detalleActivaParaUsuario((int) $expoCotizacionId, Auth::id())
-                    : ExpoConfig::detalleParaFacturacion((int) $expoCotizacionId, (int) $cotizId, Auth::id());
+                if ($this->duplicandoOferta) {
+                    $this->expoConfig = ExpoConfig::detalleParaDuplicacion(
+                        (int) $expoCotizacionId,
+                        (int) $cotizId,
+                        (int) ($this->flujoVinculadoId ?: request()->get('flujoId')),
+                        Auth::id()
+                    );
+                } elseif ($this->continuandoOfertaExpo) {
+                    $this->expoConfig = ExpoConfig::detalleActivaParaUsuario((int) $expoCotizacionId, Auth::id());
+                } else {
+                    $this->expoConfig = ExpoConfig::detalleParaFacturacion((int) $expoCotizacionId, (int) $cotizId, Auth::id());
+                }
                 abort_unless($this->expoConfig, 403, $this->continuandoOfertaExpo
                     ? 'No tiene autorización para continuar esta Oferta Expo.'
                     : ($this->duplicandoOferta
@@ -414,6 +423,8 @@ class FacturacionUnificada extends Component
                 : DB::table('cotizacion_has_producto')
                     ->leftJoin('unidad_medida_venta as uv', 'uv.id', '=', 'cotizacion_has_producto.unidad_medida_venta_id')
                     ->leftJoin('unidad_medida as um', 'um.id', '=', 'uv.unidad_medida_id')
+                    ->leftJoin('precios_producto_carga as ppc', 'ppc.id', '=', 'cotizacion_has_producto.precios_producto_carga_id')
+                    ->leftJoin('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')
                     ->where('cotizacion_id', (int) $cotizId)
                     ->orderBy('indice')
                     ->get([
@@ -432,7 +443,9 @@ class FacturacionUnificada extends Component
                     'Bodega_id',
                     'seccion_id',
                     'resta_inventario',
-                    'precios_producto_carga_id',
+                    'cotizacion_has_producto.precios_producto_carga_id',
+                    'ppc.categoria_precios_id',
+                    'cp.nombre as categoria_precios_nombre',
                     'monto_descProducto',
                     ])->all();
 
@@ -882,9 +895,10 @@ class FacturacionUnificada extends Component
 
     public function seleccionarPrefactura(int $prefacturaId)
     {
+        $editandoFactura = request()->query('modo') === 'editar_factura';
         $pref = DB::table('prefactura')
             ->where('id', $prefacturaId)
-            ->where('estado', 'activo')
+            ->whereIn('estado', $editandoFactura ? ['activo', 'convertida'] : ['activo'])
             ->first();
 
         if (!$pref) return;
@@ -915,11 +929,20 @@ class FacturacionUnificada extends Component
             : null;
         $this->esOfertaExpo = !empty($expoCotizacion);
         if ($expoCotizacion) {
-            $this->expoConfig = ExpoConfig::detalleParaFacturacion(
-                (int) $expoCotizacion->expo_id,
-                (int) $pref->cotizacion_id,
-                Auth::id()
-            );
+            $this->expoConfig = $editandoFactura
+                ? ExpoConfig::detalleParaEditarFactura(
+                    (int) $expoCotizacion->expo_id,
+                    (int) $pref->cotizacion_id,
+                    (int) $pref->id,
+                    (int) $pref->flujo_id,
+                    (int) request()->query('autorizacion_id'),
+                    Auth::id()
+                )
+                : ExpoConfig::detalleParaFacturacion(
+                    (int) $expoCotizacion->expo_id,
+                    (int) $pref->cotizacion_id,
+                    Auth::id()
+                );
             abort_unless($this->expoConfig, 403, 'No tiene autorización para facturar esta Oferta Expo.');
             $snapshot = json_decode((string) ($expoCotizacion->reglas_descuento_snapshot ?? ''), true) ?: [];
             $this->reglasExpoOferta = array_key_exists('generales', $snapshot)
@@ -950,6 +973,8 @@ class FacturacionUnificada extends Component
         // Carrito exacto desde prefactura (sin recalcular valores)
         $this->productosParaCarrito = DB::table('prefactura_has_producto as php')
             ->leftJoin('cotizacion_has_producto as chp', 'chp.id', '=', 'php.cotizacion_has_producto_id')
+            ->leftJoin('precios_producto_carga as ppc_linea', 'ppc_linea.id', '=', 'php.precios_producto_carga_id')
+            ->leftJoin('categoria_precios as cp_linea', 'cp_linea.id', '=', 'ppc_linea.categoria_precios_id')
             ->where('php.prefactura_id', $prefacturaId)
             ->orderBy('php.indice')
             ->get([
@@ -970,6 +995,8 @@ class FacturacionUnificada extends Component
                 'php.precios_producto_carga_id',
                 'php.idPrecioSeleccionado',
                 'php.precioSeleccionado',
+                'ppc_linea.categoria_precios_id as categoria_prefactura_id',
+                'cp_linea.nombre as categoria_prefactura_nombre',
                 'chp.cantidad as cantidad_ofertada',
                 'chp.monto_descProducto',
                 'chp.precio_unidad as precio_pactado_expo',
@@ -987,6 +1014,8 @@ class FacturacionUnificada extends Component
                     $producto['idPrecioSeleccionado'] = $r->escala_pactada_expo ?: 'p1';
                     $producto['precios_producto_carga_id'] = $r->precio_carga_pactado_expo;
                 } else {
+                    $producto['categoria_precios_id'] = (int) ($r->categoria_prefactura_id ?? 0);
+                    $producto['categoria_precios_nombre'] = $r->categoria_prefactura_nombre ?? '';
                     $selector = strtolower(trim((string) ($r->idPrecioSeleccionado ?? '')));
                     [$columnaPrecio, $escala] = match ($selector) {
                         'p1', 'a' => ['precio_a', 'A'],

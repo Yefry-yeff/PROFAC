@@ -41,12 +41,12 @@ class ReporteExpo extends Component
      *
      *   - 4508, 4476  -> duplicados; se conserva 4487 (oferta vigente 40865)
      *   - 4504        -> duplicado; se conserva 4489 (oferta vigente 40856)
-     *   - 4493        -> duplicado; se conserva 4497 (oferta vigente 40837)
+    *   - 4497        -> duplicado; se conserva 4493 (oferta vigente 40844)
      *   - 4485        -> duplicado; se conserva 4498 (oferta vigente 40834)
      *   - 4490        -> caso normal, sin duplicado (oferta vigente 40862)
      *
      * Validado contra la base de datos y confirmado con el usuario el
-     * 2026-09-02 (el caso de 4485/4498 se corrigió: se conserva 4498).
+    * 2026-09-04 (se corrigió el caso de 4493/4497: se conserva 4493).
      */
     private const FLUJOS_EXCLUIDOS_DUPLICADOS = [4508, 4476, 4504, 4497, 4485];
 
@@ -591,7 +591,7 @@ class ReporteExpo extends Component
         $brutoOfertaExpr = $this->brutoOfertaExpr();
 
         $ofertado = DB::select("
-             SELECT p.id AS producto_id, p.id AS codigo_producto, p.codigo_barra AS codigo, p.nombre AS producto,
+             SELECT p.id AS producto_id, p.codigo_barra AS codigo, p.nombre AS producto,
                  COALESCE(m.nombre,'Sin marca') AS marca,
                  COALESCE(cat.descripcion,'Sin categoria') AS categoria,
                  COUNT(DISTINCT c.id) AS numero_ofertas,
@@ -639,7 +639,6 @@ class ReporteExpo extends Component
 
             return [
                 'producto_id' => (int) $row->producto_id,
-                'codigo_producto' => (int) $row->codigo_producto,
                 'codigo' => $row->codigo,
                 'producto' => $row->producto,
                 'marca' => $row->marca,
@@ -670,9 +669,9 @@ class ReporteExpo extends Component
         $baseFacturas = $r->input('rentabilidad_base') === 'facturas';
         $entidad = $baseFacturas ? 'Factura' : 'Oferta';
 
-        $headings = ['Codigo producto', 'Codigo de barra', 'Producto', 'Marca', 'Categoria', 'Ofertas', 'Cant. ' . ($baseFacturas ? 'Facturada' : 'Ofertada'), 'Venta ' . $entidad . ' (L)', 'Descuento (L)', 'Costo ' . $entidad . ' (L)', 'Utilidad ' . $entidad . ' (L)', 'Margen ' . $entidad . ' %'];
+        $headings = ['Codigo', 'Producto', 'Marca', 'Categoria', 'Ofertas', 'Cant. ' . ($baseFacturas ? 'Facturada' : 'Ofertada'), 'Venta ' . $entidad . ' (L)', 'Descuento (L)', 'Costo ' . $entidad . ' (L)', 'Utilidad ' . $entidad . ' (L)', 'Margen ' . $entidad . ' %'];
         $rows = array_map(fn ($p) => [
-            $p['codigo_producto'], $p['codigo'], $p['producto'], $p['marca'], $p['categoria'], $p['numero_ofertas'],
+            $p['codigo'], $p['producto'], $p['marca'], $p['categoria'], $p['numero_ofertas'],
             $baseFacturas ? $p['cantidad_facturada'] : $p['cantidad_ofertada'], $p['total_base'],
             $p['descuento'], $p['total_costo'], $p['utilidad'], $p['margen_pct'],
         ], $data);

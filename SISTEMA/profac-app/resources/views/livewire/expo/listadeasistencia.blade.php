@@ -27,6 +27,7 @@
         .attendance-summary-item select { height:34px; padding:3px 36px 3px 8px; border:1.5px solid #e0cbb0; border-radius:7px; background-color:#fff; background-repeat:no-repeat; background-position:right 10px center; background-size:20px 20px; font-size:11px; }
         .attendance-summary-item select:focus { border-color:var(--attendance-orange); box-shadow:0 0 0 3px rgba(230,81,0,.11); }
         .attendance-toolbar { display:grid; grid-template-columns:minmax(280px,1fr) auto; align-items:end; gap:14px; margin-bottom:14px; }
+        .attendance-readonly { padding:10px 12px; border:1px solid #d7dee3; border-radius:7px; background:#f8fafc; color:#607d8b; font-size:11px; }
         .attendance-filters { display:grid; grid-template-columns:minmax(220px,1fr) repeat(2,minmax(145px,190px)) auto; align-items:end; gap:9px; margin-bottom:14px; }
         .attendance-filter label { margin-bottom:5px; color:#4a5568; font-size:10px; font-weight:800; text-transform:uppercase; }
         .attendance-filter .form-control { height:36px; border:1.5px solid #dde2ec; border-radius:7px; font-size:11px; }
@@ -151,13 +152,13 @@
                         <h5><i class="fa fa-calendar-check-o mr-2"></i>{{ $expo->nombre }}</h5>
                         <small>Expo #{{ $expo->id }} · {{ $expo->descripcion ?: 'Sin descripción registrada' }}</small>
                     </div>
-                    <span class="attendance-state"><i class="fa fa-circle"></i>Expo activa</span>
+                    <span class="attendance-state"><i class="fa fa-circle" style="color:{{ $expoActiva ? '#d9ffd8' : '#ffe0b2' }};"></i>{{ $expoActiva ? 'Expo activa' : 'Expo cerrada' }}</span>
                 </div>
             @else
                 <div class="attendance-card-head">
                     <div>
                         <h5><i class="fa fa-calendar-check-o mr-2"></i>Control de asistencia</h5>
-                        <small>Seleccione una Expo activa para comenzar.</small>
+                        <small>Seleccione una Expo para consultar su asistencia.</small>
                     </div>
                 </div>
             @endif
@@ -166,15 +167,15 @@
                 @if($expos->isEmpty())
                     <div class="attendance-empty">
                         <i class="fa fa-calendar-times-o"></i>
-                        No hay exposiciones activas en este momento.
+                        No hay exposiciones iniciadas para consultar.
                     </div>
                 @else
                     <div class="attendance-summary">
                         <div class="attendance-summary-item">
-                            <label for="expo-asistencia">Exposición activa</label>
+                            <label for="expo-asistencia">Exposición</label>
                             <select id="expo-asistencia" wire:model="expoId" class="form-control">
                                 @foreach($expos as $item)
-                                    <option value="{{ $item->id }}">{{ $item->nombre }} | {{ date('d/m/Y H:i', strtotime($item->fecha_inicio)) }}</option>
+                                    <option value="{{ $item->id }}">{{ $item->nombre }} | {{ date('d/m/Y H:i', strtotime($item->fecha_inicio)) }}{{ $item->estado === 'Cerrada' || ($item->fecha_fin && strtotime($item->fecha_fin) < time()) ? ' | Cerrada' : '' }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -191,6 +192,7 @@
                     </div>
 
                     <div class="attendance-toolbar">
+                        @if($expoActiva)
                         <div class="attendance-search">
                             <label for="buscar-cliente">Registrar asistencia de cliente</label>
                             <div class="attendance-search-box">
@@ -211,6 +213,9 @@
                                 </div>
                             @endif
                         </div>
+                        @else
+                        <div class="attendance-readonly"><i class="fa fa-lock mr-1"></i>Esta Expo está cerrada. La asistencia permanece disponible en modo de consulta.</div>
+                        @endif
 
                         <div class="attendance-actions">
                             <button type="button" wire:click="descargarExcel" wire:loading.attr="disabled" class="btn btn-sm btn-outline-success attendance-export excel" title="Exportar asistencia a Excel"><i class="fa fa-file-excel-o"></i>Asistencia Excel</button>
@@ -262,18 +267,22 @@
                                         <td class="attendance-contact">{{ $cliente->correo ?: 'Sin correo' }}</td>
                                         <td class="attendance-registered">{{ date('d/m/Y H:i', strtotime($cliente->registrado_at)) }}<br><small class="text-muted">Por {{ $cliente->registrado_por }}</small></td>
                                         <td class="text-center">
-                                            <input type="number" min="0" step="1" value="{{ $cliente->tickets }}" wire:change="actualizarTickets({{ $cliente->id }}, $event.target.value)" class="form-control form-control-sm attendance-tickets" aria-label="Tickets de {{ $cliente->nombre }}">
+                                            <input type="number" min="0" step="1" value="{{ $cliente->tickets }}" wire:change="actualizarTickets({{ $cliente->id }}, $event.target.value)" class="form-control form-control-sm attendance-tickets" aria-label="Tickets de {{ $cliente->nombre }}" @disabled(!$expoActiva)>
                                         </td>
                                         <td class="text-center">
-                                            <input type="checkbox" id="regalo-asistente-{{ $cliente->id }}" wire:change="actualizarRegalo({{ $cliente->id }})" class="attendance-gift" title="Marcar si recibió regalo" aria-label="Regalo entregado a {{ $cliente->nombre }}" @checked($cliente->recibio_regalo)>
+                                            <input type="checkbox" id="regalo-asistente-{{ $cliente->id }}" wire:change="actualizarRegalo({{ $cliente->id }})" class="attendance-gift" title="Marcar si recibió regalo" aria-label="Regalo entregado a {{ $cliente->nombre }}" @checked($cliente->recibio_regalo) @disabled(!$expoActiva)>
                                         </td>
                                         <td>
-                                            <textarea maxlength="1000" wire:change="actualizarComentario({{ $cliente->id }}, $event.target.value)" class="form-control form-control-sm attendance-comment" placeholder="Agregar comentario" aria-label="Comentario de {{ $cliente->nombre }}">{{ $cliente->comentario }}</textarea>
+                                            <textarea maxlength="1000" wire:change="actualizarComentario({{ $cliente->id }}, $event.target.value)" class="form-control form-control-sm attendance-comment" placeholder="Agregar comentario" aria-label="Comentario de {{ $cliente->nombre }}" @disabled(!$expoActiva)>{{ $cliente->comentario }}</textarea>
                                         </td>
                                         <td class="text-center">
                                             <div class="attendance-row-actions">
+                                                @if($expoActiva)
                                                 <button type="button" wire:click="abrirDescuentos({{ $cliente->id }})" wire:loading.attr="disabled" class="attendance-discount-open" title="Configurar descuento por categoría para {{ $cliente->nombre }}"><i class="fa fa-sliders mr-1"></i>Descuento por categoría</button>
                                                 <button type="button" wire:click="eliminarCliente({{ $cliente->id }})" wire:loading.attr="disabled" onclick="return confirm('¿Eliminar este cliente de la asistencia?')" class="attendance-remove" title="Eliminar de asistencia" aria-label="Eliminar de asistencia"><i class="fa fa-trash"></i></button>
+                                                @else
+                                                <span class="badge badge-secondary"><i class="fa fa-lock mr-1"></i>Solo lectura</span>
+                                                @endif
                                             </div>
                                             <span class="attendance-discount-count">{{ count($cliente->descuentos_escala) ? count($cliente->descuentos_escala) . ' categoría(s) con selección especial' : 'Todas automáticas' }}</span>
                                         </td>

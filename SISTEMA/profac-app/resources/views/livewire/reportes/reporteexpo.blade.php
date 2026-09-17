@@ -293,8 +293,7 @@
             <table class="table table-sm table-striped table-bordered" id="tabla-expo-productos" style="width:100%">
                 <thead>
                     <tr>
-                        <th>Código producto</th>
-                        <th>Código de barra</th>
+                        <th>Código</th>
                         <th>Producto</th>
                         <th>Marca</th>
                         <th>Categoría</th>

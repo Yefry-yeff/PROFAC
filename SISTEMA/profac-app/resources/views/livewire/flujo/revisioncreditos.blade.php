@@ -453,6 +453,9 @@
                                     <thead style="background:#f8f9fc;">
                                         <tr>
                                             <th style="padding:8px 12px;">Fecha</th>
+                                            @if(!$esSeccionExpo)
+                                            <th style="padding:8px 12px;">Oferta</th>
+                                            @endif
                                             <th style="padding:8px 12px;">Acción</th>
                                             <th style="padding:8px 12px;">Estado anterior</th>
                                             <th style="padding:8px 12px;">Estado nuevo</th>
@@ -466,18 +469,27 @@
                                             <td style="padding:7px 12px; white-space:nowrap; color:#78909c;">
                                                 {{ \Carbon\Carbon::parse($h['fecha_evento'])->format('d/m/Y H:i') }}
                                             </td>
+                                            @if(!$esSeccionExpo)
+                                            <td style="padding:7px 12px; white-space:nowrap; font-weight:700; color:#1565c0;">
+                                                #{{ $h['cotizacion_id'] ?? '—' }}
+                                            </td>
+                                            @endif
                                             <td style="padding:7px 12px;">
                                                 @php
                                                     $accionColor = match($h['accion']) {
                                                         'aprobado'  => '#27ae60',
                                                         'rechazado' => '#e74c3c',
+                                                        'devuelto_inventario' => '#e67e22',
                                                         'cancelado' => '#95a5a6',
                                                         'creado'    => '#3498db',
                                                         default     => '#546e7a',
                                                     };
+                                                    $accionTexto = $h['accion'] === 'devuelto_inventario'
+                                                        ? 'Devuelto por Inventario'
+                                                        : $h['accion'];
                                                 @endphp
                                                 <span style="font-weight:700; color:{{ $accionColor }}; text-transform:uppercase; font-size:11px;">
-                                                    {{ $h['accion'] }}
+                                                    {{ $accionTexto }}
                                                 </span>
                                             </td>
                                             <td style="padding:7px 12px; color:#78909c;">{{ $h['estado_anterior'] ?? '—' }}</td>
