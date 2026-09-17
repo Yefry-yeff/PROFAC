@@ -2297,12 +2297,45 @@ class FacturacionCorporativa extends Component
         }
     }
 
+    private function esFacturaExpoParaImpresion(int $facturaId, int $tipoVentaId): bool
+    {
+        if ($tipoVentaId === ExpoConfig::tipoVentaId()) {
+            return true;
+        }
+
+        if (DB::table('venta_has_producto as vhp')
+            ->join('cotizacion_has_producto as chp', 'chp.id', '=', 'vhp.cotizacion_has_producto_id')
+            ->join('expo_cotizacion as ec', 'ec.cotizacion_id', '=', 'chp.cotizacion_id')
+            ->where('vhp.factura_id', $facturaId)
+            ->exists()) {
+            return true;
+        }
+
+        if (DB::table('prefactura_auditoria as pa')
+            ->join('prefactura as pf', 'pf.id', '=', 'pa.prefactura_id')
+            ->join('expo_cotizacion as ec', 'ec.cotizacion_id', '=', 'pf.cotizacion_id')
+            ->where('pa.factura_id', $facturaId)
+            ->exists()) {
+            return true;
+        }
+
+        return DB::table('historico_flujo as hf')
+            ->join('expo_cotizacion as ec', 'ec.flujo_id', '=', 'hf.flujo_id')
+            ->where('hf.tramite_id', $facturaId)
+            ->whereIn('hf.tipo_tramite_id', [3, 5])
+            ->exists();
+    }
+
     public function imprimirFacturaCoorporativa($idFactura)
     {
         $tipoVentaId = (int) (DB::table('factura')->where('id', $idFactura)->value('tipo_venta_id') ?? 0);
         if ($tipoVentaId === 3) {
             return (new VentasExoneradasController())->imprimirFacturaExonerada($idFactura);
         }
+        $esFacturaExpo = $this->esFacturaExpoParaImpresion((int) $idFactura, $tipoVentaId);
+        $precioProductoSql = $esFacturaExpo
+            ? 'FORMAT(SUM(B.sub_total_s) / NULLIF(SUM(B.cantidad_s), 0), 2)'
+            : 'FORMAT(B.precio_unidad, 2)';
 
         $cai = DB::SELECTONE("
         select
@@ -2403,7 +2436,7 @@ class FacturacionCorporativa extends Component
                 if(COALESCE(NULLIF(MIN(B.tipo_precio), ''), if(MIN(B.isv_s) = 0, '1', '2')) = '1', 'SI' , 'NO' ) as excento,
                 if(B.seccion_id = 0, 'N/A',H.nombre) as bodega,
                 if(B.seccion_id = 0, 'N/A',REPLACE(REPLACE(F.descripcion,'Seccion',''),' ', '')) as seccion,
-                FORMAT(B.precio_unidad,2) as precio,
+                " . $precioProductoSql . " as precio,
                 REPLACE(sum(B.cantidad_s), '.00', '') as cantidad,
                 FORMAT(sum(B.sub_total_s),2) as importe
             from factura A
@@ -2424,7 +2457,7 @@ class FacturacionCorporativa extends Component
             inner join bodega H
             on G.bodega_id = H.id
             where A.id=" . $idFactura . "
-            group by codigo, descripcion, medida, bodega, seccion, precio,B.indice
+            group by codigo, descripcion, medida, bodega, seccion, B.precio_unidad,B.indice
             order by B.indice asc
             ) A"
 
@@ -2482,6 +2515,10 @@ class FacturacionCorporativa extends Component
         if ($tipoVentaId === 3) {
             return (new VentasExoneradasController())->imprimirFacturaExoneradaCopia($idFactura);
         }
+        $esFacturaExpo = $this->esFacturaExpoParaImpresion((int) $idFactura, $tipoVentaId);
+        $precioProductoSql = $esFacturaExpo
+            ? 'FORMAT(SUM(B.sub_total_s) / NULLIF(SUM(B.cantidad_s), 0), 2)'
+            : 'B.precio_unidad';
 
         $cai = DB::SELECTONE("
         select
@@ -2587,7 +2624,7 @@ class FacturacionCorporativa extends Component
                 if(COALESCE(NULLIF(MIN(B.tipo_precio), ''), if(MIN(B.isv_s) = 0, '1', '2')) = '1', 'SI' , 'NO' ) as excento,
                 if(B.seccion_id = 0, 'N/A',H.nombre) as bodega,
                 if(B.seccion_id = 0, 'N/A',REPLACE(REPLACE(F.descripcion,'Seccion',''),' ', '')) as seccion,
-                B.precio_unidad as precio,
+                " . $precioProductoSql . " as precio,
                 REPLACE(sum(B.cantidad_s), '.00', '') as cantidad,
                 format(sum(B.sub_total_s),2) as importe
             from factura A
@@ -2608,7 +2645,7 @@ class FacturacionCorporativa extends Component
             inner join bodega H
             on G.bodega_id = H.id
             where A.id=" . $idFactura . "
-            group by codigo, descripcion, medida, bodega, seccion, precio,B.indice
+            group by codigo, descripcion, medida, bodega, seccion, B.precio_unidad,B.indice
             order by B.indice asc
             ) A"
 

@@ -168,12 +168,11 @@ class ModalFlujoPedido extends Component
             ->value('id');
 
         $ganadoraActualId = $this->flujoId
-            ? DB::table('historico_flujo')
-                ->where('flujo_id', $this->flujoId)
-                ->where('tipo_tramite_id', 2)
-                ->where('observaciones', 'ganadora')
-                ->value('tramite_id')
+            ? $this->resolverCotizacionRevisionActual((int) $this->flujoId)
             : null;
+        $tieneSeccionesExpo = $this->flujoId
+            ? DB::table('expo_oferta_seccion')->where('flujo_id', $this->flujoId)->exists()
+            : false;
 
         // Derivar el paso activo del estado actual del flujo
         $flujoInfo = $this->flujoId
@@ -216,14 +215,19 @@ class ModalFlujoPedido extends Component
         $this->flujoTipos = $this->flujoId
             ? DB::table('historico_flujo')
                 ->where('flujo_id', $this->flujoId)
-                ->where(function ($q) use ($ganadoraActualId) {
+                ->where(function ($q) use ($ganadoraActualId, $tieneSeccionesExpo) {
                     $q->where(function ($otros) {
                         $otros->whereNotIn('tipo_tramite_id', [9, 10])
                             ->where('estado_id', '!=', 7);
-                    })->orWhere(function ($revision) use ($ganadoraActualId) {
+                    })->orWhere(function ($revision) use ($ganadoraActualId, $tieneSeccionesExpo) {
                         $revision->whereIn('tipo_tramite_id', [9, 10])
-                            ->where('estado_id', '!=', 7)
-                            ->where('tramite_id', $ganadoraActualId);
+                            ->where('tramite_id', $ganadoraActualId)
+                            ->where(function ($estado) use ($tieneSeccionesExpo) {
+                                $estado->where('estado_id', '!=', 7);
+                                if (!$tieneSeccionesExpo) {
+                                    $estado->orWhere('tipo_tramite_id', 9);
+                                }
+                            });
                     });
                 })
                 ->pluck('tipo_tramite_id')
@@ -361,22 +365,26 @@ class ModalFlujoPedido extends Component
         $this->pedidoDetalles = [];
         $this->flujoId        = $flujoId;
 
-        $ganadoraActualId = DB::table('historico_flujo')
+        $ganadoraActualId = $this->resolverCotizacionRevisionActual($flujoId);
+        $tieneSeccionesExpo = DB::table('expo_oferta_seccion')
             ->where('flujo_id', $flujoId)
-            ->where('tipo_tramite_id', 2)
-            ->where('observaciones', 'ganadora')
-            ->value('tramite_id');
+            ->exists();
 
         $this->flujoTipos = DB::table('historico_flujo')
             ->where('flujo_id', $flujoId)
-            ->where(function ($q) use ($ganadoraActualId) {
+            ->where(function ($q) use ($ganadoraActualId, $tieneSeccionesExpo) {
                 $q->where(function ($otros) {
                     $otros->whereNotIn('tipo_tramite_id', [9, 10])
                         ->where('estado_id', '!=', 7);
-                })->orWhere(function ($revision) use ($ganadoraActualId) {
+                })->orWhere(function ($revision) use ($ganadoraActualId, $tieneSeccionesExpo) {
                     $revision->whereIn('tipo_tramite_id', [9, 10])
-                        ->where('estado_id', '!=', 7)
-                        ->where('tramite_id', $ganadoraActualId);
+                        ->where('tramite_id', $ganadoraActualId)
+                        ->where(function ($estado) use ($tieneSeccionesExpo) {
+                            $estado->where('estado_id', '!=', 7);
+                            if (!$tieneSeccionesExpo) {
+                                $estado->orWhere('tipo_tramite_id', 9);
+                            }
+                        });
                 });
             })
             ->pluck('tipo_tramite_id')
@@ -502,6 +510,33 @@ class ModalFlujoPedido extends Component
             $data['usuario_revision_nombre'] = '—';
         }
         return $data;
+    }
+
+    private function resolverCotizacionRevisionActual(int $flujoId): ?int
+    {
+        $ganadoraActualId = DB::table('historico_flujo')
+            ->where('flujo_id', $flujoId)
+            ->where('tipo_tramite_id', 2)
+            ->where('observaciones', 'ganadora')
+            ->orderByDesc('id')
+            ->value('tramite_id');
+
+        if ($ganadoraActualId) {
+            return (int) $ganadoraActualId;
+        }
+
+        if (DB::table('expo_oferta_seccion')->where('flujo_id', $flujoId)->exists()) {
+            return null;
+        }
+
+        $cotizacionRevisionId = DB::table('historico_flujo')
+            ->where('flujo_id', $flujoId)
+            ->whereIn('tipo_tramite_id', [9, 10])
+            ->whereNotNull('tramite_id')
+            ->orderByDesc('id')
+            ->value('tramite_id');
+
+        return $cotizacionRevisionId ? (int) $cotizacionRevisionId : null;
     }
 
     private function diasVigenciaPrefactura(int $flujoId): int
@@ -903,11 +938,7 @@ class ModalFlujoPedido extends Component
             return;
         }
 
-        $ganadoraActualId = DB::table('historico_flujo')
-            ->where('flujo_id', $this->flujoId)
-            ->where('tipo_tramite_id', 2)
-            ->where('observaciones', 'ganadora')
-            ->value('tramite_id');
+        $ganadoraActualId = $this->resolverCotizacionRevisionActual((int) $this->flujoId);
 
         $records = DB::table('historico_flujo as hf')
             ->leftJoin('users as rev', 'rev.id', '=', 'hf.created_by')

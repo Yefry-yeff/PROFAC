@@ -322,6 +322,11 @@
                             $activo = $info['key'] === 'prefactura' && !$etapaExpoCompletada && $totalPrefacturaExpo > 0;
                             $pendiente = !$etapaExpoCompletada && !$activo;
                         }
+                        if (!$esFlujoExpo && $info['key'] === 'revision_credito' && $tieneRevisionCreditoAprobada) {
+                            $completado = true;
+                            $activo = false;
+                            $pendiente = false;
+                        }
                         $esSeleccionado = ($info['key'] === $pasoActivo);
                         $delay      = ($paso - 1) * 100;
                         // Rev. Inventario devuelta: mostrar como estado especial (naranja)
