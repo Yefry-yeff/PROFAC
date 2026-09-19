@@ -686,11 +686,13 @@ function listarAbonos() {
                         render: function (data, type, row) {
 
 
-                            if(data === 1){
+                            if(Number(data) === 1){
                                 return "<span class='badge badge-success'>ACTIVO</span>";
-                            }else if(data === 2){
-                                return "<span class='badge badge-danger'>INACTIVO</span>";
+                            }else if(Number(data) === 0){
+                                return "<span class='badge badge-danger'>ANULADO</span>";
                             }
+
+                            return "<span class='badge badge-secondary'>SIN ESTADO</span>";
 
 
                         }
@@ -1560,6 +1562,9 @@ function modalAnularAbono(idAbono, correlativo) {
                     .then(function (resp) {
                         $('#tbl_cuentas_facturas_cliente').DataTable().ajax.reload();
                         $('#tbl_abonos_cliente').DataTable().ajax.reload();
+                        if ($.fn.DataTable.isDataTable('#tbl_historico_retenciones_cliente')) {
+                            $('#tbl_historico_retenciones_cliente').DataTable().ajax.reload();
+                        }
 
                         Swal.fire({
                             icon: (resp.data && resp.data.icon) ? resp.data.icon : 'success',

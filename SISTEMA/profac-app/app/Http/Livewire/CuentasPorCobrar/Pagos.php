@@ -467,7 +467,6 @@ class Pagos extends Component
                 where
                 ap.cliente_id = ".$id."
                 and ap.estado = 1
-                and ac.estado_abono = 1
                 ;"
             );
 
@@ -477,6 +476,10 @@ class Pagos extends Component
                 ->addColumn('acciones', function ($consulta) {
                     if (Auth::user()->rol_id == '2') {
                         return '<span class="badge badge-info">Sin Acciones</span>';
+                    }
+
+                    if ((int) $consulta->estadoAbono !== 1) {
+                        return '<span class="badge badge-secondary">Sin acciones</span>';
                     }
 
                     return '<button class="btn btn-sm btn-outline-danger" onclick="modalAnularAbono(' . $consulta->codigoAbono . ',\'' . $consulta->correlativo . '\')"><i class="fa fa-ban"></i> Anular pago</button>';
@@ -2090,6 +2093,25 @@ class Pagos extends Component
             DB::table('abonos_creditos')
                 ->where('id', $abonoId)
                 ->update(['estado_abono' => 0, 'updated_at' => now()]);
+
+            // Una retención futura originada por este pago ya no puede ejecutarse
+            // cuando el abono fue anulado; se conserva el histórico como no aplica.
+            $observacionRetencionAnulada = substr(
+                'Seguimiento anulado automáticamente al anular el abono #'.$abonoId.'. Motivo: '.$motivo,
+                0,
+                500
+            );
+            DB::table('factura_retencion_seguimiento')
+                ->where('factura_id', $factura_id)
+                ->where('aplicacion_pagos_id', $apId)
+                ->where('estado', self::RETENCION_FUTURA_PENDIENTE)
+                ->update([
+                    'estado'                 => self::RETENCION_FUTURA_DESCARTADA,
+                    'observacion_resolucion' => $observacionRetencionAnulada,
+                    'usr_resolvio'           => Auth::id(),
+                    'fecha_resolucion'       => now(),
+                    'updated_at'             => now(),
+                ]);
 
             // 3. Revertir saldo en aplicacion_pagos
             DB::table('aplicacion_pagos')
