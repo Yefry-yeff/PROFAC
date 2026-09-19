@@ -85,12 +85,20 @@ class ComisionPoliticaAnterior extends Component
                     'usuario_id' => $usuarioId,
                     'usuario' => (string) ($fila['usuario'] ?? ''),
                     'fecha_pago' => (string) ($fila['fecha_pago'] ?? ''),
+                    'fecha_pago_real' => (string) ($fila['fecha_pago_real'] ?? ''),
+                    'periodo_politica_anterior' => (string) ($fila['periodo_politica_anterior'] ?? ''),
                     'fecha_creacion_factura' => (string) ($fila['fecha_creacion_factura'] ?? ''),
+                    'producto_ids_politica_anterior' => collect($fila['producto_ids_politica_anterior'] ?? [])
+                        ->map(fn ($id) => (int) $id)
+                        ->filter(fn ($id) => $id > 0)
+                        ->unique()
+                        ->values()
+                        ->all(),
                 ];
                 continue;
             }
 
-            foreach (['factura', 'cliente', 'capacidad', 'usuario', 'fecha_pago', 'fecha_creacion_factura'] as $campo) {
+            foreach (['factura', 'cliente', 'capacidad', 'usuario', 'fecha_pago', 'fecha_pago_real', 'periodo_politica_anterior', 'fecha_creacion_factura'] as $campo) {
                 if (empty($contexto[$facturaId][$campo]) && !empty($fila[$campo])) {
                     $contexto[$facturaId][$campo] = (string) $fila[$campo];
                 }
@@ -808,6 +816,13 @@ class ComisionPoliticaAnterior extends Component
         try {
             $contextoFacturas = $this->construirContextoFacturasPoliticaAnterior($filasInput);
 
+            foreach ($contextoFacturas as $facturaId => $contexto) {
+                $periodoExcepcional = trim((string) ($contexto['periodo_politica_anterior'] ?? ''));
+                if ($periodoExcepcional !== '' && empty($periodosInput[(string) $facturaId])) {
+                    $periodosInput[(string) $facturaId] = $periodoExcepcional;
+                }
+            }
+
             if (!empty($contextoFacturas)) {
                 $facturaIdsConContexto = array_map('intval', array_keys($contextoFacturas));
                 $facturaIds = array_values(array_intersect($facturaIds, $facturaIdsConContexto));
@@ -1124,10 +1139,17 @@ class ComisionPoliticaAnterior extends Component
             $facturaId = (int) $row->factura_id;
             $tipoKey = ((int) $row->tipo_pago_id === 1) ? 'contado' : 'credito';
             $contexto = $contextoFacturas[$facturaId] ?? [];
+            $productoIdsPoliticaAnterior = array_fill_keys(
+                array_map('intval', $contexto['producto_ids_politica_anterior'] ?? []),
+                true
+            );
             $capacidad = (string) ($contexto['capacidad'] ?? '');
             $usuarioIdContexto = (int) ($contexto['usuario_id'] ?? 0);
             $rolId = $this->resolverRolIdPorCapacidad($capacidad);
-            $fechaPagoCierre = (string) ($contexto['fecha_pago'] ?? ($fechaCierrePagoPorFactura[$facturaId] ?? ''));
+            $fechaPagoCierre = (string) (
+                ($contexto['fecha_pago_real'] ?? '')
+                ?: ($contexto['fecha_pago'] ?? ($fechaCierrePagoPorFactura[$facturaId] ?? ''))
+            );
             $fechaVencimiento = (string) ($row->fecha_vencimiento ?? $row->fecha_emision ?? '');
 
             if (!empty($contexto)) {
@@ -1136,6 +1158,10 @@ class ComisionPoliticaAnterior extends Component
                 }
 
                 if ($usuarioIdContexto > 0 && (int) $row->vendedor_id > 0 && $usuarioIdContexto !== (int) $row->vendedor_id) {
+                    continue;
+                }
+
+                if (!empty($productoIdsPoliticaAnterior) && !isset($productoIdsPoliticaAnterior[(int) $row->producto_id])) {
                     continue;
                 }
             }

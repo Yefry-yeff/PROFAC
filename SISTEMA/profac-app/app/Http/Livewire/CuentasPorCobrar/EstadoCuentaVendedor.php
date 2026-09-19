@@ -54,7 +54,7 @@ class EstadoCuentaVendedor extends Component
         if ($this->esAdmin()) {
             $clientes = DB::select(
                 "SELECT c.id, CONCAT(c.id,' - ',c.nombre) AS text
-                 FROM cliente
+                 FROM cliente c
                  WHERE (id LIKE ? OR nombre LIKE ?)
                  LIMIT 15",
                 [$like, $like]

@@ -25,6 +25,77 @@ use App\Support\Comisiones\ProyeccionEspecial15;
 
 class ReportesComisionesGenerales extends Component
 {
+    private const FACTURAS_POLITICA_ANTERIOR_EXCLUSIVA = [
+        27811 => [
+            'cai' => '000-001-01-00042727',
+            'periodo' => '2026-08-01',
+            'fecha_efectiva' => '2026-08-01',
+        ],
+    ];
+
+    private const FACTURAS_POLITICA_ANTERIOR_PARCIAL = [
+        27926 => [
+            'cai' => '000-001-01-00042842',
+            'periodo' => '2026-08-01',
+            'fecha_efectiva' => '2026-08-01',
+            'usuario_id' => 87,
+            'producto_ids' => [2610, 2703],
+        ],
+    ];
+
+    private function queryCierresProyeccion()
+    {
+        return DB::table('aplicacion_pagos as ap')
+            ->leftJoin('abonos_creditos as ac', function ($join) {
+                $join->on('ac.aplicacion_pagos_id', '=', 'ap.id')
+                    ->where('ac.estado_abono', '=', 1);
+            })
+            ->where('ap.estado', 1)
+            ->where('ap.estado_cerrado', 2)
+            ->where('ap.saldo', '<=', 0.0001)
+            ->groupBy('ap.factura_id')
+            ->selectRaw("ap.factura_id,
+                         CASE
+                             WHEN DATE(MAX(ap.fecha_cierre_factura)) > COALESCE(MAX(DATE(ac.fecha_pago)), '1000-01-01')
+                              AND COALESCE(MAX(ap.total_notas_credito), 0) > 0
+                              AND EXISTS (
+                                  SELECT 1
+                                  FROM nota_credito nc_cierre
+                                  WHERE nc_cierre.factura_id = ap.factura_id
+                                    AND nc_cierre.estado_nota_id = 1
+                                    AND nc_cierre.estado_rebajado IN (1, 3)
+                                    AND DATE(nc_cierre.fecha_rebajado) = DATE(MAX(ap.fecha_cierre_factura))
+                              )
+                                 THEN DATE(MAX(ap.fecha_cierre_factura))
+                             ELSE COALESCE(MAX(DATE(ac.fecha_pago)), DATE(MAX(ap.fecha_cierre_factura)))
+                         END as fecha_pago_cierre");
+    }
+
+    private function esRangoExcepcionalPoliticaAnterior(string $fechaInicio, string $fechaFin): bool
+    {
+        return $fechaInicio === '2026-08-01' && $fechaFin === '2026-08-31';
+    }
+
+    private function configuracionPoliticaAnteriorExclusiva(int $facturaId, ?string $cai = null): ?array
+    {
+        $config = self::FACTURAS_POLITICA_ANTERIOR_EXCLUSIVA[$facturaId] ?? null;
+        if (!$config || ($cai !== null && $cai !== $config['cai'])) {
+            return null;
+        }
+
+        return $config;
+    }
+
+    private function configuracionPoliticaAnteriorParcial(int $facturaId, ?string $cai = null): ?array
+    {
+        $config = self::FACTURAS_POLITICA_ANTERIOR_PARCIAL[$facturaId] ?? null;
+        if (!$config || ($cai !== null && $cai !== $config['cai'])) {
+            return null;
+        }
+
+        return $config;
+    }
+
     private function totalNominaComisionPorRango(string $fechaInicio, string $fechaFin, int $usuarioId = 0, int $rolId = 0): float
     {
         $fi = $fechaInicio . ' 00:00:00';
@@ -34,6 +105,7 @@ class ReportesComisionesGenerales extends Component
             ->join('factura as f', 'f.id', '=', 'fc.factura_id')
             ->whereBetween('fc.fecha_cierre_factura', [$fi, $ff])
             ->where('fc.estado_id', 1)
+            ->whereNotIn('fc.factura_id', array_keys(self::FACTURAS_POLITICA_ANTERIOR_EXCLUSIVA))
             ->whereExists(function ($q) {
                 $q->select(DB::raw(1))
                     ->from('aplicacion_pagos as ap')
@@ -1152,33 +1224,41 @@ class ReportesComisionesGenerales extends Component
         $rolIdFiltro = (int) $request->input('rol_id', 0);
         $totalNomina = round($this->totalNominaComisionPorRango($fi, $ff, $usuarioId, $rolIdFiltro), 4);
 
-        $cierres = DB::table('aplicacion_pagos as ap')
-            ->leftJoin('abonos_creditos as ac', function ($join) {
-                $join->on('ac.aplicacion_pagos_id', '=', 'ap.id')
-                    ->where('ac.estado_abono', '=', 1);
-            })
-            ->where('ap.estado', 1)
-            ->where('ap.estado_cerrado', 2)
-            ->where('ap.saldo', '<=', 0.0001)
-            ->groupBy('ap.factura_id')
-            ->selectRaw("ap.factura_id,
-                         CASE
-                             WHEN DATE(MAX(ap.fecha_cierre_factura)) > COALESCE(MAX(DATE(ac.fecha_pago)), '1000-01-01')
-                              AND COALESCE(MAX(ap.total_notas_credito), 0) > 0
-                              AND EXISTS (
-                                  SELECT 1
-                                  FROM nota_credito nc_cierre
-                                  WHERE nc_cierre.factura_id = ap.factura_id
-                                    AND nc_cierre.estado_nota_id = 1
-                                    AND nc_cierre.estado_rebajado IN (1, 3)
-                                    AND DATE(nc_cierre.fecha_rebajado) = DATE(MAX(ap.fecha_cierre_factura))
-                              )
-                                 THEN DATE(MAX(ap.fecha_cierre_factura))
-                             ELSE COALESCE(MAX(DATE(ac.fecha_pago)), DATE(MAX(ap.fecha_cierre_factura)))
-                         END as fecha_pago_cierre")
+        $facturaIdsExcepcion = array_keys(self::FACTURAS_POLITICA_ANTERIOR_EXCLUSIVA);
+        $facturaIdsExcepcionAgosto = array_values(array_unique(array_merge(
+            $facturaIdsExcepcion,
+            array_keys(self::FACTURAS_POLITICA_ANTERIOR_PARCIAL)
+        )));
+        $cierres = $this->queryCierresProyeccion()
+            ->whereNotIn('ap.factura_id', $facturaIdsExcepcion)
             ->havingRaw('fecha_pago_cierre IS NOT NULL')
             ->havingBetween('fecha_pago_cierre', [$fi, $ff])
             ->get();
+
+        if ($this->esRangoExcepcionalPoliticaAnterior($fi, $ff)) {
+            $cierresExcepcionales = $this->queryCierresProyeccion()
+                ->whereIn('ap.factura_id', $facturaIdsExcepcionAgosto)
+                ->havingRaw('fecha_pago_cierre IS NOT NULL')
+                ->get()
+                ->map(function ($cierre) {
+                    $facturaId = (int) $cierre->factura_id;
+                    $config = $this->configuracionPoliticaAnteriorExclusiva($facturaId)
+                        ?? $this->configuracionPoliticaAnteriorParcial($facturaId);
+                    $cierre->fecha_pago_real = (string) $cierre->fecha_pago_cierre;
+                    $cierre->fecha_pago_cierre = (string) $config['fecha_efectiva'];
+                    $cierre->periodo_politica_anterior = (string) $config['periodo'];
+                    if (isset(self::FACTURAS_POLITICA_ANTERIOR_EXCLUSIVA[$facturaId])) {
+                        $cierre->politica_anterior_exclusiva = true;
+                    } else {
+                        $cierre->politica_anterior_parcial = true;
+                        $cierre->producto_ids_politica_anterior = $config['producto_ids'];
+                    }
+
+                    return $cierre;
+                });
+
+            $cierres = $cierres->concat($cierresExcepcionales)->unique('factura_id')->values();
+        }
 
         if ($cierres->isEmpty()) {
             return response()->json([
@@ -1395,6 +1475,18 @@ class ReportesComisionesGenerales extends Component
         foreach ($facturas as $factura) {
             $facturaId = (int) $factura->id;
             $cierre = $cierresPorFactura->get($facturaId);
+            $configPoliticaExclusiva = $this->configuracionPoliticaAnteriorExclusiva(
+                $facturaId,
+                (string) ($factura->cai ?? '')
+            );
+            $configPoliticaParcial = $this->configuracionPoliticaAnteriorParcial(
+                $facturaId,
+                (string) ($factura->cai ?? '')
+            );
+            $esPoliticaAnteriorExclusiva = $configPoliticaExclusiva !== null
+                && !empty($cierre->politica_anterior_exclusiva);
+            $esPoliticaAnteriorParcial = $configPoliticaParcial !== null
+                && !empty($cierre->politica_anterior_parcial);
             $lineas = collect($lineasFactura->get($facturaId, collect([])))->values();
             $devueltasFactura = $this->indexarCantidadesDevueltas(
                 collect($cantidadesDevueltas->get($facturaId, collect([])))
@@ -1431,6 +1523,15 @@ class ReportesComisionesGenerales extends Component
                 ],
             ];
 
+            if ($esPoliticaAnteriorExclusiva || $esPoliticaAnteriorParcial) {
+                $targets = array_values(array_filter(
+                    $targets,
+                    fn($target) => (int) $target['rol_id'] === 2
+                        && (!$esPoliticaAnteriorParcial
+                            || (int) $target['user_id'] === (int) $configPoliticaParcial['usuario_id'])
+                ));
+            }
+
             foreach ($targets as $target) {
                 if (isset($rolesDesactivados[(int) $target['rol_id']])) {
                     continue;
@@ -1445,6 +1546,43 @@ class ReportesComisionesGenerales extends Component
                 }
 
                 if ($usuarioId > 0 && (int) $target['user_id'] !== $usuarioId) {
+                    continue;
+                }
+
+                if ($esPoliticaAnteriorExclusiva || $esPoliticaAnteriorParcial) {
+                    $motivo = $esPoliticaAnteriorParcial
+                        ? 'Lineas omitidas asignadas a Politica Anterior para agosto 2026'
+                        : 'Factura asignada exclusivamente a Politica Anterior para agosto 2026';
+                    $excluidas[] = [
+                        'factura_id' => $facturaId,
+                        'factura' => (string) $factura->cai,
+                        'fecha_pago' => (string) $cierre->fecha_pago_cierre,
+                        'fecha_pago_real' => (string) ($cierre->fecha_pago_real ?? ''),
+                        'periodo_politica_anterior' => (string) $cierre->periodo_politica_anterior,
+                        'fecha_creacion_factura' => (string) ($factura->fecha_creacion_factura ?? ''),
+                        'cliente' => (string) ($factura->cliente ?? 'N/A'),
+                        'producto' => $esPoliticaAnteriorParcial ? 'Lineas omitidas' : 'Factura completa',
+                        'categoria_precio' => 'POLITICA ANTERIOR',
+                        'capacidad' => (string) $target['capacidad'],
+                        'rol_id' => (int) $target['rol_id'],
+                        'rol_nombre' => (string) $target['rol_nombre'],
+                        'usuario_id' => (int) $target['user_id'],
+                        'usuario' => (string) ($target['usuario'] ?: ('Usuario #' . (int) $target['user_id'])),
+                        'razon_no_comisionable' => $motivo,
+                        'motivos' => [$motivo],
+                        'producto_ids_politica_anterior' => $esPoliticaAnteriorParcial
+                            ? array_values($configPoliticaParcial['producto_ids'])
+                            : [],
+                        'cantidad' => 0.0,
+                        'precio_unidad' => 0.0,
+                        'precio_seleccionado' => 0.0,
+                        'base_unitaria' => 0.0,
+                        'base_comisionable' => 0.0,
+                        'porcentaje_promedio' => 0.0,
+                        'comision_proyectada' => 0.0,
+                        'detalle_lineas' => [],
+                    ];
+                    $facturasExcluidas[$facturaId] = true;
                     continue;
                 }
 
@@ -3391,7 +3529,10 @@ class ReportesComisionesGenerales extends Component
 
             foreach ($facturasPoliticaIds as $fid) {
                 $cierreFila = $cierresPol->get($fid);
-                $fechaPago  = $cierreFila ? (string) $cierreFila->fecha_pago_cierre : null;
+                $configPoliticaExcepcional = $this->configuracionPoliticaAnteriorExclusiva((int) $fid)
+                    ?? $this->configuracionPoliticaAnteriorParcial((int) $fid);
+                $fechaPago = $configPoliticaExcepcional['fecha_efectiva']
+                    ?? ($cierreFila ? (string) $cierreFila->fecha_pago_cierre : null);
                 if (!$fechaPago) continue;
 
                 $mesKey = Carbon::parse($fechaPago)->format('Y-m');
