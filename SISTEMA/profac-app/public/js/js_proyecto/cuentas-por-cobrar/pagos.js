@@ -472,6 +472,9 @@ function listarCuentasPorCobrar() {
                             if (data === 'descartada') {
                                 return "<span class='badge badge-secondary'>NO APLICA</span>";
                             }
+                            if (data === 'anulada') {
+                                return "<span class='badge badge-danger'>ANULADA</span>";
+                            }
                             return "<span class='badge badge-light'>SIN MARCA</span>";
                         }
                     },

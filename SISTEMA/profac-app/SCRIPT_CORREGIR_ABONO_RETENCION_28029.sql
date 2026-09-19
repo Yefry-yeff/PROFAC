@@ -17,15 +17,22 @@ FROM factura_retencion_seguimiento frs
 WHERE frs.factura_id = 28029
   AND frs.aplicacion_pagos_id = 35503;
 
-UPDATE factura_retencion_seguimiento
-SET estado = 'descartada',
-    observacion_resolucion = 'No aplica: el abono que originó el seguimiento fue anulado. Corrección del caso 28029/35503.',
-    usr_resolvio = COALESCE(usr_resolvio, 6),
-    fecha_resolucion = COALESCE(fecha_resolucion, NOW()),
-    updated_at = NOW()
-WHERE factura_id = 28029
-  AND aplicacion_pagos_id = 35503
-  AND estado = 'pendiente';
+UPDATE factura_retencion_seguimiento frs
+JOIN (
+    SELECT factura_id, aplicacion_pagos_id, MAX(id) AS abono_anulado_id
+    FROM abonos_creditos
+    WHERE estado_abono = 0
+    GROUP BY factura_id, aplicacion_pagos_id
+) aa ON aa.factura_id = frs.factura_id
+    AND aa.aplicacion_pagos_id = frs.aplicacion_pagos_id
+SET frs.estado = 'anulada',
+    frs.observacion_resolucion = CONCAT('Se anula Abono #', aa.abono_anulado_id),
+    frs.usr_resolvio = COALESCE(frs.usr_resolvio, 6),
+    frs.fecha_resolucion = COALESCE(frs.fecha_resolucion, NOW()),
+    frs.updated_at = NOW()
+WHERE frs.factura_id = 28029
+  AND frs.aplicacion_pagos_id = 35503
+  AND frs.estado = 'pendiente';
 
 SELECT
     frs.id,

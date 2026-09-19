@@ -41,6 +41,7 @@ class Pagos extends Component
     private const RETENCION_FUTURA_PENDIENTE = 'pendiente';
     private const RETENCION_FUTURA_APLICADA = 'aplicada';
     private const RETENCION_FUTURA_DESCARTADA = 'descartada';
+    private const RETENCION_FUTURA_ANULADA = 'anulada';
 
     public function render()
     {
@@ -456,7 +457,11 @@ class Pagos extends Component
             (select cai from factura where id = ac.factura_id) as correlativo,
             FORMAT(ac.monto_abonado, 2) as monto,
             ac.monto_abonado as monto_real,
-            ac.comentario as 'comentarioabono',
+            CASE
+                WHEN ac.estado_abono = 0 AND cr.motivo IS NOT NULL THEN
+                    CONCAT(ac.comentario, ' | Se anula Abono #', ac.id, ': ', cr.motivo)
+                ELSE ac.comentario
+            END as 'comentarioabono',
             ac.estado_abono as 'estadoAbono',
             (select name from users where id = ac.usr_registro) as 'userRegistro',
             DATE_FORMAT(ac.fecha_pago, '%Y-%m-%d') as 'fechaPago',
@@ -464,6 +469,7 @@ class Pagos extends Component
             ac.factura_id
                 from abonos_creditos ac
                 inner join aplicacion_pagos ap on ap.id = ac.aplicacion_pagos_id
+                left join comision_reversiones cr on cr.abono_id = ac.id
                 where
                 ap.cliente_id = ".$id."
                 and ap.estado = 1
@@ -2096,18 +2102,13 @@ class Pagos extends Component
 
             // Una retención futura originada por este pago ya no puede ejecutarse
             // cuando el abono fue anulado; se conserva el histórico como no aplica.
-            $observacionRetencionAnulada = substr(
-                'Seguimiento anulado automáticamente al anular el abono #'.$abonoId.'. Motivo: '.$motivo,
-                0,
-                500
-            );
             DB::table('factura_retencion_seguimiento')
                 ->where('factura_id', $factura_id)
                 ->where('aplicacion_pagos_id', $apId)
                 ->where('estado', self::RETENCION_FUTURA_PENDIENTE)
                 ->update([
-                    'estado'                 => self::RETENCION_FUTURA_DESCARTADA,
-                    'observacion_resolucion' => $observacionRetencionAnulada,
+                    'estado'                 => self::RETENCION_FUTURA_ANULADA,
+                    'observacion_resolucion' => 'Se anula Abono #'.$abonoId,
                     'usr_resolvio'           => Auth::id(),
                     'fecha_resolucion'       => now(),
                     'updated_at'             => now(),
@@ -2260,14 +2261,32 @@ class Pagos extends Component
     public function listarHistoricoRetenciones($id)
     {
         try {
+            // Compatibilidad con seguimientos antiguos: si el abono relacionado
+            // ya fue anulado, se refleja como ANULADA aunque el registro conserve
+            // el estado histórico pendiente.
+            $abonosAnulados = DB::table('abonos_creditos')
+                ->where('estado_abono', 0)
+                ->select('factura_id', 'aplicacion_pagos_id', DB::raw('MAX(id) as abono_anulado_id'))
+                ->groupBy('factura_id', 'aplicacion_pagos_id');
+
             $consulta = DB::table('factura_retencion_seguimiento as frs')
                 ->join('factura as f', 'f.id', '=', 'frs.factura_id')
                 ->join('cliente as c', 'c.id', '=', 'frs.cliente_id')
+                ->leftJoinSub($abonosAnulados, 'aa', function ($join) {
+                    $join->on('aa.factura_id', '=', 'frs.factura_id')
+                        ->on('aa.aplicacion_pagos_id', '=', 'frs.aplicacion_pagos_id');
+                })
                 ->leftJoin('users as um', 'um.id', '=', 'frs.usr_marcado')
                 ->leftJoin('users as ur', 'ur.id', '=', 'frs.usr_resolvio')
                 ->where('frs.cliente_id', $id)
                 ->orderByDesc('frs.fecha_marcado')
-                ->selectRaw("frs.id as codigoSeguimiento, frs.aplicacion_pagos_id as codigoPago, frs.factura_id as idFactura, f.cai as correlativo, c.nombre as cliente, frs.estado, DATE_FORMAT(frs.fecha_marcado, '%Y-%m-%d %H:%i:%s') as fechaMarcado, DATE_FORMAT(frs.fecha_resolucion, '%Y-%m-%d %H:%i:%s') as fechaResolucion, frs.observacion_marcado, frs.observacion_resolucion, frs.numero_retencion as numeroRetencion, frs.archivo_retencion as archivoRetencion, um.name as usuarioMarcado, ur.name as usuarioResolvio")
+                ->selectRaw("frs.id as codigoSeguimiento, frs.aplicacion_pagos_id as codigoPago, frs.factura_id as idFactura, f.cai as correlativo, c.nombre as cliente,
+                    CASE WHEN frs.estado = 'pendiente' AND aa.abono_anulado_id IS NOT NULL THEN 'anulada' ELSE frs.estado END as estado,
+                    DATE_FORMAT(frs.fecha_marcado, '%Y-%m-%d %H:%i:%s') as fechaMarcado,
+                    DATE_FORMAT(frs.fecha_resolucion, '%Y-%m-%d %H:%i:%s') as fechaResolucion,
+                    frs.observacion_marcado,
+                    CASE WHEN frs.estado = 'pendiente' AND aa.abono_anulado_id IS NOT NULL THEN CONCAT('Se anula Abono #', aa.abono_anulado_id) ELSE frs.observacion_resolucion END as observacion_resolucion,
+                    frs.numero_retencion as numeroRetencion, frs.archivo_retencion as archivoRetencion, um.name as usuarioMarcado, ur.name as usuarioResolvio")
                 ->get();
 
             return Datatables::of($consulta)
@@ -2282,6 +2301,10 @@ class Pagos extends Component
 
                     if ($consulta->estado === self::RETENCION_FUTURA_DESCARTADA) {
                         return '<span class="badge badge-secondary">NO APLICA</span>';
+                    }
+
+                    if ($consulta->estado === self::RETENCION_FUTURA_ANULADA) {
+                        return '<span class="badge badge-danger">ANULADA</span>';
                     }
 
                     return '<span class="badge badge-light">SIN ESTADO</span>';
