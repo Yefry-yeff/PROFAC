@@ -108,7 +108,20 @@ class ExpoConfig
         }
 
         $expo = DB::table('expo')->where('id', $expoId)->first();
-        return $expo ? self::construirDetalle($expo) : null;
+        if (!$expo) {
+            return null;
+        }
+
+        // La duplicación debe conservar la autorización de descuento del
+        // cliente y escala, igual que la creación de una oferta nueva.
+        $clienteId = (int) DB::table('cotizacion')
+            ->where('id', $cotizacionId)
+            ->value('cliente_id');
+
+        return self::aplicarElegibilidadCliente(
+            self::construirDetalle($expo),
+            $clienteId
+        );
     }
 
     public static function motivoBloqueoDuplicacion(int $cotizacionId, int $flujoId): ?string
