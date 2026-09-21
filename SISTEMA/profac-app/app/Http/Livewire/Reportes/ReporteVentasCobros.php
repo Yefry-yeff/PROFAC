@@ -1033,8 +1033,8 @@ class ReporteVentasCobros extends Component
 
                     UNION ALL
 
-                    /* Otro movimiento (ajuste manual: suma=Nota Debito, resta=Nota Credito) */
-                    SELECT CASE WHEN om.tipo_movimiento = 1 THEN 'NOTA_DEBITO' ELSE 'NOTA_CREDITO' END,
+                    /* Otro movimiento manual: cargo extra o rebaja */
+                    SELECT CASE WHEN om.tipo_movimiento = 1 THEN 'NOTA_DEBITO' ELSE 'REBAJA' END,
                            om.created_at, CONCAT('OM-', om.id),
                            om.monto, NULL, NULL, NULL,
                            COALESCE(NULLIF(TRIM(om.comentario),''), 'Otro movimiento'),
@@ -1053,7 +1053,7 @@ class ReporteVentasCobros extends Component
                 $monto = (float) ($mov->monto ?? 0);
                 if ($mov->tipo === 'VENTA') {
                     $mov->saldo_resultante = $saldo;
-                } elseif (in_array($mov->tipo, ['ABONO', 'NOTA_CREDITO', 'RETENCION'])) {
+                } elseif (in_array($mov->tipo, ['ABONO', 'NOTA_CREDITO', 'REBAJA', 'RETENCION'])) {
                     $saldo -= $monto;
                     $mov->saldo_resultante = max($saldo, 0);
                 } elseif ($mov->tipo === 'NOTA_CREDITO_EMISION') {
@@ -1423,7 +1423,7 @@ class ReporteVentasCobros extends Component
 
                 UNION ALL
 
-                SELECT CASE WHEN om.tipo_movimiento = 1 THEN 'NOTA_DEBITO' ELSE 'NOTA_CREDITO' END AS tipo,
+                SELECT CASE WHEN om.tipo_movimiento = 1 THEN 'NOTA_DEBITO' ELSE 'REBAJA' END AS tipo,
                        om.factura_id AS factura_id,
                        om.created_at AS fecha,
                        CONCAT('OM-', om.id) AS documento,
@@ -1581,7 +1581,7 @@ class ReporteVentasCobros extends Component
 
                 UNION ALL
 
-                  SELECT CASE WHEN om.tipo_movimiento = 1 THEN 'NOTA_DEBITO' ELSE 'NOTA_CREDITO' END AS tipo,
+                  SELECT CASE WHEN om.tipo_movimiento = 1 THEN 'NOTA_DEBITO' ELSE 'REBAJA' END AS tipo,
                       om.factura_id AS factura_id, om.created_at AS fecha,
                       CONCAT('OM-', om.id) AS documento, om.monto AS monto,
                       NULL AS banco_nombre, NULL AS banco_cuenta, NULL AS recibo,
