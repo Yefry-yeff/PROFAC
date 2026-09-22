@@ -215,4 +215,23 @@ return [
     */
 
     'release_token' => 'a',
+
+    /*
+    |---------------------------------------------------------------------------
+    | Payload Guards
+    |---------------------------------------------------------------------------
+    |
+    | These settings protect against malicious or oversized payloads that could
+    | cause denial of service. Raised above the v4 default (1MB) because this
+    | app has existing pages with large component state (e.g. big datatables).
+    | Each can be set to null to disable the limit.
+    |
+    */
+
+    'payload' => [
+        'max_size' => 8 * 1024 * 1024, // 8MB - maximum request payload size in bytes
+        'max_nesting_depth' => 10,
+        'max_calls' => 50,
+        'max_components' => 200,
+    ],
 ];
