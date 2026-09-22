@@ -200,7 +200,8 @@
                         @endif
 
                         {{-- Tabla de productos --}}
-                        <div style="border-radius:12px; overflow:hidden; border:1px solid #e8eaf0; margin-bottom:20px;">
+                        <div {{ (!$devuelto && !$soloVisualizacion) ? 'wire:poll.2s=sincronizarRevision' : '' }}
+                             style="border-radius:12px; overflow:hidden; border:1px solid #e8eaf0; margin-bottom:20px;">
                             <div style="background:linear-gradient(135deg,#546e7a,#37474f); padding:10px 16px;">
                                 <div class="d-flex flex-wrap justify-content-between align-items-center" style="gap:10px;">
                                     <span style="color:#fff; font-size:13px; font-weight:700;">
@@ -277,13 +278,14 @@
                                             <th style="padding:10px 14px; text-align:center; color:#1565c0; font-weight:700;">Cant. Disponible</th>
                                             <th style="padding:10px 14px; text-align:center; color:#2e7d32; font-weight:700;">Revisado</th>
                                             <th style="padding:10px 14px; text-align:center; color:#555; font-weight:700;">Estado</th>
+                                            <th style="padding:10px 14px; color:#555; font-weight:700; white-space:nowrap;">Revisado por</th>
                                             <th style="padding:10px 14px; color:#555; font-weight:700;">Nota / Reemplazo</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         @if(count($this->productosFiltrados) === 0)
                                         <tr>
-                                            <td colspan="11" style="padding:20px; text-align:center; color:#78909c; background:#fff;">
+                                            <td colspan="12" style="padding:20px; text-align:center; color:#78909c; background:#fff;">
                                                 <i class="fa fa-filter d-block" style="font-size:24px; margin-bottom:6px; opacity:.55;"></i>
                                                 No hay productos que coincidan con los filtros.
                                             </td>
@@ -300,7 +302,7 @@
                                                 );
                                                 $textoBodegaSeleccionada = $destinoSeleccionado['text'] ?? ($prod['nombre_bodega'] ?? '—');
                                             @endphp
-                                            <tr style="border-bottom:1px solid #f0f0f0;
+                                            <tr data-revision-linea="{{ $prod['cotizacion_has_producto_id'] }}" style="border-bottom:1px solid #f0f0f0;
                                                        {{ $alertaInventario ? 'background:#ffebee;' : '' }}
                                                        {{ $alertaInventario ? 'box-shadow:inset 4px 0 0 #c62828;' : (!empty($productosRevisados[$prod['idx']]) ? 'box-shadow:inset 4px 0 0 #2e7d32;' : '') }}">
                                                 <td style="padding:8px 14px; color:#888;">{{ $loop->iteration }}</td>
@@ -395,6 +397,7 @@
                                                         <input type="checkbox"
                                                                class="custom-control-input"
                                                                id="rev_{{ $prod['idx'] }}"
+                                                               data-revision-linea="{{ $prod['cotizacion_has_producto_id'] }}"
                                                                wire:model="productosRevisados.{{ $prod['idx'] }}"
                                                                {{ ($devuelto || $soloVisualizacion) ? 'disabled' : '' }}>
                                                         <label class="custom-control-label" for="rev_{{ $prod['idx'] }}"></label>
@@ -431,6 +434,13 @@
                                                                      padding:3px 10px; font-size:11px;">
                                                             <i class="fa fa-info-circle mr-1"></i>Sin control
                                                         </span>
+                                                    @endif
+                                                </td>
+                                                <td data-revisado-por="{{ $prod['cotizacion_has_producto_id'] }}" style="padding:8px 14px; color:#475569; font-size:12px; white-space:nowrap;">
+                                                    @if(!empty($revisadoPor[$prod['idx']] ?? null))
+                                                        <i class="fa fa-user-circle-o mr-1" style="color:#2563eb;"></i>{{ $revisadoPor[$prod['idx']] }}
+                                                    @else
+                                                        <span style="color:#94a3b8;">—</span>
                                                     @endif
                                                 </td>
                                                 <td style="padding:6px 14px;">

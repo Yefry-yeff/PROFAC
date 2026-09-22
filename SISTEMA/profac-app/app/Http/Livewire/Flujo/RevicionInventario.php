@@ -58,6 +58,8 @@ class RevicionInventario extends Component
     public array  $productos        = [];     // {nombre_producto, cantidad, disponible, falta_stock}
     public array  $stockErrors      = [];     // productos con stock insuficiente
     public array  $productosRevisados = [];   // checkbox por producto
+    public array  $revisadoPor       = [];   // usuario que marcó cada producto
+    public int    $cursorEventos     = 0;    // último evento de revisión aplicado (sincronización multiusuario)
     public bool   $esOfertaExpo     = false;
     public array  $bodegaExpoSeleccionada = [];
     public string $filtroProducto   = '';
@@ -645,8 +647,32 @@ class RevicionInventario extends Component
             ];
 
             $this->productosRevisados[$i] = false;
+            $this->revisadoPor[$i] = null;
             $this->bodegaExpoSeleccionada[$i] = $ubicacionSeleccionada;
         }
+
+        $estadoPersistido = DB::table('revision_inventario_lineas as ril')
+            ->leftJoin('users as u', 'u.id', '=', 'ril.revisado_por')
+            ->where('ril.flujo_id', $this->flujoId)
+            ->where('ril.cotizacion_id', $this->cotizacionId)
+            ->get(['ril.cotizacion_has_producto_id', 'ril.revisado', 'ril.observacion', 'u.name as usuario_nombre'])
+            ->keyBy('cotizacion_has_producto_id');
+
+        foreach ($this->productos as $producto) {
+            $estado = $estadoPersistido->get($producto['cotizacion_has_producto_id']);
+            if (!$estado) {
+                continue;
+            }
+            $idx = (int) $producto['idx'];
+            $this->productosRevisados[$idx] = (bool) $estado->revisado;
+            $this->revisadoPor[$idx] = $estado->usuario_nombre;
+            $this->obsProducto[$idx] = (string) ($estado->observacion ?? '');
+        }
+
+        $this->cursorEventos = (int) (DB::table('revision_inventario_eventos')
+            ->where('flujo_id', $this->flujoId)
+            ->where('cotizacion_id', $this->cotizacionId)
+            ->max('id') ?? 0);
 
         // ── Si el flujo está devuelto, cargar motivo y notas de productos ──
         if ($this->devuelto && isset($revRec)) {
@@ -695,6 +721,7 @@ class RevicionInventario extends Component
         $this->motivoDevolucion = '';
         $this->obsProducto      = [];
         $this->productosRevisados = [];
+        $this->revisadoPor       = [];
         $this->esOfertaExpo        = false;
         $this->bodegaExpoSeleccionada = [];
         $this->filtroProducto      = '';
@@ -713,16 +740,107 @@ class RevicionInventario extends Component
         $this->modalSinExistenciaVisible = false;
         $this->productosSinExistenciaModal = [];
         $this->motivoEdicionSinExistencia = '';
+        $this->cursorEventos = 0;
     }
 
     public function updatedProductosRevisados($value = null, $key = null): void
     {
-        $this->guardarTemporalRevision();
+        if ($key !== null && filter_var($value, FILTER_VALIDATE_BOOLEAN)) {
+            $this->revisadoPor[(int) $key] = Auth::user()?->name ?? 'Usuario #' . Auth::id();
+        } elseif ($key !== null) {
+            $this->revisadoPor[(int) $key] = null;
+        }
+        $this->persistirRevisionLinea((int) $key);
     }
 
     public function updatedObsProducto($value = null, $key = null): void
     {
-        $this->guardarTemporalRevision();
+        $this->persistirRevisionLinea((int) $key);
+    }
+
+    private function persistirRevisionLinea(int $idx): void
+    {
+        if (!$this->flujoId || !$this->cotizacionId || $this->devuelto || $this->soloVisualizacion) {
+            return;
+        }
+
+        $producto = collect($this->productos)->firstWhere('idx', $idx);
+        if (!$producto) {
+            return;
+        }
+
+        $lineaId = (int) $producto['cotizacion_has_producto_id'];
+        $revisado = !empty($this->productosRevisados[$idx]);
+        $observacion = (string) ($this->obsProducto[$idx] ?? '');
+        $usuarioId = $revisado ? (int) Auth::id() : null;
+        $ahora = now();
+
+        DB::transaction(function () use ($lineaId, $revisado, $observacion, $usuarioId, $ahora, &$evento) {
+            DB::table('revision_inventario_lineas')->upsert([[
+                'flujo_id' => $this->flujoId,
+                'cotizacion_id' => $this->cotizacionId,
+                'cotizacion_has_producto_id' => $lineaId,
+                'revisado' => $revisado,
+                'observacion' => $observacion !== '' ? $observacion : null,
+                'revisado_por' => $usuarioId,
+                'accion_at' => $ahora,
+                'created_at' => $ahora,
+                'updated_at' => $ahora,
+            ]], ['flujo_id', 'cotizacion_id', 'cotizacion_has_producto_id'], [
+                'revisado', 'observacion', 'revisado_por', 'accion_at', 'updated_at',
+            ]);
+
+            $evento = DB::table('revision_inventario_eventos')->insertGetId([
+                'flujo_id' => $this->flujoId,
+                'cotizacion_id' => $this->cotizacionId,
+                'cotizacion_has_producto_id' => $lineaId,
+                'revisado' => $revisado,
+                'observacion' => $observacion !== '' ? $observacion : null,
+                'usuario_id' => $usuarioId,
+                'procesado_at' => $ahora,
+            ]);
+        });
+
+        $this->cursorEventos = max($this->cursorEventos, (int) $evento);
+    }
+
+    /**
+     * Sincroniza el estado de revisión con los cambios guardados por otros
+     * usuarios desde el último evento aplicado (invocado por wire:poll).
+     */
+    public function sincronizarRevision(): void
+    {
+        if (!$this->flujoId || !$this->cotizacionId || $this->devuelto || $this->soloVisualizacion) {
+            return;
+        }
+
+        $eventos = DB::table('revision_inventario_eventos as rie')
+            ->leftJoin('users as u', 'u.id', '=', 'rie.usuario_id')
+            ->where('rie.flujo_id', $this->flujoId)
+            ->where('rie.cotizacion_id', $this->cotizacionId)
+            ->where('rie.id', '>', $this->cursorEventos)
+            ->orderBy('rie.id')
+            ->get(['rie.id', 'rie.cotizacion_has_producto_id', 'rie.revisado', 'rie.observacion', 'u.name as usuario_nombre']);
+
+        if ($eventos->isEmpty()) {
+            return;
+        }
+
+        foreach ($eventos as $evento) {
+            $this->cursorEventos = (int) $evento->id;
+
+            foreach ($this->productos as $producto) {
+                if ((int) $producto['cotizacion_has_producto_id'] !== (int) $evento->cotizacion_has_producto_id) {
+                    continue;
+                }
+
+                $idx = (int) $producto['idx'];
+                $this->productosRevisados[$idx] = (bool) $evento->revisado;
+                $this->revisadoPor[$idx] = $evento->usuario_nombre;
+                $this->obsProducto[$idx] = (string) ($evento->observacion ?? '');
+                break;
+            }
+        }
     }
 
     public function continuarTemporalRevision(): void
@@ -734,7 +852,6 @@ class RevicionInventario extends Component
 
         $temporal = DB::table('revision_inventario_temporal')
             ->where('id', $this->temporalRevisionId)
-            ->where('usuario_id', Auth::id())
             ->where('flujo_id', $this->flujoId)
             ->where('cotizacion_id', $this->cotizacionId)
             ->where('expira_at', '>', now())
@@ -758,6 +875,7 @@ class RevicionInventario extends Component
             }
 
             $this->productosRevisados[$idx] = (bool) ($lineaGuardada['revisado'] ?? false);
+            $this->revisadoPor[$idx] = $lineaGuardada['revisado_por'] ?? null;
             $this->obsProducto[$idx] = (string) ($lineaGuardada['observacion'] ?? '');
         }
 
@@ -771,6 +889,7 @@ class RevicionInventario extends Component
         $this->eliminarTemporalRevision($this->flujoId, $this->cotizacionId);
         foreach ($this->productos as $producto) {
             $this->productosRevisados[(int) $producto['idx']] = false;
+            $this->revisadoPor[(int) $producto['idx']] = null;
         }
         $this->obsProducto = [];
         $this->modalTemporalVisible = false;
@@ -782,7 +901,6 @@ class RevicionInventario extends Component
         DB::table('revision_inventario_temporal')->where('expira_at', '<=', now())->delete();
 
         $temporal = DB::table('revision_inventario_temporal')
-            ->where('usuario_id', Auth::id())
             ->where('flujo_id', $this->flujoId)
             ->where('cotizacion_id', $this->cotizacionId)
             ->where('expira_at', '>', now())
@@ -815,6 +933,7 @@ class RevicionInventario extends Component
 
             $lineas[$lineaId] = [
                 'revisado' => !empty($this->productosRevisados[$idx]),
+                'revisado_por' => $this->revisadoPor[$idx] ?? null,
                 'observacion' => (string) ($this->obsProducto[$idx] ?? ''),
             ];
         }
@@ -825,15 +944,19 @@ class RevicionInventario extends Component
             'expira_at' => $ahora->copy()->addHours(24),
             'updated_at' => $ahora,
         ];
-        DB::table('revision_inventario_temporal')->upsert([array_merge($valores, [
+        // El progreso es compartido por flujo/oferta, no una copia por usuario.
+        DB::table('revision_inventario_temporal')
+            ->where('flujo_id', $this->flujoId)
+            ->where('cotizacion_id', $this->cotizacionId)
+            ->delete();
+        DB::table('revision_inventario_temporal')->insert(array_merge($valores, [
             'usuario_id' => Auth::id(),
             'flujo_id' => $this->flujoId,
             'cotizacion_id' => $this->cotizacionId,
             'created_at' => $ahora,
-        ])], ['usuario_id', 'flujo_id', 'cotizacion_id'], ['contenido', 'expira_at', 'updated_at']);
+        ]));
 
         $this->temporalRevisionId = (int) DB::table('revision_inventario_temporal')
-            ->where('usuario_id', Auth::id())
             ->where('flujo_id', $this->flujoId)
             ->where('cotizacion_id', $this->cotizacionId)
             ->value('id');
@@ -849,7 +972,6 @@ class RevicionInventario extends Component
         }
 
         DB::table('revision_inventario_temporal')
-            ->when(!$todosLosUsuarios, fn ($query) => $query->where('usuario_id', Auth::id()))
             ->where('flujo_id', $flujoId)
             ->where('cotizacion_id', $cotizacionId)
             ->delete();
