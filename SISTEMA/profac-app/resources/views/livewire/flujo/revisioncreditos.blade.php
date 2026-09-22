@@ -525,7 +525,7 @@
                         <div style="display:flex; align-items:center; gap:10px;">
                             <span style="background:rgba(255,255,255,.15); color:#ecf0f1; border-radius:20px;
                                          padding:3px 14px; font-size:12px; font-weight:600;">
-                                {{ count($bandejaLlegando) }} pendiente(s)
+                                {{ $countLlegando }} pendiente(s)
                             </span>
                         </div>
                     </div>
@@ -575,9 +575,9 @@
                         <div style="padding:0 20px; border-bottom:2px solid #e8eaf0;">
                             <ul class="nav" style="gap:0; border:none;">
                                 @foreach ([
-                                    ['llegando',   'fa-inbox',         'Llegando',  count($bandejaLlegando),   '#1a5276'],
-                                    ['aprobadas',  'fa-check-circle',  'Aprobadas', count($bandejaAprobadas),  '#27ae60'],
-                                    ['rechazadas', 'fa-times-circle',  'Rechazadas',count($bandejaRechazadas), '#e74c3c'],
+                                    ['llegando',   'fa-inbox',         'Llegando',  $countLlegando,   '#1a5276'],
+                                    ['aprobadas',  'fa-check-circle',  'Aprobadas', $countAprobadas,  '#27ae60'],
+                                    ['rechazadas', 'fa-times-circle',  'Rechazadas',$countRechazadas, '#e74c3c'],
                                 ] as [$tab, $icon, $label, $count, $color])
                                 <li class="nav-item">
                                     <button type="button"

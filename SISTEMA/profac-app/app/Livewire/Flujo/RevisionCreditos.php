@@ -22,9 +22,9 @@ use Carbon\Carbon;
 class RevisionCreditos extends Component
 {
     // ── Bandeja ───────────────────────────────────────────────────────────
-    public array  $bandejaLlegando   = [];
-    public array  $bandejaAprobadas  = [];
-    public array  $bandejaRechazadas = [];
+    public int $countLlegando   = 0;
+    public int $countAprobadas  = 0;
+    public int $countRechazadas = 0;
     public string $busqueda          = '';
     public string $tabActiva         = 'llegando';
 
@@ -120,11 +120,11 @@ class RevisionCreditos extends Component
 
     public function irPagina(string $tab, int $pagina): void
     {
-        $total = count(match($tab) {
-            'aprobadas'  => $this->bandejaAprobadas,
-            'rechazadas' => $this->bandejaRechazadas,
-            default      => $this->bandejaLlegando,
-        });
+        $total = match($tab) {
+            'aprobadas'  => $this->countAprobadas,
+            'rechazadas' => $this->countRechazadas,
+            default      => $this->countLlegando,
+        };
         $maxPagina = max(1, (int) ceil($total / $this->perPage));
         $this->paginas[$tab] = max(1, min($pagina, $maxPagina));
     }
@@ -132,9 +132,9 @@ class RevisionCreditos extends Component
     public function cargar(): void
     {
         $term = trim($this->busqueda);
-        $this->bandejaLlegando   = $this->buildBandejaQuery($term, 'llegando');
-        $this->bandejaAprobadas  = $this->buildBandejaQuery($term, 'aprobadas');
-        $this->bandejaRechazadas = $this->buildBandejaQuery($term, 'rechazadas');
+        $this->countLlegando   = $this->contarTab($term, 'llegando');
+        $this->countAprobadas  = $this->contarTab($term, 'aprobadas');
+        $this->countRechazadas = $this->contarTab($term, 'rechazadas');
     }
 
     public function cambiarTab(string $tab): void
@@ -143,7 +143,7 @@ class RevisionCreditos extends Component
         $this->tabActiva = in_array($tab, $allowed) ? $tab : 'llegando';
     }
 
-    private function buildBandejaQuery(string $term, string $tipo): array
+    private function buildBandejaQuery(string $term, string $tipo)
     {
         $latestRevSub = DB::table('historico_flujo')
             ->select('flujo_id', DB::raw('MAX(id) as max_id'))
@@ -283,8 +283,30 @@ class RevisionCreditos extends Component
             }
         }
 
-        return $normal->get()->concat($expo->get())
-            ->sortByDesc('fecha_revision')
+        return $normal->unionAll($expo);
+    }
+
+    /**
+     * Total de registros de una bandeja (sin cargar los datos completos en memoria).
+     */
+    private function contarTab(string $term, string $tipo): int
+    {
+        return $this->buildBandejaQuery($term, $tipo)->count();
+    }
+
+    /**
+     * Obtiene únicamente la página solicitada de una bandeja, aplicando el
+     * LIMIT/OFFSET a nivel de base de datos en lugar de traer todos los
+     * registros (que en "aprobadas" puede superar los miles de filas y
+     * saturaba el payload de Livewire en cada acción).
+     */
+    private function obtenerPagina(string $term, string $tipo, int $offset, int $perPage): array
+    {
+        return $this->buildBandejaQuery($term, $tipo)
+            ->orderByDesc('fecha_revision')
+            ->offset($offset)
+            ->limit($perPage)
+            ->get()
             ->map(fn ($registro) => (array) $registro)
             ->values()
             ->all();
@@ -1315,16 +1337,18 @@ class RevisionCreditos extends Component
 
     public function render()
     {
-        $paginaActual     = $this->paginas[$this->tabActiva] ?? 1;
-        $registrosActivos = match($this->tabActiva) {
-            'aprobadas'  => $this->bandejaAprobadas,
-            'rechazadas' => $this->bandejaRechazadas,
-            default      => $this->bandejaLlegando,
+        $term            = trim($this->busqueda);
+        $paginaActual    = $this->paginas[$this->tabActiva] ?? 1;
+        $totalRegistros  = match($this->tabActiva) {
+            'aprobadas'  => $this->countAprobadas,
+            'rechazadas' => $this->countRechazadas,
+            default      => $this->countLlegando,
         };
-        $totalRegistros  = count($registrosActivos);
         $totalPaginas    = max(1, (int) ceil($totalRegistros / $this->perPage));
+        $paginaActual    = max(1, min($paginaActual, $totalPaginas));
+        $this->paginas[$this->tabActiva] = $paginaActual;
         $offset          = ($paginaActual - 1) * $this->perPage;
-        $registrosPagina = array_slice($registrosActivos, $offset, $this->perPage);
+        $registrosPagina = $this->obtenerPagina($term, $this->tabActiva, $offset, $this->perPage);
 
         return view('livewire.flujo.revisioncreditos', [
             'flujoData'       => $this->flujoData,
