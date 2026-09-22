@@ -1041,14 +1041,14 @@ class Pagos extends Component
                             @estado, @msjResultado);");
 
 
-                        if ($request->selecttipoMovimiento=2) {
+                        if ((int) $request->selecttipoMovimiento === 2) {
 
 
                             $cliente = DB::SELECTONE("select cliente_id from factura where id=".$request->idFacturaom);
                             $creditoCli = DB::SELECTONE("select credito , cliente_categoria_escala_id from cliente where id=".$cliente->cliente_id);
 
 
-                            $homologoCredito = $creditoCli->credito + $request->montoAbono;
+                            $homologoCredito = $creditoCli->credito + $request->montoTM;
 
                             $clienteCredito =  ModelCliente::find($cliente->cliente_id);
                             $clienteCredito->credito = trim($homologoCredito);
@@ -1067,23 +1067,57 @@ class Pagos extends Component
                             ],402);
                         }
 
-                       $saldoActual2 = DB::selectone("select saldo from aplicacion_pagos where id = ".$request->codAplicPagoom);
+                       $apPostMovimiento = DB::table('aplicacion_pagos')
+                           ->where('id', (int) $request->codAplicPagoom)
+                           ->select('saldo', 'estado_cerrado')
+                           ->first();
 
-                      // dd($request);
-                       if($saldoActual2->saldo == 0){
-                            //dd("Prueba de que llega aqui esta mierda");
-                           $cuentas22 = DB::select("
-                               CALL sp_aplicacion_pagos(
-                                   '9',
-                                   '0',
-                                   '".Auth::user()->id."',
-                                   '0',
-                                   'CIERRE POR SALDO 0',
-                                   '".$request->codAplicPagoAbono."',
-                                   '0',
-                                   '0',
-                                   @estado,
-                                   @msjResultado);");
+                       if ((int) $request->selecttipoMovimiento === 2
+                           && $apPostMovimiento
+                           && abs((float) $apPostMovimiento->saldo) <= 0.0001) {
+                           DB::table('aplicacion_pagos')
+                               ->where('id', (int) $request->codAplicPagoom)
+                               ->update(['saldo' => 0, 'updated_at' => now()]);
+
+                           if ((int) $apPostMovimiento->estado_cerrado !== 2) {
+                               $cuentas22 = DB::select("
+                                   CALL sp_aplicacion_pagos(
+                                       '9',
+                                       '0',
+                                       '".Auth::user()->id."',
+                                       '0',
+                                       'CIERRE POR SALDO 0',
+                                       '".$request->codAplicPagoom."',
+                                       '0',
+                                       '0',
+                                       @estado,
+                                       @msjResultado);");
+
+                               if ($cuentas22[0]->estado == -1) {
+                                   return response()->json([
+                                       "text" => "Ha ocurrido un error en el procedimiento almacenado.",
+                                       "icon" => "error",
+                                       "title"=>"Error!"
+                                   ],402);
+                               }
+                           }
+
+                           $apTrasCierre = DB::table('aplicacion_pagos')
+                               ->where('id', (int) $request->codAplicPagoom)
+                               ->select('estado_cerrado')
+                               ->first();
+
+                           if (!$apTrasCierre || (int) $apTrasCierre->estado_cerrado !== 2) {
+                               DB::table('aplicacion_pagos')
+                                   ->where('id', (int) $request->codAplicPagoom)
+                                   ->update([
+                                       'estado_cerrado'       => 2,
+                                       'usr_cerro'            => Auth::id(),
+                                       'fecha_cierre_factura' => now(),
+                                       'ultimo_usr_actualizo' => Auth::id(),
+                                       'updated_at'           => now(),
+                                   ]);
+                           }
 
 
 
@@ -1101,20 +1135,6 @@ class Pagos extends Component
                                         $procesador->procesar($factura);
                                     }
                                 }
-
-
-                           if ($cuentas22[0]->estado == -1) {
-                               return response()->json([
-                                   "text" => "Ha ocurrido un error en el procedimiento almacenado.",
-                                   "icon" => "error",
-                                   "title"=>"Error!"
-                               ],402);
-                           }
-
-                           /* Me sale más facil procesarlo aqui */
-
-                           /* Distribución de facturas comision */
-
                        }
 
             }catch (QueryException $e) {

@@ -303,6 +303,13 @@ SP sp_aplicacion_pagos actualiza saldo
          Si conciliado: no acredita (el registro facturas_comision queda como evidencia)
 ```
 
+La misma regla de cierre aplica a cualquier movimiento reductor registrado en
+Aplicación de Pagos: cuando una aplicación activa queda con saldo menor o igual
+a `0.0001`, el sistema normaliza el saldo a cero, marca `estado_cerrado = 2`,
+registra `fecha_cierre_factura` y genera las comisiones de forma idempotente.
+Esto incluye abonos, retenciones aplicadas, notas de crédito y otros movimientos
+de resta. Los movimientos que aumentan el saldo no cierran la factura.
+
 ---
 
 ### Fórmulas reales de cálculo
