@@ -22,6 +22,7 @@ use App\Models\ModelLogTranslados;
 use App\Models\ModelCliente;
 use App\Models\logCredito;
 use App\Models\ModelCodigoExoneracion;
+use App\Models\ModelCodigoAutorizacion;
 use App\Http\Controllers\CAI\Notificaciones;
 
 class VentasExoneradas extends Component
@@ -181,6 +182,24 @@ class VentasExoneradas extends Component
                 'mensaje' => 'Ha ocurrido un error al crear la compra.',
                 'errors' => $validator->errors()
             ], 406);
+        }
+
+        $autorizacionPrecioBajo = null;
+        if ($request->filled('codigo_autorizacion')) {
+            $autorizacionPrecioBajo = ModelCodigoAutorizacion::where('estado_id', 1)
+                ->where('estado_codigo_id', 1)
+                ->find((int) $request->codigo_autorizacion);
+
+            if (!$autorizacionPrecioBajo || !$autorizacionPrecioBajo->esValido(
+                $request->input('flujo_id') ? (int) $request->input('flujo_id') : null,
+                'facturacion'
+            )) {
+                return response()->json([
+                    'icon' => 'warning',
+                    'title' => 'Autorización inválida',
+                    'text' => 'El código de autorización no es válido o ha expirado.',
+                ], 422);
+            }
         }
 
         $teleAsesorId = $request->tele_asesor ? (int) $request->tele_asesor : Auth::user()->id;
@@ -418,6 +437,7 @@ class VentasExoneradas extends Component
             $factura->comision_estado_pagado = 0;
             $factura->pendiente_cobro = $subTotalFactura;
             $factura->codigo_exoneracion_id = $request->codigo;
+            $factura->codigo_autorizacion_id = $autorizacionPrecioBajo?->id;
             $factura->estado_editar = 1;
             $factura->sub_total_grabado = 0;
 
@@ -437,6 +457,10 @@ class VentasExoneradas extends Component
             $factura->porc_descuento =$request->porDescuento;
             $factura->monto_descuento=$request->porDescuentoCalculado;
             $factura->save();
+
+            if ($autorizacionPrecioBajo) {
+                $autorizacionPrecioBajo->marcarUtilizado();
+            }
 
             $caiUpdated =  ModelCAI::find($cai->id);
             $caiUpdated->numero_actual = $numeroSecuencia + 1;

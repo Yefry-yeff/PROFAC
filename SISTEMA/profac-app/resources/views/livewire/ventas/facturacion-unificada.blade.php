@@ -1234,19 +1234,20 @@
                 <div class="modal-content">
                     <div class="modal-header" style="background:linear-gradient(135deg,#e65100,#f9a826); border:none; padding:14px 20px;">
                         <h3 class="modal-title" style="color:#fff; font-size:16px; font-weight:700; margin:0;">
-                            <i class="fa-solid fa-shield-halved mr-2"></i>Solicitar Autorización SR
+                            <i class="fa-solid fa-shield-halved mr-2"></i><span id="srAuthTitle">Solicitar Autorización SR</span>
                         </h3>
                     </div>
                     <div class="modal-body">
                         <p class="mb-3 text-muted" style="font-size:12px;">
-                            Se enviará un código de autorización por correo al departamento de autorizaciones.
-                            Las filas marcadas en <span style="color:#c62828; font-weight:700;">rojo</span> tienen precio inferior al precio de escala (OPC).
+                            <span id="srAuthDescription">Se enviará un código de autorización por correo al departamento de autorizaciones.
+                            Las filas marcadas en <span style="color:#c62828; font-weight:700;">rojo</span> tienen precio inferior al precio de escala (OPC).</span>
                         </p>
                         <div class="table-responsive">
                             <table class="table table-sm table-bordered" style="font-size:12px; margin-bottom:0;">
                                 <thead style="background:#f5f5f5;">
                                     <tr>
                                         <th>Producto</th>
+                                        <th>Escala seleccionada</th>
                                         <th style="text-align:right; white-space:nowrap;">Precio OPC</th>
                                         <th style="text-align:right; white-space:nowrap;">P.Unitario</th>
                                     </tr>
@@ -5963,8 +5964,16 @@
         if (codigoActual !== 'cotizacion_clientes_a' && !(tipoFacturaConfig && tipoFacturaConfig.multiples_precios)) {
             var productosBajoEscala = obtenerProductosPorDebajoEscala();
             if (productosBajoEscala.length > 0) {
-                mostrarErrorPrecioBajoEscala(productosBajoEscala);
-                return;
+                var codigoPrecioBajo = document.getElementById('codigo_autorizacion')?.value || '';
+                if (codigoActual === 'exoneradas') {
+                    if (!codigoPrecioBajo) {
+                        mostrarModalSrAutorizacion();
+                        return;
+                    }
+                } else {
+                    mostrarErrorPrecioBajoEscala(productosBajoEscala);
+                    return;
+                }
             }
         }
         // 1. Toda factura debe confirmar sus actores antes de guardar.
@@ -6045,6 +6054,17 @@
         if (!tbody) return;
         tbody.innerHTML = '';
         var productosSR = [];
+        var esExonerada = codigoActual === 'exoneradas';
+        var titulo = document.getElementById('srAuthTitle');
+        var descripcion = document.getElementById('srAuthDescription');
+        var boton = document.getElementById('btnSolicitarCodigo');
+        if (titulo) titulo.textContent = esExonerada ? 'Autorización por precio inferior' : 'Solicitar Autorización SR';
+        if (descripcion) descripcion.innerHTML = esExonerada
+            ? 'Los siguientes productos tienen un precio inferior a la escala seleccionada. Al continuar se solicitará el código de autorización.'
+            : 'Se enviará un código de autorización por correo al departamento de autorizaciones. Las filas marcadas en <span style="color:#c62828;font-weight:700;">rojo</span> tienen precio inferior al precio de escala (OPC).';
+        if (boton) boton.innerHTML = esExonerada
+            ? '<i class="fa-solid fa-arrow-right mr-1"></i> Continuar y solicitar código'
+            : '<i class="fa-solid fa-paper-plane mr-1"></i> Solicitar Código';
         for (var i = 0; i < arregloIdInputs.length; i++) {
             var idx = arregloIdInputs[i];
             var nombreEl = document.getElementById('nombre' + idx);
@@ -6054,12 +6074,16 @@
             var precioOpc = precioUnitEl ? parseFloat(precioUnitEl.getAttribute('data-precio-escala')) : NaN;
             if (isNaN(precioOpc)) precioOpc = precioSelectEl ? parseFloat(precioSelectEl.value) || 0 : 0;
             var precioUnitario = precioUnitEl ? parseFloat(precioUnitEl.value) || 0 : 0;
+            var escala = precioSelectEl && precioSelectEl.selectedOptions.length
+                ? precioSelectEl.selectedOptions[0].textContent.trim()
+                : 'Escala seleccionada';
             var esBajo = precioUnitario < precioOpc - 0.0001;
             // Solo agregar al arreglo y mostrar en tabla si el precio está por debajo del OPC
             if (!esBajo) continue;
-            productosSR.push({ nombre: nombre, precioOpc: precioOpc, precioUnitario: precioUnitario });
+            productosSR.push({ nombre: nombre, escala: escala, precioOpc: precioOpc, precioUnitario: precioUnitario });
             var tr = '<tr style="background:#ffebee;">'
                 + '<td>' + nombre + '</td>'
+                + '<td>' + escala + '</td>'
                 + '<td style="text-align:right;">' + precioOpc.toFixed(2) + '</td>'
                 + '<td style="text-align:right;color:#c62828;font-weight:700;">' + precioUnitario.toFixed(2) + '</td>'
                 + '</tr>';
