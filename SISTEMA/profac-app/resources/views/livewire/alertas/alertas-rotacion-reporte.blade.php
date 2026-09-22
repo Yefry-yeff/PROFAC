@@ -115,7 +115,7 @@
         {{-- Buscador --}}
         <div style="position:relative; margin-bottom:20px; max-width:340px;">
             <i class="fa fa-search" style="position:absolute; left:11px; top:50%; transform:translateY(-50%); color:#94a3b8; font-size:13px;"></i>
-            <input type="text" wire:model="busqueda" class="arr-search" placeholder="Buscar producto…">
+            <input type="text" wire:model.live="busqueda" class="arr-search" placeholder="Buscar producto…">
         </div>
 
         {{-- Tabla según tipo --}}

@@ -434,19 +434,19 @@
                             </div>
                         @endif
 
-                        <form wire:submit.prevent="guardar">
+                        <form wire:submit="guardar">
                             <div class="expo-section">
                             <div class="expo-section-title"><i class="fa fa-info-circle"></i>Información general y vigencia</div>
                             <div class="row">
                                 <div class="form-group col-md-8">
                                     <label>Nombre <span class="text-danger">*</span></label>
-                                    <input type="text" wire:model.defer="nombre" class="form-control @error('nombre') is-invalid @enderror" maxlength="150" {{ $expoEditandoId ? 'readonly' : '' }}>
+                                    <input type="text" wire:model.live="nombre" class="form-control @error('nombre') is-invalid @enderror" maxlength="150" {{ $expoEditandoId ? 'readonly' : '' }}>
                                     @if ($expoEditandoId)<div class="expo-locked-hint"><i class="fa fa-lock mr-1"></i>Campo no editable.</div>@endif
                                     @error('nombre') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
                                 <div class="form-group col-md-4">
                                     <label>Estado <span class="text-danger">*</span></label>
-                                    <select wire:model.defer="estado" class="form-control @error('estado') is-invalid @enderror">
+                                    <select wire:model.live="estado" class="form-control @error('estado') is-invalid @enderror">
                                         <option value="Inactivo">Inactiva</option>
                                         <option value="Activo">Activa</option>
                                     </select>
@@ -454,18 +454,18 @@
                                 </div>
                                 <div class="form-group col-12">
                                     <label>Descripción</label>
-                                    <textarea wire:model.defer="descripcion" class="form-control @error('descripcion') is-invalid @enderror" rows="3"></textarea>
+                                    <textarea wire:model.live="descripcion" class="form-control @error('descripcion') is-invalid @enderror" rows="3"></textarea>
                                     @error('descripcion') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
                                 <div class="form-group col-md-6">
                                     <label>Inicio de vigencia <span class="text-danger">*</span></label>
-                                    <input type="datetime-local" wire:model.defer="fechaInicio" class="form-control @error('fechaInicio') is-invalid @enderror" {{ $expoEditandoId ? 'readonly' : '' }}>
+                                    <input type="datetime-local" wire:model.live="fechaInicio" class="form-control @error('fechaInicio') is-invalid @enderror" {{ $expoEditandoId ? 'readonly' : '' }}>
                                     @if ($expoEditandoId)<div class="expo-locked-hint"><i class="fa fa-lock mr-1"></i>Campo no editable.</div>@endif
                                     @error('fechaInicio') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
                                 <div class="form-group col-md-6">
                                     <label>Finalización</label>
-                                    <input type="datetime-local" wire:model.defer="fechaFin" class="form-control @error('fechaFin') is-invalid @enderror">
+                                    <input type="datetime-local" wire:model.live="fechaFin" class="form-control @error('fechaFin') is-invalid @enderror">
                                     @error('fechaFin') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
                             </div>
@@ -491,7 +491,7 @@
                                         @foreach ($bodegas as $bodega)
                                             <div class="expo-check-item" wire:key="expo-bodega-{{ $bodega->id }}">
                                                 <label for="expo-bodega-{{ $bodega->id }}">
-                                                    <input id="expo-bodega-{{ $bodega->id }}" type="checkbox" value="{{ $bodega->id }}" wire:model.defer="bodegasSeleccionadas">
+                                                    <input id="expo-bodega-{{ $bodega->id }}" type="checkbox" value="{{ $bodega->id }}" wire:model.live="bodegasSeleccionadas">
                                                     <span>{{ $bodega->nombre }}</span>
                                                 </label>
                                             </div>
@@ -511,7 +511,7 @@
                                         @foreach ($escalas as $escala)
                                             <div class="expo-check-item" wire:key="expo-escala-{{ $escala->id }}">
                                                 <label for="expo-escala-{{ $escala->id }}">
-                                                    <input id="expo-escala-{{ $escala->id }}" type="checkbox" value="{{ $escala->id }}" wire:model.defer="escalasSeleccionadas">
+                                                    <input id="expo-escala-{{ $escala->id }}" type="checkbox" value="{{ $escala->id }}" wire:model.live="escalasSeleccionadas">
                                                     <span>{{ $escala->nombre }}</span>
                                                 </label>
                                             </div>
@@ -529,7 +529,7 @@
                                 <div class="expo-user-search mb-3">
                                     <div class="input-group">
                                         <div class="input-group-prepend"><span class="input-group-text"><i class="fa fa-search"></i></span></div>
-                                        <input type="search" wire:model.debounce.300ms="busquedaUsuario" class="form-control" placeholder="Buscar usuario por nombre o correo..." autocomplete="off">
+                                        <input type="search" wire:model.live.debounce.300ms="busquedaUsuario" class="form-control" placeholder="Buscar usuario por nombre o correo..." autocomplete="off">
                                     </div>
                                     @if (mb_strlen(trim($busquedaUsuario)) >= 2)
                                         <div class="expo-user-results">
@@ -580,7 +580,7 @@
                                     <div class="expo-brand-manager mb-3">
                                         <div>
                                             <label for="expo-marca-descuento">Escala con descuento configurado</label>
-                                            <select id="expo-marca-descuento" wire:model="marcaDescuentoGestionId" class="form-control">
+                                            <select id="expo-marca-descuento" wire:model.live="marcaDescuentoGestionId" class="form-control">
                                                 <option value="">Seleccione una escala ({{ $marcasConDescuento->count() }})</option>
                                                 @foreach($marcasConDescuento as $marcaDescuento)
                                                     <option value="{{ $marcaDescuento['marca_id'] }}">{{ $marcaDescuento['marca'] }} · {{ $marcaDescuento['total_escalones'] }} escalón(es)</option>
@@ -598,7 +598,7 @@
                                 @else
                                     <div class="input-group input-group-sm expo-brand-search mb-3">
                                         <div class="input-group-prepend"><span class="input-group-text"><i class="fa fa-search"></i></span></div>
-                                        <input type="search" wire:model.debounce.250ms="busquedaDescuentoMarca" class="form-control" placeholder="Buscar por escala..." autocomplete="off">
+                                        <input type="search" wire:model.live.debounce.250ms="busquedaDescuentoMarca" class="form-control" placeholder="Buscar por escala..." autocomplete="off">
                                     </div>
                                 @endif
                                 <div class="expo-discount-wrap expo-brand-table-scroll mb-3">
@@ -657,7 +657,7 @@
                                             @forelse ($descuentos as $indice => $regla)
                                                 <tr wire:key="expo-descuento-{{ $indice }}">
                                                     <td>
-                                                        <input type="text" inputmode="decimal" wire:model.defer="descuentos.{{ $indice }}.venta_minima"
+                                                        <input type="text" inputmode="decimal" wire:model.live="descuentos.{{ $indice }}.venta_minima"
                                                                class="form-control form-control-sm expo-money-input" placeholder="0.00" autocomplete="off"
                                                                x-data="{ formatMoney() { let raw = $el.value.replace(/,/g, '').replace(/[^0-9.]/g, ''); const point = raw.indexOf('.'); if (point !== -1) raw = raw.slice(0, point + 1) + raw.slice(point + 1).replace(/\./g, '').slice(0, 2); let parts = raw.split('.'); parts[0] = (parts[0] || '').replace(/^0+(?=\d)/, '').replace(/\B(?=(\d{3})+(?!\d))/g, ','); $el.value = parts[0] + (raw.includes('.') ? '.' + (parts[1] || '') : ''); } }"
                                                                x-init="$nextTick(() => { formatMoney(); const amount = Number($el.value.replace(/,/g, '')); if (Number.isFinite(amount)) $el.value = amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); })"
@@ -665,7 +665,7 @@
                                                         @error('descuentos.'.$indice.'.venta_minima') <small class="text-danger">{{ $message }}</small> @enderror
                                                     </td>
                                                     <td>
-                                                        <input type="number" step="0.01" min="0" max="100" wire:model.defer="descuentos.{{ $indice }}.porcentaje_descuento" class="form-control form-control-sm">
+                                                        <input type="number" step="0.01" min="0" max="100" wire:model.live="descuentos.{{ $indice }}.porcentaje_descuento" class="form-control form-control-sm">
                                                         @error('descuentos.'.$indice.'.porcentaje_descuento') <small class="text-danger">{{ $message }}</small> @enderror
                                                     </td>
                                                     <td class="text-center"><button type="button" wire:click="eliminarDescuento({{ $indice }})" class="btn btn-xs btn-white" title="Eliminar regla"><i class="fa fa-trash text-danger"></i></button></td>
@@ -819,7 +819,7 @@
                                         <i class="fa fa-lock mr-1"></i>Finalizar facturación Expo
                                     </button>
                                 @elseif($detalle['estado'] === 'Cerrada')
-                                    <textarea wire:model.defer="motivoReapertura" class="form-control form-control-sm mb-2" maxlength="500" rows="2" placeholder="Motivo obligatorio para la reapertura"></textarea>
+                                    <textarea wire:model.live="motivoReapertura" class="form-control form-control-sm mb-2" maxlength="500" rows="2" placeholder="Motivo obligatorio para la reapertura"></textarea>
                                     @error('motivoReapertura')<div class="text-danger small mb-2">{{ $message }}</div>@enderror
                                     <button type="button" wire:click="reabrirExpo({{ $detalle['id'] }})" wire:loading.attr="disabled" class="btn btn-success btn-sm mb-2">
                                         <i class="fa fa-unlock mr-1"></i>Reabrir Expo completa
@@ -934,7 +934,7 @@
                             <div class="expo-close-toolbar">
                                 <div class="expo-close-search">
                                     <i class="fa fa-search"></i>
-                                    <input type="search" wire:model.debounce.300ms="filtroCierre" class="form-control form-control-sm" placeholder="Buscar factura, oferta, cliente, asesor, teleasesor o gestor">
+                                    <input type="search" wire:model.live.debounce.300ms="filtroCierre" class="form-control form-control-sm" placeholder="Buscar factura, oferta, cliente, asesor, teleasesor o gestor">
                                 </div>
                                 <span class="text-muted small">{{ $flujosFiltrados->count() }} de {{ $flujosCierre->count() }} flujo(s) · {{ count($cierreCandidatos) }} factura(s)</span>
                             </div>
@@ -979,7 +979,7 @@
                                                                     <tbody>
                                                                     @foreach($flujo['facturas'] as $factura)
                                                                         <tr class="{{ in_array((int) $factura['id'], $facturasExcluidasIds, true) ? 'excluida' : '' }}">
-                                                                            <td class="text-center"><input type="checkbox" wire:model="facturasExcluidasCierre" value="{{ $factura['id'] }}" aria-label="Excluir factura {{ $factura['numero'] }} del aumento"></td>
+                                                                            <td class="text-center"><input type="checkbox" wire:model.live="facturasExcluidasCierre" value="{{ $factura['id'] }}" aria-label="Excluir factura {{ $factura['numero'] }} del aumento"></td>
                                                                             <td><strong>{{ $factura['numero'] }}</strong><br><small class="text-muted">ID {{ $factura['id'] }}</small></td>
                                                                             <td class="text-right">L {{ number_format($factura['subtotal_bruto'], 2) }}</td>
                                                                             <td class="text-right">L {{ number_format($factura['descuento_otorgado'], 2) }}</td>
@@ -1044,7 +1044,7 @@
 
                             <div class="form-group mt-3 mb-0">
                                 <label class="expo-label">Motivo del cierre <span class="text-danger">*</span></label>
-                                <textarea wire:model.defer="motivoCierre" class="form-control form-control-sm" maxlength="500" rows="2" placeholder="Explique por qué finaliza la facturación de esta Expo"></textarea>
+                                <textarea wire:model.live="motivoCierre" class="form-control form-control-sm" maxlength="500" rows="2" placeholder="Explique por qué finaliza la facturación de esta Expo"></textarea>
                                 @error('motivoCierre')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
                             </div>
 

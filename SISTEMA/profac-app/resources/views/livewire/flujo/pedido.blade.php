@@ -277,7 +277,7 @@
                                     </div>
                                     <input
                                         type="text"
-                                        wire:model.debounce.350ms="busqueda"
+                                        wire:model.live.debounce.350ms="busqueda"
                                         class="form-control border-left-0"
                                         placeholder="Nombre o RTN — escribe para buscar..."
                                         autocomplete="off">
@@ -419,7 +419,7 @@
                                                         <td class="py-2 align-middle">
                                                             <input
                                                                 type="text"
-                                                                wire:model.lazy="items.{{ $i }}.nombre_producto"
+                                                                wire:model.live.blur="items.{{ $i }}.nombre_producto"
                                                                 class="form-control form-control-sm @error('items.'.$i.'.nombre_producto') is-invalid @enderror"
                                                                 placeholder="Nombre del producto..."
                                                             >
@@ -430,7 +430,7 @@
                                                         <td class="py-2 text-center align-middle">
                                                             <input
                                                                 type="number"
-                                                                wire:model.lazy="items.{{ $i }}.cantidad"
+                                                                wire:model.live.blur="items.{{ $i }}.cantidad"
                                                                 class="form-control form-control-sm text-center @error('items.'.$i.'.cantidad') is-invalid @enderror"
                                                                 placeholder="0"
                                                                 min="0.01"
@@ -528,7 +528,7 @@
                                             <input
                                                 id="inputExcel"
                                                 type="file"
-                                                wire:model="archivoExcel"
+                                                wire:model.live="archivoExcel"
                                                 accept=".xlsx,.xls"
                                                 style="position:absolute; width:1px; height:1px; opacity:0; overflow:hidden;"
                                             >
@@ -611,7 +611,7 @@
                                                         <td class="py-2 pl-2 text-center align-middle">
                                                             <input
                                                                 type="checkbox"
-                                                                wire:model="excelSeleccionados.{{ $pi }}"
+                                                                wire:model.live="excelSeleccionados.{{ $pi }}"
                                                                 style="width:14px; height:14px; cursor:pointer; accent-color:#10b981;"
                                                             >
                                                         </td>
@@ -692,7 +692,7 @@
                             {{-- Textarea --}}
                             <div class="mb-3 col-12 col-md-7 mb-md-0">
                                 <textarea
-                                    wire:model.lazy="observaciones"
+                                    wire:model.live.blur="observaciones"
                                     class="form-control"
                                     rows="3"
                                     style="border-radius:8px; resize:vertical; font-size:13px; border-color:#dce3f0;"
@@ -743,7 +743,7 @@
                 return;
             }
 
-            Livewire.emit('abrirFlujoPedido', pId, 'pedido');
+            Livewire.dispatch('abrirFlujoPedido', { pedidoId: pId, pasoInicial: 'pedido' });
         }
 
         window.addEventListener('scroll-top', function() {
@@ -779,7 +779,7 @@
                             <label class="font-weight-bold">Nombre <span class="text-danger">*</span></label>
                             <input
                                 type="text"
-                                wire:model.lazy="nc_nombre"
+                                wire:model.live.blur="nc_nombre"
                                 class="form-control @error('nc_nombre') is-invalid @enderror"
                                 placeholder="Nombre completo del cliente"
                                 style="border-radius:6px;"
@@ -790,7 +790,7 @@
                             <label class="font-weight-bold">RTN</label>
                             <input
                                 type="text"
-                                wire:model.lazy="nc_rtn"
+                                wire:model.live.blur="nc_rtn"
                                 class="form-control @error('nc_rtn') is-invalid @enderror"
                                 placeholder="0000-0000-000000"
                                 style="border-radius:6px;"
@@ -801,7 +801,7 @@
                             <label class="font-weight-bold">Correo Electrónico</label>
                             <input
                                 type="email"
-                                wire:model.lazy="nc_correo"
+                                wire:model.live.blur="nc_correo"
                                 class="form-control @error('nc_correo') is-invalid @enderror"
                                 placeholder="correo@ejemplo.com"
                                 style="border-radius:6px;"
@@ -812,7 +812,7 @@
                             <label class="font-weight-bold">Teléfono</label>
                             <input
                                 type="text"
-                                wire:model.lazy="nc_telefono"
+                                wire:model.live.blur="nc_telefono"
                                 class="form-control"
                                 placeholder="+504 0000-0000"
                                 style="border-radius:6px;"
@@ -821,7 +821,7 @@
                         <div class="mb-0 col-12 form-group">
                             <label class="font-weight-bold">Dirección</label>
                             <textarea
-                                wire:model.lazy="nc_direccion"
+                                wire:model.live.blur="nc_direccion"
                                 class="form-control"
                                 rows="2"
                                 placeholder="Dirección del cliente..."

@@ -325,7 +325,7 @@
                                     <div class="col-md-4 mb-3">
                                         <label style="font-size:12px; font-weight:700; color:#2e7d32;">Días de crédito</label>
                                         <input type="number" min="0"
-                                               wire:model.debounce.300ms="diasCreditoEditable"
+                                               wire:model.live.debounce.300ms="diasCreditoEditable"
                                                class="form-control" style="border-radius:8px; font-size:13px;">
                                         <small class="text-muted">Editable solo para este flujo</small>
                                     </div>
@@ -355,7 +355,7 @@
                                         Observaciones <small style="font-weight:400;">(opcional)</small>
                                     </label>
                                     <input type="text"
-                                           wire:model.defer="observaciones"
+                                           wire:model.live="observaciones"
                                            class="form-control"
                                            placeholder="Notas adicionales..."
                                            style="border-radius:8px; font-size:13px;">
@@ -401,7 +401,7 @@
                                     <label style="font-size:12px; font-weight:700; color:#c62828;">
                                         Motivo de Rechazo <span style="color:#e74c3c;">*</span>
                                     </label>
-                                    <textarea wire:model.defer="motivoRechazo"
+                                    <textarea wire:model.live="motivoRechazo"
                                               class="form-control"
                                               rows="3"
                                               placeholder="Ingrese el motivo del rechazo de crédito..."
@@ -411,7 +411,7 @@
                                     <label style="font-size:12px; font-weight:700; color:#c62828;">
                                         Observaciones <small style="font-weight:400;">(opcional)</small>
                                     </label>
-                                    <textarea wire:model.defer="observaciones"
+                                    <textarea wire:model.live="observaciones"
                                               class="form-control"
                                               rows="3"
                                               placeholder="Notas adicionales..."
@@ -541,7 +541,7 @@
                                     </span>
                                 </div>
                                 <input type="text"
-                                       wire:model.debounce.400ms="busqueda"
+                                       wire:model.live.debounce.400ms="busqueda"
                                        class="form-control"
                                        placeholder="Buscar por cliente, RTN o número de flujo..."
                                        style="font-size:13px;">
@@ -560,7 +560,7 @@
                                 <label style="font-size:12px; color:#78909c; font-weight:600; margin:0; white-space:nowrap;">
                                     Filas por p&aacute;gina:
                                 </label>
-                                <select wire:model="perPage"
+                                <select wire:model.live="perPage"
                                         class="form-control form-control-sm"
                                         style="width:70px; font-size:13px; border-radius:8px;">
                                     <option value="8">8</option>
@@ -917,19 +917,19 @@
                             <label style="font-weight:700;">Nuevo crédito aprobado</label>
                             <div class="input-group">
                                 <div class="input-group-prepend"><span class="input-group-text">L</span></div>
-                                <input type="text" wire:model.defer="nuevoCreditoClienteTexto"
+                                <input type="text" wire:model.live="nuevoCreditoClienteTexto"
                                        class="form-control" inputmode="decimal" placeholder="0.00">
                             </div>
                         </div>
                         <div class="form-group">
                             <label style="font-weight:700;">Días de crédito</label>
-                            <input type="number" wire:model.defer="nuevosDiasCreditoCliente"
+                            <input type="number" wire:model.live="nuevosDiasCreditoCliente"
                                    class="form-control" min="0" max="365" step="1">
                             <small class="text-muted">Se actualizarán también en la ficha del cliente.</small>
                         </div>
                         <div class="form-group mb-0">
                             <label style="font-weight:700;">Motivo del cambio <span class="text-danger">*</span></label>
-                            <textarea wire:model.defer="motivoAjusteCredito" class="form-control" rows="3"
+                            <textarea wire:model.live="motivoAjusteCredito" class="form-control" rows="3"
                                       maxlength="500" placeholder="Explique por qué se modifica el crédito del cliente..."></textarea>
                             <small class="text-muted">El monto anterior, nuevo monto, usuario, flujo, oferta y motivo quedarán auditados.</small>
                         </div>

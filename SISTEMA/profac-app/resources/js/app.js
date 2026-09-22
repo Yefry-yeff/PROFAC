@@ -1,11 +1,8 @@
 require('./bootstrap');// el punto con eslash "./" el archivo que quiero traer viene de la carpeta resources 
 
-
-import Alpine from 'alpinejs';
-
-window.Alpine = Alpine;
-
-Alpine.start();
+// Alpine.js ya no se importa/inicializa manualmente: Livewire v3 lo incluye y lo arranca
+// internamente (a través de @livewireScripts). Mantener esta inicialización manual causaba
+// un conflicto de doble arranque de Alpine.
 
 // var Turbolinks = require("turbolinks")
 // Turbolinks.start()

@@ -524,7 +524,7 @@
                             </span>
                         </div>
                         <input type="text"
-                               wire:model.debounce.350ms="busquedaPrefactura"
+                               wire:model.live.debounce.350ms="busquedaPrefactura"
                                class="form-control"
                                placeholder="Buscar por # prefactura, # flujo, cliente o RTN..."
                                style="border-radius:0 8px 8px 0;"
@@ -604,7 +604,7 @@
                             </span>
                         </div>
                         <input type="text"
-                               wire:model.debounce.350ms="busquedaFlujo"
+                               wire:model.live.debounce.350ms="busquedaFlujo"
                                class="form-control"
                                placeholder="Buscar por cliente, RTN, # flujo, # pedido u # oferta…"
                                style="border-radius:0 8px 8px 0;"
@@ -5480,12 +5480,12 @@
         fId = fId ? parseInt(fId, 10) : null;
 
         if (pId) {
-            Livewire.emit('abrirFlujoPedido', pId, pasoPreferido || 'pedido');
+            Livewire.dispatch('abrirFlujoPedido', { pedidoId: pId, pasoInicial: pasoPreferido || 'pedido' });
             return;
         }
 
         if (fId) {
-            Livewire.emit('abrirFlujoCotizacion', fId);
+            Livewire.dispatch('abrirFlujoCotizacion', { flujoId: fId });
             return;
         }
 
@@ -6638,7 +6638,7 @@
     @push('scripts')
     {{-- Re-despacha el evento pedido-seleccionado al cargar si el pedido ya estaba vinculado (desde URL pedidoId) --}}
     <script>
-        document.addEventListener('livewire:load', function () {
+        document.addEventListener('livewire:init', function () {
             window.dispatchEvent(new CustomEvent('pedido-seleccionado', {
                 detail: {
                     clienteId:     {!! (int)$clientePedido['id'] !!},
@@ -7334,7 +7334,7 @@
 
         @if(!$clientePedido)
         // Otro cliente: no hay cliente pre-seleccionado; cargar productos al iniciar la página
-        document.addEventListener('livewire:load', function () {
+        document.addEventListener('livewire:init', function () {
             setTimeout(function() { cargarProductosIniciales(); }, 300);
         });
         @endif

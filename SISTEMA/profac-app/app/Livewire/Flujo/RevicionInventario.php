@@ -1,0 +1,2092 @@
+<?php
+
+namespace App\Livewire\Flujo;
+
+use App\Support\ExpoStock;
+use App\Services\Expo\SeccionadorOfertaExpo;
+use Livewire\Component;
+use App\Events\FlujoAvanzadoEvent;
+use App\Events\RevisionInventarioLineaActualizada;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
+
+/**
+ * Bandeja de Revisión de Inventario.
+ *
+ * Gestiona el paso intermedio entre "Oferta Ganadora" y "Prefactura":
+ *  – Lista los flujos en estado Revision de Inventario (tipo_tramite_id = 9)
+ *  – Permite revisar productos (solo nombre y cantidad, sin precios)
+ *  – Acción A: Pasar a Prefactura (si hay stock suficiente)
+ *  – Acción B: Devolver a Oferta (con observaciones obligatorias)
+ *  – Panel de configuración para activar/desactivar este paso
+ */
+class RevicionInventario extends Component
+{
+    private function diasVigenciaPrefactura(int $flujoId, int $cotizacionId): int
+    {
+        $credito = DB::table('credito_revision')
+            ->where('flujo_id', $flujoId)
+            ->when($this->esOfertaExpo, fn ($query) => $query->where('cotizacion_id', $cotizacionId))
+            ->where('estado', 'aprobado')
+            ->latest('id')
+            ->first(['dias_credito_aprobados', 'fecha_aprobacion', 'fecha_vencimiento_credito']);
+
+        if ($credito && !is_null($credito->dias_credito_aprobados)) {
+            return max(0, (int) $credito->dias_credito_aprobados);
+        }
+
+        if ($credito && $credito->fecha_aprobacion && $credito->fecha_vencimiento_credito) {
+            return max(0, (int) \Carbon\Carbon::parse($credito->fecha_aprobacion)
+                ->diffInDays(\Carbon\Carbon::parse($credito->fecha_vencimiento_credito), false));
+        }
+
+        return max(0, (int) (DB::table('configuracion_prefactura')
+            ->orderByDesc('id')->value('dias_validez') ?? 7));
+    }
+
+    // ── Bandeja ───────────────────────────────────────────────────────────
+    public array  $bandejaRegistros  = [];   // pestaña: llegando
+    public array  $bandejaDevueltos  = [];   // pestaña: devueltos a oferta
+    public array  $bandejaPrefactura = [];   // pestaña: pasados a prefactura
+    public string $busqueda          = '';
+    public string $tabActiva         = 'llegando';
+
+    // ── Detalle del flujo seleccionado ────────────────────────────────────
+    public ?int   $flujoId          = null;
+    protected     $flujoData        = null;   // info del flujo + oferta ganadora
+    public ?int   $cotizacionId     = null;   // ID de la cotizacion ganadora
+    public ?string $estadoSeccion   = null;
+    public array  $productos        = [];     // {nombre_producto, cantidad, disponible, falta_stock}
+    public array  $stockErrors      = [];     // productos con stock insuficiente
+    public array  $productosRevisados = [];   // checkbox por producto
+    public array  $revisadoPor       = [];   // usuario que marcó cada producto
+    public bool   $esOfertaExpo     = false;
+    public array  $bodegaExpoSeleccionada = [];
+    public string $filtroProducto   = '';
+    public string $filtroBodega     = '';
+    public string $filtroEstado     = '';
+    public string $filtroRevisado   = '';
+
+    // ── Progreso temporal de revisión (24 horas por usuario/flujo/oferta) ─
+    public bool $modalTemporalVisible = false;
+    public ?int $temporalRevisionId = null;
+    public ?string $temporalActualizadoAt = null;
+    public ?string $temporalExpiraAt = null;
+
+    // ── Observaciones por producto (para notas de reemplazo) ──────────────
+    public array  $obsProducto      = [];     // ['idx' => 'texto obs']
+
+    // ── Estado de devolución ──────────────────────────────────────────────
+    public bool   $devuelto                  = false;  // true si el flujo fue devuelto a Oferta
+    public string $motivoDevolucionGuardado  = '';     // motivo leído del historico al abrir un devuelto
+    public bool   $soloVisualizacion         = false;  // true cuando se abre desde pestaña Prefactura
+
+    // ── Confirmación de acciones ──────────────────────────────────────────
+    public ?string $confirmAccion    = null;  // null | 'prefactura' | 'devolver'
+    public string  $motivoDevolucion = '';
+
+    // ── Configuración ──────────────────────────────────────────────────────
+    public bool $configuracionActiva = false;
+
+    // ── Paginación ────────────────────────────────────────────────────────
+    public int $paginaLlegando   = 1;
+    public int $paginaDevueltos  = 1;
+    public int $paginaPrefactura = 1;
+    public int $porPagina        = 10;
+    public int $totalLlegando    = 0;
+    public int $totalDevueltos   = 0;
+    public int $totalPrefactura  = 0;
+
+    // ── Modal de reservas por producto ─────────────────────────────────────
+    public bool   $modalReservasVisible = false;
+    public array  $modalReservasData    = [];
+    public string $modalReservaNombre   = '';
+
+    // ── Modal de edición de productos sin existencia ───────────────────────
+    public bool   $modalSinExistenciaVisible = false;
+    public array  $productosSinExistenciaModal = [];
+    public string $motivoEdicionSinExistencia = '';
+
+    // ── Mensajes ──────────────────────────────────────────────────────────
+    public string $mensajeExito = '';
+    public string $mensajeError = '';
+
+    // ─────────────────────────────────────────────────────────────────────
+    // LIFECYCLE
+    // ─────────────────────────────────────────────────────────────────────
+
+    public function mount(): void
+    {
+        $this->cargarConfiguracion();
+        $this->cargar();
+
+        $flujoId = request()->integer('flujo_id');
+        if ($flujoId > 0) {
+            $cotizacionId = request()->integer('cotizacion_id') ?: null;
+            $this->seleccionarFlujo($flujoId, false, $cotizacionId);
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // CONFIGURACIÓN
+    // ─────────────────────────────────────────────────────────────────────
+
+    public function cargarConfiguracion(): void
+    {
+        $config = DB::table('configuracion_revision_inventario')->first();
+        $this->configuracionActiva = $config ? (bool) $config->activo : false;
+    }
+
+    public function toggleConfiguracion(): void
+    {
+        $nuevo = $this->configuracionActiva ? 0 : 1;
+
+        DB::table('configuracion_revision_inventario')
+            ->where('id', 1)
+            ->update([
+                'activo'     => $nuevo,
+                'updated_by' => Auth::id(),
+                'updated_at' => now(),
+            ]);
+
+        $this->configuracionActiva = (bool) $nuevo;
+        $this->mensajeExito = $nuevo
+            ? 'Revisión de inventario ACTIVADA. El flujo ahora pasará por esta etapa antes de Prefactura.'
+            : 'Revisión de inventario DESACTIVADA. Las ofertas ganadoras pasarán directamente a Prefactura.';
+        $this->mensajeError = '';
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // BANDEJA
+    // ─────────────────────────────────────────────────────────────────────
+
+    public function updatedBusqueda(): void
+    {
+        $this->paginaLlegando = $this->paginaDevueltos = $this->paginaPrefactura = 1;
+        $this->cargar();
+    }
+
+    public function cambiarPagina(string $tab, int $pagina): void
+    {
+        if ($tab === 'llegando')   $this->paginaLlegando   = max(1, $pagina);
+        if ($tab === 'devueltos')  $this->paginaDevueltos  = max(1, $pagina);
+        if ($tab === 'prefactura') $this->paginaPrefactura = max(1, $pagina);
+        $this->cargar();
+    }
+
+    public function cargar(): void
+    {
+        $term = trim($this->busqueda);
+        $this->totalLlegando   = $this->buildBandejaCount($term, 'llegando');
+        $this->totalDevueltos  = $this->buildBandejaCount($term, 'devueltos');
+        $this->totalPrefactura = $this->buildBandejaCount($term, 'prefactura');
+        $this->bandejaRegistros  = $this->buildBandejaQuery($term, 'llegando',   $this->paginaLlegando);
+        $this->bandejaDevueltos  = $this->buildBandejaQuery($term, 'devueltos',  $this->paginaDevueltos);
+        $this->bandejaPrefactura = $this->buildBandejaQuery($term, 'prefactura', $this->paginaPrefactura);
+    }
+
+    public function cambiarTab(string $tab): void
+    {
+        $this->tabActiva = in_array($tab, ['llegando', 'devueltos', 'prefactura']) ? $tab : 'llegando';
+    }
+
+    private function buildBandejaCount(string $term, string $tipo): int
+    {
+        $latestRevSub = DB::table('historico_flujo as hfs')
+            ->leftJoin('expo_oferta_seccion as eos_group', function ($join) {
+                $join->on('eos_group.flujo_id', '=', 'hfs.flujo_id')
+                    ->on('eos_group.cotizacion_id', '=', 'hfs.tramite_id');
+            })
+            ->select('hfs.flujo_id', DB::raw('MAX(hfs.id) as max_id'))
+            ->where('tipo_tramite_id', 9)
+            ->groupBy('hfs.flujo_id', DB::raw('COALESCE(eos_group.cotizacion_id, 0)'));
+
+        $q = DB::table('flujo as f')
+                        ->joinSub($latestRevSub, 'lrev', function ($j) { $j->on('lrev.flujo_id', '=', 'f.id'); })
+            ->join('historico_flujo as hf', 'hf.id', '=', 'lrev.max_id')
+                        ->leftJoin('cotizacion as c', 'c.id', '=', 'hf.tramite_id')
+            ->leftJoin('pedido as p', DB::raw('CAST(f.identificacion AS UNSIGNED)'), '=', 'p.id')
+            ->leftJoin('cliente as cl', function ($j) {
+                $j->on('cl.id', '=', 'c.cliente_id')->orOn('cl.id', '=', 'p.cliente_id');
+            });
+
+        if ($tipo === 'llegando') {
+            $q->where('hf.estado_id', 5);
+        } elseif ($tipo === 'devueltos') {
+            $q->where('hf.estado_id', 7);
+        } else {
+            $q->where('hf.estado_id', 1);
+        }
+
+        if ($term !== '') {
+            $like = '%' . $term . '%';
+            if (is_numeric($term)) {
+                $q->where(function ($s) use ($term) {
+                    $s->where('f.id', (int) $term)->orWhere('f.identificacion', $term)->orWhere('hf.tramite_id', (int) $term);
+                });
+            } else {
+                $q->where(function ($s) use ($like) {
+                    $s->where('c.nombre_cliente', 'LIKE', $like)->orWhere('c.RTN', 'LIKE', $like)->orWhere('p.observaciones', 'LIKE', $like);
+                });
+            }
+        }
+
+        return (int) $q->count('hf.id');
+    }
+
+    private function buildBandejaQuery(string $term, string $tipo, int $page = 1): array
+    {
+        // Los flujos normales conservan una fila por flujo; Expo conserva una por sección.
+        $latestRevSub = DB::table('historico_flujo as hfs')
+            ->leftJoin('expo_oferta_seccion as eos_group', function ($join) {
+                $join->on('eos_group.flujo_id', '=', 'hfs.flujo_id')
+                    ->on('eos_group.cotizacion_id', '=', 'hfs.tramite_id');
+            })
+            ->select('hfs.flujo_id', DB::raw('MAX(hfs.id) as max_id'))
+            ->where('tipo_tramite_id', 9)
+            ->groupBy('hfs.flujo_id', DB::raw('COALESCE(eos_group.cotizacion_id, 0)'));
+
+        $q = DB::table('flujo as f')
+            ->joinSub($latestRevSub, 'lrev', function ($j) {
+                $j->on('lrev.flujo_id', '=', 'f.id');
+            })
+            ->join('historico_flujo as hf', 'hf.id', '=', 'lrev.max_id')
+                        ->leftJoin('cotizacion as c', 'c.id', '=', 'hf.tramite_id')
+                        ->leftJoin('expo_oferta_seccion as eos', 'eos.cotizacion_id', '=', 'c.id')
+            ->leftJoin('pedido as p', DB::raw('CAST(f.identificacion AS UNSIGNED)'), '=', 'p.id')
+            ->leftJoin('cliente as cl', function ($j) {
+                $j->on('cl.id', '=', 'c.cliente_id')
+                  ->orOn('cl.id', '=', 'p.cliente_id');
+            })
+            ->select(
+                'f.id as flujo_id',
+                'f.identificacion',
+                'hf.created_at as fecha_revision',
+                'hf.updated_at as fecha_accion',
+                'hf.tramite_id as cotizacion_id',
+                'eos.numero as seccion_numero',
+                'eos.nombre as seccion_nombre',
+                'eos.estado as seccion_estado',
+                DB::raw("COALESCE(c.nombre_cliente, p.observaciones, CONCAT('Flujo #', f.id)) as cliente"),
+                DB::raw("COALESCE(c.RTN, '') as rtn"),
+                DB::raw('(SELECT COUNT(*) FROM cotizacion_has_producto chp WHERE chp.cotizacion_id = hf.tramite_id) as total_productos'),
+                'hf.observaciones as obs_revision',
+                'hf.estado_id'
+            )
+            ->groupBy(
+                'f.id', 'f.identificacion', 'hf.created_at', 'hf.updated_at',
+                'hf.tramite_id', 'eos.numero', 'eos.nombre', 'eos.estado',
+                'c.nombre_cliente', 'p.observaciones', 'c.RTN', 'hf.observaciones', 'hf.estado_id'
+            );
+
+        if ($tipo === 'llegando') {
+            // Ciclo activo: el registro más reciente de tipo=9 no está devuelto ni aprobado
+            $q->where('hf.estado_id', 5);
+        } elseif ($tipo === 'devueltos') {
+            // Solo el último ciclo de revisión fue devuelto (estado_id=7)
+            $q->where('hf.estado_id', 7);
+        } else {
+            $q->where('hf.estado_id', 1); // prefactura: revisión aprobada
+        }
+
+        if ($term !== '') {
+            $like = '%' . $term . '%';
+            if (is_numeric($term)) {
+                $q->where(function ($s) use ($term) {
+                    $s->where('f.id', (int) $term)
+                      ->orWhere('f.identificacion', $term)
+                      ->orWhere('hf.tramite_id', (int) $term)
+                      ->orWhere('eos.numero', (int) $term);
+                });
+            } else {
+                $q->where(function ($s) use ($like) {
+                    $s->where('c.nombre_cliente', 'LIKE', $like)
+                      ->orWhere('c.RTN', 'LIKE', $like)
+                      ->orWhere('eos.nombre', 'LIKE', $like)
+                      ->orWhere('p.observaciones', 'LIKE', $like);
+                });
+            }
+        }
+
+        $offset = ($page - 1) * $this->porPagina;
+        return $q->orderByDesc('hf.created_at')->offset($offset)->limit($this->porPagina)->get()->map(fn($r) => (array) $r)->toArray();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // DETALLE DE FLUJO
+    // ─────────────────────────────────────────────────────────────────────
+
+    public function seleccionarFlujo(int $flujoId, bool $soloVisualizacion = false, ?int $cotizacionId = null): void
+    {
+        $this->flujoId          = $flujoId;
+        $this->soloVisualizacion = $soloVisualizacion;
+        $this->devuelto         = false;
+        $this->motivoDevolucionGuardado = '';
+        $this->confirmAccion    = null;
+        $this->motivoDevolucion = '';
+        $this->mensajeExito     = '';
+        $this->mensajeError     = '';
+        $this->obsProducto      = [];
+        $this->stockErrors      = [];
+        $this->productosRevisados = [];
+        $this->esOfertaExpo     = false;
+        $this->bodegaExpoSeleccionada = [];
+        $this->modalTemporalVisible = false;
+        $this->temporalRevisionId = null;
+        $this->temporalActualizadoAt = null;
+        $this->temporalExpiraAt = null;
+
+        $this->esOfertaExpo = $cotizacionId && DB::table('expo_oferta_seccion')
+            ->where('flujo_id', $flujoId)
+            ->where('cotizacion_id', $cotizacionId)
+            ->exists();
+
+        // Detectar el estado del ciclo ACTUAL mirando el registro MÁS RECIENTE de tipo=9.
+        // Si el último registro tiene estado_id=7 → ciclo cerrado/devuelto (modo lectura).
+        // Si no → ciclo activo (puede ser un segundo o posterior ciclo).
+        $latestRevRec = DB::table('historico_flujo')
+            ->where('flujo_id', $flujoId)
+            ->where('tipo_tramite_id', 9)
+            ->when($this->esOfertaExpo, fn ($query) => $query->where('tramite_id', $cotizacionId))
+            ->orderByDesc('id')
+            ->first(['id', 'tramite_id', 'estado_id', 'observaciones']);
+
+        $revRec = null;
+        if ($latestRevRec && (int) $latestRevRec->estado_id === 7) {
+            $this->devuelto = true;
+            $revRec = $latestRevRec;
+        }
+
+        // Obtener info del flujo
+        $flujoResult = DB::table('flujo as f')
+            ->leftJoin('pedido as p', DB::raw('CAST(f.identificacion AS UNSIGNED)'), '=', 'p.id')
+            ->leftJoin('cliente as cl', 'cl.id', '=', 'p.cliente_id')
+            ->where('f.id', $flujoId)
+            ->select(
+                'f.id as flujo_id',
+                'f.identificacion',
+                'p.id as pedido_id',
+                DB::raw("COALESCE(cl.nombre, 'N/A') as cliente"),
+                'p.created_at as pedido_fecha',
+                'p.observaciones as pedido_obs'
+            )
+            ->first();
+        $this->flujoData = $flujoResult ? (array) $flujoResult : null;
+
+        $hfGanadora = $this->esOfertaExpo && $latestRevRec
+            ? (object) ['tramite_id' => $latestRevRec->tramite_id]
+            : DB::table('historico_flujo')
+                ->where('flujo_id', $flujoId)
+                ->where('tipo_tramite_id', 2)
+                ->where('observaciones', 'ganadora')
+                ->orderByDesc('id')
+                ->first(['tramite_id', 'observaciones']);
+
+        // Si fue devuelto, buscar el cotizacion_id a través de cotizacion_estado (ganadora=4)
+        if (!$hfGanadora) {
+            $ceDev = DB::table('cotizacion_estado')
+                ->where('flujo_id', $flujoId)
+                ->where('ganadora', 4)
+                ->orderByDesc('id')
+                ->first(['cotizacion_id']);
+            if ($ceDev) {
+                $hfGanadora = (object) ['tramite_id' => $ceDev->cotizacion_id];
+            }
+        }
+        // Último respaldo: oferta marcada como devuelta desde revisión
+        if (!$hfGanadora) {
+            $hfGanadora = DB::table('historico_flujo')
+                ->where('flujo_id', $flujoId)
+                ->where('tipo_tramite_id', 2)
+                ->where('observaciones', 'LIKE', 'Devuelta desde Revisión:%')
+                ->orderByDesc('id')
+                ->first(['tramite_id']);
+        }
+
+        $this->cotizacionId = $hfGanadora ? (int) $hfGanadora->tramite_id : null;
+
+        if (!$this->cotizacionId) {
+            $this->mensajeError = 'No se encontró la oferta ganadora de este flujo.';
+            $this->productos    = [];
+            return;
+        }
+
+        $this->estadoSeccion = $this->esOfertaExpo
+            ? DB::table('expo_oferta_seccion')->where('cotizacion_id', $this->cotizacionId)->value('estado')
+            : null;
+
+        $expoId = $this->esOfertaExpo ? (int) (DB::table('expo_cotizacion')
+            ->where('cotizacion_id', $this->cotizacionId)
+            ->value('expo_id') ?? 0) : 0;
+        $bodegasExpo = $this->esOfertaExpo
+            ? DB::table('expo_bodega')->where('expo_id', $expoId)->pluck('bodega_id')->map(fn ($id) => (int) $id)->all()
+            : [];
+
+        $cotizacionInfo = DB::table('cotizacion as c')
+            ->leftJoin('cliente as cl', 'cl.id', '=', 'c.cliente_id')
+            ->leftJoin('users as v', 'v.id', '=', 'c.vendedor')
+            ->where('c.id', $this->cotizacionId)
+            ->select(
+                'c.cliente_id',
+                'c.vendedor',
+                DB::raw('COALESCE(cl.nombre, c.nombre_cliente, "N/A") as cliente_nombre'),
+                DB::raw('COALESCE(v.name, "N/A") as vendedor_nombre')
+            )
+            ->first();
+
+        if ($cotizacionInfo) {
+            $this->flujoData['cliente_id'] = $cotizacionInfo->cliente_id;
+            $this->flujoData['cliente'] = $cotizacionInfo->cliente_nombre;
+            $this->flujoData['vendedor'] = $cotizacionInfo->vendedor;
+            $this->flujoData['vendedor_nombre'] = $cotizacionInfo->vendedor_nombre;
+        }
+
+        // Obtener productos (solo nombre + cantidad + stock actual)
+        $prods = DB::table('cotizacion_has_producto as chp')
+            ->leftJoin('seccion as s', 's.id', '=', 'chp.seccion_id')
+            ->leftJoin('segmento as sg', 'sg.id', '=', 's.segmento_id')
+            ->leftJoin('bodega as b', 'b.id', '=', 'sg.bodega_id')
+            ->leftJoin('unidad_medida_venta as umv', 'umv.id', '=', 'chp.unidad_medida_venta_id')
+            ->leftJoin('unidad_medida as um', 'um.id', '=', 'umv.unidad_medida_id')
+            ->where('chp.cotizacion_id', $this->cotizacionId)
+            ->select(
+                'chp.id as cotizacion_has_producto_id',
+                'chp.indice',
+                'chp.nombre_producto',
+                'chp.nombre_bodega',
+                'chp.cantidad',
+                'chp.producto_id',
+                'chp.seccion_id',
+                'chp.resta_inventario',
+                'chp.unidad_medida_venta_id',
+                'sg.bodega_id',
+                'b.nombre as bodega_actual_nombre',
+                's.descripcion as seccion_actual_descripcion',
+                'um.nombre as unidad_medida',
+                'umv.unidad_venta as factor_unidad'
+            )
+            ->get();
+
+        $productoIds = $prods->pluck('producto_id')->filter()->unique()->values()->toArray();
+        $destinosBodega = $this->esOfertaExpo
+            ? $this->obtenerDestinosBodegaExpo(
+                $productoIds,
+                $bodegasExpo
+            )
+            : $this->obtenerDestinosDisponiblesPorProducto($productoIds);
+
+        $this->productos   = [];
+        $this->stockErrors = [];
+
+        // Batch: detalles de prefacturas reservadas para todos los productos de esta cotización
+        $batchProdIds    = $prods->pluck('producto_id')->filter()->unique()->values()->toArray();
+        $batchSecIds     = $prods->pluck('seccion_id')->filter()->unique()->values()->toArray();
+        $reservasDetalle = collect();
+        $reservadoPorProdSec = [];
+        $reservadoGlobalPorProd = [];
+        if (!$this->devuelto && !empty($batchProdIds) && !empty($batchSecIds)) {
+            $reservasRaw = DB::table('prefactura_has_producto as php')
+                ->join('prefactura as pf', 'pf.id', '=', 'php.prefactura_id')
+                ->leftJoin('seccion as s', 's.id', '=', 'php.seccion_id')
+                ->leftJoin('segmento as sg', 'sg.id', '=', 's.segmento_id')
+                ->leftJoin('unidad_medida_venta as umv', 'umv.id', '=', 'php.unidad_medida_venta_id')
+                ->leftJoin('unidad_medida as um', 'um.id', '=', 'umv.unidad_medida_id')
+                ->where('pf.estado', 'activo')
+                ->whereRaw("TIMESTAMPADD(DAY, COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7), COALESCE(pf.created_at, CONCAT(COALESCE(pf.fecha_emision, CURDATE()), ' 00:00:00'))) > NOW()")
+                ->whereIn('php.producto_id', $batchProdIds)
+                ->where('php.resta_inventario', 1)
+                ->select('php.producto_id', 'php.seccion_id', 'pf.id as prefactura_id',
+                         'pf.flujo_id', 'pf.nombre_cliente', 'php.cantidad',
+                         'pf.fecha_emision', 'sg.bodega_id', 'um.nombre as unidad_medida')
+                ->selectRaw('(php.cantidad * COALESCE(umv.unidad_venta, 1)) as cantidad_inventario')
+                ->selectRaw("DATE(TIMESTAMPADD(DAY, COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7), COALESCE(pf.created_at, CONCAT(COALESCE(pf.fecha_emision, CURDATE()), ' 00:00:00')))) as fecha_vencimiento_reserva")
+                ->get();
+
+            $cacheReservaCompleta = [];
+            $reservasFiltradas = $reservasRaw->filter(function ($r) use (&$cacheReservaCompleta) {
+                return (int) ($r->flujo_id ?? 0) !== (int) $this->flujoId
+                    && $this->prefacturaTieneReservaCompleta((int) $r->prefactura_id, $cacheReservaCompleta);
+            });
+
+            $reservasDetalle = $reservasFiltradas
+                ->groupBy(fn($r) => $r->producto_id . '_' . $r->seccion_id);
+
+            $reservadoPorProdSec = $reservasFiltradas
+                ->groupBy(fn($r) => $r->producto_id . '_' . $r->seccion_id)
+                ->map(fn($rows) => (float) $rows->sum('cantidad_inventario'))
+                ->toArray();
+
+            $reservadoGlobalPorProd = $reservasFiltradas
+                ->filter(fn($r) => (int) ($r->bodega_id ?? 0) !== 18)
+                ->groupBy('producto_id')
+                ->map(fn($rows) => (float) $rows->sum('cantidad_inventario'))
+                ->toArray();
+        }
+
+        foreach ($prods as $i => $prod) {
+            $factorUnidad     = max(1.0, (float) ($prod->factor_unidad ?? 1));
+            $unidadMedida     = trim((string) ($prod->unidad_medida ?? 'UNIDAD'));
+            $cantidadSolicitadaInventario = (float) $prod->cantidad * $factorUnidad;
+            $rawStock         = null;
+            $reservado        = null;
+            $disponible       = null;
+            $faltaStock       = false;
+            $disponibleGlobal = null;
+            $sinExistencia    = !((float) ($prod->resta_inventario ?? 0) > 0);
+
+            // Para registros ya devueltos no recalcular stock (solo mostrar datos)
+            if (!$this->devuelto && !$sinExistencia && $prod->producto_id && $prod->seccion_id) {
+                if ($this->esOfertaExpo) {
+                    $stockExpo = ExpoStock::resumen((int) $prod->producto_id, $bodegasExpo);
+                    $rawStockInventario = $stockExpo['existencia'];
+                    $reservadoInventario = $stockExpo['reservado'];
+                    $disponibleInventario = $stockExpo['disponible'];
+                } else {
+                    $rawStockInventario = (float) DB::table('recibido_bodega')
+                        ->where('producto_id', $prod->producto_id)
+                        ->where('seccion_id',  $prod->seccion_id)
+                        ->where('cantidad_disponible', '>', 0)
+                        ->sum('cantidad_disponible');
+
+                    $reservadoInventario = (float) ($reservadoPorProdSec[$prod->producto_id . '_' . $prod->seccion_id] ?? 0.0);
+                    $disponibleInventario = max(0.0, $rawStockInventario - $reservadoInventario);
+                }
+                $faltaStock = $disponibleInventario < $cantidadSolicitadaInventario;
+
+                $rawStock = $rawStockInventario / $factorUnidad;
+                $reservado = $reservadoInventario / $factorUnidad;
+                $disponible = $disponibleInventario / $factorUnidad;
+
+                // ── Disponible Global: suma de todas las bodegas excepto Paperland (ID 18) ──
+                $rawStockGlobal = (float) DB::table('recibido_bodega as rb')
+                    ->join('seccion as s',   's.id',  '=', 'rb.seccion_id')
+                    ->join('segmento as sg', 'sg.id', '=', 's.segmento_id')
+                    ->where('rb.producto_id', $prod->producto_id)
+                    ->where('rb.cantidad_disponible', '>', 0)
+                    ->where('sg.bodega_id', '!=', 18)
+                    ->sum('rb.cantidad_disponible');
+
+                $reservadoGlobal = (float) ($reservadoGlobalPorProd[$prod->producto_id] ?? 0.0);
+
+                $disponibleGlobal = max(0.0, $rawStockGlobal - $reservadoGlobal) / $factorUnidad;
+
+            }
+
+            $destinosLinea = array_map(function (array $destino) use ($factorUnidad, $unidadMedida, $reservadoPorProdSec, $prod) {
+                $stockInventario = (float) $destino['stock'];
+                $reservadoInventario = (float) ($reservadoPorProdSec[$prod->producto_id . '_' . $destino['seccion_id']] ?? 0.0);
+                $disponibleInventario = max(0.0, $stockInventario - $reservadoInventario);
+                $existenciaVenta = $stockInventario / $factorUnidad;
+                $reservadoVenta = $reservadoInventario / $factorUnidad;
+                $disponibleVenta = $disponibleInventario / $factorUnidad;
+                $stockFormateado = rtrim(rtrim(number_format($disponibleVenta, 4, '.', ','), '0'), '.');
+                $destino['stock_inventario'] = $stockInventario;
+                $destino['existencia'] = $existenciaVenta;
+                $destino['reservado'] = $reservadoVenta;
+                $destino['stock'] = $disponibleVenta;
+                $destino['text'] = trim($destino['bodega_nombre'] . ' - ' . $destino['seccion_descripcion'])
+                    . ' (Disponible: ' . $stockFormateado . ' ' . $unidadMedida . ')';
+
+                return $destino;
+            }, $destinosBodega[(int) $prod->producto_id] ?? []);
+            $ubicacionActual = (int) $prod->bodega_id . '|' . (int) $prod->seccion_id;
+            $ubicacionesValidas = array_column($destinosLinea, 'value');
+            $destinoSuficiente = collect($destinosLinea)->first(
+                fn (array $destino) => (float) $destino['stock'] >= (float) $prod->cantidad
+            );
+            $ubicacionSeleccionada = in_array($ubicacionActual, $ubicacionesValidas, true)
+                ? $ubicacionActual
+                : ($destinoSuficiente['value'] ?? '');
+            $destinoSeleccionado = collect($destinosLinea)->firstWhere('value', $ubicacionSeleccionada);
+
+            if ($destinoSeleccionado) {
+                $rawStock = $destinoSeleccionado['existencia'];
+                $reservado = $destinoSeleccionado['reservado'];
+                $disponible = $destinoSeleccionado['stock'];
+                $faltaStock = $disponible < (float) $prod->cantidad;
+            }
+
+            if ($faltaStock) {
+                $this->stockErrors[] = [
+                    'idx'               => $i,
+                    'producto'          => $prod->nombre_producto,
+                    'solicitado'        => (float) $prod->cantidad,
+                    'disponible'        => (float) $disponible,
+                    'disponible_global' => $disponibleGlobal,
+                    'unidad'            => $unidadMedida,
+                ];
+            }
+
+            $this->productos[] = [
+                'idx'             => $i,
+                'cotizacion_has_producto_id' => $prod->cotizacion_has_producto_id,
+                'indice'          => $prod->indice,
+                'nombre_producto' => $prod->nombre_producto,
+                'nombre_bodega'   => $prod->nombre_bodega,
+                'bodega_id'       => $prod->bodega_id,
+                'bodega_actual_nombre' => $prod->bodega_actual_nombre,
+                'seccion_actual_descripcion' => $prod->seccion_actual_descripcion,
+                'unidad_medida'   => $unidadMedida,
+                'factor_unidad'   => $factorUnidad,
+                'cantidad'        => $prod->cantidad,
+                'cantidad_inventario_solicitada' => $cantidadSolicitadaInventario,
+                'producto_id'     => $prod->producto_id,
+                'seccion_id'      => $prod->seccion_id,
+                'resta_inventario'=> $prod->resta_inventario,
+                'sin_existencia'  => $sinExistencia,
+                'rawStock'        => $rawStock,
+                'reservado'       => $reservado,
+                'disponible'      => $disponible,
+                'disponible_global' => $disponibleGlobal,
+                'falta_stock'     => $faltaStock,
+                'destinos_bodega' => $destinosLinea,
+                'reservas_detalle' => (!$this->devuelto && !$sinExistencia && $prod->producto_id && $prod->seccion_id)
+                    ? ($reservasDetalle->get($prod->producto_id . '_' . $prod->seccion_id, collect())
+                        ->map(fn($r) => (array) $r)->values()->toArray())
+                    : [],
+            ];
+
+            $this->productosRevisados[$i] = false;
+            $this->revisadoPor[$i] = null;
+            $this->bodegaExpoSeleccionada[$i] = $ubicacionSeleccionada;
+        }
+
+        $estadoPersistido = DB::table('revision_inventario_lineas as ril')
+            ->leftJoin('users as u', 'u.id', '=', 'ril.revisado_por')
+            ->where('ril.flujo_id', $this->flujoId)
+            ->where('ril.cotizacion_id', $this->cotizacionId)
+            ->get(['ril.cotizacion_has_producto_id', 'ril.revisado', 'ril.observacion', 'u.name as usuario_nombre'])
+            ->keyBy('cotizacion_has_producto_id');
+
+        foreach ($this->productos as $producto) {
+            $estado = $estadoPersistido->get($producto['cotizacion_has_producto_id']);
+            if (!$estado) {
+                continue;
+            }
+            $idx = (int) $producto['idx'];
+            $this->productosRevisados[$idx] = (bool) $estado->revisado;
+            $this->revisadoPor[$idx] = $estado->usuario_nombre;
+            $this->obsProducto[$idx] = (string) ($estado->observacion ?? '');
+        }
+
+        // ── Si el flujo está devuelto, cargar motivo y notas de productos ──
+        if ($this->devuelto && isset($revRec)) {
+            $fullObs = $revRec->observaciones ?? '';
+            // Quitar prefijo "Devuelto a Oferta: "
+            $obsBody = preg_replace('/^Devuelto a Oferta:\s*/i', '', $fullObs);
+            // Separar motivo de notas de productos " | [nombre]: nota"
+            $pipePos = strpos($obsBody, ' | [');
+            if ($pipePos !== false) {
+                $this->motivoDevolucionGuardado = trim(substr($obsBody, 0, $pipePos));
+                $notasPart = substr($obsBody, $pipePos);
+                // Parsear cada nota de producto
+                preg_match_all('/\|\s*\[([^\]]+)\]:\s*([^|]+)/', $notasPart, $matches, PREG_SET_ORDER);
+                foreach ($matches as $m) {
+                    $nombreProd = trim($m[1]);
+                    $nota       = trim($m[2]);
+                    foreach ($this->productos as $prod) {
+                        if ($prod['nombre_producto'] === $nombreProd) {
+                            $this->obsProducto[$prod['idx']] = $nota;
+                            break;
+                        }
+                    }
+                }
+            } else {
+                $this->motivoDevolucionGuardado = trim($obsBody);
+            }
+        }
+
+        if (!$this->devuelto && !$this->soloVisualizacion) {
+            $this->buscarTemporalRevision();
+        }
+    }
+
+    public function cerrarDetalle(): void
+    {
+        $this->flujoId          = null;
+        $this->flujoData        = null;
+        $this->soloVisualizacion = false;
+        $this->devuelto         = false;
+        $this->motivoDevolucionGuardado = '';
+        $this->cotizacionId     = null;
+        $this->estadoSeccion    = null;
+        $this->productos        = [];
+        $this->stockErrors      = [];
+        $this->confirmAccion    = null;
+        $this->motivoDevolucion = '';
+        $this->obsProducto      = [];
+        $this->productosRevisados = [];
+        $this->revisadoPor       = [];
+        $this->esOfertaExpo        = false;
+        $this->bodegaExpoSeleccionada = [];
+        $this->filtroProducto      = '';
+        $this->filtroBodega        = '';
+        $this->filtroEstado        = '';
+        $this->filtroRevisado      = '';
+        $this->modalTemporalVisible = false;
+        $this->temporalRevisionId   = null;
+        $this->temporalActualizadoAt = null;
+        $this->temporalExpiraAt     = null;
+        $this->mensajeExito        = '';
+        $this->mensajeError        = '';
+        $this->modalReservasVisible = false;
+        $this->modalReservasData    = [];
+        $this->modalReservaNombre   = '';
+        $this->modalSinExistenciaVisible = false;
+        $this->productosSinExistenciaModal = [];
+        $this->motivoEdicionSinExistencia = '';
+    }
+
+    public function updatedProductosRevisados($value = null, $key = null): void
+    {
+        if ($key !== null && filter_var($value, FILTER_VALIDATE_BOOLEAN)) {
+            $this->revisadoPor[(int) $key] = Auth::user()?->name ?? 'Usuario #' . Auth::id();
+        } elseif ($key !== null) {
+            $this->revisadoPor[(int) $key] = null;
+        }
+        $this->persistirRevisionLinea((int) $key);
+    }
+
+    public function updatedObsProducto($value = null, $key = null): void
+    {
+        $this->persistirRevisionLinea((int) $key);
+    }
+
+    private function persistirRevisionLinea(int $idx): void
+    {
+        if (!$this->flujoId || !$this->cotizacionId || $this->devuelto || $this->soloVisualizacion) {
+            return;
+        }
+
+        $producto = collect($this->productos)->firstWhere('idx', $idx);
+        if (!$producto) {
+            return;
+        }
+
+        $lineaId = (int) $producto['cotizacion_has_producto_id'];
+        $revisado = !empty($this->productosRevisados[$idx]);
+        $observacion = (string) ($this->obsProducto[$idx] ?? '');
+        $usuarioId = $revisado ? (int) Auth::id() : null;
+        $usuarioNombre = $revisado ? (Auth::user()?->name ?? 'Usuario #' . Auth::id()) : null;
+        $ahora = now();
+
+        DB::table('revision_inventario_lineas')->upsert([[
+            'flujo_id' => $this->flujoId,
+            'cotizacion_id' => $this->cotizacionId,
+            'cotizacion_has_producto_id' => $lineaId,
+            'revisado' => $revisado,
+            'observacion' => $observacion !== '' ? $observacion : null,
+            'revisado_por' => $usuarioId,
+            'accion_at' => $ahora,
+            'created_at' => $ahora,
+            'updated_at' => $ahora,
+        ]], ['flujo_id', 'cotizacion_id', 'cotizacion_has_producto_id'], [
+            'revisado', 'observacion', 'revisado_por', 'accion_at', 'updated_at',
+        ]);
+
+        event(new RevisionInventarioLineaActualizada(
+            $this->flujoId,
+            $this->cotizacionId,
+            $lineaId,
+            $revisado,
+            $observacion !== '' ? $observacion : null,
+            $usuarioId,
+            $usuarioNombre,
+            $ahora->toIso8601String(),
+        ));
+    }
+
+    /**
+     * Aplica en la UI un cambio de revisión recibido en tiempo real (Reverb)
+     * desde otro usuario, sin volver a persistir ni reemitir el evento.
+     */
+    public function aplicarRevisionRemota(int $lineaId, bool $revisado, ?string $observacion, ?string $usuarioNombre): void
+    {
+        foreach ($this->productos as $producto) {
+            if ((int) $producto['cotizacion_has_producto_id'] !== $lineaId) {
+                continue;
+            }
+
+            $idx = (int) $producto['idx'];
+            $this->productosRevisados[$idx] = $revisado;
+            $this->revisadoPor[$idx] = $usuarioNombre;
+            $this->obsProducto[$idx] = (string) ($observacion ?? '');
+            break;
+        }
+    }
+
+    public function continuarTemporalRevision(): void
+    {
+        if (!$this->temporalRevisionId || !$this->flujoId || !$this->cotizacionId) {
+            $this->modalTemporalVisible = false;
+            return;
+        }
+
+        $temporal = DB::table('revision_inventario_temporal')
+            ->where('id', $this->temporalRevisionId)
+            ->where('flujo_id', $this->flujoId)
+            ->where('cotizacion_id', $this->cotizacionId)
+            ->where('expira_at', '>', now())
+            ->first();
+
+        if (!$temporal) {
+            $this->modalTemporalVisible = false;
+            $this->temporalRevisionId = null;
+            $this->mensajeError = 'El progreso temporal venció o ya no está disponible.';
+            return;
+        }
+
+        $contenido = json_decode((string) $temporal->contenido, true) ?: [];
+        $lineasGuardadas = $contenido['lineas'] ?? [];
+        foreach ($this->productos as $producto) {
+            $idx = (int) $producto['idx'];
+            $lineaId = (string) ($producto['cotizacion_has_producto_id'] ?? '');
+            $lineaGuardada = $lineasGuardadas[$lineaId] ?? null;
+            if (!is_array($lineaGuardada)) {
+                continue;
+            }
+
+            $this->productosRevisados[$idx] = (bool) ($lineaGuardada['revisado'] ?? false);
+            $this->revisadoPor[$idx] = $lineaGuardada['revisado_por'] ?? null;
+            $this->obsProducto[$idx] = (string) ($lineaGuardada['observacion'] ?? '');
+        }
+
+        $this->modalTemporalVisible = false;
+        $this->mensajeExito = 'Progreso temporal restaurado.';
+        $this->guardarTemporalRevision();
+    }
+
+    public function empezarRevisionDesdeCero(): void
+    {
+        $this->eliminarTemporalRevision($this->flujoId, $this->cotizacionId);
+        foreach ($this->productos as $producto) {
+            $this->productosRevisados[(int) $producto['idx']] = false;
+            $this->revisadoPor[(int) $producto['idx']] = null;
+        }
+        $this->obsProducto = [];
+        $this->modalTemporalVisible = false;
+        $this->mensajeExito = 'Se inició una revisión nueva desde cero.';
+    }
+
+    private function buscarTemporalRevision(): void
+    {
+        DB::table('revision_inventario_temporal')->where('expira_at', '<=', now())->delete();
+
+        $temporal = DB::table('revision_inventario_temporal')
+            ->where('flujo_id', $this->flujoId)
+            ->where('cotizacion_id', $this->cotizacionId)
+            ->where('expira_at', '>', now())
+            ->first(['id', 'updated_at', 'expira_at']);
+
+        if (!$temporal) {
+            return;
+        }
+
+        $this->temporalRevisionId = (int) $temporal->id;
+        $this->temporalActualizadoAt = (string) $temporal->updated_at;
+        $this->temporalExpiraAt = (string) $temporal->expira_at;
+        $this->modalTemporalVisible = true;
+    }
+
+    private function guardarTemporalRevision(): void
+    {
+        if (!$this->flujoId || !$this->cotizacionId || $this->devuelto
+            || $this->soloVisualizacion || $this->modalTemporalVisible) {
+            return;
+        }
+
+        $lineas = [];
+        foreach ($this->productos as $producto) {
+            $idx = (int) $producto['idx'];
+            $lineaId = (string) ($producto['cotizacion_has_producto_id'] ?? '');
+            if ($lineaId === '') {
+                continue;
+            }
+
+            $lineas[$lineaId] = [
+                'revisado' => !empty($this->productosRevisados[$idx]),
+                'revisado_por' => $this->revisadoPor[$idx] ?? null,
+                'observacion' => (string) ($this->obsProducto[$idx] ?? ''),
+            ];
+        }
+
+        $ahora = now();
+        $valores = [
+            'contenido' => json_encode(['lineas' => $lineas], JSON_UNESCAPED_UNICODE),
+            'expira_at' => $ahora->copy()->addHours(24),
+            'updated_at' => $ahora,
+        ];
+        // El progreso es compartido por flujo/oferta, no una copia por usuario.
+        DB::table('revision_inventario_temporal')
+            ->where('flujo_id', $this->flujoId)
+            ->where('cotizacion_id', $this->cotizacionId)
+            ->delete();
+        DB::table('revision_inventario_temporal')->insert(array_merge($valores, [
+            'usuario_id' => Auth::id(),
+            'flujo_id' => $this->flujoId,
+            'cotizacion_id' => $this->cotizacionId,
+            'created_at' => $ahora,
+        ]));
+
+        $this->temporalRevisionId = (int) DB::table('revision_inventario_temporal')
+            ->where('flujo_id', $this->flujoId)
+            ->where('cotizacion_id', $this->cotizacionId)
+            ->value('id');
+
+        $this->temporalActualizadoAt = $ahora->toDateTimeString();
+        $this->temporalExpiraAt = $ahora->copy()->addHours(24)->toDateTimeString();
+    }
+
+    private function eliminarTemporalRevision(?int $flujoId, ?int $cotizacionId, bool $todosLosUsuarios = false): void
+    {
+        if (!$flujoId || !$cotizacionId) {
+            return;
+        }
+
+        DB::table('revision_inventario_temporal')
+            ->where('flujo_id', $flujoId)
+            ->where('cotizacion_id', $cotizacionId)
+            ->delete();
+
+        $this->temporalRevisionId = null;
+        $this->temporalActualizadoAt = null;
+        $this->temporalExpiraAt = null;
+    }
+
+    /**
+     * Limpiar filtros de la tabla de productos.
+     */
+    public function limpiarFiltrosTabla(): void
+    {
+        $this->filtroProducto = '';
+        $this->filtroBodega   = '';
+        $this->filtroEstado   = '';
+        $this->filtroRevisado = '';
+    }
+
+    public function guardarBodega(int $idx): void
+    {
+        if (!$this->flujoId || !$this->cotizacionId || $this->devuelto || $this->soloVisualizacion) {
+            $this->mensajeError = 'La reasignación de bodega solo está disponible durante una revisión activa.';
+            return;
+        }
+
+        $producto = collect($this->productos)->firstWhere('idx', $idx);
+        $seleccion = trim((string) ($this->bodegaExpoSeleccionada[$idx] ?? ''));
+
+        if (!$producto) {
+            $this->mensajeError = 'Seleccione una bodega válida donde exista el producto.';
+            return;
+        }
+
+        $destinoPermitido = collect($producto['destinos_bodega'] ?? [])->firstWhere('value', $seleccion);
+        if (!$destinoPermitido) {
+            $this->mensajeError = 'La bodega seleccionada no es un destino válido para este producto.';
+            return;
+        }
+
+        [$bodegaDestinoId, $seccionDestinoId] = array_map(
+            'intval',
+            array_pad(explode('|', $seleccion, 2), 2, 0)
+        );
+        $destino = DB::table('recibido_bodega as rb')
+            ->join('seccion as s', 's.id', '=', 'rb.seccion_id')
+            ->join('segmento as sg', 'sg.id', '=', 's.segmento_id')
+            ->join('bodega as b', 'b.id', '=', 'sg.bodega_id')
+            ->where('rb.producto_id', (int) $producto['producto_id'])
+            ->where('rb.seccion_id', $seccionDestinoId)
+            ->where('sg.bodega_id', $bodegaDestinoId)
+            ->where('rb.cantidad_disponible', '>', 0)
+            ->select('b.nombre as bodega_nombre', 's.descripcion as seccion_descripcion')
+            ->selectRaw('SUM(rb.cantidad_disponible) as stock')
+            ->groupBy('b.nombre', 's.descripcion')
+            ->first();
+
+        if (!$destino) {
+            $this->mensajeError = 'La bodega seleccionada ya no tiene existencia disponible para este producto.';
+            return;
+        }
+
+        $stockDestino = $this->calcularStockDestinoNormal(
+            (int) $producto['producto_id'],
+            $seccionDestinoId
+        );
+
+        $destinoTexto = (string) $destinoPermitido['text'];
+        $linea = DB::table('cotizacion_has_producto')
+            ->where('cotizacion_id', $this->cotizacionId)
+            ->where('indice', (int) $producto['indice'])
+            ->first();
+
+        if (!$linea) {
+            $this->mensajeError = 'No se encontró la línea de la oferta para actualizar.';
+            return;
+        }
+
+        if ((int) $linea->bodega_id === $bodegaDestinoId && (int) $linea->seccion_id === $seccionDestinoId) {
+            $this->mensajeError = 'La línea ya está asignada a esa bodega y sección.';
+            return;
+        }
+
+        DB::beginTransaction();
+        try {
+            DB::table('cotizacion_has_producto')
+                ->where('cotizacion_id', $this->cotizacionId)
+                ->where('indice', (int) $producto['indice'])
+                ->update([
+                    'Bodega_id' => $bodegaDestinoId,
+                    'seccion_id' => $seccionDestinoId,
+                    'nombre_bodega' => $destino->bodega_nombre,
+                    'resta_inventario' => 1,
+                    'updated_at' => now(),
+                ]);
+
+            DB::table('historico_cotizacion_producto_sin_existencia')->insert([
+                'id_cotizacion' => $this->cotizacionId,
+                'id_producto' => (int) $linea->producto_id,
+                'indice_linea' => (int) $linea->indice,
+                'nombre_producto' => $linea->nombre_producto,
+                'id_bodega_origen' => (int) $linea->bodega_id,
+                'id_seccion_origen' => (int) $linea->seccion_id,
+                'id_bodega_actualizacion' => $bodegaDestinoId,
+                'id_seccion_actualizacion' => $seccionDestinoId,
+                'nombre_bodega_origen' => $linea->nombre_bodega,
+                'nombre_bodega_destino' => $destino->bodega_nombre,
+                'motivo' => 'Reasignación de bodega desde Revisión de Inventario. Flujo #' . $this->flujoId,
+                'created_by' => Auth::id(),
+                'updated_by' => Auth::id(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            DB::commit();
+            $factorUnidad = max(1.0, (float) ($producto['factor_unidad'] ?? 1));
+            foreach ($this->productos as $key => $productoActual) {
+                if ((int) $productoActual['idx'] !== $idx) {
+                    continue;
+                }
+
+                $this->productos[$key] = array_merge($productoActual, [
+                    'bodega_id' => $bodegaDestinoId,
+                    'seccion_id' => $seccionDestinoId,
+                    'nombre_bodega' => $destino->bodega_nombre,
+                    'bodega_actual_nombre' => $destino->bodega_nombre,
+                    'seccion_actual_descripcion' => $destino->seccion_descripcion,
+                    'resta_inventario' => 1,
+                    'sin_existencia' => false,
+                    'rawStock' => $stockDestino['existencia'] / $factorUnidad,
+                    'reservado' => $stockDestino['reservado'] / $factorUnidad,
+                    'disponible' => $stockDestino['disponible'] / $factorUnidad,
+                    'falta_stock' => $stockDestino['disponible'] < (float) $productoActual['cantidad_inventario_solicitada'],
+                    'reservas_detalle' => $stockDestino['reservas'],
+                ]);
+                break;
+            }
+
+            $this->stockErrors = collect($this->productos)
+                ->filter(fn (array $linea) => !empty($linea['falta_stock']))
+                ->map(fn (array $linea) => [
+                    'idx' => $linea['idx'],
+                    'producto' => $linea['nombre_producto'],
+                    'solicitado' => (int) $linea['cantidad'],
+                    'disponible' => (float) $linea['disponible'],
+                    'disponible_global' => $linea['disponible_global'],
+                    'unidad' => $linea['unidad_medida'],
+                ])
+                ->values()
+                ->all();
+
+            $this->mensajeError = '';
+            $this->mensajeExito = 'Bodega reasignada a ' . $destinoTexto . '. La auditoría fue registrada.';
+            $this->guardarTemporalRevision();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            $this->mensajeError = 'No se pudo reasignar la bodega: ' . $e->getMessage();
+        }
+    }
+
+    private function obtenerDestinosBodegaExpo(array $productoIds, array $bodegaIds): array
+    {
+        if (empty($productoIds) || empty($bodegaIds)) {
+            return [];
+        }
+
+        $rows = DB::table('recibido_bodega as rb')
+            ->join('seccion as s', 's.id', '=', 'rb.seccion_id')
+            ->join('segmento as sg', 'sg.id', '=', 's.segmento_id')
+            ->join('bodega as b', 'b.id', '=', 'sg.bodega_id')
+            ->whereIn('rb.producto_id', $productoIds)
+            ->whereIn('sg.bodega_id', $bodegaIds)
+            ->where('rb.cantidad_disponible', '>', 0)
+            ->select(
+                'rb.producto_id',
+                'sg.bodega_id',
+                's.id as seccion_id',
+                'b.nombre as bodega_nombre',
+                's.descripcion as seccion_descripcion',
+                DB::raw('SUM(rb.cantidad_disponible) as stock')
+            )
+            ->groupBy('rb.producto_id', 'sg.bodega_id', 's.id', 'b.nombre', 's.descripcion')
+            ->orderBy('b.nombre')
+            ->orderBy('s.descripcion')
+            ->get();
+
+        $destinos = [];
+        foreach ($rows as $row) {
+            $destinos[(int) $row->producto_id][] = [
+                'value' => (int) $row->bodega_id . '|' . (int) $row->seccion_id,
+                'bodega_id' => (int) $row->bodega_id,
+                'seccion_id' => (int) $row->seccion_id,
+                'bodega_nombre' => (string) $row->bodega_nombre,
+                'seccion_descripcion' => (string) $row->seccion_descripcion,
+                'stock' => (float) $row->stock,
+                'text' => trim($row->bodega_nombre . ' - ' . $row->seccion_descripcion . ' (Existencia: ' . (int) $row->stock . ')'),
+            ];
+        }
+
+        return $destinos;
+    }
+
+    private function calcularStockDestinoNormal(int $productoId, int $seccionId): array
+    {
+        $existencia = (float) DB::table('recibido_bodega')
+            ->where('producto_id', $productoId)
+            ->where('seccion_id', $seccionId)
+            ->where('cantidad_disponible', '>', 0)
+            ->sum('cantidad_disponible');
+
+        $reservas = DB::table('prefactura_has_producto as php')
+            ->join('prefactura as pf', 'pf.id', '=', 'php.prefactura_id')
+            ->leftJoin('seccion as s', 's.id', '=', 'php.seccion_id')
+            ->leftJoin('segmento as sg', 'sg.id', '=', 's.segmento_id')
+            ->leftJoin('unidad_medida_venta as umv', 'umv.id', '=', 'php.unidad_medida_venta_id')
+            ->leftJoin('unidad_medida as um', 'um.id', '=', 'umv.unidad_medida_id')
+            ->where('pf.estado', 'activo')
+            ->whereRaw("TIMESTAMPADD(DAY, COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7), COALESCE(pf.created_at, CONCAT(COALESCE(pf.fecha_emision, CURDATE()), ' 00:00:00'))) > NOW()")
+            ->where(function ($query) {
+                $query->whereNull('pf.flujo_id')
+                    ->orWhere('pf.flujo_id', '!=', $this->flujoId);
+            })
+            ->where('php.producto_id', $productoId)
+            ->where('php.seccion_id', $seccionId)
+            ->where('php.resta_inventario', 1)
+            ->select(
+                'php.producto_id', 'php.seccion_id', 'pf.id as prefactura_id',
+                'pf.flujo_id', 'pf.nombre_cliente', 'php.cantidad',
+                'pf.fecha_emision', 'sg.bodega_id', 'um.nombre as unidad_medida'
+            )
+            ->selectRaw('(php.cantidad * COALESCE(umv.unidad_venta, 1)) as cantidad_inventario')
+            ->selectRaw("DATE(TIMESTAMPADD(DAY, COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7), COALESCE(pf.created_at, CONCAT(COALESCE(pf.fecha_emision, CURDATE()), ' 00:00:00')))) as fecha_vencimiento_reserva")
+            ->get();
+
+        $cacheReservaCompleta = [];
+        $reservas = $reservas
+            ->filter(fn ($reserva) => $this->prefacturaTieneReservaCompleta(
+                (int) $reserva->prefactura_id,
+                $cacheReservaCompleta
+            ))
+            ->values();
+        $reservado = (float) $reservas->sum('cantidad_inventario');
+
+        return [
+            'existencia' => $existencia,
+            'reservado' => $reservado,
+            'disponible' => max(0.0, $existencia - $reservado),
+            'reservas' => $reservas->map(fn ($reserva) => (array) $reserva)->all(),
+        ];
+    }
+
+    /**
+     * Verifica si todos los productos visibles fueron marcados como revisados.
+     */
+    public function todosProductosRevisados(): bool
+    {
+        if (empty($this->productos)) {
+            return false;
+        }
+
+        foreach ($this->productos as $prod) {
+            $idx = $prod['idx'];
+            if (empty($this->productosRevisados[$idx])) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Indica si existe al menos una línea marcada como sin existencia.
+     */
+    public function tieneProductosSinExistencia(): bool
+    {
+        return collect($this->productos)->contains(function (array $prod) {
+            if (empty($prod['sin_existencia'])) {
+                return false;
+            }
+
+            if ($this->esOfertaExpo) {
+                return true;
+            }
+
+            return !$this->productoTieneBodegaSeleccionadaSuficiente($prod);
+        });
+    }
+
+    public function productoTieneBodegaSeleccionadaSuficiente(array $prod): bool
+    {
+        $seleccion = (string) ($this->bodegaExpoSeleccionada[$prod['idx']] ?? '');
+        $destino = collect($prod['destinos_bodega'] ?? [])->first(
+            fn (array $opcion) => (string) $opcion['value'] === $seleccion
+        );
+
+        return $destino && (float) $destino['stock'] >= (float) $prod['cantidad'];
+    }
+
+    private function sincronizarBodegasNormalesSeleccionadas(): bool
+    {
+        if ($this->esOfertaExpo) {
+            return true;
+        }
+
+        $actualizaciones = [];
+        foreach ($this->productos as $prod) {
+            if (empty($prod['sin_existencia'])) {
+                continue;
+            }
+
+            $seleccion = (string) ($this->bodegaExpoSeleccionada[$prod['idx']] ?? '');
+            $destino = collect($prod['destinos_bodega'] ?? [])->first(
+                fn (array $opcion) => (string) $opcion['value'] === $seleccion
+            );
+
+            if (!$destino || (float) $destino['stock'] < (float) $prod['cantidad']) {
+                $this->mensajeError = 'Seleccione una bodega con existencia suficiente para ' . $prod['nombre_producto'] . '.';
+                return false;
+            }
+
+            [$bodegaId, $seccionId] = array_map('intval', explode('|', $seleccion, 2));
+            $actualizaciones[] = [
+                'linea_id' => (int) $prod['cotizacion_has_producto_id'],
+                'bodega_id' => $bodegaId,
+                'seccion_id' => $seccionId,
+                'bodega_nombre' => $destino['bodega_nombre'],
+            ];
+        }
+
+        foreach ($actualizaciones as $actualizacion) {
+            DB::table('cotizacion_has_producto')
+                ->where('id', $actualizacion['linea_id'])
+                ->where('cotizacion_id', $this->cotizacionId)
+                ->update([
+                    'Bodega_id' => $actualizacion['bodega_id'],
+                    'seccion_id' => $actualizacion['seccion_id'],
+                    'nombre_bodega' => $actualizacion['bodega_nombre'],
+                    'resta_inventario' => 1,
+                    'updated_at' => now(),
+                ]);
+        }
+
+        return true;
+    }
+
+    public function tieneProductosExpoSinBodegaFisica(): bool
+    {
+        if (!$this->esOfertaExpo) {
+            return false;
+        }
+
+        return collect($this->productos)->contains(function (array $prod) {
+            $seleccion = (string) ($this->bodegaExpoSeleccionada[$prod['idx']] ?? '');
+            $destino = collect($prod['destinos_bodega'] ?? [])->first(
+                fn (array $opcion) => (string) $opcion['value'] === $seleccion
+            );
+
+            return !$destino || (float) $destino['stock'] < (float) $prod['cantidad'];
+        });
+    }
+
+    private function sincronizarBodegasExpoSeleccionadas(): bool
+    {
+        if (!$this->esOfertaExpo) {
+            return true;
+        }
+
+        foreach ($this->productos as $prod) {
+            $seleccion = (string) ($this->bodegaExpoSeleccionada[$prod['idx']] ?? '');
+            $destino = collect($prod['destinos_bodega'] ?? [])->first(
+                fn (array $opcion) => (string) $opcion['value'] === $seleccion
+            );
+
+            if (!$destino) {
+                $this->mensajeError = 'Seleccione una bodega física válida para todos los productos Expo.';
+                return false;
+            }
+
+            if ((float) $destino['stock'] < (float) $prod['cantidad']) {
+                $this->mensajeError = 'La bodega seleccionada para ' . $prod['nombre_producto'] . ' no cubre la cantidad solicitada.';
+                return false;
+            }
+
+            [$bodegaId, $seccionId] = array_map('intval', explode('|', $seleccion, 2));
+            if ($bodegaId <= 0 || $seccionId <= 0) {
+                $this->mensajeError = 'La bodega virtual de Expo no puede utilizarse para generar la prefactura.';
+                return false;
+            }
+
+            DB::table('cotizacion_has_producto')
+                ->where('id', (int) $prod['cotizacion_has_producto_id'])
+                ->where('cotizacion_id', $this->cotizacionId)
+                ->update([
+                    'Bodega_id' => $bodegaId,
+                    'seccion_id' => $seccionId,
+                    'nombre_bodega' => $destino['bodega_nombre'],
+                    'updated_at' => now(),
+                ]);
+        }
+
+        return true;
+    }
+
+    /**
+     * Productos visibles según filtros de la tabla.
+     */
+    public function getProductosFiltradosProperty(): array
+    {
+        $textoProducto = trim(mb_strtolower($this->filtroProducto));
+        $textoBodega   = trim(mb_strtolower($this->filtroBodega));
+        $estado        = trim($this->filtroEstado);
+        $revisado      = trim($this->filtroRevisado);
+
+        return collect($this->productos)
+            ->filter(function (array $prod) use ($textoProducto, $textoBodega, $estado, $revisado) {
+                $nombreProducto = mb_strtolower($prod['nombre_producto'] ?? '');
+                $nombreBodega   = mb_strtolower($prod['nombre_bodega'] ?? '');
+                $estaRevisado    = !empty($this->productosRevisados[$prod['idx']] ?? false);
+
+                if ($textoProducto !== '' && mb_strpos($nombreProducto, $textoProducto) === false) {
+                    return false;
+                }
+
+                if ($textoBodega !== '' && mb_strpos($nombreBodega, $textoBodega) === false) {
+                    return false;
+                }
+
+                if ($estado !== '') {
+                    if ($estado === 'sin_existencia' && !($prod['sin_existencia'] ?? false)) {
+                        return false;
+                    }
+
+                    if ($estado === 'sin_stock' && !($prod['falta_stock'] ?? false)) {
+                        return false;
+                    }
+
+                    if ($estado === 'ok' && ($prod['falta_stock'] ?? false)) {
+                        return false;
+                    }
+
+                    if ($estado === 'sin_control' && (($prod['disponible'] !== null) || ($prod['sin_existencia'] ?? false))) {
+                        return false;
+                    }
+                }
+
+                if ($revisado !== '') {
+                    if ($revisado === 'si' && !$estaRevisado) {
+                        return false;
+                    }
+
+                    if ($revisado === 'no' && $estaRevisado) {
+                        return false;
+                    }
+                }
+
+                return true;
+            })
+            ->values()
+            ->toArray();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // ACCIONES
+    // ─────────────────────────────────────────────────────────────────────
+
+    public function confirmarAccion(string $accion): void
+    {
+        $this->confirmAccion    = $accion;
+        $this->motivoDevolucion = '';
+        $this->mensajeError     = '';
+    }
+
+    public function confirmarPrefactura(): void
+    {
+        $this->confirmarAccion('prefactura');
+    }
+
+    public function confirmarDevolucion(): void
+    {
+        $this->confirmarAccion('devolver');
+    }
+
+    public function cancelarAccion(): void
+    {
+        $this->confirmAccion    = null;
+        $this->motivoDevolucion = '';
+        $this->mensajeError     = '';
+    }
+
+    /**
+     * Pasar el flujo de Revisión de Inventario → Prefactura.
+     * Replica la lógica de ModalFlujoPedido::ganadoraOferta() para la creación de prefactura.
+     */
+    public function pasarAPrefactura(): void
+    {
+        if (!$this->flujoId || !$this->cotizacionId) {
+            $this->mensajeError = 'No hay flujo u oferta seleccionada.';
+            return;
+        }
+
+        if (!$this->todosProductosRevisados()) {
+            $this->mensajeError = 'Debe marcar como revisados todos los productos antes de pasar a Prefactura.';
+            return;
+        }
+
+        if (!empty($this->stockErrors)) {
+            $this->mensajeError = 'Hay productos sin stock suficiente. No se puede pasar a Prefactura.';
+            return;
+        }
+
+        if (!$this->sincronizarBodegasNormalesSeleccionadas()
+            || !$this->sincronizarBodegasExpoSeleccionadas()) {
+            return;
+        }
+
+        $cotizacion = DB::table('cotizacion')->where('id', $this->cotizacionId)->first();
+        if (!$cotizacion) {
+            $this->mensajeError = 'Oferta ganadora no encontrada.';
+            return;
+        }
+
+        $productos = DB::table('cotizacion_has_producto')
+            ->where('cotizacion_id', $this->cotizacionId)
+            ->get();
+
+        if ($productos->isEmpty()) {
+            $this->mensajeError = 'La oferta no tiene productos para generar prefactura.';
+            return;
+        }
+
+        $lineasSinExistencia = $productos->filter(function ($prod) {
+            return !((float) ($prod->resta_inventario ?? 0) > 0);
+        });
+
+        if ($lineasSinExistencia->isNotEmpty()) {
+            $this->mensajeError = 'No se puede pasar a Prefactura: la oferta contiene productos marcados como sin existencia.';
+            return;
+        }
+
+        $tramitePrefacturaId = (int) (DB::table('tipos_tramites')
+            ->whereRaw('LOWER(nombre) = ?', ['prefactura'])
+            ->value('id') ?? 0);
+
+        if ($tramitePrefacturaId <= 0) {
+            $this->mensajeError = 'No se encontró el tipo de trámite de Prefactura.';
+            return;
+        }
+
+        $diasValidez = $this->diasVigenciaPrefactura((int) $this->flujoId, (int) $this->cotizacionId);
+        $fechaVencimiento = now()->addDays($diasValidez)->toDateString();
+        if ($this->esOfertaExpo) {
+            $fechaVencimientoAutorizada = DB::table('credito_revision')
+                ->where('flujo_id', $this->flujoId)
+                ->where('cotizacion_id', $this->cotizacionId)
+                ->where('estado', 'aprobado')
+                ->latest('id')
+                ->value('fecha_vencimiento_credito');
+
+            if ($fechaVencimientoAutorizada) {
+                $fechaVencimiento = \Carbon\Carbon::parse($fechaVencimientoAutorizada)->toDateString();
+            }
+        }
+
+        DB::beginTransaction();
+        try {
+            $revisionActiva = DB::table('historico_flujo')
+                ->where('flujo_id', $this->flujoId)
+                ->where('tipo_tramite_id', 9)
+                ->where('tramite_id', $this->cotizacionId)
+                ->where('estado_id', 5)
+                ->lockForUpdate()
+                ->exists();
+            if (!$revisionActiva) {
+                throw new \RuntimeException('La revisión de inventario ya fue procesada por otro usuario.');
+            }
+
+            // Crear prefactura
+            $prefacturaId = DB::table('prefactura')->insertGetId([
+                'cotizacion_id'     => $this->cotizacionId,
+                'flujo_id'          => $this->flujoId,
+                'cliente_id'        => $cotizacion->cliente_id,
+                'nombre_cliente'    => $cotizacion->nombre_cliente,
+                'RTN'               => $cotizacion->RTN,
+                'fecha_emision'     => now()->toDateString(),
+                'fecha_vencimiento' => $fechaVencimiento,
+                'sub_total'         => $cotizacion->sub_total,
+                'sub_total_grabado' => $cotizacion->sub_total_grabado,
+                'sub_total_excento' => $cotizacion->sub_total_excento,
+                'isv'               => $cotizacion->isv,
+                'total'             => $cotizacion->total,
+                'porc_descuento'    => $cotizacion->porc_descuento ?? 0,
+                'monto_descuento'   => $cotizacion->monto_descuento ?? 0,
+                'tipo_venta_id'     => $cotizacion->tipo_venta_id,
+                'vendedor'          => $cotizacion->vendedor,
+                'nota'              => $cotizacion->nota,
+                'arregloIdInputs'   => $cotizacion->arregloIdInputs,
+                'numeroInputs'      => $cotizacion->numeroInputs,
+                'estado'            => 'activo',
+                'users_id'          => Auth::id(),
+                'created_at'        => now(),
+                'updated_at'        => now(),
+            ]);
+
+            // Insertar productos de la prefactura
+            $prefProds = [];
+            foreach ($productos as $prod) {
+                $prefProds[] = [
+                    'prefactura_id'            => $prefacturaId,
+                    'cotizacion_has_producto_id' => $prod->id,
+                    'producto_id'              => $prod->producto_id,
+                    'indice'                   => $prod->indice,
+                    'nombre_producto'          => $prod->nombre_producto,
+                    'nombre_bodega'            => $prod->nombre_bodega,
+                    'precio_unidad'            => $prod->precio_unidad,
+                    'cantidad'                 => $prod->cantidad,
+                    'sub_total'                => $prod->sub_total,
+                    'isv'                      => $prod->isv,
+                    'total'                    => $prod->total,
+                    'isv_producto'             => $prod->isv_producto,
+                    'Bodega_id'                => $prod->bodega_id,
+                    'seccion_id'               => $prod->seccion_id,
+                    'unidad_medida_venta_id'   => $prod->unidad_medida_venta_id,
+                    'monto_descProducto'       => $prod->monto_descProducto ?? 0,
+                    'idPrecioSeleccionado'      => $prod->idPrecioSeleccionado ?? null,
+                    'precioSeleccionado'        => $prod->precioSeleccionado ?? null,
+                    'precios_producto_carga_id' => $prod->precios_producto_carga_id ?? null,
+                    // Normaliza a bandera 0/1 para evitar desbordes en tinyint.
+                    'resta_inventario'          => ((float) ($prod->resta_inventario ?? 0) > 0) ? 1 : 0,
+                    'created_at'               => now(),
+                    'updated_at'               => now(),
+                ];
+            }
+            if (!empty($prefProds)) {
+                DB::table('prefactura_has_producto')->insert($prefProds);
+            }
+
+            // Cerrar el paso de Revision de Inventario en historico_flujo
+            DB::table('historico_flujo')
+                ->where('flujo_id', $this->flujoId)
+                ->where('tipo_tramite_id', 9)
+                ->when($this->esOfertaExpo, fn ($query) => $query->where('tramite_id', $this->cotizacionId))
+                ->where('estado_id', '!=', 7)
+                ->update([
+                    'estado_id'     => 1,
+                    'observaciones' => 'Revisión aprobada. Prefactura #' . $prefacturaId . ' creada.',
+                    'updated_by'    => Auth::id(),
+                    'updated_at'    => now(),
+                ]);
+
+            // Registrar en historico_flujo el paso de prefactura
+            DB::table('historico_flujo')->insert([
+                'flujo_id'        => $this->flujoId,
+                'tipo_tramite_id' => $tramitePrefacturaId,
+                'tramite_id'      => $prefacturaId,
+                'estado_id'       => 1,
+                'observaciones'   => 'Prefactura #' . $prefacturaId . ' creada desde Revisión de Inventario.',
+                'created_by'      => Auth::id(),
+                'updated_by'      => Auth::id(),
+                'created_at'      => now(),
+                'updated_at'      => now(),
+            ]);
+
+            $seccionExpo = DB::table('expo_oferta_seccion')
+                ->where('cotizacion_id', $this->cotizacionId)
+                ->lockForUpdate()
+                ->first();
+            $etapaResumen = $tramitePrefacturaId;
+
+            if ($seccionExpo) {
+                DB::table('expo_oferta_seccion')->where('id', $seccionExpo->id)->update([
+                    'estado' => 'PREFACTURADA',
+                    'prefactura_id' => $prefacturaId,
+                    'updated_by' => Auth::id(),
+                    'updated_at' => now(),
+                ]);
+
+                $saldoPendiente = app(SeccionadorOfertaExpo::class)
+                    ->pendientes((int) $seccionExpo->cotizacion_origen_id)
+                    ->sum('cantidad_pendiente');
+                if (!(bool) $seccionExpo->finaliza_seccionado && $saldoPendiente > 0) {
+                    $etapaResumen = 11;
+                } elseif (DB::table('expo_oferta_seccion')->where('flujo_id', $this->flujoId)->where('estado', 'EN_REVISION_CREDITO')->exists()) {
+                    $etapaResumen = 10;
+                } elseif (DB::table('expo_oferta_seccion')->where('flujo_id', $this->flujoId)->where('estado', 'EN_REVISION_INVENTARIO')->exists()) {
+                    $etapaResumen = 9;
+                }
+            }
+
+            // El flujo conserva una etapa resumen; cada sección mantiene su estado independiente.
+            DB::table('flujo')->where('id', $this->flujoId)->update([
+                'tipo_tramite_id' => $etapaResumen,
+                'updated_by'      => Auth::id(),
+                'updated_at'      => now(),
+            ]);
+
+            $this->eliminarTemporalRevision($this->flujoId, $this->cotizacionId, true);
+
+            DB::commit();
+
+            $flujoIdCerrado = $this->flujoId;
+
+            // Notificar a facturadores que hay una prefactura nueva
+            try {
+                $flujoCtx = DB::table('flujo')
+                    ->where('id', $flujoIdCerrado)
+                    ->select('nombre as cliente')
+                    ->first();
+                event(new FlujoAvanzadoEvent(
+                    $flujoIdCerrado,
+                    4,
+                    ['cliente' => $flujoCtx?->cliente ?? $cotizacion->nombre_cliente ?? 'N/A', 'monto' => $cotizacion->total ?? null, 'referencia' => 'Prefactura #' . $prefacturaId]
+                ));
+            } catch (\Throwable $notifEx) {
+                \Log::error('NotificacionFlujo dispatch failed (RevicionInventario tipo=4)', [
+                    'flujo_id' => $flujoIdCerrado,
+                    'error'    => $notifEx->getMessage(),
+                ]);
+            }
+
+            $this->cerrarDetalle();
+            $this->cargar();
+            $this->mensajeExito = 'Flujo #' . $flujoIdCerrado . ': Prefactura #' . $prefacturaId . ' generada. Válida por ' . $diasValidez . ' día(s).'
+                . ($etapaResumen === 11 ? ' La oferta Expo conserva productos pendientes por seccionar.' : '');
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            $this->mensajeError = 'Error al crear la prefactura: ' . $e->getMessage();
+        }
+    }
+
+    /**
+     * Devolver el flujo desde Revisión de Inventario → Ofertas.
+     * Requiere observaciones obligatorias.
+     * Registra las notas de reemplazo de productos si existen.
+     */
+    public function devolverAOferta(): void
+    {
+        if (!$this->flujoId) return;
+
+        if (!$this->todosProductosRevisados()) {
+            $this->mensajeError = 'Debe marcar como revisados todos los productos antes de devolver a Oferta.';
+            return;
+        }
+
+        $motivo = trim($this->motivoDevolucion);
+        if ($motivo === '') {
+            $this->mensajeError = 'Debe indicar el motivo para devolver a Oferta.';
+            return;
+        }
+
+        // Consolidar observaciones de productos con notas
+        $obsProds = '';
+        foreach ($this->obsProducto as $idx => $obs) {
+            $obs = trim($obs);
+            if ($obs !== '' && isset($this->productos[$idx])) {
+                $nombreProd = $this->productos[$idx]['nombre_producto'] ?? "Producto {$idx}";
+                $obsProds .= " | [{$nombreProd}]: {$obs}";
+            }
+        }
+
+        $obsCompleta = $motivo . ($obsProds !== '' ? $obsProds : '');
+
+        DB::beginTransaction();
+        try {
+            $revisionActiva = DB::table('historico_flujo')
+                ->where('flujo_id', $this->flujoId)
+                ->where('tipo_tramite_id', 9)
+                ->where('tramite_id', $this->cotizacionId)
+                ->where('estado_id', 5)
+                ->lockForUpdate()
+                ->exists();
+            if (!$revisionActiva) {
+                throw new \RuntimeException('La revisión de inventario ya fue procesada por otro usuario.');
+            }
+
+            $seccionExpo = $this->cotizacionId
+                ? DB::table('expo_oferta_seccion')->where('cotizacion_id', $this->cotizacionId)->lockForUpdate()->first()
+                : null;
+
+            // Cerrar el registro de Revision de Inventario como "devuelto"
+            DB::table('historico_flujo')
+                ->where('flujo_id', $this->flujoId)
+                ->where('tipo_tramite_id', 9)
+                ->when($this->esOfertaExpo, fn ($query) => $query->where('tramite_id', $this->cotizacionId))
+                ->where('estado_id', '!=', 7)
+                ->update([
+                    'estado_id'     => 7,  // inactivado / devuelto
+                    'observaciones' => 'Devuelto a Oferta: ' . $obsCompleta,
+                    'updated_by'    => Auth::id(),
+                    'updated_at'    => now(),
+                ]);
+
+            // Quitar la marca de ganadora de la oferta revisada.
+            DB::table('historico_flujo')
+                ->where('flujo_id', $this->flujoId)
+                ->where('tipo_tramite_id', 2)
+                ->when($this->esOfertaExpo, fn ($query) => $query->where('tramite_id', $this->cotizacionId))
+                ->where('observaciones', 'ganadora')
+                ->update([
+                    'observaciones' => 'Devuelta desde Revisión: ' . $motivo,
+                    'updated_by'    => Auth::id(),
+                    'updated_at'    => now(),
+                ]);
+
+            if ($seccionExpo) {
+                DB::table('expo_oferta_seccion')->where('id', $seccionExpo->id)->update([
+                    'estado' => 'DEVUELTA_INVENTARIO',
+                    'updated_by' => Auth::id(),
+                    'updated_at' => now(),
+                ]);
+
+                DB::table('historico_flujo')->insert([
+                    'flujo_id' => $this->flujoId,
+                    'tipo_tramite_id' => 11,
+                    'tramite_id' => $seccionExpo->cotizacion_origen_id,
+                    'estado_id' => 5,
+                    'observaciones' => 'Sección devuelta por Inventario: ' . $obsCompleta,
+                    'created_by' => Auth::id(),
+                    'updated_by' => Auth::id(),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+
+            // Auditoría en cotizacion_estado
+            if ($this->cotizacionId) {
+                DB::table('cotizacion_estado')->insert([
+                    'cotizacion_id' => $this->cotizacionId,
+                    'flujo_id'      => $this->flujoId,
+                    'ganadora'      => 4,  // 4 = devuelta desde revisión
+                    'comentario'    => 'Devuelta a Oferta desde Revisión de Inventario: ' . $obsCompleta,
+                    'estado_id'     => 1,
+                    'created_by'    => Auth::id(),
+                    'updated_by'    => Auth::id(),
+                    'created_at'    => now(),
+                    'updated_at'    => now(),
+                ]);
+            }
+
+            // Las secciones Expo vuelven al paso 11; las ofertas normales vuelven a Ofertas.
+            DB::table('flujo')->where('id', $this->flujoId)->update([
+                'tipo_tramite_id' => $seccionExpo ? 11 : 2,
+                'updated_by'      => Auth::id(),
+                'updated_at'      => now(),
+            ]);
+
+            $this->eliminarTemporalRevision($this->flujoId, $this->cotizacionId, true);
+
+            DB::commit();
+
+            $this->devuelto                 = true;
+            $this->motivoDevolucionGuardado  = $motivo;
+            $this->confirmAccion    = null;
+            $this->motivoDevolucion = '';
+            $this->mensajeError     = '';
+            $this->cargar();
+            $this->mensajeExito = 'Flujo #' . $this->flujoId
+                . ($seccionExpo ? ' devuelto a Secciones de Ofertas.' : ' devuelto a Oferta correctamente.')
+                . ' Se registraron las observaciones.';
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            $this->mensajeError = 'Error al devolver a Oferta: ' . $e->getMessage();
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // MODAL RESERVAS
+    // ─────────────────────────────────────────────────────────────────────
+
+    /**
+     * Abre el modal mostrando qué prefacturas/flujos tienen reservado
+     * el producto indicado en la sección especificada.
+     */
+    public function verReservas(int $productoId, int $seccionId, string $nombreProducto): void
+    {
+        $this->modalReservaNombre = $nombreProducto;
+
+        $this->modalReservasData = DB::table('prefactura_has_producto as php')
+            ->join('prefactura as pf', 'pf.id', '=', 'php.prefactura_id')
+            ->leftJoin('flujo as f', 'f.id', '=', 'pf.flujo_id')
+            ->where('pf.estado', 'activo')
+            ->whereRaw("TIMESTAMPADD(DAY, COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7), COALESCE(pf.created_at, CONCAT(COALESCE(pf.fecha_emision, CURDATE()), ' 00:00:00'))) > NOW()")
+            ->where('php.producto_id', $productoId)
+            ->where('php.seccion_id', $seccionId)
+            ->where('php.resta_inventario', 1)
+            ->select(
+                'pf.id as prefactura_id',
+                'pf.flujo_id',
+                'pf.nombre_cliente',
+                'php.cantidad',
+                'pf.fecha_emision'
+            )
+            ->selectRaw("DATE(TIMESTAMPADD(DAY, COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7), COALESCE(pf.created_at, CONCAT(COALESCE(pf.fecha_emision, CURDATE()), ' 00:00:00')))) as fecha_vencimiento_reserva")
+            ->get()
+            ->filter(function ($r) {
+                static $cache = [];
+                return $this->prefacturaTieneReservaCompleta((int) $r->prefactura_id, $cache);
+            })
+            ->map(fn($r) => (array) $r)
+            ->toArray();
+
+        $this->modalReservasVisible = true;
+    }
+
+    /**
+     * Abre el modal con los productos marcados como sin existencia para reasignarlos.
+     */
+    public function abrirEdicionProductosSinExistencia(): void
+    {
+        if (!$this->flujoId || !$this->cotizacionId) {
+            $this->mensajeError = 'No hay un flujo u oferta seleccionada.';
+            return;
+        }
+
+        $sinExistencia = collect($this->productos)
+            ->filter(fn (array $prod) => (bool) ($prod['sin_existencia'] ?? false))
+            ->values();
+
+        if ($sinExistencia->isEmpty()) {
+            $this->mensajeError = 'No hay productos marcados como sin existencia para editar.';
+            return;
+        }
+
+        $productoIds = $sinExistencia->pluck('producto_id')->filter()->unique()->values()->all();
+        $destinosPorProducto = $this->obtenerDestinosDisponiblesPorProducto($productoIds);
+
+        $this->productosSinExistenciaModal = $sinExistencia->map(function (array $prod) use ($destinosPorProducto) {
+            $destinos = $destinosPorProducto[$prod['producto_id']] ?? [];
+
+            return [
+                'idx' => $prod['idx'],
+                'producto_id' => $prod['producto_id'],
+                'nombre_producto' => $prod['nombre_producto'],
+                'cantidad' => $prod['cantidad'],
+                'bodega_actual_id' => $prod['bodega_id'] ?? null,
+                'bodega_actual_nombre' => $prod['bodega_actual_nombre'] ?? ($prod['nombre_bodega'] ?? 'SIN EXISTENCIA'),
+                'seccion_actual_id' => $prod['seccion_id'] ?? null,
+                'seccion_actual_descripcion' => $prod['seccion_actual_descripcion'] ?? null,
+                'destino_seleccionado' => '',
+                'destinos' => $destinos,
+            ];
+        })->toArray();
+
+        $this->motivoEdicionSinExistencia = '';
+        $this->modalSinExistenciaVisible = true;
+        $this->dispatch('modal-sin-existencia-show');
+    }
+
+    /**
+     * Guarda las reasignaciones de los productos sin existencia.
+     */
+    public function guardarEdicionProductosSinExistencia(): void
+    {
+        if (!$this->flujoId || !$this->cotizacionId) {
+            $this->mensajeError = 'No hay un flujo u oferta seleccionada.';
+            return;
+        }
+
+        if (empty($this->productosSinExistenciaModal)) {
+            $this->mensajeError = 'No hay productos para actualizar.';
+            return;
+        }
+
+        $motivo = trim($this->motivoEdicionSinExistencia);
+        $actualizados = 0;
+
+        DB::beginTransaction();
+        try {
+            foreach ($this->productosSinExistenciaModal as $linea) {
+                $seleccion = trim((string) ($linea['destino_seleccionado'] ?? ''));
+                if ($seleccion === '') {
+                    continue;
+                }
+
+                [$bodegaDestinoId, $seccionDestinoId] = array_pad(explode('|', $seleccion, 2), 2, null);
+                $bodegaDestinoId = (int) $bodegaDestinoId;
+                $seccionDestinoId = (int) $seccionDestinoId;
+
+                if ($bodegaDestinoId <= 0 || $seccionDestinoId <= 0) {
+                    continue;
+                }
+
+                $opcionDestino = collect($linea['destinos'] ?? [])->firstWhere('value', $seleccion);
+                if (!$opcionDestino) {
+                    continue;
+                }
+
+                $nombreBodegaDestino = (string) ($opcionDestino['bodega_nombre'] ?? '');
+
+                $afectados = DB::table('cotizacion_has_producto')
+                    ->where('cotizacion_id', $this->cotizacionId)
+                    ->where('producto_id', (int) $linea['producto_id'])
+                    ->where('indice', (int) $linea['idx'])
+                    ->update([
+                        'Bodega_id' => $bodegaDestinoId,
+                        'seccion_id' => $seccionDestinoId,
+                        'nombre_bodega' => $nombreBodegaDestino,
+                        'resta_inventario' => 1,
+                        'updated_at' => now(),
+                    ]);
+
+                if ($afectados > 0) {
+                    DB::table('historico_cotizacion_producto_sin_existencia')->insert([
+                        'id_cotizacion' => $this->cotizacionId,
+                        'id_producto' => (int) $linea['producto_id'],
+                        'indice_linea' => (int) $linea['idx'],
+                        'nombre_producto' => $linea['nombre_producto'],
+                        'id_bodega_origen' => (int) ($linea['bodega_actual_id'] ?? 0) ?: null,
+                        'id_seccion_origen' => (int) ($linea['seccion_actual_id'] ?? 0) ?: null,
+                        'id_bodega_actualizacion' => $bodegaDestinoId,
+                        'id_seccion_actualizacion' => $seccionDestinoId,
+                        'nombre_bodega_origen' => $linea['bodega_actual_nombre'] ?? 'SIN EXISTENCIA',
+                        'nombre_bodega_destino' => $nombreBodegaDestino,
+                        'motivo' => $motivo !== '' ? $motivo : 'Reasignación de producto sin existencia',
+                        'created_by' => Auth::id(),
+                        'updated_by' => Auth::id(),
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                    $actualizados++;
+                }
+            }
+
+            if ($actualizados === 0) {
+                DB::rollBack();
+                $this->mensajeError = 'Seleccione al menos un destino válido para actualizar.';
+                return;
+            }
+
+            DB::commit();
+
+            $this->modalSinExistenciaVisible = false;
+            $this->productosSinExistenciaModal = [];
+            $this->motivoEdicionSinExistencia = '';
+            $this->dispatch('modal-sin-existencia-hide');
+
+            $this->seleccionarFlujo($this->flujoId, $this->soloVisualizacion);
+            $this->mensajeExito = 'Se actualizaron ' . $actualizados . ' producto(s) sin existencia.';
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            $this->mensajeError = 'No se pudo actualizar la relación de productos sin existencia: ' . $e->getMessage();
+        }
+    }
+
+    /**
+     * Obtiene destinos con stock disponible por producto.
+     *
+     * @param array<int> $productoIds
+     * @return array<int, array<int, array<string, mixed>>>
+     */
+    private function obtenerDestinosDisponiblesPorProducto(array $productoIds): array
+    {
+        if (empty($productoIds)) {
+            return [];
+        }
+
+        $rows = DB::table('recibido_bodega as rb')
+            ->join('seccion as s', 's.id', '=', 'rb.seccion_id')
+            ->join('segmento as sg', 'sg.id', '=', 's.segmento_id')
+            ->join('bodega as b', 'b.id', '=', 'sg.bodega_id')
+            ->whereIn('rb.producto_id', $productoIds)
+            ->where('rb.cantidad_disponible', '>', 0)
+            ->select(
+                'rb.producto_id',
+                'sg.bodega_id',
+                's.id as seccion_id',
+                'b.nombre as bodega_nombre',
+                's.descripcion as seccion_descripcion',
+                DB::raw('SUM(rb.cantidad_disponible) as stock')
+            )
+            ->groupBy('rb.producto_id', 'sg.bodega_id', 's.id', 'b.nombre', 's.descripcion')
+            ->orderBy('b.nombre')
+            ->orderBy('s.descripcion')
+            ->get();
+
+        $destinos = [];
+        foreach ($rows as $row) {
+            $destinos[(int) $row->producto_id][] = [
+                'value' => (int) $row->bodega_id . '|' . (int) $row->seccion_id,
+                'bodega_id' => (int) $row->bodega_id,
+                'seccion_id' => (int) $row->seccion_id,
+                'bodega_nombre' => (string) $row->bodega_nombre,
+                'seccion_descripcion' => (string) $row->seccion_descripcion,
+                'stock' => (float) $row->stock,
+                'text' => trim((string) $row->bodega_nombre . ' - ' . (string) $row->seccion_descripcion . ' (Stock: ' . (int) $row->stock . ')'),
+            ];
+        }
+
+        return $destinos;
+    }
+
+    public function cerrarModalReservas(): void
+    {
+        $this->modalReservasVisible = false;
+        $this->modalReservasData    = [];
+        $this->modalReservaNombre   = '';
+    }
+
+    private function prefacturaTieneReservaCompleta(int $prefacturaId, array &$cache): bool
+    {
+        if (array_key_exists($prefacturaId, $cache)) {
+            return (bool) $cache[$prefacturaId];
+        }
+
+        $lineas = DB::table('prefactura_has_producto as php')
+            ->leftJoin('unidad_medida_venta as umv', 'umv.id', '=', 'php.unidad_medida_venta_id')
+            ->where('php.prefactura_id', $prefacturaId)
+            ->where('php.resta_inventario', 1)
+            ->whereNotNull('php.producto_id')
+            ->whereNotNull('php.seccion_id')
+            ->get([
+                'php.producto_id',
+                'php.seccion_id',
+                DB::raw('(php.cantidad * COALESCE(umv.unidad_venta, 1)) as cantidad_inventario'),
+            ]);
+
+        foreach ($lineas as $linea) {
+            $rawStock = (float) DB::table('recibido_bodega')
+                ->where('producto_id', $linea->producto_id)
+                ->where('seccion_id', $linea->seccion_id)
+                ->where('cantidad_disponible', '>', 0)
+                ->sum('cantidad_disponible');
+
+            if ($rawStock + 0.0001 < (float) $linea->cantidad_inventario) {
+                $cache[$prefacturaId] = false;
+                return false;
+            }
+        }
+
+        $cache[$prefacturaId] = true;
+        return true;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // RENDER
+    // ─────────────────────────────────────────────────────────────────────
+
+    public function render()
+    {
+        return view('livewire.flujo.revicioninventario', [
+            'flujoData' => $this->flujoData,
+        ]);
+    }
+}

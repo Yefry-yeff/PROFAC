@@ -379,7 +379,7 @@ function initGerenciaCharts() {
 }
 (function() {
     function run() { if (typeof ApexCharts !== 'undefined') initGerenciaCharts(); }
-    if (window.DASH_LOADED) { run(); } else { document.addEventListener('livewire:load', run); }
+    if (window.DASH_LOADED) { run(); } else { document.addEventListener('livewire:init', run); }
     if (!window._gerenciaBound) { window._gerenciaBound = true; document.addEventListener('livewire:update', run); }
 })();
 </script>

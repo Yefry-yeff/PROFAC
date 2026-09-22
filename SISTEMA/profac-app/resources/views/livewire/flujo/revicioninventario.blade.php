@@ -200,8 +200,7 @@
                         @endif
 
                         {{-- Tabla de productos --}}
-                        <div {{ (!$devuelto && !$soloVisualizacion) ? 'wire:poll.2s=sincronizarRevision' : '' }}
-                             style="border-radius:12px; overflow:hidden; border:1px solid #e8eaf0; margin-bottom:20px;">
+                        <div style="border-radius:12px; overflow:hidden; border:1px solid #e8eaf0; margin-bottom:20px;">
                             <div style="background:linear-gradient(135deg,#546e7a,#37474f); padding:10px 16px;">
                                 <div class="d-flex flex-wrap justify-content-between align-items-center" style="gap:10px;">
                                     <span style="color:#fff; font-size:13px; font-weight:700;">
@@ -225,7 +224,7 @@
                                     <div class="col-md-4">
                                         <label class="mb-1" style="font-size:12px; font-weight:700; color:#334155;">Producto</label>
                                         <input type="text"
-                                               wire:model.debounce.350ms="filtroProducto"
+                                               wire:model.live.debounce.350ms="filtroProducto"
                                                class="form-control form-control-sm"
                                                placeholder="Buscar por nombre..."
                                                style="border-radius:8px;">
@@ -233,14 +232,14 @@
                                     <div class="col-md-3">
                                         <label class="mb-1" style="font-size:12px; font-weight:700; color:#334155;">Bodega</label>
                                         <input type="text"
-                                               wire:model.debounce.350ms="filtroBodega"
+                                               wire:model.live.debounce.350ms="filtroBodega"
                                                class="form-control form-control-sm"
                                                placeholder="Buscar por bodega..."
                                                style="border-radius:8px;">
                                     </div>
                                     <div class="col-md-2">
                                         <label class="mb-1" style="font-size:12px; font-weight:700; color:#334155;">Estado</label>
-                                        <select wire:model="filtroEstado" class="form-control form-control-sm" style="border-radius:8px;">
+                                        <select wire:model.live="filtroEstado" class="form-control form-control-sm" style="border-radius:8px;">
                                             <option value="">Todos</option>
                                             <option value="ok">OK</option>
                                             <option value="sin_existencia">Sin existencia</option>
@@ -250,7 +249,7 @@
                                     </div>
                                     <div class="col-md-3">
                                         <label class="mb-1" style="font-size:12px; font-weight:700; color:#334155;">Revisado</label>
-                                        <select wire:model="filtroRevisado" class="form-control form-control-sm" style="border-radius:8px;">
+                                        <select wire:model.live="filtroRevisado" class="form-control form-control-sm" style="border-radius:8px;">
                                             <option value="">Todos</option>
                                             <option value="si">Marcados</option>
                                             <option value="no">Pendientes</option>
@@ -312,7 +311,7 @@
                                                 <td style="padding:8px 14px; color:#607d8b; font-size:12px; width:420px; min-width:420px;">
                                                     @if(!$devuelto && !$soloVisualizacion)
                                                     <div class="input-group input-group-sm" style="width:100%;">
-                                                                <select wire:model="bodegaExpoSeleccionada.{{ $prod['idx'] }}"
+                                                                <select wire:model.live="bodegaExpoSeleccionada.{{ $prod['idx'] }}"
                                                                     wire:change="guardarBodega({{ $prod['idx'] }})"
                                                                     wire:loading.attr="disabled"
                                                                     wire:target="guardarBodega({{ $prod['idx'] }})"
@@ -398,7 +397,7 @@
                                                                class="custom-control-input"
                                                                id="rev_{{ $prod['idx'] }}"
                                                                data-revision-linea="{{ $prod['cotizacion_has_producto_id'] }}"
-                                                               wire:model="productosRevisados.{{ $prod['idx'] }}"
+                                                               wire:model.live="productosRevisados.{{ $prod['idx'] }}"
                                                                {{ ($devuelto || $soloVisualizacion) ? 'disabled' : '' }}>
                                                         <label class="custom-control-label" for="rev_{{ $prod['idx'] }}"></label>
                                                     </div>
@@ -445,7 +444,7 @@
                                                 </td>
                                                 <td style="padding:6px 14px;">
                                                     <input type="text"
-                                                           wire:model.lazy="obsProducto.{{ $prod['idx'] }}"
+                                                           wire:model.live.blur="obsProducto.{{ $prod['idx'] }}"
                                                            placeholder="{{ $prod['falta_stock'] ? 'Ej: reemplazar con Producto X...' : 'Observación opcional...' }}"
                                                            class="form-control form-control-sm"
                                                            {{ ($devuelto || $soloVisualizacion) ? 'readonly' : '' }}
@@ -608,7 +607,7 @@
                                 <i class="mr-1 fa fa-exclamation-triangle"></i>{{ $mensajeError }}
                             </div>
                             @endif
-                            <textarea wire:model.defer="motivoDevolucion"
+                            <textarea wire:model.live="motivoDevolucion"
                                       rows="3"
                                       placeholder="Motivo de devolución a Oferta (obligatorio)…"
                                       class="form-control"
@@ -667,7 +666,7 @@
                                             <i class="fa fa-search"></i>
                                         </span>
                                     </div>
-                                    <input type="text" wire:model.debounce.400ms="busqueda"
+                                    <input type="text" wire:model.live.debounce.400ms="busqueda"
                                            class="form-control form-control-sm"
                                            placeholder="Buscar flujo o cliente..."
                                            style="background:rgba(255,255,255,.15); border:none; color:#fff;
@@ -1198,6 +1197,66 @@
         }
         </script>
     </div>
+
+    {{-- ══════════════════════════════════════════════════════════════════ --}}
+    {{-- Sincronización en tiempo real (Reverb) de la revisión de inventario --}}
+    {{-- ══════════════════════════════════════════════════════════════════ --}}
+    <script>
+    (function () {
+        var canalActual = null;
+
+        function aplicarRevisionEnDom(evento) {
+            var checkbox = document.querySelector('input[data-revision-linea="' + evento.linea_id + '"]');
+            if (checkbox) { checkbox.checked = !!evento.revisado; }
+            var celda = document.querySelector('[data-revisado-por="' + evento.linea_id + '"]');
+            if (celda) { celda.textContent = evento.usuario_nombre || '—'; }
+        }
+
+        function suscribirRevisionInventario(component, flujoId, cotizacionId) {
+            if (!window.Echo) return;
+
+            if (!flujoId || !cotizacionId) {
+                if (canalActual) {
+                    window.Echo.leave(canalActual);
+                    canalActual = null;
+                }
+                return;
+            }
+
+            var canal = 'revision-inventario.' + flujoId + '.' + cotizacionId;
+            if (canalActual === canal) return;
+            if (canalActual) {
+                window.Echo.leave(canalActual);
+            }
+            canalActual = canal;
+
+            window.Echo.private(canal).listen('.revision.actualizada', function (evento) {
+                aplicarRevisionEnDom(evento);
+                component.call(
+                    'aplicarRevisionRemota',
+                    Number(evento.linea_id),
+                    !!evento.revisado,
+                    evento.observacion || null,
+                    evento.usuario_nombre || null
+                );
+            });
+        }
+
+        if (window.Livewire) {
+            Livewire.hook('message.processed', function (message, component) {
+                try {
+                    if (typeof component.get !== 'function') return;
+                    var flujoId = component.get('flujoId');
+                    var cotizacionId = component.get('cotizacionId');
+                    if (flujoId === undefined || cotizacionId === undefined) return;
+                    suscribirRevisionInventario(component, flujoId, cotizacionId);
+                } catch (e) {
+                    // No es el componente de Revisión de Inventario.
+                }
+            });
+        }
+    })();
+    </script>
 
 </div>
 

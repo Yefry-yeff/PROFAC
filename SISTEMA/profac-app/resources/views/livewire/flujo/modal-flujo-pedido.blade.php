@@ -933,7 +933,7 @@
                         {{ $mensajeError }}
                     </div>
                     @endif
-                    <textarea wire:model.defer="motivoAnulacion" rows="2"
+                    <textarea wire:model.live="motivoAnulacion" rows="2"
                               placeholder="Motivo de anulación (obligatorio)…"
                               style="width:100%; border:1px solid #ddd; border-radius:8px;
                                      padding:6px 10px; font-size:12px; resize:none;"></textarea>
@@ -1299,7 +1299,7 @@
                             <label style="display:block; font-size:11px; font-weight:700; color:#616161; margin-bottom:4px;">
                                 Comentario para Créditos (opcional)
                             </label>
-                            <textarea wire:model.defer="comentarioCreditoGanadora"
+                            <textarea wire:model.live="comentarioCreditoGanadora"
                                       x-ref="comentarioGanadoraTA"
                                       rows="2"
                                       placeholder="Escribe una observación para el área de créditos..."
@@ -1344,7 +1344,7 @@
                             {{ $mensajeError }}
                         </div>
                         @endif
-                        <textarea wire:model.defer="motivoAnulOferta" rows="2"
+                        <textarea wire:model.live="motivoAnulOferta" rows="2"
                                   x-ref="quitarGanTA"
                                   placeholder="Motivo (obligatorio)…"
                                   style="width:100%; border:1px solid #ddd; border-radius:8px;
@@ -1381,7 +1381,7 @@
                             {{ $mensajeError }}
                         </div>
                         @endif
-                        <textarea wire:model.defer="motivoAnulOferta" rows="2"
+                        <textarea wire:model.live="motivoAnulOferta" rows="2"
                                   x-ref="anulOfertaTA"
                                   placeholder="Motivo de anulación (obligatorio)…"
                                   style="width:100%; border:1px solid #ddd; border-radius:8px;
@@ -1522,7 +1522,7 @@
                             </p>
                             <div style="position:relative;">
                                 <input type="text"
-                                       wire:model.debounce.350ms="busquedaClienteDuplicar"
+                                       wire:model.live.debounce.350ms="busquedaClienteDuplicar"
                                        placeholder="Buscar cliente por nombre o código…"
                                        style="width:100%; padding:7px 10px; border:1px solid #ccc;
                                               border-radius:6px; font-size:12px; box-sizing:border-box;"
@@ -2379,14 +2379,14 @@
                                 <label style="font-size:11px; font-weight:700; margin-bottom:4px;">Código de autorización</label>
                                 {{-- onkeydown stopPropagation: evita que Bootstrap modal capture el teclado --}}
                                 <input type="password" class="form-control form-control-sm"
-                                       wire:model.defer="codigoAutorizacion"
+                                       wire:model.live="codigoAutorizacion"
                                        onkeydown="event.stopPropagation()"
                                        placeholder="Ingrese el código">
                             </div>
                             <div class="col-12 col-md-8">
                                 <label style="font-size:11px; font-weight:700; margin-bottom:4px;">Motivo / comentario <span style="color:#c0392b;">*</span></label>
                                 <input type="text" class="form-control form-control-sm"
-                                       wire:model.defer="motivoAutorizacion"
+                                       wire:model.live="motivoAutorizacion"
                                        onkeydown="event.stopPropagation()"
                                        placeholder="Motivo requerido">
                             </div>
@@ -2539,7 +2539,7 @@
                     @if ($confirmAccionFactura === 'anular' && $facturaSeleccionadaId === (int)$fac['id'])
                     <div style="background:#fff3e0; border:1px solid #ffcc80; border-radius:8px; padding:12px; margin-top:10px;">
                         <label style="font-size:12px; font-weight:700; color:#e65100;">Motivo de anulación de la factura #{{ $fac['id'] }}</label>
-                        <textarea class="form-control form-control-sm" wire:model.defer="motivoAnulacionFactura" rows="2" maxlength="500"></textarea>
+                        <textarea class="form-control form-control-sm" wire:model.live="motivoAnulacionFactura" rows="2" maxlength="500"></textarea>
                         @if($mensajeError)<div class="text-danger mt-1" style="font-size:12px;">{{ $mensajeError }}</div>@endif
                         <div style="display:flex; gap:8px; margin-top:8px;">
                             <button type="button" wire:click="anularFactura" class="btn btn-danger btn-sm">Confirmar anulación</button>
@@ -2980,7 +2980,7 @@
                             </td>
                             <td style="padding:10px 12px; min-width:340px;">
                                 @if(!empty($linea['destinos']))
-                                <select wire:model.defer="productosSinExistenciaModal.{{ $idx }}.destino_seleccionado"
+                                <select wire:model.live="productosSinExistenciaModal.{{ $idx }}.destino_seleccionado"
                                         class="form-control form-control-sm"
                                         style="border-radius:8px; font-size:12px;">
                                     <option value="">Mantener sin cambio</option>
@@ -3010,7 +3010,7 @@
                 <label style="font-size:12px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">
                     Motivo de la actualización
                 </label>
-                <textarea wire:model.defer="motivoEdicionSinExistencia"
+                <textarea wire:model.live="motivoEdicionSinExistencia"
                           rows="2"
                           class="form-control"
                           placeholder="Opcional: describa por qué se reasignaron estos productos..."
@@ -3025,6 +3025,7 @@
 </div>
 @endif
 
+@push('scripts')
 <script>
     function confirmarLiquidacionExpoFlujo(resumen) {
         var moneda = function(valor) {
@@ -3061,7 +3062,7 @@
                 text: liquidacion.mensaje || 'El aumento fue registrado y aplicado.',
                 confirmButtonText: 'Aceptar'
             }).then(function() {
-                Livewire.emit('recargarFlujo');
+                Livewire.dispatch('recargarFlujo');
             });
         });
     }
@@ -3243,4 +3244,5 @@
         });
     }
 </script>
+@endpush
 </div>

@@ -72,7 +72,7 @@ function initMktCharts() {
 }
 (function() {
     function run() { if (typeof ApexCharts !== 'undefined') initMktCharts(); }
-    if (window.DASH_LOADED) { run(); } else { document.addEventListener('livewire:load', run); }
+    if (window.DASH_LOADED) { run(); } else { document.addEventListener('livewire:init', run); }
     if (!window._mktBound) { window._mktBound = true; document.addEventListener('livewire:update', run); }
 })();
 </script>

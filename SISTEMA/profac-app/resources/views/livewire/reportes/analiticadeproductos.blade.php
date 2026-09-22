@@ -166,17 +166,17 @@ button.ii-btn-export:disabled { opacity:.55; cursor:not-allowed; transform:none;
     <div class="ii-filters">
         <div style="display:flex;align-items:center;gap:6px;">
             <i class="fa fa-calendar" style="opacity:.6;font-size:12px;"></i>
-            <input type="date" wire:model="filtroFechaInicio">
+            <input type="date" wire:model.live="filtroFechaInicio">
         </div>
         <span style="color:rgba(255,255,255,.4);font-size:11px;">—</span>
-        <input type="date" wire:model="filtroFechaFin">
-        <select wire:model="filtroCategoria">
+        <input type="date" wire:model.live="filtroFechaFin">
+        <select wire:model.live="filtroCategoria">
             <option value="">Todas las categorías</option>
             @foreach($categorias as $cat)
                 <option value="{{ $cat['id'] }}">{{ $cat['descripcion'] }}</option>
             @endforeach
         </select>
-        <select wire:model="filtroMarca">
+        <select wire:model.live="filtroMarca">
             <option value="">Todas las marcas</option>
             @foreach($marcas as $m)
                 <option value="{{ $m['id'] }}">{{ $m['nombre'] }}</option>
@@ -368,7 +368,7 @@ button.ii-btn-export:disabled { opacity:.55; cursor:not-allowed; transform:none;
     <div class="ii-table-filters">
         <div class="ii-table-filter">
             <label for="ii-tipo-cliente">Tipo de cliente</label>
-            <select id="ii-tipo-cliente" wire:model="filtroTipoCliente">
+            <select id="ii-tipo-cliente" wire:model.live="filtroTipoCliente">
                 <option value="">Todos los tipos de cliente</option>
                 @foreach($tiposCliente as $tipoCliente)
                     <option value="{{ $tipoCliente['id'] }}">{{ $tipoCliente['nombre'] }}</option>
@@ -377,7 +377,7 @@ button.ii-btn-export:disabled { opacity:.55; cursor:not-allowed; transform:none;
         </div>
         <div class="ii-table-filter" style="flex:1;max-width:420px;">
             <label for="ii-producto-precio">Producto</label>
-            <input id="ii-producto-precio" type="search" wire:model.debounce.500ms="filtroProducto" placeholder="Buscar por ID, código de barra o nombre">
+            <input id="ii-producto-precio" type="search" wire:model.live.debounce.500ms="filtroProducto" placeholder="Buscar por ID, código de barra o nombre">
         </div>
         <span wire:loading wire:target="filtroTipoCliente,filtroProducto" style="color:#64748b;font-size:11px;padding-bottom:8px;">
             <i class="fa fa-circle-o-notch fa-spin"></i> Filtrando escalas...
@@ -388,7 +388,7 @@ button.ii-btn-export:disabled { opacity:.55; cursor:not-allowed; transform:none;
     <div class="ii-table-filters">
         <div class="ii-table-filter" style="flex:1;max-width:420px;">
             <label for="ii-producto-sin-imagen">Buscar producto</label>
-            <input id="ii-producto-sin-imagen" type="search" wire:model.debounce.500ms="filtroProductoSinImagen" placeholder="Buscar por ID, código o nombre">
+            <input id="ii-producto-sin-imagen" type="search" wire:model.live.debounce.500ms="filtroProductoSinImagen" placeholder="Buscar por ID, código o nombre">
         </div>
         <span wire:loading wire:target="filtroProductoSinImagen" style="color:#64748b;font-size:11px;padding-bottom:8px;">
             <i class="fa fa-circle-o-notch fa-spin"></i> Buscando productos...
@@ -655,7 +655,7 @@ button.ii-btn-export:disabled { opacity:.55; cursor:not-allowed; transform:none;
     window.addEventListener('metricas-actualizadas', function () { setTimeout(initCharts, 100); });
 
     // Re-render al cambiar filtros (Livewire update)
-    document.addEventListener('livewire:load', function () {
+    document.addEventListener('livewire:init', function () {
         Livewire.hook('message.processed', function (message, component) {
             var name = (component.fingerprint && component.fingerprint.name) || '';
             if (name.toLowerCase().indexOf('analitica') !== -1) {

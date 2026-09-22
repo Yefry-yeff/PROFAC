@@ -263,7 +263,7 @@
                             Nombre del Área <span class="text-danger">*</span>
                         </label>
                         <input type="text"
-                               wire:model.defer="areaNombre"
+                               wire:model.live="areaNombre"
                                class="form-control @error('areaNombre') is-invalid @enderror"
                                placeholder="Ej: Ventas, Bodega, Administración…"
                                maxlength="100"
@@ -274,7 +274,7 @@
                     </div>
                     <div class="form-group mb-0">
                         <label class="font-weight-bold">Descripción <span class="text-muted">(opcional)</span></label>
-                        <textarea wire:model.defer="areaDescripcion"
+                        <textarea wire:model.live="areaDescripcion"
                                   class="form-control"
                                   rows="2"
                                   maxlength="255"
@@ -321,7 +321,7 @@
                             Nombre del Nivel <span class="text-danger">*</span>
                         </label>
                         <input type="text"
-                               wire:model.defer="nivelNombre"
+                               wire:model.live="nivelNombre"
                                class="form-control @error('nivelNombre') is-invalid @enderror"
                                placeholder="Ej: Gerente, Supervisor, Colaborador…"
                                maxlength="100"
@@ -336,7 +336,7 @@
                             Orden Jerárquico <span class="text-danger">*</span>
                         </label>
                         <input type="number"
-                               wire:model.defer="nivelOrden"
+                               wire:model.live="nivelOrden"
                                class="form-control @error('nivelOrden') is-invalid @enderror"
                                min="1" max="99"
                                style="max-width:120px">
@@ -351,7 +351,7 @@
 
                     <div class="form-group mb-0">
                         <label class="font-weight-bold">Descripción <span class="text-muted">(opcional)</span></label>
-                        <textarea wire:model.defer="nivelDescripcion"
+                        <textarea wire:model.live="nivelDescripcion"
                                   class="form-control"
                                   rows="2"
                                   maxlength="255"

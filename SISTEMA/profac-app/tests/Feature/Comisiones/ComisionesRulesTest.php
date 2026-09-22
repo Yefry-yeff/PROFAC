@@ -2,7 +2,7 @@
 
 namespace Tests\Feature\Comisiones;
 
-use App\Http\Livewire\Comisiones\Escalado\ReportesComisionesGenerales;
+use App\Livewire\Comisiones\Escalado\ReportesComisionesGenerales;
 use App\Services\Comisiones\AplicadorRetencionesMora;
 use App\Services\Comisiones\AjustadorComisionNotaCredito;
 use App\Services\Comisiones\GeneradorFacturasComision;

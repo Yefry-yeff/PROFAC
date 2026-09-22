@@ -71,7 +71,7 @@ class MenuGeneratorService
     private function crearControladorLivewire($componenteNombre, $tituloModulo)
     {
         try {
-            $namespace = 'App\\Http\\Livewire\\' . str_replace('/', '\\', dirname($componenteNombre));
+            $namespace = 'App\\Livewire\\' . str_replace('/', '\\', dirname($componenteNombre));
             $className = basename(str_replace('\\', '/', $componenteNombre));
             
             // Crear directorio si no existe
@@ -312,7 +312,7 @@ class {$className} extends Component
      */
     private function generarTextoRuta($url, $componenteNombre)
     {
-        $componenteCompleto = 'App\\Http\\Livewire\\' . str_replace('/', '\\', $componenteNombre);
+        $componenteCompleto = 'App\\Livewire\\' . str_replace('/', '\\', $componenteNombre);
         
         $rutaTexto = "Route::get('/{$url}', \\{$componenteCompleto}::class);";
         

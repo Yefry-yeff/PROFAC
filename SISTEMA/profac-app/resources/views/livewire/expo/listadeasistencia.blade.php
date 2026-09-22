@@ -173,7 +173,7 @@
                     <div class="attendance-summary">
                         <div class="attendance-summary-item">
                             <label for="expo-asistencia">Exposición</label>
-                            <select id="expo-asistencia" wire:model="expoId" class="form-control">
+                            <select id="expo-asistencia" wire:model.live="expoId" class="form-control">
                                 @foreach($expos as $item)
                                     <option value="{{ $item->id }}">{{ $item->nombre }} | {{ date('d/m/Y H:i', strtotime($item->fecha_inicio)) }}{{ $item->estado === 'Cerrada' || ($item->fecha_fin && strtotime($item->fecha_fin) < time()) ? ' | Cerrada' : '' }}</option>
                                 @endforeach
@@ -197,7 +197,7 @@
                             <label for="buscar-cliente">Registrar asistencia de cliente</label>
                             <div class="attendance-search-box">
                                 <i class="fa fa-search"></i>
-                                <input id="buscar-cliente" type="search" wire:model.debounce.300ms="busquedaCliente" class="form-control" placeholder="Buscar por nombre, RTN o código de cliente" autocomplete="off">
+                                <input id="buscar-cliente" type="search" wire:model.live.debounce.300ms="busquedaCliente" class="form-control" placeholder="Buscar por nombre, RTN o código de cliente" autocomplete="off">
                             </div>
                             @error('busquedaCliente') <small class="text-danger d-block mt-1">{{ $message }}</small> @enderror
                             @if(trim($busquedaCliente) !== '' && mb_strlen(trim($busquedaCliente)) >= 2)
@@ -226,15 +226,15 @@
                     <div class="attendance-filters">
                         <div class="attendance-filter">
                             <label for="buscar-asistente">Buscar en asistentes</label>
-                            <input id="buscar-asistente" type="search" wire:model.debounce.300ms="busquedaAsistente" class="form-control" placeholder="Cliente, RTN, teléfono, correo o código">
+                            <input id="buscar-asistente" type="search" wire:model.live.debounce.300ms="busquedaAsistente" class="form-control" placeholder="Cliente, RTN, teléfono, correo o código">
                         </div>
                         <div class="attendance-filter">
                             <label for="asistencia-desde">Asistencia desde</label>
-                            <input id="asistencia-desde" type="date" wire:model="fechaDesde" class="form-control">
+                            <input id="asistencia-desde" type="date" wire:model.live="fechaDesde" class="form-control">
                         </div>
                         <div class="attendance-filter">
                             <label for="asistencia-hasta">Asistencia hasta</label>
-                            <input id="asistencia-hasta" type="date" wire:model="fechaHasta" class="form-control">
+                            <input id="asistencia-hasta" type="date" wire:model.live="fechaHasta" class="form-control">
                         </div>
                         <button type="button" wire:click="limpiarFiltros" class="attendance-filter-clear" title="Limpiar filtros" aria-label="Limpiar filtros"><i class="fa fa-eraser"></i></button>
                     </div>

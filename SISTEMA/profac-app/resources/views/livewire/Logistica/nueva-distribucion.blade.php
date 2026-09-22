@@ -1058,7 +1058,7 @@ function distribuccionAccion(accion) {
         const pedidoId = $('#modalExitoDistribucion').data('pedido-id');
         $('#modalExitoDistribucion').modal('hide');
         if (pedidoId) {
-            Livewire.emit('abrirFlujoPedido', parseInt(pedidoId), 'entrega');
+            Livewire.dispatch('abrirFlujoPedido', { pedidoId: parseInt(pedidoId), pasoInicial: 'entrega' });
         } else {
             // Sin pedido vinculado, abrir detalle de distribución
             window.location.href = `/logistica/distribuciones?ver=${distribucionId}`;

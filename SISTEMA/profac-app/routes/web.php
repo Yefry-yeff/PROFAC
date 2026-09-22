@@ -2,156 +2,156 @@
 
 /* ------------------------------COMISIONES------------------------------------------- */
 
-use App\Http\Livewire\Comisiones\ComisionesPrincipal;
-use App\Http\Livewire\Comisiones\ComisionesGestiones;
-use App\Http\Livewire\Comisiones\ComisionesVendedor;
-use App\Http\Livewire\Comisiones\ComisionesComisionar;
-use App\Http\Livewire\Comisiones\ComisionesHistorico;
+use App\Livewire\Comisiones\ComisionesPrincipal;
+use App\Livewire\Comisiones\ComisionesGestiones;
+use App\Livewire\Comisiones\ComisionesVendedor;
+use App\Livewire\Comisiones\ComisionesComisionar;
+use App\Livewire\Comisiones\ComisionesHistorico;
 
-    use App\Http\Livewire\Clientes\Cliente as ClienteLW;
+    use App\Livewire\Clientes\Cliente as ClienteLW;
 
 
 /* ------------------------------/COMISIONES------------------------------------------- */
 
-use App\Http\Livewire\Reportes\FacturaDia;
-use App\Http\Livewire\Reportes\DashboardVentas;
+use App\Livewire\Reportes\FacturaDia;
+use App\Livewire\Reportes\DashboardVentas;
 
-use App\Http\Livewire\Reportes\Prodmes;
-use App\Http\Livewire\Reportes\ComisionPoliticaAnterior;
-use App\Http\Livewire\Reportes\Reporteria;
+use App\Livewire\Reportes\Prodmes;
+use App\Livewire\Reportes\ComisionPoliticaAnterior;
+use App\Livewire\Reportes\Reporteria;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Artisan;
-use App\Http\Livewire\Bodega;
-use App\Http\Livewire\BodegaComponent\BodegaEditar;
-use App\Http\Livewire\Proveedores;
-use App\Http\Livewire\Usuarios\ListarUsuarios;
-use App\Http\Livewire\Registro\Login as RegistroLogin;
-use App\Http\Livewire\Inventario\Producto;
-use App\Http\Livewire\Inventario\ProductoApoyo;
-use App\Http\Livewire\Inventario\Retenciones;
-use App\Http\Livewire\Inventario\DetalleProducto;
-use App\Http\Livewire\Inventario\DisenoProducto;
-use App\Http\Livewire\Inventario\CompraProducto;
-use App\Http\Livewire\Inventario\ListarCompras;
-use App\Http\Livewire\Inventario\DetalleCompra;
-use App\Http\Livewire\Inventario\PagosCompra;
-use App\Http\Livewire\Inventario\RecibirProducto;
-use App\Http\Livewire\Inventario\Incidencias;
-use App\Http\Livewire\Inventario\AnularCompra;
-use App\Http\Livewire\Inventario\Translados;
-use App\Http\Livewire\Inventario\Marca;
-use App\Http\Livewire\Inventario\UnidadesMedida;
-use App\Http\Livewire\Inventario\Ajustes;
-use App\Http\Livewire\Clientes\Cliente;
-use App\Http\Livewire\Ventas\ListadoFacturas;
+use App\Livewire\Bodega;
+use App\Livewire\BodegaComponent\BodegaEditar;
+use App\Livewire\Proveedores;
+use App\Livewire\Usuarios\ListarUsuarios;
+use App\Livewire\Registro\Login as RegistroLogin;
+use App\Livewire\Inventario\Producto;
+use App\Livewire\Inventario\ProductoApoyo;
+use App\Livewire\Inventario\Retenciones;
+use App\Livewire\Inventario\DetalleProducto;
+use App\Livewire\Inventario\DisenoProducto;
+use App\Livewire\Inventario\CompraProducto;
+use App\Livewire\Inventario\ListarCompras;
+use App\Livewire\Inventario\DetalleCompra;
+use App\Livewire\Inventario\PagosCompra;
+use App\Livewire\Inventario\RecibirProducto;
+use App\Livewire\Inventario\Incidencias;
+use App\Livewire\Inventario\AnularCompra;
+use App\Livewire\Inventario\Translados;
+use App\Livewire\Inventario\Marca;
+use App\Livewire\Inventario\UnidadesMedida;
+use App\Livewire\Inventario\Ajustes;
+use App\Livewire\Clientes\Cliente;
+use App\Livewire\Ventas\ListadoFacturas;
 use App\Http\Controllers\BusquedaProductoController;
-use App\Http\Livewire\Ventas\FacturacionCorporativa;
-use App\Http\Livewire\Ventas\DetalleVenta;
-use App\Http\Livewire\Ventas\Cobros;
-use App\Http\Livewire\Ventas\Comparacion;
-use App\Http\Livewire\Ventas\Configuracion;
-use App\Http\Livewire\Ventas\FacturacionEstatal;
-use App\Http\Livewire\Ventas\ListadoFacturaEstatal;
-use App\Http\Livewire\Ventas\SeleccionarFactura;
-use App\Http\Livewire\Ventas\LitsadoFacturasVendedor;
-use App\Http\Livewire\Ventas\DetalleVentaVendedor;
-use App\Http\Livewire\Ventas\LitsadoFacturasEstatalVendedor;
-use App\Http\Livewire\VentasExoneradas\VentasExoneradas;
-use App\Http\Livewire\VentasExoneradas\ListadoFacturasExonerads;
-use App\Http\Livewire\Cotizaciones\Cotizacion;
-use App\Http\Livewire\Cotizaciones\expo;
-use App\Http\Livewire\Reportes\Expo as expoCotiza;
-use App\Http\Livewire\Cotizaciones\Editarcotizacion;
-use App\Http\Livewire\Cotizaciones\ListarCotizaciones;
-use App\Http\Livewire\Cotizaciones\ListarCotizacionesExpo;
-use App\Http\Livewire\Cotizaciones\FacturarCotizacion;
-// use App\Http\Livewire\Cotizaciones\FacturarCotizacionGobierno; // Movido a codigo-muerto - unificado en FacturarCotizacion
-use App\Http\Livewire\Ventas\ListadoFacturasAnuladas;
-use App\Http\Livewire\Reportes\ProductoBodegas;
-use App\Http\Livewire\Inventario\ListadoAjustes;
-use App\Http\Livewire\Inventario\HistorialTranslados;
-use App\Http\Livewire\Cardex\Cardex;
-use App\Http\Livewire\Cardex\Cardexdos;
-use App\Http\Livewire\Ventas\Cai;
-use App\Http\Livewire\Bancos;
-use App\Http\Livewire\Ventas\NumOrdenCompraEstatal as NumOrdenCompra;
-use App\Http\Livewire\Ventas\CodigoExoneracion;
-use App\Http\Livewire\Inventario\TipoAjuste;
-use App\Http\Livewire\Ventas\MotivoNotaCredito;
-use App\Http\Livewire\NotaCredito\CrearNotaCredito;
-use App\Http\Livewire\NotaCredito\ListadoNotaCredito;
-use App\Http\Livewire\BoletaCompra\CrearBoletaCompra;
-use App\Http\Livewire\BoletaCompra\HistorialBoletaCompra;
-use App\Http\Livewire\BoletaCompra\EditarBoletaCompra;
-use App\Http\Livewire\Inventario\Categoria;
-use App\Http\Livewire\Inventario\SubCategoria;
-use App\Http\Livewire\Ventas\SinRestriccionPrecio;
-use App\Http\Livewire\Ventas\ListadoFacturasND;
-use App\Http\Livewire\Ventas\CuentasPorCobrar;
-use App\Http\Livewire\Ventas\HistoricoPreciosCliente;
-use App\Http\Livewire\CuentasPorCobrar\ListadoFacturas as listadoCuentasCobrar;
-use App\Http\Livewire\ComprovanteEntrega\CrearComprovante;
-use App\Http\Livewire\ComprovanteEntrega\ListarComprovantes;
-use App\Http\Livewire\ComprovanteEntrega\ListarComprovantesAnulados;
-use App\Http\Livewire\ComprovanteEntrega\FacturarComprobante;
-use App\Http\Livewire\Ventas\FacturacionUnificada;
+use App\Livewire\Ventas\FacturacionCorporativa;
+use App\Livewire\Ventas\DetalleVenta;
+use App\Livewire\Ventas\Cobros;
+use App\Livewire\Ventas\Comparacion;
+use App\Livewire\Ventas\Configuracion;
+use App\Livewire\Ventas\FacturacionEstatal;
+use App\Livewire\Ventas\ListadoFacturaEstatal;
+use App\Livewire\Ventas\SeleccionarFactura;
+use App\Livewire\Ventas\LitsadoFacturasVendedor;
+use App\Livewire\Ventas\DetalleVentaVendedor;
+use App\Livewire\Ventas\LitsadoFacturasEstatalVendedor;
+use App\Livewire\VentasExoneradas\VentasExoneradas;
+use App\Livewire\VentasExoneradas\ListadoFacturasExonerads;
+use App\Livewire\Cotizaciones\Cotizacion;
+use App\Livewire\Cotizaciones\expo;
+use App\Livewire\Reportes\Expo as expoCotiza;
+use App\Livewire\Cotizaciones\Editarcotizacion;
+use App\Livewire\Cotizaciones\ListarCotizaciones;
+use App\Livewire\Cotizaciones\ListarCotizacionesExpo;
+use App\Livewire\Cotizaciones\FacturarCotizacion;
+// use App\Livewire\Cotizaciones\FacturarCotizacionGobierno; // Movido a codigo-muerto - unificado en FacturarCotizacion
+use App\Livewire\Ventas\ListadoFacturasAnuladas;
+use App\Livewire\Reportes\ProductoBodegas;
+use App\Livewire\Inventario\ListadoAjustes;
+use App\Livewire\Inventario\HistorialTranslados;
+use App\Livewire\Cardex\Cardex;
+use App\Livewire\Cardex\Cardexdos;
+use App\Livewire\Ventas\Cai;
+use App\Livewire\Bancos;
+use App\Livewire\Ventas\NumOrdenCompraEstatal as NumOrdenCompra;
+use App\Livewire\Ventas\CodigoExoneracion;
+use App\Livewire\Inventario\TipoAjuste;
+use App\Livewire\Ventas\MotivoNotaCredito;
+use App\Livewire\NotaCredito\CrearNotaCredito;
+use App\Livewire\NotaCredito\ListadoNotaCredito;
+use App\Livewire\BoletaCompra\CrearBoletaCompra;
+use App\Livewire\BoletaCompra\HistorialBoletaCompra;
+use App\Livewire\BoletaCompra\EditarBoletaCompra;
+use App\Livewire\Inventario\Categoria;
+use App\Livewire\Inventario\SubCategoria;
+use App\Livewire\Ventas\SinRestriccionPrecio;
+use App\Livewire\Ventas\ListadoFacturasND;
+use App\Livewire\Ventas\CuentasPorCobrar;
+use App\Livewire\Ventas\HistoricoPreciosCliente;
+use App\Livewire\CuentasPorCobrar\ListadoFacturas as listadoCuentasCobrar;
+use App\Livewire\ComprovanteEntrega\CrearComprovante;
+use App\Livewire\ComprovanteEntrega\ListarComprovantes;
+use App\Livewire\ComprovanteEntrega\ListarComprovantesAnulados;
+use App\Livewire\ComprovanteEntrega\FacturarComprobante;
+use App\Livewire\Ventas\FacturacionUnificada;
 
 
 
-use App\Http\Livewire\CuentasPorCobrar\Pagos;
-use App\Http\Livewire\CuentasPorCobrar\EstadoCuentaVendedor;
+use App\Livewire\CuentasPorCobrar\Pagos;
+use App\Livewire\CuentasPorCobrar\EstadoCuentaVendedor;
 
 
-use App\Http\Livewire\Vale\CrearVale;
-use App\Http\Livewire\Vale\ListarVales;
-use App\Http\Livewire\Vale\FacturarVale;
-use App\Http\Livewire\Vale\ValeListaEspera;
-use App\Http\Livewire\Vale\RestarVale;
-use App\Http\Livewire\Vale\ListadoFacturasVale;
-use App\Http\Livewire\Ventas\ListarVale;
-use App\Http\Livewire\NotaDebito\NotaDebito;
-use App\Http\Livewire\Inventario\AjusteIngresoProducto;
-use App\Http\Livewire\Cardex\CardexGeneral;
-use App\Http\Livewire\NotaCredito\ListadoNotasND;
-use App\Http\Livewire\NotaDebito\ListadoNotasDebito;
-use App\Http\Livewire\NotaDebito\ListadoNotasDebitoND;
-use App\Http\Livewire\Ventas\NumOrdenCompra as NumOrdenCompraCoorporativo;
-use App\Http\Livewire\Ventas\NumOrdenCompraUnificado;
-use App\Http\Livewire\Ventas\ListadoFacturasUnificado;
-use App\Http\Livewire\Ventas\ListadoFacturasVendedorUnificado;
+use App\Livewire\Vale\CrearVale;
+use App\Livewire\Vale\ListarVales;
+use App\Livewire\Vale\FacturarVale;
+use App\Livewire\Vale\ValeListaEspera;
+use App\Livewire\Vale\RestarVale;
+use App\Livewire\Vale\ListadoFacturasVale;
+use App\Livewire\Ventas\ListarVale;
+use App\Livewire\NotaDebito\NotaDebito;
+use App\Livewire\Inventario\AjusteIngresoProducto;
+use App\Livewire\Cardex\CardexGeneral;
+use App\Livewire\NotaCredito\ListadoNotasND;
+use App\Livewire\NotaDebito\ListadoNotasDebito;
+use App\Livewire\NotaDebito\ListadoNotasDebitoND;
+use App\Livewire\Ventas\NumOrdenCompra as NumOrdenCompraCoorporativo;
+use App\Livewire\Ventas\NumOrdenCompraUnificado;
+use App\Livewire\Ventas\ListadoFacturasUnificado;
+use App\Livewire\Ventas\ListadoFacturasVendedorUnificado;
 
 
-use App\Http\Livewire\CierreDiario\CierreDiario;
+use App\Livewire\CierreDiario\CierreDiario;
 
-use App\Http\Livewire\CierreDiario\HistoricoCierres;
+use App\Livewire\CierreDiario\HistoricoCierres;
 
 //------------Johann Routes-------------//
 //------------Cardex tres--------------//
-use App\Http\Livewire\Cardex\Cardextres;
+use App\Livewire\Cardex\Cardextres;
 //------------Reporte Cierre Diario-------//
-use App\Http\Livewire\Reportes\Cierrediariorep;
-use App\Http\Livewire\Reportes\Comisiones;
-use App\Http\Livewire\Reportes\Facturasanuladasrep;
-use App\Http\Livewire\Reportes\Librocobrosrep;
-use App\Http\Livewire\Reportes\Libroventarep;
-use App\Http\Livewire\Clientes\ReporteClientes;
-use App\Http\Livewire\Reportes\ReporteVentasCobros;
+use App\Livewire\Reportes\Cierrediariorep;
+use App\Livewire\Reportes\Comisiones;
+use App\Livewire\Reportes\Facturasanuladasrep;
+use App\Livewire\Reportes\Librocobrosrep;
+use App\Livewire\Reportes\Libroventarep;
+use App\Livewire\Clientes\ReporteClientes;
+use App\Livewire\Reportes\ReporteVentasCobros;
 
 
-use App\Http\Livewire\Escalas\CategoriaPrecios;
-use App\Http\Livewire\Escalas\CategoriaClientes;
-use App\Http\Livewire\Escalas\ReportesEscalas;
+use App\Livewire\Escalas\CategoriaPrecios;
+use App\Livewire\Escalas\CategoriaClientes;
+use App\Livewire\Escalas\ReportesEscalas;
 
 // Logistica de Entregas
-use App\Http\Livewire\Logistica\EquiposEntrega;
-use App\Http\Livewire\Logistica\DistribucionEntrega;
-use App\Http\Livewire\Logistica\ConfirmacionEntrega;
-use App\Http\Livewire\Logistica\ReporteLogistica;
+use App\Livewire\Logistica\EquiposEntrega;
+use App\Livewire\Logistica\DistribucionEntrega;
+use App\Livewire\Logistica\ConfirmacionEntrega;
+use App\Livewire\Logistica\ReporteLogistica;
 
-use App\Http\Livewire\Comisiones\Escalado\Configuracion as confcomisiones;
-use App\Http\Livewire\Comisiones\Escalado\MisComisiones;
-use App\Http\Livewire\Comisiones\Escalado\ReportesComisionesGenerales;
-use App\Http\Livewire\Comisiones\Escalado\Conciliacion as ConciliacionComisiones;
+use App\Livewire\Comisiones\Escalado\Configuracion as confcomisiones;
+use App\Livewire\Comisiones\Escalado\MisComisiones;
+use App\Livewire\Comisiones\Escalado\ReportesComisionesGenerales;
+use App\Livewire\Comisiones\Escalado\Conciliacion as ConciliacionComisiones;
 
 /*
 
@@ -178,7 +178,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->get('/
 })->name('dashboard');
 
 Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])
-    ->get('/dashboard/comercial', App\Http\Livewire\Dashboard\DashboardComercial::class)
+    ->get('/dashboard/comercial', App\Livewire\Dashboard\DashboardComercial::class)
     ->name('dashboard.comercial');
 
 // Rutas de cambio obligatorio de contraseña (fuera del grupo protegido para evitar bucle)
@@ -186,29 +186,29 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('/cambiar-contrasena', function () {
         return view('auth.cambiar-contrasena');
     });
-    Route::post('/cambiar-contrasena/guardar', [\App\Http\Livewire\Usuarios\ListarUsuarios::class, 'forzarCambioContrasena']);
+    Route::post('/cambiar-contrasena/guardar', [\App\Livewire\Usuarios\ListarUsuarios::class, 'forzarCambioContrasena']);
 });
 
 Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(function () {
 
     //---------------------------------------FLUJO DE VENTAS-------------------------------//
-    Route::get('/flujo/ventas', \App\Http\Livewire\Flujo\Ventas::class)->name('flujo.ventas');
-    Route::get('/flujo/pedido', \App\Http\Livewire\Flujo\Pedido::class)->name('flujo.pedido');
-    Route::get('/flujo/pedidos', \App\Http\Livewire\Flujo\ListarVentas::class)->name('flujo.pedidos');
-    Route::get('/flujo/pedidos/historico', \App\Http\Livewire\Flujo\ListarVentas::class); // alias legacy
-    Route::get('/flujo/ventas/historico', \App\Http\Livewire\Flujo\ListarVentas::class)->name('flujo.ventas.historico');
-    Route::get('/flujo/prefactura', \App\Http\Livewire\Flujo\Prefactura::class)->name('flujo.prefactura');
-    Route::get('/flujo/oferta', \App\Http\Livewire\Flujo\OfertaPedido::class)->name('flujo.oferta');
-    Route::get('/flujo/ofertas', \App\Http\Livewire\Flujo\ListarOfertas::class)->name('flujo.ofertas');
+    Route::get('/flujo/ventas', \App\Livewire\Flujo\Ventas::class)->name('flujo.ventas');
+    Route::get('/flujo/pedido', \App\Livewire\Flujo\Pedido::class)->name('flujo.pedido');
+    Route::get('/flujo/pedidos', \App\Livewire\Flujo\ListarVentas::class)->name('flujo.pedidos');
+    Route::get('/flujo/pedidos/historico', \App\Livewire\Flujo\ListarVentas::class); // alias legacy
+    Route::get('/flujo/ventas/historico', \App\Livewire\Flujo\ListarVentas::class)->name('flujo.ventas.historico');
+    Route::get('/flujo/prefactura', \App\Livewire\Flujo\Prefactura::class)->name('flujo.prefactura');
+    Route::get('/flujo/oferta', \App\Livewire\Flujo\OfertaPedido::class)->name('flujo.oferta');
+    Route::get('/flujo/ofertas', \App\Livewire\Flujo\ListarOfertas::class)->name('flujo.ofertas');
     Route::get('/ventas/temporales', [\App\Http\Controllers\VentaTemporalController::class, 'index'])->name('ventas.temporales.index');
     Route::post('/ventas/temporales', [\App\Http\Controllers\VentaTemporalController::class, 'store'])->name('ventas.temporales.store');
     Route::get('/ventas/temporales/{id}', [\App\Http\Controllers\VentaTemporalController::class, 'show'])->name('ventas.temporales.show');
     Route::delete('/ventas/temporales/{id}', [\App\Http\Controllers\VentaTemporalController::class, 'destroy'])->name('ventas.temporales.destroy');
-    Route::get('/flujo/pedido/editar/{id}', \App\Http\Livewire\Flujo\EditarPedido::class)->name('flujo.pedido.editar');
-    Route::get('/flujo/pedido/imprimir/{id}', [\App\Http\Livewire\Flujo\PedidoController::class, 'imprimir']);
+    Route::get('/flujo/pedido/editar/{id}', \App\Livewire\Flujo\EditarPedido::class)->name('flujo.pedido.editar');
+    Route::get('/flujo/pedido/imprimir/{id}', [\App\Livewire\Flujo\PedidoController::class, 'imprimir']);
 
     //---------------------------------------GESTIÓN DE MENÚS-------------------------------//
-    Route::get('/menu/gestion', \App\Http\Livewire\Menu\GestionMenu::class)->name('menu.gestion');
+    Route::get('/menu/gestion', \App\Livewire\Menu\GestionMenu::class)->name('menu.gestion');
 
     // Rutas para Menús
     Route::post('/menu/guardar', [App\Http\Controllers\MenuController::class, 'guardarMenu']);
@@ -227,11 +227,11 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/datos/mes/anterior', [Configuracion::class, 'datosMesAnterior']);
     Route::get('/editar/configuracion/{estado}', [Configuracion::class, 'editarEstado']);
     Route::get('/configuracion/excel', [Configuracion::class, 'exportarExcel']);
-    Route::get('/configuracion/notificaciones/flujo', \App\Http\Livewire\Configuracion\ConfiguracionNotificaciones::class)->name('configuracion.notificaciones.flujo');
-    Route::get('/configuracion/codigos-autorizacion', \App\Http\Livewire\Configuracion\ConfiguracionCodigosAutorizacion::class)->name('configuracion.codigos.autorizacion');
-    Route::get('/notificaciones/historial', \App\Http\Livewire\NotificacionesHistorial::class)->name('notificaciones.historial');
-    Route::get('/alertas/rotacion/{id}/reporte', \App\Http\Livewire\Alertas\AlertasRotacionReporte::class)->name('alertas.rotacion.reporte');
-    Route::get('/configuracion/jerarquia', \App\Http\Livewire\Configuracion\JerarquiaOrganizacional::class)->name('configuracion.jerarquia');
+    Route::get('/configuracion/notificaciones/flujo', \App\Livewire\Configuracion\ConfiguracionNotificaciones::class)->name('configuracion.notificaciones.flujo');
+    Route::get('/configuracion/codigos-autorizacion', \App\Livewire\Configuracion\ConfiguracionCodigosAutorizacion::class)->name('configuracion.codigos.autorizacion');
+    Route::get('/notificaciones/historial', \App\Livewire\NotificacionesHistorial::class)->name('notificaciones.historial');
+    Route::get('/alertas/rotacion/{id}/reporte', \App\Livewire\Alertas\AlertasRotacionReporte::class)->name('alertas.rotacion.reporte');
+    Route::get('/configuracion/jerarquia', \App\Livewire\Configuracion\JerarquiaOrganizacional::class)->name('configuracion.jerarquia');
 
     /*
     Inicio de todas las rutas de la Escala de precios
@@ -615,8 +615,8 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/facturas/corporativo/lista/nd', [ListadoFacturasND::class, 'listarFacturas']);
 
     //-----------------------------------------------Usuarios-------------------------------------------------------------------------------------------//
-    Route::get('/usuarios/dashboard', App\Http\Livewire\Usuarios\Dashboard::class)->name('usuarios.dashboard');
-    Route::get('/usuarios/widgets', App\Http\Livewire\Usuarios\GestionarWidgets::class)->name('usuarios.widgets');
+    Route::get('/usuarios/dashboard', App\Livewire\Usuarios\Dashboard::class)->name('usuarios.dashboard');
+    Route::get('/usuarios/widgets', App\Livewire\Usuarios\GestionarWidgets::class)->name('usuarios.widgets');
     Route::get('/usuarios', ListarUsuarios::class);
     Route::get('/usuarios/listar/usuarios', [ListarUsuarios::class, 'listarUsuarios']);
     Route::get('/usuario/info/{idUsuario}', [ListarUsuarios::class, 'infoUsuario']);
@@ -637,34 +637,34 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::post('/usuario/{idUsuario}/roles-adicionales/quitar', [ListarUsuarios::class, 'quitarRolAdicional']);
 
     //-----------------------------------------------Roles-------------------------------------------------------------------------------------------//
-    Route::get('/usuarios/roles', App\Http\Livewire\Usuarios\Roles::class)->name('roles.gestion');
-    Route::get('/roles/listar', [App\Http\Livewire\Usuarios\Roles::class, 'listarRoles']);
-    Route::post('/roles/guardar', [App\Http\Livewire\Usuarios\Roles::class, 'guardarRol']);
-    Route::get('/roles/obtener/{id}', [App\Http\Livewire\Usuarios\Roles::class, 'obtenerRol']);
-    Route::put('/roles/actualizar/{id}', [App\Http\Livewire\Usuarios\Roles::class, 'actualizarRol']);
-    Route::post('/roles/cambiar-estado/{id}', [App\Http\Livewire\Usuarios\Roles::class, 'cambiarEstadoRol']);
-    Route::delete('/roles/eliminar/{id}', [App\Http\Livewire\Usuarios\Roles::class, 'eliminarRol']);
-    Route::get('/roles/estados', [App\Http\Livewire\Usuarios\Roles::class, 'listarEstados']);
-    Route::get('/roles/{id}/usuarios', [App\Http\Livewire\Usuarios\Roles::class, 'obtenerUsuariosDelRol']);
-    Route::post('/roles/{id}/agregar-usuario', [App\Http\Livewire\Usuarios\Roles::class, 'agregarUsuarioAlRol']);
-    Route::post('/roles/{id}/quitar-usuario', [App\Http\Livewire\Usuarios\Roles::class, 'quitarUsuarioDelRol']);
-    Route::get('/usuarios/todos', [App\Http\Livewire\Usuarios\Roles::class, 'listarTodosUsuarios']);
-    Route::get('/usuarios/{id}/rol-anterior', [App\Http\Livewire\Usuarios\Roles::class, 'obtenerRolAnteriorUsuario']);
-    Route::get('/roles/{id}/permisos', [App\Http\Livewire\Usuarios\Roles::class, 'obtenerPermisosDelRol']);
-    Route::get('/submenus/todos', [App\Http\Livewire\Usuarios\Roles::class, 'listarTodosSubmenus']);
+    Route::get('/usuarios/roles', App\Livewire\Usuarios\Roles::class)->name('roles.gestion');
+    Route::get('/roles/listar', [App\Livewire\Usuarios\Roles::class, 'listarRoles']);
+    Route::post('/roles/guardar', [App\Livewire\Usuarios\Roles::class, 'guardarRol']);
+    Route::get('/roles/obtener/{id}', [App\Livewire\Usuarios\Roles::class, 'obtenerRol']);
+    Route::put('/roles/actualizar/{id}', [App\Livewire\Usuarios\Roles::class, 'actualizarRol']);
+    Route::post('/roles/cambiar-estado/{id}', [App\Livewire\Usuarios\Roles::class, 'cambiarEstadoRol']);
+    Route::delete('/roles/eliminar/{id}', [App\Livewire\Usuarios\Roles::class, 'eliminarRol']);
+    Route::get('/roles/estados', [App\Livewire\Usuarios\Roles::class, 'listarEstados']);
+    Route::get('/roles/{id}/usuarios', [App\Livewire\Usuarios\Roles::class, 'obtenerUsuariosDelRol']);
+    Route::post('/roles/{id}/agregar-usuario', [App\Livewire\Usuarios\Roles::class, 'agregarUsuarioAlRol']);
+    Route::post('/roles/{id}/quitar-usuario', [App\Livewire\Usuarios\Roles::class, 'quitarUsuarioDelRol']);
+    Route::get('/usuarios/todos', [App\Livewire\Usuarios\Roles::class, 'listarTodosUsuarios']);
+    Route::get('/usuarios/{id}/rol-anterior', [App\Livewire\Usuarios\Roles::class, 'obtenerRolAnteriorUsuario']);
+    Route::get('/roles/{id}/permisos', [App\Livewire\Usuarios\Roles::class, 'obtenerPermisosDelRol']);
+    Route::get('/submenus/todos', [App\Livewire\Usuarios\Roles::class, 'listarTodosSubmenus']);
 
     /*------------------------------------------------USUARIOS ADICIONALES (multi-rol) del rol */
-    Route::get('/roles/{id}/usuarios-adicionales', [App\Http\Livewire\Usuarios\Roles::class, 'obtenerUsuariosAdicionalesDelRol']);
-    Route::get('/roles/{id}/usuarios-adicionales/buscar', [App\Http\Livewire\Usuarios\Roles::class, 'buscarUsuariosAdicionalesDisponibles']);
-    Route::post('/roles/{id}/usuarios-adicionales/agregar', [App\Http\Livewire\Usuarios\Roles::class, 'agregarUsuarioAdicionalAlRol']);
-    Route::post('/roles/{id}/usuarios-adicionales/quitar', [App\Http\Livewire\Usuarios\Roles::class, 'quitarUsuarioAdicionalDelRol']);
+    Route::get('/roles/{id}/usuarios-adicionales', [App\Livewire\Usuarios\Roles::class, 'obtenerUsuariosAdicionalesDelRol']);
+    Route::get('/roles/{id}/usuarios-adicionales/buscar', [App\Livewire\Usuarios\Roles::class, 'buscarUsuariosAdicionalesDisponibles']);
+    Route::post('/roles/{id}/usuarios-adicionales/agregar', [App\Livewire\Usuarios\Roles::class, 'agregarUsuarioAdicionalAlRol']);
+    Route::post('/roles/{id}/usuarios-adicionales/quitar', [App\Livewire\Usuarios\Roles::class, 'quitarUsuarioAdicionalDelRol']);
     // Catálogos de jerarquía de roles
-    Route::get('/roles/catalogos/niveles', [App\Http\Livewire\Usuarios\Roles::class, 'listarNiveles'])->name('roles.niveles');
-    Route::get('/roles/catalogos/areas',   [App\Http\Livewire\Usuarios\Roles::class, 'listarAreas'])->name('roles.areas');
-    Route::get('/roles/reporte-accesos',        [App\Http\Livewire\Usuarios\Roles::class, 'reporteAccesos']);
-    Route::get('/roles/reporte-accesos/excel',  [App\Http\Livewire\Usuarios\Roles::class, 'descargarReporteAccesos']);
-    Route::get('/roles/reporte-usuarios',       [App\Http\Livewire\Usuarios\Roles::class, 'reporteUsuariosPorRol']);
-    Route::get('/roles/reporte-usuarios/excel', [App\Http\Livewire\Usuarios\Roles::class, 'descargarUsuariosPorRol']);
+    Route::get('/roles/catalogos/niveles', [App\Livewire\Usuarios\Roles::class, 'listarNiveles'])->name('roles.niveles');
+    Route::get('/roles/catalogos/areas',   [App\Livewire\Usuarios\Roles::class, 'listarAreas'])->name('roles.areas');
+    Route::get('/roles/reporte-accesos',        [App\Livewire\Usuarios\Roles::class, 'reporteAccesos']);
+    Route::get('/roles/reporte-accesos/excel',  [App\Livewire\Usuarios\Roles::class, 'descargarReporteAccesos']);
+    Route::get('/roles/reporte-usuarios',       [App\Livewire\Usuarios\Roles::class, 'reporteUsuariosPorRol']);
+    Route::get('/roles/reporte-usuarios/excel', [App\Livewire\Usuarios\Roles::class, 'descargarUsuariosPorRol']);
 
     /*----------------------------------------------- /NUEVAS RUTAS DE ACCESO A USUARIOS  */
 
@@ -912,15 +912,15 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::post('/cotizacion/adjunto/subir', [Cotizacion::class, 'subirAdjunto']);
 
     //---------------------------------------Prefactura (oferta ganadora)---------------------------//
-    Route::get('/flujo/prefactura/crear', \App\Http\Livewire\Flujo\CrearPrefactura::class)->name('flujo.prefactura.crear');
-    Route::post('/flujo/prefactura/guardar', [\App\Http\Livewire\Flujo\PrefacturaController::class, 'guardar']);
-    Route::get('/prefactura/imprimir/{id}', [\App\Http\Livewire\Flujo\PrefacturaController::class, 'imprimir']);
-    Route::post('/cotizacion/prefacturar-desde-oferta', [\App\Http\Livewire\Flujo\PrefacturaController::class, 'prefacturarDesdeOferta']);
-    Route::get('/flujo/{id}/pedido-id', [\App\Http\Livewire\Flujo\PrefacturaController::class, 'getPedidoIdByFlujo']);
-    Route::get('/prefactura/{id}/tipos-facturacion', [\App\Http\Livewire\Flujo\PrefacturaController::class, 'getTiposFacturacion']);
-    Route::post('/prefactura/{id}/facturar', [\App\Http\Livewire\Flujo\PrefacturaController::class, 'registrarFacturacion']);
-    Route::post('/prefactura/{id}/facturar-directo', [\App\Http\Livewire\Flujo\PrefacturaController::class, 'facturarDirectamente']);
-    Route::get('/configuracion/prefacturacion', \App\Http\Livewire\Configuracion\TiempoPrefacturacion::class)->name('configuracion.prefacturacion');
+    Route::get('/flujo/prefactura/crear', \App\Livewire\Flujo\CrearPrefactura::class)->name('flujo.prefactura.crear');
+    Route::post('/flujo/prefactura/guardar', [\App\Livewire\Flujo\PrefacturaController::class, 'guardar']);
+    Route::get('/prefactura/imprimir/{id}', [\App\Livewire\Flujo\PrefacturaController::class, 'imprimir']);
+    Route::post('/cotizacion/prefacturar-desde-oferta', [\App\Livewire\Flujo\PrefacturaController::class, 'prefacturarDesdeOferta']);
+    Route::get('/flujo/{id}/pedido-id', [\App\Livewire\Flujo\PrefacturaController::class, 'getPedidoIdByFlujo']);
+    Route::get('/prefactura/{id}/tipos-facturacion', [\App\Livewire\Flujo\PrefacturaController::class, 'getTiposFacturacion']);
+    Route::post('/prefactura/{id}/facturar', [\App\Livewire\Flujo\PrefacturaController::class, 'registrarFacturacion']);
+    Route::post('/prefactura/{id}/facturar-directo', [\App\Livewire\Flujo\PrefacturaController::class, 'facturarDirectamente']);
+    Route::get('/configuracion/prefacturacion', \App\Livewire\Configuracion\TiempoPrefacturacion::class)->name('configuracion.prefacturacion');
 
 
     //------------------------------------------------------------//
@@ -1414,10 +1414,10 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/reporte/reporteria/consulta/{fecha_inicio}/{fecha_final}', [Reporteria::class,'consulta']);
     Route::get('/reporte/reporteria/productos', [Reporteria::class,'catalogoProductos']);
     Route::get('/reporte/reporteria/clientes', [Reporteria::class,'consultaClientes']);
-    Route::get('/reporte/productos-sin-imagenes', \App\Http\Livewire\Reportes\ProductosSinImagenes::class);
-    Route::get('/reporte/productos-sin-imagenes/datos', [\App\Http\Livewire\Reportes\ProductosSinImagenes::class, 'consulta']);
-    Route::post('/reporte/productos-sin-imagenes/exportar-excel', [\App\Http\Livewire\Reportes\ProductosSinImagenes::class, 'exportarExcel']);
-    Route::post('/reporte/productos-sin-imagenes/exportar-pdf', [\App\Http\Livewire\Reportes\ProductosSinImagenes::class, 'exportarPdf']);
+    Route::get('/reporte/productos-sin-imagenes', \App\Livewire\Reportes\ProductosSinImagenes::class);
+    Route::get('/reporte/productos-sin-imagenes/datos', [\App\Livewire\Reportes\ProductosSinImagenes::class, 'consulta']);
+    Route::post('/reporte/productos-sin-imagenes/exportar-excel', [\App\Livewire\Reportes\ProductosSinImagenes::class, 'exportarExcel']);
+    Route::post('/reporte/productos-sin-imagenes/exportar-pdf', [\App\Livewire\Reportes\ProductosSinImagenes::class, 'exportarPdf']);
 
 
     Route::get('/consulta/{fecha_inicio}/{fecha_final}', [FacturaDia::class,'consulta']);
@@ -1592,126 +1592,126 @@ Route::post('/reporte/ventas-cobros/actualizar-f01/{facturaId}',                
 
 
     // Ruta auto-generada para: Flujo\RevicionInventario
-    Route::get('/flujo/revicion_inventario', \App\Http\Livewire\Flujo\RevicionInventario::class);
+    Route::get('/flujo/revicion_inventario', \App\Livewire\Flujo\RevicionInventario::class);
 
     // Configuración del Flujo (solo admin)
-    Route::get('/flujo/configuracion', \App\Http\Livewire\Flujo\ConfiguracionFlujo::class)->name('flujo.configuracion');
+    Route::get('/flujo/configuracion', \App\Livewire\Flujo\ConfiguracionFlujo::class)->name('flujo.configuracion');
 
     // Revisión de Crédito
-    Route::get('/flujo/revision_creditos', \App\Http\Livewire\Flujo\RevisionCreditos::class)->name('flujo.revision_creditos');
+    Route::get('/flujo/revision_creditos', \App\Livewire\Flujo\RevisionCreditos::class)->name('flujo.revision_creditos');
 
     // Secciones de ofertas ganadoras Expo
-    Route::get('/flujo/secciones_ofertas', \App\Http\Livewire\Flujo\SeccionesOferta::class)->name('flujo.secciones_ofertas');
+    Route::get('/flujo/secciones_ofertas', \App\Livewire\Flujo\SeccionesOferta::class)->name('flujo.secciones_ofertas');
 
     // Ruta auto-generada para: Reportes\EvaluacionDeClientesPorNivelDeFacturacion
-    Route::get('/reportes/evaluacion_de_clientes_por_nivel_de_facturacion', \App\Http\Livewire\Reportes\EvaluacionDeClientesPorNivelDeFacturacion::class);
+    Route::get('/reportes/evaluacion_de_clientes_por_nivel_de_facturacion', \App\Livewire\Reportes\EvaluacionDeClientesPorNivelDeFacturacion::class);
 
 
     // Ruta auto-generada para: Reportes\AnaliticaDeProductos
-    Route::get('/reportes/analitica_de_productos', \App\Http\Livewire\Reportes\AnaliticaDeProductos::class);
+    Route::get('/reportes/analitica_de_productos', \App\Livewire\Reportes\AnaliticaDeProductos::class);
 
     // Análisis individual de producto (sección 2 de Analítica de Productos)
-    Route::get('/reportes/analitica_de_productos/{productoId}', \App\Http\Livewire\Reportes\AnalisisProductoIndividual::class);
+    Route::get('/reportes/analitica_de_productos/{productoId}', \App\Livewire\Reportes\AnalisisProductoIndividual::class);
 
 
     // Ruta auto-generada para: FlujoDeVenta\ModificarActoresEnFactura
-    Route::get('/flujo_de_venta/modificar_actores_en_factura', \App\Http\Livewire\FlujoDeVenta\ModificarActoresEnFactura::class)
+    Route::get('/flujo_de_venta/modificar_actores_en_factura', \App\Livewire\FlujoDeVenta\ModificarActoresEnFactura::class)
         ->name('flujo_de_venta.modificar_actores_en_factura');
 
 
     // Ruta auto-generada para: LogisticaDeEntregas\AgrupacionesDeEntregas
-    Route::get('/logistica_de_entregas/agrupaciones_de_entregas', \App\Http\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class);
+    Route::get('/logistica_de_entregas/agrupaciones_de_entregas', \App\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class);
 
     // Agrupación de Facturas por Zona Geográfica (Zonas)
-    Route::get('/logistica/zonas/listar', [\App\Http\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'listarZonas'])->name('logistica.zonas.listar');
-    Route::get('/logistica/zonas/departamentos', [\App\Http\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'obtenerDepartamentos'])->name('logistica.zonas.departamentos');
-    Route::get('/logistica/zonas/municipios/{departamentoId}', [\App\Http\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'obtenerMunicipios'])->name('logistica.zonas.municipios');
-    Route::get('/logistica/zonas/obtener/{id}', [\App\Http\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'obtenerZona'])->name('logistica.zonas.obtener');
-    Route::post('/logistica/zonas/guardar', [\App\Http\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'guardarZona'])->name('logistica.zonas.guardar');
-    Route::post('/logistica/zonas/actualizar', [\App\Http\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'actualizarZona'])->name('logistica.zonas.actualizar');
-    Route::post('/logistica/zonas/eliminar/{id}', [\App\Http\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'eliminarZona'])->name('logistica.zonas.eliminar');
-    Route::post('/logistica/zonas/reordenar', [\App\Http\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'reordenarZonas'])->name('logistica.zonas.reordenar');
-    Route::get('/logistica/zonas/resumen', [\App\Http\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'resumenZonas'])->name('logistica.zonas.resumen');
-    Route::get('/logistica/zonas/facturas', [\App\Http\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'facturasPorZona'])->name('logistica.zonas.facturas');
+    Route::get('/logistica/zonas/listar', [\App\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'listarZonas'])->name('logistica.zonas.listar');
+    Route::get('/logistica/zonas/departamentos', [\App\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'obtenerDepartamentos'])->name('logistica.zonas.departamentos');
+    Route::get('/logistica/zonas/municipios/{departamentoId}', [\App\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'obtenerMunicipios'])->name('logistica.zonas.municipios');
+    Route::get('/logistica/zonas/obtener/{id}', [\App\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'obtenerZona'])->name('logistica.zonas.obtener');
+    Route::post('/logistica/zonas/guardar', [\App\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'guardarZona'])->name('logistica.zonas.guardar');
+    Route::post('/logistica/zonas/actualizar', [\App\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'actualizarZona'])->name('logistica.zonas.actualizar');
+    Route::post('/logistica/zonas/eliminar/{id}', [\App\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'eliminarZona'])->name('logistica.zonas.eliminar');
+    Route::post('/logistica/zonas/reordenar', [\App\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'reordenarZonas'])->name('logistica.zonas.reordenar');
+    Route::get('/logistica/zonas/resumen', [\App\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'resumenZonas'])->name('logistica.zonas.resumen');
+    Route::get('/logistica/zonas/facturas', [\App\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'facturasPorZona'])->name('logistica.zonas.facturas');
 
 
     // Ruta auto-generada para: LogisticaDeEntregas\GestionDeFacturas
-    Route::get('/logistica_de_entregas/gestion_de_facturas', \App\Http\Livewire\LogisticaDeEntregas\GestionDeFacturas::class);
+    Route::get('/logistica_de_entregas/gestion_de_facturas', \App\Livewire\LogisticaDeEntregas\GestionDeFacturas::class);
 
     // Gestión de Distribución de Entregas (tratamiento y asignación por gestor)
-    Route::get('/logistica/gestion/sin-gestor', [\App\Http\Livewire\LogisticaDeEntregas\GestionDeFacturas::class, 'listarSinGestor'])->name('logistica.gestion.singestor');
-    Route::get('/logistica/gestion/sin-tratar', [\App\Http\Livewire\LogisticaDeEntregas\GestionDeFacturas::class, 'listarSinTratar'])->name('logistica.gestion.sintratar');
-    Route::get('/logistica/gestion/tratadas', [\App\Http\Livewire\LogisticaDeEntregas\GestionDeFacturas::class, 'listarTratadas'])->name('logistica.gestion.tratadas');
-    Route::get('/logistica/gestion/asignadas', [\App\Http\Livewire\LogisticaDeEntregas\GestionDeFacturas::class, 'listarAsignadas'])->name('logistica.gestion.asignadas');
-    Route::get('/logistica/gestion/completadas', [\App\Http\Livewire\LogisticaDeEntregas\GestionDeFacturas::class, 'listarCompletadas'])->name('logistica.gestion.completadas');
-    Route::get('/logistica/gestion/resumen', [\App\Http\Livewire\LogisticaDeEntregas\GestionDeFacturas::class, 'resumenEstados'])->name('logistica.gestion.resumen');
-    Route::post('/logistica/gestion/tratar', [\App\Http\Livewire\LogisticaDeEntregas\GestionDeFacturas::class, 'tratarFacturas'])->name('logistica.gestion.tratar');
-    Route::post('/logistica/gestion/asignar', [\App\Http\Livewire\LogisticaDeEntregas\GestionDeFacturas::class, 'asignarEquipo'])->name('logistica.gestion.asignar');
-    Route::get('/logistica/gestion/historial/{facturaId}', [\App\Http\Livewire\LogisticaDeEntregas\GestionDeFacturas::class, 'historialFactura'])->name('logistica.gestion.historial');
+    Route::get('/logistica/gestion/sin-gestor', [\App\Livewire\LogisticaDeEntregas\GestionDeFacturas::class, 'listarSinGestor'])->name('logistica.gestion.singestor');
+    Route::get('/logistica/gestion/sin-tratar', [\App\Livewire\LogisticaDeEntregas\GestionDeFacturas::class, 'listarSinTratar'])->name('logistica.gestion.sintratar');
+    Route::get('/logistica/gestion/tratadas', [\App\Livewire\LogisticaDeEntregas\GestionDeFacturas::class, 'listarTratadas'])->name('logistica.gestion.tratadas');
+    Route::get('/logistica/gestion/asignadas', [\App\Livewire\LogisticaDeEntregas\GestionDeFacturas::class, 'listarAsignadas'])->name('logistica.gestion.asignadas');
+    Route::get('/logistica/gestion/completadas', [\App\Livewire\LogisticaDeEntregas\GestionDeFacturas::class, 'listarCompletadas'])->name('logistica.gestion.completadas');
+    Route::get('/logistica/gestion/resumen', [\App\Livewire\LogisticaDeEntregas\GestionDeFacturas::class, 'resumenEstados'])->name('logistica.gestion.resumen');
+    Route::post('/logistica/gestion/tratar', [\App\Livewire\LogisticaDeEntregas\GestionDeFacturas::class, 'tratarFacturas'])->name('logistica.gestion.tratar');
+    Route::post('/logistica/gestion/asignar', [\App\Livewire\LogisticaDeEntregas\GestionDeFacturas::class, 'asignarEquipo'])->name('logistica.gestion.asignar');
+    Route::get('/logistica/gestion/historial/{facturaId}', [\App\Livewire\LogisticaDeEntregas\GestionDeFacturas::class, 'historialFactura'])->name('logistica.gestion.historial');
 
 
     // Ruta auto-generada para: FlujoDeVenta\CarteraDeClientes
-    Route::get('/flujo_de_venta/cartera_de_clientes', \App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class);
+    Route::get('/flujo_de_venta/cartera_de_clientes', \App\Livewire\FlujoDeVenta\CarteraDeClientes::class);
 
     // Cartera de Clientes - endpoints de listado, filtros, asignación e historial
-    Route::get('/flujo_de_venta/cartera_de_clientes/listar', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'listar'])->name('cartera_clientes.listar');
-    Route::get('/flujo_de_venta/cartera_de_clientes/listar-ids', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'listarIds'])->name('cartera_clientes.listar_ids');
-    Route::get('/flujo_de_venta/cartera_de_clientes/exportar-excel', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'exportarExcel'])->name('cartera_clientes.exportar_excel');
-    Route::get('/flujo_de_venta/cartera_de_clientes/agrupado', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'listarAgrupado'])->name('cartera_clientes.agrupado');
-    Route::get('/flujo_de_venta/cartera_de_clientes/clientes', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'buscarClientes'])->name('cartera_clientes.clientes');
-    Route::get('/flujo_de_venta/cartera_de_clientes/usuarios', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'buscarUsuarios'])->name('cartera_clientes.usuarios');
-    Route::get('/flujo_de_venta/cartera_de_clientes/datos/{id}', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'datosCliente'])->name('cartera_clientes.datos');
-    Route::get('/flujo_de_venta/cartera_de_clientes/historial/{id}', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'historialCliente'])->name('cartera_clientes.historial');
-    Route::post('/flujo_de_venta/cartera_de_clientes/historial-masivo', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'historialMasivo'])->name('cartera_clientes.historial_masivo');
-    Route::post('/flujo_de_venta/cartera_de_clientes/asignar', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'asignarIndividual'])->name('cartera_clientes.asignar');
-    Route::post('/flujo_de_venta/cartera_de_clientes/asignar-masivo', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'asignarMasivo'])->name('cartera_clientes.asignar_masivo');
-    Route::get('/flujo_de_venta/cartera_de_clientes/zonas', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'listarZonas'])->name('cartera_clientes.zonas');
-    Route::get('/flujo_de_venta/cartera_de_clientes/zonas-catalogos', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'catalogosZonas'])->name('cartera_clientes.zonas_catalogos');
-    Route::get('/flujo_de_venta/cartera_de_clientes/zona/{id}', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'datosZona'])->name('cartera_clientes.zona_datos');
-    Route::get('/flujo_de_venta/cartera_de_clientes/zona-clientes-buscar', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'buscarClientesZona'])->name('cartera_clientes.zona_clientes_buscar');
-    Route::post('/flujo_de_venta/cartera_de_clientes/zona-guardar', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'guardarZona'])->name('cartera_clientes.zona_guardar');
-    Route::post('/flujo_de_venta/cartera_de_clientes/zona-asignar-clientes', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'asignarClientesZona'])->name('cartera_clientes.zona_asignar_clientes');
-    Route::post('/flujo_de_venta/cartera_de_clientes/zona-quitar-cliente', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'quitarClienteZona'])->name('cartera_clientes.zona_quitar_cliente');
-    Route::get('/flujo_de_venta/cartera_de_clientes/zona-historial/{id}', [\App\Http\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'historialZona'])->name('cartera_clientes.zona_historial');
+    Route::get('/flujo_de_venta/cartera_de_clientes/listar', [\App\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'listar'])->name('cartera_clientes.listar');
+    Route::get('/flujo_de_venta/cartera_de_clientes/listar-ids', [\App\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'listarIds'])->name('cartera_clientes.listar_ids');
+    Route::get('/flujo_de_venta/cartera_de_clientes/exportar-excel', [\App\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'exportarExcel'])->name('cartera_clientes.exportar_excel');
+    Route::get('/flujo_de_venta/cartera_de_clientes/agrupado', [\App\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'listarAgrupado'])->name('cartera_clientes.agrupado');
+    Route::get('/flujo_de_venta/cartera_de_clientes/clientes', [\App\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'buscarClientes'])->name('cartera_clientes.clientes');
+    Route::get('/flujo_de_venta/cartera_de_clientes/usuarios', [\App\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'buscarUsuarios'])->name('cartera_clientes.usuarios');
+    Route::get('/flujo_de_venta/cartera_de_clientes/datos/{id}', [\App\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'datosCliente'])->name('cartera_clientes.datos');
+    Route::get('/flujo_de_venta/cartera_de_clientes/historial/{id}', [\App\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'historialCliente'])->name('cartera_clientes.historial');
+    Route::post('/flujo_de_venta/cartera_de_clientes/historial-masivo', [\App\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'historialMasivo'])->name('cartera_clientes.historial_masivo');
+    Route::post('/flujo_de_venta/cartera_de_clientes/asignar', [\App\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'asignarIndividual'])->name('cartera_clientes.asignar');
+    Route::post('/flujo_de_venta/cartera_de_clientes/asignar-masivo', [\App\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'asignarMasivo'])->name('cartera_clientes.asignar_masivo');
+    Route::get('/flujo_de_venta/cartera_de_clientes/zonas', [\App\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'listarZonas'])->name('cartera_clientes.zonas');
+    Route::get('/flujo_de_venta/cartera_de_clientes/zonas-catalogos', [\App\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'catalogosZonas'])->name('cartera_clientes.zonas_catalogos');
+    Route::get('/flujo_de_venta/cartera_de_clientes/zona/{id}', [\App\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'datosZona'])->name('cartera_clientes.zona_datos');
+    Route::get('/flujo_de_venta/cartera_de_clientes/zona-clientes-buscar', [\App\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'buscarClientesZona'])->name('cartera_clientes.zona_clientes_buscar');
+    Route::post('/flujo_de_venta/cartera_de_clientes/zona-guardar', [\App\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'guardarZona'])->name('cartera_clientes.zona_guardar');
+    Route::post('/flujo_de_venta/cartera_de_clientes/zona-asignar-clientes', [\App\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'asignarClientesZona'])->name('cartera_clientes.zona_asignar_clientes');
+    Route::post('/flujo_de_venta/cartera_de_clientes/zona-quitar-cliente', [\App\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'quitarClienteZona'])->name('cartera_clientes.zona_quitar_cliente');
+    Route::get('/flujo_de_venta/cartera_de_clientes/zona-historial/{id}', [\App\Livewire\FlujoDeVenta\CarteraDeClientes::class, 'historialZona'])->name('cartera_clientes.zona_historial');
 
 
     // Ruta auto-generada para: FlujoDeVenta\Expo
-    Route::get('/flujo_de_venta/expo', \App\Http\Livewire\FlujoDeVenta\Expo::class);
+    Route::get('/flujo_de_venta/expo', \App\Livewire\FlujoDeVenta\Expo::class);
 
 
     // Ruta auto-generada para: Expo\ReporteDeExpo
-    Route::get('/expo/reporte_de_expo', \App\Http\Livewire\Expo\ReporteDeExpo::class);
+    Route::get('/expo/reporte_de_expo', \App\Livewire\Expo\ReporteDeExpo::class);
 
 
     // Ruta auto-generada para: Expo\ListaDeAsistencia
-    Route::get('/expo/lista_de_asistencia', \App\Http\Livewire\Expo\ListaDeAsistencia::class);
+    Route::get('/expo/lista_de_asistencia', \App\Livewire\Expo\ListaDeAsistencia::class);
 
 
     // Ruta auto-generada para: Reportes\ReporteExpo
-    Route::get('/reportes/reporte_expo', \App\Http\Livewire\Reportes\ReporteExpo::class);
+    Route::get('/reportes/reporte_expo', \App\Livewire\Reportes\ReporteExpo::class);
 
     // Reporte BI de Expo - endpoints AJAX (JSON) del dashboard dinámico
-    Route::get('/reporte/expo/kpis',              [\App\Http\Livewire\Reportes\ReporteExpo::class, 'kpis']);
-    Route::get('/reporte/expo/estado-ofertas',     [\App\Http\Livewire\Reportes\ReporteExpo::class, 'estadoOfertas']);
-    Route::get('/reporte/expo/ventas-por-marca',   [\App\Http\Livewire\Reportes\ReporteExpo::class, 'ventasPorMarca']);
-    Route::get('/reporte/expo/ventas-por-asesor',  [\App\Http\Livewire\Reportes\ReporteExpo::class, 'ventasPorAsesor']);
-    Route::get('/reporte/expo/ventas-por-teleasesor', [\App\Http\Livewire\Reportes\ReporteExpo::class, 'ventasPorTeleasesor']);
-    Route::get('/reporte/expo/top-clientes',        [\App\Http\Livewire\Reportes\ReporteExpo::class, 'topClientes']);
-    Route::get('/reporte/expo/top-productos',       [\App\Http\Livewire\Reportes\ReporteExpo::class, 'topProductos']);
-    Route::get('/reporte/expo/evolucion-diaria',   [\App\Http\Livewire\Reportes\ReporteExpo::class, 'evolucionDiaria']);
-    Route::get('/reporte/expo/tabla-productos',    [\App\Http\Livewire\Reportes\ReporteExpo::class, 'tablaProductos']);
-    Route::get('/reporte/expo/tabla-ofertas',      [\App\Http\Livewire\Reportes\ReporteExpo::class, 'tablaOfertas']);
-    Route::get('/reporte/expo/exportar-productos', [\App\Http\Livewire\Reportes\ReporteExpo::class, 'exportarProductos']);
-    Route::get('/reporte/expo/exportar-ofertas',   [\App\Http\Livewire\Reportes\ReporteExpo::class, 'exportarOfertas']);
-    Route::get('/reporte/expo/catalogo-filtros',   [\App\Http\Livewire\Reportes\ReporteExpo::class, 'catalogoFiltros']);
-    Route::get('/reporte/expo/buscar-productos',   [\App\Http\Livewire\Reportes\ReporteExpo::class, 'buscarProductos']);
-    Route::get('/reporte/expo/detalle-oferta',     [\App\Http\Livewire\Reportes\ReporteExpo::class, 'detalleOferta']);
-    Route::get('/reporte/expo/detalle-producto',   [\App\Http\Livewire\Reportes\ReporteExpo::class, 'detalleProducto']);
-    Route::get('/reporte/expo/exportar-oferta',    [\App\Http\Livewire\Reportes\ReporteExpo::class, 'exportarOferta']);
+    Route::get('/reporte/expo/kpis',              [\App\Livewire\Reportes\ReporteExpo::class, 'kpis']);
+    Route::get('/reporte/expo/estado-ofertas',     [\App\Livewire\Reportes\ReporteExpo::class, 'estadoOfertas']);
+    Route::get('/reporte/expo/ventas-por-marca',   [\App\Livewire\Reportes\ReporteExpo::class, 'ventasPorMarca']);
+    Route::get('/reporte/expo/ventas-por-asesor',  [\App\Livewire\Reportes\ReporteExpo::class, 'ventasPorAsesor']);
+    Route::get('/reporte/expo/ventas-por-teleasesor', [\App\Livewire\Reportes\ReporteExpo::class, 'ventasPorTeleasesor']);
+    Route::get('/reporte/expo/top-clientes',        [\App\Livewire\Reportes\ReporteExpo::class, 'topClientes']);
+    Route::get('/reporte/expo/top-productos',       [\App\Livewire\Reportes\ReporteExpo::class, 'topProductos']);
+    Route::get('/reporte/expo/evolucion-diaria',   [\App\Livewire\Reportes\ReporteExpo::class, 'evolucionDiaria']);
+    Route::get('/reporte/expo/tabla-productos',    [\App\Livewire\Reportes\ReporteExpo::class, 'tablaProductos']);
+    Route::get('/reporte/expo/tabla-ofertas',      [\App\Livewire\Reportes\ReporteExpo::class, 'tablaOfertas']);
+    Route::get('/reporte/expo/exportar-productos', [\App\Livewire\Reportes\ReporteExpo::class, 'exportarProductos']);
+    Route::get('/reporte/expo/exportar-ofertas',   [\App\Livewire\Reportes\ReporteExpo::class, 'exportarOfertas']);
+    Route::get('/reporte/expo/catalogo-filtros',   [\App\Livewire\Reportes\ReporteExpo::class, 'catalogoFiltros']);
+    Route::get('/reporte/expo/buscar-productos',   [\App\Livewire\Reportes\ReporteExpo::class, 'buscarProductos']);
+    Route::get('/reporte/expo/detalle-oferta',     [\App\Livewire\Reportes\ReporteExpo::class, 'detalleOferta']);
+    Route::get('/reporte/expo/detalle-producto',   [\App\Livewire\Reportes\ReporteExpo::class, 'detalleProducto']);
+    Route::get('/reporte/expo/exportar-oferta',    [\App\Livewire\Reportes\ReporteExpo::class, 'exportarOferta']);
 
 
     // Ruta auto-generada para: FlujoDeVenta\VidaUtilDeUnFlujo
-    Route::get('/flujo_de_venta/vida_util_de_un_flujo', \App\Http\Livewire\FlujoDeVenta\VidaUtilDeUnFlujo::class);
+    Route::get('/flujo_de_venta/vida_util_de_un_flujo', \App\Livewire\FlujoDeVenta\VidaUtilDeUnFlujo::class);
 
     // [auto-routes-anchor]
 });

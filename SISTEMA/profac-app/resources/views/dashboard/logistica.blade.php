@@ -68,7 +68,7 @@ function initLogisticaCharts() {
 }
 (function() {
     function run() { if (typeof ApexCharts !== 'undefined') initLogisticaCharts(); }
-    if (window.DASH_LOADED) { run(); } else { document.addEventListener('livewire:load', run); }
+    if (window.DASH_LOADED) { run(); } else { document.addEventListener('livewire:init', run); }
     if (!window._logisticaBound) { window._logisticaBound = true; document.addEventListener('livewire:update', run); }
 })();
 </script>

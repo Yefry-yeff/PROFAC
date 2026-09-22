@@ -1,0 +1,214 @@
+<?php
+
+namespace App\Livewire\Reportes;
+
+use Livewire\Component;
+
+
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Http\Request;
+use DataTables;
+use Auth;
+use Validator;
+use PDF;
+use Luecano\NumeroALetras\NumeroALetras;
+
+use App\Models\ModelFactura;
+use App\Models\ModelCAI;
+use App\Models\ModelRecibirBodega;
+use App\Models\ModelVentaProducto;
+use App\Models\ModelLogTranslados;
+use App\Models\ModelParametro;
+use App\Models\ModelLista;
+use App\Models\ModelCliente;
+use App\Models\logCredito;
+use App\Models\User;
+
+class Reporteria extends Component
+{
+    public function render()
+    {
+        return view('livewire.reportes.reporteria');
+    }
+
+    public function consulta($fecha_inicio, $fecha_final){
+        try {
+            $validator = Validator::make([
+                'fecha_inicio' => $fecha_inicio,
+                'fecha_final' => $fecha_final,
+            ], [
+                'fecha_inicio' => 'required|date_format:Y-m-d',
+                'fecha_final' => 'required|date_format:Y-m-d|after_or_equal:fecha_inicio',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => $validator->errors()->first(),
+                ], 422);
+            }
+
+            $consultaBase = DB::table('factura as A')
+                ->join('venta_has_producto as B', 'A.id', '=', 'B.factura_id')
+                ->join('producto as C', 'B.producto_id', '=', 'C.id')
+                ->join('marca as ma', 'ma.id', '=', 'C.marca_id')
+                ->join('unidad_medida_venta as D', 'B.unidad_medida_venta_id', '=', 'D.id')
+                ->join('unidad_medida as J', 'J.id', '=', 'D.unidad_medida_id')
+                ->join('recibido_bodega as E', 'B.lote', '=', 'E.id')
+                ->join('seccion as F', 'E.seccion_id', '=', 'F.id')
+                ->join('segmento as G', 'F.segmento_id', '=', 'G.id')
+                ->join('bodega as H', 'G.bodega_id', '=', 'H.id')
+                ->join('cliente as cli', 'cli.id', '=', 'A.cliente_id')
+                ->join('sub_categoria', 'sub_categoria.id', '=', 'C.sub_categoria_id')
+                ->join('categoria_producto', 'categoria_producto.id', '=', 'sub_categoria.categoria_producto_id')
+                ->leftJoin('users as vendedor', 'vendedor.id', '=', 'A.vendedor')
+                ->where('A.estado_venta_id', 1)
+                ->where('A.fecha_emision', '>=', $fecha_inicio . ' 00:00:00')
+                ->where('A.fecha_emision', '<=', $fecha_final . ' 23:59:59')
+                ->selectRaw("
+                    A.fecha_emision as `FECHA DE VENTA`,
+                    A.fecha_vencimiento as `FECHA DE VENCIMIENTO`,
+                    UPPER(vendedor.name) as `VENDEDOR`,
+                    RIGHT(A.cai, 5) as `FACTURA`,
+                    UPPER(cli.nombre) as `CLIENTE`,
+                    CASE cli.tipo_cliente_id WHEN 1 THEN 'CLIENTE B' WHEN 2 THEN 'CLIENTE A' END as `TIPO CLIENTE (AoB)`,
+                    CASE A.tipo_pago_id WHEN 1 THEN 'CONTADO' WHEN 2 THEN 'CRÉDITO' END as `TIPO CRÉDITO/CONTADO`,
+                    B.producto_id as `CODIGO PRODUCTO`,
+                    UPPER(C.nombre) as `PRODUCTO`,
+                    UPPER(ma.nombre) as `MARCA`,
+                    UPPER(categoria_producto.descripcion) as `CATEGORIA`,
+                    UPPER(sub_categoria.descripcion) as `SUB CATEGORIA`,
+                    UPPER(J.nombre) as `UNIDAD DE MEDIDA`,
+                    IF(C.isv = 0, 'SI', 'NO') as `EXCENTO`,
+                    H.nombre as `BODEGA`,
+                    REPLACE(REPLACE(F.descripcion, 'Seccion', ''), ' ', '') as `SECCION`,
+                    FORMAT(TRUNCATE(B.precio_unidad, 2), 2) as `PRECIO`,
+                    SUM(B.cantidad_s) as `UNIDADES VENDIDAS`,
+                    FORMAT(SUM(B.sub_total_s), 2) as `SUBTOTAL PRODUCTO`,
+                    FORMAT(SUM(B.isv_s), 2) as `ISV PRODUCTO`,
+                    FORMAT(SUM(B.total_s), 2) as `TOTAL PRODUCTO`,
+                    FORMAT(SUM(A.sub_total), 2) as `SUB TOTAL FACTURA`,
+                    FORMAT(SUM(A.isv), 2) as `ISV FACTURA`,
+                    FORMAT(SUM(A.total), 2) as `TOTAL FACTURA`
+                ")
+                ->groupBy(
+                    'A.fecha_emision', 'A.fecha_vencimiento', 'B.producto_id', 'C.nombre',
+                    'ma.nombre', 'categoria_producto.descripcion', 'sub_categoria.descripcion',
+                    'J.nombre', 'C.isv', 'H.nombre', 'F.descripcion', 'B.precio_unidad',
+                    'B.cantidad_s', 'B.sub_total_s', 'B.isv_s', 'B.total_s', 'A.vendedor',
+                    'vendedor.name', 'A.sub_total', 'A.isv', 'A.total', 'A.cai', 'cli.nombre',
+                    'A.tipo_venta_id', 'A.tipo_pago_id', 'cli.tipo_cliente_id'
+                );
+
+            $consulta = DB::query()->fromSub($consultaBase, 'reporte')->select('reporte.*');
+
+            return Datatables::of($consulta)->make(true);
+
+        } catch (QueryException $e) {
+            return response()->json([
+                'message' => 'Ha ocurrido un error al listar el reporte solicitado.',
+                'errorTh' => $e,
+            ], 402);
+
+        }
+
+    }
+
+    public function catalogoProductos(){
+        try {
+
+
+
+            $consulta = DB::SELECT("
+                select
+                    A.id as 'CODIGO',
+                    A.codigo_barra AS 'CODIGO DE BARRA',
+                    A.nombre AS 'PRODUCTO',
+                    marca.nombre as 'MARCA',
+                    ##A.descripcion,
+                    IF (A.isv = 0, 'NO', 'SI') as 'ISV',
+                    CA.descripcion as 'CATEGORIA',
+                    B.descripcion as 'SUB CATEGORIA',
+                    @existenciaCompra := IFNULL (
+                        ( select sum(cantidad_disponible) from recibido_bodega inner join compra on recibido_bodega.compra_id = compra.id where compra.estado_compra_id = 1 and producto_id = A.id), 0 ) as 'EXISTENCIA POR COMPRA',
+                    @existenciaAjuste := IFNULL (
+                        ( select sum(cantidad_disponible) from recibido_bodega G where G.compra_id is null and G.cantidad_disponible <> 0 and G.producto_id = A.id ), 0
+                    ) as 'EXISTENCIA POR AJUSTE',
+                    FORMAT(
+                        @existenciaCompra + @existenciaAjuste,
+                        0
+                    ) as 'EXISTENCIA TOTAL',
+                    A.precio_base as 'PRECIO BASE'
+                    from
+                    producto A
+                    inner join sub_categoria B on A.sub_categoria_id = B.id
+                    inner join categoria_producto CA on CA.id = B.categoria_producto_id
+                    inner join marca on marca.id = A.marca_id
+                    order by
+                    A.created_at DESC
+
+            ");
+
+
+            //dd($consulta);
+
+
+            return Datatables::of($consulta)
+            ->rawColumns([])
+            ->make(true);
+
+        } catch (QueryException $e) {
+            return response()->json([
+                'message' => 'Ha ocurrido un error al listar el reporte solicitado.',
+                'errorTh' => $e,
+            ], 402);
+
+        }
+
+    }
+
+    public function consultaClientes(){
+        try {
+            $consulta = DB::SELECT("
+            SELECT
+                    cliente.id as 'CODIGO',
+                    (select descripcion from tipo_cliente where id = cliente.tipo_cliente_id)as 'TIPO',
+                    (IF(cliente.estado_cliente_id  = 1, 'ACTIVO', 'INACTIVO')) AS 'ESTADO',
+                    cliente.rtn as 'RTN',
+                    cliente.nombre as 'NOMBRE',
+                    cliente.direccion as 'DIRECCION',
+                    cliente.correo as 'CORREO',
+                    cliente.telefono_empresa as 'TELEFONO',
+                    p.nombre as 'PAIS',
+                    a.nombre as 'DEPARTAMENTO',
+                    b.nombre as 'MUNICIPIO',
+                    (SELECT nombre FROM contacto  WHERE cliente_id = cliente.id AND estado_id = 1  LIMIT 1) AS 'NCONT1',
+                    (SELECT telefono FROM contacto  WHERE cliente_id = cliente.id AND estado_id = 1  LIMIT 1) AS 'TCONT1',
+                    (SELECT nombre FROM contacto WHERE cliente_id = cliente.id AND estado_id = 1 LIMIT 1 OFFSET 1) AS 'NCONT2',
+                    (SELECT telefono FROM contacto WHERE cliente_id = cliente.id AND estado_id = 1 LIMIT 1 OFFSET 1) AS 'TCONT2',
+                    (SELECT name from users where id = cliente.vendedor) as 'VENDEDOR',
+                    cliente.created_at as 'REGISTRO'
+                FROM cliente
+                    inner join municipio b on b.id = cliente.municipio_id
+                    INNER JOIN departamento a ON a.id = b.departamento_id
+                    inner join pais p on p.id = a.pais_id
+
+            ");
+
+            return Datatables::of($consulta)
+            ->rawColumns([])
+            ->make(true);
+
+        } catch (QueryException $e) {
+            return response()->json([
+                'message' => 'Ha ocurrido un error al listar el reporte solicitado.',
+                'errorTh' => $e,
+            ], 402);
+
+        }
+
+    }
+
+
+}
