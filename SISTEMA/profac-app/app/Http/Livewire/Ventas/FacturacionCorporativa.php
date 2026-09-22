@@ -1099,6 +1099,26 @@ class FacturacionCorporativa extends Component
                     ->exists()
             );
 
+            if ($facturacionExpoDesdePrefactura) {
+                $prefacturaExpo = DB::table('prefactura')
+                    ->where('id', $prefacturaExcluirId)
+                    ->first(['flujo_id', 'cotizacion_id']);
+                $fechaVencimientoAutorizada = $prefacturaExpo
+                    ? DB::table('credito_revision')
+                        ->where('flujo_id', $prefacturaExpo->flujo_id)
+                        ->where('cotizacion_id', $prefacturaExpo->cotizacion_id)
+                        ->where('estado', 'aprobado')
+                        ->latest('id')
+                        ->value('fecha_vencimiento_credito')
+                    : null;
+
+                if ($fechaVencimientoAutorizada) {
+                    $request->merge([
+                        'fecha_vencimiento' => \Carbon\Carbon::parse($fechaVencimientoAutorizada)->toDateString(),
+                    ]);
+                }
+            }
+
             $teleAsesorId = $this->resolveTeleAsesorId($request);
             //
 
@@ -1378,12 +1398,14 @@ class FacturacionCorporativa extends Component
                 $factura->total = $request->totalGeneral;
                 $factura->credito = $request->totalGeneral;
                 $factura->fecha_emision = $request->fecha_emision;
-                $factura->fecha_vencimiento = $this->calcularFechaVencimientoFactura(
-                    (string) $request->fecha_emision,
-                    (int) $request->tipoPagoVenta,
-                    $this->obtenerDiasCreditoAprobados((int) ($request->flujo_id ?? 0)),
-                    (int) $diasCredito
-                );
+                $factura->fecha_vencimiento = $facturacionExpoDesdePrefactura
+                    ? (string) $request->fecha_vencimiento
+                    : $this->calcularFechaVencimientoFactura(
+                        (string) $request->fecha_emision,
+                        (int) $request->tipoPagoVenta,
+                        $this->obtenerDiasCreditoAprobados((int) ($request->flujo_id ?? 0)),
+                        (int) $diasCredito
+                    );
                 $factura->tipo_pago_id = $request->tipoPagoVenta;
                 $factura->dias_credito = $this->resolverDiasCreditoFactura((int) $request->tipoPagoVenta, (int) ($request->flujo_id ?? 0), (int) $diasCredito);
                 $factura->cai_id = $cai->id;
@@ -1722,12 +1744,14 @@ class FacturacionCorporativa extends Component
             $factura->total = $request->totalGeneral;
             $factura->credito = $request->totalGeneral;
             $factura->fecha_emision = $request->fecha_emision;
-            $factura->fecha_vencimiento = $this->calcularFechaVencimientoFactura(
-                (string) $request->fecha_emision,
-                (int) $request->tipoPagoVenta,
-                $this->obtenerDiasCreditoAprobados((int) ($request->flujo_id ?? 0)),
-                (int) $diasCredito
-            );
+            $factura->fecha_vencimiento = $facturacionExpoDesdePrefactura
+                ? (string) $request->fecha_vencimiento
+                : $this->calcularFechaVencimientoFactura(
+                    (string) $request->fecha_emision,
+                    (int) $request->tipoPagoVenta,
+                    $this->obtenerDiasCreditoAprobados((int) ($request->flujo_id ?? 0)),
+                    (int) $diasCredito
+                );
             $factura->tipo_pago_id = $request->tipoPagoVenta;
             $factura->dias_credito = $this->resolverDiasCreditoFactura((int) $request->tipoPagoVenta, (int) ($request->flujo_id ?? 0), (int) $diasCredito);
             $factura->cai_id = $cai->id;
@@ -1881,12 +1905,14 @@ class FacturacionCorporativa extends Component
         $factura->total = $request->totalGeneral;
         $factura->credito = $request->totalGeneral;
         $factura->fecha_emision = $request->fecha_emision;
-        $factura->fecha_vencimiento = $this->calcularFechaVencimientoFactura(
-            (string) $request->fecha_emision,
-            (int) $request->tipoPagoVenta,
-            $this->obtenerDiasCreditoAprobados((int) ($request->flujo_id ?? 0)),
-            (int) $diasCredito
-        );
+        $factura->fecha_vencimiento = $facturacionExpoDesdePrefactura
+            ? (string) $request->fecha_vencimiento
+            : $this->calcularFechaVencimientoFactura(
+                (string) $request->fecha_emision,
+                (int) $request->tipoPagoVenta,
+                $this->obtenerDiasCreditoAprobados((int) ($request->flujo_id ?? 0)),
+                (int) $diasCredito
+            );
         $factura->tipo_pago_id = $request->tipoPagoVenta;
         $factura->dias_credito = $this->resolverDiasCreditoFactura((int) $request->tipoPagoVenta, (int) ($request->flujo_id ?? 0), (int) $diasCredito);
         $factura->cai_id = $cai->id;
@@ -2025,12 +2051,14 @@ class FacturacionCorporativa extends Component
             $factura->total = $request->totalGeneral;
             $factura->credito = $request->totalGeneral;
             $factura->fecha_emision = $request->fecha_emision;
-            $factura->fecha_vencimiento = $this->calcularFechaVencimientoFactura(
-                (string) $request->fecha_emision,
-                (int) $request->tipoPagoVenta,
-                $this->obtenerDiasCreditoAprobados((int) ($request->flujo_id ?? 0)),
-                (int) $diasCredito
-            );
+            $factura->fecha_vencimiento = $facturacionExpoDesdePrefactura
+                ? (string) $request->fecha_vencimiento
+                : $this->calcularFechaVencimientoFactura(
+                    (string) $request->fecha_emision,
+                    (int) $request->tipoPagoVenta,
+                    $this->obtenerDiasCreditoAprobados((int) ($request->flujo_id ?? 0)),
+                    (int) $diasCredito
+                );
             $factura->tipo_pago_id = $request->tipoPagoVenta;
             $factura->dias_credito = $this->resolverDiasCreditoFactura((int) $request->tipoPagoVenta, (int) ($request->flujo_id ?? 0), (int) $diasCredito);
             $factura->cai_id = $cai->cai_id;
@@ -2799,12 +2827,14 @@ class FacturacionCorporativa extends Component
             $factura->total = $request->totalGeneral;
             $factura->credito = $request->totalGeneral;
             $factura->fecha_emision = $request->fecha_emision;
-            $factura->fecha_vencimiento = $this->calcularFechaVencimientoFactura(
-                (string) $request->fecha_emision,
-                (int) $request->tipoPagoVenta,
-                $this->obtenerDiasCreditoAprobados((int) ($request->flujo_id ?? 0)),
-                (int) $diasCredito
-            );
+            $factura->fecha_vencimiento = $facturacionExpoDesdePrefactura
+                ? (string) $request->fecha_vencimiento
+                : $this->calcularFechaVencimientoFactura(
+                    (string) $request->fecha_emision,
+                    (int) $request->tipoPagoVenta,
+                    $this->obtenerDiasCreditoAprobados((int) ($request->flujo_id ?? 0)),
+                    (int) $diasCredito
+                );
             $factura->tipo_pago_id = $request->tipoPagoVenta;
             $factura->dias_credito = $this->resolverDiasCreditoFactura((int) $request->tipoPagoVenta, (int) ($request->flujo_id ?? 0), (int) $diasCredito);
             $factura->cai_id = $listado->cai_id;

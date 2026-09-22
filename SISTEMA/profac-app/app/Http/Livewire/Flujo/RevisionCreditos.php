@@ -988,7 +988,10 @@ class RevisionCreditos extends Component
 
             $dtVencimiento = null;
             if ($this->tipoPagoSolicitud !== 'contado') {
-                $dtVencimiento = $dtAprobacion->copy()->addDays($diasAprobados);
+                $fechaBaseVencimiento = $this->esSeccionExpo && $this->fechaEmisionOferta
+                    ? Carbon::parse($this->fechaEmisionOferta)
+                    : $dtAprobacion;
+                $dtVencimiento = $fechaBaseVencimiento->copy()->addDays($diasAprobados);
             }
 
             if ($cr) {

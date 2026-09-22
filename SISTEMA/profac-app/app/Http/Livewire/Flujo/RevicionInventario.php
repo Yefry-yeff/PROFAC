@@ -1400,6 +1400,19 @@ class RevicionInventario extends Component
         }
 
         $diasValidez = $this->diasVigenciaPrefactura((int) $this->flujoId, (int) $this->cotizacionId);
+        $fechaVencimiento = now()->addDays($diasValidez)->toDateString();
+        if ($this->esOfertaExpo) {
+            $fechaVencimientoAutorizada = DB::table('credito_revision')
+                ->where('flujo_id', $this->flujoId)
+                ->where('cotizacion_id', $this->cotizacionId)
+                ->where('estado', 'aprobado')
+                ->latest('id')
+                ->value('fecha_vencimiento_credito');
+
+            if ($fechaVencimientoAutorizada) {
+                $fechaVencimiento = \Carbon\Carbon::parse($fechaVencimientoAutorizada)->toDateString();
+            }
+        }
 
         DB::beginTransaction();
         try {
@@ -1422,7 +1435,7 @@ class RevicionInventario extends Component
                 'nombre_cliente'    => $cotizacion->nombre_cliente,
                 'RTN'               => $cotizacion->RTN,
                 'fecha_emision'     => now()->toDateString(),
-                'fecha_vencimiento' => now()->addDays($diasValidez)->toDateString(),
+                'fecha_vencimiento' => $fechaVencimiento,
                 'sub_total'         => $cotizacion->sub_total,
                 'sub_total_grabado' => $cotizacion->sub_total_grabado,
                 'sub_total_excento' => $cotizacion->sub_total_excento,
