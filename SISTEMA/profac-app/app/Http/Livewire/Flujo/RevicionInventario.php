@@ -1157,10 +1157,6 @@ class RevicionInventario extends Component
 
         $actualizaciones = [];
         foreach ($this->productos as $prod) {
-            if (empty($prod['sin_existencia'])) {
-                continue;
-            }
-
             $seleccion = (string) ($this->bodegaExpoSeleccionada[$prod['idx']] ?? '');
             $destino = collect($prod['destinos_bodega'] ?? [])->first(
                 fn (array $opcion) => (string) $opcion['value'] === $seleccion
@@ -1172,6 +1168,10 @@ class RevicionInventario extends Component
             }
 
             [$bodegaId, $seccionId] = array_map('intval', explode('|', $seleccion, 2));
+            if ($bodegaId === (int) $prod['bodega_id'] && $seccionId === (int) $prod['seccion_id']) {
+                continue;
+            }
+
             $actualizaciones[] = [
                 'linea_id' => (int) $prod['cotizacion_has_producto_id'],
                 'bodega_id' => $bodegaId,
@@ -1252,6 +1252,58 @@ class RevicionInventario extends Component
         }
 
         return true;
+    }
+
+    private function validarStockAntesDePrefacturar($productos): array
+    {
+        if ($this->esOfertaExpo) {
+            return [];
+        }
+
+        $unidadIds = $productos->pluck('unidad_medida_venta_id')->filter()->unique()->values();
+        $factores = DB::table('unidad_medida_venta')
+            ->whereIn('id', $unidadIds)
+            ->pluck('unidad_venta', 'id');
+        $errores = [];
+        $requeridoPorUbicacion = [];
+
+        foreach ($productos as $prod) {
+            if (!((float) ($prod->resta_inventario ?? 0) > 0)
+                || !$prod->producto_id
+                || !$prod->seccion_id) {
+                $errores[] = $prod->nombre_producto . ': ubicación de inventario inválida.';
+                continue;
+            }
+
+            $factorUnidad = (float) ($factores[$prod->unidad_medida_venta_id] ?? 1);
+            $factorUnidad = $factorUnidad > 0 ? $factorUnidad : 1.0;
+            $clave = $prod->producto_id . '|' . $prod->seccion_id;
+            $requeridoPorUbicacion[$clave]['producto_id'] = (int) $prod->producto_id;
+            $requeridoPorUbicacion[$clave]['seccion_id'] = (int) $prod->seccion_id;
+            $requeridoPorUbicacion[$clave]['nombre_producto'] = (string) $prod->nombre_producto;
+            $requeridoPorUbicacion[$clave]['cantidad'] = ($requeridoPorUbicacion[$clave]['cantidad'] ?? 0)
+                + ((float) $prod->cantidad * $factorUnidad);
+        }
+
+        ksort($requeridoPorUbicacion);
+        foreach ($requeridoPorUbicacion as $requerido) {
+            DB::table('recibido_bodega')
+                ->where('producto_id', $requerido['producto_id'])
+                ->where('seccion_id', $requerido['seccion_id'])
+                ->where('cantidad_disponible', '>', 0)
+                ->lockForUpdate()
+                ->get(['id']);
+
+            $stock = $this->calcularStockDestinoNormal($requerido['producto_id'], $requerido['seccion_id']);
+
+            if ((float) $stock['disponible'] + 0.0001 < $requerido['cantidad']) {
+                $errores[] = $requerido['nombre_producto']
+                    . ': requerido ' . round($requerido['cantidad'], 4)
+                    . ', disponible ' . round((float) $stock['disponible'], 4) . '.';
+            }
+        }
+
+        return $errores;
     }
 
     /**
@@ -1361,11 +1413,6 @@ class RevicionInventario extends Component
             return;
         }
 
-        if (!$this->sincronizarBodegasNormalesSeleccionadas()
-            || !$this->sincronizarBodegasExpoSeleccionadas()) {
-            return;
-        }
-
         $cotizacion = DB::table('cotizacion')->where('id', $this->cotizacionId)->first();
         if (!$cotizacion) {
             $this->mensajeError = 'Oferta ganadora no encontrada.';
@@ -1378,15 +1425,6 @@ class RevicionInventario extends Component
 
         if ($productos->isEmpty()) {
             $this->mensajeError = 'La oferta no tiene productos para generar prefactura.';
-            return;
-        }
-
-        $lineasSinExistencia = $productos->filter(function ($prod) {
-            return !((float) ($prod->resta_inventario ?? 0) > 0);
-        });
-
-        if ($lineasSinExistencia->isNotEmpty()) {
-            $this->mensajeError = 'No se puede pasar a Prefactura: la oferta contiene productos marcados como sin existencia.';
             return;
         }
 
@@ -1425,6 +1463,28 @@ class RevicionInventario extends Component
                 ->exists();
             if (!$revisionActiva) {
                 throw new \RuntimeException('La revisión de inventario ya fue procesada por otro usuario.');
+            }
+
+            if (!$this->sincronizarBodegasNormalesSeleccionadas()
+                || !$this->sincronizarBodegasExpoSeleccionadas()) {
+                throw new \RuntimeException($this->mensajeError ?: 'No se pudo sincronizar la bodega seleccionada.');
+            }
+
+            $productos = DB::table('cotizacion_has_producto')
+                ->where('cotizacion_id', $this->cotizacionId)
+                ->lockForUpdate()
+                ->get();
+
+            $lineasSinExistencia = $productos->filter(
+                fn ($prod) => !((float) ($prod->resta_inventario ?? 0) > 0)
+            );
+            if ($lineasSinExistencia->isNotEmpty()) {
+                throw new \RuntimeException('La oferta contiene productos marcados como sin existencia.');
+            }
+
+            $erroresStock = $this->validarStockAntesDePrefacturar($productos);
+            if (!empty($erroresStock)) {
+                throw new \RuntimeException('Inventario insuficiente: ' . implode(' ', $erroresStock));
             }
 
             // Crear prefactura

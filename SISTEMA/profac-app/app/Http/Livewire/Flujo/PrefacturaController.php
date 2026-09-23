@@ -1740,12 +1740,19 @@ class PrefacturaController
     {
         $faltantes = [];
 
-        $productos = DB::table('prefactura_has_producto')
-            ->where('prefactura_id', $prefacturaId)
-            ->where('resta_inventario', 1)
-            ->whereNotNull('producto_id')
-            ->whereNotNull('seccion_id')
-            ->get(['producto_id', 'seccion_id', 'nombre_producto', 'cantidad']);
+        $productos = DB::table('prefactura_has_producto as php')
+            ->leftJoin('unidad_medida_venta as umv', 'umv.id', '=', 'php.unidad_medida_venta_id')
+            ->where('php.prefactura_id', $prefacturaId)
+            ->where('php.resta_inventario', 1)
+            ->whereNotNull('php.producto_id')
+            ->whereNotNull('php.seccion_id')
+            ->groupBy('php.producto_id', 'php.seccion_id', 'php.nombre_producto')
+            ->get([
+                'php.producto_id',
+                'php.seccion_id',
+                'php.nombre_producto',
+                DB::raw('SUM(php.cantidad * COALESCE(umv.unidad_venta, 1)) as cantidad_inventario'),
+            ]);
 
         foreach ($productos as $prod) {
             $rawStock = (float) DB::table('recibido_bodega')
@@ -1756,6 +1763,7 @@ class PrefacturaController
 
             $reservadoQuery = DB::table('prefactura_has_producto as php')
                 ->join('prefactura as pf', 'pf.id', '=', 'php.prefactura_id')
+                ->leftJoin('unidad_medida_venta as umv', 'umv.id', '=', 'php.unidad_medida_venta_id')
                 ->where('pf.estado', 'activo')
                 ->whereRaw("TIMESTAMPADD(DAY, COALESCE((SELECT cp.dias_validez FROM configuracion_prefactura cp ORDER BY cp.id DESC LIMIT 1), 7), COALESCE(pf.created_at, CONCAT(COALESCE(pf.fecha_emision, CURDATE()), ' 00:00:00'))) > NOW()")
                 ->where('php.producto_id', $prod->producto_id)
@@ -1766,9 +1774,10 @@ class PrefacturaController
                 $reservadoQuery->where('pf.id', '!=', $prefacturaId);
             }
 
-            $reservado = (float) $reservadoQuery->sum('php.cantidad');
+            $reservado = (float) $reservadoQuery
+                ->sum(DB::raw('php.cantidad * COALESCE(umv.unidad_venta, 1)'));
             $disponible = max(0.0, $rawStock - $reservado);
-            $solicitado = (float) ($prod->cantidad ?? 0);
+            $solicitado = (float) ($prod->cantidad_inventario ?? 0);
 
             if ($disponible + 0.0001 < $solicitado) {
                 $faltantes[] = [
