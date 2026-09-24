@@ -1,4 +1,5 @@
 ﻿<div>
+<div>
 
     @include('livewire.ventas.cai-credito')
     @include('livewire.ventas.cai-debito')
@@ -707,3 +708,4 @@
     <strong>Copyright</strong> Distribuciones Valencia &copy; <?php echo "$year";  ?>
 </div>
 <p id="reloj"></p>
+</div>

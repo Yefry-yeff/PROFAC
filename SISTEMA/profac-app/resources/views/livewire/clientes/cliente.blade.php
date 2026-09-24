@@ -1,4 +1,5 @@
 ﻿<div>
+<div>
     @php
         // Solo estos roles pueden cambiar el "Tipo de cliente" al editar (Administrador, Créditos y Cobros).
         $puedeEditarTipoCliente = in_array((int) (auth()->user()->rol_id ?? 0), [1, 4], true);
@@ -765,3 +766,5 @@
 
     <script src="{{ asset('js/js_proyecto/cliente/cliente.js') }}"></script>
 @endpush
+
+</div>

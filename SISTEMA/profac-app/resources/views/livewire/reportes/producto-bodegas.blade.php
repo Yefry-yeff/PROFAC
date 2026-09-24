@@ -1,4 +1,5 @@
 <div>
+<div>
     <style>
         tfoot input {
             width: 100%;
@@ -257,3 +258,4 @@
     <strong>Copyright</strong> Distribuciones Valencia &copy; <?php echo "$year";  ?>
 </div>
 <p id="reloj"></p>
+</div>

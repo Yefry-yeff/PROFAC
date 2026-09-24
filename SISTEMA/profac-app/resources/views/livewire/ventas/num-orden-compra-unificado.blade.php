@@ -1,4 +1,5 @@
 <div>
+<div>
     @push('styles')
         <style>
             @media (max-width: 600px) {
@@ -536,3 +537,4 @@
     <strong>Copyright</strong> Distribuciones Valencia &copy; <?php echo "$year";  ?>
 </div>
 <p id="reloj"></p>
+</div>

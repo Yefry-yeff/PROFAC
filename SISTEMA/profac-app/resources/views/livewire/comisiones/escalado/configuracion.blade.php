@@ -521,6 +521,7 @@
 @endpush
 
 {{-- ===== PAGE HEADER ===== --}}
+<div>
 <div class="row wrapper border-bottom white-bg page-heading">
     <div class="col-lg-10">
         <h2><i class="fa fa-percent text-warning mr-2"></i>Comisiones</h2>
@@ -1186,6 +1187,7 @@
 
 </div>
 
+ </div>
 @push('scripts')
 <script src="{{ asset('js/js_proyecto/comisiones/Escalado/gestionComision.js') }}"></script>
 <script>
