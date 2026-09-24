@@ -1242,17 +1242,26 @@
             });
         }
 
+        function intentarSuscribir(component) {
+            try {
+                if (typeof component.get !== 'function') return;
+                var flujoId = component.get('flujoId');
+                var cotizacionId = component.get('cotizacionId');
+                if (flujoId === undefined || cotizacionId === undefined) return;
+                suscribirRevisionInventario(component, flujoId, cotizacionId);
+            } catch (e) {
+                // No es el componente de Revisión de Inventario.
+            }
+        }
+
         if (window.Livewire) {
-            Livewire.hook('message.processed', function (message, component) {
-                try {
-                    if (typeof component.get !== 'function') return;
-                    var flujoId = component.get('flujoId');
-                    var cotizacionId = component.get('cotizacionId');
-                    if (flujoId === undefined || cotizacionId === undefined) return;
-                    suscribirRevisionInventario(component, flujoId, cotizacionId);
-                } catch (e) {
-                    // No es el componente de Revisión de Inventario.
-                }
+            Livewire.hook('component.init', function ({ component }) {
+                intentarSuscribir(component);
+            });
+
+            queueMicrotask(function () {
+                if (typeof Livewire.all !== 'function') return;
+                Livewire.all().forEach(intentarSuscribir);
             });
         }
     })();

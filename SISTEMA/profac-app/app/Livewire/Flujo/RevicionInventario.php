@@ -784,16 +784,20 @@ class RevicionInventario extends Component
             'revisado', 'observacion', 'revisado_por', 'accion_at', 'updated_at',
         ]);
 
-        event(new RevisionInventarioLineaActualizada(
-            $this->flujoId,
-            $this->cotizacionId,
-            $lineaId,
-            $revisado,
-            $observacion !== '' ? $observacion : null,
-            $usuarioId,
-            $usuarioNombre,
-            $ahora->toIso8601String(),
-        ));
+        try {
+            event(new RevisionInventarioLineaActualizada(
+                $this->flujoId,
+                $this->cotizacionId,
+                $lineaId,
+                $revisado,
+                $observacion !== '' ? $observacion : null,
+                $usuarioId,
+                $usuarioNombre,
+                $ahora->toIso8601String(),
+            ));
+        } catch (\Throwable $exception) {
+            report($exception);
+        }
     }
 
     /**
