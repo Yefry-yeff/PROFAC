@@ -2,6 +2,7 @@
 <html>
 <head>
         <link rel="stylesheet" href="{{ public_path('css/bootstrap.min.css') }}">
+    @include('pdf.partials.legacy-layout')
     <style>
         p { font-size: 12px; }
 

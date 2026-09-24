@@ -3107,7 +3107,7 @@ class ModalFlujoPedido extends Component
         return DB::table('historico_flujo as hf')
             ->join('factura as f', 'f.id', '=', 'hf.tramite_id')
             ->where('hf.flujo_id', $this->flujoId)
-            ->whereIn('hf.tipo_tramite_id', [3, 5])
+            ->where('hf.tipo_tramite_id', 3)
             ->orderBy('f.fecha_emision')
             ->orderBy('f.id')
             ->pluck('f.id')

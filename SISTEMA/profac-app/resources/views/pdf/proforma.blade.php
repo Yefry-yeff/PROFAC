@@ -6,6 +6,7 @@
 
         <link rel="stylesheet" href="{{ public_path('css/bootstrap.min.css') }}">
 
+    @include('pdf.partials.legacy-layout')
     <style>
         .color-red {
             color: red;
