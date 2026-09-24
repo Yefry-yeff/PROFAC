@@ -32,7 +32,7 @@ class ReporteUsuariosPorRolExport implements FromQuery, WithHeadings, WithMappin
         return 'Usuarios por Rol';
     }
 
-    public function query()
+    public function query(): \Illuminate\Database\Query\Builder
     {
         // Incluye una fila por CADA rol del usuario (principal + adicionales).
         $adicionales = DB::table('usuario_rol as ur')
@@ -88,7 +88,7 @@ class ReporteUsuariosPorRolExport implements FromQuery, WithHeadings, WithMappin
         return ['A' => 28, 'B' => 32, 'C' => 38, 'D' => 18, 'E' => 16, 'F' => 20];
     }
 
-    public function styles(Worksheet $sheet)
+    public function styles(Worksheet $sheet): ?array
     {
         return [
             1 => [

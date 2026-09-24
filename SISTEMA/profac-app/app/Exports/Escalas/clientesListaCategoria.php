@@ -19,7 +19,7 @@ class ProductosPlantillaExport implements FromQuery, WithHeadings, WithMapping
         $this->valorFiltro = $valorFiltro;
     }
 
-    public function query()
+    public function query(): \Illuminate\Database\Query\Builder
     {
         $query = DB::table('cliente as A')
             ->join('marca as B', 'B.id', '=', 'A.marca_id')

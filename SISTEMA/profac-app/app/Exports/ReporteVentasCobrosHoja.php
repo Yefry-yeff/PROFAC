@@ -420,7 +420,7 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
 
     /* ─────────────────────────────────────────────────────────────── */
 
-    public function drawings()
+    public function drawings(): \PhpOffice\PhpSpreadsheet\Worksheet\BaseDrawing|array
     {
         if ($this->fastMode) {
             return [];
@@ -435,7 +435,7 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
         return $d;
     }
 
-    public function styles(Worksheet $sheet)
+    public function styles(Worksheet $sheet): ?array
     {
         $lc = self::LAST_COL;
 

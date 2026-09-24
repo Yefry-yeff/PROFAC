@@ -35,7 +35,7 @@ class CuentasPorCobrarExport implements FromCollection, WithHeadings, ShouldAuto
         $this->cliente = $cliente;
     }
 
-    public function collection()
+    public function collection(): \Illuminate\Support\Enumerable
     {
        return DB::table('factura')
                 ->join('cliente', 'factura.cliente_id', '=', 'cliente.id')
@@ -61,7 +61,7 @@ class CuentasPorCobrarExport implements FromCollection, WithHeadings, ShouldAuto
         ];
     }
 
-    public function styles(Worksheet $sheet)
+    public function styles(Worksheet $sheet): ?array
     {
        /* return [
             // Style the first row as bold text.
@@ -81,7 +81,7 @@ class CuentasPorCobrarExport implements FromCollection, WithHeadings, ShouldAuto
           $sheet->getStyle('A1:I1')->getFill()->getStartColor()->setARGB('17378C');
           $sheet->getStyle('A1:I1')->getBorders()->getAllBorders()->setBorderStyle('thin');
 
-          return ;
+          return null;
 
     }
 

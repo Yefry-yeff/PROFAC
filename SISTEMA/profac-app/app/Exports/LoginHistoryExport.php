@@ -29,7 +29,7 @@ class LoginHistoryExport implements FromView, WithStyles
         ]);
     }
 
-    public function styles(Worksheet $sheet)
+    public function styles(Worksheet $sheet): ?array
     {
         // Merge cells para los títulos
         $sheet->mergeCells('A1:E1');

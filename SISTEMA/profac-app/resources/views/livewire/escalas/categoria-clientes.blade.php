@@ -230,6 +230,7 @@ a.btn.btn-pf-primary:hover {
 }
 </style>
 @endpush
+<div>
 <!-- MODAL -->
 <div class="modal fade" id="modalCategoriasClientes" tabindex="-1" role="dialog" aria-labelledby="modalCategoriasClientesTitle" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
@@ -397,6 +398,7 @@ a.btn.btn-pf-primary:hover {
     </div>
 
   </div>
+</div>
 </div>
 
 @push('scripts')

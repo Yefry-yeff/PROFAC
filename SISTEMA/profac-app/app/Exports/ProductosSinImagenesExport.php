@@ -16,7 +16,7 @@ class ProductosSinImagenesExport implements FromCollection, WithHeadings, Should
         $this->rows = collect($rows);
     }
 
-    public function collection()
+    public function collection(): \Illuminate\Support\Enumerable
     {
         return $this->rows->map(function (array $row) {
             return [

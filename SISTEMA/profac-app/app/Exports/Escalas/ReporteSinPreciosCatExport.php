@@ -25,7 +25,7 @@ class ReporteSinPreciosCatExport implements FromQuery, WithHeadings, WithMapping
 
     const LAST_COL = 'E';
 
-    public function query()
+    public function query(): \Illuminate\Database\Query\Builder
     {
         return DB::table('cliente_categoria_escala as cce')
             ->leftJoin('categoria_precios as cp', 'cp.cliente_categoria_escala_id', '=', 'cce.id')
@@ -61,7 +61,7 @@ class ReporteSinPreciosCatExport implements FromQuery, WithHeadings, WithMapping
         return ['A' => 8, 'B' => 35, 'C' => 35, 'D' => 12, 'E' => 22];
     }
 
-    public function styles(Worksheet $sheet)
+    public function styles(Worksheet $sheet): ?array
     {
         return [
             1 => [

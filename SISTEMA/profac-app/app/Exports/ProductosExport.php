@@ -16,7 +16,7 @@ class ProductosExport implements FromCollection, WithHeadings, ShouldAutoSize
         $this->filtros = $filtros;
     }
 
-    public function collection()
+    public function collection(): \Illuminate\Support\Enumerable
     {
         $excluidos = [
             1157,1321,2665,2585,2409,2464,1569,1506,2708,2937,2645,1118,2652,3355,3356,

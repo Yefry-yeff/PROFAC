@@ -44,7 +44,7 @@ class ProductosPlantillaExport implements FromQuery, WithHeadings, WithMapping, 
      * Construye la consulta SQL base utilizada para generar el Excel.
      * Se ejecuta directamente sobre la base de datos, aplicando joins y filtros dinámicos.
      */
-    public function query()
+    public function query(): \Illuminate\Database\Query\Builder
     {
         $preciosCoDistribuidorA = DB::table('precios_producto_carga as ppc')
             ->join('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')

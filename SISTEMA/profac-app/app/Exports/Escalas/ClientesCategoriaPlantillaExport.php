@@ -1,6 +1,7 @@
 <?php
 namespace App\Exports\Escalas;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Database\Query\Builder;
 use Maatwebsite\Excel\Concerns\Exportable;
 
 use App\Models\ModelCliente;
@@ -11,7 +12,7 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 
 class ClientesCategoriaPlantillaExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSize, WithEvents
 {
-    public function query()
+    public function query(): Builder
 {
     return \DB::table('cliente as c')
         ->leftJoin('cliente_categoria_escala as cat', 'cat.id', '=', 'c.cliente_categoria_escala_id')

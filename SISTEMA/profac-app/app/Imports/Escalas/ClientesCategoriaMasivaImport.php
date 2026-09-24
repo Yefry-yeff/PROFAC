@@ -22,7 +22,7 @@ class ClientesCategoriaMasivaImport implements ToCollection, WithHeadingRow, Wit
     protected int $actualizados = 0;
     protected int $saltados = 0;
 
-   public function collection(Collection $rows)
+    public function collection(Collection $rows): void
 {
     foreach ($rows as $rawRow) {
 
