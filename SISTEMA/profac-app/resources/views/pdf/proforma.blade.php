@@ -12,23 +12,11 @@
             color: red;
         }
 
-        p {
-            font-size: 12px;
-        }
-
-        body {
-
-           /*  background-size: 100% 100%; */
-            margin-left: -95px;
-            padding: 50px;
-            /* ##background-image: url('img/membrete/Logo1.png'); */
-
-
-            width: 45rem;
-            height: 3rem;
-
-
-        }
+        @page { margin: 28px; }
+        p { font-size: 10px; }
+        body { margin: 0; padding: 0; width: 100%; }
+        .proforma-logo { display:block; width:100%; margin-bottom:8px; }
+        .proforma-ancho { width:100% !important; margin-left:0 !important; }
 
 
         table {
@@ -76,50 +64,23 @@
 
 
     <div class="pruebaFondo">
-        <img src="{{ public_path('img/membrete/Logo3.png') }}" width="800rem" style="margin-left:3%; margin-top:-25px; position:absolute;"alt="">
-        <div class="card" style="margin-left:44px;  margin-top:100px; width:45rem; height:5.5rem;">
+        <img src="{{ public_path('img/membrete/Logo3.png') }}" class="proforma-logo" alt="">
+        <div class="card proforma-ancho" style="margin-top:0;">
             <div class="card-header">
                 <b>Proforma  No.  {{$datos->codigo}}</b>
 
             </div>
-            <div class="card-body">
-                <p class="card-text" style="position:absolute;left:20px;  top:50px;"><b>Registro tributario:
-                    08011986138652</b></p>
+            <div class="card-body" style="padding:4px 10px;">
+                <p style="margin:0;"><b>Registro tributario: 08011986138652</b></p>
             </div>
         </div>
 
-        <div class="card "   style="margin-left:44px; margin-top:10px; width:45rem; height:6.5rem;">
-            <div class="card-body">
-                <p class="card-text" style="position:absolute;left:20px;  top:10px; max-width:500px"><b>Cliente: </b>{{$datos->nombre}} - ({{ $datos->clienteId }})</p>
-
-                <br>
-                <br>
-                <p class="card-text" style="position:absolute;left:20px;  top:40px;font-size: 11px; max-width:500px">
-                    <b>Dirección:</b> {{ $datos->direccion }}
-                </p>
-                <br>
-                <br>
-                <br>
-
-                <p class="card-text" style="position:absolute;left:20px;  top:75px;"><b>Correo:</b> {{$datos->correo}}
-                </p>{{--
-                        <p class="card-text" style="position:absolute;left:20px;  top:70px;"><b>Notas:</b> </p>
-                    --}}
-                <p class="card-text" style="position:absolute;left:540px;  top:10px;"><b>Fecha:</b> {{$datos->fecha_emision}} </p>
-                <p class="card-text" style="position:absolute;left:540px;  top:25px;"><b>Hora:</b> {{$datos->hora}}</p>
-                <p class="card-text" style="position:absolute;left:540px;  top:40px;"><b>Vence:</b> {{$datos->fecha_vencimiento}}</p>
-                <p class="card-text" style="position:absolute;left:540px;  top:57px;"><b>RTN:</b> {{$datos->rtn}}</p>
-
-                </p>
-
-
-
-                <p class="card-text" style="position:absolute;left:300px;  top:75px;"><b>Teléfono:</b> {{ $datos->telefono_empresa}}
-                </p>
+        <div class="card proforma-ancho" style="margin-top:4px;">
+            <div class="card-body" style="padding:4px 10px;"><table style="border:none; font-size:10px;"><tr><td style="width:65%; border:none; padding:0;"><p style="margin:0 0 2px;"><b>Cliente:</b> {{ $datos->nombre }} - ({{ $datos->clienteId }})</p><p style="margin:0 0 2px;"><b>Dirección:</b> {{ $datos->direccion }}</p><p style="margin:0;"><b>Correo:</b> {{ $datos->correo }} &nbsp;&nbsp; <b>Teléfono:</b> {{ $datos->telefono_empresa }}</p></td><td style="width:35%; border:none; padding:0 0 0 10px; border-left:1px solid #ccc;"><p style="margin:0 0 2px;"><b>Fecha:</b> {{ $datos->fecha_emision }}</p><p style="margin:0 0 2px;"><b>Hora:</b> {{ $datos->hora }}</p><p style="margin:0 0 2px;"><b>Vence:</b> {{ $datos->fecha_vencimiento }}</p><p style="margin:0;"><b>RTN:</b> {{ $datos->rtn }}</p></td></tr></table></div>
             </div>
         </div>
 
-        <div class="card" style="position: relative; margin-left:44px; margin-top:10px; width:45rem; page-break-inside: auto;">
+        <div class="card proforma-ancho" style="position: relative; margin-top:8px; page-break-inside: auto;">
             <div>
 
                 <table class="table" style="font-size: 11px; ">

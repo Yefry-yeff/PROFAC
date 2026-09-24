@@ -7,24 +7,15 @@
         <link rel="stylesheet" href="{{ public_path('css/bootstrap.min.css') }}">
     @include('pdf.partials.legacy-layout')
     <style>
-        .color-red {
-            color: red;
-        }
-
-        p {
-            font-size: 12px;
-        }
-
-        body {
-            margin: -45px;
-            padding: 0px;
-            /* background-image: url('img/membrete/membrete2.jpg'); */
-
-            background-size: 200% 200%;
-            background-size: cover;
-
-            width: 115% !important;
-
+        @page { margin: 28px; }
+        .color-red { color: red; }
+        p { font-size: 10px; }
+        body { margin: 0; padding: 0; width: 100%; }
+        .traslado-logo { display:block; width:100%; margin-bottom:8px; }
+        .traslado-ancho { width:100% !important; margin-left:0 !important; }
+        .traslado-ancho .card-body > p {
+            position: static !important;
+            margin: 0 0 5px !important;
         }
 
         table {
@@ -68,10 +59,8 @@ $altura =20;
 
 
     <div class="pruebaFondo">
-        <img src="{{ public_path('img/membrete/Logo3.png') }}" width="800rem"
-        style="margin-left:3%; margin-top:25px; position:absolute;"
-         alt="">
-        <div class="card border border-dark" style="margin-left:44px;  margin-top:150px; width:45rem; height:4rem;">
+        <img src="{{ public_path('img/membrete/Logo3.png') }}" class="traslado-logo" alt="">
+        <div class="card border border-dark traslado-ancho" style="margin-top:0;">
             <div class="card-header">
                 <b>Registro de Traslado No. {{$datos->codigo}} </b>
 
@@ -80,7 +69,7 @@ $altura =20;
 
         </div>
 
-        <div class="card border border-dark"   style="margin-left:44px; margin-top:10px; width:45rem; min-height:7rem;">
+        <div class="card border border-dark traslado-ancho" style="margin-top:4px;">
             <div class="card-body">
 
                 <p class="card-text "  style="position:absolute;left:20px;  top:10px;"><b>Fecha de translado: </b>{{$datos->fecha}}
@@ -99,7 +88,7 @@ $altura =20;
             </div>
         </div>
 
-        <div class="card border border-dark" style="position: relative; margin-left:44px; margin-top:10px; width:45rem; page-break-inside: auto;">
+        <div class="card border border-dark traslado-ancho" style="position: relative; margin-top:8px; page-break-inside: auto;">
             <div >
 
 

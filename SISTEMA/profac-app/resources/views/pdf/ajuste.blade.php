@@ -7,25 +7,13 @@
         <link rel="stylesheet" href="{{ public_path('css/bootstrap.min.css') }}">
     @include('pdf.partials.legacy-layout')
     <style>
-        .color-red {
-            color: red;
-        }
-
-        p {
-            font-size: 9px;
-        }
-
-        body {
-            margin: -45px;
-            padding: 0px;
-           /*  background-image: url('img/membrete/membrete2.jpg'); */
-
-            background-size: 200% 200%;
-            background-size: cover;
-
-            width: 115% !important;
-
-        }
+        @page { margin: 28px; }
+        .color-red { color: red; }
+        p { font-size: 9px; }
+        body { margin: 0; padding: 0; width: 100%; }
+        .ajuste-logo { display:block; width:100%; margin-bottom:8px; }
+        .ajuste-ancho { width:100% !important; margin-left:0 !important; }
+        .ajuste-ancho .card-body > p { position:static !important; margin:0 0 5px !important; }
 
         table {
         font-size: 9px;
@@ -65,10 +53,8 @@ $altura =20;
 
 
     <div class="pruebaFondo">
-        <img src="{{ public_path('img/membrete/Logo3.png') }}" width="800rem"
-        style="margin-left:3%; margin-top:25px; position:absolute;"
-         alt="">
-        <div class="border card border-dark" style="margin-left:44px;  margin-top:150px; width:45rem; height:4rem;">
+        <img src="{{ public_path('img/membrete/Logo3.png') }}" class="ajuste-logo" alt="">
+        <div class="border card border-dark ajuste-ancho" style="margin-top:0;">
             <div class="card-header">
                 <b>Registro de Ajuste No. {{$ajuste->numero_ajuste}} </b>
 
@@ -77,7 +63,7 @@ $altura =20;
 
         </div>
 
-        <div class="border card border-dark"   style="margin-left:44px; margin-top:10px; width:45rem; height:7rem;">
+        <div class="border card border-dark ajuste-ancho" style="margin-top:4px;">
             <div class="card-body">
 
                 <p class="card-text "  style="position:absolute;left:20px;  top:10px;"><b>Fecha de Ajuste: </b> {{$datos->fecha}}
@@ -98,7 +84,7 @@ $altura =20;
             </div>
         </div>
 
-        <div class="border card border-dark" style="position: relative; margin-left:44px; margin-top:10px; width:45rem; page-break-inside: auto;">
+        <div class="border card border-dark ajuste-ancho" style="position: relative; margin-top:8px; page-break-inside: auto;">
             <div >
 
 

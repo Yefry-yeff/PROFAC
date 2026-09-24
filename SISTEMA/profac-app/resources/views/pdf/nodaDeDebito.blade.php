@@ -7,25 +7,14 @@
         <link rel="stylesheet" href="{{ public_path('css/bootstrap.min.css') }}">
     @include('pdf.partials.legacy-layout')
     <style>
-        .color-red {
-            color: red;
-        }
-
-        p {
-            font-size: 12px;
-        }
-
-        body {
-            margin: -45px;
-            padding: 0px;
-           /*  background-image: url('img/membrete/membrete2.jpg'); */
-
-            background-size: 200% 200%;
-            background-size: cover;
-
-            width: 115% !important;
-
-        }
+        @page { margin: 28px; }
+        .color-red { color: red; }
+        p { font-size: 10px; }
+        body { margin: 0; padding: 0; width: 100%; }
+        .nd-logo { display:block; width:100%; margin-bottom:8px; }
+        .nd-ancho { width:100% !important; margin-left:0 !important; }
+        .nd-totales { width:41%; margin:8px 0 0 auto; }
+        .nd-firmas { margin-top:65px; width:100%; }
 
         table {
         border-collapse: collapse;
@@ -73,15 +62,10 @@
         <span style = "font-size: 10px; position:absolute;left:500px;  top:105px;">Documento: N{{$cliente->numero_factura}}-CF12</span></p>
         @endif  --}}
     <div class="pruebaFondo">
-        <img src="{{ public_path('img/membrete/Logo3.png') }}" width="800rem"
-        style="margin-left:3%; margin-top:25px; position:absolute;"
-         alt="">
+        <img src="{{ public_path('img/membrete/Logo3.png') }}" class="nd-logo" alt="">
 
-        <b style="position:absolute;right: 60px; top:80px; font-size: 14px; " >ORIGINAL</b>
-        <br><br><br>
-
-        <br><br>
-        <div class="card border border-dark" style="margin-left:44px;  margin-top:30px; width:45rem;">
+        <b style="display:block; text-align:right; margin-bottom:8px;" >ORIGINAL</b>
+        <div class="card border border-dark nd-ancho">
 
             <div >
                 <table  class="" style="font-size: 12px;">
@@ -106,29 +90,15 @@
 
         </div>
 
-        <div class="card border border-dark" style="margin-left:44px;  margin-top:10px; width:45rem; height:5rem;">
-
-            <div class="card-body">
-                <p class="card-text" style="position:absolute;left:20px;  top:0px;"><b>Cliente: {{ $cliente->nombre_cliente }} </b></p>
-                <p class="card-text" style="position:absolute;left:20px;  top:20px;font-size: 11px; max-width:500px"><b>Dirección: {{ $cliente->direccion }} </b></p>
-
-                <p class="card-text" style="position:absolute;left:550px;  top:0px;"><b>Fecha: {{$notaDebito->fechaEmision}} </b></p>
-
-                <p class="card-text" style="position:absolute;left:550px;  top:20px;"><b>RTN: {{$cliente->rtn}} </b></p>
-
-
-
-                <p class="card-text" style="position:absolute;left:20px;  top:60px;"><b>Correo: {{$cliente->correo}} </b></p>
-                <p class="card-text" style="position:absolute;left:550px;  top:60px;"><b>Teléfono: {{$cliente->telefono_empresa}} </b></p>
-
-            </div>
+        <div class="card border border-dark nd-ancho" style="margin-top:4px;">
+            <div class="card-body" style="padding:4px 10px;"><table style="border:none; font-size:10px;"><tr><td style="width:65%; border:none; padding:0;"><p style="margin:0 0 2px;"><b>Cliente:</b> {{ $cliente->nombre_cliente }}</p><p style="margin:0 0 2px;"><b>Dirección:</b> {{ $cliente->direccion }}</p><p style="margin:0;"><b>Correo:</b> {{ $cliente->correo }}</p></td><td style="width:35%; border:none; padding:0 0 0 10px; border-left:1px solid #ccc;"><p style="margin:0 0 2px;"><b>Fecha:</b> {{ $notaDebito->fechaEmision }}</p><p style="margin:0 0 2px;"><b>RTN:</b> {{ $cliente->rtn }}</p><p style="margin:0;"><b>Teléfono:</b> {{ $cliente->telefono_empresa }}</p></td></tr></table></div>
         </div>
 
 
         <br>
         <br><br>
 
-        <div class="card border border-dark" style="position: relative; margin-left:44px; margin-top:-20px; width:45rem;">
+        <div class="card border border-dark nd-ancho" style="position: relative; margin-top:8px;">
             <div >
                 <table  class="" style="font-size: 11px;">
                     <thead>
@@ -158,14 +128,8 @@
         </div>
 
 
-        <p class="card-text" style="position:absolute;left:430px;  top:380px;">Sub Total:</p>
-        <p class="card-text" style="position:absolute;left:620px;  top:380px;">L. {{ $montoConCentavos->total }}</p>
-        <p class="card-text" style="position:absolute;left:430px;  top:395px;">Impuesto sobre la venta 15%:</p>
-        <p class="card-text" style="position:absolute;left:620px;  top:395px;">L. 0.00</p>
-        <p class="card-text" style="position:absolute;left:430px;  top:420px;"><b>Total:</b></p>
-        <p class="card-text" style="position:absolute;left:620px;  top:420px;">L. {{ $montoConCentavos->total }}</b></p>
-
-        <p class="card-text" style="position:absolute;left:20px;  top:530px;">VALOR EN LETRAS: {{ $numeroLetras }} EXACTOS</p>
+        <div class="card border border-dark nd-totales"><div class="card-body" style="padding:4px 10px;"><table style="border:none; font-size:10px;"><tr><td style="border:none;">Sub Total:</td><td style="border:none; text-align:right;">L. {{ $montoConCentavos->total }}</td></tr><tr><td style="border:none;">Impuesto sobre la venta 15%:</td><td style="border:none; text-align:right;">L. 0.00</td></tr><tr><td style="border:none; padding-top:3px; border-top:1px solid #999;"><b>Total:</b></td><td style="border:none; text-align:right; padding-top:3px; border-top:1px solid #999;"><b>L. {{ $montoConCentavos->total }}</b></td></tr></table></div></div>
+        <p class="card-text" style="margin-top:10px;">VALOR EN LETRAS: {{ $numeroLetras }} EXACTOS</p>
 
         <div style=" position: relative; margin-left:44px;">
 

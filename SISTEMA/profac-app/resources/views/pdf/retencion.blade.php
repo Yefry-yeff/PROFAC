@@ -5,23 +5,14 @@
         <link rel="stylesheet" href="{{ public_path('css/bootstrap.min.css') }}">
     @include('pdf.partials.legacy-layout')
     <style>
-        .color-red {
-            color: red;
-        }
-        p {
-        font-size: 12px;
-        }
-        body {
-            margin: -45px;
-            padding: 0px;
-            /* background-image: url('img/membrete/membrete2.jpg'); */
-            background-repeat: no-repeat;
-            background-size: 200% 200%;
-            background-size: cover;
-
-            width: 115%!important;
-
-        }
+        @page { margin: 28px; }
+        p { font-size: 10px; }
+        body { margin: 0; padding: 0; width: 100%; }
+        .retencion-doc { width:100%; }
+        .retencion-logo { display:block; width:100%; margin-bottom:8px; }
+        .retencion-doc > .card,
+        .retencion-doc > div { position:static !important; width:100% !important; margin:4px 0 0 !important; }
+        .retencion-doc .card-body > p { position:static !important; margin:0 0 3px !important; }
 
     </style>
     <title>Documento de Retencion</title>
@@ -31,11 +22,9 @@
 
 
 
-    <div class="pruebaFondo">
-        <img src="{{ public_path('img/membrete/Logo3.png') }}" width="800rem"
-        style="margin-left:3%; margin-top:25px; position:absolute;"
-         alt="">
-        <div class="card border border-dark" style="position:absolute;left:0px;  top:180px; width:45rem; height:5.5rem;">
+    <div class="pruebaFondo retencion-doc">
+        <img src="{{ public_path('img/membrete/Logo3.png') }}" class="retencion-logo" alt="">
+        <div class="card border border-dark">
             <div class="card-header">
                <b>Retención No. {{$data->cai_retencion}} </b>
               </div>
@@ -47,7 +36,7 @@
             </div>
         </div>
 
-        <div class="card border border-dark" style="position:absolute;left:0px;  top:300px; width:45rem; height:5.5rem;">
+        <div class="card border border-dark">
             <div class="card-body">
                 <p class="card-text" style="position:absolute;left:20px;  top:10px;"><b>Proveedor:</b> {{$data->nombre}}</p>
                 <p class="card-text" style="position:absolute;left:350px;  top:10px;"><b>Fecha:</b> {{$data->fecha}}</p>
@@ -58,7 +47,7 @@
             </div>
         </div>
 
-        <div class="card border border-dark" style="position:absolute;left:0px;  top:420px; width:45rem; height:4rem;">
+        <div class="card border border-dark">
             <div class="card-body">
                 <p class="card-text" style="position:absolute;left:20px;  top:10px;"><b>Linea</b></p>
                 <p class="card-text" style="position:absolute;left:150px;  top:10px;"><b>Descripción</b></p>
@@ -71,14 +60,14 @@
             </div>
         </div>
 
-        <div class="card border border-dark" style="position:absolute;left:0px;  top:520px; width:45rem; height:3rem;">
+        <div class="card border border-dark">
             <div class="card-body">
                 <p class="card-text" style="position:absolute;left:50px;  top:10px;">"{{$numeroLetras}}"</p>
                 <p class="card-text" style="position:absolute;left:450px;  top:10px;"><b><h5>Valor Retenido: {{$data->monto_retencion}}</h5></b></p>
             </div>
         </div>
 
-        <div style="position:absolute;left:0px;  top:820px;  width:45rem;">
+        <div>
                 <p class="card-text" style="position:absolute;left:20px;  top:10px;">_______________________________________</p>
                 <p class="card-text" style="position:absolute;left:450px;  top:10px;">_______________________________________</p>
                 <p class="card-text" style="position:absolute;left:20px;  top:25px; ">FACTURA N° {{$data->numero_factura}} / {{$data->fecha_emision}}</p>

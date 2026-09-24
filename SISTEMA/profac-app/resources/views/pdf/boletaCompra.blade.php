@@ -4,14 +4,11 @@
         <link rel="stylesheet" href="{{ public_path('css/bootstrap.min.css') }}">
     @include('pdf.partials.legacy-layout')
     <style>
-        p { font-size: 12px; }
-
-        body {
-            margin: -45px;
-            padding: 0;
-            background-size: cover;
-            width: 115% !important;
-        }
+        @page { margin: 28px; }
+        p { font-size: 10px; }
+        body { margin: 0; padding: 0; width: 100%; }
+        .boleta-logo { display:block; width:100%; margin-bottom:8px; }
+        .boleta-ancho { width:100% !important; margin-left:0 !important; }
 
         table {
             border-collapse: collapse;
@@ -39,42 +36,28 @@
 @endphp
 
 <div class="pruebaFondo">
-    <img src="{{ public_path('img/membrete/Logo3.png') }}" width="800rem"
-         style="margin-left:3%; margin-top:25px; position:absolute;" alt="">
+        <img src="{{ public_path('img/membrete/Logo3.png') }}" class="boleta-logo" alt="">
 
-    <b style="position:absolute; right:100px; top:50px;">*Original*</b>
+        <b style="display:block; text-align:right; margin-bottom:8px;">*Original*</b>
 
     {{-- Encabezado CAI --}}
-    <div class="border card border-dark"
-         style="margin-left:44px; margin-top:150px; width:45rem; height:6.5rem;">
+    <div class="border card border-dark boleta-ancho">
         <div class="card-header">
             <b>Boleta de Compra No. {{ $boleta->numero_boleta }}</b>
             <b style="position:absolute; right:10px;">
                 Fecha: {{ \Carbon\Carbon::parse($boleta->fecha)->format('d/m/Y') }}
             </b>
         </div>
-        <div class="card-body">
-            <p class="card-text" style="position:absolute; left:20px; top:50px;">
-                <b>Registro tributario: 08011986138652</b>
-            </p>
-            @if($caiBoleta)
-            <p class="card-text" style="position:absolute; left:420px; top:50px;">
-                <b>CAI: {{ $caiBoleta->cai }}</b>
-            </p>
-            <p class="card-text" style="position:absolute; left:20px; top:65px;">
-                <b>Fecha límite de emisión: {{ $caiBoleta->fecha_limite_emision }}</b>
-            </p>
-            <p class="card-text" style="position:absolute; left:340px; top:65px;">
-                <b>Rango autorizado: {{ $caiBoleta->numero_inicial }} - {{ $caiBoleta->numero_final }}</b>
-            </p>
-           
-            @endif
+        <div class="card-body" style="padding:4px 10px;">
+            <table style="width:100%; border:none; font-size:10px;">
+                <tr><td style="border:none; padding:1px 0;"><b>Registro tributario: 08011986138652</b></td><td style="border:none; padding:1px 0; text-align:right;"><b>CAI: {{ $caiBoleta?->cai ?? 'N/A' }}</b></td></tr>
+                <tr><td style="border:none; padding:1px 0;"><b>Fecha límite de emisión: {{ $caiBoleta?->fecha_limite_emision ?? 'N/A' }}</b></td><td style="border:none; padding:1px 0; text-align:right;"><b>Rango autorizado: {{ $caiBoleta ? $caiBoleta->numero_inicial . ' - ' . $caiBoleta->numero_final : 'N/A' }}</b></td></tr>
+            </table>
         </div>
     </div>
 
     {{-- Datos del cliente: Fila 1: Nombre | RTN/DNI | Dirección — Fila 2: Teléfono --}}
-    <div class="border card border-dark"
-         style="margin-left:44px; margin-top:10px; width:45rem;">
+    <div class="border card border-dark boleta-ancho" style="margin-top:4px;">
         <div class="card-body" style="padding:8px 12px;">
             <table style="width:100%; font-size:11px; border:none;" cellspacing="0" cellpadding="3">
                 <tr>
@@ -92,8 +75,8 @@
     </div>
 
     {{-- Tabla de productos --}}
-    <div class="border card border-dark"
-         style="position:relative; margin-left:44px; margin-top:10px; width:45rem; page-break-inside:auto;">
+        <div class="border card border-dark boleta-ancho"
+            style="position:relative; margin-top:8px; page-break-inside:auto;">
         <div>
             <table style="font-size:11px;">
                 <thead>

@@ -208,7 +208,7 @@ class CrearVale extends Component
             'subTotalGeneral' => 'required',
             'isvGeneral' => 'required',
             'totalGeneral' => 'required',
-            'arregloIdInputs' => 'required',
+            'arregloIdInputs' => ['required', 'array', 'min:1'],
             'numeroInputs' => 'required',
 
             'nombre_cliente_ventas' => 'required',
@@ -230,8 +230,9 @@ class CrearVale extends Component
         }
 
            //dd($request->all());
-           $arrayInputs = [];
            $arrayInputs = $request->arregloIdInputs;
+           $this->arrayProductos = [];
+           $this->arrayLogs = [];
            //$arrayProductosVentas = [];
            $numeroSecuencia = null;
            $mensaje = "";
@@ -302,6 +303,10 @@ class CrearVale extends Component
                 $ivsProducto = $request->$keyISV;
                 $unidad = $request->$keyunidad;
 
+                if ((float) $restaInventario <= 0) {
+                    throw new \RuntimeException('Cada producto del vale debe tener una cantidad de entrega mayor a cero.');
+                }
+
                 $this->calcularUnidadesPendientes(
                     $vale->id,
                     $request->idFactura,
@@ -321,6 +326,10 @@ class CrearVale extends Component
                 );
             };
 
+            if (empty($this->arrayProductos)) {
+                throw new \RuntimeException('No se generaron productos para el vale.');
+            }
+
             ModelValeHasProducto::insert($this->arrayProductos);
             ModelLogTranslados::insert($this->arrayLogs);
 
@@ -331,7 +340,7 @@ class CrearVale extends Component
                 'title' => 'Exito!',
                 ''
             ], 200);
-        } catch (QueryException $e) {
+        } catch (\Throwable $e) {
             DB::rollback();
 
             return response()->json([
@@ -742,9 +751,9 @@ class CrearVale extends Component
             inner join producto B on A.producto_id = B.id
             inner join unidad_medida_venta C on A.unidad_medida_venta_id = C.id
             inner join unidad_medida D on C.unidad_medida_id = D.id
-            inner join seccion F on A.seccion_id = F.id
-            inner join segmento G on F.segmento_id = G.id
-            inner join bodega H on G.bodega_id = H.id
+            left join seccion F on A.seccion_id = F.id
+            left join segmento G on F.segmento_id = G.id
+            left join bodega H on G.bodega_id = H.id
             where vale_id = ".$idEntrega."
         group by A.producto_id, B.nombre, D.nombre,A.seccion_id,H.nombre,F.descripcion, A.cantidad_para_entregar
         ");

@@ -4,13 +4,11 @@
     <link rel="stylesheet" href="{{ public_path('css/bootstrap.min.css') }}">
     @include('pdf.partials.legacy-layout')
     <style>
-        p { font-size: 12px; }
-
-        body {
-            margin-left: -95px;
-            padding: 50px;
-            width: 45rem;
-        }
+        @page { margin: 28px; }
+        p { font-size: 10px; }
+        body { margin: 0; padding: 0; width: 100%; }
+        .carta-logo { display:block; width:100%; margin-bottom:8px; }
+        .carta-ancho { width:100% !important; margin-left:0 !important; }
 
         table {
             border-collapse: collapse;
@@ -82,51 +80,28 @@
 <body>
 
     <!-- Logo y membrete (igual que factura corporativa) -->
-    <img src="{{ public_path('img/membrete/Logo3.png') }}" width="800rem"
-         style="margin-left:3%; margin-top:-25px; position:absolute;" alt="">
+    <img src="{{ public_path('img/membrete/Logo3.png') }}" class="carta-logo" alt="">
 
     <!-- Encabezado de la carta -->
-    <div class="card border border-dark" style="margin-left:44px; margin-top:105px; width:45rem; height:5rem;">
+    <div class="card border border-dark carta-ancho">
         <div class="card-header">
             <b>CARTA DE ENTREGA</b>
             <b style="position:absolute; right:10px;">Distribución #{{ $distribucion->id }}</b>
         </div>
-        <div class="card-body">
-            <p class="card-text" style="position:absolute; left:20px; top:50px;">
-                <b>Registro tributario: 08011986138652</b>
-            </p>
-            <p class="card-text" style="position:absolute; left:380px; top:50px;">
-                <b>Fecha generado: {{ \Carbon\Carbon::now()->format('d/m/Y H:i') }}</b>
-            </p>
+        <div class="card-body" style="padding:4px 10px;">
+            <table style="border:none; font-size:10px;"><tr><td style="border:none; padding:1px 0;"><b>Registro tributario: 08011986138652</b></td><td style="border:none; padding:1px 0; text-align:right;"><b>Fecha generado: {{ \Carbon\Carbon::now()->format('d/m/Y H:i') }}</b></td></tr></table>
         </div>
     </div>
 
     <!-- Información de la distribución -->
-    <div class="card border border-dark" style="margin-left:44px; margin-top:10px; width:45rem; height:7rem;">
-        <div class="card-body">
-            <p class="card-text" style="position:absolute; left:20px; top:10px;">
-                <b>Equipo de entrega:</b> {{ $distribucion->equipo->nombre_equipo }}
-            </p>
-            <p class="card-text" style="position:absolute; left:20px; top:28px;">
-                <b>Fecha programada:</b> {{ \Carbon\Carbon::parse($distribucion->fecha_programada)->format('d/m/Y') }}
-            </p>
-            <p class="card-text" style="position:absolute; left:20px; top:46px;">
-                <b>Observaciones:</b> {{ $distribucion->observaciones ?: 'Ninguna' }}
-            </p>
-            <p class="card-text" style="position:absolute; left:20px; top:65px;">
-                <b>Coordinado por:</b> {{ $distribucion->creador->name }}
-            </p>
-            <p class="card-text" style="position:absolute; left:380px; top:10px;">
-                <b>Total facturas:</b> {{ count($clientes) > 0 ? array_sum(array_map(fn($c) => count($c['facturas']), $clientes)) : 0 }}
-            </p>
-            <p class="card-text" style="position:absolute; left:380px; top:28px;">
-                <b>Total clientes:</b> {{ count($clientes) }}
-            </p>
+    <div class="card border border-dark carta-ancho" style="margin-top:4px;">
+        <div class="card-body" style="padding:4px 10px;">
+            <table style="border:none; font-size:10px;"><tr><td style="width:65%; border:none; padding:0;"><p style="margin:0 0 2px;"><b>Equipo de entrega:</b> {{ $distribucion->equipo->nombre_equipo }}</p><p style="margin:0 0 2px;"><b>Fecha programada:</b> {{ \Carbon\Carbon::parse($distribucion->fecha_programada)->format('d/m/Y') }}</p><p style="margin:0 0 2px;"><b>Observaciones:</b> {{ $distribucion->observaciones ?: 'Ninguna' }}</p><p style="margin:0;"><b>Coordinado por:</b> {{ $distribucion->creador->name }}</p></td><td style="width:35%; border:none; padding:0; vertical-align:top;"><p style="margin:0 0 2px;"><b>Total facturas:</b> {{ count($clientes) > 0 ? array_sum(array_map(fn($c) => count($c['facturas']), $clientes)) : 0 }}</p><p style="margin:0;"><b>Total clientes:</b> {{ count($clientes) }}</p></td></tr></table>
         </div>
     </div>
 
     <!-- Productos agrupados por cliente y factura -->
-    <div style="margin-left:44px; margin-top:12px; width:45rem;">
+    <div class="carta-ancho" style="margin-top:8px;">
 
         @foreach($clientes as $cliente)
         <div class="seccion-cliente">
@@ -180,27 +155,8 @@
     </div>
 
     <!-- Firmas -->
-    <div style="margin-left:44px; margin-top:30px; width:45rem;">
-        <div style="position: relative; height:6rem; width:45rem;">
-            <p style="position:absolute; left:20px; top:0px;">
-                _______________________________________
-            </p>
-            <p style="position:absolute; left:450px; top:0px;">
-                _______________________________________
-            </p>
-            <p style="position:absolute; left:20px; top:18px; font-size:11px;">
-                <b>Coordinado por:</b>
-            </p>
-            <p style="position:absolute; left:20px; top:32px; font-size:11px;">
-                {{ strtoupper($distribucion->creador->name) }}
-            </p>
-            <p style="position:absolute; left:450px; top:18px; font-size:11px;">
-                <b>Recibido por:</b>
-            </p>
-            <p style="position:absolute; left:450px; top:32px; font-size:11px;">
-                Nombre y sello
-            </p>
-        </div>
+    <div class="carta-ancho" style="margin-top:30px;">
+        <table style="border:none; font-size:11px;"><tr><td style="width:50%; border:none; padding-right:20px;"><p style="margin:0; border-top:1px solid #000; padding-top:4px;"><b>Coordinado por:</b></p><p style="margin:2px 0;">{{ strtoupper($distribucion->creador->name) }}</p></td><td style="width:50%; border:none; padding-left:20px;"><p style="margin:0; border-top:1px solid #000; padding-top:4px;"><b>Recibido por:</b></p><p style="margin:2px 0;">Nombre y sello</p></td></tr></table>
     </div>
 
 </body>

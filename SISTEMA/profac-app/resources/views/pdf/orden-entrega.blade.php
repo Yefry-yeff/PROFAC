@@ -7,30 +7,12 @@
         <link rel="stylesheet" href="{{ public_path('css/bootstrap.min.css') }}">
     @include('pdf.partials.legacy-layout')
     <style>
-        .color-red {
-            color: red;
-        }
-
-        p {
-            font-size: 12px;
-        }
-
-        @page {
-            margin-top: 90px;
-            margin-bottom: 30px;
-        }
-
-        body {
-            margin: -45px;
-            padding: 0px;
-            /* background-image: url('img/membrete/membrete2.jpg'); */
-
-            background-size: 200% 200%;
-            background-size: cover;
-
-            width: 45rem;
-
-        }
+        @page { margin: 28px; }
+        .color-red { color: red; }
+        p { font-size: 10px; }
+        body { margin: 0; padding: 0; width: 100%; }
+        .oe-logo { display:block; width:100%; margin-bottom:8px; }
+        .oe-ancho { width:100% !important; margin-left:0 !important; }
 
         table {
         border-collapse: collapse;
@@ -72,46 +54,24 @@
 
 
     <div class="pruebaFondo">
-        <img src="{{ public_path('img/membrete/Logo3.png') }}" width="800rem"
-        style="margin-left:3%; margin-top:25px; position:absolute;"
-         alt="">
-        <div class="card border border-dark" style="margin-left:44px;  margin-top:150px; width:45rem; height:5.5rem;">
+        <img src="{{ public_path('img/membrete/Logo3.png') }}" class="oe-logo" alt="">
+        <div class="card border border-dark oe-ancho">
             <div class="card-header">
-                <b>Comprobante de Entrega No. {{$datos->numero_comprovante}}</b>
-                <p style="position:absolute;left:630px; font-size:15px; "><b>*Original*</b></p>
+                <b>Comprobante de Entrega No. {{ $datos->numero_comprovante }}</b>
+                <b style="float:right;">*Original*</b>
             </div>
             {{--  <div class="card-body">
                 <p class="card-text" style="position:absolute;left:20px;  top:50px;"><b>Número de Factura: {{$datos->cai}}</b></p>
             </div>  --}}
         </div>
 
-        <div class="card border border-dark"   style="margin-left:44px; margin-top:10px; width:45rem; height:6.5rem;">
-            <div class="card-body" >
-                <p class="card-text" style="position:absolute;left:20px;  top:10px; "><b>Cliente:</b> {{$datos->nombre_cliente}}</p>
-                <p class="card-text" style="position:absolute;left:20px;  top:29px;font-size: 11px; max-width:500px">
-                    <b>Dirección:</b> {{ $datos->direccion }}
-                </p>
-                <p class="card-text" style="position:absolute;left:20px;  top:60px; "><b>Correo:</b> {{$datos->correo}}</p>
-
-
-
-
-
-
-                <p class="card-text" style="position:absolute;left:520px;  top:10px;"><b>Fecha:</b> {{$datos->fecha}}  </p>
-                <p class="card-text" style="position:absolute;left:520px;  top:25px;"><b>Hora:</b> {{$datos->hora}}</p>
-                <p class="card-text" style="position:absolute;left:520px;  top:57px;"><b>RTN:</b> {{$datos->RTN}}</p>
-
-                </p>
-
-
-
-                <p class="card-text" style="position:absolute;left:270px;  top:60px;"><b>Teléfono:</b> {{$datos->telefono_empresa}}
-                </p>
+        <div class="card border border-dark oe-ancho" style="margin-top:4px;">
+            <div class="card-body" style="padding:4px 10px;">
+                <table style="border:none; font-size:10px;"><tr><td style="width:58%; border:none; padding:0;"><p style="margin:0 0 2px;"><b>Cliente:</b> {{ $datos->nombre_cliente }}</p><p style="margin:0 0 2px;"><b>Dirección:</b> {{ $datos->direccion }}</p><p style="margin:0;"><b>Correo:</b> {{ $datos->correo }} &nbsp;&nbsp; <b>Teléfono:</b> {{ $datos->telefono_empresa }}</p></td><td style="width:42%; border:none; padding:0 0 0 10px; border-left:1px solid #ccc;"><p style="margin:0 0 2px;"><b>Fecha:</b> {{ $datos->fecha }}</p><p style="margin:0 0 2px;"><b>Hora:</b> {{ $datos->hora }}</p><p style="margin:0;"><b>RTN:</b> {{ $datos->RTN }}</p></td></tr></table>
             </div>
         </div>
 
-        <div class="card border border-dark" style="position: relative; margin-left:44px; margin-top:10px; width:45rem;">
+        <div class="card border border-dark oe-ancho" style="position: relative; margin-top:8px;">
             <div >
 
 
@@ -159,7 +119,7 @@
                 </table>
             </div>
         </div>
-        <div style="margin-left:44px; margin-top:10px; width:45rem;">
+        <div class="oe-ancho" style="margin-top:10px;">
             <table style="width:100%; border:none; border-collapse:collapse;">
                 <tr>
                     <td style="width:58%; border:none; vertical-align:top; padding:0 8px 0 0;">
@@ -208,9 +168,9 @@
             </table>
         </div>
 
-        <p style="margin:6px 44px 0; font-size:9px; text-align:right;">Original: Cliente, Copia obligado tributario emisor.</p>
+        <p style="margin:6px 0 0; font-size:9px; text-align:right;">Original: Cliente, Copia obligado tributario emisor.</p>
 
-        <div style="margin-left:44px; margin-top:80px; width:45rem;">
+        <div class="oe-ancho" style="margin-top:80px;">
             <table style="width:100%; border:none; border-collapse:collapse; font-size:10px;">
                 <tr>
                     <td style="width:50%; border:none; vertical-align:top; padding:0 20px 0 0;">
