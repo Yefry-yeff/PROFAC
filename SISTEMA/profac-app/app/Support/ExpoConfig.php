@@ -167,14 +167,6 @@ class ExpoConfig
             ->whereIn('pf.estado', ['activo', 'convertida'])
             ->where('ec.expo_id', $expoId)
             ->where('ca.users_id', $usuarioId)
-            ->whereExists(function ($query) use ($flujoId) {
-                $query->selectRaw('1')
-                    ->from('historico_flujo as hf')
-                    ->where('hf.flujo_id', $flujoId)
-                    ->where('hf.tipo_tramite_id', 3)
-                    ->where('hf.estado_id', '!=', 7)
-                    ->whereNotNull('hf.tramite_id');
-            })
             ->exists();
         if (!$edicionAutorizada) {
             return null;
