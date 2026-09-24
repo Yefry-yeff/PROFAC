@@ -1947,7 +1947,10 @@ class Pagos extends Component
             $sinMovimientos = false;
         }
 
-        $pdf = PDF::loadView('/pdf/estadocuentaAplicacion', compact('estadoCuenta', 'nombreCliente', 'sinMovimientos'))->setPaper('letter')->setPaper("A4", "landscape");
+        $pdf = PDF::loadView('/pdf/estadocuentaAplicacion', compact('estadoCuenta', 'nombreCliente', 'sinMovimientos'))
+            ->setOption('dpi', 96)
+            ->setPaper('letter')
+            ->setPaper("A4", "landscape");
 
         return $pdf->stream("ESTADO_CUENTA.pdf");
     }

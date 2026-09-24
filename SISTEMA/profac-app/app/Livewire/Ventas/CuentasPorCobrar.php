@@ -184,7 +184,10 @@ class CuentasPorCobrar extends Component
     public function imprimirEstadoCuenta($idClientepdf){
         $estadoCuenta = DB::select("CALL cuentasx2('".$idClientepdf."');");
         // dd($estadoCuenta[0]->cliente);
-        $pdf = PDF::loadView('/pdf/estadocuenta', compact('estadoCuenta'))->setPaper('letter')->setPaper("A4", "landscape");
+        $pdf = PDF::loadView('/pdf/estadocuenta', compact('estadoCuenta'))
+            ->setOption('dpi', 96)
+            ->setPaper('letter')
+            ->setPaper("A4", "landscape");
 
         return $pdf->stream("estado_cuenta.pdf");
     }

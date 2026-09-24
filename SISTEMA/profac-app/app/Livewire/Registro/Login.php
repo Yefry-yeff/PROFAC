@@ -107,7 +107,7 @@ class Login extends Component
             ->orderBy($this->sortField, $this->sortDirection)
             ->paginate($this->perPage);
 
-        return view('', [
+        return view('livewire.registro.login', [
             'loginHistory' => $loginHistory
         ]);
     }

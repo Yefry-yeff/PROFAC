@@ -339,7 +339,8 @@ class EstadoCuentaVendedor extends Component
         }
 
         $pdf = PDF::loadView('/pdf/estadocuentaAplicacion', compact('estadoCuenta', 'nombreCliente', 'sinMovimientos'))
-                  ->setPaper('A4', 'landscape');
+              ->setOption('dpi', 96)
+              ->setPaper('A4', 'landscape');
 
         return $pdf->stream('ESTADO_CUENTA.pdf');
     }
