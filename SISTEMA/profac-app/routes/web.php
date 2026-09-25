@@ -1512,10 +1512,8 @@ Route::post('/reporte/ventas-cobros/actualizar-f01/{facturaId}',                
     Route::post('/logistica/equipos/guardar', [EquiposEntrega::class, 'guardarEquipo'])->name('logistica.equipos.guardar');
     Route::get('/logistica/equipos/obtener/{equipoId}', [EquiposEntrega::class, 'obtenerEquipo']);
     Route::post('/logistica/equipos/actualizar', [EquiposEntrega::class, 'actualizarEquipo']);
-    Route::get('/logistica/equipos/miembros/{equipoId}', [EquiposEntrega::class, 'obtenerMiembros']);
     Route::post('/logistica/equipos/desactivar/{equipoId}', [EquiposEntrega::class, 'desactivarEquipo']);
-    Route::post('/logistica/equipos/agregar-miembro', [EquiposEntrega::class, 'agregarMiembro']);
-    Route::post('/logistica/equipos/remover-miembro/{miembroId}', [EquiposEntrega::class, 'removerMiembro']);
+    Route::get('/logistica/equipos/historial/{equipoId}', [EquiposEntrega::class, 'obtenerHistorialEquipo']);
 
     // Distribucion de Entregas
     Route::get('/logistica/distribuciones', DistribucionEntrega::class)->name('logistica.distribuciones');
@@ -1530,6 +1528,7 @@ Route::post('/reporte/ventas-cobros/actualizar-f01/{facturaId}',                
     Route::get('/logistica/facturas/clientes-autocompletado', [DistribucionEntrega::class, 'autocompletadoClientes'])->name('logistica.facturas.clientesAutocompletado');
     Route::get('/logistica/facturas/por-cliente-id', [DistribucionEntrega::class, 'obtenerFacturasPorClienteId'])->name('logistica.facturas.porClienteId');
     Route::get('/logistica/facturas/detalle', [DistribucionEntrega::class, 'obtenerDetalleFactura'])->name('logistica.facturas.detalle');
+    Route::post('/logistica/facturas/actualizar-direccion', [DistribucionEntrega::class, 'actualizarDireccionFactura'])->name('logistica.facturas.actualizarDireccion');
     Route::post('/logistica/distribuciones/iniciar/{distribucionId}', [DistribucionEntrega::class, 'iniciarDistribucion']);
     Route::post('/logistica/distribuciones/cancelar/{distribucionId}', [DistribucionEntrega::class, 'cancelarDistribucion']);
     Route::get('/logistica/distribuciones/{id}', [DistribucionEntrega::class, 'verDistribucion'])->name('logistica.distribuciones.ver');

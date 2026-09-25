@@ -4,8 +4,7 @@ namespace App\Livewire\Logistica;
 
 use Livewire\Component;
 use App\Models\Logistica\EquipoEntrega;
-use App\Models\Logistica\EquipoEntregaMiembro;
-use App\Models\User;
+use App\Models\Logistica\EquipoEntregaAudit;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use DataTables;
@@ -17,23 +16,14 @@ class EquiposEntrega extends Component
 
     public function render()
     {
-        $usuarios = User::orderBy('name')->get();
-        return view('livewire.logistica.equipos-entrega', compact('usuarios'));
+        return view('livewire.logistica.equipos-entrega');
     }
 
     /**
-     * Inactiva equipos y miembros que deben quedar ocultos en esta pantalla.
+     * Inactiva equipos que deben quedar ocultos en esta pantalla.
      */
     private function sincronizarEquiposOcultos(): void
     {
-        DB::table('equipos_entrega_miembros')
-            ->whereIn('equipo_entrega_id', self::EQUIPOS_OCULTOS)
-            ->where('estado_id', 1)
-            ->update([
-                'estado_id' => 2,
-                'updated_at' => now(),
-            ]);
-
         DB::table('equipos_entrega')
             ->whereIn('id', self::EQUIPOS_OCULTOS)
             ->where('estado_id', 1)
@@ -44,22 +34,25 @@ class EquiposEntrega extends Component
     }
 
     /**
+     * Registra una entrada en la bitácora de auditoría del equipo.
+     */
+    private function registrarAuditoria($equipoId, string $action, $oldData, $newData): void
+    {
+        EquipoEntregaAudit::create([
+            'equipo_entrega_id' => $equipoId,
+            'action' => $action,
+            'old_data' => $oldData,
+            'new_data' => $newData,
+            'user_id' => Auth::id(),
+        ]);
+    }
+
+    /**
      * Guardar nuevo equipo de entrega
      */
     public function guardarEquipo(Request $request)
     {
         try {
-            // Decodificar el JSON de miembros
-            $miembros = json_decode($request->miembros, true);
-            
-            if (empty($miembros)) {
-                return response()->json([
-                    'icon' => 'error',
-                    'title' => 'Error',
-                    'text' => 'Debe agregar al menos un miembro al equipo',
-                ], 422);
-            }
-
             $request->validate([
                 'nombre_equipo' => 'required|string|max:100',
                 'descripcion' => 'nullable|string',
@@ -67,19 +60,6 @@ class EquiposEntrega extends Component
                 'nombre_equipo.required' => 'El nombre del equipo es obligatorio',
             ]);
 
-            // Validar que la suma de porcentajes no exceda 100
-            $totalPorcentaje = collect($miembros)->sum('porcentaje');
-            if ($totalPorcentaje > 100) {
-                return response()->json([
-                    'icon' => 'error',
-                    'title' => 'Error de validación',
-                    'text' => "La suma de porcentajes ({$totalPorcentaje}%) excede el 100%. Por favor ajuste los valores.",
-                ], 422);
-            }
-
-            DB::beginTransaction();
-
-            // Crear equipo
             $equipo = EquipoEntrega::create([
                 'nombre_equipo' => trim($request->nombre_equipo),
                 'descripcion' => trim($request->descripcion),
@@ -87,17 +67,10 @@ class EquiposEntrega extends Component
                 'users_id_creador' => Auth::id(),
             ]);
 
-            // Agregar miembros
-            foreach ($miembros as $miembro) {
-                EquipoEntregaMiembro::create([
-                    'equipo_entrega_id' => $equipo->id,
-                    'user_id' => $miembro['user_id'],
-                    'porcentaje_comision' => $miembro['porcentaje'],
-                    'estado_id' => 1,
-                ]);
-            }
-
-            DB::commit();
+            $this->registrarAuditoria($equipo->id, 'CREATE', null, [
+                'nombre_equipo' => $equipo->nombre_equipo,
+                'descripcion' => $equipo->descripcion,
+            ]);
 
             return response()->json([
                 'icon' => 'success',
@@ -106,7 +79,6 @@ class EquiposEntrega extends Component
             ], 200);
 
         } catch (\Exception $e) {
-            DB::rollback();
             return response()->json([
                 'icon' => 'error',
                 'title' => 'Error',
@@ -131,9 +103,7 @@ class EquiposEntrega extends Component
                     e.descripcion,
                     e.estado_id,
                     u.name AS creador,
-                    e.created_at,
-                    (SELECT COUNT(*) FROM equipos_entrega_miembros WHERE equipo_entrega_id = e.id AND estado_id = 1) as total_miembros,
-                    (SELECT SUM(porcentaje_comision) FROM equipos_entrega_miembros WHERE equipo_entrega_id = e.id AND estado_id = 1) as total_porcentaje
+                    e.created_at
                 FROM equipos_entrega e
                 INNER JOIN users u ON e.users_id_creador = u.id
                 WHERE e.id NOT IN ({$equiposOcultos})
@@ -148,21 +118,16 @@ class EquiposEntrega extends Component
                         return '<span class="badge badge-danger">INACTIVO</span>';
                     }
                 })
-                ->addColumn('porcentaje', function ($datos) {
-                    $porcentaje = $datos->total_porcentaje ?? 0;
-                    $color = $porcentaje == 100 ? 'success' : ($porcentaje > 100 ? 'danger' : 'warning');
-                    return "<span class='badge badge-{$color}'>{$porcentaje}%</span>";
-                })
-                ->addColumn('miembros', function ($datos) {
-                    return "<span class='badge badge-info'>{$datos->total_miembros} miembro(s)</span>";
-                })
                 ->addColumn('opciones', function ($datos) {
+                    $historial = '
+                        <button type="button" class="btn btn-sm btn-info" onclick="verHistorialEquipo(' . $datos->id . ')" title="Historial">
+                            <i class="fa fa-history"></i>
+                        </button>
+                    ';
                     if ($datos->estado_id == 1) {
                         return '
                             <div class="btn-group">
-                                <button type="button" class="btn btn-sm btn-info" onclick="verMiembros(' . $datos->id . ')" title="Ver miembros">
-                                    <i class="fa fa-users"></i>
-                                </button>
+                                ' . $historial . '
                                 <button type="button" class="btn btn-sm btn-warning" onclick="editarEquipo(' . $datos->id . ')" title="Editar">
                                     <i class="fa fa-edit"></i>
                                 </button>
@@ -172,51 +137,15 @@ class EquiposEntrega extends Component
                             </div>
                         ';
                     } else {
-                        return '<span class="badge badge-secondary">Sin acciones</span>';
+                        return '<div class="btn-group">' . $historial . '</div>';
                     }
                 })
-                ->rawColumns(['estado', 'porcentaje', 'miembros', 'opciones'])
+                ->rawColumns(['estado', 'opciones'])
                 ->make(true);
 
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Error al listar equipos',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Obtener miembros de un equipo
-     */
-    public function obtenerMiembros($equipoId)
-    {
-        try {
-            $miembros = DB::select("
-                SELECT 
-                    m.id,
-                    m.user_id,
-                    u.name AS nombre_usuario,
-                    u.email,
-                    m.porcentaje_comision,
-                    m.estado_id,
-                    m.created_at
-                FROM equipos_entrega_miembros m
-                INNER JOIN users u ON m.user_id = u.id
-                WHERE m.equipo_entrega_id = ?
-                AND m.estado_id = 1
-                ORDER BY m.porcentaje_comision DESC
-            ", [$equipoId]);
-
-            return response()->json([
-                'success' => true,
-                'miembros' => $miembros
-            ], 200);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al obtener miembros',
                 'error' => $e->getMessage()
             ], 500);
         }
@@ -263,9 +192,18 @@ class EquiposEntrega extends Component
             ]);
 
             $equipo = EquipoEntrega::findOrFail($request->equipo_id);
+            $oldData = [
+                'nombre_equipo' => $equipo->nombre_equipo,
+                'descripcion' => $equipo->descripcion,
+            ];
             $equipo->nombre_equipo = $request->nombre_equipo;
             $equipo->descripcion = $request->descripcion;
             $equipo->save();
+
+            $this->registrarAuditoria($equipo->id, 'UPDATE', $oldData, [
+                'nombre_equipo' => $equipo->nombre_equipo,
+                'descripcion' => $equipo->descripcion,
+            ]);
 
             return response()->json([
                 'icon' => 'success',
@@ -306,6 +244,8 @@ class EquiposEntrega extends Component
             $equipo->estado_id = 2;
             $equipo->save();
 
+            $this->registrarAuditoria($equipo->id, 'UPDATE', ['estado_id' => 1], ['estado_id' => 2]);
+
             return response()->json([
                 'icon' => 'success',
                 'title' => 'Éxito',
@@ -322,88 +262,34 @@ class EquiposEntrega extends Component
     }
 
     /**
-     * Agregar miembro a equipo existente
+     * Historial de auditoría de un equipo (creación y todas sus actualizaciones).
      */
-    public function agregarMiembro(Request $request)
+    public function obtenerHistorialEquipo($equipoId)
     {
         try {
-            $request->validate([
-                'equipo_id' => 'required|exists:equipos_entrega,id',
-                'user_id' => 'required|exists:users,id',
-                'porcentaje' => 'required|numeric|min:0|max:100',
-            ]);
-
-            $equipo = EquipoEntrega::findOrFail($request->equipo_id);
-            
-            // Verificar que no exceda el 100%
-            if (!$equipo->tieneCupoParaPorcentaje($request->porcentaje)) {
-                $disponible = 100 - $equipo->total_porcentajes;
-                return response()->json([
-                    'icon' => 'error',
-                    'title' => 'Porcentaje excedido',
-                    'text' => "Solo hay {$disponible}% disponible. El equipo ya tiene {$equipo->total_porcentajes}% asignado.",
-                ], 422);
-            }
-
-            DB::transaction(function () use ($request) {
-                $existente = EquipoEntregaMiembro::where('equipo_entrega_id', $request->equipo_id)
-                    ->where('user_id', $request->user_id)
-                    ->first();
-
-                // El índice único uk_equipo_user no permite dos filas con el mismo equipo/usuario.
-                // Para crear un registro nuevo, primero se marca inactivo y se elimina el previo.
-                if ($existente) {
-                    if ((int) $existente->estado_id === 1) {
-                        $existente->estado_id = 2;
-                        $existente->save();
-                    }
-                    $existente->delete();
-                }
-
-                EquipoEntregaMiembro::create([
-                    'equipo_entrega_id' => $request->equipo_id,
-                    'user_id' => $request->user_id,
-                    'porcentaje_comision' => $request->porcentaje,
-                    'estado_id' => 1,
-                ]);
-            });
+            $historial = EquipoEntregaAudit::with('usuario')
+                ->where('equipo_entrega_id', $equipoId)
+                ->orderBy('created_at', 'asc')
+                ->get()
+                ->map(function ($h) {
+                    return [
+                        'action' => $h->action,
+                        'old_data' => $h->old_data,
+                        'new_data' => $h->new_data,
+                        'usuario' => $h->usuario->name ?? '-',
+                        'fecha' => $h->created_at->format('d/m/Y h:i A'),
+                    ];
+                });
 
             return response()->json([
-                'icon' => 'success',
-                'title' => 'Éxito',
-                'text' => 'Miembro agregado correctamente',
+                'success' => true,
+                'historial' => $historial,
             ], 200);
 
         } catch (\Exception $e) {
             return response()->json([
-                'icon' => 'error',
-                'title' => 'Error',
-                'text' => 'Error al agregar miembro: ' . $e->getMessage(),
-            ], 500);
-        }
-    }
-
-    /**
-     * Remover miembro del equipo
-     */
-    public function removerMiembro($miembroId)
-    {
-        try {
-            $miembro = EquipoEntregaMiembro::findOrFail($miembroId);
-            $miembro->estado_id = 2;
-            $miembro->save();
-
-            return response()->json([
-                'icon' => 'success',
-                'title' => 'Éxito',
-                'text' => 'Miembro removido del equipo',
-            ], 200);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'icon' => 'error',
-                'title' => 'Error',
-                'text' => 'Error al remover miembro: ' . $e->getMessage(),
+                'success' => false,
+                'mensaje' => 'Error al obtener el historial: ' . $e->getMessage()
             ], 500);
         }
     }

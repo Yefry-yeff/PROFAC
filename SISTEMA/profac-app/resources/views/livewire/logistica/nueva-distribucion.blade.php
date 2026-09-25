@@ -37,7 +37,7 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label><i class="fas fa-users"></i> Equipo de Entrega *</label>
+                                    <label><i class="fas fa-truck"></i> Equipo de Entrega *</label>
                                     <select class="form-control form-control-lg" name="equipo_entrega_id" required>
                                         <option value="">-- Seleccione un equipo --</option>
                                         @foreach($equipos as $eq)
@@ -51,6 +51,27 @@
                                     <label><i class="fas fa-calendar-alt"></i> Fecha Programada *</label>
                                     <input type="date" class="form-control form-control-lg" name="fecha_programada" 
                                            value="{{ date('Y-m-d') }}" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label><i class="fas fa-user-hard-hat"></i> Personal Encargado de la Distribución *</label>
+                                    <select class="form-control" name="personal[]" id="selectPersonalDistribucion" multiple required>
+                                        @foreach($personalDisponible as $p)
+                                            <option value="{{ $p->id }}">{{ $p->name }} ({{ $p->rol }})</option>
+                                        @endforeach
+                                    </select>
+                                    <small class="text-muted">Motoristas, Equipo de Entregas y Picking activos.</small>
+                                </div>
+                                <div id="wrapPorcentajesPersonal" class="mb-3" style="display:none;">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <label class="mb-0"><i class="fas fa-percentage"></i> Porcentaje de comisión por persona *</label>
+                                        <span id="totalPorcentajePersonal" class="badge badge-secondary">Total: 0%</span>
+                                    </div>
+                                    <div id="listaPorcentajesPersonal"></div>
+                                    <small class="text-muted">La suma de los porcentajes debe ser exactamente 100%. Se usará para el cálculo de comisiones.</small>
                                 </div>
                             </div>
                         </div>
@@ -420,6 +441,80 @@
 // Variables y funciones globales (accesibles desde onclick)
 let facturasSelTmp = [];
 let clienteSeleccionado = null;
+let personalPorcentajes = {}; // { user_id: porcentaje }
+
+// ========== PERSONAL ENCARGADO: porcentajes de comisión ==========
+let personalPorcentajesManual = {}; // ids cuyo % fue editado a mano por el usuario
+
+function actualizarListaPorcentajesPersonal() {
+    const ids = $('#selectPersonalDistribucion').val() || [];
+
+    // Descartar valores de personas ya no seleccionadas
+    Object.keys(personalPorcentajes).forEach(id => {
+        if (!ids.includes(id)) delete personalPorcentajes[id];
+    });
+    Object.keys(personalPorcentajesManual).forEach(id => {
+        if (!ids.includes(id)) delete personalPorcentajesManual[id];
+    });
+
+    if (!ids.length) {
+        $('#wrapPorcentajesPersonal').hide();
+        $('#listaPorcentajesPersonal').html('');
+        actualizarTotalPorcentajePersonal();
+        return;
+    }
+    $('#wrapPorcentajesPersonal').show();
+
+    // Reparto equitativo del restante entre las personas SIN % editado a mano,
+    // ajustando el redondeo para que la suma total quede en exactamente 100%.
+    const idsManual = ids.filter(id => personalPorcentajesManual[id] !== undefined);
+    const idsAuto = ids.filter(id => personalPorcentajesManual[id] === undefined);
+    const sumaManual = idsManual.reduce((sum, id) => sum + (parseFloat(personalPorcentajes[id]) || 0), 0);
+    const restante = Math.max(0, Math.round((100 - sumaManual) * 100) / 100);
+
+    if (idsAuto.length) {
+        const base = Math.floor((restante / idsAuto.length) * 100) / 100;
+        let acumulado = 0;
+        idsAuto.forEach((id, idx) => {
+            const esUltimo = idx === idsAuto.length - 1;
+            const valor = esUltimo ? Math.round((restante - acumulado) * 100) / 100 : base;
+            personalPorcentajes[id] = valor;
+            acumulado += valor;
+        });
+    }
+    idsManual.forEach(id => { personalPorcentajes[id] = parseFloat(personalPorcentajes[id]) || 0; });
+
+    let html = '';
+    ids.forEach(id => {
+        const nombre = $('#selectPersonalDistribucion option[value="' + id + '"]').text();
+        html += `
+            <div class="d-flex align-items-center mb-2">
+                <div class="flex-grow-1 mr-2">${nombre}</div>
+                <div style="width:110px;">
+                    <div class="input-group input-group-sm">
+                        <input type="number" class="form-control text-right input-porcentaje-personal"
+                               data-id="${id}" min="0" max="100" step="0.01" value="${personalPorcentajes[id]}">
+                        <div class="input-group-append"><span class="input-group-text">%</span></div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    $('#listaPorcentajesPersonal').html(html);
+    actualizarTotalPorcentajePersonal();
+}
+
+function actualizarTotalPorcentajePersonal() {
+    const ids = $('#selectPersonalDistribucion').val() || [];
+    let total = 0;
+    ids.forEach(id => { total += parseFloat(personalPorcentajes[id] ?? 0); });
+    total = Math.round(total * 100) / 100;
+
+    const badge = $('#totalPorcentajePersonal');
+    badge.text('Total: ' + total + '%');
+    badge.removeClass('badge-success badge-danger badge-secondary');
+    badge.addClass(Math.abs(total - 100) < 0.01 ? 'badge-success' : 'badge-danger');
+}
 
 // ========== BÚSQUEDA Y LIMPIEZA ==========
 
@@ -568,7 +663,12 @@ function verFacturasDeZona(zonaId, nombreZona) {
                     </td>
                     <td><small>${f.cliente}</small></td>
                     <td><small>${f.municipio || '-'}</small></td>
-                    <td><small>${f.direccion_completa || '-'}</small></td>
+                    <td>
+                        <small class="direccion-factura-texto" data-id="${f.id}">${f.direccion_completa || '-'}</small>
+                        <a href="javascript:void(0)" onclick="editarDireccionFactura(${f.id}, '${(f.direccion_completa || '').replace(/'/g, "\\'")}')" class="ml-1 text-warning" title="Editar dirección">
+                            <i class="fas fa-pencil-alt"></i>
+                        </a>
+                    </td>
                     <td><small>${f.asesor_comercial || '-'}</small></td>
                     <td><small>${f.gestor || '-'}</small></td>
                     <td><small class="text-muted"><i class="fas fa-calendar"></i> ${f.fecha_emision}</small></td>
@@ -597,6 +697,33 @@ function verFacturasDeZona(zonaId, nombreZona) {
 
 function seleccionarTodasFacturasZona(checked) {
     $('.check-factura-zona:not(:disabled)').prop('checked', checked);
+}
+
+function editarDireccionFactura(facturaId, direccionActual) {
+    Swal.fire({
+        title: 'Editar dirección de entrega',
+        input: 'textarea',
+        inputValue: direccionActual || '',
+        inputPlaceholder: 'Dirección de entrega (esta es la que viajará a la carta de entrega)',
+        showCancelButton: true,
+        confirmButtonText: 'Guardar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#28a745'
+    }).then(result => {
+        if (!result.isConfirmed) return;
+        $.ajax({
+            url: "{{ route('logistica.facturas.actualizarDireccion') }}",
+            method: 'POST',
+            data: JSON.stringify({ factura_id: facturaId, direccion_entrega: result.value }),
+            contentType: 'application/json',
+            headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+        }).done(r => {
+            $(`.direccion-factura-texto[data-id="${facturaId}"]`).text(result.value || '-');
+            toastr.success(r.text || 'Dirección actualizada', 'Éxito', { positionClass: 'toast-top-right', timeOut: 2000 });
+        }).fail(x => {
+            Swal.fire({ icon: 'error', title: 'Error', text: x.responseJSON?.text || 'No se pudo actualizar la dirección.' });
+        });
+    });
 }
 
 function toggleSeleccionarTodasZona() {
@@ -942,7 +1069,11 @@ function removerFactura(index) {
     });
 }
 
+let guardandoDistribucion = false;
+
 function guardarDistribucion() {
+    if (guardandoDistribucion) return;
+
     if (!facturasSelTmp.length) {
         Swal.fire({
             icon: 'warning',
@@ -956,6 +1087,7 @@ function guardarDistribucion() {
     const equipoId = $('select[name="equipo_entrega_id"]').val();
     const fechaProgramada = $('input[name="fecha_programada"]').val();
     const observaciones = $('textarea[name="observaciones"]').val();
+    const personal = $('#selectPersonalDistribucion').val() || [];
     
     if (!equipoId) {
         Swal.fire({
@@ -976,16 +1108,45 @@ function guardarDistribucion() {
         });
         return;
     }
+
+    if (!personal.length) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Personal requerido',
+            text: 'Debe asignar al menos un encargado de la distribución',
+            confirmButtonColor: '#28a745'
+        });
+        return;
+    }
+
+    const personalConPorcentaje = personal.map(id => ({
+        user_id: parseInt(id, 10),
+        porcentaje: parseFloat(personalPorcentajes[id]) || 0,
+    }));
+    const totalPorcentaje = Math.round(personalConPorcentaje.reduce((sum, p) => sum + p.porcentaje, 0) * 100) / 100;
+
+    if (Math.abs(totalPorcentaje - 100) >= 0.01) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Porcentajes incompletos',
+            text: `La suma de los porcentajes del personal encargado debe ser exactamente 100%. Actualmente es ${totalPorcentaje}%.`,
+            confirmButtonColor: '#28a745'
+        });
+        return;
+    }
     
     const data = {
         equipo_entrega_id: equipoId,
         fecha_programada: fechaProgramada,
         observaciones: observaciones,
+        personal: personalConPorcentaje,
         facturas: facturasSelTmp.map(f => f.id),
         editar_id: $('#editarDistribucionId').val() || null,
     };
     
     console.log('Datos a enviar:', data);
+
+    guardandoDistribucion = true;
 
     // Verificar disponibilidad de facturas antes de guardar
     const facturaIds = data.facturas;
@@ -1007,6 +1168,7 @@ function guardarDistribucion() {
                            <p style="margin-top:10px">Elimínelas del carrito para poder continuar.</p>`,
                     confirmButtonColor: '#f0ad4e'
                 });
+                guardandoDistribucion = false;
                 return;
             }
             _enviarGuardarDistribucion(data);
@@ -1019,6 +1181,7 @@ function guardarDistribucion() {
 }
 
 function _enviarGuardarDistribucion(data) {
+    const $btnGuardar = $('button[onclick="guardarDistribucion()"]').prop('disabled', true);
     $.ajax({
         url: '/logistica/distribuciones/guardar',
         type: 'POST',
@@ -1035,6 +1198,7 @@ function _enviarGuardarDistribucion(data) {
                 .data('distribucion-id', r.distribucion_id)
                 .data('pedido-id', r.pedido_id || null)
                 .modal('show');
+            resetFormularioDistribucion();
         },
         error: function(xhr, status, error) {
             console.error('Error AJAX:', {xhr, status, error});
@@ -1045,8 +1209,31 @@ function _enviarGuardarDistribucion(data) {
                 text: xhr.responseJSON?.text || 'Error al guardar la distribución',
                 confirmButtonColor: '#dc3545'
             });
+        },
+        complete: function() {
+            $btnGuardar.prop('disabled', false);
+            guardandoDistribucion = false;
         }
     });
+}
+
+// Limpia el formulario y refresca las facturas pendientes por zona/búsqueda
+// para que una factura recién asignada deje de aparecer como disponible.
+function resetFormularioDistribucion() {
+    facturasSelTmp = [];
+    clienteSeleccionado = null;
+    personalPorcentajes = {};
+    personalPorcentajesManual = {};
+    $('#editarDistribucionId').val('');
+    $('select[name="equipo_entrega_id"]').val('');
+    $('input[name="fecha_programada"]').val('{{ date('Y-m-d') }}');
+    $('textarea[name="observaciones"]').val('');
+    $('#selectPersonalDistribucion').val([]).trigger('change');
+    actualizarPreviewFacturas();
+    limpiarZonaSeleccionada();
+    limpiarBusquedaFactura();
+    limpiarBusquedaCliente();
+    cargarZonasParaBusqueda();
 }
 
 // ========== ACCIONES DISTRIBUCIÓN ==========
@@ -1073,6 +1260,21 @@ function distribuccionAccion(accion) {
 // Inicialización cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', function() {
 
+// ========== SELECT2: Personal Encargado de la Distribución ==========
+$('#selectPersonalDistribucion').select2({
+    placeholder: '-- Seleccione el personal encargado --',
+    width: '100%',
+}).on('change', function() {
+    actualizarListaPorcentajesPersonal();
+});
+
+$(document).on('input', '.input-porcentaje-personal', function() {
+    const id = String($(this).data('id'));
+    personalPorcentajesManual[id] = true;
+    personalPorcentajes[id] = parseFloat($(this).val()) || 0;
+    actualizarTotalPorcentajePersonal();
+});
+
 // ========== CARGA INICIAL: pestaña "Facturas por Zona" ==========
 cargarZonasParaBusqueda();
 
@@ -1091,6 +1293,13 @@ cargarZonasParaBusqueda();
         $('select[name="equipo_entrega_id"]').val(d.equipo_entrega_id);
         $('input[name="fecha_programada"]').val(d.fecha_programada);
         $('textarea[name="observaciones"]').val(d.observaciones || '');
+        personalPorcentajes = {};
+        personalPorcentajesManual = {};
+        (d.personal || []).forEach(p => {
+            personalPorcentajes[String(p.user_id)] = parseFloat(p.porcentaje_comision) || 0;
+            personalPorcentajesManual[String(p.user_id)] = true;
+        });
+        $('#selectPersonalDistribucion').val((d.personal || []).map(p => String(p.user_id))).trigger('change');
 
         // Cargar facturas
         facturasSelTmp = d.facturas.map(f => ({

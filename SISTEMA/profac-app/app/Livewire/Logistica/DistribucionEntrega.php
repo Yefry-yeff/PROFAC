@@ -7,6 +7,7 @@ use App\Models\Logistica\DistribucionEntrega as ModelDistribucionEntrega;
 use App\Models\Logistica\DistribucionEntregaFactura;
 use App\Models\Logistica\EquipoEntrega;
 use App\Models\Logistica\EntregaProducto;
+use App\Models\Logistica\FacturaTratamientoEntrega;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
@@ -17,10 +18,34 @@ use App\Events\FlujoAvanzadoEvent;
 
 class DistribucionEntrega extends Component
 {
+    // rol_id: 10=Picking, 11=Equipo de Entregas, 17=Motoristas
+    private const ROLES_PERSONAL_DISTRIBUCION = [10, 11, 17];
+
     public function render()
     {
         $equipos = EquipoEntrega::activos()->get();
         return view('livewire.logistica.distribucion-entrega', compact('equipos'));
+    }
+
+    /**
+     * Usuarios activos con rol (principal o adicional) de Picking, Equipo de
+     * Entregas o Motoristas: personal disponible para asignar a una distribución.
+     */
+    private function obtenerPersonalDisponible()
+    {
+        $roles = implode(',', self::ROLES_PERSONAL_DISTRIBUCION);
+
+        return DB::select("
+            SELECT DISTINCT u.id, u.name, r.nombre AS rol
+            FROM users u
+            INNER JOIN rol r ON r.id = u.rol_id
+            WHERE u.estado_id = 1
+            AND (
+                u.rol_id IN ({$roles})
+                OR EXISTS (SELECT 1 FROM usuario_rol ur WHERE ur.usuario_id = u.id AND ur.rol_id IN ({$roles}))
+            )
+            ORDER BY u.name ASC
+        ");
     }
 
     /**
@@ -29,7 +54,8 @@ class DistribucionEntrega extends Component
     public function nuevaDistribucion()
     {
         $equipos = EquipoEntrega::activos()->get();
-        return view('livewire.logistica.nueva-distribucion', compact('equipos'));
+        $personalDisponible = $this->obtenerPersonalDisponible();
+        return view('livewire.logistica.nueva-distribucion', compact('equipos', 'personalDisponible'));
     }
 
     /**
@@ -53,11 +79,15 @@ class DistribucionEntrega extends Component
                 'observaciones' => 'nullable|string',
                 'facturas' => 'required|array|min:1',
                 'facturas.*' => 'required|exists:factura,id',
+                'personal' => 'required|array|min:1',
+                'personal.*.user_id' => 'required|integer|exists:users,id',
+                'personal.*.porcentaje' => 'required|numeric|min:0|max:100',
             ], [
                 'equipo_entrega_id.required' => 'Debe seleccionar un equipo',
                 'fecha_programada.required' => 'La fecha programada es obligatoria',
                 'facturas.required' => 'Debe agregar al menos una factura',
                 'facturas.*.exists' => 'Una o más facturas no existen',
+                'personal.required' => 'Debe asignar al menos un encargado de la distribución',
             ]);
 
             if ($validator->fails()) {
@@ -66,6 +96,15 @@ class DistribucionEntrega extends Component
                     'icon' => 'error',
                     'title' => 'Error de Validación',
                     'text' => implode(', ', $validator->errors()->all()),
+                ], 422);
+            }
+
+            $totalPorcentajePersonal = round(collect($data['personal'])->sum('porcentaje'), 2);
+            if (abs($totalPorcentajePersonal - 100) > 0.01) {
+                return response()->json([
+                    'icon' => 'error',
+                    'title' => 'Error de Validación',
+                    'text' => "La suma de los porcentajes del personal encargado debe ser exactamente 100% (actual: {$totalPorcentajePersonal}%).",
                 ], 422);
             }
 
@@ -146,6 +185,23 @@ class DistribucionEntrega extends Component
             Log::info('Distribución ' . ($editarId ? 'actualizada' : 'creada') . ':', [
                 'id' => $distribucion->id,
             ]);
+
+            // Personal encargado: reemplaza por completo la asignación anterior
+            // (ya no se deriva de un equipo fijo, se elige por distribución). El
+            // porcentaje de cada persona se define aquí y se usará luego en comisiones.
+            DB::table('distribuciones_entrega_miembros')
+                ->where('distribucion_entrega_id', $distribucion->id)
+                ->delete();
+            $personalUnico = collect($data['personal'])->keyBy('user_id');
+            foreach ($personalUnico as $userId => $p) {
+                DB::table('distribuciones_entrega_miembros')->insert([
+                    'distribucion_entrega_id' => $distribucion->id,
+                    'user_id'                 => $userId,
+                    'porcentaje_comision'     => $p['porcentaje'],
+                    'created_at'              => now(),
+                    'updated_at'              => now(),
+                ]);
+            }
 
             // Agregar facturas en el orden especificado
             foreach ($data['facturas'] as $index => $facturaId) {
@@ -416,7 +472,7 @@ class DistribucionEntrega extends Component
                     f.cai,
                     f.total,
                     c.nombre AS cliente,
-                    c.direccion,
+                    COALESCE(fte.direccion_entrega, c.direccion) AS direccion,
                     (SELECT COUNT(*) FROM entregas_productos WHERE distribucion_factura_id = df.id AND entregado = 1) as productos_entregados,
                     (SELECT COUNT(*) FROM entregas_productos WHERE distribucion_factura_id = df.id) as total_productos,
                     (SELECT COUNT(DISTINCT i.id)
@@ -433,6 +489,7 @@ class DistribucionEntrega extends Component
                 FROM distribuciones_entrega_facturas df
                 INNER JOIN factura f ON df.factura_id = f.id
                 INNER JOIN cliente c ON f.cliente_id = c.id
+                LEFT JOIN factura_tratamiento_entrega fte ON fte.factura_id = f.id
                 WHERE df.distribucion_entrega_id = ?
                 ORDER BY df.orden_entrega ASC
             ", [$distribucionId]);
@@ -466,6 +523,48 @@ class DistribucionEntrega extends Component
     }
 
     /**
+     * Actualiza la dirección de entrega de una factura (la misma que viaja a
+     * la carta de entrega). Crea el registro de tratamiento si aún no existe.
+     */
+    public function actualizarDireccionFactura(Request $request)
+    {
+        $data = $request->json()->all() ?: $request->all();
+
+        $validator = Validator::make($data, [
+            'factura_id' => 'required|integer|exists:factura,id',
+            'direccion_entrega' => 'nullable|string|max:255',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'icon' => 'error',
+                'title' => 'Error de validación',
+                'text' => implode(', ', $validator->errors()->all()),
+            ], 422);
+        }
+
+        $registro = FacturaTratamientoEntrega::where('factura_id', (int) $data['factura_id'])->first();
+        if ($registro) {
+            $registro->direccion_entrega = trim($data['direccion_entrega'] ?? '') ?: null;
+            $registro->usr_actualizo = Auth::id();
+            $registro->save();
+        } else {
+            FacturaTratamientoEntrega::create([
+                'factura_id' => (int) $data['factura_id'],
+                'direccion_entrega' => trim($data['direccion_entrega'] ?? '') ?: null,
+                'usr_registro' => Auth::id(),
+                'usr_actualizo' => Auth::id(),
+            ]);
+        }
+
+        return response()->json([
+            'icon' => 'success',
+            'title' => 'Éxito',
+            'text' => 'Dirección de entrega actualizada correctamente',
+        ], 200);
+    }
+
+    /**
      * Obtener datos completos de una distribución para edición
      */
     public function obtenerDatosDistribucion($id)
@@ -478,20 +577,26 @@ class DistribucionEntrega extends Component
                     df.factura_id  AS id,
                     f.cai          AS numero,
                     c.nombre       AS cliente,
-                    c.direccion,
+                    COALESCE(fte.direccion_entrega, c.direccion) AS direccion,
                     f.total
                 FROM distribuciones_entrega_facturas df
                 INNER JOIN factura  f ON df.factura_id  = f.id
                 INNER JOIN cliente  c ON f.cliente_id   = c.id
+                LEFT JOIN factura_tratamiento_entrega fte ON fte.factura_id = f.id
                 WHERE df.distribucion_entrega_id = ?
                 ORDER BY df.orden_entrega ASC
             ", [$id]);
+
+            $personal = DB::table('distribuciones_entrega_miembros')
+                ->where('distribucion_entrega_id', $id)
+                ->get(['user_id', 'porcentaje_comision']);
 
             return response()->json([
                 'equipo_entrega_id' => $distribucion->equipo_entrega_id,
                 'fecha_programada'  => $distribucion->fecha_programada->format('Y-m-d'),
                 'observaciones'     => $distribucion->observaciones,
                 'facturas'          => $facturas,
+                'personal'          => $personal,
             ], 200);
 
         } catch (\Exception $e) {
@@ -508,6 +613,13 @@ class DistribucionEntrega extends Component
             $distribucion = ModelDistribucionEntrega::with('equipo', 'creador')
                 ->findOrFail($id);
 
+            $personalEncargado = DB::table('distribuciones_entrega_miembros as dem')
+                ->join('users as u', 'u.id', '=', 'dem.user_id')
+                ->where('dem.distribucion_entrega_id', $id)
+                ->orderBy('u.name')
+                ->pluck('u.name')
+                ->implode(', ');
+
             // Obtener facturas de la distribución ordenadas por orden de entrega
             $facturas = DB::select("
                 SELECT
@@ -517,10 +629,11 @@ class DistribucionEntrega extends Component
                     FORMAT(f.total, 2)       AS total,
                     DATE_FORMAT(f.fecha_emision, '%d/%m/%Y') AS fecha,
                     c.nombre                 AS cliente,
-                    c.direccion
+                    COALESCE(fte.direccion_entrega, c.direccion) AS direccion
                 FROM distribuciones_entrega_facturas df
                 INNER JOIN factura  f ON df.factura_id  = f.id
                 INNER JOIN cliente  c ON f.cliente_id   = c.id
+                LEFT JOIN factura_tratamiento_entrega fte ON fte.factura_id = f.id
                 WHERE df.distribucion_entrega_id = ?
                 ORDER BY c.nombre ASC, df.orden_entrega ASC
             ", [$id]);
@@ -565,7 +678,7 @@ class DistribucionEntrega extends Component
 
             $clientes = array_values($clientesMap);
 
-            $pdf = \PDF::loadView('pdf/carta-entrega', compact('distribucion', 'clientes'))
+            $pdf = \PDF::loadView('pdf/carta-entrega', compact('distribucion', 'clientes', 'personalEncargado'))
                        ->setPaper('letter');
 
             return $pdf->stream("carta-entrega-{$distribucion->id}.pdf");
