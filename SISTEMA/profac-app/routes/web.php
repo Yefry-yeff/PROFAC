@@ -1624,6 +1624,7 @@ Route::post('/reporte/ventas-cobros/actualizar-f01/{facturaId}',                
 
     // Agrupación de Facturas por Zona Geográfica (Zonas)
     Route::get('/logistica/zonas/listar', [\App\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'listarZonas'])->name('logistica.zonas.listar');
+    Route::get('/logistica/zonas/activas', [\App\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'listarZonasActivas'])->name('logistica.zonas.activas');
     Route::get('/logistica/zonas/departamentos', [\App\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'obtenerDepartamentos'])->name('logistica.zonas.departamentos');
     Route::get('/logistica/zonas/municipios/{departamentoId}', [\App\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'obtenerMunicipios'])->name('logistica.zonas.municipios');
     Route::get('/logistica/zonas/obtener/{id}', [\App\Livewire\LogisticaDeEntregas\AgrupacionesDeEntregas::class, 'obtenerZona'])->name('logistica.zonas.obtener');

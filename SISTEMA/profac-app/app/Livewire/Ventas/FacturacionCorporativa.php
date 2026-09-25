@@ -4,6 +4,7 @@ namespace App\Livewire\Ventas;
 
 use App\Support\ExpoConfig;
 use App\Support\ClienteActoresAsignados;
+use App\Support\Logistica\FacturaEnvioHelper;
 use App\Services\Expo\LiquidacionOfertaExpo;
 use App\Services\Expo\RecalculadorFacturaExpo;
 use App\Services\Expo\SaldoLineasOferta;
@@ -1072,7 +1073,9 @@ class FacturacionCorporativa extends Component
                 'tipoPagoVenta' => 'required',
                 'restriccion' => 'required',
                 'vendedor' => 'required',
-                'tele_asesor' => 'nullable|integer|exists:users,id'
+                'tele_asesor' => 'nullable|integer|exists:users,id',
+                'zone_group_id' => 'nullable|integer|exists:zone_groups,id',
+                'direccion_entrega' => 'nullable|string|max:255',
 
 
 
@@ -1430,6 +1433,7 @@ class FacturacionCorporativa extends Component
                     $factura->tipo_factura_id = $request->tipo_factura_id;
                 }
                 $factura->save();
+                FacturaEnvioHelper::guardar($request, (int) $factura->id, $factura->gestor_entrega);
 
                 if ($request->codigo_autorizacion) {
                     DB::table('codigo_autorizacion')
@@ -1773,6 +1777,7 @@ class FacturacionCorporativa extends Component
                 $factura->tipo_factura_id = $request->tipo_factura_id;
             }
             $factura->save();
+            FacturaEnvioHelper::guardar($request, (int) $factura->id, $factura->gestor_entrega);
 
             if ($request->codigo_autorizacion) {
                 DB::table('codigo_autorizacion')
@@ -1934,6 +1939,7 @@ class FacturacionCorporativa extends Component
             $factura->tipo_factura_id = $request->tipo_factura_id;
         }
         $factura->save();
+        FacturaEnvioHelper::guardar($request, (int) $factura->id, $factura->gestor_entrega);
 
         if ($request->codigo_autorizacion) {
             DB::table('codigo_autorizacion')
@@ -2080,6 +2086,7 @@ class FacturacionCorporativa extends Component
                 $factura->tipo_factura_id = $request->tipo_factura_id;
             }
             $factura->save();
+            FacturaEnvioHelper::guardar($request, (int) $factura->id, $factura->gestor_entrega);
 
             if ($request->codigo_autorizacion) {
                 DB::table('codigo_autorizacion')
@@ -2856,6 +2863,7 @@ class FacturacionCorporativa extends Component
                 $factura->tipo_factura_id = $request->tipo_factura_id;
             }
             $factura->save();
+            FacturaEnvioHelper::guardar($request, (int) $factura->id, $factura->gestor_entrega);
 
             if ($request->codigo_autorizacion) {
                 DB::table('codigo_autorizacion')
@@ -3134,6 +3142,7 @@ class FacturacionCorporativa extends Component
             $factura->tipo_factura_id = $request->tipo_factura_id;
         }
         $factura->save();
+        FacturaEnvioHelper::guardar($request, (int) $factura->id, $factura->gestor_entrega);
 
         if ($request->codigo_autorizacion) {
             DB::table('codigo_autorizacion')

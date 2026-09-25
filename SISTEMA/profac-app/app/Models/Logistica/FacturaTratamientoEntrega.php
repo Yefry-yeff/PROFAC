@@ -5,6 +5,7 @@ namespace App\Models\Logistica;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\Departamento;
 use App\Models\Municipio;
+use App\Models\Logistica\ZoneGroup;
 
 class FacturaTratamientoEntrega extends Model
 {
@@ -12,6 +13,7 @@ class FacturaTratamientoEntrega extends Model
 
     protected $fillable = [
         'factura_id',
+        'zone_group_id',
         'department_id',
         'municipality_id',
         'direccion_entrega',
@@ -33,5 +35,10 @@ class FacturaTratamientoEntrega extends Model
     public function municipio()
     {
         return $this->belongsTo(Municipio::class, 'municipality_id');
+    }
+
+    public function zonaGrupo()
+    {
+        return $this->belongsTo(ZoneGroup::class, 'zone_group_id');
     }
 }

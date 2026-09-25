@@ -3114,6 +3114,12 @@
                     + '<select id="swal-gestor-select" style="width:100%;"></select>'
                     + '<label style="display:block;font-size:12px;font-weight:700;color:#455a64;margin:14px 0 6px;">Tele asesor</label>'
                     + '<select id="swal-tele-asesor-select" style="width:100%;"></select>'
+                    + '<hr style="margin:16px 0 12px;">'
+                    + '<p style="font-size:12px;font-weight:700;color:#1565c0;margin:0 0 10px;"><i class="fa fa-map-marker mr-1"></i>Envío</p>'
+                    + '<label style="display:block;font-size:12px;font-weight:700;color:#455a64;margin:0 0 6px;">Zona <span style="color:#c62828;">*</span></label>'
+                    + '<select id="swal-zona-select" style="width:100%;"></select>'
+                    + '<label style="display:block;font-size:12px;font-weight:700;color:#455a64;margin:14px 0 6px;">Dirección</label>'
+                    + '<textarea id="swal-direccion-envio" class="form-control" rows="2" style="width:100%;font-size:13px;" placeholder="Dirección de entrega (opcional)"></textarea>'
                     + '</div>',
                 showCancelButton: true,
                 confirmButtonText: '<i class="fa fa-check mr-1"></i> Confirmar y Facturar',
@@ -3146,6 +3152,19 @@
                         placeholder: '-- Seleccionar tele asesor --',
                         allowClear: false
                     });
+                    $('#swal-zona-select').select2({
+                        dropdownParent: $('.swal-gestor-popup'),
+                        placeholder: '-- Seleccionar zona --',
+                        allowClear: false
+                    });
+                    $.get('/logistica/zonas/activas').done(function(data) {
+                        var zonas = data.zonas || [];
+                        $('#swal-zona-select').append(new Option('-- Seleccionar zona --', '', true, true));
+                        zonas.forEach(function(zona) {
+                            $('#swal-zona-select').append(new Option(zona.name, zona.id, false, false));
+                        });
+                        $('#swal-zona-select').trigger('change');
+                    });
                     $.get('/cotizacion/actores-asignados', {
                         cliente_id: detail.cliente_id,
                         rol_id: 3
@@ -3177,6 +3196,9 @@
                     if ($('#swal-tele-asesor-select').hasClass('select2-hidden-accessible')) {
                         $('#swal-tele-asesor-select').select2('destroy');
                     }
+                    if ($('#swal-zona-select').hasClass('select2-hidden-accessible')) {
+                        $('#swal-zona-select').select2('destroy');
+                    }
                 },
                 preConfirm: function() {
                     var teleAsesorId = $('#swal-tele-asesor-select').val() || null;
@@ -3184,15 +3206,24 @@
                         Swal.showValidationMessage('Debe seleccionar un tele asesor.');
                         return false;
                     }
+                    var zonaId = $('#swal-zona-select').val() || null;
+                    if (!zonaId) {
+                        Swal.showValidationMessage('Debe seleccionar una zona de envío.');
+                        return false;
+                    }
                     return {
                         gestorId: $('#swal-gestor-select').val() || null,
-                        teleAsesorId: teleAsesorId
+                        teleAsesorId: teleAsesorId,
+                        zonaId: zonaId,
+                        direccionEnvio: $('#swal-direccion-envio').val() || ''
                     };
                 }
             }).then(function(result) {
                 if (!result.isConfirmed) return;
                 var gestorId = result.value ? result.value.gestorId : null;
                 var teleAsesorId = result.value ? result.value.teleAsesorId : null;
+                var zonaId = result.value ? result.value.zonaId : null;
+                var direccionEnvio = result.value ? result.value.direccionEnvio : '';
 
                 // Bloquear botón y mostrar spinner durante el POST
                 var btn = document.getElementById('btn-facturar-directo');
@@ -3211,7 +3242,9 @@
                 axios.post(detail.url, {
                     tipo_pago: detail.tipo_pago || 1,
                     gestor_entrega: gestorId,
-                    tele_asesor: teleAsesorId
+                    tele_asesor: teleAsesorId,
+                    zone_group_id: zonaId,
+                    direccion_entrega: direccionEnvio
                 })
                     .then(function(response) {
                         var data = response.data || {};

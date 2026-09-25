@@ -6,6 +6,7 @@ namespace App\Livewire\Ventas;
 
 use App\Support\ExpoConfig;
 use App\Support\ClienteActoresAsignados;
+use App\Support\Logistica\FacturaEnvioHelper;
 use App\Services\Expo\LiquidacionOfertaExpo;
 use App\Services\Expo\RecalculadorFacturaExpo;
 use App\Services\Expo\SaldoLineasOferta;
@@ -815,7 +816,9 @@ class FacturacionEstatal extends Component
             'nombre_cliente_ventas' => 'required',
             'tipoPagoVenta' => 'required',
             'restriccion' => 'required',
-            'vendedor'=>'required'
+            'vendedor'=>'required',
+            'zone_group_id' => 'nullable|integer|exists:zone_groups,id',
+            'direccion_entrega' => 'nullable|string|max:255',
 
 
 
@@ -1081,6 +1084,7 @@ class FacturacionEstatal extends Component
                 $factura->tipo_factura_id = $request->tipo_factura_id;
             }
             $factura->save();
+            FacturaEnvioHelper::guardar($request, (int) $factura->id, $factura->gestor_entrega);
 
             // Marcar código de autorización como utilizado
             if ($request->codigo_autorizacion) {

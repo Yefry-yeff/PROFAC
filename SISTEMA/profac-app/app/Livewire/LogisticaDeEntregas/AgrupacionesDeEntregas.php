@@ -87,6 +87,11 @@ class AgrupacionesDeEntregas extends Component
     {
         return "
             COALESCE(
+                (SELECT fte0.zone_group_id
+                 FROM factura_tratamiento_entrega fte0
+                 INNER JOIN zone_groups zg0 ON zg0.id = fte0.zone_group_id AND zg0.status = 1
+                 WHERE fte0.factura_id = f.id AND fte0.zone_group_id IS NOT NULL
+                 LIMIT 1),
                 (SELECT zgd1.zone_group_id
                  FROM factura_tratamiento_entrega fte1
                  INNER JOIN zone_group_details zgd1 ON zgd1.status = 1 AND zgd1.municipality_id = fte1.municipality_id
@@ -114,15 +119,24 @@ class AgrupacionesDeEntregas extends Component
     private function condicionFacturaEnZona(string $zoneGroupIdExpr): string
     {
         return "
-            EXISTS (
-                SELECT 1
-                FROM factura_tratamiento_entrega fte
-                INNER JOIN zone_group_details zgd ON zgd.status = 1
-                    AND zgd.zone_group_id = {$zoneGroupIdExpr}
-                    AND zgd.department_id = fte.department_id
-                    AND (zgd.municipality_id = fte.municipality_id OR zgd.municipality_id IS NULL)
-                INNER JOIN zone_groups zgchk ON zgchk.id = zgd.zone_group_id AND zgchk.status = 1
-                WHERE fte.factura_id = f.id
+            (
+                EXISTS (
+                    SELECT 1
+                    FROM factura_tratamiento_entrega fteDirecta
+                    INNER JOIN zone_groups zgDirecta ON zgDirecta.id = fteDirecta.zone_group_id AND zgDirecta.status = 1
+                    WHERE fteDirecta.factura_id = f.id
+                    AND fteDirecta.zone_group_id = {$zoneGroupIdExpr}
+                )
+                OR EXISTS (
+                    SELECT 1
+                    FROM factura_tratamiento_entrega fte
+                    INNER JOIN zone_group_details zgd ON zgd.status = 1
+                        AND zgd.zone_group_id = {$zoneGroupIdExpr}
+                        AND zgd.department_id = fte.department_id
+                        AND (zgd.municipality_id = fte.municipality_id OR zgd.municipality_id IS NULL)
+                    INNER JOIN zone_groups zgchk ON zgchk.id = zgd.zone_group_id AND zgchk.status = 1
+                    WHERE fte.factura_id = f.id
+                )
             )
         ";
     }
@@ -209,6 +223,29 @@ class AgrupacionesDeEntregas extends Component
             return response()->json([
                 'success' => false,
                 'mensaje' => 'Error al listar zonas: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Devuelve las zonas activas (id + nombre) para selects simples, p. ej. el
+     * apartado "Envío" del modal "Actores de la Factura".
+     */
+    public function listarZonasActivas()
+    {
+        try {
+            $zonas = DB::select("
+                SELECT id, name FROM zone_groups WHERE status = 1 ORDER BY orden ASC, name ASC
+            ");
+
+            return response()->json([
+                'success' => true,
+                'zonas' => $zonas,
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'mensaje' => 'Error al obtener zonas: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -594,7 +631,7 @@ class AgrupacionesDeEntregas extends Component
                     f.total,
                     f.fecha_emision,
                     c.nombre AS cliente,
-                    COALESCE(m.nombre, '') AS municipio,
+                    COALESCE(m.nombre, zgDirecto.name, '') AS municipio,
                     COALESCE(fte.direccion_entrega, '') AS direccion_completa,
                     COALESCE(uv.name, '') AS asesor_comercial,
                     COALESCE(g.name, '') AS gestor,
@@ -603,6 +640,7 @@ class AgrupacionesDeEntregas extends Component
                 INNER JOIN cliente c ON c.id = f.cliente_id
                 LEFT JOIN factura_tratamiento_entrega fte ON fte.factura_id = f.id
                 LEFT JOIN municipio m ON m.id = fte.municipality_id
+                LEFT JOIN zone_groups zgDirecto ON zgDirecto.id = fte.zone_group_id
                 LEFT JOIN users uv ON uv.id = f.vendedor
                 LEFT JOIN users g ON g.id = f.gestor_entrega
                 WHERE {$pendiente}
@@ -613,7 +651,7 @@ class AgrupacionesDeEntregas extends Component
                 $params = [];
             } else {
                 $sql .= " AND {$this->condicionFacturaEnZona('?')}";
-                $params = [(int) $zonaId];
+                $params = [(int) $zonaId, (int) $zonaId];
             }
 
             $sql .= " ORDER BY f.fecha_emision DESC, f.cai DESC LIMIT 200";

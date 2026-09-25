@@ -782,6 +782,9 @@
                                 {{-- Gestor de Entrega (se selecciona en modal al facturar) --}}
                                 <input type="hidden" name="gestor_entrega" id="gestor_entrega_hidden" value="">
                                 <input type="hidden" name="tele_asesor" id="tele_asesor_hidden" value="{{ Auth::id() }}">
+                                {{-- Envío: zona (Agrupaciones de Entregas) + dirección (se seleccionan en el mismo modal) --}}
+                                <input type="hidden" name="zone_group_id" id="zone_group_id_hidden" value="">
+                                <input type="hidden" name="direccion_entrega" id="direccion_entrega_hidden" value="">
                                 {{-- Tipo de pago --}}
                                 <div class="col-12 col-md-4">
                                     <label class="ofr-label">Tipo de Pago <span class="req">*</span></label>
@@ -1316,6 +1319,21 @@
                             <select id="tele_asesor_modal" class="form-control form-control-sm" style="width:100%;">
                                 <option value="">-- Seleccionar tele asesor --</option>
                             </select>
+                        </div>
+                        <hr style="margin:18px 0 14px;">
+                        <p class="mb-2" style="font-size:12px; font-weight:700; color:#1565c0;">
+                            <i class="fa-solid fa-truck-fast mr-1"></i>Envío
+                        </p>
+                        <div class="form-group">
+                            <label class="ofr-label">Zona <span class="req">*</span></label>
+                            <select id="zona_envio_modal" class="form-control form-control-sm" style="width:100%;">
+                                <option value="">-- Seleccionar zona --</option>
+                            </select>
+                        </div>
+                        <div class="form-group mb-0">
+                            <label class="ofr-label">Dirección</label>
+                            <textarea id="direccion_envio_modal" class="form-control form-control-sm" rows="2"
+                                placeholder="Dirección de entrega (opcional)"></textarea>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -6120,8 +6138,29 @@
                 placeholder: '-- Seleccionar tele asesor --'
             });
         }
+        if (!$('#zona_envio_modal').hasClass('select2-hidden-accessible')) {
+            $('#zona_envio_modal').select2({
+                dropdownParent: $('#modal_gestor_entrega'),
+                allowClear: false,
+                placeholder: '-- Seleccionar zona --'
+            });
+        }
         $('#tele_asesor_modal').empty();
         $('#btn_confirmar_gestor').prop('disabled', true);
+        var zonaHidden = document.getElementById('zone_group_id_hidden');
+        var zonaIdActual = zonaHidden ? zonaHidden.value : '';
+        var direccionHidden = document.getElementById('direccion_entrega_hidden');
+        $('#direccion_envio_modal').val(direccionHidden ? direccionHidden.value : '');
+        $.get('/logistica/zonas/activas')
+            .done(function(data) {
+                var zonas = data.zonas || [];
+                var opciones = '<option value="">-- Seleccionar zona --</option>';
+                zonas.forEach(function(zona) {
+                    var seleccionado = String(zona.id) === String(zonaIdActual) ? 'selected' : '';
+                    opciones += '<option value="' + zona.id + '" ' + seleccionado + '>' + zona.name + '</option>';
+                });
+                $('#zona_envio_modal').html(opciones).trigger('change');
+            });
         $.get('/cotizacion/actores-asignados', { cliente_id: clienteId, rol_id: 3 })
             .done(function(data) {
                 var teleasesores = data.results || [];
@@ -6149,18 +6188,28 @@
         var teleId = $('#tele_asesor_modal').val() || '';
         var teleData = $('#tele_asesor_modal').select2('data');
         var teleNombre = (teleData && teleData[0] && teleData[0].text) ? teleData[0].text : '';
+        var zonaId = $('#zona_envio_modal').val() || '';
+        var direccionEnvio = $('#direccion_envio_modal').val() || '';
         if (!teleId) {
             Swal.fire({ icon: 'warning', title: 'Tele asesor requerido', text: 'Debe seleccionar un tele asesor.', customClass: { container: 'swal-sobre-modal' } });
             return;
         }
+        if (!zonaId) {
+            Swal.fire({ icon: 'warning', title: 'Zona requerida', text: 'Debe seleccionar una zona de envío.', customClass: { container: 'swal-sobre-modal' } });
+            return;
+        }
         var gestorHidden = document.getElementById('gestor_entrega_hidden');
         var teleHidden = document.getElementById('tele_asesor_hidden');
+        var zonaHidden = document.getElementById('zone_group_id_hidden');
+        var direccionHidden = document.getElementById('direccion_entrega_hidden');
         gestorHidden.value = gestorId;
         gestorHidden.setAttribute('data-confirmed', '1');
         if (teleHidden) {
             teleHidden.value = teleId;
             teleHidden.setAttribute('data-name', teleNombre);
         }
+        if (zonaHidden) zonaHidden.value = zonaId;
+        if (direccionHidden) direccionHidden.value = direccionEnvio;
         // Esperar a que el modal termine de cerrarse antes de re-submit
         // para evitar conflicto de aria-hidden/foco con el modal SR
         $('#modal_gestor_entrega').one('hidden.bs.modal', function() {

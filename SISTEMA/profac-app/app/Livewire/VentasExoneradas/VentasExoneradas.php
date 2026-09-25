@@ -3,6 +3,7 @@
 namespace App\Livewire\VentasExoneradas;
 
 use App\Support\ClienteActoresAsignados;
+use App\Support\Logistica\FacturaEnvioHelper;
 use Livewire\Component;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\File;
@@ -157,6 +158,8 @@ class VentasExoneradas extends Component
             'restriccion'          => 'required',
             'tipo_venta_id'        => 'required|integer|between:3,3',
             'codigo'               => 'required',
+            'zone_group_id'        => 'nullable|integer|exists:zone_groups,id',
+            'direccion_entrega'    => 'nullable|string|max:255',
 
         ], [
             'codigo.required'               => 'Debe seleccionar el Código de Exoneración.',
@@ -457,6 +460,7 @@ class VentasExoneradas extends Component
             $factura->porc_descuento =$request->porDescuento;
             $factura->monto_descuento=$request->porDescuentoCalculado;
             $factura->save();
+            FacturaEnvioHelper::guardar($request, (int) $factura->id, $factura->gestor_entrega);
 
             if ($autorizacionPrecioBajo) {
                 $autorizacionPrecioBajo->marcarUtilizado();
