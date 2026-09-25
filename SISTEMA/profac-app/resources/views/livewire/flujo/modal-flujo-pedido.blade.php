@@ -142,6 +142,54 @@
     }
     .fmp-price-alert .swal2-actions { margin:10px 0 0; }
     .fmp-price-alert .swal2-confirm { margin:0; padding:8px 22px; }
+    /* Modal "Actores de la Factura" (SweetAlert2) con la misma apariencia
+       que el modal Bootstrap equivalente en facturacion-unificada.blade.php */
+    .swal2-popup.swal-gestor-popup {
+        padding:0;
+        border-radius:10px;
+        overflow:hidden;
+        background:#fff;
+    }
+    .swal-gestor-popup .swal2-html-container { margin:0; }
+    .fmp-gestor-header {
+        background:linear-gradient(135deg,#1565c0,#42a5f5);
+        color:#fff;
+        font-size:16px;
+        font-weight:700;
+        padding:14px 20px;
+        text-align:left;
+    }
+    .fmp-gestor-body { padding:20px; text-align:left; }
+    .fmp-gestor-desc { color:#6c757d; font-size:12px; margin:0 0 12px; }
+    .fmp-gestor-label {
+        display:block;
+        font-size:12px;
+        font-weight:600;
+        color:#455a64;
+        margin:0 0 4px;
+    }
+    .fmp-gestor-label .req { color:#e53935; margin-left:2px; }
+    .fmp-gestor-hr { border:none; border-top:1px solid #e0e0e0; margin:18px 0 14px; }
+    .fmp-gestor-section-title {
+        font-size:13px;
+        font-weight:700;
+        color:#1565c0;
+        margin:0 0 12px;
+    }
+    .fmp-gestor-textarea {
+        width:100%;
+        font-size:13px;
+        border:1px solid #ced4da;
+        border-radius:4px;
+        padding:6px 10px;
+        resize:vertical;
+    }
+    .swal-gestor-popup .swal2-actions {
+        margin:0;
+        padding:12px 20px 18px;
+        justify-content:flex-end;
+        gap:8px;
+    }
 </style>
 
 @php
@@ -3107,27 +3155,27 @@
             var detail = e.detail;
 
             Swal.fire({
-                title: '<i class="fa fa-truck mr-2" style="color:#1565c0;"></i> Gestor de Entrega',
-                html: '<div style="text-align:left;">'
-                    + '<p style="font-size:13px;color:#666;margin-bottom:16px;">Seleccione el responsable de entrega y el tele asesor para la factura.</p>'
-                    + '<label style="display:block;font-size:12px;font-weight:700;color:#455a64;margin:0 0 6px;">Gestor de entrega</label>'
+                html: '<div class="fmp-gestor-header"><i class="fa-solid fa-users mr-2"></i>Actores de la Factura</div>'
+                    + '<div class="fmp-gestor-body">'
+                    + '<p class="fmp-gestor-desc">Seleccione el responsable de entrega y el tele asesor para esta factura.</p>'
+                    + '<label class="fmp-gestor-label">Gestor de Entrega</label>'
                     + '<select id="swal-gestor-select" style="width:100%;"></select>'
-                    + '<label style="display:block;font-size:12px;font-weight:700;color:#455a64;margin:14px 0 6px;">Tele asesor</label>'
+                    + '<label class="fmp-gestor-label" style="margin-top:14px;">Tele Asesor <span class="req">*</span></label>'
                     + '<select id="swal-tele-asesor-select" style="width:100%;"></select>'
-                    + '<hr style="margin:16px 0 12px;">'
-                    + '<p style="font-size:12px;font-weight:700;color:#1565c0;margin:0 0 10px;"><i class="fa fa-map-marker mr-1"></i>Envío</p>'
-                    + '<label style="display:block;font-size:12px;font-weight:700;color:#455a64;margin:0 0 6px;">Zona <span style="color:#c62828;">*</span></label>'
+                    + '<hr class="fmp-gestor-hr">'
+                    + '<p class="fmp-gestor-section-title"><i class="fa fa-truck mr-1"></i>Envío</p>'
+                    + '<label class="fmp-gestor-label">Zona <span class="req">*</span></label>'
                     + '<select id="swal-zona-select" style="width:100%;"></select>'
-                    + '<label style="display:block;font-size:12px;font-weight:700;color:#455a64;margin:14px 0 6px;">Dirección</label>'
-                    + '<textarea id="swal-direccion-envio" class="form-control" rows="2" style="width:100%;font-size:13px;" placeholder="Dirección de entrega (opcional)"></textarea>'
+                    + '<label class="fmp-gestor-label" style="margin-top:14px;">Dirección</label>'
+                    + '<textarea id="swal-direccion-envio" class="fmp-gestor-textarea" rows="2" placeholder="Dirección de entrega (opcional)"></textarea>'
                     + '</div>',
                 showCancelButton: true,
+                reverseButtons: true,
                 confirmButtonText: '<i class="fa fa-check mr-1"></i> Confirmar y Facturar',
                 cancelButtonText: 'Cancelar',
                 confirmButtonColor: '#1b5e20',
                 cancelButtonColor: '#6c757d',
                 allowOutsideClick: false,
-                background: '#f9fbe7',
                 customClass: { popup: 'swal-gestor-popup' },
                 didOpen: function() {
                     // Inicializar Select2 con búsqueda AJAX dentro del SweetAlert2
