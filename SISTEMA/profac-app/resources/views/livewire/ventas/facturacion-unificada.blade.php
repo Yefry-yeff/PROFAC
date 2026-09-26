@@ -782,9 +782,10 @@
                                 {{-- Gestor de Entrega (se selecciona en modal al facturar) --}}
                                 <input type="hidden" name="gestor_entrega" id="gestor_entrega_hidden" value="">
                                 <input type="hidden" name="tele_asesor" id="tele_asesor_hidden" value="{{ Auth::id() }}">
-                                {{-- Envío: zona (Agrupaciones de Entregas) + dirección (se seleccionan en el mismo modal) --}}
-                                <input type="hidden" name="zone_group_id" id="zone_group_id_hidden" value="">
-                                <input type="hidden" name="direccion_entrega" id="direccion_entrega_hidden" value="">
+                                @if(($config->codigo ?? '') === 'cotizacion_clientes_a')
+                                    <input type="hidden" name="zone_group_id" id="zone_group_id_hidden" value="">
+                                    <input type="hidden" name="direccion_entrega" id="direccion_entrega_hidden" value="">
+                                @endif
                                 {{-- Tipo de pago --}}
                                 <div class="col-12 col-md-4">
                                     <label class="ofr-label">Tipo de Pago <span class="req">*</span></label>
@@ -1293,9 +1294,7 @@
             </div>
         </div>
 
-        {{-- ============================================================== --}}
-        {{-- MODAL: Seleccionar Gestor de Entrega y Tele Asesor            --}}
-        {{-- ============================================================== --}}
+        {{-- MODAL: Seleccionar Gestor de Entrega y Tele Asesor --}}
         <div class="modal fade" id="modal_gestor_entrega" data-backdrop="static" tabindex="-1" role="dialog" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered" role="document">
                 <div class="modal-content">
@@ -1320,31 +1319,56 @@
                                 <option value="">-- Seleccionar tele asesor --</option>
                             </select>
                         </div>
-                        <hr style="margin:18px 0 14px;">
-                        <p class="mb-2" style="font-size:12px; font-weight:700; color:#1565c0;">
-                            <i class="fa-solid fa-truck-fast mr-1"></i>Envío
-                        </p>
-                        <div class="form-group">
-                            <label class="ofr-label">Zona <span class="req">*</span></label>
-                            <select id="zona_envio_modal" class="form-control form-control-sm" style="width:100%;">
-                                <option value="">-- Seleccionar zona --</option>
-                            </select>
-                        </div>
-                        <div class="form-group mb-0">
-                            <label class="ofr-label">Dirección</label>
-                            <textarea id="direccion_envio_modal" class="form-control form-control-sm" rows="2"
-                                placeholder="Dirección de entrega (opcional)"></textarea>
-                        </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cancelar</button>
                         <button type="button" class="btn btn-primary btn-sm" id="btn_confirmar_gestor">
-                            <i class="fa-solid fa-check mr-1"></i> Confirmar y Facturar
+                            <i class="fa-solid fa-check mr-1"></i> Confirmar
                         </button>
                     </div>
                 </div>
             </div>
         </div>
+
+        {{-- MODAL: Envío de la oferta --}}
+        @if(($config->codigo ?? '') === 'cotizacion_clientes_a')
+            <div class="modal fade" id="modal_envio_oferta" data-backdrop="static" tabindex="-1" role="dialog" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header" style="background:linear-gradient(135deg,#1565c0,#42a5f5); border:none; padding:14px 20px;">
+                            <h3 class="modal-title" style="color:#fff; font-size:16px; font-weight:700; margin:0;">
+                                <i class="fa-solid fa-truck-fast mr-2"></i>Datos de envío de la oferta
+                            </h3>
+                        </div>
+                        <div class="modal-body" style="padding:20px;">
+                            <div class="form-group">
+                                <label class="ofr-label">Tele asesor <span class="req">*</span></label>
+                                <select id="tele_asesor_oferta_modal" class="form-control form-control-sm" style="width:100%;">
+                                    <option value="">-- Seleccionar tele asesor --</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="ofr-label">Zona <span class="req">*</span></label>
+                                <select id="zona_oferta_modal" class="form-control form-control-sm" style="width:100%;">
+                                    <option value="">-- Seleccionar zona --</option>
+                                </select>
+                            </div>
+                            <div class="form-group mb-0">
+                                <label class="ofr-label">Dirección</label>
+                                <textarea id="direccion_oferta_modal" class="form-control form-control-sm" rows="2"
+                                    placeholder="Dirección de entrega (opcional)"></textarea>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cancelar</button>
+                            <button type="button" class="btn btn-primary btn-sm" id="btn_confirmar_envio_oferta">
+                                <i class="fa-solid fa-check mr-1"></i> Continuar y guardar oferta
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endif
 
         {{-- MODAL: Ingresar código de autorización --}}
         <div class="modal fade" id="modalPermiso" data-backdrop="static" tabindex="1" role="dialog">
@@ -2255,6 +2279,7 @@
     var nuevaVentaSolicitada = parametrosVentaTemporal.get('nueva') === '1';
     var ventaTemporalId = nuevaVentaSolicitada ? null : parametrosVentaTemporal.get('temporal_id');
     var ventaTemporalTipo = codigoActual === 'cotizacion_clientes_a' ? 'oferta' : 'factura';
+    var ofertaEnvioConfirmado = false;
     var ventaTemporalRestaurando = false;
     var ventaTemporalFinalizada = false;
     var ventaTemporalTimer = null;
@@ -5994,6 +6019,10 @@
                 }
             }
         }
+        if (codigoActual === 'cotizacion_clientes_a' && !ofertaEnvioConfirmado) {
+            mostrarModalEnvioOferta();
+            return;
+        }
         // 1. Toda factura debe confirmar sus actores antes de guardar.
         if (codigoActual !== 'cotizacion_clientes_a') {
             var gestorHidden = document.getElementById('gestor_entrega_hidden');
@@ -6111,6 +6140,84 @@
         $('#modal_sr_autorizacion').modal('show');
     }
 
+    function mostrarModalEnvioOferta() {
+        if (!$('#tele_asesor_oferta_modal').hasClass('select2-hidden-accessible')) {
+            $('#tele_asesor_oferta_modal').select2({
+                dropdownParent: $('#modal_envio_oferta'),
+                placeholder: '-- Seleccionar tele asesor --',
+                allowClear: false
+            });
+        }
+        if (!$('#zona_oferta_modal').hasClass('select2-hidden-accessible')) {
+            $('#zona_oferta_modal').select2({
+                dropdownParent: $('#modal_envio_oferta'),
+                placeholder: '-- Seleccionar zona --',
+                allowClear: false
+            });
+        }
+        var clienteId = $('#seleccionarCliente').val() || '';
+        var teleHidden = document.getElementById('tele_asesor_hidden');
+        var teleIdActual = teleHidden ? teleHidden.value : '';
+        var zonaHidden = document.getElementById('zone_group_id_hidden');
+        var direccionHidden = document.getElementById('direccion_entrega_hidden');
+        $('#tele_asesor_oferta_modal').empty().append(new Option('-- Seleccionar tele asesor --', ''));
+        $('#direccion_oferta_modal').val(direccionHidden ? direccionHidden.value : '');
+        $('#btn_confirmar_envio_oferta').prop('disabled', true);
+        var cargaZonas = $.get('/logistica/zonas/activas').done(function(data) {
+            var zonaActual = zonaHidden ? zonaHidden.value : '';
+            var opciones = '<option value="">-- Seleccionar zona --</option>';
+            (data.zonas || []).forEach(function(zona) {
+                var seleccionado = String(zona.id) === String(zonaActual) ? 'selected' : '';
+                opciones += '<option value="' + zona.id + '" ' + seleccionado + '>' + zona.name + '</option>';
+            });
+            $('#zona_oferta_modal').html(opciones).trigger('change');
+        });
+        var cargaTeleasesores = $.get('/cotizacion/actores-asignados', { cliente_id: clienteId, rol_id: 3 }).done(function(data) {
+            var teleasesores = data.results || [];
+            var actualAsignado = teleasesores.some(function(usuario) {
+                return Number(usuario.id) === Number(teleIdActual);
+            });
+            teleasesores.forEach(function(usuario) {
+                var seleccionado = actualAsignado
+                    ? Number(usuario.id) === Number(teleIdActual)
+                    : teleasesores.length === 1;
+                $('#tele_asesor_oferta_modal').append(
+                    new Option(usuario.text, usuario.id, seleccionado, seleccionado)
+                );
+            });
+            $('#tele_asesor_oferta_modal').trigger('change');
+        });
+        $.when(cargaZonas, cargaTeleasesores).always(function() {
+            $('#btn_confirmar_envio_oferta').prop('disabled', false);
+        });
+        $('#modal_envio_oferta').modal('show');
+    }
+
+    $(document).on('click', '#btn_confirmar_envio_oferta', function() {
+        var teleId = $('#tele_asesor_oferta_modal').val() || '';
+        var zonaId = $('#zona_oferta_modal').val() || '';
+        if (!teleId) {
+            Swal.fire({ icon: 'warning', title: 'Tele asesor requerido', text: 'Debe seleccionar un tele asesor para la oferta.', customClass: { container: 'swal-sobre-modal' } });
+            return;
+        }
+        if (!zonaId) {
+            Swal.fire({ icon: 'warning', title: 'Zona requerida', text: 'Debe seleccionar una zona para la oferta.', customClass: { container: 'swal-sobre-modal' } });
+            return;
+        }
+        var teleHidden = document.getElementById('tele_asesor_hidden');
+        var zonaHidden = document.getElementById('zone_group_id_hidden');
+        var direccionHidden = document.getElementById('direccion_entrega_hidden');
+        if (teleHidden) teleHidden.value = teleId;
+        if (zonaHidden) zonaHidden.value = zonaId;
+        if (direccionHidden) direccionHidden.value = $('#direccion_oferta_modal').val() || '';
+        ofertaEnvioConfirmado = true;
+        $('#modal_envio_oferta').one('hidden.bs.modal', function() {
+            document.body.focus();
+            $('#crear_venta').submit();
+        });
+        $('#modal_envio_oferta').modal('hide');
+    });
+
     function mostrarModalGestorEntrega() {
         var clienteId = $('#seleccionarCliente').val();
         var teleHidden = document.getElementById('tele_asesor_hidden');
@@ -6138,29 +6245,8 @@
                 placeholder: '-- Seleccionar tele asesor --'
             });
         }
-        if (!$('#zona_envio_modal').hasClass('select2-hidden-accessible')) {
-            $('#zona_envio_modal').select2({
-                dropdownParent: $('#modal_gestor_entrega'),
-                allowClear: false,
-                placeholder: '-- Seleccionar zona --'
-            });
-        }
         $('#tele_asesor_modal').empty();
         $('#btn_confirmar_gestor').prop('disabled', true);
-        var zonaHidden = document.getElementById('zone_group_id_hidden');
-        var zonaIdActual = zonaHidden ? zonaHidden.value : '';
-        var direccionHidden = document.getElementById('direccion_entrega_hidden');
-        $('#direccion_envio_modal').val(direccionHidden ? direccionHidden.value : '');
-        $.get('/logistica/zonas/activas')
-            .done(function(data) {
-                var zonas = data.zonas || [];
-                var opciones = '<option value="">-- Seleccionar zona --</option>';
-                zonas.forEach(function(zona) {
-                    var seleccionado = String(zona.id) === String(zonaIdActual) ? 'selected' : '';
-                    opciones += '<option value="' + zona.id + '" ' + seleccionado + '>' + zona.name + '</option>';
-                });
-                $('#zona_envio_modal').html(opciones).trigger('change');
-            });
         $.get('/cotizacion/actores-asignados', { cliente_id: clienteId, rol_id: 3 })
             .done(function(data) {
                 var teleasesores = data.results || [];
@@ -6188,28 +6274,18 @@
         var teleId = $('#tele_asesor_modal').val() || '';
         var teleData = $('#tele_asesor_modal').select2('data');
         var teleNombre = (teleData && teleData[0] && teleData[0].text) ? teleData[0].text : '';
-        var zonaId = $('#zona_envio_modal').val() || '';
-        var direccionEnvio = $('#direccion_envio_modal').val() || '';
         if (!teleId) {
             Swal.fire({ icon: 'warning', title: 'Tele asesor requerido', text: 'Debe seleccionar un tele asesor.', customClass: { container: 'swal-sobre-modal' } });
             return;
         }
-        if (!zonaId) {
-            Swal.fire({ icon: 'warning', title: 'Zona requerida', text: 'Debe seleccionar una zona de envío.', customClass: { container: 'swal-sobre-modal' } });
-            return;
-        }
         var gestorHidden = document.getElementById('gestor_entrega_hidden');
         var teleHidden = document.getElementById('tele_asesor_hidden');
-        var zonaHidden = document.getElementById('zone_group_id_hidden');
-        var direccionHidden = document.getElementById('direccion_entrega_hidden');
         gestorHidden.value = gestorId;
         gestorHidden.setAttribute('data-confirmed', '1');
         if (teleHidden) {
             teleHidden.value = teleId;
             teleHidden.setAttribute('data-name', teleNombre);
         }
-        if (zonaHidden) zonaHidden.value = zonaId;
-        if (direccionHidden) direccionHidden.value = direccionEnvio;
         // Esperar a que el modal termine de cerrarse antes de re-submit
         // para evitar conflicto de aria-hidden/foco con el modal SR
         $('#modal_gestor_entrega').one('hidden.bs.modal', function() {
@@ -6432,6 +6508,7 @@
                     document.getElementById("btn_venta_coorporativa").disabled = false;
                     var gestorHErr = document.getElementById('gestor_entrega_hidden');
                     if (gestorHErr) { gestorHErr.removeAttribute('data-confirmed'); }
+                    ofertaEnvioConfirmado = false;
                     return;
                 }
 
@@ -6459,6 +6536,11 @@
                         eliminarVentaTemporal();
                         limpiarFormularioVenta(data);
                     }
+                    ofertaEnvioConfirmado = false;
+                    var zonaOfertaHidden = document.getElementById('zone_group_id_hidden');
+                    var direccionOfertaHidden = document.getElementById('direccion_entrega_hidden');
+                    if (zonaOfertaHidden) zonaOfertaHidden.value = '';
+                    if (direccionOfertaHidden) direccionOfertaHidden.value = '';
                     document.getElementById("btn_venta_coorporativa").disabled = false;
                     $('#modalExitoOferta').modal('show');
                     return;
@@ -6514,6 +6596,7 @@
                 document.getElementById("btn_venta_coorporativa").disabled = false;
                 var gestorH = document.getElementById('gestor_entrega_hidden');
                 if (gestorH) { gestorH.removeAttribute('data-confirmed'); }
+                ofertaEnvioConfirmado = false;
                 let data = err.response ? err.response.data : {};
                 console.error('Error al guardar – status:', err.response ? err.response.status : 'sin respuesta', '| body:', data);
                 if (Array.isArray(data.detalles_descuento_expo)) {

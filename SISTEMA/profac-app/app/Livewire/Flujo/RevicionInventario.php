@@ -48,8 +48,18 @@ class RevicionInventario extends Component
     public array  $bandejaRegistros  = [];   // pestaña: llegando
     public array  $bandejaDevueltos  = [];   // pestaña: devueltos a oferta
     public array  $bandejaPrefactura = [];   // pestaña: pasados a prefactura
+    public array  $zonasRevision     = [];
+    public array  $conteosZonasRevision = [];
     public string $busqueda          = '';
     public string $tabActiva         = 'llegando';
+    public string $zonaSeleccionada = '';
+    public string $ordenColumna = 'fecha_revision';
+    public string $direccionOrden = 'desc';
+    public string $filtroColumnaAbierto = '';
+    public string $busquedaOpcionesFiltro = '';
+    public array $filtrosBandeja = [];
+    public array $opcionesFiltroBandeja = [];
+    public array $seleccionesFiltroBandeja = [];
 
     // ── Detalle del flujo seleccionado ────────────────────────────────────
     public ?int   $flujoId          = null;
@@ -94,6 +104,7 @@ class RevicionInventario extends Component
     public int $paginaPrefactura = 1;
     public int $porPagina        = 10;
     public int $totalLlegando    = 0;
+    public int $totalLlegandoFiltrado = 0;
     public int $totalDevueltos   = 0;
     public int $totalPrefactura  = 0;
 
@@ -177,12 +188,218 @@ class RevicionInventario extends Component
     public function cargar(): void
     {
         $term = trim($this->busqueda);
-        $this->totalLlegando   = $this->buildBandejaCount($term, 'llegando');
+        $this->zonasRevision = DB::table('zone_groups')
+            ->orderBy('orden')
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn($zona) => ['id' => (int) $zona->id, 'name' => $zona->name])
+            ->toArray();
+        $this->conteosZonasRevision = $this->buildZonaLlegandoCounts();
+
+        $zonaFiltro = null;
+        if ($term === '') {
+            $zonas = collect($this->zonasRevision);
+            if ($this->zonaSeleccionada === '') {
+                $primeraZonaConFlujos = $zonas->first(fn($zona) =>
+                    ($this->conteosZonasRevision[(string) $zona['id']] ?? 0) > 0
+                );
+                $this->zonaSeleccionada = $primeraZonaConFlujos
+                    ? (string) $primeraZonaConFlujos['id']
+                    : (($this->conteosZonasRevision['sin_zona'] ?? 0) > 0
+                        ? 'sin_zona'
+                        : (string) ($this->zonasRevision[0]['id'] ?? 'sin_zona'));
+            }
+
+            $zonaValida = $this->zonaSeleccionada === 'sin_zona'
+                ? ($this->conteosZonasRevision['sin_zona'] ?? 0) > 0
+                : $zonas->contains(fn($zona) => (string) $zona['id'] === $this->zonaSeleccionada);
+            if (!$zonaValida) {
+                $this->zonaSeleccionada = (string) ($this->zonasRevision[0]['id'] ?? 'sin_zona');
+            }
+            $zonaFiltro = $this->zonaSeleccionada;
+        }
+
+        $this->totalLlegando   = $this->buildBandejaCount($term, 'llegando', null, false);
+        $this->totalLlegandoFiltrado = $this->buildBandejaCount($term, 'llegando', $zonaFiltro);
         $this->totalDevueltos  = $this->buildBandejaCount($term, 'devueltos');
         $this->totalPrefactura = $this->buildBandejaCount($term, 'prefactura');
-        $this->bandejaRegistros  = $this->buildBandejaQuery($term, 'llegando',   $this->paginaLlegando);
+        $this->bandejaRegistros  = $this->buildBandejaQuery($term, 'llegando', $this->paginaLlegando, $zonaFiltro);
         $this->bandejaDevueltos  = $this->buildBandejaQuery($term, 'devueltos',  $this->paginaDevueltos);
         $this->bandejaPrefactura = $this->buildBandejaQuery($term, 'prefactura', $this->paginaPrefactura);
+    }
+
+    public function cambiarZona(string $zona): void
+    {
+        $zonaValida = $zona === 'sin_zona'
+            ? ($this->conteosZonasRevision['sin_zona'] ?? 0) > 0
+            : collect($this->zonasRevision)->contains(fn($item) => (string) $item['id'] === $zona);
+
+        if (!$zonaValida) {
+            return;
+        }
+
+        $this->zonaSeleccionada = $zona;
+        $this->paginaLlegando = 1;
+        $this->cargar();
+    }
+
+    public function ordenarBandeja(string $columna, string $direccion): void
+    {
+        $columnas = ['flujo_id', 'asesor_comercial', 'tele_asesor', 'cliente', 'cotizacion_id', 'total_productos', 'fecha_revision'];
+        if (!in_array($columna, $columnas, true) || !in_array($direccion, ['asc', 'desc'], true)) {
+            return;
+        }
+
+        $this->ordenColumna = $columna;
+        $this->direccionOrden = $direccion;
+        $this->paginaLlegando = 1;
+        $this->filtroColumnaAbierto = '';
+        $this->cargar();
+    }
+
+    public function ordenarColumnaBandeja(string $columna): void
+    {
+        $direccion = $this->ordenColumna === $columna && $this->direccionOrden === 'asc'
+            ? 'desc'
+            : 'asc';
+        $this->ordenarBandeja($columna, $direccion);
+    }
+
+    public function cerrarFiltroBandeja(): void
+    {
+        $this->filtroColumnaAbierto = '';
+    }
+
+    public function abrirFiltroBandeja(string $columna): void
+    {
+        $columnas = ['flujo_id', 'asesor_comercial', 'tele_asesor', 'cliente', 'cotizacion_id', 'total_productos', 'fecha_revision'];
+        if (!in_array($columna, $columnas, true)) {
+            return;
+        }
+        if ($this->filtroColumnaAbierto === $columna) {
+            $this->filtroColumnaAbierto = '';
+            return;
+        }
+
+        $zonaFiltro = trim($this->busqueda) === '' ? $this->zonaSeleccionada : null;
+        $filas = $this->buildBandejaQuery(trim($this->busqueda), 'llegando', 0, $zonaFiltro, false, true, $columna);
+        $this->opcionesFiltroBandeja = collect($filas)
+            ->map(function ($fila) use ($columna) {
+                $valor = $fila[$columna] ?? null;
+                $esVacio = $valor === null || $valor === '';
+                return [
+                    'value' => $esVacio ? '__SIN_DATO__' : (string) $valor,
+                    'label' => $esVacio
+                        ? '(Vacíos)'
+                        : ($columna === 'fecha_revision'
+                            ? \Carbon\Carbon::parse($valor)->format('d/m/Y H:i')
+                            : (string) $valor),
+                ];
+            })
+            ->unique('value')
+            ->sortBy(fn($opcion) => mb_strtolower($opcion['label']))
+            ->values()
+            ->all();
+
+        $seleccionados = $this->filtrosBandeja[$columna] ?? array_column($this->opcionesFiltroBandeja, 'value');
+        $this->seleccionesFiltroBandeja = [];
+        foreach ($this->opcionesFiltroBandeja as $indice => $opcion) {
+            $this->seleccionesFiltroBandeja[$indice] = in_array($opcion['value'], $seleccionados, true);
+        }
+        $this->busquedaOpcionesFiltro = '';
+        $this->filtroColumnaAbierto = $columna;
+    }
+
+    public function seleccionarTodasOpcionesFiltro(bool $seleccionar): void
+    {
+        foreach ($this->opcionesFiltroBandeja as $indice => $opcion) {
+            $this->seleccionesFiltroBandeja[$indice] = $seleccionar;
+        }
+    }
+
+    public function aplicarFiltroBandeja(): void
+    {
+        $columna = $this->filtroColumnaAbierto;
+        if ($columna === '') {
+            return;
+        }
+
+        $valores = [];
+        foreach ($this->opcionesFiltroBandeja as $indice => $opcion) {
+            if (!empty($this->seleccionesFiltroBandeja[$indice])) {
+                $valores[] = $opcion['value'];
+            }
+        }
+
+        if (count($valores) === count($this->opcionesFiltroBandeja)) {
+            unset($this->filtrosBandeja[$columna]);
+        } else {
+            $this->filtrosBandeja[$columna] = $valores;
+        }
+
+        $this->paginaLlegando = 1;
+        $this->filtroColumnaAbierto = '';
+        $this->cargar();
+    }
+
+    public function limpiarFiltroBandeja(): void
+    {
+        if ($this->filtroColumnaAbierto !== '') {
+            unset($this->filtrosBandeja[$this->filtroColumnaAbierto]);
+        }
+        $this->paginaLlegando = 1;
+        $this->filtroColumnaAbierto = '';
+        $this->cargar();
+    }
+
+    private function aplicarFiltrosBandeja($query, ?string $omitirColumna = null): void
+    {
+        $expresiones = [
+            'flujo_id' => 'f.id',
+            'asesor_comercial' => 'asesor.name',
+            'tele_asesor' => 'COALESCE(tele.name, tele_actual.tele_asesores)',
+            'cliente' => "COALESCE(c.nombre_cliente, p.observaciones, CONCAT('Flujo #', f.id))",
+            'cotizacion_id' => 'hf.tramite_id',
+            'total_productos' => '(SELECT COUNT(*) FROM cotizacion_has_producto chp WHERE chp.cotizacion_id = hf.tramite_id)',
+            'fecha_revision' => 'hf.created_at',
+        ];
+
+        foreach ($this->filtrosBandeja as $columna => $valores) {
+            if ($columna === $omitirColumna || !isset($expresiones[$columna])) {
+                continue;
+            }
+
+            $valores = array_map('strval', (array) $valores);
+            $incluirVacios = in_array('__SIN_DATO__', $valores, true);
+            $valores = array_values(array_filter($valores, fn($valor) => $valor !== '__SIN_DATO__'));
+            $expresion = DB::raw($expresiones[$columna]);
+
+            $query->where(function ($subquery) use ($valores, $incluirVacios, $expresion) {
+                if ($valores) {
+                    $subquery->whereIn($expresion, $valores);
+                }
+                if ($incluirVacios) {
+                    if ($valores) {
+                        $subquery->orWhereNull($expresion);
+                    } else {
+                        $subquery->whereNull($expresion);
+                    }
+                }
+                if (!$valores && !$incluirVacios) {
+                    $subquery->whereRaw('1 = 0');
+                }
+            });
+        }
+    }
+
+    private function teleAsesoresAsignadosQuery()
+    {
+        return DB::table('cliente_usuario as cu')
+            ->join('users as u_tele', 'u_tele.id', '=', 'cu.usuario_id')
+            ->where('cu.rol_id', 3)
+            ->select('cu.cliente_id')
+            ->selectRaw("GROUP_CONCAT(DISTINCT u_tele.name ORDER BY u_tele.name SEPARATOR ', ') as tele_asesores")
+            ->groupBy('cu.cliente_id');
     }
 
     public function cambiarTab(string $tab): void
@@ -190,7 +407,7 @@ class RevicionInventario extends Component
         $this->tabActiva = in_array($tab, ['llegando', 'devueltos', 'prefactura']) ? $tab : 'llegando';
     }
 
-    private function buildBandejaCount(string $term, string $tipo): int
+    private function buildBandejaCount(string $term, string $tipo, ?string $zona = null, bool $aplicarFiltros = true): int
     {
         $latestRevSub = DB::table('historico_flujo as hfs')
             ->leftJoin('expo_oferta_seccion as eos_group', function ($join) {
@@ -205,6 +422,11 @@ class RevicionInventario extends Component
                         ->joinSub($latestRevSub, 'lrev', function ($j) { $j->on('lrev.flujo_id', '=', 'f.id'); })
             ->join('historico_flujo as hf', 'hf.id', '=', 'lrev.max_id')
                         ->leftJoin('cotizacion as c', 'c.id', '=', 'hf.tramite_id')
+            ->leftJoin('users as asesor', 'asesor.id', '=', 'c.vendedor')
+            ->leftJoin('users as tele', 'tele.id', '=', 'c.tele_asesor')
+            ->leftJoinSub($this->teleAsesoresAsignadosQuery(), 'tele_actual', function ($join) {
+                $join->on('tele_actual.cliente_id', '=', 'c.cliente_id');
+            })
             ->leftJoin('pedido as p', DB::raw('CAST(f.identificacion AS UNSIGNED)'), '=', 'p.id')
             ->leftJoin('cliente as cl', function ($j) {
                 $j->on('cl.id', '=', 'c.cliente_id')->orOn('cl.id', '=', 'p.cliente_id');
@@ -218,23 +440,40 @@ class RevicionInventario extends Component
             $q->where('hf.estado_id', 1);
         }
 
+        if ($zona === 'sin_zona') {
+            $q->whereNull('c.zone_group_id');
+        } elseif ($zona !== null && $zona !== '') {
+            $q->where('c.zone_group_id', (int) $zona);
+        }
+
         if ($term !== '') {
             $like = '%' . $term . '%';
             if (is_numeric($term)) {
                 $q->where(function ($s) use ($term) {
-                    $s->where('f.id', (int) $term)->orWhere('f.identificacion', $term)->orWhere('hf.tramite_id', (int) $term);
+                    $s->where('f.id', (int) $term)
+                        ->orWhere('f.identificacion', $term)
+                        ->orWhere('hf.tramite_id', (int) $term)
+                        ->orWhere('c.cliente_id', (int) $term)
+                        ->orWhere('cl.id', (int) $term);
                 });
             } else {
                 $q->where(function ($s) use ($like) {
-                    $s->where('c.nombre_cliente', 'LIKE', $like)->orWhere('c.RTN', 'LIKE', $like)->orWhere('p.observaciones', 'LIKE', $like);
+                    $s->where('c.nombre_cliente', 'LIKE', $like)
+                        ->orWhere('cl.nombre', 'LIKE', $like)
+                        ->orWhere('c.RTN', 'LIKE', $like)
+                        ->orWhere('p.observaciones', 'LIKE', $like);
                 });
             }
+        }
+
+        if ($tipo === 'llegando' && $aplicarFiltros) {
+            $this->aplicarFiltrosBandeja($q);
         }
 
         return (int) $q->count('hf.id');
     }
 
-    private function buildBandejaQuery(string $term, string $tipo, int $page = 1): array
+    private function buildBandejaQuery(string $term, string $tipo, int $page = 1, ?string $zona = null, bool $paginar = true, bool $aplicarFiltros = true, ?string $omitirFiltro = null): array
     {
         // Los flujos normales conservan una fila por flujo; Expo conserva una por sección.
         $latestRevSub = DB::table('historico_flujo as hfs')
@@ -253,6 +492,11 @@ class RevicionInventario extends Component
             ->join('historico_flujo as hf', 'hf.id', '=', 'lrev.max_id')
                         ->leftJoin('cotizacion as c', 'c.id', '=', 'hf.tramite_id')
                         ->leftJoin('expo_oferta_seccion as eos', 'eos.cotizacion_id', '=', 'c.id')
+            ->leftJoin('users as asesor', 'asesor.id', '=', 'c.vendedor')
+            ->leftJoin('users as tele', 'tele.id', '=', 'c.tele_asesor')
+            ->leftJoinSub($this->teleAsesoresAsignadosQuery(), 'tele_actual', function ($join) {
+                $join->on('tele_actual.cliente_id', '=', 'c.cliente_id');
+            })
             ->leftJoin('pedido as p', DB::raw('CAST(f.identificacion AS UNSIGNED)'), '=', 'p.id')
             ->leftJoin('cliente as cl', function ($j) {
                 $j->on('cl.id', '=', 'c.cliente_id')
@@ -267,6 +511,8 @@ class RevicionInventario extends Component
                 'eos.numero as seccion_numero',
                 'eos.nombre as seccion_nombre',
                 'eos.estado as seccion_estado',
+                'asesor.name as asesor_comercial',
+                DB::raw('COALESCE(tele.name, tele_actual.tele_asesores) as tele_asesor'),
                 DB::raw("COALESCE(c.nombre_cliente, p.observaciones, CONCAT('Flujo #', f.id)) as cliente"),
                 DB::raw("COALESCE(c.RTN, '') as rtn"),
                 DB::raw('(SELECT COUNT(*) FROM cotizacion_has_producto chp WHERE chp.cotizacion_id = hf.tramite_id) as total_productos'),
@@ -276,7 +522,8 @@ class RevicionInventario extends Component
             ->groupBy(
                 'f.id', 'f.identificacion', 'hf.created_at', 'hf.updated_at',
                 'hf.tramite_id', 'eos.numero', 'eos.nombre', 'eos.estado',
-                'c.nombre_cliente', 'p.observaciones', 'c.RTN', 'hf.observaciones', 'hf.estado_id'
+                'asesor.name', 'tele.name', 'tele_actual.tele_asesores', 'c.nombre_cliente', 'p.observaciones',
+                'c.RTN', 'hf.observaciones', 'hf.estado_id'
             );
 
         if ($tipo === 'llegando') {
@@ -289,6 +536,12 @@ class RevicionInventario extends Component
             $q->where('hf.estado_id', 1); // prefactura: revisión aprobada
         }
 
+        if ($zona === 'sin_zona') {
+            $q->whereNull('c.zone_group_id');
+        } elseif ($zona !== null && $zona !== '') {
+            $q->where('c.zone_group_id', (int) $zona);
+        }
+
         if ($term !== '') {
             $like = '%' . $term . '%';
             if (is_numeric($term)) {
@@ -296,11 +549,14 @@ class RevicionInventario extends Component
                     $s->where('f.id', (int) $term)
                       ->orWhere('f.identificacion', $term)
                       ->orWhere('hf.tramite_id', (int) $term)
+                                            ->orWhere('c.cliente_id', (int) $term)
+                                            ->orWhere('cl.id', (int) $term)
                       ->orWhere('eos.numero', (int) $term);
                 });
             } else {
                 $q->where(function ($s) use ($like) {
                     $s->where('c.nombre_cliente', 'LIKE', $like)
+                                            ->orWhere('cl.nombre', 'LIKE', $like)
                       ->orWhere('c.RTN', 'LIKE', $like)
                       ->orWhere('eos.nombre', 'LIKE', $like)
                       ->orWhere('p.observaciones', 'LIKE', $like);
@@ -308,8 +564,59 @@ class RevicionInventario extends Component
             }
         }
 
+        if ($tipo === 'llegando' && $aplicarFiltros) {
+            $this->aplicarFiltrosBandeja($q, $omitirFiltro);
+        }
+
         $offset = ($page - 1) * $this->porPagina;
-        return $q->orderByDesc('hf.created_at')->offset($offset)->limit($this->porPagina)->get()->map(fn($r) => (array) $r)->toArray();
+        $columnasOrden = [
+            'flujo_id' => 'f.id',
+            'asesor_comercial' => 'asesor.name',
+            'tele_asesor' => 'tele_asesor',
+            'cliente' => 'cliente',
+            'cotizacion_id' => 'hf.tramite_id',
+            'total_productos' => 'total_productos',
+            'fecha_revision' => 'hf.created_at',
+        ];
+        $q->orderBy($columnasOrden[$this->ordenColumna] ?? 'hf.created_at', $this->direccionOrden)
+            ->orderByDesc('hf.created_at');
+
+        if ($paginar) {
+            return $q->offset($offset)->limit($this->porPagina)->get()->map(fn($r) => (array) $r)->toArray();
+        }
+
+        return $q->get()->map(fn($r) => (array) $r)->toArray();
+    }
+
+    private function buildZonaLlegandoCounts(): array
+    {
+        $latestRevSub = DB::table('historico_flujo as hfs')
+            ->leftJoin('expo_oferta_seccion as eos_group', function ($join) {
+                $join->on('eos_group.flujo_id', '=', 'hfs.flujo_id')
+                    ->on('eos_group.cotizacion_id', '=', 'hfs.tramite_id');
+            })
+            ->select('hfs.flujo_id', DB::raw('MAX(hfs.id) as max_id'))
+            ->where('tipo_tramite_id', 9)
+            ->groupBy('hfs.flujo_id', DB::raw('COALESCE(eos_group.cotizacion_id, 0)'));
+
+        $conteos = DB::table('flujo as f')
+            ->joinSub($latestRevSub, 'lrev', function ($join) {
+                $join->on('lrev.flujo_id', '=', 'f.id');
+            })
+            ->join('historico_flujo as hf', 'hf.id', '=', 'lrev.max_id')
+            ->leftJoin('cotizacion as c', 'c.id', '=', 'hf.tramite_id')
+            ->where('hf.estado_id', 5)
+            ->select('c.zone_group_id', DB::raw('COUNT(DISTINCT hf.id) as total'))
+            ->groupBy('c.zone_group_id')
+            ->get();
+
+        $resultado = [];
+        foreach ($conteos as $conteo) {
+            $key = $conteo->zone_group_id === null ? 'sin_zona' : (string) $conteo->zone_group_id;
+            $resultado[$key] = (int) $conteo->total;
+        }
+
+        return $resultado;
     }
 
     // ─────────────────────────────────────────────────────────────────────

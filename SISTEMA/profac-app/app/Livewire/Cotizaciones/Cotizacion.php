@@ -459,6 +459,9 @@ class Cotizacion extends Component
             'seleccionarCliente' => 'required',
             'nombre_cliente_ventas' => 'required',
             'vendedor' => 'required|integer|exists:users,id',
+            'tele_asesor' => 'required|integer|exists:users,id',
+            'zone_group_id' => 'nullable|integer|exists:zone_groups,id',
+            'direccion_entrega' => 'nullable|string|max:255',
             // bodega y seleccionarProducto son campos del buscador de productos,
             // no son datos a guardar — los productos reales vienen en bodega{idx}, idProducto{idx}, etc.
 
@@ -482,6 +485,12 @@ class Cotizacion extends Component
             (int) $request->vendedor,
             ClienteActoresAsignados::ROL_ASESOR_COMERCIAL,
             'vendedor'
+        );
+        ClienteActoresAsignados::validar(
+            (int) $request->seleccionarCliente,
+            (int) $request->tele_asesor,
+            ClienteActoresAsignados::ROL_TELE_ASESOR,
+            'tele_asesor'
         );
 
 
@@ -901,6 +910,9 @@ class Cotizacion extends Component
             $cotizacion->cliente_id = $request->seleccionarCliente;
             $cotizacion->tipo_venta_id = $request->tipo_venta_id;
             $cotizacion->vendedor = $request->vendedor;
+            $cotizacion->tele_asesor = $request->tele_asesor;
+            $cotizacion->zone_group_id = $request->input('zone_group_id') ?: null;
+            $cotizacion->direccion_entrega = $request->input('direccion_entrega') ?: null;
             $cotizacion->users_id = Auth::user()->id;
             $cotizacion->arregloIdInputs = json_encode($request->arregloIdInputs);
             $cotizacion->numeroInputs = $request->numeroInputs;

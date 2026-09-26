@@ -1161,8 +1161,6 @@ class PrefacturaController
         $validator = Validator::make($request->all(), [
             'gestor_entrega' => 'nullable|integer|exists:users,id',
             'tele_asesor'    => 'required|integer|exists:users,id',
-            'zone_group_id'  => 'nullable|integer|exists:zone_groups,id',
-            'direccion_entrega' => 'nullable|string|max:255',
         ]);
 
         if ($validator->fails()) {
@@ -1465,8 +1463,6 @@ class PrefacturaController
             'vendedor'                 => $pf->vendedor,
             'gestor_entrega'           => $request->gestor_entrega ?: null,
             'tele_asesor'              => $request->tele_asesor ?: null,
-            'zone_group_id'            => $request->zone_group_id ?: null,
-            'direccion_entrega'        => $request->direccion_entrega ?: null,
             'porDescuento'             => $pf->porc_descuento ?? 0,
             'porDescuentoCalculado'    => $pf->monto_descuento ?? 0,
             'nota_comen'               => $pf->nota,
