@@ -435,6 +435,21 @@
 .card {
     animation: fadeIn 0.3s ease;
 }
+
+/* Filtro estilo Excel en encabezados de la tabla "Facturas por Zona" */
+.filtro-columna-icono { margin-left: 4px; cursor: pointer; }
+.filtro-columna-icono:hover { color: #0d6efd !important; }
+.filtro-columna-dropdown {
+    z-index: 2000;
+    width: 220px;
+    background: #fff;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    box-shadow: 0 6px 18px rgba(0,0,0,.18);
+    font-size: 13px;
+}
+.filtro-columna-opciones { max-height: 220px; overflow-y: auto; }
+.filtro-columna-opciones label { font-weight: normal; cursor: pointer; }
 </style>
 
 <script>
@@ -596,28 +611,47 @@ function verFacturasDeZona(zonaId, nombreZona) {
     zonaSeleccionada = { id: zonaId, nombre: nombreZona };
     $('#nombreZonaSeleccionada').text(nombreZona);
     $('#facturasZonaSeleccionada').show();
-    $('#listaFacturasZona').html('<div class="text-center text-muted py-3"><i class="fas fa-spinner fa-spin"></i> Cargando facturas...</div>');
+    $('#busquedaZonaTermino').val('');
+    cargarFacturasDeZona('');
+}
 
-    $.get("{{ route('logistica.zonas.facturas') }}", { zona_id: zonaId }, function (data) {
-        const facturas = (data && data.facturas) || [];
-        if (!facturas.length) {
+let timerBusquedaZona;
+function buscarFacturasDeZona(termino) {
+    clearTimeout(timerBusquedaZona);
+    timerBusquedaZona = setTimeout(() => cargarFacturasDeZona(termino), 350);
+}
+
+let facturasZonaCache = [];
+let filtrosColumnaZona = {}; // { asesor_comercial: Set([...]), gestor: Set([...]) }
+
+function cargarFacturasDeZona(termino) {
+    $('#listaFacturasZona').html('<div class="text-center text-muted py-3"><i class="fas fa-spinner fa-spin"></i> Cargando facturas...</div>');
+    filtrosColumnaZona = {};
+
+    $.get("{{ route('logistica.zonas.facturas') }}", { zona_id: zonaSeleccionada.id, search: termino || '' }, function (data) {
+        facturasZonaCache = (data && data.facturas) || [];
+        if (!facturasZonaCache.length) {
             $('#listaFacturasZona').html(`
                 <div class="mb-0 alert alert-info">
                     <i class="fas fa-info-circle"></i>
-                    No hay facturas pendientes en esta zona
+                    ${termino ? 'No hay facturas que coincidan con la búsqueda' : 'No hay facturas pendientes en esta zona'}
                 </div>
             `);
             return;
         }
 
         let html = `
-        <div class="mb-3 d-flex justify-content-between align-items-center">
+        <div class="mb-3 d-flex justify-content-between align-items-center flex-wrap" style="gap:8px;">
             <button type="button" class="btn btn-success btn-sm" onclick="agregarFacturasSeleccionadasZona()">
                 <i class="fas fa-plus-circle"></i> Agregar Seleccionadas
             </button>
-            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="toggleSeleccionarTodasZona()">
-                <i class="fas fa-check-square"></i> Seleccionar Todas
-            </button>
+            <div class="input-group input-group-sm" style="max-width:280px;">
+                <div class="input-group-prepend">
+                    <span class="input-group-text bg-white"><i class="fas fa-search"></i></span>
+                </div>
+                <input type="text" id="busquedaZonaTermino" class="form-control" value="${termino ? termino.replace(/"/g, '&quot;') : ''}"
+                       placeholder="Buscar por factura o cliente..." oninput="buscarFacturasDeZona(this.value)">
+            </div>
         </div>
         <div class="table-responsive">
             <table class="table table-sm table-hover table-bordered">
@@ -627,64 +661,22 @@ function verFacturasDeZona(zonaId, nombreZona) {
                             <input type="checkbox" id="checkTodasFacturasZona" onchange="seleccionarTodasFacturasZona(this.checked)">
                         </th>
                         <th>Factura</th>
-                        <th>Cliente</th>
+                        <th>${columnaFiltroHeaderZona('cliente', 'Cliente')}</th>
                         <th>Municipio</th>
                         <th>Dirección</th>
-                        <th>Asesor Comercial</th>
-                        <th>Gestor de Entrega</th>
+                        <th>${columnaFiltroHeaderZona('asesor_comercial', 'Asesor Comercial')}</th>
+                        <th>${columnaFiltroHeaderZona('gestor', 'Gestor de Entrega')}</th>
                         <th>Fecha</th>
                         <th width="100px" class="text-center">Productos</th>
                         <th width="80px" class="text-center">Estado</th>
                     </tr>
                 </thead>
-                <tbody>`;
-
-        facturas.forEach(f => {
-            const yaAgregada = facturasSelTmp.find(fs => fs.id === f.id);
-            const checkDisabled = yaAgregada ? 'disabled' : '';
-            const rowClass = yaAgregada ? 'table-success' : '';
-            const badge = yaAgregada ? '<span class="badge badge-success"><i class="fas fa-check"></i> Agregada</span>' : '<span class="badge badge-light">Disponible</span>';
-
-            html += `
-                <tr class="${rowClass}">
-                    <td class="text-center">
-                        <input type="checkbox" class="check-factura-zona" ${checkDisabled}
-                               data-id="${f.id}"
-                               data-numero="${f.cai}"
-                               data-cliente="${(f.cliente || '').replace(/"/g, '&quot;')}"
-                               data-total="${f.total}"
-                               data-productos="${f.cantidad_productos || 0}">
-                    </td>
-                    <td>
-                        <strong>#${f.cai}</strong>
-                        <a href="javascript:void(0)" onclick="verDetalleFactura(${f.id})" class="ml-2 text-info" title="Ver detalle">
-                            <i class="fas fa-eye"></i>
-                        </a>
-                    </td>
-                    <td><small>${f.cliente}</small></td>
-                    <td><small>${f.municipio || '-'}</small></td>
-                    <td>
-                        <small class="direccion-factura-texto" data-id="${f.id}">${f.direccion_completa || '-'}</small>
-                        <a href="javascript:void(0)" onclick="editarDireccionFactura(${f.id}, '${(f.direccion_completa || '').replace(/'/g, "\\'")}')" class="ml-1 text-warning" title="Editar dirección">
-                            <i class="fas fa-pencil-alt"></i>
-                        </a>
-                    </td>
-                    <td><small>${f.asesor_comercial || '-'}</small></td>
-                    <td><small>${f.gestor || '-'}</small></td>
-                    <td><small class="text-muted"><i class="fas fa-calendar"></i> ${f.fecha_emision}</small></td>
-                    <td class="text-center">
-                        <span class="badge badge-info">${f.cantidad_productos || 0} <i class="fas fa-box"></i></span>
-                    </td>
-                    <td class="text-center">${badge}</td>
-                </tr>`;
-        });
-
-        html += `
-                </tbody>
+                <tbody id="tbodyFacturasZona"></tbody>
             </table>
         </div>`;
 
         $('#listaFacturasZona').html(html);
+        renderFilasFacturasZona();
     }).fail(function () {
         $('#listaFacturasZona').html(`
             <div class="mb-0 alert alert-danger">
@@ -693,6 +685,161 @@ function verFacturasDeZona(zonaId, nombreZona) {
             </div>
         `);
     });
+}
+
+function columnaFiltroHeaderZona(campo, etiqueta) {
+    const activo = filtrosColumnaZona[campo] ? 'text-primary' : 'text-muted';
+    return `${etiqueta} <a href="javascript:void(0)" class="filtro-columna-icono ${activo}" data-campo="${campo}" onclick="abrirFiltroColumnaZona('${campo}', this)" title="Filtrar"><i class="fas fa-filter"></i></a>`;
+}
+
+function renderFilasFacturasZona() {
+    const filtradas = facturasZonaCache.filter(f => {
+        return Object.keys(filtrosColumnaZona).every(campo => {
+            const valor = f[campo] || '(En blanco)';
+            return filtrosColumnaZona[campo].has(valor);
+        });
+    });
+
+    if (!filtradas.length) {
+        $('#tbodyFacturasZona').html('<tr><td colspan="10" class="text-center text-muted py-3">Ningún resultado coincide con los filtros aplicados.</td></tr>');
+        return;
+    }
+
+    let html = '';
+    filtradas.forEach(f => {
+        const yaAgregada = facturasSelTmp.find(fs => fs.id === f.id);
+        const checkDisabled = yaAgregada ? 'disabled' : '';
+        const rowClass = yaAgregada ? 'table-success' : '';
+        const badge = yaAgregada ? '<span class="badge badge-success"><i class="fas fa-check"></i> Agregada</span>' : '<span class="badge badge-light">Disponible</span>';
+
+        html += `
+            <tr class="${rowClass}">
+                <td class="text-center">
+                    <input type="checkbox" class="check-factura-zona" ${checkDisabled}
+                           data-id="${f.id}"
+                           data-numero="${f.cai}"
+                           data-cliente="${(f.cliente || '').replace(/"/g, '&quot;')}"
+                           data-total="${f.total}"
+                           data-productos="${f.cantidad_productos || 0}">
+                </td>
+                <td>
+                    <strong>#${f.cai}</strong>
+                    <a href="javascript:void(0)" onclick="verDetalleFactura(${f.id})" class="ml-2 text-info" title="Ver detalle">
+                        <i class="fas fa-eye"></i>
+                    </a>
+                </td>
+                <td><small>${f.cliente}</small></td>
+                <td><small>${f.municipio || '-'}</small></td>
+                <td>
+                    <small class="direccion-factura-texto" data-id="${f.id}">${f.direccion_completa || '-'}</small>
+                    <a href="javascript:void(0)" onclick="editarDireccionFactura(${f.id}, '${(f.direccion_completa || '').replace(/'/g, "\\'")}')" class="ml-1 text-warning" title="Editar dirección">
+                        <i class="fas fa-pencil-alt"></i>
+                    </a>
+                </td>
+                <td><small>${f.asesor_comercial || '-'}</small></td>
+                <td><small>${f.gestor || '-'}</small></td>
+                <td><small class="text-muted"><i class="fas fa-calendar"></i> ${f.fecha_emision}</small></td>
+                <td class="text-center">
+                    <span class="badge badge-info">${f.cantidad_productos || 0} <i class="fas fa-box"></i></span>
+                </td>
+                <td class="text-center">${badge}</td>
+            </tr>`;
+    });
+
+    $('#tbodyFacturasZona').html(html);
+}
+
+let filtroColumnaZonaAnchor = null;
+
+function abrirFiltroColumnaZona(campo, anchorEl) {
+    cerrarFiltroColumnaZona();
+
+    const valoresUnicos = [...new Set(facturasZonaCache.map(f => f[campo] || '(En blanco)'))].sort();
+    const seleccionActual = filtrosColumnaZona[campo] || new Set(valoresUnicos);
+
+    let html = `
+    <div id="dropdownFiltroZona" class="filtro-columna-dropdown position-fixed">
+        <div class="p-2 border-bottom">
+            <input type="text" class="form-control form-control-sm" placeholder="Buscar..." oninput="filtrarOpcionesDropdownZona(this.value)">
+        </div>
+        <div class="p-2 border-bottom">
+            <label class="d-block mb-0">
+                <input type="checkbox" class="chk-todo-filtro-zona" ${seleccionActual.size === valoresUnicos.length ? 'checked' : ''} onchange="toggleTodoFiltroZona(this.checked)">
+                (Seleccionar todo)
+            </label>
+        </div>
+        <div class="filtro-columna-opciones p-2">
+            ${valoresUnicos.map(v => `
+                <label class="d-block mb-1 opcion-filtro-zona" data-valor="${v.toLowerCase().replace(/"/g, '&quot;')}">
+                    <input type="checkbox" class="chk-opcion-filtro-zona" value="${v.replace(/"/g, '&quot;')}" ${seleccionActual.has(v) ? 'checked' : ''}> ${v}
+                </label>
+            `).join('')}
+        </div>
+        <div class="p-2 border-top d-flex justify-content-between">
+            <button type="button" class="btn btn-sm btn-secondary" onclick="cerrarFiltroColumnaZona()">Cancelar</button>
+            <button type="button" class="btn btn-sm btn-primary" onclick="aplicarFiltroColumnaZona('${campo}')">Aceptar</button>
+        </div>
+    </div>`;
+
+    $('body').append(html);
+    filtroColumnaZonaAnchor = anchorEl;
+    posicionarFiltroColumnaZona();
+
+    $(document).on('mousedown.filtroColumnaZona', function (e) {
+        if (!$(e.target).closest('#dropdownFiltroZona, .filtro-columna-icono').length) {
+            cerrarFiltroColumnaZona();
+        }
+    });
+    // Reubicar el dropdown (no cerrarlo) ante cualquier scroll, incluido el de
+    // contenedores internos como .table-responsive, para que quede "pegado" al icono.
+    window.addEventListener('scroll', posicionarFiltroColumnaZona, true);
+    window.addEventListener('resize', posicionarFiltroColumnaZona);
+}
+
+function posicionarFiltroColumnaZona() {
+    const dropdown = document.getElementById('dropdownFiltroZona');
+    if (!dropdown || !filtroColumnaZonaAnchor) return;
+    const rect = filtroColumnaZonaAnchor.getBoundingClientRect();
+    dropdown.style.top = (rect.bottom + 4) + 'px';
+    dropdown.style.left = rect.left + 'px';
+}
+
+function toggleTodoFiltroZona(checked) {
+    $('.opcion-filtro-zona:visible .chk-opcion-filtro-zona').prop('checked', checked);
+}
+
+function filtrarOpcionesDropdownZona(texto) {
+    const buscar = texto.toLowerCase();
+    $('.opcion-filtro-zona').each(function () {
+        $(this).toggle($(this).data('valor').toString().includes(buscar));
+    });
+}
+
+function aplicarFiltroColumnaZona(campo) {
+    const seleccionados = new Set();
+    $('.chk-opcion-filtro-zona:checked').each(function () { seleccionados.add($(this).val()); });
+    const totalOpciones = $('.chk-opcion-filtro-zona').length;
+
+    if (seleccionados.size === totalOpciones) {
+        delete filtrosColumnaZona[campo];
+    } else {
+        filtrosColumnaZona[campo] = seleccionados;
+    }
+
+    $(`.filtro-columna-icono[data-campo="${campo}"]`)
+        .toggleClass('text-primary', !!filtrosColumnaZona[campo])
+        .toggleClass('text-muted', !filtrosColumnaZona[campo]);
+
+    cerrarFiltroColumnaZona();
+    renderFilasFacturasZona();
+}
+
+function cerrarFiltroColumnaZona() {
+    $('#dropdownFiltroZona').remove();
+    $(document).off('mousedown.filtroColumnaZona');
+    window.removeEventListener('scroll', posicionarFiltroColumnaZona, true);
+    window.removeEventListener('resize', posicionarFiltroColumnaZona);
+    filtroColumnaZonaAnchor = null;
 }
 
 function seleccionarTodasFacturasZona(checked) {

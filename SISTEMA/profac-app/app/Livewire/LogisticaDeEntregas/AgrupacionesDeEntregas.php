@@ -618,6 +618,7 @@ class AgrupacionesDeEntregas extends Component
     {
         try {
             $zonaId = $request->input('zona_id');
+            $busqueda = trim((string) $request->input('search', ''));
             $pendiente = $this->condicionFacturaPendiente();
             $zonaResuelta = $this->subconsultaZonaResuelta();
 
@@ -652,6 +653,12 @@ class AgrupacionesDeEntregas extends Component
             } else {
                 $sql .= " AND {$this->condicionFacturaEnZona('?')}";
                 $params = [(int) $zonaId, (int) $zonaId];
+            }
+
+            if ($busqueda !== '') {
+                $sql .= " AND (f.cai LIKE ? OR f.numero_factura LIKE ? OR c.nombre LIKE ?)";
+                $like = "%{$busqueda}%";
+                array_push($params, $like, $like, $like);
             }
 
             $sql .= " ORDER BY f.fecha_emision DESC, f.cai DESC LIMIT 200";
