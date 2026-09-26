@@ -57,7 +57,9 @@ class RevicionInventario extends Component
     public string $direccionOrden = 'desc';
     public string $filtroColumnaAbierto = '';
     public string $busquedaOpcionesFiltro = '';
+    public array $posicionFiltroMenu = ['left' => 8, 'top' => 8, 'maxHeight' => 300];
     public array $filtrosBandeja = [];
+    public array $filtrosBandejaPorZona = [];
     public array $opcionesFiltroBandeja = [];
     public array $seleccionesFiltroBandeja = [];
 
@@ -238,9 +240,21 @@ class RevicionInventario extends Component
             return;
         }
 
+        $this->guardarFiltrosZonaActual();
         $this->zonaSeleccionada = $zona;
+        $this->filtrosBandeja = $this->filtrosBandejaPorZona[$zona] ?? [];
+        $this->filtroColumnaAbierto = '';
+        $this->opcionesFiltroBandeja = [];
+        $this->seleccionesFiltroBandeja = [];
         $this->paginaLlegando = 1;
         $this->cargar();
+    }
+
+    private function guardarFiltrosZonaActual(): void
+    {
+        if ($this->zonaSeleccionada !== '') {
+            $this->filtrosBandejaPorZona[$this->zonaSeleccionada] = $this->filtrosBandeja;
+        }
     }
 
     public function ordenarBandeja(string $columna, string $direccion): void
@@ -268,6 +282,19 @@ class RevicionInventario extends Component
     public function cerrarFiltroBandeja(): void
     {
         $this->filtroColumnaAbierto = '';
+    }
+
+    public function guardarPosicionFiltro(float $left, float $top, float $maxHeight): void
+    {
+        if ($this->filtroColumnaAbierto === '') {
+            return;
+        }
+
+        $this->posicionFiltroMenu = [
+            'left' => round(max(-2000, min(4000, $left)), 3),
+            'top' => round(max(-2000, min(4000, $top)), 3),
+            'maxHeight' => round(max(80, min(3000, $maxHeight)), 3),
+        ];
     }
 
     public function abrirFiltroBandeja(string $columna): void
@@ -336,6 +363,7 @@ class RevicionInventario extends Component
         } else {
             $this->filtrosBandeja[$columna] = $valores;
         }
+        $this->guardarFiltrosZonaActual();
 
         $this->paginaLlegando = 1;
         $this->filtroColumnaAbierto = '';
@@ -347,6 +375,7 @@ class RevicionInventario extends Component
         if ($this->filtroColumnaAbierto !== '') {
             unset($this->filtrosBandeja[$this->filtroColumnaAbierto]);
         }
+        $this->guardarFiltrosZonaActual();
         $this->paginaLlegando = 1;
         $this->filtroColumnaAbierto = '';
         $this->cargar();

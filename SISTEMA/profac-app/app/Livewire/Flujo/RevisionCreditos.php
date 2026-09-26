@@ -986,6 +986,26 @@ class RevisionCreditos extends Component
 
         DB::beginTransaction();
         try {
+            DB::table('flujo')
+                ->where('id', $this->flujoId)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$this->esSeccionExpo) {
+                $ganadoraActualId = (int) DB::table('historico_flujo')
+                    ->where('flujo_id', $this->flujoId)
+                    ->where('tipo_tramite_id', 2)
+                    ->where('observaciones', 'ganadora')
+                    ->orderByDesc('id')
+                    ->value('tramite_id');
+
+                if (!$ganadoraActualId || $ganadoraActualId !== (int) $this->cotizacionId) {
+                    DB::rollBack();
+                    $this->mensajeError = 'La oferta seleccionada ya fue sustituida. Recargue el flujo antes de aprobar el crédito.';
+                    return;
+                }
+            }
+
             $ip = request()->ip();
             $saldoAnterior = (float) CreditoService::obtenerDetalleMovimientos(
                 (int) $this->clienteId

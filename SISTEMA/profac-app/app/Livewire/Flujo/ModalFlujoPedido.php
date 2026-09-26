@@ -1650,6 +1650,29 @@ class ModalFlujoPedido extends Component
             ->lockForUpdate()
             ->pluck('tramite_id');
 
+        $cotizacionesAnteriores = $cotizacionesAnteriores
+            ->merge(DB::table('historico_flujo')
+                ->where('flujo_id', $this->flujoId)
+                ->whereIn('tipo_tramite_id', [9, 10])
+                ->where('estado_id', '!=', 7)
+                ->whereNotNull('tramite_id')
+                ->where('tramite_id', '!=', $cotizacionNuevaId)
+                ->lockForUpdate()
+                ->pluck('tramite_id'))
+            ->merge(DB::table('credito_revision')
+                ->where('flujo_id', $this->flujoId)
+                ->whereIn('estado', [CreditoRevision::PENDIENTE, CreditoRevision::APROBADO])
+                ->whereNotNull('cotizacion_id')
+                ->where('cotizacion_id', '!=', $cotizacionNuevaId)
+                ->lockForUpdate()
+                ->pluck('cotizacion_id'))
+            ->merge(DB::table('cotizacion_estado')
+                ->where('flujo_id', $this->flujoId)
+                ->where('ganadora', 1)
+                ->where('cotizacion_id', '!=', $cotizacionNuevaId)
+                ->lockForUpdate()
+                ->pluck('cotizacion_id'));
+
         $prefacturasAnteriores = DB::table('prefactura')
             ->where('flujo_id', $this->flujoId)
             ->where('estado', 'activo')
@@ -1703,6 +1726,7 @@ class ModalFlujoPedido extends Component
         DB::table('historico_flujo')
             ->where('flujo_id', $this->flujoId)
             ->whereIn('tipo_tramite_id', [9, 10])
+            ->whereIn('tramite_id', $cotizacionesAnteriores->all())
             ->where('estado_id', '!=', 7)
             ->update([
                 'estado_id' => 7,
@@ -1712,6 +1736,7 @@ class ModalFlujoPedido extends Component
             ]);
 
         $revisionesAnteriores = CreditoRevision::where('flujo_id', $this->flujoId)
+            ->whereIn('cotizacion_id', $cotizacionesAnteriores->all())
             ->whereIn('estado', [CreditoRevision::PENDIENTE, CreditoRevision::APROBADO])
             ->lockForUpdate()
             ->get();
@@ -1799,6 +1824,11 @@ class ModalFlujoPedido extends Component
             //
             DB::beginTransaction();
             try {
+                DB::table('flujo')
+                    ->where('id', $this->flujoId)
+                    ->lockForUpdate()
+                    ->first();
+
                 $comentarioCredito = trim((string) $this->comentarioCreditoGanadora);
                 $cicloAnteriorCerrado = $this->cerrarCicloGanadoraAnterior($cotizacionId);
                 // Una nueva ganadora que sustituye un ciclo existente debe solicitar su propio crédito.

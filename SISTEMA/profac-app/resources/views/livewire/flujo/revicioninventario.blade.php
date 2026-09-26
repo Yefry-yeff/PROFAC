@@ -848,9 +848,11 @@
                                 'fecha_revision' => 'Ingresó',
                             ];
                         @endphp
+                        @teleport('body')
                         <div style="position:fixed; inset:0; z-index:2500; pointer-events:none;">
                             <div data-revision-filter-menu="{{ $filtroColumnaAbierto }}"
-                                 style="position:fixed; left:8px; top:8px; width:300px; max-height:70vh; overflow:hidden;
+                                 style="position:fixed; left:{{ $posicionFiltroMenu['left'] }}px; top:{{ $posicionFiltroMenu['top'] }}px;
+                                     width:300px; max-height:{{ $posicionFiltroMenu['maxHeight'] }}px; overflow:hidden;
                                         display:flex; flex-direction:column; background:#fff; border:1px solid #cbd5e1;
                                         border-radius:6px; box-shadow:0 12px 32px rgba(15,23,42,.24); pointer-events:auto;">
                                 <div style="padding:10px 12px; border-bottom:1px solid #e2e8f0; color:#334155; font-size:13px; font-weight:700;">
@@ -889,6 +891,7 @@
                                 </div>
                             </div>
                         </div>
+                        @endteleport
                         @endif
                         {{-- Paginación Llegando --}}
                         @if ($totalLlegandoFiltrado > $porPagina)
@@ -1295,7 +1298,7 @@
 
     <script>
     (function () {
-        var intervaloPosicionFiltroRevision = null;
+        var columnaFiltroPosicionada = '';
 
         function posicionarFiltroRevision() {
             var menu = document.querySelector('[data-revision-filter-menu]');
@@ -1308,46 +1311,42 @@
             var rect = boton.getBoundingClientRect();
             var arriba = rect.bottom + 4;
             var espacioAbajo = Math.max(80, window.innerHeight - arriba - 8);
-            menu.style.maxHeight = Math.min(window.innerHeight * 0.7, espacioAbajo) + 'px';
-            var menuRect = menu.getBoundingClientRect();
-            var izquierda = Math.max(8, Math.min(rect.left, window.innerWidth - menuRect.width - 8));
+            var alturaMaxima = Math.min(window.innerHeight * 0.7, espacioAbajo);
+            var ancho = menu.getBoundingClientRect().width;
+            var izquierda = Math.max(8, Math.min(rect.left, window.innerWidth - ancho - 8));
 
-            var escalaX = menuRect.width / Math.max(menu.offsetWidth, 1);
-            var escalaY = menuRect.height / Math.max(menu.offsetHeight, 1);
-            var posicionX = parseFloat(menu.style.left) || 0;
-            var posicionY = parseFloat(menu.style.top) || 0;
-            menu.style.left = (posicionX + (izquierda - menuRect.left) / escalaX) + 'px';
-            menu.style.top = (posicionY + (arriba - menuRect.top) / escalaY) + 'px';
-        }
+            menu.style.left = izquierda + 'px';
+            menu.style.top = arriba + 'px';
+            menu.style.maxHeight = alturaMaxima + 'px';
 
-        function programarPosicionFiltroRevision() {
-            [0, 100, 300, 600, 1000, 1500].forEach(function (demora) {
-                window.setTimeout(posicionarFiltroRevision, demora);
-            });
-
-            if (!intervaloPosicionFiltroRevision) {
-                intervaloPosicionFiltroRevision = window.setInterval(function () {
-                    if (!document.querySelector('[data-revision-filter-menu]')) {
-                        window.clearInterval(intervaloPosicionFiltroRevision);
-                        intervaloPosicionFiltroRevision = null;
-                        return;
-                    }
-                    posicionarFiltroRevision();
-                }, 100);
+            var raiz = boton;
+            while (raiz && !raiz.hasAttribute('wire:id')) {
+                raiz = raiz.parentElement;
+            }
+            var componente = raiz && window.Livewire
+                ? window.Livewire.find(raiz.getAttribute('wire:id'))
+                : null;
+            if (componente) {
+                componente.call('guardarPosicionFiltro', izquierda, arriba, alturaMaxima);
             }
         }
 
         var observador = new MutationObserver(function () {
-            programarPosicionFiltroRevision();
+            var menu = document.querySelector('[data-revision-filter-menu]');
+            if (!menu) {
+                columnaFiltroPosicionada = '';
+                return;
+            }
+
+            var columna = menu.getAttribute('data-revision-filter-menu');
+            if (columna === columnaFiltroPosicionada) {
+                return;
+            }
+
+            columnaFiltroPosicionada = columna;
+            window.requestAnimationFrame(posicionarFiltroRevision);
         });
         observador.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-revision-filter-menu'] });
-        window.addEventListener('resize', posicionarFiltroRevision);
-        document.addEventListener('scroll', posicionarFiltroRevision, true);
-        document.addEventListener('click', function (event) {
-            if (event.target.closest('[data-revision-filter-trigger]')) {
-                programarPosicionFiltroRevision();
-            }
-        }, true);
     })();
     </script>
 
