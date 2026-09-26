@@ -1642,7 +1642,7 @@ class ModalFlujoPedido extends Component
             throw new \RuntimeException('No se puede sustituir desde aquí una oferta Expo con prefacturas activas.');
         }
 
-        $cotizacionesAnteriores = DB::table('historico_flujo')
+        $ofertasGanadorasAnteriores = DB::table('historico_flujo')
             ->where('flujo_id', $this->flujoId)
             ->where('tipo_tramite_id', 2)
             ->where('observaciones', 'ganadora')
@@ -1650,7 +1650,26 @@ class ModalFlujoPedido extends Component
             ->lockForUpdate()
             ->pluck('tramite_id');
 
-        $cotizacionesAnteriores = $cotizacionesAnteriores
+        $prefacturasAnteriores = DB::table('prefactura')
+            ->where('flujo_id', $this->flujoId)
+            ->where('estado', 'activo')
+            ->where('cotizacion_id', '!=', $cotizacionNuevaId)
+            ->whereNotExists(function ($query) {
+                $query->selectRaw('1')
+                    ->from('expo_cotizacion as ec')
+                    ->whereColumn('ec.cotizacion_id', 'prefactura.cotizacion_id');
+            })
+            ->lockForUpdate()
+            ->get();
+
+        $ofertasGanadorasAnteriores = $ofertasGanadorasAnteriores
+            ->merge($prefacturasAnteriores->pluck('cotizacion_id'))
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->unique()
+            ->values();
+
+        $cotizacionesCicloAnterior = $ofertasGanadorasAnteriores
             ->merge(DB::table('historico_flujo')
                 ->where('flujo_id', $this->flujoId)
                 ->whereIn('tipo_tramite_id', [9, 10])
@@ -1671,28 +1690,13 @@ class ModalFlujoPedido extends Component
                 ->where('ganadora', 1)
                 ->where('cotizacion_id', '!=', $cotizacionNuevaId)
                 ->lockForUpdate()
-                ->pluck('cotizacion_id'));
-
-        $prefacturasAnteriores = DB::table('prefactura')
-            ->where('flujo_id', $this->flujoId)
-            ->where('estado', 'activo')
-            ->where('cotizacion_id', '!=', $cotizacionNuevaId)
-            ->whereNotExists(function ($query) {
-                $query->selectRaw('1')
-                    ->from('expo_cotizacion as ec')
-                    ->whereColumn('ec.cotizacion_id', 'prefactura.cotizacion_id');
-            })
-            ->lockForUpdate()
-            ->get();
-
-        $cotizacionesAnteriores = $cotizacionesAnteriores
-            ->merge($prefacturasAnteriores->pluck('cotizacion_id'))
+                ->pluck('cotizacion_id'))
             ->map(fn ($id) => (int) $id)
             ->filter()
             ->unique()
             ->values();
 
-        if ($cotizacionesAnteriores->isEmpty()) {
+        if ($cotizacionesCicloAnterior->isEmpty()) {
             return false;
         }
 
@@ -1726,7 +1730,7 @@ class ModalFlujoPedido extends Component
         DB::table('historico_flujo')
             ->where('flujo_id', $this->flujoId)
             ->whereIn('tipo_tramite_id', [9, 10])
-            ->whereIn('tramite_id', $cotizacionesAnteriores->all())
+            ->whereIn('tramite_id', $cotizacionesCicloAnterior->all())
             ->where('estado_id', '!=', 7)
             ->update([
                 'estado_id' => 7,
@@ -1736,7 +1740,7 @@ class ModalFlujoPedido extends Component
             ]);
 
         $revisionesAnteriores = CreditoRevision::where('flujo_id', $this->flujoId)
-            ->whereIn('cotizacion_id', $cotizacionesAnteriores->all())
+            ->whereIn('cotizacion_id', $cotizacionesCicloAnterior->all())
             ->whereIn('estado', [CreditoRevision::PENDIENTE, CreditoRevision::APROBADO])
             ->lockForUpdate()
             ->get();
@@ -1761,14 +1765,14 @@ class ModalFlujoPedido extends Component
         DB::table('historico_flujo')
             ->where('flujo_id', $this->flujoId)
             ->where('tipo_tramite_id', 2)
-            ->whereIn('tramite_id', $cotizacionesAnteriores->all())
+            ->whereIn('tramite_id', $ofertasGanadorasAnteriores->all())
             ->update([
                 'observaciones' => 'QuitadaGanadora: sustituida por oferta #' . $cotizacionNuevaId,
                 'updated_by' => Auth::id(),
                 'updated_at' => now(),
             ]);
 
-        foreach ($cotizacionesAnteriores as $cotizacionAnteriorId) {
+        foreach ($ofertasGanadorasAnteriores as $cotizacionAnteriorId) {
             DB::table('cotizacion_estado')->insert([
                 'cotizacion_id' => $cotizacionAnteriorId,
                 'flujo_id' => $this->flujoId,
