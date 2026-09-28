@@ -1110,9 +1110,7 @@ function exportarProyeccionesExcel(tipo){
 }
 
 function exportarFacturasProyectadasExcel(){
-    var tienePoliticaAnterior = Array.isArray(proyeccionesExcluidasActual)
-        && filtrarExcluidasPoliticaAnterior(proyeccionesExcluidasActual, (proyeccionesFiltrosActuales || {}).usuario_id).length > 0;
-    if((!proyeccionesDataActual || !proyeccionesDataActual.length) && !tienePoliticaAnterior){
+    if(!proyeccionesDataActual || !proyeccionesDataActual.length){
         Swal.fire({icon:'info',title:'Sin datos',text:'Genere primero la proyección para descargar sus facturas.'});
         return;
     }
@@ -1148,9 +1146,7 @@ function exportarFacturasProyectadasExcel(){
 }
 
 function exportarProyeccionesExcel15(){
-    var tienePoliticaAnterior = Array.isArray(proyeccionesExcluidasActual)
-        && filtrarExcluidasPoliticaAnterior(proyeccionesExcluidasActual, (proyeccionesFiltrosActuales || {}).usuario_id).length > 0;
-    if((!proyeccionesDataActual || !proyeccionesDataActual.length) && !tienePoliticaAnterior){
+    if(!proyeccionesDataActual || !proyeccionesDataActual.length){
         Swal.fire({icon:'info',title:'Sin datos',text:'No hay proyecciones para exportar.'});
         return;
     }
@@ -1187,9 +1183,7 @@ function _getCookieProyNomina(name) {
 }
 
 function exportarProyeccionesNomina(){
-    var tienePoliticaAnterior = Array.isArray(window._politicaAnteriorFacturaIds)
-        && window._politicaAnteriorFacturaIds.length > 0;
-    if((!proyeccionesDataActual || !proyeccionesDataActual.length) && !tienePoliticaAnterior){
+    if(!proyeccionesDataActual || !proyeccionesDataActual.length){
         Swal.fire({icon:'info',title:'Sin datos',text:'Genera primero la proyección antes de descargar la nómina.'});
         return;
     }

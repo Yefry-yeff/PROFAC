@@ -6769,7 +6769,7 @@
             var primerIndiceDuplicadoNormal = numeroInputs;
             if (esCargaDuplicadoNormal) numeroInputs += productos.length;
             var cargaProductos = Promise.all(productos.map(function (prod, posicion) {
-                if (_modoPrefactura || _modoContinuacionExpo) {
+                if (_modoPrefactura || _modoContinuacionExpo || esFacturacionExpoDesdePrefactura) {
                     return agregarProductoDesdePrefactura(prod);
                 }
                 return agregarProductoDesdeOferta(

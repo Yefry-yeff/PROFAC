@@ -262,18 +262,12 @@ class DetalleProducto extends Component
             return (bool) $cache[$prefacturaId];
         }
 
-        $lineas = DB::table('prefactura_has_producto as php')
-            ->leftJoin('unidad_medida_venta as umv', 'umv.id', '=', 'php.unidad_medida_venta_id')
-            ->where('php.prefactura_id', $prefacturaId)
-            ->where('php.resta_inventario', 1)
-            ->whereNotNull('php.producto_id')
-            ->whereNotNull('php.seccion_id')
-            ->groupBy('php.producto_id', 'php.seccion_id')
-            ->get([
-                'php.producto_id',
-                'php.seccion_id',
-                DB::raw('SUM(php.cantidad * COALESCE(umv.unidad_venta, 1)) as cantidad_inventario'),
-            ]);
+        $lineas = DB::table('prefactura_has_producto')
+            ->where('prefactura_id', $prefacturaId)
+            ->where('resta_inventario', 1)
+            ->whereNotNull('producto_id')
+            ->whereNotNull('seccion_id')
+            ->get(['producto_id', 'seccion_id', 'cantidad']);
 
         foreach ($lineas as $linea) {
             $rawStock = (float) DB::table('recibido_bodega')
@@ -282,7 +276,7 @@ class DetalleProducto extends Component
                 ->where('cantidad_disponible', '>', 0)
                 ->sum('cantidad_disponible');
 
-            if ($rawStock + 0.0001 < (float) $linea->cantidad_inventario) {
+            if ($rawStock + 0.0001 < (float) $linea->cantidad) {
                 $cache[$prefacturaId] = false;
                 return false;
             }

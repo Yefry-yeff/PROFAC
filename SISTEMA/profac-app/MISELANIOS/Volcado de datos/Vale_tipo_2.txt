@@ -1,0 +1,35 @@
+INSERT INTO cardex (
+    fecha_creacion,
+    producto,
+    id_producto,
+    id_factura,
+    id_vale_tipo_2,
+    descripcion,
+    id_Bodega_origen,
+    id_segmento_origen,
+    id_seccion_origen,
+    cantidad,
+    usuario
+)
+select DISTINCT
+lt.created_at creacion,
+p.nombre nombre,
+p.id idproducto,
+v.factura_id idfactura,
+v.id idvale2,
+'Venta de producto - vale' descripcion,
+b.id idbodega,
+sg.id idsegmento,
+s.id idseccion,
+lt.cantidad cantidad,
+u.id
+from vale v
+inner join log_translado lt on lt.factura_id = v.factura_id
+inner join espera_has_producto vp on vp.vale_id = v.id
+inner join recibido_bodega rb on lt.origen = rb.id 
+inner join producto p on p.id = rb.producto_id
+inner join seccion s on s.id = rb.seccion_id
+inner join segmento sg on sg.id = s.segmento_id
+inner join bodega b on b.id = sg.bodega_id 
+inner join users u on u.id = lt.users_id
+where lt.destino is null;
