@@ -20,16 +20,24 @@ import Echo from 'laravel-echo';
 
 window.Pusher = require('pusher-js');
 
-const reverb = window.PROFAC_REVERB || {};
+// Conexión perezosa: no abrir el WebSocket en cada página, sólo cuando una
+// vista que realmente lo necesita (ej. revicioninventario.blade.php) la pida.
+window.getProfacEcho = function () {
+    if (window.Echo) return window.Echo;
 
-window.Echo = new Echo({
-    broadcaster: 'reverb',
-    key: reverb.key || process.env.MIX_REVERB_APP_KEY,
-    wsHost: reverb.host || process.env.MIX_REVERB_HOST,
-    wsPort: reverb.port || process.env.MIX_REVERB_PORT || 80,
-    wssPort: reverb.port || process.env.MIX_REVERB_PORT || 443,
-    forceTLS: (reverb.scheme || process.env.MIX_REVERB_SCHEME || 'https') === 'https',
-    enabledTransports: ['ws', 'wss'],
-});
+    const reverb = window.PROFAC_REVERB || {};
+
+    window.Echo = new Echo({
+        broadcaster: 'reverb',
+        key: reverb.key || process.env.MIX_REVERB_APP_KEY,
+        wsHost: reverb.host || process.env.MIX_REVERB_HOST,
+        wsPort: reverb.port || process.env.MIX_REVERB_PORT || 80,
+        wssPort: reverb.port || process.env.MIX_REVERB_PORT || 443,
+        forceTLS: (reverb.scheme || process.env.MIX_REVERB_SCHEME || 'https') === 'https',
+        enabledTransports: ['ws', 'wss'],
+    });
+
+    return window.Echo;
+};
 
 

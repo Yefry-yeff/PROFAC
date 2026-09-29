@@ -1370,6 +1370,7 @@
         }
 
         function suscribirRevisionInventario(component, flujoId, cotizacionId) {
+            if (typeof window.getProfacEcho === 'function') window.getProfacEcho();
             if (!window.Echo) return;
 
             if (!flujoId || !cotizacionId) {
