@@ -1070,6 +1070,8 @@ class FacturacionUnificada extends Component
             vendedorNombre: $vendedorNombre,
             flujoId: $this->flujoVinculadoId,
             diasCreditoAprobados: $this->diasCreditoAprobados,
+            fechaEmisionPrefactura: $expoCotizacion ? (string) $pref->fecha_emision : null,
+            fechaVencimientoPrefactura: $expoCotizacion ? (string) $pref->fecha_vencimiento : null,
             numeroOrdenCompra: $this->documentosComerciales['numero_orden_compra'] ?? null,
             archivoOrdenCompra: $this->documentosComerciales['archivo_orden_compra'] ?? null,
             numeroFormaF01: $this->documentosComerciales['numero_forma_f01'] ?? null,

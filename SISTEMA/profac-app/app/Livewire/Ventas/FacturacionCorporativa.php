@@ -93,6 +93,14 @@ class FacturacionCorporativa extends Component
         return $this->obtenerDiasCreditoAprobados($flujoId) ?? max(0, $diasCliente);
     }
 
+    private function contextoFechasPrefacturaExpo($request): array
+    {
+        return [
+            (bool) $request->attributes->get('facturacion_expo_desde_prefactura', false),
+            $request->attributes->get('dias_credito_prefactura_expo'),
+        ];
+    }
+
     private function flujoTieneCreditoAprobadoNormal(?int $flujoId): bool
     {
         if (!$flujoId) {
@@ -1101,26 +1109,26 @@ class FacturacionCorporativa extends Component
                     ->where('pf.id', $prefacturaExcluirId)
                     ->exists()
             );
+            $diasCreditoPrefacturaExpo = null;
 
             if ($facturacionExpoDesdePrefactura) {
                 $prefacturaExpo = DB::table('prefactura')
                     ->where('id', $prefacturaExcluirId)
-                    ->first(['flujo_id', 'cotizacion_id']);
-                $fechaVencimientoAutorizada = $prefacturaExpo
-                    ? DB::table('credito_revision')
-                        ->where('flujo_id', $prefacturaExpo->flujo_id)
-                        ->where('cotizacion_id', $prefacturaExpo->cotizacion_id)
-                        ->where('estado', 'aprobado')
-                        ->latest('id')
-                        ->value('fecha_vencimiento_credito')
-                    : null;
+                    ->first(['fecha_emision', 'fecha_vencimiento']);
 
-                if ($fechaVencimientoAutorizada) {
+                if ($prefacturaExpo) {
+                    $fechaEmisionPrefactura = \Carbon\Carbon::parse($prefacturaExpo->fecha_emision);
+                    $fechaVencimientoPrefactura = \Carbon\Carbon::parse($prefacturaExpo->fecha_vencimiento);
+                    $diasCreditoPrefacturaExpo = max(0, (int) $fechaEmisionPrefactura
+                        ->diffInDays($fechaVencimientoPrefactura, false));
                     $request->merge([
-                        'fecha_vencimiento' => \Carbon\Carbon::parse($fechaVencimientoAutorizada)->toDateString(),
+                        'fecha_emision' => $fechaEmisionPrefactura->toDateString(),
+                        'fecha_vencimiento' => $fechaVencimientoPrefactura->toDateString(),
                     ]);
                 }
             }
+            $request->attributes->set('facturacion_expo_desde_prefactura', $facturacionExpoDesdePrefactura);
+            $request->attributes->set('dias_credito_prefactura_expo', $diasCreditoPrefacturaExpo);
 
             $teleAsesorId = $this->resolveTeleAsesorId($request);
             //
@@ -1410,7 +1418,9 @@ class FacturacionCorporativa extends Component
                         (int) $diasCredito
                     );
                 $factura->tipo_pago_id = $request->tipoPagoVenta;
-                $factura->dias_credito = $this->resolverDiasCreditoFactura((int) $request->tipoPagoVenta, (int) ($request->flujo_id ?? 0), (int) $diasCredito);
+                $factura->dias_credito = $facturacionExpoDesdePrefactura
+                    ? $diasCreditoPrefacturaExpo
+                    : $this->resolverDiasCreditoFactura((int) $request->tipoPagoVenta, (int) ($request->flujo_id ?? 0), (int) $diasCredito);
                 $factura->cai_id = $cai->id;
                 $factura->estado_venta_id = 1;
                 $factura->cliente_id = $request->seleccionarCliente;
@@ -1658,7 +1668,7 @@ class FacturacionCorporativa extends Component
 
     public function alternar($request)
     {
-
+        [$facturacionExpoDesdePrefactura, $diasCreditoPrefacturaExpo] = $this->contextoFechasPrefacturaExpo($request);
 
             $teleAsesorId = $this->resolveTeleAsesorId($request);
         try {
@@ -1757,7 +1767,9 @@ class FacturacionCorporativa extends Component
                     (int) $diasCredito
                 );
             $factura->tipo_pago_id = $request->tipoPagoVenta;
-            $factura->dias_credito = $this->resolverDiasCreditoFactura((int) $request->tipoPagoVenta, (int) ($request->flujo_id ?? 0), (int) $diasCredito);
+            $factura->dias_credito = $facturacionExpoDesdePrefactura
+                ? $diasCreditoPrefacturaExpo
+                : $this->resolverDiasCreditoFactura((int) $request->tipoPagoVenta, (int) ($request->flujo_id ?? 0), (int) $diasCredito);
             $factura->cai_id = $cai->id;
             $factura->estado_venta_id = 1;
             $factura->cliente_id = $request->seleccionarCliente;
@@ -1832,6 +1844,7 @@ class FacturacionCorporativa extends Component
 
     public function nivelacion($request)
     {
+        [$facturacionExpoDesdePrefactura, $diasCreditoPrefacturaExpo] = $this->contextoFechasPrefacturaExpo($request);
         DB::beginTransaction();
         try {
 
@@ -1919,7 +1932,9 @@ class FacturacionCorporativa extends Component
                 (int) $diasCredito
             );
         $factura->tipo_pago_id = $request->tipoPagoVenta;
-        $factura->dias_credito = $this->resolverDiasCreditoFactura((int) $request->tipoPagoVenta, (int) ($request->flujo_id ?? 0), (int) $diasCredito);
+        $factura->dias_credito = $facturacionExpoDesdePrefactura
+            ? $diasCreditoPrefacturaExpo
+            : $this->resolverDiasCreditoFactura((int) $request->tipoPagoVenta, (int) ($request->flujo_id ?? 0), (int) $diasCredito);
         $factura->cai_id = $cai->id;
         $factura->estado_venta_id = 1;
         $factura->cliente_id = $request->seleccionarCliente;
@@ -1967,6 +1982,7 @@ class FacturacionCorporativa extends Component
 
     public function metodoLista($request)
     {
+        [$facturacionExpoDesdePrefactura, $diasCreditoPrefacturaExpo] = $this->contextoFechasPrefacturaExpo($request);
         try {
             $teleAsesorId = $this->resolveTeleAsesorId($request);
 
@@ -2066,7 +2082,9 @@ class FacturacionCorporativa extends Component
                     (int) $diasCredito
                 );
             $factura->tipo_pago_id = $request->tipoPagoVenta;
-            $factura->dias_credito = $this->resolverDiasCreditoFactura((int) $request->tipoPagoVenta, (int) ($request->flujo_id ?? 0), (int) $diasCredito);
+            $factura->dias_credito = $facturacionExpoDesdePrefactura
+                ? $diasCreditoPrefacturaExpo
+                : $this->resolverDiasCreditoFactura((int) $request->tipoPagoVenta, (int) ($request->flujo_id ?? 0), (int) $diasCredito);
             $factura->cai_id = $cai->cai_id;
             $factura->estado_venta_id = 1;
             $factura->cliente_id = $request->seleccionarCliente;
@@ -2750,6 +2768,7 @@ class FacturacionCorporativa extends Component
 
     public function enumerar($request)
     {
+        [$facturacionExpoDesdePrefactura, $diasCreditoPrefacturaExpo] = $this->contextoFechasPrefacturaExpo($request);
         try {
 
 
@@ -2843,7 +2862,9 @@ class FacturacionCorporativa extends Component
                     (int) $diasCredito
                 );
             $factura->tipo_pago_id = $request->tipoPagoVenta;
-            $factura->dias_credito = $this->resolverDiasCreditoFactura((int) $request->tipoPagoVenta, (int) ($request->flujo_id ?? 0), (int) $diasCredito);
+            $factura->dias_credito = $facturacionExpoDesdePrefactura
+                ? $diasCreditoPrefacturaExpo
+                : $this->resolverDiasCreditoFactura((int) $request->tipoPagoVenta, (int) ($request->flujo_id ?? 0), (int) $diasCredito);
             $factura->cai_id = $listado->cai_id;
             $factura->estado_venta_id = 1;
             $factura->cliente_id = $request->seleccionarCliente;
@@ -3033,6 +3054,7 @@ class FacturacionCorporativa extends Component
 
     public function guardarVentaND($request)
     {
+        [$facturacionExpoDesdePrefactura, $diasCreditoPrefacturaExpo] = $this->contextoFechasPrefacturaExpo($request);
         DB::beginTransaction();
         try {
             $teleAsesorId = $this->resolveTeleAsesorId($request);
@@ -3112,14 +3134,18 @@ class FacturacionCorporativa extends Component
         $factura->total = $request->totalGeneral;
         $factura->credito = $request->totalGeneral;
         $factura->fecha_emision = $request->fecha_emision;
-        $factura->fecha_vencimiento = $this->calcularFechaVencimientoFactura(
-            (string) $request->fecha_emision,
-            (int) $request->tipoPagoVenta,
-            $this->obtenerDiasCreditoAprobados((int) ($request->flujo_id ?? 0)),
-            (int) $diasCredito
-        );
+        $factura->fecha_vencimiento = $facturacionExpoDesdePrefactura
+            ? (string) $request->fecha_vencimiento
+            : $this->calcularFechaVencimientoFactura(
+                (string) $request->fecha_emision,
+                (int) $request->tipoPagoVenta,
+                $this->obtenerDiasCreditoAprobados((int) ($request->flujo_id ?? 0)),
+                (int) $diasCredito
+            );
         $factura->tipo_pago_id = $request->tipoPagoVenta;
-        $factura->dias_credito = $this->resolverDiasCreditoFactura((int) $request->tipoPagoVenta, (int) ($request->flujo_id ?? 0), (int) $diasCredito);
+        $factura->dias_credito = $facturacionExpoDesdePrefactura
+            ? $diasCreditoPrefacturaExpo
+            : $this->resolverDiasCreditoFactura((int) $request->tipoPagoVenta, (int) ($request->flujo_id ?? 0), (int) $diasCredito);
         $factura->cai_id = $cai->id;
         $factura->estado_venta_id = 1;
         $factura->cliente_id = $request->seleccionarCliente;

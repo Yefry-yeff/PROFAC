@@ -1288,6 +1288,20 @@ class PrefacturaController
                 }
             }
 
+        // ── Ofertas Expo: las fechas de la factura son literalmente las de la prefactura ──
+        // No se recalculan desde credito_revision (que guarda el plazo solicitado
+        // originalmente, no el vigente al momento de facturar).
+        if ($esOfertaExpo) {
+            $fechaEmisionExpo = \Carbon\Carbon::parse($pf->fecha_emision);
+            $fechaVencimientoExpo = \Carbon\Carbon::parse($pf->fecha_vencimiento);
+            $diasCreditoExpo = max(0, (int) $fechaEmisionExpo->diffInDays($fechaVencimientoExpo, false));
+
+            $tipoPago = $diasCreditoExpo > 0 ? 2 : 1;
+            $fechaEmision = $fechaEmisionExpo->toDateString();
+            $diasCredito = $diasCreditoExpo;
+            $fechaVencimiento = $fechaVencimientoExpo->toDateString();
+        } else {
+
         // ── Determinar tipo_pago desde revisión de crédito aprobada ──────
         // Prioridad:
         //   1. Existe credito_revision.estado='aprobado' para este flujo → Crédito
@@ -1401,6 +1415,7 @@ class PrefacturaController
             $diasCredito = 0;
             $fechaVencimiento = $fechaEmision;
         }
+        } // fin else (!$esOfertaExpo)
 
         // ── Construir índices y datos por producto ────────────────────────
         $indicesArr = [];

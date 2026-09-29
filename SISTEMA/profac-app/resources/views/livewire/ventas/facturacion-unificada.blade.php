@@ -2358,6 +2358,8 @@
     var retencionEstado = false;
     var diasCredito = 0;
     var diasCreditoAprobadosFlujo = null;
+    var fechaEmisionPrefacturaExpo = @json($esOfertaExpo && $prefacturaVinculada ? $prefacturaVinculada['fecha_emision'] : null);
+    var fechaVencimientoPrefacturaExpo = @json($esOfertaExpo && $prefacturaVinculada ? $prefacturaVinculada['fecha_vencimiento'] : null);
     var modoEditarFactura = new URLSearchParams(window.location.search).get('modo') === 'editar_factura';
     var secuenciaBusquedaProducto = 0;
     var omitirLimpiezaFocoProducto = false;
@@ -3228,6 +3230,11 @@
         diasCreditoAprobadosFlujo = (d.diasCreditoAprobados === null || typeof d.diasCreditoAprobados === 'undefined')
             ? null
             : Math.max(0, parseInt(d.diasCreditoAprobados, 10) || 0);
+        if (d.fechaEmisionPrefactura && d.fechaVencimientoPrefactura) {
+            fechaEmisionPrefacturaExpo = d.fechaEmisionPrefactura;
+            fechaVencimientoPrefacturaExpo = d.fechaVencimientoPrefactura;
+            aplicarFechasPrefacturaExpo();
+        }
         // Re-habilitar Select2 de cliente (puede estar disabled en re-render)
         var selC = document.getElementById('seleccionarCliente');
         if (selC) selC.removeAttribute('disabled');
@@ -5182,7 +5189,24 @@
     // ================================================================
     // FECHAS Y PAGOS
     // ================================================================
+    function aplicarFechasPrefacturaExpo() {
+        if (!esFacturacionExpoDesdePrefactura || !fechaEmisionPrefacturaExpo || !fechaVencimientoPrefacturaExpo) {
+            return false;
+        }
+
+        var fechaEmision = document.getElementById('fecha_emision');
+        var fechaVencimiento = document.getElementById('fecha_vencimiento');
+        fechaEmision.value = fechaEmisionPrefacturaExpo;
+        fechaVencimiento.value = fechaVencimientoPrefacturaExpo;
+        fechaEmision.readOnly = true;
+        fechaVencimiento.readOnly = true;
+
+        return true;
+    }
+
     function validarFechaPago() {
+        if (aplicarFechasPrefacturaExpo()) return;
+
         let tipoPago = document.getElementById('tipoPagoVenta').value;
         if (tipoPago == 2) {
             document.getElementById('fecha_vencimiento').readOnly = modoEditarFactura;
@@ -5194,6 +5218,8 @@
     }
 
     function sumarDiasCredito() {
+        if (aplicarFechasPrefacturaExpo()) return;
+
         let tipoPago = document.getElementById('tipoPagoVenta').value;
         if (tipoPago == 2) {
             let fechaEmision = document.getElementById("fecha_emision").value;
@@ -6937,6 +6963,8 @@
                     vendedorNombre:{!! json_encode($vendedorDefault['name'] ?? '') !!},
                     flujoId:       {!! json_encode($flujoVinculadoId ?? null) !!},
                     diasCreditoAprobados: {!! json_encode($diasCreditoAprobados) !!},
+                    fechaEmisionPrefactura: {!! json_encode($esOfertaExpo && $prefacturaVinculada ? $prefacturaVinculada['fecha_emision'] : null) !!},
+                    fechaVencimientoPrefactura: {!! json_encode($esOfertaExpo && $prefacturaVinculada ? $prefacturaVinculada['fecha_vencimiento'] : null) !!},
                     numeroOrdenCompra: {!! json_encode($documentosComerciales['numero_orden_compra'] ?? null) !!},
                     archivoOrdenCompra: {!! json_encode($documentosComerciales['archivo_orden_compra'] ?? null) !!},
                     numeroFormaF01: {!! json_encode($documentosComerciales['numero_forma_f01'] ?? null) !!},
