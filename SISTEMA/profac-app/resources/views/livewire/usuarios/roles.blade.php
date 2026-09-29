@@ -716,7 +716,7 @@
     </div>
 
     <!-- Spinner Loading -->
-    <div class="modal fade" id="modalSpinnerLoading" tabindex="-1" role="dialog" data-backdrop="static" data-keyboard="false">
+    <div class="modal" id="modalSpinnerLoading" tabindex="-1" role="dialog" data-backdrop="static" data-keyboard="false">
         <div class="modal-dialog modal-dialog-centered modal-sm" role="document">
             <div class="modal-content border-0 shadow">
                 <div class="modal-body text-center py-4">
@@ -735,5 +735,5 @@
     <link href="{{ asset('css/plugins/dataTables/datatables.min.css') }}" rel="stylesheet">
     <script src="{{ asset('js/plugins/dataTables/datatables.min.js') }}"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="{{ asset('js/js_proyecto/roles/roles.js') }}"></script>
+    <script src="{{ asset('js/js_proyecto/roles/roles.js') }}?v={{ filemtime(public_path('js/js_proyecto/roles/roles.js')) }}"></script>
 @endpush
