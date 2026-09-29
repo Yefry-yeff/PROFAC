@@ -2839,8 +2839,10 @@ class ModalFlujoPedido extends Component
         }
 
         $for = ['autorizaciones@distribucionesvalencia.hn'];
-        Mail::send('email.solicitud-flujo', $viewData, function ($msj) use ($accionLabel, $for) {
-            $msj->from(env('MAIL_FROM_ADRESS'), 'Soporte Técnico Distribuciones Valencia');
+        // env('MAIL_FROM_ADRESS') (typo) devuelve null cuando la config está cacheada; usar config() con fallback.
+        $fromAddress = config('mail.from.address') ?: 'soporte_tecnico@distribucionesvalencia.hn';
+        Mail::send('email.solicitud-flujo', $viewData, function ($msj) use ($accionLabel, $for, $fromAddress) {
+            $msj->from($fromAddress, 'Soporte Técnico Distribuciones Valencia');
             $msj->subject('Solicitud de autorización – ' . $accionLabel);
             $msj->to($for);
         });

@@ -110,8 +110,10 @@ class SinRestriccionPrecio extends Component
         $subject = "Solicitud de autorización SR";
         $for = ['autorizaciones@distribucionesvalencia.hn'];
 
-        Mail::send('email/solicitud', $viewData, function($msj) use($subject,$for){
-            $msj->from(env('MAIL_FROM_ADRESS'),"Soporte Técnico Distribuciones Valencia ");
+        // env('MAIL_FROM_ADRESS') (typo) devuelve null cuando la config está cacheada; usar config() con fallback.
+        $fromAddress = config('mail.from.address') ?: 'soporte_tecnico@distribucionesvalencia.hn';
+        Mail::send('email/solicitud', $viewData, function($msj) use($subject,$for,$fromAddress){
+            $msj->from($fromAddress,"Soporte Técnico Distribuciones Valencia ");
             $msj->subject($subject);
             $msj->to($for);
         });
