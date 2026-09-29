@@ -6,6 +6,7 @@ use Livewire\Component;
 use App\Models\Logistica\EquipoEntrega;
 use App\Models\Logistica\EquipoEntregaAudit;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Http\Request;
 use DataTables;
 use Auth;
@@ -47,6 +48,46 @@ class EquiposEntrega extends Component
         ]);
     }
 
+    private function normalizarZonas(Request $request): array
+    {
+        $zonas = $request->input('zonas', []);
+        return is_string($zonas) ? (json_decode($zonas, true) ?: []) : (is_array($zonas) ? $zonas : []);
+    }
+
+    private function validarZonas(array $zonas): void
+    {
+        Validator::make(['zonas' => $zonas], [
+            'zonas' => 'required|array|min:1',
+            'zonas.*.zone_group_id' => 'required|integer|exists:zone_groups,id',
+            'zonas.*.volumen_minimo' => 'required|numeric|min:0',
+            'zonas.*.volumen_maximo' => 'required|numeric|min:0',
+            'zonas.*.monto_minimo_venta' => 'required|numeric|min:0',
+            'zonas.*.peso_maximo' => 'required|numeric|min:0',
+        ])->validate();
+
+        foreach ($zonas as $zona) {
+            if ((float) $zona['volumen_maximo'] < (float) $zona['volumen_minimo']) {
+                throw new \InvalidArgumentException('El volumen máximo no puede ser menor que el volumen mínimo.');
+            }
+        }
+    }
+
+    private function sincronizarZonas(int $equipoId, array $zonas): void
+    {
+        DB::table('equipos_entrega_zonas')->where('equipo_entrega_id', $equipoId)->delete();
+        foreach ($zonas as $zona) {
+            DB::table('equipos_entrega_zonas')->insert([
+                'equipo_entrega_id' => $equipoId,
+                'zone_group_id' => (int) $zona['zone_group_id'],
+                'volumen_minimo' => $zona['volumen_minimo'],
+                'volumen_maximo' => $zona['volumen_maximo'],
+                'monto_minimo_venta' => $zona['monto_minimo_venta'],
+                'peso_maximo' => $zona['peso_maximo'],
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+        }
+    }
+
     /**
      * Guardar nuevo equipo de entrega
      */
@@ -59,6 +100,8 @@ class EquiposEntrega extends Component
             ], [
                 'nombre_equipo.required' => 'El nombre del equipo es obligatorio',
             ]);
+            $zonas = $this->normalizarZonas($request);
+            $this->validarZonas($zonas);
 
             $equipo = EquipoEntrega::create([
                 'nombre_equipo' => trim($request->nombre_equipo),
@@ -66,10 +109,12 @@ class EquiposEntrega extends Component
                 'estado_id' => 1,
                 'users_id_creador' => Auth::id(),
             ]);
+            $this->sincronizarZonas($equipo->id, $zonas);
 
             $this->registrarAuditoria($equipo->id, 'CREATE', null, [
                 'nombre_equipo' => $equipo->nombre_equipo,
                 'descripcion' => $equipo->descripcion,
+                'zonas' => $zonas,
             ]);
 
             return response()->json([
@@ -165,7 +210,10 @@ class EquiposEntrega extends Component
                     'id' => $equipo->id,
                     'nombre_equipo' => $equipo->nombre_equipo,
                     'descripcion' => $equipo->descripcion,
-                ]
+                ],
+                'zonas' => DB::table('equipos_entrega_zonas as ez')
+                    ->where('ez.equipo_entrega_id', $equipoId)
+                    ->get(['zone_group_id', 'volumen_minimo', 'volumen_maximo', 'monto_minimo_venta', 'peso_maximo'])
             ], 200);
 
         } catch (\Exception $e) {
@@ -175,6 +223,13 @@ class EquiposEntrega extends Component
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    public function listarZonasActivas()
+    {
+        return response()->json([
+            'zonas' => DB::table('zone_groups')->where('status', 1)->orderBy('orden')->orderBy('name')->get(['id', 'name']),
+        ]);
     }
 
     /**
@@ -190,19 +245,24 @@ class EquiposEntrega extends Component
             ], [
                 'nombre_equipo.required' => 'El nombre del equipo es obligatorio',
             ]);
+            $zonas = $this->normalizarZonas($request);
+            $this->validarZonas($zonas);
 
             $equipo = EquipoEntrega::findOrFail($request->equipo_id);
             $oldData = [
                 'nombre_equipo' => $equipo->nombre_equipo,
                 'descripcion' => $equipo->descripcion,
+                'zonas' => DB::table('equipos_entrega_zonas')->where('equipo_entrega_id', $equipo->id)->get()->toArray(),
             ];
             $equipo->nombre_equipo = $request->nombre_equipo;
             $equipo->descripcion = $request->descripcion;
             $equipo->save();
+            $this->sincronizarZonas($equipo->id, $zonas);
 
             $this->registrarAuditoria($equipo->id, 'UPDATE', $oldData, [
                 'nombre_equipo' => $equipo->nombre_equipo,
                 'descripcion' => $equipo->descripcion,
+                'zonas' => $zonas,
             ]);
 
             return response()->json([

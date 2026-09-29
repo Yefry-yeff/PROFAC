@@ -1512,6 +1512,7 @@ Route::post('/reporte/ventas-cobros/actualizar-f01/{facturaId}',                
     Route::get('/logistica/equipos', EquiposEntrega::class);
     Route::get('/logistica/equipos/listar', [EquiposEntrega::class, 'listarEquipos'])->name('logistica.equipos.listar');
     Route::post('/logistica/equipos/guardar', [EquiposEntrega::class, 'guardarEquipo'])->name('logistica.equipos.guardar');
+    Route::get('/logistica/equipos/zonas', [EquiposEntrega::class, 'listarZonasActivas'])->name('logistica.equipos.zonas');
     Route::get('/logistica/equipos/obtener/{equipoId}', [EquiposEntrega::class, 'obtenerEquipo']);
     Route::post('/logistica/equipos/actualizar', [EquiposEntrega::class, 'actualizarEquipo']);
     Route::post('/logistica/equipos/desactivar/{equipoId}', [EquiposEntrega::class, 'desactivarEquipo']);

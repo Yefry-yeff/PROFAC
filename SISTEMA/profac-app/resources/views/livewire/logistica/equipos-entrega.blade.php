@@ -90,9 +90,7 @@
             background: #f8fafc;
         }
 
-        .eq-page .eq-modal .modal-dialog {
-            max-width: 640px;
-        }
+        .eq-page .eq-modal .modal-dialog { max-width: 980px !important; width: calc(100% - 2rem) !important; }
 
         .eq-page .eq-modal .modal-header {
             border-bottom: 1px solid var(--eq-border);
@@ -131,6 +129,14 @@
         .eq-page .eq-section-title i {
             color: var(--eq-primary);
         }
+        .eq-page .eq-zone-table-wrap { border:1px solid #e2e8f0; border-radius:10px; overflow:hidden; }
+        .eq-page .eq-zone-table { width:100%; table-layout:fixed; margin:0; }
+        .eq-page .eq-zone-table th:first-child { width:18%; }
+        .eq-page .eq-zone-table th:not(:first-child) { width:20.5%; }
+        .eq-page .eq-zone-table thead th { background:#f1f5f9; color:#475569; border:0; font-size:.68rem; text-transform:uppercase; letter-spacing:.03em; white-space:nowrap; }
+        .eq-page .eq-zone-table tbody th { color:#0f766e; font-size:.78rem; white-space:nowrap; background:#f8fafc; }
+        .eq-page .eq-zone-table td, .eq-page .eq-zone-table th { vertical-align:middle; padding:.5rem; }
+        .eq-page .eq-zone-table .form-control { width:100%; min-width:0; font-size:.78rem; padding:.35rem .5rem; text-align:right; }
 
         .eq-page .form-control,
         .eq-page .custom-select {
@@ -434,6 +440,10 @@
                                 </div>
                             </div>
                         </div>
+                        <div class="eq-section">
+                            <div class="eq-section-title"><i class="fas fa-map-marked-alt"></i>Parámetros por zona</div>
+                            <div class="eq-zone-grid" id="zonasEquipoNuevo"><div class="text-muted small">Cargando zonas...</div></div>
+                        </div>
                     </form>
                 </div>
                 <div class="modal-footer">
@@ -472,6 +482,10 @@
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                        <div class="eq-section">
+                            <div class="eq-section-title"><i class="fas fa-map-marked-alt"></i>Parámetros por zona</div>
+                            <div class="eq-zone-grid" id="zonasEquipoEditar"><div class="text-muted small">Cargando zonas...</div></div>
                         </div>
                     </form>
                 </div>
@@ -540,7 +554,48 @@ function ocultarLoaderPantalla() {
 function abrirModalNuevoEquipo() {
     $('#formNuevoEquipo')[0].reset();
     $('#inputNombreEquipoNuevo').removeClass('is-invalid');
+    cargarZonasEquipo('#zonasEquipoNuevo', []);
     $('#modalNuevoEquipo').modal('show');
+}
+
+function cargarZonasEquipo(selector, valores) {
+    $.get("{{ route('logistica.equipos.zonas') }}", function(response) {
+        var existentes = {};
+        (valores || []).forEach(function(item) { existentes[String(item.zone_group_id)] = item; });
+        var html = '<div class="eq-zone-table-wrap"><table class="table table-sm eq-zone-table"><thead><tr><th>Zona</th><th>Vol. mín.</th><th>Vol. máx.</th><th>Venta mín.</th><th>Peso máx.</th></tr></thead><tbody>';
+        (response.zonas || []).forEach(function(zona) {
+            var item = existentes[String(zona.id)] || {};
+            html += '<tr><th><i class="fas fa-map-marker-alt mr-1"></i>' + zona.name + '</th>' +
+                ['volumen_minimo', 'volumen_maximo', 'monto_minimo_venta', 'peso_maximo'].map(function(campo) {
+                    return '<td><input class="form-control zona-parametro" data-zone="' + zona.id + '" data-field="' + campo + '" type="text" inputmode="decimal" value="' + formatearNumeroEquipo(item[campo] || 0) + '"></td>';
+                }).join('') + '</tr>';
+        });
+        html += '</tbody></table></div>';
+        $(selector).html(html || '<div class="text-muted small">No hay zonas activas configuradas.</div>');
+        $(selector + ' .zona-parametro').on('input', function() { this.value = formatearNumeroEquipo(this.value); });
+    });
+}
+
+function formatearNumeroEquipo(valor) {
+    var limpio = String(valor ?? '').replace(/,/g, '').replace(/[^0-9.]/g, '');
+    var partes = limpio.split('.');
+    var entero = (partes.shift() || '0').replace(/^0+(?=\d)/, '');
+    var decimal = partes.join('').slice(0, 2);
+    return entero.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (limpio.indexOf('.') >= 0 ? '.' + decimal : '');
+}
+
+function numeroEquipoParaEnviar(valor) {
+    return String(valor ?? '').replace(/,/g, '') || '0';
+}
+
+function obtenerZonasFormulario(selector) {
+    var zonas = {};
+    $(selector + ' .zona-parametro').each(function() {
+        var zone = String($(this).data('zone'));
+        if (!zonas[zone]) zonas[zone] = {zone_group_id: Number(zone)};
+        zonas[zone][$(this).data('field')] = numeroEquipoParaEnviar($(this).val());
+    });
+    return Object.keys(zonas).map(function(zone) { return zonas[zone]; });
 }
 
 function guardarEquipo() {
@@ -553,6 +608,7 @@ function guardarEquipo() {
     $('#inputNombreEquipoNuevo').removeClass('is-invalid');
 
     const fd = new FormData($('#formNuevoEquipo')[0]);
+    fd.append('zonas', JSON.stringify(obtenerZonasFormulario('#zonasEquipoNuevo')));
     $.ajax({
         url: "{{ route('logistica.equipos.guardar') }}",
         type: 'POST',
@@ -644,6 +700,7 @@ function editarEquipo(id) {
             $('#editEquipoId').val(r.equipo.id);
             $('#editNombreEquipo').val(r.equipo.nombre_equipo);
             $('#editDescripcion').val(r.equipo.descripcion);
+            cargarZonasEquipo('#zonasEquipoEditar', r.zonas || []);
             $('#modalEditarEquipo').modal('show');
         }
     }).fail(() => Swal.fire({title: 'Error', text: 'No se pudo cargar el equipo', icon: 'error', customClass: {container: 'swal-over-modal'}}));
@@ -660,6 +717,7 @@ function actualizarEquipo() {
 
     const fd = new FormData($('#formEditarEquipo')[0]);
     fd.append('_token', $('meta[name="csrf-token"]').attr('content'));
+    fd.append('zonas', JSON.stringify(obtenerZonasFormulario('#zonasEquipoEditar')));
     $.ajax({
         url: "{{ url('/logistica/equipos/actualizar') }}",
         method: 'POST',

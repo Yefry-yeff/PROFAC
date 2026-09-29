@@ -55,7 +55,9 @@ class DistribucionEntrega extends Component
     {
         $equipos = EquipoEntrega::activos()->get();
         $personalDisponible = $this->obtenerPersonalDisponible();
-        return view('livewire.logistica.nueva-distribucion', compact('equipos', 'personalDisponible'));
+        $parametrosEquipoZona = DB::table('equipos_entrega_zonas')->get();
+        $zonasIniciales = DB::table('zone_groups')->where('status', 1)->orderBy('orden')->orderBy('name')->get(['id', 'name']);
+        return view('livewire.logistica.nueva-distribucion', compact('equipos', 'personalDisponible', 'parametrosEquipoZona', 'zonasIniciales'));
     }
 
     /**

@@ -118,8 +118,17 @@
                             <!-- Búsqueda por Zona Geográfica -->
                             <div class="tab-pane fade show active" id="busqueda-zona" role="tabpanel">
                                 <div id="zonasCardsWrap" class="row">
-                                    <div class="col-12 text-center text-muted py-3">
-                                        <i class="fas fa-spinner fa-spin"></i> Cargando zonas...
+                                    @foreach($zonasIniciales as $zona)
+                                    <div class="col-md-4 col-lg-3 mb-3">
+                                        <div class="card h-100 shadow-sm zona-card" style="cursor:pointer;" onclick="verFacturasDeZona('{{ $zona->id }}', '{{ addslashes($zona->name) }}')">
+                                            <div class="card-body text-center"><i class="fas fa-map-marker-alt fa-2x text-primary mb-2"></i><h6 class="mb-1">{{ $zona->name }}</h6><span class="badge badge-secondary">Cargando...</span></div>
+                                        </div>
+                                    </div>
+                                    @endforeach
+                                    <div class="col-md-4 col-lg-3 mb-3">
+                                        <div class="card h-100 shadow-sm zona-card border-secondary" style="cursor:pointer;" onclick="verFacturasDeZona('sin_clasificar', 'Sin clasificar')">
+                                            <div class="card-body text-center"><i class="fas fa-question-circle fa-2x text-secondary mb-2"></i><h6 class="mb-1">Sin clasificar</h6><span class="badge badge-secondary">Cargando...</span></div>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -256,6 +265,10 @@
                                     <small class="text-muted">Productos</small>
                                 </div>
                             </div>
+                        </div>
+                        <div id="resumenVentaMaxima" class="p-2 mb-3 border rounded" style="display:none;background:#f8fafc;">
+                            <div class="d-flex justify-content-between align-items-center mb-1"><strong><i class="fas fa-chart-line text-primary mr-1"></i>Meta de venta</strong><span id="ventaMaximaZonaTexto" class="small text-muted"></span></div>
+                            <div class="row text-center small"><div class="col-4"><span class="text-muted d-block">Venta requerida</span><strong id="ventaMaximaPermitida">0.00</strong></div><div class="col-4"><span class="text-muted d-block">Seleccionado</span><strong id="ventaTotalSeleccionado">0.00</strong></div><div class="col-4"><span class="text-muted d-block">Falta</span><strong id="ventaFaltante">0.00</strong></div></div>
                         </div>
                         <button type="button" class="btn btn-success btn-block btn-lg" onclick="guardarDistribucion()">
                             <i class="fas fa-save"></i> Guardar Distribución
@@ -454,6 +467,7 @@
 
 <script>
 // Variables y funciones globales (accesibles desde onclick)
+const parametrosEquipoZona = @json($parametrosEquipoZona);
 let facturasSelTmp = [];
 let clienteSeleccionado = null;
 let personalPorcentajes = {}; // { user_id: porcentaje }
@@ -556,6 +570,23 @@ function limpiarClienteSeleccionado() {
 
 let zonaSeleccionada = null;
 
+function actualizarResumenVentaMaxima() {
+    const equipoId = String($('select[name="equipo_entrega_id"]').val() || '');
+    const zonaId = zonaSeleccionada ? String(zonaSeleccionada.id) : '';
+    const parametro = parametrosEquipoZona.find(item => String(item.equipo_entrega_id) === equipoId && String(item.zone_group_id) === zonaId);
+    const total = facturasSelTmp.reduce((sum, factura) => sum + (parseFloat(factura.total) || 0), 0);
+    const $resumen = $('#resumenVentaMaxima');
+    if (!parametro) { $resumen.hide(); return; }
+    const maximo = parseFloat(parametro.monto_minimo_venta || 0) || 0;
+    const faltante = maximo - total;
+    $('#ventaMaximaZonaTexto').text(zonaSeleccionada.nombre);
+    $('#ventaMaximaPermitida').text(maximo.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}));
+    $('#ventaTotalSeleccionado').text(total.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}));
+    $('#ventaFaltante').text(Math.abs(faltante).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) + (faltante < 0 ? ' (excede)' : ''))
+        .toggleClass('text-danger', faltante < 0).toggleClass('text-warning', faltante >= 0);
+    $resumen.show();
+}
+
 function cargarZonasParaBusqueda() {
     $.get("{{ route('logistica.zonas.resumen') }}", function (data) {
         if (!data.success) {
@@ -605,12 +636,15 @@ function limpiarZonaSeleccionada() {
     $('#facturasZonaSeleccionada').hide();
     $('#listaFacturasZona').html('');
     $('#nombreZonaSeleccionada').text('');
+    actualizarResumenVentaMaxima();
 }
 
 function verFacturasDeZona(zonaId, nombreZona) {
     zonaSeleccionada = { id: zonaId, nombre: nombreZona };
+    ventaMaximaAdvertida = false;
     $('#nombreZonaSeleccionada').text(nombreZona);
     $('#facturasZonaSeleccionada').show();
+    actualizarResumenVentaMaxima();
     $('#busquedaZonaTermino').val('');
     cargarFacturasDeZona('');
 }
@@ -1172,6 +1206,7 @@ function actualizarPreviewFacturas() {
         totalProductos += parseInt(f.cantidadProductos || 0);
     });
     $('#totalProductosDistribuir').text(totalProductos);
+    actualizarResumenVentaMaxima();
     
     if (total === 0) {
         $('#mensajeVacioPreview').show();
@@ -1217,9 +1252,11 @@ function removerFactura(index) {
 }
 
 let guardandoDistribucion = false;
+let ventaMaximaAdvertida = false;
+let ventaMaximaConfirmando = false;
 
 function guardarDistribucion() {
-    if (guardandoDistribucion) return;
+    if (guardandoDistribucion || ventaMaximaConfirmando) return;
 
     if (!facturasSelTmp.length) {
         Swal.fire({
@@ -1290,6 +1327,28 @@ function guardarDistribucion() {
         facturas: facturasSelTmp.map(f => f.id),
         editar_id: $('#editarDistribucionId').val() || null,
     };
+
+    const equipoZona = parametrosEquipoZona.find(item => String(item.equipo_entrega_id) === String(equipoId) && zonaSeleccionada && String(item.zone_group_id) === String(zonaSeleccionada.id));
+    const ventaRequerida = equipoZona ? (parseFloat(equipoZona.monto_minimo_venta) || 0) : 0;
+    const ventaSeleccionada = facturasSelTmp.reduce((sum, factura) => sum + (parseFloat(factura.total) || 0), 0);
+    const ventaFaltante = ventaRequerida - ventaSeleccionada;
+    if (ventaFaltante > 0.005 && !ventaMaximaAdvertida) {
+        ventaMaximaConfirmando = true;
+        Swal.fire({
+            icon: 'info',
+            title: 'Meta de venta pendiente',
+            text: `Al equipo le faltan L ${ventaFaltante.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})} de venta para cumplir con la meta de la zona. ¿Desea continuar?`,
+            showCancelButton: true,
+            confirmButtonText: 'Sí, continuar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#0f766e'
+        }).then(function(resultado) {
+            ventaMaximaConfirmando = false;
+            if (resultado.isConfirmed) { ventaMaximaAdvertida = true; guardarDistribucion(); }
+        });
+        return;
+    }
+    ventaMaximaAdvertida = false;
     
     console.log('Datos a enviar:', data);
 
@@ -1697,6 +1756,19 @@ function mostrarFacturasCliente(facturas, nombreCliente) {
     });
     $('#listaFacturasCliente').html(html);
 }
+
+$(document).on('change', 'select[name="equipo_entrega_id"]', actualizarResumenVentaMaxima);
+$(document).on('change', 'select[name="equipo_entrega_id"]', function() { ventaMaximaAdvertida = false; });
+
+if ($('#zonasCardsWrap').length) {
+    cargarZonasParaBusqueda();
+}
+let intentosCargaZonas = 0;
+const sincronizadorZonas = setInterval(function() {
+    const pendientes = $('#zonasCardsWrap .badge-secondary').filter(function() { return $(this).text().indexOf('Cargando') !== -1; }).length;
+    if (!pendientes || intentosCargaZonas++ >= 12) { clearInterval(sincronizadorZonas); return; }
+    cargarZonasParaBusqueda();
+}, 700);
 
 }); // END DOMContentLoaded
 </script>
