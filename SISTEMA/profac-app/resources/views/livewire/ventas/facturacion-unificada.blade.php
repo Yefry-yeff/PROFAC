@@ -54,14 +54,18 @@
             margin-bottom: 4px; display: block;
         }
         .ofr-label .req { color: #e53935; margin-left: 2px; }
-        .oferta-direcciones-lista { max-height: 235px; overflow-y: auto; padding: 2px; }
-        .oferta-direccion-opcion { border: 1px solid #d9e2e7; border-radius: 7px; padding: 8px 10px; margin-bottom: 6px; cursor: pointer; background: #fff; transition: border-color .15s, background .15s, box-shadow .15s; }
+        .oferta-direcciones-lista { max-height: 280px; overflow-y: auto; overflow-x: hidden; padding: 2px; }
+        .oferta-direccion-opcion { display:block; width:100%; max-width:100%; box-sizing:border-box; overflow:hidden; border: 1px solid #d9e2e7; border-radius: 7px; padding: 8px 10px; margin-bottom: 6px; cursor: pointer; background: #fff; transition: border-color .15s, background .15s, box-shadow .15s; }
         .oferta-direccion-opcion:hover { border-color: #26a69a; background: #f4fbfa; }
         .oferta-direccion-opcion.seleccionada { border-color: #26a69a; background: #e8f5e9; box-shadow: 0 0 0 1px #26a69a; }
         .oferta-direccion-opcion .direccion-etiqueta { color: #1565c0; font-size: .78rem; font-weight: 700; }
         .oferta-direccion-opcion.seleccionada .direccion-etiqueta { color: #16835b; }
         .oferta-direccion-opcion .direccion-ubicacion { color: #78909c; font-size: .69rem; margin-top: 1px; }
-        .oferta-direccion-opcion .direccion-texto { color: #37474f; font-size: .76rem; margin-top: 3px; }
+        .oferta-direccion-opcion .direccion-texto { color: #37474f; font-size: .76rem; line-height:1.35; margin-top: 3px; white-space:normal; overflow-wrap:anywhere; word-break:break-word; max-width:100%; }
+        .oferta-direccion-opcion .direccion-ubicacion { white-space:normal; overflow-wrap:anywhere; word-break:break-word; }
+        #modal_envio_oferta .modal-dialog { max-width:700px; width:calc(100% - 1rem); }
+        #modal_envio_oferta .modal-content { overflow:hidden; }
+        @media (max-width:575px) { #modal_envio_oferta .modal-dialog { width:calc(100% - 1rem); margin:.5rem auto; } }
         .oferta-nueva-direccion-header { background: linear-gradient(135deg,#1565c0,#42a5f5); border:none; padding:14px 20px; color:#fff; }
         .oferta-nueva-direccion-header .modal-title { color:#fff; font-size:16px; font-weight:700; }
         .oferta-nueva-direccion-section { color:#1565c0; border-bottom:1px solid #dce7ef; padding-bottom:6px; margin-bottom:12px; font-size:11px; font-weight:700; letter-spacing:.45px; text-transform:uppercase; }
@@ -1350,7 +1354,7 @@
         {{-- MODAL: Envío de la oferta --}}
         @if(($config->codigo ?? '') === 'cotizacion_clientes_a')
             <div class="modal fade" id="modal_envio_oferta" data-backdrop="static" tabindex="-1" role="dialog" aria-hidden="true">
-                <div class="modal-dialog modal-dialog-centered" role="document">
+                <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
                     <div class="modal-content">
                         <div class="modal-header" style="background:linear-gradient(135deg,#1565c0,#42a5f5); border:none; padding:14px 20px;">
                             <h3 class="modal-title" style="color:#fff; font-size:16px; font-weight:700; margin:0;">
@@ -6278,12 +6282,30 @@
         ofertaNuevaDireccionMapa.setView([latitud, longitud], Math.max(ofertaNuevaDireccionMapa.getZoom(), 15));
     }
 
+    function geocodificarNuevaDireccion() {
+        if (!ofertaNuevaDireccionMapa) return;
+        var partes = [
+            $('#oferta_nueva_direccion').val(),
+            $('#oferta_nuevo_municipio option:selected').text(),
+            $('#oferta_nuevo_departamento option:selected').text(),
+            $('#oferta_nuevo_pais option:selected').text()
+        ].filter(function (parte) { return parte && parte.indexOf('Seleccionar') === -1; });
+        if (!partes.length) return;
+        fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=' + encodeURIComponent(partes.join(', ')), { headers: { 'Accept-Language': 'es' } })
+            .then(function (response) { return response.json(); })
+            .then(function (resultados) {
+                if (!resultados.length) return;
+                fijarCoordenadasNuevaDireccion(parseFloat(resultados[0].lat), parseFloat(resultados[0].lon));
+            }).catch(function () {});
+    }
+
     $(document).on('change', '#oferta_nuevo_pais', function() {
         $('#oferta_nuevo_departamento').html('<option value="">-- Seleccionar departamento --</option>');
         $('#oferta_nuevo_municipio').html('<option value="">-- Seleccionar municipio --</option>');
         if (!this.value) return;
         $.post('/cliente/departamento', { id: this.value }).done(function(data) {
             (data.listaDeptos || []).forEach(function(item) { $('#oferta_nuevo_departamento').append(new Option(item.nombre, item.id)); });
+            geocodificarNuevaDireccion();
         });
     });
     $(document).on('change', '#oferta_nuevo_departamento', function() {
@@ -6291,8 +6313,10 @@
         if (!this.value) return;
         $.post('/cliente/municipio', { id: this.value }).done(function(data) {
             (data.listaMunicipios || []).forEach(function(item) { $('#oferta_nuevo_municipio').append(new Option(item.nombre, item.id)); });
+            geocodificarNuevaDireccion();
         });
     });
+    $(document).on('blur', '#oferta_nueva_direccion', geocodificarNuevaDireccion);
     $(document).on('click', '#btn_guardar_nueva_direccion', function() {
         var clienteId = $('#seleccionarCliente').val() || '';
         var payload = {
@@ -6311,8 +6335,12 @@
         var boton = $(this).prop('disabled', true);
         $.post('/clientes/' + clienteId + '/direcciones', payload)
             .done(function() {
+                $('#modal_nueva_direccion_oferta').one('hidden.bs.modal', function() {
+                    $('.modal-backdrop').remove();
+                    $('body').addClass('modal-open');
+                    mostrarModalEnvioOferta();
+                });
                 $('#modal_nueva_direccion_oferta').modal('hide');
-                setTimeout(mostrarModalEnvioOferta, 250);
             }).fail(function(xhr) {
                 Swal.fire({ icon: 'error', title: 'No se pudo guardar', text: (xhr.responseJSON && xhr.responseJSON.message) || 'Intente nuevamente.' });
             }).always(function() { boton.prop('disabled', false); });
