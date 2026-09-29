@@ -54,6 +54,14 @@
             margin-bottom: 4px; display: block;
         }
         .ofr-label .req { color: #e53935; margin-left: 2px; }
+        .oferta-direcciones-lista { max-height: 235px; overflow-y: auto; padding: 2px; }
+        .oferta-direccion-opcion { border: 1px solid #d9e2e7; border-radius: 7px; padding: 8px 10px; margin-bottom: 6px; cursor: pointer; background: #fff; transition: border-color .15s, background .15s, box-shadow .15s; }
+        .oferta-direccion-opcion:hover { border-color: #26a69a; background: #f4fbfa; }
+        .oferta-direccion-opcion.seleccionada { border-color: #26a69a; background: #e8f5e9; box-shadow: 0 0 0 1px #26a69a; }
+        .oferta-direccion-opcion .direccion-etiqueta { color: #1565c0; font-size: .78rem; font-weight: 700; }
+        .oferta-direccion-opcion.seleccionada .direccion-etiqueta { color: #16835b; }
+        .oferta-direccion-opcion .direccion-ubicacion { color: #78909c; font-size: .69rem; margin-top: 1px; }
+        .oferta-direccion-opcion .direccion-texto { color: #37474f; font-size: .76rem; margin-top: 3px; }
         .form-control.ofr-input {
             border-radius: 8px !important; border: 1px solid #cfd8dc !important; font-size: 13px !important;
         }
@@ -1347,16 +1355,11 @@
                                     <option value="">-- Seleccionar tele asesor --</option>
                                 </select>
                             </div>
-                            <div class="form-group">
-                                <label class="ofr-label">Zona <span class="req">*</span></label>
-                                <select id="zona_oferta_modal" class="form-control form-control-sm" style="width:100%;">
-                                    <option value="">-- Seleccionar zona --</option>
-                                </select>
-                            </div>
                             <div class="form-group mb-0">
-                                <label class="ofr-label">Dirección</label>
-                                <textarea id="direccion_oferta_modal" class="form-control form-control-sm" rows="2"
-                                    placeholder="Dirección de entrega (opcional)"></textarea>
+                                <label class="ofr-label">Dirección de entrega <span class="req">*</span></label>
+                                <div id="direcciones_oferta_modal" class="oferta-direcciones-lista">
+                                    <div class="text-muted small text-center py-2">Cargando direcciones del cliente...</div>
+                                </div>
                             </div>
                         </div>
                         <div class="modal-footer">
@@ -6148,29 +6151,26 @@
                 allowClear: false
             });
         }
-        if (!$('#zona_oferta_modal').hasClass('select2-hidden-accessible')) {
-            $('#zona_oferta_modal').select2({
-                dropdownParent: $('#modal_envio_oferta'),
-                placeholder: '-- Seleccionar zona --',
-                allowClear: false
-            });
-        }
         var clienteId = $('#seleccionarCliente').val() || '';
         var teleHidden = document.getElementById('tele_asesor_hidden');
         var teleIdActual = teleHidden ? teleHidden.value : '';
-        var zonaHidden = document.getElementById('zone_group_id_hidden');
         var direccionHidden = document.getElementById('direccion_entrega_hidden');
         $('#tele_asesor_oferta_modal').empty().append(new Option('-- Seleccionar tele asesor --', ''));
-        $('#direccion_oferta_modal').val(direccionHidden ? direccionHidden.value : '');
+        $('#direcciones_oferta_modal').html('<div class="text-muted small text-center py-2">Cargando direcciones del cliente...</div>');
         $('#btn_confirmar_envio_oferta').prop('disabled', true);
-        var cargaZonas = $.get('/logistica/zonas/activas').done(function(data) {
-            var zonaActual = zonaHidden ? zonaHidden.value : '';
-            var opciones = '<option value="">-- Seleccionar zona --</option>';
-            (data.zonas || []).forEach(function(zona) {
-                var seleccionado = String(zona.id) === String(zonaActual) ? 'selected' : '';
-                opciones += '<option value="' + zona.id + '" ' + seleccionado + '>' + zona.name + '</option>';
+        var cargaDirecciones = $.get('/clientes/form/datos/' + clienteId).done(function(data) {
+            var direcciones = data.direcciones || [];
+            var direccionActual = direccionHidden ? direccionHidden.value : '';
+            var html = '';
+            direcciones.forEach(function(direccion, index) {
+                var seleccionada = direccionActual && direccionActual === direccion.direccion;
+                if (!direccionActual && (direccion.principal || index === 0)) seleccionada = true;
+                html += '<div class="oferta-direccion-opcion ' + (seleccionada ? 'seleccionada' : '') + '" data-direccion="' + ofertaEscapar(direccion.direccion) + '">' +
+                    '<div class="direccion-etiqueta"><i class="fa fa-map-marker mr-1"></i>' + ofertaEscapar(direccion.etiqueta || 'Sin etiqueta') + '</div>' +
+                    '<div class="direccion-ubicacion">' + ofertaEscapar([direccion.departamento_nombre, direccion.municipio_nombre].filter(Boolean).join(' · ')) + '</div>' +
+                    '<div class="direccion-texto">' + ofertaEscapar(direccion.direccion) + '</div></div>';
             });
-            $('#zona_oferta_modal').html(opciones).trigger('change');
+            $('#direcciones_oferta_modal').html(html || '<div class="text-muted small text-center py-2">El cliente no tiene direcciones registradas.</div>');
         });
         var cargaTeleasesores = $.get('/cotizacion/actores-asignados', { cliente_id: clienteId, rol_id: 3 }).done(function(data) {
             var teleasesores = data.results || [];
@@ -6187,29 +6187,38 @@
             });
             $('#tele_asesor_oferta_modal').trigger('change');
         });
-        $.when(cargaZonas, cargaTeleasesores).always(function() {
+        $.when(cargaDirecciones, cargaTeleasesores).always(function() {
             $('#btn_confirmar_envio_oferta').prop('disabled', false);
         });
         $('#modal_envio_oferta').modal('show');
     }
 
+    function ofertaEscapar(texto) {
+        return $('<div>').text(texto || '').html();
+    }
+
+    $(document).on('click', '.oferta-direccion-opcion', function() {
+        $('.oferta-direccion-opcion').removeClass('seleccionada');
+        $(this).addClass('seleccionada');
+    });
+
     $(document).on('click', '#btn_confirmar_envio_oferta', function() {
         var teleId = $('#tele_asesor_oferta_modal').val() || '';
-        var zonaId = $('#zona_oferta_modal').val() || '';
+        var direccionSeleccionada = $('.oferta-direccion-opcion.seleccionada').data('direccion') || '';
         if (!teleId) {
             Swal.fire({ icon: 'warning', title: 'Tele asesor requerido', text: 'Debe seleccionar un tele asesor para la oferta.', customClass: { container: 'swal-sobre-modal' } });
             return;
         }
-        if (!zonaId) {
-            Swal.fire({ icon: 'warning', title: 'Zona requerida', text: 'Debe seleccionar una zona para la oferta.', customClass: { container: 'swal-sobre-modal' } });
+        if (!direccionSeleccionada) {
+            Swal.fire({ icon: 'warning', title: 'Dirección requerida', text: 'Debe seleccionar una dirección de entrega para la oferta.', customClass: { container: 'swal-sobre-modal' } });
             return;
         }
         var teleHidden = document.getElementById('tele_asesor_hidden');
         var zonaHidden = document.getElementById('zone_group_id_hidden');
         var direccionHidden = document.getElementById('direccion_entrega_hidden');
         if (teleHidden) teleHidden.value = teleId;
-        if (zonaHidden) zonaHidden.value = zonaId;
-        if (direccionHidden) direccionHidden.value = $('#direccion_oferta_modal').val() || '';
+        if (zonaHidden) zonaHidden.value = '';
+        if (direccionHidden) direccionHidden.value = direccionSeleccionada;
         ofertaEnvioConfirmado = true;
         $('#modal_envio_oferta').one('hidden.bs.modal', function() {
             document.body.focus();

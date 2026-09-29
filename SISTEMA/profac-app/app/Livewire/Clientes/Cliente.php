@@ -1114,11 +1114,15 @@ class Cliente extends Component
                 $ubicacion = (object)['idPais' => null, 'idDepto' => null, 'idMunicipio' => null];
             }
 
-            $direcciones = DB::table('cliente_direccion')
-                ->where('cliente_id', $id)
-                ->where('activo', 1)
-                ->orderByDesc('principal')
-                ->orderBy('id')
+            $direcciones = DB::table('cliente_direccion as cd')
+                ->leftJoin('pais as p', 'p.id', '=', 'cd.pais_id')
+                ->leftJoin('departamento as d', 'd.id', '=', 'cd.departamento_id')
+                ->leftJoin('municipio as m', 'm.id', '=', 'cd.municipio_id')
+                ->where('cd.cliente_id', $id)
+                ->where('cd.activo', 1)
+                ->orderByDesc('cd.principal')
+                ->orderBy('cd.id')
+                ->select('cd.*', 'p.nombre as pais_nombre', 'd.nombre as departamento_nombre', 'm.nombre as municipio_nombre')
                 ->get()
                 ->map(fn ($direccion) => (array) $direccion)
                 ->values()
@@ -1136,6 +1140,9 @@ class Cliente extends Component
                     'longitud' => $datosCliente->longitud,
                     'principal' => 1,
                     'activo' => 1,
+                    'pais_nombre' => null,
+                    'departamento_nombre' => null,
+                    'municipio_nombre' => null,
                 ]];
             }
 
