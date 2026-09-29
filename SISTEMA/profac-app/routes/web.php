@@ -59,7 +59,7 @@ use App\Livewire\Ventas\LitsadoFacturasEstatalVendedor;
 use App\Livewire\VentasExoneradas\VentasExoneradas;
 use App\Livewire\VentasExoneradas\ListadoFacturasExonerads;
 use App\Livewire\Cotizaciones\Cotizacion;
-use App\Livewire\Cotizaciones\Expo;
+use App\Livewire\Cotizaciones\expo;
 use App\Livewire\Reportes\Expo as expoCotiza;
 use App\Livewire\Cotizaciones\Editarcotizacion;
 use App\Livewire\Cotizaciones\ListarCotizaciones;
