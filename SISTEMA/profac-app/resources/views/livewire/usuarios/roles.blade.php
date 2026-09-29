@@ -237,6 +237,27 @@
 .rpt-chip:hover { background: #fde8b0; }
 #reporteAccesosBuscar:focus { border-color: #e67e22; box-shadow: 0 0 0 .18rem rgba(230,126,34,.2); }
 
+/* -- Selector de permisos -- */
+.permisos-toolbar { background: #fffaf4; border: 1px solid #e8d5bf; border-radius: 7px; padding: 7px 9px; }
+.permisos-toolbar .input-group-text { background: #fff; color: var(--pf-orange); border-color: #e0cbb0; }
+.permisos-toolbar .form-control { border-color: #e0cbb0; }
+.permisos-toolbar .form-control:focus { border-color: var(--pf-orange); box-shadow: 0 0 0 .15rem rgba(230,126,34,.18); }
+.permisos-resumen { color: #7d3f00; font-size: .78rem; font-weight: 700; white-space: nowrap; }
+.permisos-grupos { max-height: 285px; overflow-y: auto; padding-right: 2px; }
+.permiso-grupo { background: #fff; border: 1px solid #e8d5bf; border-radius: 6px; margin-bottom: 6px; overflow: hidden; }
+.permiso-grupo-header { background: #fdf4e7; border-bottom: 1px solid #e8d5bf; color: #7d3f00; padding: 5px 9px; }
+.permiso-grupo-header .custom-control-label { font-size: .78rem; font-weight: 700; }
+.permiso-grupo-body { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px 10px; padding: 6px 9px; }
+.permiso-item { min-width: 0; }
+.permiso-item .custom-control-label { display: block; color: #555; font-size: .78rem; overflow-wrap: anywhere; }
+.permiso-item .custom-control-input:checked ~ .custom-control-label { color: #7d3f00; font-weight: 600; }
+.permiso-grupo-actions { float: right; font-size: .68rem; font-weight: 600; }
+.permiso-grupo-actions button { background: none; border: 0; color: var(--pf-orange); cursor: pointer; padding: 0 3px; }
+.permiso-grupo-actions button:hover { color: #c04e00; text-decoration: underline; }
+@media (max-width: 575px) { .permiso-grupo-body { grid-template-columns: 1fr; } }
+#modalRol .modal-body { padding-top: 12px; }
+#modalRol .modal-section-label { margin-bottom: 8px; }
+
 /* -- Sub-sección "Usuarios adicionales" (multi-rol) dentro del tab Usuarios -- */
 .rol-subtabla-titulo {
     font-size: .78rem;
@@ -502,33 +523,20 @@
 
 
                                 <div class="tab-pane fade" id="tab-permisos" role="tabpanel">
-                                    <div class="input-group input-group-sm mb-2">
-                                        <select class="form-control form-control-sm" id="selectSubmenuAgregar">
-                                            <option value="">Seleccione un submenú para agregar…</option>
-                                        </select>
-                                        <div class="input-group-append">
-                                            <button type="button" class="btn btn-primary btn-sm"
-                                                    onclick="event.stopPropagation(); event.preventDefault(); agregarPermisoAlRol(event); return false;">
-                                                <i class="fa fa-plus"></i> Agregar
-                                            </button>
+                                    <div class="permisos-toolbar mb-2">
+                                        <div class="d-flex align-items-center" style="gap:10px;flex-wrap:wrap">
+                                            <div class="input-group input-group-sm flex-grow-1" style="min-width:190px">
+                                                <div class="input-group-prepend"><span class="input-group-text"><i class="fa fa-search"></i></span></div>
+                                                <input type="search" class="form-control" id="buscarPermisos" placeholder="Buscar permisos…" autocomplete="off">
+                                            </div>
+                                            <span class="permisos-resumen" id="permisosResumen">0 de 0 seleccionados</span>
                                         </div>
                                     </div>
                                     <small class="text-muted d-block mb-2" style="font-size:.73rem">
-                                        <i class="fa fa-info-circle"></i> Agrega o quita permisos de acceso a los submenús del sistema.
+                                        <i class="fa fa-info-circle"></i> Seleccione los accesos del rol. Las selecciones se mantienen aunque filtre la lista.
                                     </small>
-                                    <div class="table-responsive" style="max-height:260px;overflow-y:auto">
-                                        <table class="table table-sm table-bordered table-hover mb-0" id="tablaPermisosRol">
-                                            <thead class="thead-light">
-                                                <tr>
-                                                    <th>ID</th><th>Menú</th><th>Submenú</th><th>Ruta</th><th style="width:60px">Acción</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="listaPermisosRol">
-                                                <tr><td colspan="5" class="text-center text-muted py-3">
-                                                    <i class="fa fa-lock mr-1"></i>Sin permisos asignados
-                                                </td></tr>
-                                            </tbody>
-                                        </table>
+                                    <div id="listaPermisosRol" class="permisos-grupos">
+                                        <div class="text-center text-muted py-3"><i class="fa fa-spinner fa-spin mr-1"></i>Cargando permisos…</div>
                                     </div>
                                 </div>
 
@@ -596,32 +604,6 @@
                     <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cancelar</button>
                     <button type="button" class="btn btn-warning btn-sm"
                             onclick="event.stopPropagation(); confirmarQuitarUsuarioDelRol(); return false;">
-                        <i class="fa fa-check mr-1"></i>Sí, quitar
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal Quitar Permiso -->
-    <div class="modal fade" id="modalConfirmarQuitarPermiso" tabindex="-1" role="dialog" data-backdrop="static">
-        <div class="modal-dialog modal-dialog-centered modal-sm" role="document">
-            <div class="modal-content">
-                <div class="modal-header bg-warning py-2">
-                    <h5 class="modal-title small font-weight-bold">
-                        <i class="fa fa-exclamation-triangle mr-1"></i>Confirmar acción
-                    </h5>
-                    <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
-                </div>
-                <div class="modal-body py-3">
-                    <p class="mb-1">¿Quitar este permiso del rol?</p>
-                    <p class="text-muted small mb-0"><i class="fa fa-info-circle mr-1"></i>El cambio se aplica al guardar.</p>
-                    <input type="hidden" id="permisoQuitarId">
-                </div>
-                <div class="modal-footer py-2">
-                    <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-warning btn-sm"
-                            onclick="event.stopPropagation(); confirmarQuitarPermisoDelRol(); return false;">
                         <i class="fa fa-check mr-1"></i>Sí, quitar
                     </button>
                 </div>

@@ -182,6 +182,8 @@ class Roles extends Component
                 'estado_id'=> 'required|integer|exists:estado,id',
                 'nivel_id' => 'nullable|integer|exists:nivel_rol,id',
                 'area_id'  => 'nullable|integer|exists:area,id',
+                'permisos' => 'sometimes|array',
+                'permisos.*' => 'integer|exists:sub_menu,id',
             ]);
 
             DB::beginTransaction();
@@ -192,6 +194,10 @@ class Roles extends Component
                 'nivel_id' => $request->nivel_id ?: null,
                 'area_id'  => $request->area_id  ?: null,
             ]);
+
+            if ($request->has('permisos')) {
+                $rol->submenus()->sync(array_values(array_unique($request->input('permisos', []))));
+            }
 
             DB::commit();
 
@@ -242,6 +248,8 @@ class Roles extends Component
                 'estado_id'=> 'required|integer|exists:estado,id',
                 'nivel_id' => 'nullable|integer|exists:nivel_rol,id',
                 'area_id'  => 'nullable|integer|exists:area,id',
+                'permisos' => 'sometimes|array',
+                'permisos.*' => 'integer|exists:sub_menu,id',
             ]);
 
             DB::beginTransaction();
@@ -268,23 +276,25 @@ class Roles extends Component
                 }
             }
 
-            // Procesar cambios de permisos
-            if ($request->has('permisos_agregar') && is_array($request->permisos_agregar)) {
-                foreach ($request->permisos_agregar as $submenuId) {
-                    DB::table('rol_submenu')->insertOrIgnore([
-                        'rol_id'      => $id,
-                        'sub_menu_id' => $submenuId,
-                        'created_at'  => now(),
-                        'updated_at'  => now(),
-                    ]);
+            // La interfaz nueva envía el estado final; sync evita duplicados y conserva el resto.
+            if ($request->has('permisos')) {
+                $rol->submenus()->sync(array_values(array_unique($request->input('permisos', []))));
+            } else {
+                if ($request->has('permisos_agregar') && is_array($request->permisos_agregar)) {
+                    foreach ($request->permisos_agregar as $submenuId) {
+                        DB::table('rol_submenu')->insertOrIgnore([
+                            'rol_id'      => $id,
+                            'sub_menu_id' => $submenuId,
+                            'created_at'  => now(),
+                            'updated_at'  => now(),
+                        ]);
+                    }
                 }
-            }
 
-            if ($request->has('permisos_quitar') && is_array($request->permisos_quitar)) {
-                foreach ($request->permisos_quitar as $submenuId) {
+                if ($request->has('permisos_quitar') && is_array($request->permisos_quitar)) {
                     DB::table('rol_submenu')
                         ->where('rol_id', $id)
-                        ->where('sub_menu_id', $submenuId)
+                        ->whereIn('sub_menu_id', $request->permisos_quitar)
                         ->delete();
                 }
             }
@@ -691,7 +701,11 @@ class Roles extends Component
     {
         try {
             $submenus = DB::table('sub_menu as sm')
-                ->leftJoin('menu as m', 'sm.menu_id', '=', 'm.id')
+                ->join('menu as m', function ($join) {
+                    $join->on('sm.menu_id', '=', 'm.id')
+                         ->where('m.estado_id', 1);
+                })
+                ->where('sm.estado_id', 1)
                 ->select(
                     'sm.id',
                     'sm.nombre',

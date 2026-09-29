@@ -13,6 +13,7 @@ let permisosOriginales = [];
 let permisosActuales = [];
 let permisosAgregar = [];
 let permisosQuitar = [];
+let permisosDisponibles = [];
 
 $(document).ready(function() {
     // Inicializar DataTable
@@ -68,7 +69,8 @@ function abrirModalRol() {
     $('#rolNombre').val('');
     $('#rolEstado').val('1');
     $('#tituloModalRol').text('Nuevo Rol');
-    $('#seccionTabs').hide();
+    $('#seccionTabs').show();
+    $('#tab-permisos-link').tab('show');
 
     // Limpiar cambios pendientes
     usuariosOriginales = [];
@@ -79,6 +81,9 @@ function abrirModalRol() {
     permisosActuales = [];
     permisosAgregar = [];
     permisosQuitar = [];
+    permisosDisponibles = [];
+
+    cargarSubmenusDisponibles();
 
     $('#modalRol').modal('show');
 }
@@ -386,6 +391,7 @@ function guardarRol() {
         estado_id: $('#rolEstado').val(),
         usuarios_agregar: usuariosAgregar,
         usuarios_quitar: usuariosQuitar,
+        permisos: permisosActuales.map(permiso => Number(permiso.id)),
         permisos_agregar: permisosAgregar,
         permisos_quitar: permisosQuitar
     };
@@ -587,23 +593,17 @@ $('#rolNombre').on('blur', function() {
  * Cargar permisos (submenus) del rol
  */
 function cargarPermisosDelRol(rolId) {
-    console.log('=== cargarPermisosDelRol INICIO ===');
-    console.log('Rol ID:', rolId);
-
     axios.get(`/roles/${rolId}/permisos`)
         .then(response => {
-            console.log('Permisos cargados:', response.data);
             permisosOriginales = response.data.data || [];
             permisosActuales = [...permisosOriginales];
             permisosAgregar = [];
             permisosQuitar = [];
-
-            mostrarPermisosEnTabla();
-            console.log('=== cargarPermisosDelRol FIN ===');
+            renderizarSelectorPermisos();
         })
         .catch(error => {
             console.error('Error al cargar permisos:', error);
-            alert('Error al cargar los permisos del rol');
+            $('#listaPermisosRol').html('<div class="alert alert-danger mb-0">No se pudieron cargar los permisos.</div>');
         });
 }
 
@@ -611,212 +611,118 @@ function cargarPermisosDelRol(rolId) {
  * Cargar lista de todos los submenus disponibles
  */
 function cargarSubmenusDisponibles() {
-    console.log('=== cargarSubmenusDisponibles INICIO ===');
-
     axios.get('/submenus/todos')
         .then(response => {
-            console.log('Submenus disponibles:', response.data);
-            const submenus = response.data.data || [];
-            const $select = $('#selectSubmenuAgregar');
-
-            $select.empty();
-            $select.append('<option value="">Seleccione un submenu para agregar...</option>');
-
-            submenus.forEach(submenu => {
-                $select.append(`<option value="${submenu.id}" data-menu="${submenu.menu_nombre}" data-ruta="${submenu.ruta}">${submenu.menu_nombre} - ${submenu.nombre}</option>`);
-            });
-
-            console.log('=== cargarSubmenusDisponibles FIN ===');
+            permisosDisponibles = response.data.data || [];
+            renderizarSelectorPermisos();
         })
         .catch(error => {
             console.error('Error al cargar submenus:', error);
+            $('#listaPermisosRol').html('<div class="alert alert-danger mb-0">No se pudieron cargar los permisos disponibles.</div>');
         });
 }
 
-/**
- * Mostrar permisos en la tabla
- */
-function mostrarPermisosEnTabla() {
-    console.log('=== mostrarPermisosEnTabla INICIO ===');
-    console.log('Permisos actuales a mostrar:', permisosActuales);
-
-    const $tbody = $('#listaPermisosRol');
-    $tbody.empty();
-
-    if (permisosActuales.length === 0) {
-        $tbody.html(`
-            <tr>
-                <td colspan="5" class="text-center text-muted">
-                    <i class="fa fa-info-circle"></i> No hay permisos asignados
-                </td>
-            </tr>
-        `);
-    } else {
-        permisosActuales.forEach(permiso => {
-            const esNuevo = permisosAgregar.includes(permiso.id);
-            const claseNuevo = esNuevo ? 'table-success' : '';
-
-            $tbody.append(`
-                <tr class="${claseNuevo}">
-                    <td>${permiso.id}</td>
-                    <td>${permiso.menu_nombre || '-'}</td>
-                    <td>${permiso.submenu_nombre}</td>
-                    <td><small>${permiso.ruta || '-'}</small></td>
-                    <td class="text-center">
-                        <button type="button" class="btn btn-sm btn-danger btn-quitar-permiso" data-permiso-id="${permiso.id}">
-                            <i class="fa fa-trash"></i>
-                        </button>
-                    </td>
-                </tr>
-            `);
-        });
-
-        // Event delegation para botones de quitar
-        $tbody.off('click', '.btn-quitar-permiso');
-        $tbody.on('click', '.btn-quitar-permiso', function(e) {
-            e.stopPropagation();
-            e.preventDefault();
-            const permisoId = parseInt($(this).data('permiso-id'));
-            console.log('Click en botón quitar permiso, ID:', permisoId);
-            solicitarQuitarPermiso(permisoId);
-        });
-    }
-
-    console.log('Tabla actualizada con', permisosActuales.length, 'permisos');
-    console.log('=== mostrarPermisosEnTabla FIN ===');
+function permisoEstaSeleccionado(id) {
+    return permisosActuales.some(permiso => Number(permiso.id) === Number(id));
 }
 
-/**
- * Agregar permiso al rol
- */
-function agregarPermisoAlRol(event) {
-    console.log('=== agregarPermisoAlRol INICIO ===');
+function actualizarPermisoSeleccionado(id, seleccionado) {
+    const permiso = permisosDisponibles.find(item => Number(item.id) === Number(id));
+    if (!permiso) return;
 
-    if (event) {
-        event.stopPropagation();
-        event.preventDefault();
+    if (seleccionado && !permisoEstaSeleccionado(id)) {
+        permisosActuales.push({
+            id: Number(permiso.id),
+            menu_nombre: permiso.menu_nombre,
+            submenu_nombre: permiso.nombre,
+            ruta: permiso.ruta
+        });
+    } else if (!seleccionado) {
+        permisosActuales = permisosActuales.filter(item => Number(item.id) !== Number(id));
     }
 
-    const submenuId = parseInt($('#selectSubmenuAgregar').val());
-    console.log('Submenu ID seleccionado:', submenuId);
+    renderizarSelectorPermisos();
+}
 
-    if (!submenuId) {
-        alert('Debe seleccionar un submenu');
-        return;
-    }
+function cambiarPermisosGrupo(ids, seleccionado) {
+    ids.forEach(id => actualizarPermisoSeleccionado(id, seleccionado));
+}
 
-    // Verificar si ya existe
-    const yaExiste = permisosActuales.find(p => p.id === submenuId);
-    if (yaExiste) {
-        alert('El permiso ya está asignado al rol');
-        console.log('=== agregarPermisoAlRol FIN (ya existe) ===');
-        return;
-    }
+function renderizarSelectorPermisos() {
+    const termino = ($('#buscarPermisos').val() || '').trim().toLowerCase();
+    const grupos = {};
 
-    // Obtener datos del option seleccionado
-    const $option = $('#selectSubmenuAgregar option:selected');
-    const menuNombre = $option.data('menu');
-    const submenuNombre = $option.text().split(' - ')[1];
-    const ruta = $option.data('ruta');
-
-    // Agregar a lista de cambios
-    if (!permisosAgregar.includes(submenuId)) {
-        permisosAgregar.push(submenuId);
-    }
-
-    // Quitar de lista de eliminados si estaba
-    const indexQuitar = permisosQuitar.indexOf(submenuId);
-    if (indexQuitar > -1) {
-        permisosQuitar.splice(indexQuitar, 1);
-    }
-
-    // Agregar a permisos actuales
-    permisosActuales.push({
-        id: submenuId,
-        menu_nombre: menuNombre,
-        submenu_nombre: submenuNombre,
-        ruta: ruta
+    permisosDisponibles.forEach(permiso => {
+        const texto = `${permiso.menu_nombre || ''} ${permiso.nombre || ''} ${permiso.ruta || ''}`.toLowerCase();
+        if (termino && !texto.includes(termino)) return;
+        const grupo = permiso.menu_nombre || 'Sin menú';
+        if (!grupos[grupo]) grupos[grupo] = [];
+        grupos[grupo].push(permiso);
     });
 
-    console.log('Permiso agregado:', { submenuId, menuNombre, submenuNombre });
-    console.log('Permisos a agregar:', permisosAgregar);
-    console.log('Permisos a quitar:', permisosQuitar);
+    const total = permisosDisponibles.length;
+    $('#permisosResumen').text(`${permisosActuales.length} de ${total} seleccionados`);
 
-    // Actualizar vista
-    mostrarPermisosEnTabla();
-    $('#selectSubmenuAgregar').val('');
-
-    console.log('=== agregarPermisoAlRol FIN ===');
-}
-
-/**
- * Solicitar confirmación para quitar permiso
- */
-function solicitarQuitarPermiso(permisoId) {
-    console.log('=== solicitarQuitarPermiso INICIO ===');
-    console.log('Permiso ID a quitar:', permisoId);
-    console.log('Estado actual de permisos:', permisosActuales);
-
-    $('#permisoQuitarId').val(permisoId);
-    $('#modalConfirmarQuitarPermiso').modal('show');
-
-    console.log('Modal de confirmación mostrado');
-    console.log('=== solicitarQuitarPermiso FIN ===');
-}
-
-/**
- * Confirmar quitar permiso del rol
- */
-function confirmarQuitarPermisoDelRol() {
-    console.log('=== confirmarQuitarPermisoDelRol INICIO ===');
-
-    const permisoId = parseInt($('#permisoQuitarId').val());
-    console.log('Permiso ID a quitar:', permisoId);
-    console.log('Permisos actuales ANTES:', permisosActuales);
-    console.log('Permisos a agregar ANTES:', permisosAgregar);
-    console.log('Permisos a quitar ANTES:', permisosQuitar);
-
-    // Actualizar listas
-    permisosActuales = permisosActuales.filter(p => p.id !== permisoId);
-    console.log('Permisos actuales DESPUÉS de filtrar:', permisosActuales);
-
-    // Si estaba en la lista de agregar, quitarlo
-    const indexAgregar = permisosAgregar.indexOf(permisoId);
-    console.log('Index en lista de agregar:', indexAgregar);
-
-    if (indexAgregar > -1) {
-        permisosAgregar.splice(indexAgregar, 1);
-        console.log('Permiso quitado de lista de agregar');
-    } else {
-        // Si no estaba en la lista de agregar, agregarlo a la lista de quitar
-        if (!permisosQuitar.includes(permisoId)) {
-            permisosQuitar.push(permisoId);
-            console.log('Permiso agregado a lista de quitar');
-        }
+    if (!total) {
+        $('#listaPermisosRol').html('<div class="text-center text-muted py-3"><i class="fa fa-lock mr-1"></i>No hay permisos disponibles.</div>');
+        return;
+    }
+    if (!Object.keys(grupos).length) {
+        $('#listaPermisosRol').html('<div class="text-center text-muted py-3"><i class="fa fa-search mr-1"></i>Sin resultados para la búsqueda.</div>');
+        return;
     }
 
-    console.log('Permisos a agregar DESPUÉS:', permisosAgregar);
-    console.log('Permisos a quitar DESPUÉS:', permisosQuitar);
+    let html = '';
+    Object.keys(grupos).sort().forEach((nombreGrupo, grupoIndex) => {
+        const permisos = grupos[nombreGrupo];
+        const ids = permisos.map(permiso => Number(permiso.id));
+        const seleccionados = ids.filter(id => permisoEstaSeleccionado(id)).length;
+        const todos = seleccionados === ids.length;
+        const grupoId = `permiso-grupo-${grupoIndex}`;
 
-    // Cerrar modal de confirmación
-    console.log('Cerrando modal de confirmación...');
-    $('#modalConfirmarQuitarPermiso').modal('hide');
+        html += `<section class="permiso-grupo" data-grupo="${escapeHtml(nombreGrupo)}">
+            <div class="permiso-grupo-header">
+                <div class="custom-control custom-checkbox d-inline-block">
+                    <input type="checkbox" class="custom-control-input permiso-grupo-toggle" id="${grupoId}" data-ids="${ids.join(',')}" ${todos ? 'checked' : ''}>
+                    <label class="custom-control-label" for="${grupoId}">${escapeHtml(nombreGrupo)} <span class="text-muted font-weight-normal">(${seleccionados}/${ids.length})</span></label>
+                </div>
+                <span class="permiso-grupo-actions"><button type="button" class="permiso-grupo-todos" data-ids="${ids.join(',')}">Todos</button><button type="button" class="permiso-grupo-ninguno" data-ids="${ids.join(',')}">Ninguno</button></span>
+            </div><div class="permiso-grupo-body">`;
 
-    // Delay para asegurar cierre limpio
-    setTimeout(() => {
-        console.log('Limpiando backdrops...');
-        $('.modal-backdrop').remove();
-        $('body').removeClass('modal-open').css('padding-right', '');
-        console.log('Mostrando modal principal...');
-        $('#modalRol').modal('show');
-    }, 300);
+        permisos.forEach(permiso => {
+            const id = Number(permiso.id);
+            const inputId = `permiso-${id}`;
+            html += `<div class="permiso-item custom-control custom-checkbox">
+                <input type="checkbox" class="custom-control-input permiso-toggle" id="${inputId}" data-id="${id}" ${permisoEstaSeleccionado(id) ? 'checked' : ''}>
+                <label class="custom-control-label" for="${inputId}" title="${escapeHtml(permiso.ruta || '')}">${escapeHtml(permiso.nombre)}</label>
+            </div>`;
+        });
+        html += '</div></section>';
+    });
 
-    // Actualizar vista
-    console.log('Actualizando vista de tabla...');
-    mostrarPermisosEnTabla();
-
-    console.log('=== confirmarQuitarPermisoDelRol FIN ===');
+    $('#listaPermisosRol').html(html);
+    $('.permiso-grupo-toggle').each(function() {
+        const ids = String($(this).data('ids')).split(',').map(Number);
+        const seleccionados = ids.filter(id => permisoEstaSeleccionado(id)).length;
+        this.indeterminate = seleccionados > 0 && seleccionados < ids.length;
+    });
 }
+
+function escapeHtml(texto) {
+    return $('<div>').text(texto || '').html();
+}
+
+$(document).on('input', '#buscarPermisos', renderizarSelectorPermisos);
+$(document).on('change', '.permiso-toggle', function() {
+    actualizarPermisoSeleccionado(Number($(this).data('id')), this.checked);
+});
+$(document).on('change', '.permiso-grupo-toggle', function() {
+    cambiarPermisosGrupo(String($(this).data('ids')).split(',').map(Number), this.checked);
+});
+$(document).on('click', '.permiso-grupo-todos, .permiso-grupo-ninguno', function() {
+    const ids = String($(this).data('ids')).split(',').map(Number);
+    cambiarPermisosGrupo(ids, $(this).hasClass('permiso-grupo-todos'));
+});
 
 // ======================================================================
 // REPORTE DE ACCESOS POR ROL
