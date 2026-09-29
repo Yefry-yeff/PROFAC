@@ -3,7 +3,7 @@
 namespace App\Jobs;
 
 use App\Exports\ReporteVentasCobrosExport;
-use App\Http\Livewire\Reportes\ReporteVentasCobros;
+use App\Livewire\Reportes\ReporteVentasCobros;
 use Illuminate\Bus\Queueable;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\SerializesModels;

@@ -20,7 +20,7 @@ use PhpOffice\PhpSpreadsheet\Shared\Date;
 
 class declaracionesExport implements FromCollection, WithHeadings, WithStyles, ShouldAutoSize, WithMapping
 {
-    public function collection()
+    public function collection(): \Illuminate\Support\Enumerable
     {
         return ModelFactura::all();
     }
@@ -85,7 +85,7 @@ class declaracionesExport implements FromCollection, WithHeadings, WithStyles, S
     ];
     }
 
-    public function styles(Worksheet $sheet)
+    public function styles(Worksheet $sheet): ?array
     {
        /* return [
             // Style the first row as bold text.
@@ -105,7 +105,7 @@ class declaracionesExport implements FromCollection, WithHeadings, WithStyles, S
           $sheet->getStyle('A1:X1')->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THICK);
           $sheet->getStyle('W')->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_DATE_DDMMYYYY );
           $sheet->getStyle('X')->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_DATE_DDMMYYYY );
-          return ;
+          return null;
         
     }
 }

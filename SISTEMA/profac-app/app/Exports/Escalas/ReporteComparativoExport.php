@@ -34,7 +34,7 @@ class ReporteComparativoExport implements FromQuery, WithHeadings, WithMapping, 
         $this->produtoNombre = $produtoNombre;
     }
 
-    public function query()
+    public function query(): \Illuminate\Database\Query\Builder
     {
         return DB::table('precios_producto_carga as ppc')
             ->join('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')
@@ -103,7 +103,7 @@ class ReporteComparativoExport implements FromQuery, WithHeadings, WithMapping, 
         ];
     }
 
-    public function styles(Worksheet $sheet)
+    public function styles(Worksheet $sheet): ?array
     {
         return [
             1 => [

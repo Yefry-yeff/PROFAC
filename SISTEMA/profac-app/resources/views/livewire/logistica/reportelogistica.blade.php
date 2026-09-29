@@ -48,6 +48,7 @@
 </style>
 @endpush
 
+<div>
 <div class="dl-page">
 
     {{-- ── CARD PRINCIPAL ── --}}
@@ -462,7 +463,7 @@
     </div>
     {{-- /dl-main-card --}}
 
-</div>
+ </div>
 
 @push('scripts')
 <script src="{{ asset('js/js_proyecto/reportes/dashboard-logistica.js') }}"></script>
@@ -509,5 +510,7 @@
             </div>
         </div>
     </div>
+</div>
+
 </div>
 

@@ -11,7 +11,7 @@
             <div class="expo-detail-body">
                 <div class="form-group">
                     <label class="expo-label">Escala de precios <span class="text-danger">*</span></label>
-                    <select wire:model.defer="marcaDescuentoSeleccionada" class="form-control" @if($marcaDescuentoEditandoId) disabled @endif>
+                    <select wire:model.live="marcaDescuentoSeleccionada" class="form-control" @if($marcaDescuentoEditandoId) disabled @endif>
                         <option value="">Seleccione una escala</option>
                         @foreach($marcas as $marca)
                             <option value="{{ $marca->id }}">{{ $marca->nombre }}</option>
@@ -32,7 +32,7 @@
                             @foreach($escalonesMarcaModal as $indice => $escalon)
                                 <tr wire:key="expo-modal-escalon-{{ $indice }}">
                                     <td>
-                                        <input type="text" inputmode="decimal" wire:model.defer="escalonesMarcaModal.{{ $indice }}.venta_minima"
+                                        <input type="text" inputmode="decimal" wire:model.live="escalonesMarcaModal.{{ $indice }}.venta_minima"
                                                class="form-control form-control-sm expo-money-input" placeholder="0.00" autocomplete="off"
                                                x-data="{ formatMoney() { let raw = $el.value.replace(/,/g, '').replace(/[^0-9.]/g, ''); const point = raw.indexOf('.'); if (point !== -1) raw = raw.slice(0, point + 1) + raw.slice(point + 1).replace(/\./g, '').slice(0, 2); let parts = raw.split('.'); parts[0] = (parts[0] || '').replace(/^0+(?=\d)/, '').replace(/\B(?=(\d{3})+(?!\d))/g, ','); $el.value = parts[0] + (raw.includes('.') ? '.' + (parts[1] || '') : ''); } }"
                                                x-on:input="formatMoney()"
@@ -40,12 +40,12 @@
                                         @error('escalonesMarcaModal.'.$indice.'.venta_minima') <small class="text-danger">{{ $message }}</small> @enderror
                                     </td>
                                     <td>
-                                        <input type="number" step="0.01" min="0" max="100" wire:model.defer="escalonesMarcaModal.{{ $indice }}.porcentaje_descuento" class="form-control form-control-sm" placeholder="0.00">
+                                        <input type="number" step="0.01" min="0" max="100" wire:model.live="escalonesMarcaModal.{{ $indice }}.porcentaje_descuento" class="form-control form-control-sm" placeholder="0.00">
                                         @error('escalonesMarcaModal.'.$indice.'.porcentaje_descuento') <small class="text-danger">{{ $message }}</small> @enderror
                                     </td>
                                     <td class="align-middle">
                                         <div class="custom-control custom-checkbox">
-                                            <input type="checkbox" id="requiere-asistencia-escalon-{{ $indice }}" wire:model.defer="escalonesMarcaModal.{{ $indice }}.requiere_asistencia" class="custom-control-input">
+                                            <input type="checkbox" id="requiere-asistencia-escalon-{{ $indice }}" wire:model.live="escalonesMarcaModal.{{ $indice }}.requiere_asistencia" class="custom-control-input">
                                             <label class="custom-control-label" for="requiere-asistencia-escalon-{{ $indice }}">Sí, exigir lista</label>
                                         </div>
                                     </td>

@@ -54,6 +54,24 @@
             margin-bottom: 4px; display: block;
         }
         .ofr-label .req { color: #e53935; margin-left: 2px; }
+        .oferta-direcciones-lista { max-height: 280px; overflow-y: auto; overflow-x: hidden; padding: 2px; }
+        .oferta-direccion-opcion { display:block; width:100%; max-width:100%; box-sizing:border-box; overflow:hidden; border: 1px solid #d9e2e7; border-radius: 7px; padding: 8px 10px; margin-bottom: 6px; cursor: pointer; background: #fff; transition: border-color .15s, background .15s, box-shadow .15s; }
+        .oferta-direccion-opcion:hover { border-color: #26a69a; background: #f4fbfa; }
+        .oferta-direccion-opcion.seleccionada { border-color: #26a69a; background: #e8f5e9; box-shadow: 0 0 0 1px #26a69a; }
+        .oferta-direccion-opcion .direccion-etiqueta { color: #1565c0; font-size: .78rem; font-weight: 700; }
+        .oferta-direccion-opcion.seleccionada .direccion-etiqueta { color: #16835b; }
+        .oferta-direccion-opcion .direccion-ubicacion { color: #78909c; font-size: .69rem; margin-top: 1px; }
+        .oferta-direccion-opcion .direccion-texto { color: #37474f; font-size: .76rem; line-height:1.35; margin-top: 3px; white-space:normal; overflow-wrap:anywhere; word-break:break-word; max-width:100%; }
+        .oferta-direccion-opcion .direccion-ubicacion { white-space:normal; overflow-wrap:anywhere; word-break:break-word; }
+        #modal_envio_oferta .modal-dialog { max-width:700px; width:calc(100% - 1rem); }
+        #modal_envio_oferta .modal-content { overflow:hidden; }
+        @media (max-width:575px) { #modal_envio_oferta .modal-dialog { width:calc(100% - 1rem); margin:.5rem auto; } }
+        .oferta-nueva-direccion-header { background: linear-gradient(135deg,#1565c0,#42a5f5); border:none; padding:14px 20px; color:#fff; }
+        .oferta-nueva-direccion-header .modal-title { color:#fff; font-size:16px; font-weight:700; }
+        .oferta-nueva-direccion-section { color:#1565c0; border-bottom:1px solid #dce7ef; padding-bottom:6px; margin-bottom:12px; font-size:11px; font-weight:700; letter-spacing:.45px; text-transform:uppercase; }
+        .oferta-nueva-direccion-section small { color:#78909c; font-size:10px; font-weight:400; text-transform:none; letter-spacing:0; margin-left:5px; }
+        .oferta-nueva-direccion-mapa { width:100%; height:220px; min-height:220px; border:1px solid #cfd8dc; border-radius:7px; overflow:hidden; }
+        #modal_nueva_direccion_oferta .form-control:focus { border-color:#2196f3; box-shadow:0 0 0 2px rgba(33,150,243,.15); }
         .form-control.ofr-input {
             border-radius: 8px !important; border: 1px solid #cfd8dc !important; font-size: 13px !important;
         }
@@ -396,6 +414,9 @@
         }
     </style>
     @endpush
+    @push('styles')
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    @endpush
 
     <div id="cargandoTemporales" role="status" aria-live="polite" aria-label="{{ ($duplicandoOferta || $continuandoOfertaExpo) ? 'Cargando oferta' : 'Cargando registros temporales' }}">
         <div class="carga-temporales-contenido">
@@ -524,7 +545,7 @@
                             </span>
                         </div>
                         <input type="text"
-                               wire:model.debounce.350ms="busquedaPrefactura"
+                               wire:model.live.debounce.350ms="busquedaPrefactura"
                                class="form-control"
                                placeholder="Buscar por # prefactura, # flujo, cliente o RTN..."
                                style="border-radius:0 8px 8px 0;"
@@ -604,7 +625,7 @@
                             </span>
                         </div>
                         <input type="text"
-                               wire:model.debounce.350ms="busquedaFlujo"
+                               wire:model.live.debounce.350ms="busquedaFlujo"
                                class="form-control"
                                placeholder="Buscar por cliente, RTN, # flujo, # pedido u # oferta…"
                                style="border-radius:0 8px 8px 0;"
@@ -782,6 +803,10 @@
                                 {{-- Gestor de Entrega (se selecciona en modal al facturar) --}}
                                 <input type="hidden" name="gestor_entrega" id="gestor_entrega_hidden" value="">
                                 <input type="hidden" name="tele_asesor" id="tele_asesor_hidden" value="{{ Auth::id() }}">
+                                @if(($config->codigo ?? '') === 'cotizacion_clientes_a')
+                                    <input type="hidden" name="zone_group_id" id="zone_group_id_hidden" value="">
+                                    <input type="hidden" name="direccion_entrega" id="direccion_entrega_hidden" value="">
+                                @endif
                                 {{-- Tipo de pago --}}
                                 <div class="col-12 col-md-4">
                                     <label class="ofr-label">Tipo de Pago <span class="req">*</span></label>
@@ -1290,9 +1315,7 @@
             </div>
         </div>
 
-        {{-- ============================================================== --}}
-        {{-- MODAL: Seleccionar Gestor de Entrega y Tele Asesor            --}}
-        {{-- ============================================================== --}}
+        {{-- MODAL: Seleccionar Gestor de Entrega y Tele Asesor --}}
         <div class="modal fade" id="modal_gestor_entrega" data-backdrop="static" tabindex="-1" role="dialog" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered" role="document">
                 <div class="modal-content">
@@ -1321,12 +1344,78 @@
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cancelar</button>
                         <button type="button" class="btn btn-primary btn-sm" id="btn_confirmar_gestor">
-                            <i class="fa-solid fa-check mr-1"></i> Confirmar y Facturar
+                            <i class="fa-solid fa-check mr-1"></i> Confirmar
                         </button>
                     </div>
                 </div>
             </div>
         </div>
+
+        {{-- MODAL: Envío de la oferta --}}
+        @if(($config->codigo ?? '') === 'cotizacion_clientes_a')
+            <div class="modal fade" id="modal_envio_oferta" data-backdrop="static" tabindex="-1" role="dialog" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header" style="background:linear-gradient(135deg,#1565c0,#42a5f5); border:none; padding:14px 20px;">
+                            <h3 class="modal-title" style="color:#fff; font-size:16px; font-weight:700; margin:0;">
+                                <i class="fa-solid fa-truck-fast mr-2"></i>Datos de envío de la oferta
+                            </h3>
+                        </div>
+                        <div class="modal-body" style="padding:20px;">
+                            <div class="form-group">
+                                <label class="ofr-label">Tele asesor <span class="req">*</span></label>
+                                <select id="tele_asesor_oferta_modal" class="form-control form-control-sm" style="width:100%;">
+                                    <option value="">-- Seleccionar tele asesor --</option>
+                                </select>
+                            </div>
+                            <div class="form-group mb-0">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <label class="ofr-label mb-1">Dirección de entrega <span class="req">*</span></label>
+                                    <button type="button" class="btn btn-outline-primary btn-sm py-0" id="btn_nueva_direccion_oferta"><i class="fa fa-plus mr-1"></i>Ingresar dirección</button>
+                                </div>
+                                <input type="search" id="buscar_direccion_oferta" class="form-control form-control-sm mb-2" placeholder="Buscar por etiqueta, municipio o dirección..." autocomplete="off">
+                                <div id="direcciones_oferta_modal" class="oferta-direcciones-lista">
+                                    <div class="text-muted small text-center py-2">Cargando direcciones del cliente...</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cancelar</button>
+                            <button type="button" class="btn btn-primary btn-sm" id="btn_confirmar_envio_oferta">
+                                <i class="fa-solid fa-check mr-1"></i> Continuar y guardar oferta
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        @if(($config->codigo ?? '') === 'cotizacion_clientes_a')
+            <div class="modal fade" id="modal_nueva_direccion_oferta" data-backdrop="static" tabindex="-1" role="dialog" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header oferta-nueva-direccion-header"><h5 class="modal-title"><i class="fa fa-map-marker mr-2"></i>Ingresar dirección de entrega</h5><button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button></div>
+                        <div class="modal-body p-3">
+                            <div class="oferta-nueva-direccion-section"><i class="fa fa-info-circle mr-1"></i>Información de la dirección</div>
+                            <div class="row">
+                                <div class="col-md-4"><div class="form-group"><label class="ofr-label">Etiqueta <span class="req">*</span></label><input id="oferta_nueva_etiqueta" class="form-control form-control-sm" placeholder="Ej. Oficina, Bodega..."></div></div>
+                                <div class="col-md-4"><div class="form-group"><label class="ofr-label">País <span class="req">*</span></label><select id="oferta_nuevo_pais" class="form-control form-control-sm"></select></div></div>
+                                <div class="col-md-4"><div class="form-group"><label class="ofr-label">Departamento <span class="req">*</span></label><select id="oferta_nuevo_departamento" class="form-control form-control-sm"></select></div></div>
+                                <div class="col-md-4"><div class="form-group"><label class="ofr-label">Municipio <span class="req">*</span></label><select id="oferta_nuevo_municipio" class="form-control form-control-sm"></select></div></div>
+                                <div class="col-md-8"><div class="form-group"><label class="ofr-label">Dirección completa <span class="req">*</span></label><textarea id="oferta_nueva_direccion" class="form-control form-control-sm" rows="2" placeholder="Escriba la dirección de entrega..."></textarea></div></div>
+                            </div>
+                            <div class="oferta-nueva-direccion-section mt-1"><i class="fa fa-map mr-1"></i>Ubicación en el mapa <small>Haga clic para colocar el punto exacto</small></div>
+                            <div id="oferta_nueva_direccion_mapa" class="oferta-nueva-direccion-mapa"></div>
+                            <div class="row mt-2">
+                                <div class="col-md-6"><label class="ofr-label">Latitud</label><input id="oferta_nueva_latitud" class="form-control form-control-sm" readonly></div>
+                                <div class="col-md-6"><label class="ofr-label">Longitud</label><input id="oferta_nueva_longitud" class="form-control form-control-sm" readonly></div>
+                            </div>
+                        </div>
+                        <div class="modal-footer"><button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal"><i class="fa fa-times mr-1"></i>Cancelar</button><button type="button" class="btn btn-primary btn-sm" id="btn_guardar_nueva_direccion"><i class="fa fa-save mr-1"></i>Guardar dirección</button></div>
+                    </div>
+                </div>
+            </div>
+        @endif
 
         {{-- MODAL: Ingresar código de autorización --}}
         <div class="modal fade" id="modalPermiso" data-backdrop="static" tabindex="1" role="dialog">
@@ -1350,6 +1439,7 @@
                     </div>
                 </div>
             </div>
+
         </div>
 
         {{-- MODAL: Detalle del Pedido --}}
@@ -2089,6 +2179,7 @@
     <livewire:flujo.modal-flujo-pedido />
 
     @push('scripts')
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
     // ================================================================
     // CONFIGURACIÓN DEL TIPO DE FACTURA (desde PHP)
@@ -2237,6 +2328,7 @@
     var nuevaVentaSolicitada = parametrosVentaTemporal.get('nueva') === '1';
     var ventaTemporalId = nuevaVentaSolicitada ? null : parametrosVentaTemporal.get('temporal_id');
     var ventaTemporalTipo = codigoActual === 'cotizacion_clientes_a' ? 'oferta' : 'factura';
+    var ofertaEnvioConfirmado = false;
     var ventaTemporalRestaurando = false;
     var ventaTemporalFinalizada = false;
     var ventaTemporalTimer = null;
@@ -2266,6 +2358,8 @@
     var retencionEstado = false;
     var diasCredito = 0;
     var diasCreditoAprobadosFlujo = null;
+    var fechaEmisionPrefacturaExpo = @json($esOfertaExpo && $prefacturaVinculada ? $prefacturaVinculada['fecha_emision'] : null);
+    var fechaVencimientoPrefacturaExpo = @json($esOfertaExpo && $prefacturaVinculada ? $prefacturaVinculada['fecha_vencimiento'] : null);
     var modoEditarFactura = new URLSearchParams(window.location.search).get('modo') === 'editar_factura';
     var secuenciaBusquedaProducto = 0;
     var omitirLimpiezaFocoProducto = false;
@@ -3136,6 +3230,11 @@
         diasCreditoAprobadosFlujo = (d.diasCreditoAprobados === null || typeof d.diasCreditoAprobados === 'undefined')
             ? null
             : Math.max(0, parseInt(d.diasCreditoAprobados, 10) || 0);
+        if (d.fechaEmisionPrefactura && d.fechaVencimientoPrefactura) {
+            fechaEmisionPrefacturaExpo = d.fechaEmisionPrefactura;
+            fechaVencimientoPrefacturaExpo = d.fechaVencimientoPrefactura;
+            aplicarFechasPrefacturaExpo();
+        }
         // Re-habilitar Select2 de cliente (puede estar disabled en re-render)
         var selC = document.getElementById('seleccionarCliente');
         if (selC) selC.removeAttribute('disabled');
@@ -5090,7 +5189,24 @@
     // ================================================================
     // FECHAS Y PAGOS
     // ================================================================
+    function aplicarFechasPrefacturaExpo() {
+        if (!esFacturacionExpoDesdePrefactura || !fechaEmisionPrefacturaExpo || !fechaVencimientoPrefacturaExpo) {
+            return false;
+        }
+
+        var fechaEmision = document.getElementById('fecha_emision');
+        var fechaVencimiento = document.getElementById('fecha_vencimiento');
+        fechaEmision.value = fechaEmisionPrefacturaExpo;
+        fechaVencimiento.value = fechaVencimientoPrefacturaExpo;
+        fechaEmision.readOnly = true;
+        fechaVencimiento.readOnly = true;
+
+        return true;
+    }
+
     function validarFechaPago() {
+        if (aplicarFechasPrefacturaExpo()) return;
+
         let tipoPago = document.getElementById('tipoPagoVenta').value;
         if (tipoPago == 2) {
             document.getElementById('fecha_vencimiento').readOnly = modoEditarFactura;
@@ -5102,6 +5218,8 @@
     }
 
     function sumarDiasCredito() {
+        if (aplicarFechasPrefacturaExpo()) return;
+
         let tipoPago = document.getElementById('tipoPagoVenta').value;
         if (tipoPago == 2) {
             let fechaEmision = document.getElementById("fecha_emision").value;
@@ -5480,12 +5598,12 @@
         fId = fId ? parseInt(fId, 10) : null;
 
         if (pId) {
-            Livewire.emit('abrirFlujoPedido', pId, pasoPreferido || 'pedido');
+            Livewire.dispatch('abrirFlujoPedido', { pedidoId: pId, pasoInicial: pasoPreferido || 'pedido' });
             return;
         }
 
         if (fId) {
-            Livewire.emit('abrirFlujoCotizacion', fId);
+            Livewire.dispatch('abrirFlujoCotizacion', { flujoId: fId });
             return;
         }
 
@@ -5976,6 +6094,10 @@
                 }
             }
         }
+        if (codigoActual === 'cotizacion_clientes_a' && !ofertaEnvioConfirmado) {
+            mostrarModalEnvioOferta();
+            return;
+        }
         // 1. Toda factura debe confirmar sus actores antes de guardar.
         if (codigoActual !== 'cotizacion_clientes_a') {
             var gestorHidden = document.getElementById('gestor_entrega_hidden');
@@ -6092,6 +6214,193 @@
         window._srProductos = productosSR;
         $('#modal_sr_autorizacion').modal('show');
     }
+
+    function mostrarModalEnvioOferta() {
+        if (!$('#tele_asesor_oferta_modal').hasClass('select2-hidden-accessible')) {
+            $('#tele_asesor_oferta_modal').select2({
+                dropdownParent: $('#modal_envio_oferta'),
+                placeholder: '-- Seleccionar tele asesor --',
+                allowClear: false
+            });
+        }
+        var clienteId = $('#seleccionarCliente').val() || '';
+        var teleHidden = document.getElementById('tele_asesor_hidden');
+        var teleIdActual = teleHidden ? teleHidden.value : '';
+        var direccionHidden = document.getElementById('direccion_entrega_hidden');
+        $('#tele_asesor_oferta_modal').empty().append(new Option('-- Seleccionar tele asesor --', ''));
+        $('#direcciones_oferta_modal').html('<div class="text-muted small text-center py-2">Cargando direcciones del cliente...</div>');
+        $('#btn_confirmar_envio_oferta').prop('disabled', true);
+        var cargaDirecciones = $.get('/clientes/form/datos/' + clienteId).done(function(data) {
+            var direcciones = data.direcciones || [];
+            var direccionActual = direccionHidden ? direccionHidden.value : '';
+            var html = '';
+            direcciones.forEach(function(direccion, index) {
+                var seleccionada = direccionActual && direccionActual === direccion.direccion;
+                if (!direccionActual && (direccion.principal || index === 0)) seleccionada = true;
+                html += '<div class="oferta-direccion-opcion ' + (seleccionada ? 'seleccionada' : '') + '" data-direccion="' + ofertaEscapar(direccion.direccion) + '">' +
+                    '<div class="direccion-etiqueta"><i class="fa fa-map-marker mr-1"></i>' + ofertaEscapar(direccion.etiqueta || 'Sin etiqueta') + '</div>' +
+                    '<div class="direccion-ubicacion">' + ofertaEscapar([direccion.departamento_nombre, direccion.municipio_nombre].filter(Boolean).join(' · ')) + '</div>' +
+                    '<div class="direccion-texto">' + ofertaEscapar(direccion.direccion) + '</div></div>';
+            });
+            $('#direcciones_oferta_modal').html(html || '<div class="text-muted small text-center py-2">El cliente no tiene direcciones registradas.</div>');
+        });
+        var cargaTeleasesores = $.get('/cotizacion/actores-asignados', { cliente_id: clienteId, rol_id: 3 }).done(function(data) {
+            var teleasesores = data.results || [];
+            var actualAsignado = teleasesores.some(function(usuario) {
+                return Number(usuario.id) === Number(teleIdActual);
+            });
+            teleasesores.forEach(function(usuario) {
+                var seleccionado = actualAsignado
+                    ? Number(usuario.id) === Number(teleIdActual)
+                    : teleasesores.length === 1;
+                $('#tele_asesor_oferta_modal').append(
+                    new Option(usuario.text, usuario.id, seleccionado, seleccionado)
+                );
+            });
+            $('#tele_asesor_oferta_modal').trigger('change');
+        });
+        $.when(cargaDirecciones, cargaTeleasesores).always(function() {
+            $('#btn_confirmar_envio_oferta').prop('disabled', false);
+        });
+        $('#modal_envio_oferta').modal('show');
+    }
+
+    function ofertaEscapar(texto) {
+        return $('<div>').text(texto || '').html();
+    }
+
+    $(document).on('input', '#buscar_direccion_oferta', function() {
+        var termino = ($(this).val() || '').toLowerCase().trim();
+        $('.oferta-direccion-opcion').each(function() {
+            $(this).toggle(!termino || $(this).text().toLowerCase().indexOf(termino) !== -1);
+        });
+    });
+
+    $(document).on('click', '#btn_nueva_direccion_oferta', function() {
+        $('#oferta_nueva_etiqueta, #oferta_nueva_direccion').val('');
+        $('#oferta_nueva_latitud, #oferta_nueva_longitud').val('');
+        if (ofertaNuevaDireccionMapa) { ofertaNuevaDireccionMapa.remove(); ofertaNuevaDireccionMapa = null; ofertaNuevaDireccionMarcador = null; }
+        $('#oferta_nuevo_pais').html('<option value="">-- Seleccionar país --</option>');
+        $('#oferta_nuevo_departamento').html('<option value="">-- Seleccionar departamento --</option>');
+        $('#oferta_nuevo_municipio').html('<option value="">-- Seleccionar municipio --</option>');
+        $.get('/cliente/pais').done(function(data) {
+            (data.listaPais || []).forEach(function(pais) { $('#oferta_nuevo_pais').append(new Option(pais.nombre, pais.id)); });
+        });
+        $('#modal_nueva_direccion_oferta').modal('show');
+        setTimeout(inicializarMapaNuevaDireccionOferta, 250);
+    });
+
+    var ofertaNuevaDireccionMapa = null;
+    var ofertaNuevaDireccionMarcador = null;
+    function inicializarMapaNuevaDireccionOferta() {
+        if (typeof L === 'undefined') return;
+        if (ofertaNuevaDireccionMapa) { ofertaNuevaDireccionMapa.invalidateSize(true); return; }
+        ofertaNuevaDireccionMapa = L.map('oferta_nueva_direccion_mapa').setView([14.0723, -87.1921], 7);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(ofertaNuevaDireccionMapa);
+        ofertaNuevaDireccionMapa.on('click', function(event) { fijarCoordenadasNuevaDireccion(event.latlng.lat, event.latlng.lng); });
+    }
+    function fijarCoordenadasNuevaDireccion(latitud, longitud) {
+        $('#oferta_nueva_latitud').val(Number(latitud).toFixed(7));
+        $('#oferta_nueva_longitud').val(Number(longitud).toFixed(7));
+        if (!ofertaNuevaDireccionMarcador) ofertaNuevaDireccionMarcador = L.marker([latitud, longitud], { draggable: true }).addTo(ofertaNuevaDireccionMapa);
+        ofertaNuevaDireccionMarcador.setLatLng([latitud, longitud]);
+        ofertaNuevaDireccionMarcador.off('dragend').on('dragend', function(event) { var pos = event.target.getLatLng(); fijarCoordenadasNuevaDireccion(pos.lat, pos.lng); });
+        ofertaNuevaDireccionMapa.setView([latitud, longitud], Math.max(ofertaNuevaDireccionMapa.getZoom(), 15));
+    }
+
+    function geocodificarNuevaDireccion() {
+        if (!ofertaNuevaDireccionMapa) return;
+        var partes = [
+            $('#oferta_nueva_direccion').val(),
+            $('#oferta_nuevo_municipio option:selected').text(),
+            $('#oferta_nuevo_departamento option:selected').text(),
+            $('#oferta_nuevo_pais option:selected').text()
+        ].filter(function (parte) { return parte && parte.indexOf('Seleccionar') === -1; });
+        if (!partes.length) return;
+        fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=' + encodeURIComponent(partes.join(', ')), { headers: { 'Accept-Language': 'es' } })
+            .then(function (response) { return response.json(); })
+            .then(function (resultados) {
+                if (!resultados.length) return;
+                fijarCoordenadasNuevaDireccion(parseFloat(resultados[0].lat), parseFloat(resultados[0].lon));
+            }).catch(function () {});
+    }
+
+    $(document).on('change', '#oferta_nuevo_pais', function() {
+        $('#oferta_nuevo_departamento').html('<option value="">-- Seleccionar departamento --</option>');
+        $('#oferta_nuevo_municipio').html('<option value="">-- Seleccionar municipio --</option>');
+        if (!this.value) return;
+        $.post('/cliente/departamento', { id: this.value }).done(function(data) {
+            (data.listaDeptos || []).forEach(function(item) { $('#oferta_nuevo_departamento').append(new Option(item.nombre, item.id)); });
+            geocodificarNuevaDireccion();
+        });
+    });
+    $(document).on('change', '#oferta_nuevo_departamento', function() {
+        $('#oferta_nuevo_municipio').html('<option value="">-- Seleccionar municipio --</option>');
+        if (!this.value) return;
+        $.post('/cliente/municipio', { id: this.value }).done(function(data) {
+            (data.listaMunicipios || []).forEach(function(item) { $('#oferta_nuevo_municipio').append(new Option(item.nombre, item.id)); });
+            geocodificarNuevaDireccion();
+        });
+    });
+    $(document).on('blur', '#oferta_nueva_direccion', geocodificarNuevaDireccion);
+    $(document).on('click', '#btn_guardar_nueva_direccion', function() {
+        var clienteId = $('#seleccionarCliente').val() || '';
+        var payload = {
+            etiqueta: $('#oferta_nueva_etiqueta').val().trim(),
+            pais_id: $('#oferta_nuevo_pais').val(),
+            departamento_id: $('#oferta_nuevo_departamento').val(),
+            municipio_id: $('#oferta_nuevo_municipio').val(),
+            direccion: $('#oferta_nueva_direccion').val().trim(),
+            latitud: $('#oferta_nueva_latitud').val(),
+            longitud: $('#oferta_nueva_longitud').val()
+        };
+        if (!clienteId || !payload.etiqueta || !payload.pais_id || !payload.departamento_id || !payload.municipio_id || !payload.direccion) {
+            Swal.fire({ icon: 'warning', title: 'Datos incompletos', text: 'Complete etiqueta, ubicación y dirección.' });
+            return;
+        }
+        var boton = $(this).prop('disabled', true);
+        $.post('/clientes/' + clienteId + '/direcciones', payload)
+            .done(function() {
+                $('#modal_nueva_direccion_oferta').one('hidden.bs.modal', function() {
+                    $('.modal-backdrop').remove();
+                    $('body').addClass('modal-open');
+                    mostrarModalEnvioOferta();
+                });
+                $('#modal_nueva_direccion_oferta').modal('hide');
+            }).fail(function(xhr) {
+                Swal.fire({ icon: 'error', title: 'No se pudo guardar', text: (xhr.responseJSON && xhr.responseJSON.message) || 'Intente nuevamente.' });
+            }).always(function() { boton.prop('disabled', false); });
+    });
+
+    $(document).on('click', '.oferta-direccion-opcion', function() {
+        $('.oferta-direccion-opcion').removeClass('seleccionada');
+        $(this).addClass('seleccionada');
+    });
+
+    $(document).on('click', '#btn_confirmar_envio_oferta', function() {
+        var teleId = $('#tele_asesor_oferta_modal').val() || '';
+        var direccionSeleccionada = $('.oferta-direccion-opcion.seleccionada').data('direccion') || '';
+        if (!teleId) {
+            Swal.fire({ icon: 'warning', title: 'Tele asesor requerido', text: 'Debe seleccionar un tele asesor para la oferta.', customClass: { container: 'swal-sobre-modal' } });
+            return;
+        }
+        if (!direccionSeleccionada) {
+            Swal.fire({ icon: 'warning', title: 'Dirección requerida', text: 'Debe seleccionar una dirección de entrega para la oferta.', customClass: { container: 'swal-sobre-modal' } });
+            return;
+        }
+        var teleHidden = document.getElementById('tele_asesor_hidden');
+        var zonaHidden = document.getElementById('zone_group_id_hidden');
+        var direccionHidden = document.getElementById('direccion_entrega_hidden');
+        if (teleHidden) teleHidden.value = teleId;
+        if (zonaHidden) zonaHidden.value = '';
+        if (direccionHidden) direccionHidden.value = direccionSeleccionada;
+        ofertaEnvioConfirmado = true;
+        $('#modal_envio_oferta').one('hidden.bs.modal', function() {
+            document.body.focus();
+            $('#crear_venta').submit();
+        });
+        $('#modal_envio_oferta').modal('hide');
+    });
 
     function mostrarModalGestorEntrega() {
         var clienteId = $('#seleccionarCliente').val();
@@ -6383,6 +6692,7 @@
                     document.getElementById("btn_venta_coorporativa").disabled = false;
                     var gestorHErr = document.getElementById('gestor_entrega_hidden');
                     if (gestorHErr) { gestorHErr.removeAttribute('data-confirmed'); }
+                    ofertaEnvioConfirmado = false;
                     return;
                 }
 
@@ -6410,6 +6720,11 @@
                         eliminarVentaTemporal();
                         limpiarFormularioVenta(data);
                     }
+                    ofertaEnvioConfirmado = false;
+                    var zonaOfertaHidden = document.getElementById('zone_group_id_hidden');
+                    var direccionOfertaHidden = document.getElementById('direccion_entrega_hidden');
+                    if (zonaOfertaHidden) zonaOfertaHidden.value = '';
+                    if (direccionOfertaHidden) direccionOfertaHidden.value = '';
                     document.getElementById("btn_venta_coorporativa").disabled = false;
                     $('#modalExitoOferta').modal('show');
                     return;
@@ -6465,6 +6780,7 @@
                 document.getElementById("btn_venta_coorporativa").disabled = false;
                 var gestorH = document.getElementById('gestor_entrega_hidden');
                 if (gestorH) { gestorH.removeAttribute('data-confirmed'); }
+                ofertaEnvioConfirmado = false;
                 let data = err.response ? err.response.data : {};
                 console.error('Error al guardar – status:', err.response ? err.response.status : 'sin respuesta', '| body:', data);
                 if (Array.isArray(data.detalles_descuento_expo)) {
@@ -6638,7 +6954,7 @@
     @push('scripts')
     {{-- Re-despacha el evento pedido-seleccionado al cargar si el pedido ya estaba vinculado (desde URL pedidoId) --}}
     <script>
-        document.addEventListener('livewire:load', function () {
+        document.addEventListener('livewire:init', function () {
             window.dispatchEvent(new CustomEvent('pedido-seleccionado', {
                 detail: {
                     clienteId:     {!! (int)$clientePedido['id'] !!},
@@ -6647,6 +6963,8 @@
                     vendedorNombre:{!! json_encode($vendedorDefault['name'] ?? '') !!},
                     flujoId:       {!! json_encode($flujoVinculadoId ?? null) !!},
                     diasCreditoAprobados: {!! json_encode($diasCreditoAprobados) !!},
+                    fechaEmisionPrefactura: {!! json_encode($esOfertaExpo && $prefacturaVinculada ? $prefacturaVinculada['fecha_emision'] : null) !!},
+                    fechaVencimientoPrefactura: {!! json_encode($esOfertaExpo && $prefacturaVinculada ? $prefacturaVinculada['fecha_vencimiento'] : null) !!},
                     numeroOrdenCompra: {!! json_encode($documentosComerciales['numero_orden_compra'] ?? null) !!},
                     archivoOrdenCompra: {!! json_encode($documentosComerciales['archivo_orden_compra'] ?? null) !!},
                     numeroFormaF01: {!! json_encode($documentosComerciales['numero_forma_f01'] ?? null) !!},
@@ -7334,7 +7652,7 @@
 
         @if(!$clientePedido)
         // Otro cliente: no hay cliente pre-seleccionado; cargar productos al iniciar la página
-        document.addEventListener('livewire:load', function () {
+        document.addEventListener('livewire:init', function () {
             setTimeout(function() { cargarProductosIniciales(); }, 300);
         });
         @endif

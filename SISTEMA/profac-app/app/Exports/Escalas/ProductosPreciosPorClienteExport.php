@@ -33,7 +33,7 @@ class ProductosPreciosPorClienteExport implements FromQuery, WithHeadings, WithM
         $this->categoriaPrecioId = $categoriaPrecioId;
     }
 
-    public function query()
+    public function query(): \Illuminate\Database\Query\Builder
     {
         return DB::table('precios_producto_carga as PPC')
             ->join('categoria_precios as CP', 'CP.id', '=', 'PPC.categoria_precios_id')
@@ -136,7 +136,7 @@ class ProductosPreciosPorClienteExport implements FromQuery, WithHeadings, WithM
         ];
     }
 
-    public function styles(Worksheet $sheet)
+    public function styles(Worksheet $sheet): ?array
     {
         return [
             // Fila de encabezados: fondo naranja, texto blanco, negrita, centrado

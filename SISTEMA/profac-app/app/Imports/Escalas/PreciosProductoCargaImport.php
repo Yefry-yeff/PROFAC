@@ -81,7 +81,7 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
      * Método principal que se ejecuta al leer cada bloque (chunk) del archivo Excel.
      * Aquí se realiza la carga, validación, estructuración e inserción masiva de los registros.
      */
-    public function collection(Collection $rows)
+    public function collection(Collection $rows): void
     {
         // Si no existen filas en el chunk, termina sin procesar.
         if ($rows->isEmpty()) return;

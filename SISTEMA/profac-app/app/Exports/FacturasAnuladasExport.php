@@ -29,7 +29,7 @@ class FacturasAnuladasExport implements FromView, WithStyles
         ]);
     }
 
-    public function styles(Worksheet $sheet)
+    public function styles(Worksheet $sheet): ?array
     {
         $sheet->mergeCells('A1:G1');
         $sheet->mergeCells('A2:G2');

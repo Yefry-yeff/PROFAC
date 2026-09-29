@@ -66,7 +66,7 @@ class ZonificacionClientesExport implements FromArray, WithColumnWidths, WithDra
         return $filas;
     }
 
-    public function drawings()
+    public function drawings(): \PhpOffice\PhpSpreadsheet\Worksheet\BaseDrawing|array
     {
         $logo = new Drawing();
         $logo->setName('Logo Valencia');
@@ -83,7 +83,7 @@ class ZonificacionClientesExport implements FromArray, WithColumnWidths, WithDra
             'G' => 24, 'H' => 16, 'I' => 36, 'J' => 36, 'K' => 13];
     }
 
-    public function styles(Worksheet $sheet)
+    public function styles(Worksheet $sheet): ?array
     {
         for ($fila = 1; $fila <= 4; $fila++) {
             $sheet->mergeCells('A' . $fila . ':' . self::LAST_COL . $fila);

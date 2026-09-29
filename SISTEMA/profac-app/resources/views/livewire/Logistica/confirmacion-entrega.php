@@ -414,10 +414,10 @@
                         }
                         abrirIncidencia(this);
                     });
-                    $(document).on('click', '.btn-marcar-todos', function () {
+                    $(document).on('change', '#chkMarcarTodosProductos', function () {
                         const facturaId = Number($(this).data('factura'));
                         if (facturaId) {
-                            marcarTodosEntregados(facturaId);
+                            marcarTodosEntregados(facturaId, this.checked);
                         }
                     });
                     // Event handler para actualizar el estado cuando se marca/desmarca un checkbox
@@ -711,6 +711,8 @@
                     $('#btnConfirmarEntrega').toggle(!facturaBloqueada);
 
                     let filas = '';
+                    let productosHabilitados = 0;
+                    let productosHabilitadosMarcados = 0;
                     productos.forEach((p, index) => {
                         const tieneIncidencia = Number(p.tiene_incidencia) === 1;
                         const incidenciasRegistradas = Number(p.incidencias_registradas) || 0;
@@ -729,6 +731,10 @@
                         // Actualizar el estado en memoria también
                         if (tieneIncidencia) {
                             p.entregado = 0;
+                        }
+                        if (!checkboxDeshabilitado) {
+                            productosHabilitados++;
+                            if (estaChecked) productosHabilitadosMarcados++;
                         }
                         filas += `<tr>
                             <td>${index + 1}</td>
@@ -760,9 +766,6 @@
                                 <small class="text-muted">${factura.direccion || 'Sin dirección registrada'}</small>
                             </div>
                             <div class="text-right">
-                                <button type="button" class="mb-2 btn btn-outline-success btn-sm btn-marcar-todos" data-factura="${factura.distribucion_factura_id}" ${facturaBloqueada ? 'disabled' : ''}>
-                                    <i class="mr-1 fas fa-check-double"></i>Marcar todos
-                                </button>
                                 <div class="small text-muted"><span id="contadorProductos">${articulosEntregados}</span>/${productos.length || 0} productos · ${progreso}%</div>
                             </div>
                         </div>`;
@@ -792,7 +795,12 @@
                                             <th>#</th>
                                             <th>Producto</th>
                                             <th class="text-center">Cantidad</th>
-                                            <th class="text-center">Entregado</th>
+                                            <th class="text-center">
+                                                Entregado
+                                                <input type="checkbox" id="chkMarcarTodosProductos" class="ml-1" data-factura="${factura.distribucion_factura_id}"
+                                                       title="Marcar/desmarcar todos" ${productosHabilitados > 0 && productosHabilitadosMarcados === productosHabilitados ? 'checked' : ''}
+                                                       ${facturaBloqueada || productosHabilitados === 0 ? 'disabled' : ''}>
+                                            </th>
                                             <th class="text-center">Incidencia</th>
                                         </tr>
                                     </thead>
@@ -855,7 +863,7 @@
                     return `<span class="badge badge-${clase} text-uppercase">${estado.replace('_', ' ')}</span>`;
                 }
 
-                function marcarTodosEntregados(distribucionFacturaId) {
+                function marcarTodosEntregados(distribucionFacturaId, marcar = true) {
                     // Verificar si la factura está bloqueada antes de marcar todos
                     const factura = confirmacionState.facturas.find(f => f.distribucion_factura_id === distribucionFacturaId);
                     if (factura) {
@@ -868,26 +876,27 @@
                                 text: 'Esta factura ya fue confirmada y no se puede modificar.',
                                 confirmButtonText: 'Entendido'
                             });
+                            renderDetalleFactura(distribucionFacturaId);
                             return;
                         }
                     }
 
-                    // Marcar todas las casillas habilitadas y sincronizar el estado en memoria.
-                    let productosSeleccionados = 0;
+                    // Marcar/desmarcar todas las casillas habilitadas y sincronizar el estado en memoria.
+                    let productosActualizados = 0;
                     const productosFactura = factura ? (factura.productos || []) : [];
 
                     $('#tablaProductos .chk-producto').each(function() {
                         const $checkbox = $(this);
-                        // Solo marcar si no está deshabilitado (significa que no tiene incidencia)
+                        // Solo actualizar si no está deshabilitado (significa que no tiene incidencia)
                         if (!$checkbox.prop('disabled')) {
-                            $checkbox.prop('checked', true);
+                            $checkbox.prop('checked', marcar);
                             const productoId = $checkbox.data('producto');
                             const producto = productosFactura.find(p => Number(p.id) === Number(productoId));
                             if (producto) {
-                                producto.entregado = 1;
-                                producto.cantidad_entregada = Number($checkbox.data('cantidad')) || producto.cantidad_facturada || 0;
+                                producto.entregado = marcar ? 1 : 0;
+                                producto.cantidad_entregada = marcar ? (Number($checkbox.data('cantidad')) || producto.cantidad_facturada || 0) : 0;
                             }
-                            productosSeleccionados++;
+                            productosActualizados++;
                         }
                     });
 
@@ -897,8 +906,8 @@
 
                     renderDetalleFactura(distribucionFacturaId);
 
-                    if (productosSeleccionados > 0) {
-                        toastr.success(`${productosSeleccionados} producto(s) marcado(s) como entregado(s)`, 'Productos seleccionados');
+                    if (productosActualizados > 0) {
+                        toastr.success(`${productosActualizados} producto(s) ${marcar ? 'marcado(s) como entregado(s)' : 'desmarcado(s)'}`, 'Productos actualizados');
                     } else {
                         toastr.info('No hay productos disponibles para marcar', 'Información');
                     }

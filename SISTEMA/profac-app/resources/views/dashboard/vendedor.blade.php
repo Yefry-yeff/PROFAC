@@ -215,7 +215,7 @@ function initVendedorCharts() {
 }
 (function() {
     function run() { if (typeof ApexCharts !== 'undefined') initVendedorCharts(); }
-    if (window.DASH_LOADED) { run(); } else { document.addEventListener('livewire:load', run); }
+    if (window.DASH_LOADED) { run(); } else { document.addEventListener('livewire:init', run); }
     if (!window._vendedorBound) { window._vendedorBound = true; document.addEventListener('livewire:update', run); }
 })();
 </script>

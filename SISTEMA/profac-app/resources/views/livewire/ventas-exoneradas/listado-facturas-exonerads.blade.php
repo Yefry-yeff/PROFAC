@@ -1,4 +1,5 @@
 ﻿<div>
+<div>
     @push('styles')
     @endpush
 
@@ -215,3 +216,4 @@
     <strong>Copyright</strong> Distribuciones Valencia &copy; <?php echo "$year";  ?>
 </div>
 <p id="reloj"></p>
+</div>

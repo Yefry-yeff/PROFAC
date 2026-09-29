@@ -28,7 +28,7 @@ class ReporteProductosPreciosFiltro implements FromQuery, WithHeadings, WithMapp
     }
 
 
-    public function query()
+    public function query(): \Illuminate\Database\Query\Builder
     {
         $query = DB::table('precios_producto_carga as A')
             ->join('producto as B', 'B.id', '=', 'A.producto_id')

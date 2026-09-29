@@ -83,7 +83,7 @@
                         <div class="expo-report-toolbar">
                             <div class="expo-report-search">
                                 <i class="fa fa-search"></i>
-                                <input type="search" wire:model.debounce.300ms="busquedaExpo" class="form-control" placeholder="Buscar por nombre, estado o número de Expo">
+                                <input type="search" wire:model.live.debounce.300ms="busquedaExpo" class="form-control" placeholder="Buscar por nombre, estado o número de Expo">
                             </div>
                             <span class="text-muted small">{{ $expos->count() }} Expo(s)</span>
                         </div>
@@ -128,7 +128,7 @@
                     <div class="expo-report-toolbar">
                         <div class="expo-report-search">
                             <i class="fa fa-search"></i>
-                            <input type="search" wire:model.debounce.300ms="filtro" class="form-control" placeholder="Buscar flujo, oferta, cliente, estado o responsable">
+                            <input type="search" wire:model.live.debounce.300ms="filtro" class="form-control" placeholder="Buscar flujo, oferta, cliente, estado o responsable">
                         </div>
                         <span class="text-muted small">{{ $flujosFiltrados->count() }} de {{ $totalFlujos }} flujo(s)</span>
                     </div>

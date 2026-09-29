@@ -472,7 +472,7 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
                             <label class="cfg-field-lbl">
                                 Estado de Flujo <span class="text-danger">*</span>
                             </label>
-                            <select wire:model="tipoTramiteId"
+                            <select wire:model.live="tipoTramiteId"
                                     class="cfg-field @error('tipoTramiteId') is-invalid @enderror">
                                 <option value="">— Seleccionar etapa —</option>
                                 @foreach($tiposTramites as $tt)
@@ -487,7 +487,7 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
                             <label class="cfg-field-lbl">
                                 Rol <span class="text-danger">*</span>
                             </label>
-                            <select wire:model="rolId"
+                            <select wire:model.live="rolId"
                                     class="cfg-field @error('rolId') is-invalid @enderror">
                                 <option value="">— Seleccionar rol —</option>
                                 @foreach($roles as $r)
@@ -505,7 +505,7 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
                                     <small class="text-muted d-block" style="font-size:11px;">Las reglas inactivas no generan notificaciones.</small>
                                 </div>
                                 <label class="toggle-switch mb-0">
-                                    <input type="checkbox" id="activoSwitch" wire:model="activo">
+                                    <input type="checkbox" id="activoSwitch" wire:model.live="activo">
                                     <span class="toggle-slider"></span>
                                 </label>
                             </div>
@@ -547,7 +547,7 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
                 var hasModal = document.querySelector('[wire\\:id] [role="dialog"]');
                 document.body.style.overflow = hasModal ? 'hidden' : '';
             }
-            document.addEventListener('livewire:load', function () {
+            document.addEventListener('livewire:init', function () {
                 Livewire.hook('message.processed', function () { syncBodyScroll(); });
             });
             syncBodyScroll();
@@ -723,7 +723,7 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
                     {{-- Nombre --}}
                     <div class="form-group mb-3">
                         <label class="cfg-field-lbl">Nombre de la regla <span style="color:#ef4444;">*</span></label>
-                        <input type="text" wire:model.defer="alertaNombre" class="cfg-field"
+                        <input type="text" wire:model.live="alertaNombre" class="cfg-field"
                                placeholder="Ej: Recuperación próxima — 15 días">
                         @error('alertaNombre') <small style="color:#ef4444;">{{ $message }}</small> @enderror
                     </div>
@@ -731,7 +731,7 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
                     {{-- Tipo --}}
                     <div class="form-group mb-3">
                         <label class="cfg-field-lbl">Tipo de alerta <span style="color:#ef4444;">*</span></label>
-                        <select wire:model="alertaTipo" class="cfg-field">
+                        <select wire:model.live="alertaTipo" class="cfg-field">
                             <option value="">— Selecciona un tipo —</option>
                             @foreach($tiposAlertas as $tKey => $tInfo)
                                 <option value="{{ $tKey }}">{{ $tInfo['label'] }}</option>
@@ -752,7 +752,7 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
                                 <label class="cfg-field-lbl">
                                     {{ $tiposAlertas[$alertaTipo]['param_dias_label'] }} <span style="color:#ef4444;">*</span>
                                 </label>
-                                <input type="number" wire:model.defer="alertaParametroDias" class="cfg-field"
+                                <input type="number" wire:model.live="alertaParametroDias" class="cfg-field"
                                        min="1" max="365" placeholder="Ej: 15">
                                 @error('alertaParametroDias') <small style="color:#ef4444;">{{ $message }}</small> @enderror
                             </div>
@@ -762,7 +762,7 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
                                 <label class="cfg-field-lbl">
                                     {{ $tiposAlertas[$alertaTipo]['param_umbral_label'] }} <span style="color:#ef4444;">*</span>
                                 </label>
-                                <input type="number" wire:model.defer="alertaParametroUmbral" class="cfg-field"
+                                <input type="number" wire:model.live="alertaParametroUmbral" class="cfg-field"
                                        step="0.1" min="0" placeholder="Ej: 6">
                                 @error('alertaParametroUmbral') <small style="color:#ef4444;">{{ $message }}</small> @enderror
                             </div>
@@ -772,7 +772,7 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
                     {{-- Prioridad --}}
                     <div class="form-group mb-3">
                         <label class="cfg-field-lbl">Prioridad</label>
-                        <select wire:model.defer="alertaPrioridad" class="cfg-field">
+                        <select wire:model.live="alertaPrioridad" class="cfg-field">
                             <option value="informativa">Informativa</option>
                             <option value="media">Media</option>
                             <option value="alta">Alta</option>
@@ -794,14 +794,14 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
                             </button>
                         </div>
                         @if($alertaTargetTipo === 'rol')
-                            <select wire:model.defer="alertaRolId" class="cfg-field">
+                            <select wire:model.live="alertaRolId" class="cfg-field">
                                 <option value="">— Selecciona un rol —</option>
                                 @foreach($roles as $rol)
                                     <option value="{{ $rol['id'] }}">{{ $rol['nombre'] }}</option>
                                 @endforeach
                             </select>
                         @else
-                            <select wire:model.defer="alertaAreaId" class="cfg-field">
+                            <select wire:model.live="alertaAreaId" class="cfg-field">
                                 <option value="">— Selecciona un área —</option>
                                 @foreach($areas as $area)
                                     <option value="{{ $area['id'] }}">{{ $area['nombre'] }}</option>
@@ -814,15 +814,15 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:12px;">
                         <div>
                             <label class="cfg-field-lbl">Ícono</label>
-                            <input type="text" wire:model.defer="alertaIcono" class="cfg-field" placeholder="fa-bell">
+                            <input type="text" wire:model.live="alertaIcono" class="cfg-field" placeholder="fa-bell">
                             <small style="font-size:11px;color:#94a3b8;">Clase FontAwesome 4</small>
                         </div>
                         <div>
                             <label class="cfg-field-lbl">Color</label>
                             <div style="display:flex;align-items:center;gap:8px;">
-                                <input type="color" wire:model.defer="alertaColor"
+                                <input type="color" wire:model.live="alertaColor"
                                        style="width:36px;height:36px;border:none;cursor:pointer;border-radius:6px;padding:2px;">
-                                <input type="text" wire:model.defer="alertaColor"
+                                <input type="text" wire:model.live="alertaColor"
                                        class="cfg-field" style="flex:1;"
                                        placeholder="#f59e0b">
                             </div>
@@ -842,7 +842,7 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
                             <small class="text-muted d-block" style="font-size:11px;">Las reglas inactivas no generan alertas.</small>
                         </div>
                         <label class="toggle-switch mb-0">
-                            <input type="checkbox" wire:model.defer="alertaActivo">
+                            <input type="checkbox" wire:model.live="alertaActivo">
                             <span class="toggle-slider"></span>
                         </label>
                     </div>

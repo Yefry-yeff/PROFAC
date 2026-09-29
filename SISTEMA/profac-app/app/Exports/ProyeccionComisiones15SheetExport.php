@@ -137,7 +137,7 @@ class ProyeccionComisiones15SheetExport implements FromArray, WithTitle, WithSty
         ];
     }
 
-    public function styles(Worksheet $sheet)
+    public function styles(Worksheet $sheet): ?array
     {
         $lc = self::LAST_COL;
 

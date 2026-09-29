@@ -142,6 +142,54 @@
     }
     .fmp-price-alert .swal2-actions { margin:10px 0 0; }
     .fmp-price-alert .swal2-confirm { margin:0; padding:8px 22px; }
+    /* Modal "Actores de la Factura" (SweetAlert2) con la misma apariencia
+       que el modal Bootstrap equivalente en facturacion-unificada.blade.php */
+    .swal2-popup.swal-gestor-popup {
+        padding:0;
+        border-radius:10px;
+        overflow:hidden;
+        background:#fff;
+    }
+    .swal-gestor-popup .swal2-html-container { margin:0; }
+    .fmp-gestor-header {
+        background:linear-gradient(135deg,#1565c0,#42a5f5);
+        color:#fff;
+        font-size:16px;
+        font-weight:700;
+        padding:14px 20px;
+        text-align:left;
+    }
+    .fmp-gestor-body { padding:20px; text-align:left; }
+    .fmp-gestor-desc { color:#6c757d; font-size:12px; margin:0 0 12px; }
+    .fmp-gestor-label {
+        display:block;
+        font-size:12px;
+        font-weight:600;
+        color:#455a64;
+        margin:0 0 4px;
+    }
+    .fmp-gestor-label .req { color:#e53935; margin-left:2px; }
+    .fmp-gestor-hr { border:none; border-top:1px solid #e0e0e0; margin:18px 0 14px; }
+    .fmp-gestor-section-title {
+        font-size:13px;
+        font-weight:700;
+        color:#1565c0;
+        margin:0 0 12px;
+    }
+    .fmp-gestor-textarea {
+        width:100%;
+        font-size:13px;
+        border:1px solid #ced4da;
+        border-radius:4px;
+        padding:6px 10px;
+        resize:vertical;
+    }
+    .swal-gestor-popup .swal2-actions {
+        margin:0;
+        padding:12px 20px 18px;
+        justify-content:flex-end;
+        gap:8px;
+    }
 </style>
 
 @php
@@ -266,6 +314,11 @@
                         <i class="mr-1 fa fa-calendar"></i>
                         {{ \Carbon\Carbon::parse($d['created_at'])->format('d/m/Y H:i') }}
                     </small>
+                    @if(!empty($d['direccion_entrega']))
+                    <small style="display:block; color:rgba(255,255,255,.88); font-size:11px; margin-top:3px; max-width:720px; white-space:normal; overflow-wrap:anywhere;">
+                        <i class="mr-1 fa fa-map-marker"></i>{{ $d['direccion_entrega'] }}
+                    </small>
+                    @endif
                 </div>
                 <button type="button" wire:click="cerrar"
                         class="close" style="color:#fff; opacity:1; font-size:22px; margin-top:-8px;">
@@ -933,7 +986,7 @@
                         {{ $mensajeError }}
                     </div>
                     @endif
-                    <textarea wire:model.defer="motivoAnulacion" rows="2"
+                    <textarea wire:model.live="motivoAnulacion" rows="2"
                               placeholder="Motivo de anulación (obligatorio)…"
                               style="width:100%; border:1px solid #ddd; border-radius:8px;
                                      padding:6px 10px; font-size:12px; resize:none;"></textarea>
@@ -1299,7 +1352,7 @@
                             <label style="display:block; font-size:11px; font-weight:700; color:#616161; margin-bottom:4px;">
                                 Comentario para Créditos (opcional)
                             </label>
-                            <textarea wire:model.defer="comentarioCreditoGanadora"
+                            <textarea wire:model.live="comentarioCreditoGanadora"
                                       x-ref="comentarioGanadoraTA"
                                       rows="2"
                                       placeholder="Escribe una observación para el área de créditos..."
@@ -1344,7 +1397,7 @@
                             {{ $mensajeError }}
                         </div>
                         @endif
-                        <textarea wire:model.defer="motivoAnulOferta" rows="2"
+                        <textarea wire:model.live="motivoAnulOferta" rows="2"
                                   x-ref="quitarGanTA"
                                   placeholder="Motivo (obligatorio)…"
                                   style="width:100%; border:1px solid #ddd; border-radius:8px;
@@ -1381,7 +1434,7 @@
                             {{ $mensajeError }}
                         </div>
                         @endif
-                        <textarea wire:model.defer="motivoAnulOferta" rows="2"
+                        <textarea wire:model.live="motivoAnulOferta" rows="2"
                                   x-ref="anulOfertaTA"
                                   placeholder="Motivo de anulación (obligatorio)…"
                                   style="width:100%; border:1px solid #ddd; border-radius:8px;
@@ -1522,7 +1575,7 @@
                             </p>
                             <div style="position:relative;">
                                 <input type="text"
-                                       wire:model.debounce.350ms="busquedaClienteDuplicar"
+                                       wire:model.live.debounce.350ms="busquedaClienteDuplicar"
                                        placeholder="Buscar cliente por nombre o código…"
                                        style="width:100%; padding:7px 10px; border:1px solid #ccc;
                                               border-radius:6px; font-size:12px; box-sizing:border-box;"
@@ -2379,14 +2432,14 @@
                                 <label style="font-size:11px; font-weight:700; margin-bottom:4px;">Código de autorización</label>
                                 {{-- onkeydown stopPropagation: evita que Bootstrap modal capture el teclado --}}
                                 <input type="password" class="form-control form-control-sm"
-                                       wire:model.defer="codigoAutorizacion"
+                                       wire:model.live="codigoAutorizacion"
                                        onkeydown="event.stopPropagation()"
                                        placeholder="Ingrese el código">
                             </div>
                             <div class="col-12 col-md-8">
                                 <label style="font-size:11px; font-weight:700; margin-bottom:4px;">Motivo / comentario <span style="color:#c0392b;">*</span></label>
                                 <input type="text" class="form-control form-control-sm"
-                                       wire:model.defer="motivoAutorizacion"
+                                       wire:model.live="motivoAutorizacion"
                                        onkeydown="event.stopPropagation()"
                                        placeholder="Motivo requerido">
                             </div>
@@ -2539,7 +2592,7 @@
                     @if ($confirmAccionFactura === 'anular' && $facturaSeleccionadaId === (int)$fac['id'])
                     <div style="background:#fff3e0; border:1px solid #ffcc80; border-radius:8px; padding:12px; margin-top:10px;">
                         <label style="font-size:12px; font-weight:700; color:#e65100;">Motivo de anulación de la factura #{{ $fac['id'] }}</label>
-                        <textarea class="form-control form-control-sm" wire:model.defer="motivoAnulacionFactura" rows="2" maxlength="500"></textarea>
+                        <textarea class="form-control form-control-sm" wire:model.live="motivoAnulacionFactura" rows="2" maxlength="500"></textarea>
                         @if($mensajeError)<div class="text-danger mt-1" style="font-size:12px;">{{ $mensajeError }}</div>@endif
                         <div style="display:flex; gap:8px; margin-top:8px;">
                             <button type="button" wire:click="anularFactura" class="btn btn-danger btn-sm">Confirmar anulación</button>
@@ -2980,7 +3033,7 @@
                             </td>
                             <td style="padding:10px 12px; min-width:340px;">
                                 @if(!empty($linea['destinos']))
-                                <select wire:model.defer="productosSinExistenciaModal.{{ $idx }}.destino_seleccionado"
+                                <select wire:model.live="productosSinExistenciaModal.{{ $idx }}.destino_seleccionado"
                                         class="form-control form-control-sm"
                                         style="border-radius:8px; font-size:12px;">
                                     <option value="">Mantener sin cambio</option>
@@ -3010,7 +3063,7 @@
                 <label style="font-size:12px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">
                     Motivo de la actualización
                 </label>
-                <textarea wire:model.defer="motivoEdicionSinExistencia"
+                <textarea wire:model.live="motivoEdicionSinExistencia"
                           rows="2"
                           class="form-control"
                           placeholder="Opcional: describa por qué se reasignaron estos productos..."
@@ -3025,6 +3078,7 @@
 </div>
 @endif
 
+@push('scripts')
 <script>
     function confirmarLiquidacionExpoFlujo(resumen) {
         var moneda = function(valor) {
@@ -3061,7 +3115,7 @@
                 text: liquidacion.mensaje || 'El aumento fue registrado y aplicado.',
                 confirmButtonText: 'Aceptar'
             }).then(function() {
-                Livewire.emit('recargarFlujo');
+                Livewire.dispatch('recargarFlujo');
             });
         });
     }
@@ -3106,21 +3160,21 @@
             var detail = e.detail;
 
             Swal.fire({
-                title: '<i class="fa fa-truck mr-2" style="color:#1565c0;"></i> Gestor de Entrega',
-                html: '<div style="text-align:left;">'
-                    + '<p style="font-size:13px;color:#666;margin-bottom:16px;">Seleccione el responsable de entrega y el tele asesor para la factura.</p>'
-                    + '<label style="display:block;font-size:12px;font-weight:700;color:#455a64;margin:0 0 6px;">Gestor de entrega</label>'
+                html: '<div class="fmp-gestor-header"><i class="fa-solid fa-users mr-2"></i>Actores de la Factura</div>'
+                    + '<div class="fmp-gestor-body">'
+                    + '<p class="fmp-gestor-desc">Seleccione el responsable de entrega y el tele asesor para esta factura.</p>'
+                    + '<label class="fmp-gestor-label">Gestor de Entrega</label>'
                     + '<select id="swal-gestor-select" style="width:100%;"></select>'
-                    + '<label style="display:block;font-size:12px;font-weight:700;color:#455a64;margin:14px 0 6px;">Tele asesor</label>'
+                    + '<label class="fmp-gestor-label" style="margin-top:14px;">Tele Asesor <span class="req">*</span></label>'
                     + '<select id="swal-tele-asesor-select" style="width:100%;"></select>'
                     + '</div>',
                 showCancelButton: true,
+                reverseButtons: true,
                 confirmButtonText: '<i class="fa fa-check mr-1"></i> Confirmar y Facturar',
                 cancelButtonText: 'Cancelar',
                 confirmButtonColor: '#1b5e20',
                 cancelButtonColor: '#6c757d',
                 allowOutsideClick: false,
-                background: '#f9fbe7',
                 customClass: { popup: 'swal-gestor-popup' },
                 didOpen: function() {
                     // Inicializar Select2 con búsqueda AJAX dentro del SweetAlert2
@@ -3192,7 +3246,6 @@
                 if (!result.isConfirmed) return;
                 var gestorId = result.value ? result.value.gestorId : null;
                 var teleAsesorId = result.value ? result.value.teleAsesorId : null;
-
                 // Bloquear botón y mostrar spinner durante el POST
                 var btn = document.getElementById('btn-facturar-directo');
                 var iconSpan    = document.getElementById('btn-facturar-icon');
@@ -3243,4 +3296,5 @@
         });
     }
 </script>
+@endpush
 </div>

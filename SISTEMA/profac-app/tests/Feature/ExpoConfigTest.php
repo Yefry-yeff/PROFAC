@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Http\Livewire\FlujoDeVenta\Expo as ExpoComponent;
+use App\Livewire\FlujoDeVenta\Expo as ExpoComponent;
 use App\Models\User;
 use App\Support\ExpoConfig;
 use Illuminate\Database\QueryException;

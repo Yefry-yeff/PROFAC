@@ -275,7 +275,7 @@
         <div class="dash-filters-grid">
             <div class="dash-filter-group">
                 <label>Mes</label>
-                <select wire:model="filtroMes">
+                <select wire:model.live="filtroMes">
                     @foreach(['1'=>'Enero','2'=>'Febrero','3'=>'Marzo','4'=>'Abril','5'=>'Mayo','6'=>'Junio','7'=>'Julio','8'=>'Agosto','9'=>'Septiembre','10'=>'Octubre','11'=>'Noviembre','12'=>'Diciembre'] as $k=>$v)
                         <option value="{{ $k }}">{{ $v }}</option>
                     @endforeach
@@ -283,7 +283,7 @@
             </div>
             <div class="dash-filter-group">
                 <label>Año</label>
-                <select wire:model="filtroAnio">
+                <select wire:model.live="filtroAnio">
                     @for($y = now()->year; $y >= now()->year - 4; $y--)
                         <option value="{{ $y }}">{{ $y }}</option>
                     @endfor
@@ -291,17 +291,17 @@
             </div>
             <div class="dash-filter-group">
                 <label>Fecha inicio</label>
-                <input type="date" wire:model="fechaInicio">
+                <input type="date" wire:model.live="fechaInicio">
             </div>
             <div class="dash-filter-group">
                 <label>Fecha fin</label>
-                <input type="date" wire:model="fechaFin">
+                <input type="date" wire:model.live="fechaFin">
             </div>
 
             @if(in_array($this->rolId, [1,4,8,9,19]))
             <div class="dash-filter-group">
                 <label>Vendedor</label>
-                <select wire:model="filtroVendedorId">
+                <select wire:model.live="filtroVendedorId">
                     <option value="">— Todos —</option>
                     @foreach($vendedores as $v)
                         <option value="{{ $v->id }}">{{ $v->name }}</option>
@@ -312,7 +312,7 @@
 
             <div class="dash-filter-group">
                 <label>Top clientes</label>
-                <select wire:model="topLimit">
+                <select wire:model.live="topLimit">
                     <option value="10">Top 10</option>
                     <option value="20">Top 20</option>
                     <option value="50">Top 50</option>
@@ -334,7 +334,7 @@
             <span style="font-size:11px; font-weight:700; color:var(--dash-muted); text-transform:uppercase; letter-spacing:.5px; white-space:nowrap; margin-right:6px;">
                 <i class="fa fa-eye"></i> Vista:
             </span>
-            @foreach(\App\Http\Livewire\Dashboard\DashboardComercial::$adminViewOptions as $key => $opt)
+            @foreach(\App\Livewire\Dashboard\DashboardComercial::$adminViewOptions as $key => $opt)
             <button wire:click="$set('vistaAdmin', '{{ $key }}')"
                 style="
                     display:inline-flex; align-items:center; gap:5px;
@@ -414,7 +414,7 @@ window.DASH_DARK   = {{ $darkMode ? 'true' : 'false' }};
 window.DASH_LABEL  = @json($periodoLabel);
 // Señal para que los scripts de vistas parciales sepan si Livewire ya cargó
 window.DASH_LOADED = false;
-document.addEventListener('livewire:load', function() { window.DASH_LOADED = true; });
+document.addEventListener('livewire:init', function() { window.DASH_LOADED = true; });
 </script>
 @endpush
 </div>

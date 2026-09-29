@@ -22,7 +22,7 @@ class CuentasPorCobrarInteresExport implements FromCollection, WithHeadings, Sho
     }
 
 
-    public function collection()
+    public function collection(): \Illuminate\Support\Enumerable
     {
 
 

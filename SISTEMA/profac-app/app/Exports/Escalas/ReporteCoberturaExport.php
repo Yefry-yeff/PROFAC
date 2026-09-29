@@ -26,7 +26,7 @@ class ReporteCoberturaExport implements FromQuery, WithHeadings, WithMapping, Wi
 
     const LAST_COL = 'G';
 
-    public function query()
+    public function query(): \Illuminate\Database\Query\Builder
     {
         return DB::table('cliente_categoria_escala as cce')
             ->select([
@@ -75,7 +75,7 @@ class ReporteCoberturaExport implements FromQuery, WithHeadings, WithMapping, Wi
         return ['A' => 8, 'B' => 34, 'C' => 12, 'D' => 18, 'E' => 20, 'F' => 22, 'G' => 22];
     }
 
-    public function styles(Worksheet $sheet)
+    public function styles(Worksheet $sheet): ?array
     {
         return [
             1 => [

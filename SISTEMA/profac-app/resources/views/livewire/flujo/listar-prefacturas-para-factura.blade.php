@@ -33,7 +33,7 @@
                     <i class="fa fa-search"></i>
                 </span>
             </div>
-            <input type="text" wire:model.debounce.300ms="busqueda"
+            <input type="text" wire:model.live.debounce.300ms="busqueda"
                    class="form-control" placeholder="Buscar por cliente, RTN o # prefactura…"
                    style="border-radius:0 8px 8px 0;">
         </div>

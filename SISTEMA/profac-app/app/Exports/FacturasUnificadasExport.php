@@ -130,7 +130,7 @@ class FacturasUnificadasExport implements FromArray, WithStyles, WithEvents, Wit
         return $out;
     }
 
-    public function styles(Worksheet $sheet)
+    public function styles(Worksheet $sheet): ?array
     {
         $lc = self::LAST_COL;
         $sheet->mergeCells("A1:{$lc}1");

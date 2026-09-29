@@ -604,7 +604,7 @@
 
 <div class="ap-card" style="margin-bottom:24px;">
     <div class="ap-filters">
-        <select class="ap-filter-select" wire:model="filtroMovTipo">
+        <select class="ap-filter-select" wire:model.live="filtroMovTipo">
             <option value="">Todos los tipos</option>
             <option value="venta">Ventas</option>
             <option value="compra">Compras</option>
@@ -613,9 +613,9 @@
             <option value="devolucion">Devoluciones</option>
             <option value="credito">Notas de crédito</option>
         </select>
-        <input type="date" class="ap-filter-input" wire:model="filtroMovFechaInicio">
+        <input type="date" class="ap-filter-input" wire:model.live="filtroMovFechaInicio">
         <span style="font-size:11px;color:#94a3b8;">—</span>
-        <input type="date" class="ap-filter-input" wire:model="filtroMovFechaFin">
+        <input type="date" class="ap-filter-input" wire:model.live="filtroMovFechaFin">
         <span wire:loading wire:target="filtroMovTipo,filtroMovFechaInicio,filtroMovFechaFin">
             <i class="fa fa-circle-o-notch fa-spin" style="color:#2980b9;"></i>
         </span>
@@ -1035,7 +1035,7 @@
     window.addEventListener('analisis-actualizado', function(){ setTimeout(initCharts,200); });
 
     // Livewire re-render
-    document.addEventListener('livewire:load', function(){
+    document.addEventListener('livewire:init', function(){
         Livewire.hook('message.processed', function(message, component){
             var name = (component.fingerprint && component.fingerprint.name) || '';
             if(name.toLowerCase().indexOf('analisis') !== -1 && name.toLowerCase().indexOf('producto') !== -1){

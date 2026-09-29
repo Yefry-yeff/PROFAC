@@ -174,7 +174,7 @@
                             </span>
                         </div>
                         <input type="text"
-                               wire:model.debounce.350ms="busquedaPedido"
+                               wire:model.live.debounce.350ms="busquedaPedido"
                                class="form-control"
                                placeholder="Ej: 142  o  Distribuciones Valencia..."
                                autocomplete="off"
@@ -282,7 +282,7 @@
                                 <span class="input-group-text bg-white"><i class="fa fa-user text-muted"></i></span>
                             </div>
                             <input type="text"
-                                   wire:model.debounce.300ms="busquedaCliente"
+                                   wire:model.live.debounce.300ms="busquedaCliente"
                                    class="form-control border-left-0"
                                    placeholder="Nombre o RTN..."
                                    style="border-radius:0 8px 8px 0;">
@@ -290,12 +290,12 @@
                     </div>
                     <div class="col-lg-2 col-md-3 mb-2">
                         <label class="filter-label"><i class="fa fa-hashtag mr-1"></i> Pedido #</label>
-                        <input type="number" wire:model.debounce.400ms="filtroPedido"
+                        <input type="number" wire:model.live.debounce.400ms="filtroPedido"
                                class="form-control" placeholder="ID..." style="border-radius:8px;">
                     </div>
                     <div class="col-lg-2 col-md-3 mb-2">
                         <label class="filter-label"><i class="fa fa-tag mr-1"></i> Estado</label>
-                        <select wire:model="filtroEstado" class="form-control" style="border-radius:8px;">
+                        <select wire:model.live="filtroEstado" class="form-control" style="border-radius:8px;">
                             <option value="">Todos</option>
                             <option value="activa">Activa</option>
                             <option value="ganadora">Ganadora</option>
@@ -304,7 +304,7 @@
                     </div>
                     <div class="col-lg-2 col-md-3 mb-2">
                         <label class="filter-label"><i class="fa fa-calendar mr-1"></i> Fecha</label>
-                        <input type="date" wire:model="filtroFecha"
+                        <input type="date" wire:model.live="filtroFecha"
                                class="form-control" style="border-radius:8px;">
                     </div>
                     <div class="col-lg-2 col-md-3 mb-2">
@@ -601,7 +601,7 @@
                     <p style="font-size:12px; color:#e57373; margin:0 0 12px;">
                         El pedido #{{ $pedidoSeleccionado['id'] }} quedará cancelado y su flujo se actualizará.
                     </p>
-                    <textarea wire:model.defer="motivoAnulacion"
+                    <textarea wire:model.live="motivoAnulacion"
                               placeholder="Motivo de anulación (obligatorio)..."
                               rows="2"
                               style="width:100%; border-radius:8px; border:1px solid #ef9a9a;

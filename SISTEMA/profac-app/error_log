@@ -6,3 +6,10 @@ Stack trace:
 Stack trace:
 #0 {main}
   thrown in Command line code on line 1
+[29-Sep-2026 01:59:09 America/New_York] PHP Fatal error:  Uncaught RuntimeException: Composer detected issues in your platform: Your Composer dependencies require a PHP version ">= 8.3.0". You are running 8.2.33. in /home/distrib3/public_html/Valencia/PRODUCCION/vendor/composer/platform_check.php:26
+Stack trace:
+#0 /home/distrib3/public_html/Valencia/PRODUCCION/vendor/composer/autoload_real.php(25): require()
+#1 /home/distrib3/public_html/Valencia/PRODUCCION/vendor/autoload.php(22): ComposerAutoloaderInit322bce2a9fb9b2ac9733ce9330bea609::getLoader()
+#2 /home/distrib3/public_html/Valencia/PRODUCCION/artisan(18): require('/home/distrib3/...')
+#3 {main}
+  thrown in /home/distrib3/public_html/Valencia/PRODUCCION/vendor/composer/platform_check.php on line 26

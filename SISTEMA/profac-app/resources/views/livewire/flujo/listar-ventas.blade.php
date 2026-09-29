@@ -89,7 +89,7 @@
                     </span>
                 </div>
                 <input type="text"
-                       wire:model.debounce.300ms="busquedaOfr"
+                       wire:model.live.debounce.300ms="busquedaOfr"
                        class="form-control"
                        placeholder="Buscar cliente, RTN, # flujo o # documento..."
                        style="border-radius:0 8px 8px 0;">
@@ -97,14 +97,14 @@
         </div>
         <div class="col-md-2 mb-2">
             <input type="number"
-                   wire:model.debounce.300ms="filtroNumero"
+                   wire:model.live.debounce.300ms="filtroNumero"
                    class="form-control"
                    min="1"
                    placeholder="# Documento"
                    style="border-radius:8px;">
         </div>
         <div class="col-md-2 mb-2">
-            <select wire:model="filtroEstado" class="form-control" style="border-radius:8px;">
+            <select wire:model.live="filtroEstado" class="form-control" style="border-radius:8px;">
                 <option value="">Todos los estados</option>
                 <option value="pedido">Pedido</option>
                 <option value="Ofertas">Ofertas</option>
@@ -116,7 +116,7 @@
             </select>
         </div>
         <div class="col-md-3 mb-2">
-            <select wire:model="filtroTipoVenta" class="form-control" style="border-radius:8px;">
+            <select wire:model.live="filtroTipoVenta" class="form-control" style="border-radius:8px;">
                 <option value="">Todos los tipos</option>
                 <option value="expo">Expo</option>
                 @foreach($tiposVenta as $tipoVenta)
@@ -126,7 +126,7 @@
         </div>
         <div class="col-md-3 mb-2">
             <input type="date"
-                   wire:model="filtroFecha"
+                   wire:model.live="filtroFecha"
                    class="form-control"
                    style="border-radius:8px;">
         </div>
@@ -292,13 +292,13 @@
     <div
         wire:ignore
         x-data="{ pedidoId: {{ $autoOpenPedidoId }} }"
-        x-init="$nextTick(() => Livewire.emit('abrirFlujoPedido', pedidoId))"
+        x-init="$nextTick(() => Livewire.dispatch('abrirFlujoPedido', { pedidoId: pedidoId }))"
     ></div>
     @elseif($autoOpenCotizacionId > 0)
     <div
         wire:ignore
         x-data="{ flujoId: {{ $autoOpenCotizacionId }} }"
-        x-init="$nextTick(() => Livewire.emit('abrirFlujoCotizacion', flujoId))"
+        x-init="$nextTick(() => Livewire.dispatch('abrirFlujoCotizacion', { flujoId: flujoId }))"
     ></div>
     @endif
 </div>

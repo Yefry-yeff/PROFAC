@@ -18,7 +18,7 @@ class BodegaExport implements FromCollection, WithHeadings, ShouldAutoSize
     
     
     
-    public function collection()
+    public function collection(): \Illuminate\Support\Enumerable
     {
 
         return DB::table('recibido_bodega')

@@ -120,7 +120,7 @@ class FacturaDiaExport implements FromArray, WithStyles, WithEvents, WithStrictN
         return $out;
     }
 
-    public function styles(Worksheet $sheet)
+    public function styles(Worksheet $sheet): ?array
     {
         $lc = self::LAST_COL;
         $sheet->mergeCells("A1:{$lc}1");

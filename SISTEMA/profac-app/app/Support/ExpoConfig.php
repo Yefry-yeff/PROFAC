@@ -167,7 +167,7 @@ class ExpoConfig
             ->whereIn('pf.estado', ['activo', 'convertida'])
             ->where('ec.expo_id', $expoId)
             ->where('ca.users_id', $usuarioId)
-                        ->exists();
+            ->exists();
         if (!$edicionAutorizada) {
             return null;
         }

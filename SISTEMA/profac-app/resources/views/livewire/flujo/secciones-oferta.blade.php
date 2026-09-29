@@ -60,32 +60,32 @@
                         <div class="row align-items-end">
                             <div class="col-md-3 form-group mb-md-0">
                                 <label class="expo-payment-label" for="tipoPagoSeccion">Condición de pago</label>
-                                <select id="tipoPagoSeccion" class="form-control" wire:model="tipoPagoId" {{ !$puedeCrear || $editarEstadoSeccion === 'DEVUELTA_INVENTARIO' ? 'disabled' : '' }}>
+                                <select id="tipoPagoSeccion" class="form-control" wire:model.live="tipoPagoId" {{ !$puedeCrear || $editarEstadoSeccion === 'DEVUELTA_INVENTARIO' ? 'disabled' : '' }}>
                                     <option value="1">Contado</option>
                                     <option value="2">Crédito</option>
                                 </select>
                             </div>
                             <div class="col-md-3 form-group mb-md-0">
                                 <label class="expo-payment-label" for="fechaEmisionSeccion">Fecha de emisión</label>
-                                <input id="fechaEmisionSeccion" type="date" class="form-control" wire:model="fechaEmision" {{ !$puedeCrear || $editarEstadoSeccion === 'DEVUELTA_INVENTARIO' ? 'disabled' : '' }}>
+                                <input id="fechaEmisionSeccion" type="date" class="form-control" wire:model.live="fechaEmision" {{ !$puedeCrear || $editarEstadoSeccion === 'DEVUELTA_INVENTARIO' ? 'disabled' : '' }}>
                                 @error('fechaEmision') <small class="text-danger">{{ $message }}</small> @enderror
                             </div>
                             <div class="col-md-3 form-group mb-md-0">
                                 <label class="expo-payment-label" for="fechaPagoSeccion">{{ $tipoPagoId === 2 ? 'Fecha de vencimiento' : 'Fecha de pago' }}</label>
-                                <input id="fechaPagoSeccion" type="date" class="form-control" wire:model="fechaPago"
+                                <input id="fechaPagoSeccion" type="date" class="form-control" wire:model.live="fechaPago"
                                        min="{{ $fechaEmision }}" {{ !$puedeCrear || $tipoPagoId === 1 || $editarEstadoSeccion === 'DEVUELTA_INVENTARIO' ? 'disabled' : '' }}>
                                 @error('fechaPago') <small class="text-danger">{{ $message }}</small> @enderror
                             </div>
                             <div class="col-md-3 form-group mb-md-0">
                                 <div class="custom-control custom-checkbox pb-2">
-                                    <input type="checkbox" class="custom-control-input" id="finalizaSeccionado" wire:model.defer="finalizaSeccionado" {{ !$puedeCrear || $editarEstadoSeccion === 'DEVUELTA_INVENTARIO' ? 'disabled' : '' }}>
+                                    <input type="checkbox" class="custom-control-input" id="finalizaSeccionado" wire:model.live="finalizaSeccionado" {{ !$puedeCrear || $editarEstadoSeccion === 'DEVUELTA_INVENTARIO' ? 'disabled' : '' }}>
                                     <label class="custom-control-label" for="finalizaSeccionado">Esta será la última sección</label>
                                 </div>
                             </div>
                             <div class="col-12 form-group mb-0 mt-3">
                                 <label class="expo-payment-label" for="comentarioCreditoSeccion">Comentario para Créditos (opcional)</label>
                                 <textarea id="comentarioCreditoSeccion" class="form-control" rows="2"
-                                          wire:model.defer="comentarioCredito"
+                                          wire:model.live="comentarioCredito"
                                           placeholder="Observación específica de esta sección..."
                                           {{ !$puedeCrear || $editarEstadoSeccion === 'DEVUELTA_INVENTARIO' ? 'disabled' : '' }}></textarea>
                             </div>
@@ -118,7 +118,7 @@
                         <h5 class="mb-0">Productos pendientes de seccionar</h5>
                         <div class="input-group input-group-sm" style="max-width:340px;">
                             <div class="input-group-prepend"><span class="input-group-text"><i class="fa fa-search"></i></span></div>
-                            <input type="search" class="form-control" placeholder="Buscar producto o código" wire:model.debounce.300ms="busquedaProducto">
+                            <input type="search" class="form-control" placeholder="Buscar producto o código" wire:model.live.debounce.300ms="busquedaProducto">
                         </div>
                     </div>
 
@@ -128,7 +128,7 @@
                                 <tr>
                                     <th style="width:74px;" class="text-center">
                                         <label class="mb-0" style="cursor:pointer;">
-                                            <input type="checkbox" wire:model="seleccionarTodos" {{ !$puedeCrear ? 'disabled' : '' }}>
+                                            <input type="checkbox" wire:model.live="seleccionarTodos" {{ !$puedeCrear ? 'disabled' : '' }}>
                                             <span class="d-block" style="font-size:10px;">Incluir</span>
                                         </label>
                                     </th>
@@ -152,7 +152,7 @@
                                     @endphp
                                     <tr class="{{ $inventarioInsuficiente ? 'expo-no-stock' : ($seleccionado ? 'expo-selected' : '') }}">
                                         <td class="text-center">
-                                            <input type="checkbox" wire:model="seleccionados.{{ $producto['id'] }}" {{ !$puedeCrear ? 'disabled' : '' }}>
+                                            <input type="checkbox" wire:model.live="seleccionados.{{ $producto['id'] }}" {{ !$puedeCrear ? 'disabled' : '' }}>
                                         </td>
                                         <td>
                                             <strong>{{ $producto['nombre_producto'] }}</strong>
@@ -170,7 +170,7 @@
                                         <td>
                                             <input type="number" class="form-control form-control-sm"
                                                    min="0" max="{{ (int) $producto['cantidad_pendiente'] }}" step="1"
-                                                   wire:model.lazy="cantidades.{{ $producto['id'] }}"
+                                                   wire:model.live.blur="cantidades.{{ $producto['id'] }}"
                                                    {{ !$puedeCrear ? 'disabled' : '' }}>
                                         </td>
                                         <td class="text-right">L {{ number_format($producto['precio_unidad'], 2) }}</td>
@@ -273,7 +273,7 @@
             <div class="ibox">
                 <div class="ibox-title d-flex align-items-center justify-content-between">
                     <h5>Ofertas Expo pendientes de seccionar</h5>
-                    <input type="search" class="form-control form-control-sm" style="max-width:280px;" placeholder="Buscar cliente, flujo u oferta" wire:model.debounce.350ms="busqueda">
+                    <input type="search" class="form-control form-control-sm" style="max-width:280px;" placeholder="Buscar cliente, flujo u oferta" wire:model.live.debounce.350ms="busqueda">
                 </div>
                 <div class="ibox-content p-0">
                     <div class="table-responsive">

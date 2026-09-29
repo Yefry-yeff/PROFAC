@@ -110,7 +110,7 @@
             <span style="background:#0097a7; color:#fff; border-radius:20px; padding:1px 10px; font-size:11px; font-weight:700;">{{ count($ofertas) }}</span>
             <div class="input-group ml-auto" style="max-width:280px;" onclick="event.stopPropagation()">
                 <div class="input-group-prepend"><span class="input-group-text" style="background:#0097a7; color:#fff; border-color:#0097a7; font-size:12px;"><i class="fa fa-search"></i></span></div>
-                <input type="text" wire:model.debounce.300ms="busqueda" class="form-control form-control-sm" placeholder="Buscar…">
+                <input type="text" wire:model.live.debounce.300ms="busqueda" class="form-control form-control-sm" placeholder="Buscar…">
             </div>
             <i class="fa fa-chevron-down pf-chevron"></i>
         </div>
@@ -175,7 +175,7 @@
             <span style="background:#f9a826; color:#fff; border-radius:20px; padding:1px 10px; font-size:11px; font-weight:700;">{{ count($ganadoras) }}</span>
             <div class="input-group ml-auto" style="max-width:280px;" onclick="event.stopPropagation()">
                 <div class="input-group-prepend"><span class="input-group-text" style="background:#f9a826; color:#fff; border-color:#f9a826; font-size:12px;"><i class="fa fa-search"></i></span></div>
-                <input type="text" wire:model.debounce.300ms="busquedaGanadora" class="form-control form-control-sm" placeholder="Buscar…">
+                <input type="text" wire:model.live.debounce.300ms="busquedaGanadora" class="form-control form-control-sm" placeholder="Buscar…">
             </div>
             <i class="fa fa-chevron-down pf-chevron"></i>
         </div>
@@ -239,7 +239,7 @@
             <span style="background:#6c5ce7; color:#fff; border-radius:20px; padding:1px 10px; font-size:11px; font-weight:700;">{{ count($historial) }}</span>
             <div class="input-group ml-auto" style="max-width:280px;" onclick="event.stopPropagation()">
                 <div class="input-group-prepend"><span class="input-group-text" style="background:#6c5ce7; color:#fff; border-color:#6c5ce7; font-size:12px;"><i class="fa fa-search"></i></span></div>
-                <input type="text" wire:model.debounce.300ms="busquedaHist" class="form-control form-control-sm" placeholder="Buscar…">
+                <input type="text" wire:model.live.debounce.300ms="busquedaHist" class="form-control form-control-sm" placeholder="Buscar…">
             </div>
             <i class="fa fa-chevron-down pf-chevron"></i>
         </div>

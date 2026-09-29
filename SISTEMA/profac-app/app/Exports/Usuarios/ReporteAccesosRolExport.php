@@ -32,7 +32,7 @@ class ReporteAccesosRolExport implements FromQuery, WithHeadings, WithMapping, W
         return 'Accesos por Rol';
     }
 
-    public function query()
+    public function query(): \Illuminate\Database\Query\Builder
     {
         return DB::table('rol as r')
             ->join('rol_submenu as rs',  'rs.rol_id',    '=', 'r.id')
@@ -74,7 +74,7 @@ class ReporteAccesosRolExport implements FromQuery, WithHeadings, WithMapping, W
         return ['A' => 30, 'B' => 30, 'C' => 36, 'D' => 40];
     }
 
-    public function styles(Worksheet $sheet)
+    public function styles(Worksheet $sheet): ?array
     {
         return [
             1 => [

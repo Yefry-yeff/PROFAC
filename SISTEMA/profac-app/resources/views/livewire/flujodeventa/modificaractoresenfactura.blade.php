@@ -160,7 +160,7 @@
                                    id="busqueda"
                                    class="form-control"
                                    placeholder="Ej: 000-001-01-00012345"
-                                   wire:model.debounce.400ms="busqueda">
+                                   wire:model.live.debounce.400ms="busqueda">
                         </div>
 
                         <div class="table-responsive" style="max-height: 460px; overflow-y: auto;">
@@ -255,7 +255,7 @@
 
                             <div class="form-group">
                                 <label for="vendedorId">Asesor comercial</label>
-                                <select id="vendedorId" class="form-control" wire:model.defer="vendedorId">
+                                <select id="vendedorId" class="form-control" wire:model.live="vendedorId">
                                     <option value="">Seleccione un asesor comercial</option>
                                     @foreach ($usuarios as $usuario)
                                         <option value="{{ $usuario['id'] }}">{{ $usuario['name'] }}</option>
@@ -266,7 +266,7 @@
 
                             <div class="form-group">
                                 <label for="teleAsesorId">Tele asesor</label>
-                                <select id="teleAsesorId" class="form-control" wire:model.defer="teleAsesorId">
+                                <select id="teleAsesorId" class="form-control" wire:model.live="teleAsesorId">
                                     <option value="">Seleccione un tele asesor</option>
                                     @foreach ($usuarios as $usuario)
                                         <option value="{{ $usuario['id'] }}">{{ $usuario['name'] }}</option>
@@ -277,7 +277,7 @@
 
                             <div class="form-group">
                                 <label for="gestorEntregaId">Gestor de entregas</label>
-                                <select id="gestorEntregaId" class="form-control" wire:model.defer="gestorEntregaId">
+                                <select id="gestorEntregaId" class="form-control" wire:model.live="gestorEntregaId">
                                     <option value="">Sin asignar</option>
                                     @foreach ($usuarios as $usuario)
                                         <option value="{{ $usuario['id'] }}">{{ $usuario['name'] }}</option>
@@ -352,7 +352,7 @@
                 });
             }
 
-            document.addEventListener('livewire:load', function () {
+            document.addEventListener('livewire:init', function () {
                 initActorSelect2();
 
                 if (window.Livewire && typeof window.Livewire.hook === 'function') {

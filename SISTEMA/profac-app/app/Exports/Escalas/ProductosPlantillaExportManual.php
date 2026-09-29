@@ -59,7 +59,7 @@ class ProductosPlantillaExportManual implements FromQuery, WithHeadings, WithMap
      * categoría de producto y unidad de medida). La información se normaliza con alias
      * legibles y campos predefinidos.
      */
-    public function query()
+    public function query(): \Illuminate\Database\Query\Builder
     {
         $preciosCoDistribuidorA = DB::table('precios_producto_carga as ppc')
             ->join('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')

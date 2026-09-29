@@ -478,7 +478,7 @@
                     ).map(function (el) { return el.getAttribute('data-key'); });
                     var lw = container.closest('[wire\\:id]');
                     if (lw) {
-                        window.livewire.find(lw.getAttribute('wire:id'))
+                        window.Livewire.find(lw.getAttribute('wire:id'))
                             .call('saveWidgetOrder', keys);
                     }
                 }
@@ -489,7 +489,7 @@
         } else {
             setTimeout(initDashboardSortable, 300);
         }
-        document.addEventListener('livewire:load', function () { setTimeout(initDashboardSortable, 400); });
+        document.addEventListener('livewire:init', function () { setTimeout(initDashboardSortable, 400); });
     })();
     </script>
     @endpush

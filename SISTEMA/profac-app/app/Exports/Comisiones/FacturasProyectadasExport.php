@@ -79,7 +79,7 @@ class FacturasProyectadasExport implements FromArray, WithColumnWidths, WithEven
         ];
     }
 
-    public function styles(Worksheet $sheet)
+    public function styles(Worksheet $sheet): ?array
     {
         $sheet->mergeCells('A1:P1');
         $sheet->mergeCells('A2:P2');

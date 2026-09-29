@@ -303,7 +303,7 @@ function initCobrosCharts() {
 }
 (function() {
     function run() { if (typeof ApexCharts !== 'undefined') initCobrosCharts(); }
-    if (window.DASH_LOADED) { run(); } else { document.addEventListener('livewire:load', run); }
+    if (window.DASH_LOADED) { run(); } else { document.addEventListener('livewire:init', run); }
     if (!window._cobrosBound) { window._cobrosBound = true; document.addEventListener('livewire:update', run); }
 })();
 </script>

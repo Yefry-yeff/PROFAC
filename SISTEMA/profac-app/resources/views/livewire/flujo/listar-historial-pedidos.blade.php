@@ -39,14 +39,14 @@
                 </span>
             </div>
             <input type="text"
-                   wire:model.debounce.300ms="busqueda"
+                   wire:model.live.debounce.300ms="busqueda"
                    class="form-control"
                    placeholder="Buscar por cliente, RTN o # pedido…"
                    style="border-radius:0 8px 8px 0;">
         </div>
 
         {{-- Filtro de estado --}}
-        <select wire:model="filtroEstado"
+        <select wire:model.live="filtroEstado"
                 class="shadow-sm form-control"
                 style="max-width:190px; border-radius:8px; font-size:13px;">
             <option value="">Todos los estados</option>

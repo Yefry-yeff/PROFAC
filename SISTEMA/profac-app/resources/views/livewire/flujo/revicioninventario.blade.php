@@ -108,6 +108,11 @@
                                 <span style="opacity:.65;">|</span>
                                 Vendedor: <strong>{{ $flujoData['vendedor_nombre'] ?? '—' }}</strong>
                             </small>
+                            @if(!empty($flujoData['direccion_entrega']))
+                            <small style="color:rgba(255,255,255,.88); font-size:11px; display:block; margin-top:3px; max-width:780px; white-space:normal; overflow-wrap:anywhere;">
+                                <i class="fa fa-map-marker mr-1"></i>Dirección: <strong>{{ $flujoData['direccion_entrega'] }}</strong>
+                            </small>
+                            @endif
                             @endif
                             @if($temporalRevisionId && !$modalTemporalVisible && $temporalExpiraAt)
                             <small style="color:rgba(255,255,255,.82); font-size:11px; display:block; margin-top:3px;">
@@ -224,7 +229,7 @@
                                     <div class="col-md-4">
                                         <label class="mb-1" style="font-size:12px; font-weight:700; color:#334155;">Producto</label>
                                         <input type="text"
-                                               wire:model.debounce.350ms="filtroProducto"
+                                               wire:model.live.debounce.350ms="filtroProducto"
                                                class="form-control form-control-sm"
                                                placeholder="Buscar por nombre..."
                                                style="border-radius:8px;">
@@ -232,14 +237,14 @@
                                     <div class="col-md-3">
                                         <label class="mb-1" style="font-size:12px; font-weight:700; color:#334155;">Bodega</label>
                                         <input type="text"
-                                               wire:model.debounce.350ms="filtroBodega"
+                                               wire:model.live.debounce.350ms="filtroBodega"
                                                class="form-control form-control-sm"
                                                placeholder="Buscar por bodega..."
                                                style="border-radius:8px;">
                                     </div>
                                     <div class="col-md-2">
                                         <label class="mb-1" style="font-size:12px; font-weight:700; color:#334155;">Estado</label>
-                                        <select wire:model="filtroEstado" class="form-control form-control-sm" style="border-radius:8px;">
+                                        <select wire:model.live="filtroEstado" class="form-control form-control-sm" style="border-radius:8px;">
                                             <option value="">Todos</option>
                                             <option value="ok">OK</option>
                                             <option value="sin_existencia">Sin existencia</option>
@@ -249,7 +254,7 @@
                                     </div>
                                     <div class="col-md-3">
                                         <label class="mb-1" style="font-size:12px; font-weight:700; color:#334155;">Revisado</label>
-                                        <select wire:model="filtroRevisado" class="form-control form-control-sm" style="border-radius:8px;">
+                                        <select wire:model.live="filtroRevisado" class="form-control form-control-sm" style="border-radius:8px;">
                                             <option value="">Todos</option>
                                             <option value="si">Marcados</option>
                                             <option value="no">Pendientes</option>
@@ -277,13 +282,14 @@
                                             <th style="padding:10px 14px; text-align:center; color:#1565c0; font-weight:700;">Cant. Disponible</th>
                                             <th style="padding:10px 14px; text-align:center; color:#2e7d32; font-weight:700;">Revisado</th>
                                             <th style="padding:10px 14px; text-align:center; color:#555; font-weight:700;">Estado</th>
+                                            <th style="padding:10px 14px; color:#555; font-weight:700; white-space:nowrap;">Revisado por</th>
                                             <th style="padding:10px 14px; color:#555; font-weight:700;">Nota / Reemplazo</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         @if(count($this->productosFiltrados) === 0)
                                         <tr>
-                                            <td colspan="11" style="padding:20px; text-align:center; color:#78909c; background:#fff;">
+                                            <td colspan="12" style="padding:20px; text-align:center; color:#78909c; background:#fff;">
                                                 <i class="fa fa-filter d-block" style="font-size:24px; margin-bottom:6px; opacity:.55;"></i>
                                                 No hay productos que coincidan con los filtros.
                                             </td>
@@ -300,7 +306,7 @@
                                                 );
                                                 $textoBodegaSeleccionada = $destinoSeleccionado['text'] ?? ($prod['nombre_bodega'] ?? '—');
                                             @endphp
-                                            <tr style="border-bottom:1px solid #f0f0f0;
+                                            <tr data-revision-linea="{{ $prod['cotizacion_has_producto_id'] }}" style="border-bottom:1px solid #f0f0f0;
                                                        {{ $alertaInventario ? 'background:#ffebee;' : '' }}
                                                        {{ $alertaInventario ? 'box-shadow:inset 4px 0 0 #c62828;' : (!empty($productosRevisados[$prod['idx']]) ? 'box-shadow:inset 4px 0 0 #2e7d32;' : '') }}">
                                                 <td style="padding:8px 14px; color:#888;">{{ $loop->iteration }}</td>
@@ -310,7 +316,7 @@
                                                 <td style="padding:8px 14px; color:#607d8b; font-size:12px; width:420px; min-width:420px;">
                                                     @if(!$devuelto && !$soloVisualizacion)
                                                     <div class="input-group input-group-sm" style="width:100%;">
-                                                                <select wire:model="bodegaExpoSeleccionada.{{ $prod['idx'] }}"
+                                                                <select wire:model.live="bodegaExpoSeleccionada.{{ $prod['idx'] }}"
                                                                     wire:change="guardarBodega({{ $prod['idx'] }})"
                                                                     wire:loading.attr="disabled"
                                                                     wire:target="guardarBodega({{ $prod['idx'] }})"
@@ -395,7 +401,8 @@
                                                         <input type="checkbox"
                                                                class="custom-control-input"
                                                                id="rev_{{ $prod['idx'] }}"
-                                                               wire:model="productosRevisados.{{ $prod['idx'] }}"
+                                                               data-revision-linea="{{ $prod['cotizacion_has_producto_id'] }}"
+                                                               wire:model.live="productosRevisados.{{ $prod['idx'] }}"
                                                                {{ ($devuelto || $soloVisualizacion) ? 'disabled' : '' }}>
                                                         <label class="custom-control-label" for="rev_{{ $prod['idx'] }}"></label>
                                                     </div>
@@ -433,9 +440,16 @@
                                                         </span>
                                                     @endif
                                                 </td>
+                                                <td data-revisado-por="{{ $prod['cotizacion_has_producto_id'] }}" style="padding:8px 14px; color:#475569; font-size:12px; white-space:nowrap;">
+                                                    @if(!empty($revisadoPor[$prod['idx']] ?? null))
+                                                        <i class="fa fa-user-circle-o mr-1" style="color:#2563eb;"></i>{{ $revisadoPor[$prod['idx']] }}
+                                                    @else
+                                                        <span style="color:#94a3b8;">—</span>
+                                                    @endif
+                                                </td>
                                                 <td style="padding:6px 14px;">
                                                     <input type="text"
-                                                           wire:model.lazy="obsProducto.{{ $prod['idx'] }}"
+                                                           wire:model.live.blur="obsProducto.{{ $prod['idx'] }}"
                                                            placeholder="{{ $prod['falta_stock'] ? 'Ej: reemplazar con Producto X...' : 'Observación opcional...' }}"
                                                            class="form-control form-control-sm"
                                                            {{ ($devuelto || $soloVisualizacion) ? 'readonly' : '' }}
@@ -598,7 +612,7 @@
                                 <i class="mr-1 fa fa-exclamation-triangle"></i>{{ $mensajeError }}
                             </div>
                             @endif
-                            <textarea wire:model.defer="motivoDevolucion"
+                            <textarea wire:model.live="motivoDevolucion"
                                       rows="3"
                                       placeholder="Motivo de devolución a Oferta (obligatorio)…"
                                       class="form-control"
@@ -657,9 +671,9 @@
                                             <i class="fa fa-search"></i>
                                         </span>
                                     </div>
-                                    <input type="text" wire:model.debounce.400ms="busqueda"
+                                    <input type="text" wire:model.live.debounce.400ms="busqueda"
                                            class="form-control form-control-sm"
-                                           placeholder="Buscar flujo o cliente..."
+                                           placeholder="Buscar flujo, oferta o cliente..."
                                            style="background:rgba(255,255,255,.15); border:none; color:#fff;
                                                   border-radius:0 6px 6px 0;"
                                            autocomplete="off">
@@ -700,21 +714,54 @@
 
                         {{-- ══ Pestaña: Llegando ══ --}}
                         @if ($tabActiva === 'llegando')
-                        @if ($totalLlegando === 0)
+                        @if (trim($busqueda) === '')
+                        <div style="display:flex; flex-wrap:wrap; gap:8px; padding:14px 16px; border-bottom:1px solid #e8eaf0; background:#f8fafc;">
+                            @foreach ($zonasRevision as $zona)
+                            @php
+                                $zonaId = (string) $zona['id'];
+                                $zonaActiva = $zonaSeleccionada === $zonaId;
+                            @endphp
+                            <button type="button" wire:click="cambiarZona('{{ $zonaId }}')"
+                                    style="display:inline-flex; align-items:center; gap:8px; border:1px solid {{ $zonaActiva ? '#1565c0' : '#dbe2ea' }};
+                                           border-radius:7px; padding:8px 12px; background:{{ $zonaActiva ? '#1565c0' : '#fff' }};
+                                           color:{{ $zonaActiva ? '#fff' : '#334155' }}; font-size:12px; font-weight:700; cursor:pointer;">
+                                <i class="fa fa-map-marker"></i>{{ $zona['name'] }}
+                                <span style="min-width:22px; padding:2px 6px; border-radius:10px; text-align:center;
+                                             background:{{ $zonaActiva ? 'rgba(255,255,255,.2)' : '#edf2f7' }};">{{ $conteosZonasRevision[$zonaId] ?? 0 }}</span>
+                            </button>
+                            @endforeach
+                            @if (($conteosZonasRevision['sin_zona'] ?? 0) > 0)
+                            @php $sinZonaActiva = $zonaSeleccionada === 'sin_zona'; @endphp
+                            <button type="button" wire:click="cambiarZona('sin_zona')"
+                                    style="display:inline-flex; align-items:center; gap:8px; border:1px solid {{ $sinZonaActiva ? '#1565c0' : '#dbe2ea' }};
+                                           border-radius:7px; padding:8px 12px; background:{{ $sinZonaActiva ? '#1565c0' : '#fff' }};
+                                           color:{{ $sinZonaActiva ? '#fff' : '#334155' }}; font-size:12px; font-weight:700; cursor:pointer;">
+                                <i class="fa fa-question-circle"></i>Sin zona
+                                <span style="min-width:22px; padding:2px 6px; border-radius:10px; text-align:center;
+                                             background:{{ $sinZonaActiva ? 'rgba(255,255,255,.2)' : '#edf2f7' }};">{{ $conteosZonasRevision['sin_zona'] }}</span>
+                            </button>
+                            @endif
+                        </div>
+                        @endif
+                        @if ($totalLlegandoFiltrado === 0)
                         <div style="padding:40px; text-align:center; color:#aaa;">
                             <i class="fa fa-inbox d-block" style="font-size:40px; margin-bottom:12px; opacity:.3;"></i>
-                            @if ($configuracionActiva)
+                            @if ($totalLlegando === 0 && trim($busqueda) === '' && $configuracionActiva)
                                 <p style="font-size:14px; margin:0;">No hay ofertas pendientes de revisión.</p>
                                 <p style="font-size:12px; color:#bbb; margin-top:4px;">
                                     Cuando una oferta sea seleccionada como ganadora, aparecerá aquí.
                                 </p>
-                            @else
+                            @elseif ($totalLlegando === 0 && trim($busqueda) === '')
                                 <p style="font-size:14px; margin:0; color:#e67e22; font-weight:600;">
                                     <i class="fa fa-toggle-off mr-1"></i>La revisión de inventario está desactivada.
                                 </p>
                                 <p style="font-size:12px; color:#bbb; margin-top:4px;">
                                     Actívela para que las ofertas ganadoras pasen por este paso antes de Prefactura.
                                 </p>
+                            @elseif (trim($busqueda) !== '')
+                                <p style="font-size:14px; margin:0;">No se encontraron flujos para esa búsqueda.</p>
+                            @else
+                                <p style="font-size:14px; margin:0;">No hay flujos pendientes en esta zona.</p>
                             @endif
                         </div>
                         @else
@@ -722,11 +769,13 @@
                             <table class="table table-hover" style="font-size:13px; margin:0;">
                                 <thead style="background:#f8f9fc;">
                                     <tr>
-                                        <th style="padding:10px 16px; color:#555; font-weight:700;">Flujo</th>
-                                        <th style="padding:10px 16px; color:#555; font-weight:700;">Cliente</th>
-                                        <th style="padding:10px 16px; text-align:center; color:#555; font-weight:700;">Oferta</th>
-                                        <th style="padding:10px 16px; text-align:center; color:#555; font-weight:700;">Productos</th>
-                                        <th style="padding:10px 16px; color:#555; font-weight:700;">Ingresó</th>
+                                        @include('livewire.flujo.partials.filtro-columna-revision', ['columna' => 'flujo_id', 'titulo' => 'Flujo'])
+                                        @include('livewire.flujo.partials.filtro-columna-revision', ['columna' => 'cliente', 'titulo' => 'Cliente'])
+                                        @include('livewire.flujo.partials.filtro-columna-revision', ['columna' => 'asesor_comercial', 'titulo' => 'Asesor Comercial'])
+                                        @include('livewire.flujo.partials.filtro-columna-revision', ['columna' => 'tele_asesor', 'titulo' => 'Tele asesor'])
+                                        @include('livewire.flujo.partials.filtro-columna-revision', ['columna' => 'cotizacion_id', 'titulo' => 'Oferta', 'alineacion' => 'center'])
+                                        @include('livewire.flujo.partials.filtro-columna-revision', ['columna' => 'total_productos', 'titulo' => 'Productos', 'alineacion' => 'center'])
+                                        @include('livewire.flujo.partials.filtro-columna-revision', ['columna' => 'fecha_revision', 'titulo' => 'Ingresó'])
                                         <th style="padding:10px 16px; text-align:center; color:#555; font-weight:700;">Acciones</th>
                                     </tr>
                                 </thead>
@@ -747,6 +796,12 @@
                                             @if(!empty($reg['rtn']))
                                             <div style="font-size:11px; color:#888;">RTN: {{ $reg['rtn'] }}</div>
                                             @endif
+                                        </td>
+                                        <td style="padding:10px 16px; color:#475569; font-size:12px;">
+                                            {{ $reg['asesor_comercial'] ?: '—' }}
+                                        </td>
+                                        <td style="padding:10px 16px; color:#475569; font-size:12px;">
+                                            {{ $reg['tele_asesor'] ?: '—' }}
                                         </td>
                                         <td style="padding:10px 16px; text-align:center;">
                                             @if($reg['cotizacion_id'])
@@ -786,12 +841,69 @@
                                 </tbody>
                             </table>
                         </div>
+                        @if ($filtroColumnaAbierto !== '')
+                        @php
+                            $titulosFiltroBandeja = [
+                                'flujo_id' => 'Flujo',
+                                'asesor_comercial' => 'Asesor Comercial',
+                                'tele_asesor' => 'Tele asesor',
+                                'cliente' => 'Cliente',
+                                'cotizacion_id' => 'Oferta',
+                                'total_productos' => 'Productos',
+                                'fecha_revision' => 'Ingresó',
+                            ];
+                        @endphp
+                        @teleport('body')
+                        <div style="position:fixed; inset:0; z-index:2500; pointer-events:none;">
+                            <div data-revision-filter-menu="{{ $filtroColumnaAbierto }}"
+                                 style="position:fixed; left:{{ $posicionFiltroMenu['left'] }}px; top:{{ $posicionFiltroMenu['top'] }}px;
+                                     width:300px; max-height:{{ $posicionFiltroMenu['maxHeight'] }}px; overflow:hidden;
+                                        display:flex; flex-direction:column; background:#fff; border:1px solid #cbd5e1;
+                                        border-radius:6px; box-shadow:0 12px 32px rgba(15,23,42,.24); pointer-events:auto;">
+                                <div style="padding:10px 12px; border-bottom:1px solid #e2e8f0; color:#334155; font-size:13px; font-weight:700;">
+                                    {{ $titulosFiltroBandeja[$filtroColumnaAbierto] ?? 'Filtrar' }}
+                                </div>
+                                <div style="padding:9px 10px 6px;">
+                                    <input type="search" wire:model.live.debounce.250ms="busquedaOpcionesFiltro"
+                                           class="form-control form-control-sm" placeholder="Buscar en la lista"
+                                           style="height:30px; font-size:12px;">
+                                </div>
+                                <div style="display:flex; justify-content:space-between; padding:3px 10px 7px; border-bottom:1px solid #e2e8f0;">
+                                    <button type="button" wire:click="seleccionarTodasOpcionesFiltro(true)"
+                                            style="padding:0; border:0; background:transparent; color:#1565c0; font-size:11px; cursor:pointer;">Seleccionar todo</button>
+                                    <button type="button" wire:click="seleccionarTodasOpcionesFiltro(false)"
+                                            style="padding:0; border:0; background:transparent; color:#1565c0; font-size:11px; cursor:pointer;">Borrar selección</button>
+                                </div>
+                                <div style="overflow-y:auto; min-height:80px; padding:5px 10px;">
+                                    @foreach ($opcionesFiltroBandeja as $indiceFiltro => $opcionFiltro)
+                                        @if ($busquedaOpcionesFiltro === '' || str_contains(mb_strtolower($opcionFiltro['label']), mb_strtolower($busquedaOpcionesFiltro)))
+                                        <label style="display:flex; align-items:center; gap:8px; margin:0; padding:4px 2px; color:#334155; font-size:12px; font-weight:400; cursor:pointer;">
+                                            <input type="checkbox" wire:model.live="seleccionesFiltroBandeja.{{ $indiceFiltro }}">
+                                            <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ $opcionFiltro['label'] }}</span>
+                                        </label>
+                                        @endif
+                                    @endforeach
+                                </div>
+                                <div style="display:flex; justify-content:space-between; gap:8px; padding:9px 10px; border-top:1px solid #e2e8f0; background:#f8fafc;">
+                                    <button type="button" wire:click="limpiarFiltroBandeja"
+                                            style="padding:6px 9px; border:1px solid #dbe2ea; border-radius:4px; background:#fff; color:#475569; font-size:11px; cursor:pointer;">Limpiar filtro</button>
+                                    <div style="display:flex; gap:6px;">
+                                        <button type="button" wire:click="cerrarFiltroBandeja"
+                                                style="padding:6px 9px; border:1px solid #dbe2ea; border-radius:4px; background:#fff; color:#475569; font-size:11px; cursor:pointer;">Cancelar</button>
+                                        <button type="button" wire:click="aplicarFiltroBandeja"
+                                                style="padding:6px 12px; border:1px solid #1565c0; border-radius:4px; background:#1565c0; color:#fff; font-size:11px; font-weight:700; cursor:pointer;">Aplicar</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        @endteleport
+                        @endif
                         {{-- Paginación Llegando --}}
-                        @if ($totalLlegando > $porPagina)
-                        @php $totalPagsL = (int) ceil($totalLlegando / $porPagina); @endphp
+                        @if ($totalLlegandoFiltrado > $porPagina)
+                        @php $totalPagsL = (int) ceil($totalLlegandoFiltrado / $porPagina); @endphp
                         <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 16px; border-top:1px solid #f0f0f0; background:#f8f9fc;">
                             <span style="font-size:12px; color:#64748b;">
-                                Mostrando {{ ($paginaLlegando-1)*$porPagina+1 }}–{{ min($paginaLlegando*$porPagina, $totalLlegando) }} de {{ $totalLlegando }}
+                                Mostrando {{ ($paginaLlegando-1)*$porPagina+1 }}–{{ min($paginaLlegando*$porPagina, $totalLlegandoFiltrado) }} de {{ $totalLlegandoFiltrado }}
                             </span>
                             <div style="display:flex; gap:4px; align-items:center;">
                                 <button wire:click="cambiarPagina('llegando', {{ max(1,$paginaLlegando-1) }})" {{ $paginaLlegando<=1 ? 'disabled' : '' }}
@@ -1188,6 +1300,129 @@
         }
         </script>
     </div>
+
+    <script>
+    (function () {
+        var columnaFiltroPosicionada = '';
+
+        function posicionarFiltroRevision() {
+            var menu = document.querySelector('[data-revision-filter-menu]');
+            if (!menu) return;
+
+            var columna = menu.getAttribute('data-revision-filter-menu');
+            var boton = document.querySelector('[data-revision-filter-trigger="' + columna + '"]');
+            if (!boton) return;
+
+            var rect = boton.getBoundingClientRect();
+            var arriba = rect.bottom + 4;
+            var espacioAbajo = Math.max(80, window.innerHeight - arriba - 8);
+            var alturaMaxima = Math.min(window.innerHeight * 0.7, espacioAbajo);
+            var ancho = menu.getBoundingClientRect().width;
+            var izquierda = Math.max(8, Math.min(rect.left, window.innerWidth - ancho - 8));
+
+            menu.style.left = izquierda + 'px';
+            menu.style.top = arriba + 'px';
+            menu.style.maxHeight = alturaMaxima + 'px';
+
+            var raiz = boton;
+            while (raiz && !raiz.hasAttribute('wire:id')) {
+                raiz = raiz.parentElement;
+            }
+            var componente = raiz && window.Livewire
+                ? window.Livewire.find(raiz.getAttribute('wire:id'))
+                : null;
+            if (componente) {
+                componente.call('guardarPosicionFiltro', izquierda, arriba, alturaMaxima);
+            }
+        }
+
+        var observador = new MutationObserver(function () {
+            var menu = document.querySelector('[data-revision-filter-menu]');
+            if (!menu) {
+                columnaFiltroPosicionada = '';
+                return;
+            }
+
+            var columna = menu.getAttribute('data-revision-filter-menu');
+            if (columna === columnaFiltroPosicionada) {
+                return;
+            }
+
+            columnaFiltroPosicionada = columna;
+            window.requestAnimationFrame(posicionarFiltroRevision);
+        });
+        observador.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-revision-filter-menu'] });
+    })();
+    </script>
+
+    {{-- ══════════════════════════════════════════════════════════════════ --}}
+    {{-- Sincronización en tiempo real (Reverb) de la revisión de inventario --}}
+    {{-- ══════════════════════════════════════════════════════════════════ --}}
+    <script>
+    (function () {
+        var canalActual = null;
+
+        function aplicarRevisionEnDom(evento) {
+            var checkbox = document.querySelector('input[data-revision-linea="' + evento.linea_id + '"]');
+            if (checkbox) { checkbox.checked = !!evento.revisado; }
+            var celda = document.querySelector('[data-revisado-por="' + evento.linea_id + '"]');
+            if (celda) { celda.textContent = evento.usuario_nombre || '—'; }
+        }
+
+        function suscribirRevisionInventario(component, flujoId, cotizacionId) {
+            if (!window.Echo) return;
+
+            if (!flujoId || !cotizacionId) {
+                if (canalActual) {
+                    window.Echo.leave(canalActual);
+                    canalActual = null;
+                }
+                return;
+            }
+
+            var canal = 'revision-inventario.' + flujoId + '.' + cotizacionId;
+            if (canalActual === canal) return;
+            if (canalActual) {
+                window.Echo.leave(canalActual);
+            }
+            canalActual = canal;
+
+            window.Echo.private(canal).listen('.revision.actualizada', function (evento) {
+                aplicarRevisionEnDom(evento);
+                component.call(
+                    'aplicarRevisionRemota',
+                    Number(evento.linea_id),
+                    !!evento.revisado,
+                    evento.observacion || null,
+                    evento.usuario_nombre || null
+                );
+            });
+        }
+
+        function intentarSuscribir(component) {
+            try {
+                if (typeof component.get !== 'function') return;
+                var flujoId = component.get('flujoId');
+                var cotizacionId = component.get('cotizacionId');
+                if (flujoId === undefined || cotizacionId === undefined) return;
+                suscribirRevisionInventario(component, flujoId, cotizacionId);
+            } catch (e) {
+                // No es el componente de Revisión de Inventario.
+            }
+        }
+
+        if (window.Livewire) {
+            Livewire.hook('component.init', function ({ component }) {
+                intentarSuscribir(component);
+            });
+
+            queueMicrotask(function () {
+                if (typeof Livewire.all !== 'function') return;
+                Livewire.all().forEach(intentarSuscribir);
+            });
+        }
+    })();
+    </script>
 
 </div>
 

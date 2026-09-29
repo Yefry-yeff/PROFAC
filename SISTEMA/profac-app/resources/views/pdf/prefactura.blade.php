@@ -4,14 +4,26 @@
 <head>
     <link rel="stylesheet" href="{{ public_path('css/bootstrap.min.css') }}">
     <style>
-        p { font-size: 11px; }
+        @page { margin: 320px 28px 38px 28px; }
+        p { font-size: 10px; }
+        body { margin: 0; padding: 0; width: 100%; }
 
-        body {
-            margin-left: -95px;
-            padding: 50px;
-            width: 45rem;
-            height: 3rem;
+        #encabezado-fijo {
+            position: fixed;
+            top: -300px;
+            left: 0;
+            right: 0;
+            width: 100%;
         }
+
+        .prefactura-logo { display: block; width: 100%; margin-bottom: 2px; }
+        .prefactura-card { margin-top: 4px; width: 100%; }
+        .prefactura-card .card-body { position: static !important; }
+        .prefactura-productos { margin-top: 8px; width: 100%; }
+        .prefactura-resumen { position: relative; margin-top: 6px; width: 100%; min-height: 168px; }
+        .prefactura-notas { width: 57%; }
+        .prefactura-totales { position: absolute; top: 0; right: 0; width: 41%; }
+        .prefactura-firmas { margin-top: 70px; width: 100%; }
 
         table {
             border-collapse: collapse;
@@ -39,24 +51,31 @@
 @endphp
 
 <div>
-    <img src="{{ public_path('img/membrete/Logo3.png') }}" width="800rem" style="margin-left:3%; margin-top:-25px; position:absolute;" alt="">
+    <div id="encabezado-fijo">
+    <img src="{{ public_path('img/membrete/Logo3.png') }}" class="prefactura-logo" alt="">
 
-    <div class="card border border-dark" style="margin-left:44px; margin-top:105px; width:45rem; height:5.5rem;">
+    <div class="card border border-dark prefactura-card" style="margin-top:2px;">
         <div class="card-header">
             <b style="font-size:13px;">PRE-FACTURA No. {{ $datos->codigo }}</b>
             <b style="position:absolute;right: 270px"> *Original* </b>
             <b style="position:absolute;right: 10px; font-size:13px;">Factura de: {{ ucfirst($tipoPagoDescripcion ?? 'contado') }}</b>
         </div>
 
-        <div class="card-body">
-            <p class="card-text" style="position:absolute;left:20px; top:50px;"><b>Registro tributario: 08011986138652</b></p>
-            <p class="card-text" style="position:absolute;left:420px; top:50px;"><b>CAI: N/A</b></p>
-            <p class="card-text" style="position:absolute;left:20px; top:65px;"><b>Fecha limite de emision: N/A</b></p>
-            <p class="card-text" style="position:absolute;left:340px; top:65px;"><b>Rango autorizado: N/A</b></p>
+        <div class="card-body" style="padding:4px 10px;">
+            <table style="width:100%; border:none; border-collapse:collapse; font-size:10px;">
+                <tr>
+                    <td style="border:none; padding:1px 0;"><b>Registro tributario: 08011986138652</b></td>
+                    <td style="border:none; padding:1px 0; text-align:right;"><b>CAI: N/A</b></td>
+                </tr>
+                <tr>
+                    <td style="border:none; padding:1px 0;"><b>Fecha límite de emisión: N/A</b></td>
+                    <td style="border:none; padding:1px 0; text-align:right;"><b>Rango autorizado: N/A</b></td>
+                </tr>
+            </table>
         </div>
     </div>
 
-    <div class="card border border-dark" style="margin-left:44px; margin-top:4px; width:45rem;">
+    <div class="card border border-dark prefactura-card">
         <div class="card-body" style="padding:4px 10px;">
             <table style="width:100%; border:none; border-collapse:collapse; font-size:11px;">
                 <tr>
@@ -89,8 +108,9 @@
             </table>
         </div>
     </div>
+    </div>
 
-    <div style="position: relative; margin-left:44px; margin-top:4px; width:45rem">
+    <div class="prefactura-productos">
         <table style="font-size:10px;">
             <thead>
                 <tr>
@@ -123,8 +143,8 @@
         </table>
     </div>
 
-    <div style="position: relative; margin-left:44px; margin-top:6px; width:26rem; height:14rem;">
-        <div class="card border border-dark" style="position:absolute;left:0px; width:26rem;">
+    <div class="prefactura-resumen">
+        <div class="card border border-dark prefactura-notas">
             <div class="card-body" style="padding:4px 8px;">
                 <p style="margin:0 0 1px; font-size:10px;"><b>Asesor comercial:</b> {{ $datos->vendedor }} &nbsp; <b>Tele asesor:</b> {{ $datos->cotizador }} &nbsp; <b>Asesor de entrega:</b> </p>
                 <p style="margin:0 0 2px; font-size:10px;"><b>Tramite #{{ $datos->flujo_id ?? '—' }}</b></p>
@@ -138,7 +158,7 @@
             </div>
         </div>
 
-        <div class="card border border-dark" style="position:absolute;left:430px; width:18rem;">
+        <div class="card border border-dark prefactura-totales">
             <div class="card-body" style="padding:4px 8px;">
                 <table style="width:100%; border:none; border-collapse:collapse; font-size:10px;">
                     <tr>
@@ -182,9 +202,9 @@
         </div>
     </div>
 
-    <p style="margin:4px 44px 0; font-size:8px; text-align:right;">Original: Cliente, Copia obligado tributario emisor.</p>
+    <p style="margin:4px 0 0; font-size:8px; text-align:right;">Original: Cliente, Copia obligado tributario emisor.</p>
 
-    <div style="margin-left:44px; margin-top:70px; width:45rem;">
+    <div class="prefactura-firmas">
         <table style="width:100%; border:none; border-collapse:collapse; font-size:9px;">
             <tr>
                 <td style="width:50%; border:none; vertical-align:top; padding:0 20px 0 0;">

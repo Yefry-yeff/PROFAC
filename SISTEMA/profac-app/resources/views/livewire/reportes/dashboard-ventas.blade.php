@@ -1515,7 +1515,7 @@
             initDashboardVentasSafe();
         }
 
-        document.addEventListener('livewire:load', initDashboardVentasSafe);
+        document.addEventListener('livewire:init', initDashboardVentasSafe);
         document.addEventListener('livewire:navigated', initDashboardVentasSafe);
     })();
 </script>

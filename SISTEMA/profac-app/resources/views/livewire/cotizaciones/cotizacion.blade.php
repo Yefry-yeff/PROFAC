@@ -164,7 +164,7 @@
                                     </span>
                                 </div>
                                 <input type="text"
-                                       wire:model.debounce.350ms="busquedaPedido"
+                                       wire:model.live.debounce.350ms="busquedaPedido"
                                        class="form-control ofr-input"
                                        placeholder="Buscar pedido por # o nombre de cliente…"
                                        style="border-radius:0 8px 8px 0 !important;"
