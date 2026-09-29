@@ -230,12 +230,15 @@
     .wrapper-content { padding: 10px 8px !important; }
 }
     </style>
-
+    <style>
 /* Placeholder gris más suave */
 .select2-container--bootstrap4 .select2-selection__placeholder {
     color: #6c757d;
 }
-          </style>
+.modal-direccion-card { border:1px solid #e8d5bf; border-radius:6px; padding:8px; margin-bottom:8px; background:#fffaf4; }
+.modal-direccion-card .modal-direccion-map { display:block !important; width:100% !important; height:170px !important; min-height:170px !important; border-radius:4px; margin-top:6px; }
+.modal-direccion-card .modal-direccion-summary { font-size:.75rem; color:#777; }
+    </style>
 
 
 
@@ -483,60 +486,15 @@
 
                                 <!-- TAB 3: Ubicación -->
                                 <div class="tab-pane fade" id="tab-crear-ubicacion" role="tabpanel">
-                                    <div class="row">
-                                        <div class="col-md-4">
-                                            <div class="form-group mb-2">
-                                                <label class="col-form-label focus-label">País <span class="text-danger">*</span></label>
-                                                <select class="form-control" name="pais_cliente" id="pais_cliente" onchange="obtenerDepartamentos()">
-                                                    <option selected disabled>---Seleccione un país---</option>
-                                                </select>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="form-group mb-2">
-                                                <label class="col-form-label focus-label">Departamento <span class="text-danger">*</span></label>
-                                                <select class="form-control" name="departamento_cliente" id="departamento_cliente" onchange="obtenerMunicipios()">
-                                                    <option selected disabled>---Seleccione un departamento---</option>
-                                                </select>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="form-group mb-2">
-                                                <label class="col-form-label focus-label">Municipio <span class="text-danger">*</span></label>
-                                                <select class="form-control" name="municipio_cliente" id="municipio_cliente">
-                                                    <option selected disabled>---Seleccione un municipio---</option>
-                                                </select>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-12">
-                                            <div class="form-group mb-2">
-                                                <label class="col-form-label focus-label">Dirección <span class="text-danger">*</span></label>
-                                                <textarea name="direccion_cliente" placeholder="Escriba aquí..." id="direccion_cliente"
-                                                    cols="30" rows="2" class="form-control" maxlength="142"></textarea>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="form-group mb-2">
-                                                <label class="col-form-label focus-label">Latitud</label>
-                                                <input class="form-control" type="text" name="latitud_cliente" id="latitud_clientee">
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="form-group mb-2">
-                                                <label class="col-form-label focus-label">Longitud</label>
-                                                <input class="form-control" type="text" name="longitud_cliente" id="longitud_cliente">
-                                            </div>
-                                        </div>
-                                        <div class="col-md-5">
-                                            <div class="form-group mb-2">
-                                                <label for="foto_cliente" class="col-form-label focus-label">Fotografía:</label>
-                                                <input type="file" id="foto_cliente" name="foto_cliente" class="form-control-file"
-                                                    accept="image/png, image/gif, image/jpeg, image/jpg">
-                                            </div>
-                                        </div>
-                                        <div class="col-md-7">
-                                            <img id="imagenPrevisualizacion" class="ancho-imagen">
-                                        </div>
+                                    <div class="d-flex align-items-center justify-content-between mb-2">
+                                        <strong class="text-uppercase" style="font-size:.75rem;color:#7d3f00">Direcciones del cliente</strong>
+                                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="modalAgregarDireccion()"><i class="fa fa-plus mr-1"></i>Agregar dirección</button>
+                                    </div>
+                                    <small class="text-muted d-block mb-2">Agregue varias direcciones. La principal se conserva como referencia del cliente.</small>
+                                    <div id="modal_direcciones_container"></div>
+                                    <div class="row mt-2">
+                                        <div class="col-md-5"><label for="foto_cliente" class="col-form-label focus-label">Fotografía:</label><input type="file" id="foto_cliente" name="foto_cliente" class="form-control-file" accept="image/png, image/gif, image/jpeg, image/jpg"></div>
+                                        <div class="col-md-7"><img id="imagenPrevisualizacion" class="ancho-imagen"></div>
                                     </div>
                                 </div>{{-- /tab-crear-ubicacion --}}
 
@@ -762,8 +720,11 @@
             </div>
         </div>
 
+@push('styles')
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+@endpush
 @push('scripts')
-
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="{{ asset('js/js_proyecto/cliente/cliente.js') }}"></script>
 @endpush
 

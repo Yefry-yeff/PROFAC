@@ -21,6 +21,7 @@ use App\Models\ClienteCredito;
 use App\Services\CreditoService;
 use App\Models\ClienteObservacion;
 use App\Models\ClienteDocumento;
+use App\Models\ClienteDireccion;
 
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\ClientesExport;
@@ -138,6 +139,10 @@ class Cliente extends Component
                 'type'  => 'rtn_duplicado',
             ], 422);
         }
+
+        $direcciones = $this->normalizarDirecciones($request);
+        $validacionDirecciones = $this->validarDirecciones($direcciones);
+        if ($validacionDirecciones) return $validacionDirecciones;
 
        try {
 
@@ -258,6 +263,9 @@ class Cliente extends Component
 
         }
 
+        $this->aplicarDireccionPrincipal($cliente, $direcciones[0]);
+        $cliente->save();
+        $this->sincronizarDirecciones($cliente, $direcciones);
         $this->registrarAsesorComercialEnCartera($cliente, $request->vendedor_cliente);
 
         DB::commit();
@@ -1106,6 +1114,31 @@ class Cliente extends Component
                 $ubicacion = (object)['idPais' => null, 'idDepto' => null, 'idMunicipio' => null];
             }
 
+            $direcciones = DB::table('cliente_direccion')
+                ->where('cliente_id', $id)
+                ->where('activo', 1)
+                ->orderByDesc('principal')
+                ->orderBy('id')
+                ->get()
+                ->map(fn ($direccion) => (array) $direccion)
+                ->values()
+                ->all();
+
+            if (!$direcciones) {
+                $direcciones = [[
+                    'id' => null,
+                    'etiqueta' => 'Principal',
+                    'pais_id' => $ubicacion->idPais,
+                    'departamento_id' => $ubicacion->idDepto,
+                    'municipio_id' => $datosCliente->municipio_id,
+                    'direccion' => $datosCliente->direccion,
+                    'latitud' => $datosCliente->latitud,
+                    'longitud' => $datosCliente->longitud,
+                    'principal' => 1,
+                    'activo' => 1,
+                ]];
+            }
+
             $paises     = DB::select("SELECT id, nombre FROM pais ORDER BY nombre ASC");
             $deptos     = $ubicacion->idPais   ? DB::select("SELECT id, nombre FROM departamento WHERE pais_id = ? ORDER BY nombre ASC", [$ubicacion->idPais])   : [];
             $municipios = $ubicacion->idDepto  ? DB::select("SELECT id, nombre FROM municipio WHERE departamento_id = ? ORDER BY nombre ASC", [$ubicacion->idDepto]) : [];
@@ -1171,6 +1204,7 @@ class Cliente extends Component
                 'datosCliente'     => $datosCliente,
                 'contactos'        => $contactos,
                 'ubicacion'        => $ubicacion,
+                'direcciones'      => $direcciones,
                 'paises'           => $paises,
                 'deptos'           => $deptos,
                 'municipios'       => $municipios,
@@ -1193,6 +1227,140 @@ class Cliente extends Component
         }
     }
 
+    private function normalizarDirecciones(Request $request): array
+    {
+        $direcciones = $request->input('direcciones');
+        if (is_string($direcciones)) {
+            $direcciones = json_decode($direcciones, true);
+        }
+        if (!is_array($direcciones) || !$direcciones) {
+            $direcciones = [[
+                'etiqueta' => 'Principal',
+                'pais_id' => $request->input('pais_id'),
+                'departamento_id' => $request->input('departamento_id'),
+                'municipio_id' => $request->input('municipio_id'),
+                'direccion' => $request->input('direccion', ''),
+                'latitud' => $request->input('latitud', ''),
+                'longitud' => $request->input('longitud', ''),
+                'principal' => 1,
+            ]];
+        }
+
+        $indicePrincipal = collect($direcciones)->search(fn ($direccion) => !empty($direccion['principal']));
+        if ($indicePrincipal === false) $indicePrincipal = 0;
+
+        return collect($direcciones)->values()->map(function ($direccion, $indice) use ($indicePrincipal) {
+            return [
+                'etiqueta' => trim((string) ($direccion['etiqueta'] ?? '')),
+                'pais_id' => $direccion['pais_id'] ?? null,
+                'departamento_id' => $direccion['departamento_id'] ?? null,
+                'municipio_id' => $direccion['municipio_id'] ?? null,
+                'direccion' => trim((string) ($direccion['direccion'] ?? '')),
+                'latitud' => $direccion['latitud'] ?? null,
+                'longitud' => $direccion['longitud'] ?? null,
+                'principal' => $indice === $indicePrincipal ? 1 : 0,
+            ];
+        })->all();
+    }
+
+    private function validarDirecciones(array $direcciones)
+    {
+        $validator = Validator::make(['direcciones' => $direcciones], [
+            'direcciones' => 'required|array|min:1',
+            'direcciones.*.etiqueta' => 'required|string|max:100',
+            'direcciones.*.pais_id' => 'required|integer|exists:pais,id',
+            'direcciones.*.departamento_id' => 'required|integer|exists:departamento,id',
+            'direcciones.*.municipio_id' => 'required|integer|exists:municipio,id',
+            'direcciones.*.direccion' => 'required|string|max:2000',
+            'direcciones.*.latitud' => 'nullable|numeric|between:-90,90',
+            'direcciones.*.longitud' => 'nullable|numeric|between:-180,180',
+        ], [
+            'direcciones.*.etiqueta.required' => 'Cada dirección debe tener una etiqueta.',
+            'direcciones.*.pais_id.required' => 'Seleccione el país de cada dirección.',
+            'direcciones.*.departamento_id.required' => 'Seleccione el departamento de cada dirección.',
+            'direcciones.*.municipio_id.required' => 'Seleccione el municipio de cada dirección.',
+            'direcciones.*.direccion.required' => 'Cada dirección debe tener una descripción.',
+            'direcciones.*.latitud.between' => 'La latitud debe estar entre -90 y 90.',
+            'direcciones.*.longitud.between' => 'La longitud debe estar entre -180 y 180.',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'icon' => 'warning',
+                'title' => 'Direcciones inválidas',
+                'text' => $validator->errors()->first(),
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $etiquetas = collect($direcciones)->pluck('etiqueta')->map(fn ($etiqueta) => mb_strtolower(trim($etiqueta)));
+        if ($etiquetas->count() !== $etiquetas->unique()->count()) {
+            return response()->json([
+                'icon' => 'warning',
+                'title' => 'Etiquetas repetidas',
+                'text' => 'Cada dirección debe tener una etiqueta diferente.',
+            ], 422);
+        }
+
+        if (collect($direcciones)->where('principal', 1)->count() !== 1) {
+            return response()->json([
+                'icon' => 'warning',
+                'title' => 'Dirección principal',
+                'text' => 'Debe existir exactamente una dirección principal.',
+            ], 422);
+        }
+
+        return null;
+    }
+
+    private function aplicarDireccionPrincipal(ModelCliente $cliente, array $direccion): void
+    {
+        $cliente->direccion = $direccion['direccion'];
+        $cliente->municipio_id = $direccion['municipio_id'] ?: ($cliente->municipio_id ?: 1);
+        $cliente->latitud = $direccion['latitud'];
+        $cliente->longitud = $direccion['longitud'];
+    }
+
+    private function sincronizarDirecciones(ModelCliente $cliente, array $direcciones): void
+    {
+        $etiquetasAnteriores = DB::table('cliente_direccion')
+            ->where('cliente_id', $cliente->id)
+            ->where('activo', 1)
+            ->pluck('etiqueta')
+            ->map(fn ($etiqueta) => trim((string) $etiqueta))
+            ->filter()
+            ->values();
+
+        $etiquetasNuevas = collect($direcciones)
+            ->pluck('etiqueta')
+            ->map(fn ($etiqueta) => trim((string) $etiqueta))
+            ->filter()
+            ->values();
+
+        ClienteDireccion::where('cliente_id', $cliente->id)->delete();
+        foreach ($direcciones as $direccion) {
+            ClienteDireccion::create([
+                'cliente_id' => $cliente->id,
+                'etiqueta' => $direccion['etiqueta'],
+                'pais_id' => $direccion['pais_id'],
+                'departamento_id' => $direccion['departamento_id'],
+                'municipio_id' => $direccion['municipio_id'],
+                'direccion' => $direccion['direccion'],
+                'latitud' => $direccion['latitud'] !== '' ? $direccion['latitud'] : null,
+                'longitud' => $direccion['longitud'] !== '' ? $direccion['longitud'] : null,
+                'principal' => $direccion['principal'],
+                'activo' => 1,
+            ]);
+        }
+
+        foreach ($etiquetasNuevas->diff($etiquetasAnteriores)->unique() as $etiqueta) {
+            $this->logHistorial($cliente->id, 'Dirección creada', 'Etiqueta: ' . $etiqueta);
+        }
+        foreach ($etiquetasAnteriores->diff($etiquetasNuevas)->unique() as $etiqueta) {
+            $this->logHistorial($cliente->id, 'Dirección eliminada', 'Etiqueta: ' . $etiqueta);
+        }
+    }
+
     /**
      * POST /clientes/crear-completo — crear cliente con todos los tabs
      */
@@ -1212,6 +1380,10 @@ class Cliente extends Component
                 'text'  => $validator->errors()->first(),
             ], 422);
         }
+
+        $direcciones = $this->normalizarDirecciones($request);
+        $validacionDirecciones = $this->validarDirecciones($direcciones);
+        if ($validacionDirecciones) return $validacionDirecciones;
 
         try {
             DB::beginTransaction();
@@ -1248,8 +1420,10 @@ class Cliente extends Component
             $cliente->metodo_pago                = trim($request->dp_metodo_pago ?? '');
             $cliente->users_id                   = Auth::user()->id;
             $cliente->cliente_categoria_escala_id = $request->cliente_categoria_escala_id ?? null;
+            $this->aplicarDireccionPrincipal($cliente, $direcciones[0]);
             if ($nombreImagen) $cliente->url_imagen = $nombreImagen;
             $cliente->save();
+            $this->sincronizarDirecciones($cliente, $direcciones);
 
             // El vendedor seleccionado es también el Asesor Comercial inicial
             // del cliente dentro del módulo Cartera de Clientes.
@@ -1305,6 +1479,10 @@ class Cliente extends Component
     public function editarClienteCompleto(Request $request)
     {
         try {
+            $direcciones = $this->normalizarDirecciones($request);
+            $validacionDirecciones = $this->validarDirecciones($direcciones);
+            if ($validacionDirecciones) return $validacionDirecciones;
+
             DB::beginTransaction();
 
             $id     = $request->cliente_id;
@@ -1327,6 +1505,7 @@ class Cliente extends Component
             $cliente->metodo_pago                = trim($request->dp_metodo_pago ?? '') ?: ($cliente->metodo_pago ?? '');
             $cliente->users_id                   = Auth::user()->id;
             $cliente->cliente_categoria_escala_id = $request->cliente_categoria_escala_id ?: $cliente->cliente_categoria_escala_id;
+            $this->aplicarDireccionPrincipal($cliente, $direcciones[0]);
 
             // Track exact fields changed using Laravel dirty detection
             $fieldLabels = [
@@ -1342,6 +1521,7 @@ class Cliente extends Component
             $logDesc = count($changed) > 0 ? 'Campos: ' . implode(', ', $changed) : 'Sin cambios en datos principales';
 
             $cliente->save();
+            $this->sincronizarDirecciones($cliente, $direcciones);
 
             // Si se seleccionó un nuevo vendedor, incorporarlo a la cartera sin
             // eliminar otros asesores comerciales asignados al mismo cliente.
@@ -1701,7 +1881,7 @@ class Cliente extends Component
             ->where('estado_id', 1)
             ->orderBy('nombre_categoria')
             ->get();
-        return view('-form', compact('id', 'clientes', 'metodosPago', 'categoriasEscala'));
+        return view('livewire.clientes.cliente-form', compact('id', 'clientes', 'metodosPago', 'categoriasEscala'));
     }
 
     private function logHistorial(int $clienteId, string $accion, ?string $descripcion = null): void
