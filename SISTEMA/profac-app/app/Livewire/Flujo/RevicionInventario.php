@@ -765,6 +765,7 @@ class RevicionInventario extends Component
             ->select(
                 'c.cliente_id',
                 'c.vendedor',
+                'c.direccion_entrega',
                 DB::raw('COALESCE(cl.nombre, c.nombre_cliente, "N/A") as cliente_nombre'),
                 DB::raw('COALESCE(v.name, "N/A") as vendedor_nombre')
             )
@@ -775,6 +776,7 @@ class RevicionInventario extends Component
             $this->flujoData['cliente'] = $cotizacionInfo->cliente_nombre;
             $this->flujoData['vendedor'] = $cotizacionInfo->vendedor;
             $this->flujoData['vendedor_nombre'] = $cotizacionInfo->vendedor_nombre;
+            $this->flujoData['direccion_entrega'] = $cotizacionInfo->direccion_entrega;
         }
 
         // Obtener productos (solo nombre + cantidad + stock actual)

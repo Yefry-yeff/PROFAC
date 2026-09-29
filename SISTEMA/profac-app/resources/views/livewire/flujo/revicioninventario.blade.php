@@ -108,6 +108,11 @@
                                 <span style="opacity:.65;">|</span>
                                 Vendedor: <strong>{{ $flujoData['vendedor_nombre'] ?? '—' }}</strong>
                             </small>
+                            @if(!empty($flujoData['direccion_entrega']))
+                            <small style="color:rgba(255,255,255,.88); font-size:11px; display:block; margin-top:3px; max-width:780px; white-space:normal; overflow-wrap:anywhere;">
+                                <i class="fa fa-map-marker mr-1"></i>Dirección: <strong>{{ $flujoData['direccion_entrega'] }}</strong>
+                            </small>
+                            @endif
                             @endif
                             @if($temporalRevisionId && !$modalTemporalVisible && $temporalExpiraAt)
                             <small style="color:rgba(255,255,255,.82); font-size:11px; display:block; margin-top:3px;">

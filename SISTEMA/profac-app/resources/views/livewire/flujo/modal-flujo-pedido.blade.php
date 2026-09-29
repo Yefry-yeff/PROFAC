@@ -314,6 +314,11 @@
                         <i class="mr-1 fa fa-calendar"></i>
                         {{ \Carbon\Carbon::parse($d['created_at'])->format('d/m/Y H:i') }}
                     </small>
+                    @if(!empty($d['direccion_entrega']))
+                    <small style="display:block; color:rgba(255,255,255,.88); font-size:11px; margin-top:3px; max-width:720px; white-space:normal; overflow-wrap:anywhere;">
+                        <i class="mr-1 fa fa-map-marker"></i>{{ $d['direccion_entrega'] }}
+                    </small>
+                    @endif
                 </div>
                 <button type="button" wire:click="cerrar"
                         class="close" style="color:#fff; opacity:1; font-size:22px; margin-top:-8px;">

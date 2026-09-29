@@ -911,8 +911,28 @@ class Cotizacion extends Component
             $cotizacion->tipo_venta_id = $request->tipo_venta_id;
             $cotizacion->vendedor = $request->vendedor;
             $cotizacion->tele_asesor = $request->tele_asesor;
-            $cotizacion->zone_group_id = $request->input('zone_group_id') ?: null;
             $cotizacion->direccion_entrega = $request->input('direccion_entrega') ?: null;
+            $zonaPorDireccion = null;
+            if ($cotizacion->direccion_entrega) {
+                $zonaPorDireccion = DB::table('cliente_direccion as cd')
+                    ->join('zone_group_details as zgd', function ($join) {
+                        $join->on('zgd.department_id', '=', 'cd.departamento_id')
+                            ->where('zgd.status', 1)
+                            ->where(function ($query) {
+                                $query->whereColumn('zgd.municipality_id', 'cd.municipio_id')
+                                    ->orWhereNull('zgd.municipality_id');
+                            });
+                    })
+                    ->join('zone_groups as zg', function ($join) {
+                        $join->on('zg.id', '=', 'zgd.zone_group_id')->where('zg.status', 1);
+                    })
+                    ->where('cd.cliente_id', $cotizacion->cliente_id)
+                    ->where('cd.activo', 1)
+                    ->where('cd.direccion', $cotizacion->direccion_entrega)
+                    ->orderByRaw('zgd.municipality_id IS NULL ASC')
+                    ->value('zg.id');
+            }
+            $cotizacion->zone_group_id = $zonaPorDireccion ?: ($request->input('zone_group_id') ?: null);
             $cotizacion->users_id = Auth::user()->id;
             $cotizacion->arregloIdInputs = json_encode($request->arregloIdInputs);
             $cotizacion->numeroInputs = $request->numeroInputs;

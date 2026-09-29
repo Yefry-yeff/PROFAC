@@ -167,6 +167,16 @@ class ModalFlujoPedido extends Component
             ->where('tipo_flujo_id', 1)
             ->value('id');
 
+        if ($this->flujoId) {
+            $this->pedidoData['direccion_entrega'] = DB::table('historico_flujo as hf')
+                ->join('cotizacion as c', 'c.id', '=', 'hf.tramite_id')
+                ->where('hf.flujo_id', $this->flujoId)
+                ->where('hf.tipo_tramite_id', 2)
+                ->where('hf.observaciones', 'ganadora')
+                ->orderByDesc('hf.id')
+                ->value('c.direccion_entrega');
+        }
+
         $ganadoraActualId = $this->flujoId
             ? $this->resolverCotizacionRevisionActual((int) $this->flujoId)
             : null;
@@ -356,6 +366,7 @@ class ModalFlujoPedido extends Component
             'cliente'        => $clienteNombre,
             'rtn'            => $clienteRtn,
             'cliente_id'     => $cotizacion ? ($cotizacion->cliente_id ?? null) : ($facturaDirecta ? ($facturaDirecta->cliente_id ?? null) : null),
+            'direccion_entrega' => $cotizacion ? ($cotizacion->direccion_entrega ?? null) : null,
             'registrado_por' => null,
             'total_ofertas'  => $totalOfertas,
             'has_ganadora'   => $hasGanadora,
