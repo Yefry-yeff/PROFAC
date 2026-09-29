@@ -567,6 +567,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     /* ---- Formulario completo de cliente (crear / editar) ---- */
     Route::get('/clientes/form',              [Cliente::class, 'vistaFormCliente'])->name('clientes.form.crear');
     Route::get('/clientes/form/datos/{id}',   [Cliente::class, 'datosFormCliente'])->name('clientes.form.datos');
+    Route::post('/clientes/{id}/direcciones', [Cliente::class, 'agregarDireccionCliente'])->name('clientes.direcciones.agregar');
     Route::get('/clientes/form/{id}',         [Cliente::class, 'vistaFormCliente'])->name('clientes.form.editar');
     Route::post('/clientes/crear-completo',  [Cliente::class, 'crearClienteCompleto'])->name('clientes.crear.completo');
     Route::post('/clientes/editar-completo', [Cliente::class, 'editarClienteCompleto'])->name('clientes.editar.completo');

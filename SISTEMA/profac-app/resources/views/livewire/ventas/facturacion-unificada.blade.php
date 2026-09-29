@@ -62,6 +62,12 @@
         .oferta-direccion-opcion.seleccionada .direccion-etiqueta { color: #16835b; }
         .oferta-direccion-opcion .direccion-ubicacion { color: #78909c; font-size: .69rem; margin-top: 1px; }
         .oferta-direccion-opcion .direccion-texto { color: #37474f; font-size: .76rem; margin-top: 3px; }
+        .oferta-nueva-direccion-header { background: linear-gradient(135deg,#1565c0,#42a5f5); border:none; padding:14px 20px; color:#fff; }
+        .oferta-nueva-direccion-header .modal-title { color:#fff; font-size:16px; font-weight:700; }
+        .oferta-nueva-direccion-section { color:#1565c0; border-bottom:1px solid #dce7ef; padding-bottom:6px; margin-bottom:12px; font-size:11px; font-weight:700; letter-spacing:.45px; text-transform:uppercase; }
+        .oferta-nueva-direccion-section small { color:#78909c; font-size:10px; font-weight:400; text-transform:none; letter-spacing:0; margin-left:5px; }
+        .oferta-nueva-direccion-mapa { width:100%; height:220px; min-height:220px; border:1px solid #cfd8dc; border-radius:7px; overflow:hidden; }
+        #modal_nueva_direccion_oferta .form-control:focus { border-color:#2196f3; box-shadow:0 0 0 2px rgba(33,150,243,.15); }
         .form-control.ofr-input {
             border-radius: 8px !important; border: 1px solid #cfd8dc !important; font-size: 13px !important;
         }
@@ -403,6 +409,9 @@
             .expo-liquidacion-seccion.completa { grid-column: auto; }
         }
     </style>
+    @endpush
+    @push('styles')
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     @endpush
 
     <div id="cargandoTemporales" role="status" aria-live="polite" aria-label="{{ ($duplicandoOferta || $continuandoOfertaExpo) ? 'Cargando oferta' : 'Cargando registros temporales' }}">
@@ -1356,7 +1365,11 @@
                                 </select>
                             </div>
                             <div class="form-group mb-0">
-                                <label class="ofr-label">Dirección de entrega <span class="req">*</span></label>
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <label class="ofr-label mb-1">Dirección de entrega <span class="req">*</span></label>
+                                    <button type="button" class="btn btn-outline-primary btn-sm py-0" id="btn_nueva_direccion_oferta"><i class="fa fa-plus mr-1"></i>Ingresar dirección</button>
+                                </div>
+                                <input type="search" id="buscar_direccion_oferta" class="form-control form-control-sm mb-2" placeholder="Buscar por etiqueta, municipio o dirección..." autocomplete="off">
                                 <div id="direcciones_oferta_modal" class="oferta-direcciones-lista">
                                     <div class="text-muted small text-center py-2">Cargando direcciones del cliente...</div>
                                 </div>
@@ -1368,6 +1381,33 @@
                                 <i class="fa-solid fa-check mr-1"></i> Continuar y guardar oferta
                             </button>
                         </div>
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        @if(($config->codigo ?? '') === 'cotizacion_clientes_a')
+            <div class="modal fade" id="modal_nueva_direccion_oferta" data-backdrop="static" tabindex="-1" role="dialog" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header oferta-nueva-direccion-header"><h5 class="modal-title"><i class="fa fa-map-marker mr-2"></i>Ingresar dirección de entrega</h5><button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button></div>
+                        <div class="modal-body p-3">
+                            <div class="oferta-nueva-direccion-section"><i class="fa fa-info-circle mr-1"></i>Información de la dirección</div>
+                            <div class="row">
+                                <div class="col-md-4"><div class="form-group"><label class="ofr-label">Etiqueta <span class="req">*</span></label><input id="oferta_nueva_etiqueta" class="form-control form-control-sm" placeholder="Ej. Oficina, Bodega..."></div></div>
+                                <div class="col-md-4"><div class="form-group"><label class="ofr-label">País <span class="req">*</span></label><select id="oferta_nuevo_pais" class="form-control form-control-sm"></select></div></div>
+                                <div class="col-md-4"><div class="form-group"><label class="ofr-label">Departamento <span class="req">*</span></label><select id="oferta_nuevo_departamento" class="form-control form-control-sm"></select></div></div>
+                                <div class="col-md-4"><div class="form-group"><label class="ofr-label">Municipio <span class="req">*</span></label><select id="oferta_nuevo_municipio" class="form-control form-control-sm"></select></div></div>
+                                <div class="col-md-8"><div class="form-group"><label class="ofr-label">Dirección completa <span class="req">*</span></label><textarea id="oferta_nueva_direccion" class="form-control form-control-sm" rows="2" placeholder="Escriba la dirección de entrega..."></textarea></div></div>
+                            </div>
+                            <div class="oferta-nueva-direccion-section mt-1"><i class="fa fa-map mr-1"></i>Ubicación en el mapa <small>Haga clic para colocar el punto exacto</small></div>
+                            <div id="oferta_nueva_direccion_mapa" class="oferta-nueva-direccion-mapa"></div>
+                            <div class="row mt-2">
+                                <div class="col-md-6"><label class="ofr-label">Latitud</label><input id="oferta_nueva_latitud" class="form-control form-control-sm" readonly></div>
+                                <div class="col-md-6"><label class="ofr-label">Longitud</label><input id="oferta_nueva_longitud" class="form-control form-control-sm" readonly></div>
+                            </div>
+                        </div>
+                        <div class="modal-footer"><button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal"><i class="fa fa-times mr-1"></i>Cancelar</button><button type="button" class="btn btn-primary btn-sm" id="btn_guardar_nueva_direccion"><i class="fa fa-save mr-1"></i>Guardar dirección</button></div>
                     </div>
                 </div>
             </div>
@@ -1395,6 +1435,7 @@
                     </div>
                 </div>
             </div>
+
         </div>
 
         {{-- MODAL: Detalle del Pedido --}}
@@ -2134,6 +2175,7 @@
     <livewire:flujo.modal-flujo-pedido />
 
     @push('scripts')
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
     // ================================================================
     // CONFIGURACIÓN DEL TIPO DE FACTURA (desde PHP)
@@ -6196,6 +6238,85 @@
     function ofertaEscapar(texto) {
         return $('<div>').text(texto || '').html();
     }
+
+    $(document).on('input', '#buscar_direccion_oferta', function() {
+        var termino = ($(this).val() || '').toLowerCase().trim();
+        $('.oferta-direccion-opcion').each(function() {
+            $(this).toggle(!termino || $(this).text().toLowerCase().indexOf(termino) !== -1);
+        });
+    });
+
+    $(document).on('click', '#btn_nueva_direccion_oferta', function() {
+        $('#oferta_nueva_etiqueta, #oferta_nueva_direccion').val('');
+        $('#oferta_nueva_latitud, #oferta_nueva_longitud').val('');
+        if (ofertaNuevaDireccionMapa) { ofertaNuevaDireccionMapa.remove(); ofertaNuevaDireccionMapa = null; ofertaNuevaDireccionMarcador = null; }
+        $('#oferta_nuevo_pais').html('<option value="">-- Seleccionar país --</option>');
+        $('#oferta_nuevo_departamento').html('<option value="">-- Seleccionar departamento --</option>');
+        $('#oferta_nuevo_municipio').html('<option value="">-- Seleccionar municipio --</option>');
+        $.get('/cliente/pais').done(function(data) {
+            (data.listaPais || []).forEach(function(pais) { $('#oferta_nuevo_pais').append(new Option(pais.nombre, pais.id)); });
+        });
+        $('#modal_nueva_direccion_oferta').modal('show');
+        setTimeout(inicializarMapaNuevaDireccionOferta, 250);
+    });
+
+    var ofertaNuevaDireccionMapa = null;
+    var ofertaNuevaDireccionMarcador = null;
+    function inicializarMapaNuevaDireccionOferta() {
+        if (typeof L === 'undefined') return;
+        if (ofertaNuevaDireccionMapa) { ofertaNuevaDireccionMapa.invalidateSize(true); return; }
+        ofertaNuevaDireccionMapa = L.map('oferta_nueva_direccion_mapa').setView([14.0723, -87.1921], 7);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(ofertaNuevaDireccionMapa);
+        ofertaNuevaDireccionMapa.on('click', function(event) { fijarCoordenadasNuevaDireccion(event.latlng.lat, event.latlng.lng); });
+    }
+    function fijarCoordenadasNuevaDireccion(latitud, longitud) {
+        $('#oferta_nueva_latitud').val(Number(latitud).toFixed(7));
+        $('#oferta_nueva_longitud').val(Number(longitud).toFixed(7));
+        if (!ofertaNuevaDireccionMarcador) ofertaNuevaDireccionMarcador = L.marker([latitud, longitud], { draggable: true }).addTo(ofertaNuevaDireccionMapa);
+        ofertaNuevaDireccionMarcador.setLatLng([latitud, longitud]);
+        ofertaNuevaDireccionMarcador.off('dragend').on('dragend', function(event) { var pos = event.target.getLatLng(); fijarCoordenadasNuevaDireccion(pos.lat, pos.lng); });
+        ofertaNuevaDireccionMapa.setView([latitud, longitud], Math.max(ofertaNuevaDireccionMapa.getZoom(), 15));
+    }
+
+    $(document).on('change', '#oferta_nuevo_pais', function() {
+        $('#oferta_nuevo_departamento').html('<option value="">-- Seleccionar departamento --</option>');
+        $('#oferta_nuevo_municipio').html('<option value="">-- Seleccionar municipio --</option>');
+        if (!this.value) return;
+        $.post('/cliente/departamento', { id: this.value }).done(function(data) {
+            (data.listaDeptos || []).forEach(function(item) { $('#oferta_nuevo_departamento').append(new Option(item.nombre, item.id)); });
+        });
+    });
+    $(document).on('change', '#oferta_nuevo_departamento', function() {
+        $('#oferta_nuevo_municipio').html('<option value="">-- Seleccionar municipio --</option>');
+        if (!this.value) return;
+        $.post('/cliente/municipio', { id: this.value }).done(function(data) {
+            (data.listaMunicipios || []).forEach(function(item) { $('#oferta_nuevo_municipio').append(new Option(item.nombre, item.id)); });
+        });
+    });
+    $(document).on('click', '#btn_guardar_nueva_direccion', function() {
+        var clienteId = $('#seleccionarCliente').val() || '';
+        var payload = {
+            etiqueta: $('#oferta_nueva_etiqueta').val().trim(),
+            pais_id: $('#oferta_nuevo_pais').val(),
+            departamento_id: $('#oferta_nuevo_departamento').val(),
+            municipio_id: $('#oferta_nuevo_municipio').val(),
+            direccion: $('#oferta_nueva_direccion').val().trim(),
+            latitud: $('#oferta_nueva_latitud').val(),
+            longitud: $('#oferta_nueva_longitud').val()
+        };
+        if (!clienteId || !payload.etiqueta || !payload.pais_id || !payload.departamento_id || !payload.municipio_id || !payload.direccion) {
+            Swal.fire({ icon: 'warning', title: 'Datos incompletos', text: 'Complete etiqueta, ubicación y dirección.' });
+            return;
+        }
+        var boton = $(this).prop('disabled', true);
+        $.post('/clientes/' + clienteId + '/direcciones', payload)
+            .done(function() {
+                $('#modal_nueva_direccion_oferta').modal('hide');
+                setTimeout(mostrarModalEnvioOferta, 250);
+            }).fail(function(xhr) {
+                Swal.fire({ icon: 'error', title: 'No se pudo guardar', text: (xhr.responseJSON && xhr.responseJSON.message) || 'Intente nuevamente.' });
+            }).always(function() { boton.prop('disabled', false); });
+    });
 
     $(document).on('click', '.oferta-direccion-opcion', function() {
         $('.oferta-direccion-opcion').removeClass('seleccionada');

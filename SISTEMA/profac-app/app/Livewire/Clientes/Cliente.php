@@ -1234,6 +1234,38 @@ class Cliente extends Component
         }
     }
 
+    public function agregarDireccionCliente(Request $request, $id)
+    {
+        $validator = Validator::make($request->all(), [
+            'etiqueta' => 'required|string|max:100',
+            'pais_id' => 'required|integer|exists:pais,id',
+            'departamento_id' => 'required|integer|exists:departamento,id',
+            'municipio_id' => 'required|integer|exists:municipio,id',
+            'direccion' => 'required|string|max:2000',
+            'latitud' => 'nullable|numeric|between:-90,90',
+            'longitud' => 'nullable|numeric|between:-180,180',
+        ]);
+        if ($validator->fails()) return response()->json(['message' => $validator->errors()->first()], 422);
+
+        $cliente = ModelCliente::findOrFail($id);
+        $etiqueta = trim($request->etiqueta);
+        $duplicada = DB::table('cliente_direccion')
+            ->where('cliente_id', $id)->where('activo', 1)
+            ->whereRaw('LOWER(etiqueta) = ?', [mb_strtolower($etiqueta)])->exists();
+        if ($duplicada) return response()->json(['message' => 'Ya existe una dirección con esa etiqueta para este cliente.'], 422);
+
+        $principal = DB::table('cliente_direccion')->where('cliente_id', $id)->where('principal', 1)->exists() ? 0 : 1;
+        $direccion = ClienteDireccion::create([
+            'cliente_id' => $id, 'etiqueta' => $etiqueta,
+            'pais_id' => $request->pais_id, 'departamento_id' => $request->departamento_id,
+            'municipio_id' => $request->municipio_id, 'direccion' => trim($request->direccion),
+            'latitud' => $request->latitud, 'longitud' => $request->longitud,
+            'principal' => $principal, 'activo' => 1,
+        ]);
+        $this->logHistorial($cliente->id, 'Dirección creada', 'Etiqueta: ' . $etiqueta);
+        return response()->json(['direccion' => $direccion, 'message' => 'Dirección agregada correctamente.']);
+    }
+
     private function normalizarDirecciones(Request $request): array
     {
         $direcciones = $request->input('direcciones');
