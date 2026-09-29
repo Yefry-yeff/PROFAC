@@ -15,6 +15,23 @@ let permisosAgregar = [];
 let permisosQuitar = [];
 let permisosDisponibles = [];
 
+/**
+ * Helpers centralizados para el spinner "Procesando, por favor espere".
+ * ocultarSpinner() fuerza el cierre de forma SÍNCRONA (quita la clase
+ * "show" y pone display:none directamente) en vez de esperar la
+ * transición CSS fade de Bootstrap. Sin esto, bajo carga/latencia el
+ * spinner puede quedar visualmente pegado por encima de #modalRol (mismo
+ * z-index, pero más adelante en el DOM) si su animación de cierre no
+ * alcanza a completarse antes de que se abra el siguiente modal.
+ */
+function mostrarSpinner() {
+    $('#modalSpinnerLoading').modal('show');
+}
+
+function ocultarSpinner() {
+    $('#modalSpinnerLoading').removeClass('show').css('display', 'none').modal('hide');
+}
+
 $(document).ready(function() {
     // Inicializar DataTable
     inicializarDataTable();
@@ -23,6 +40,13 @@ $(document).ready(function() {
     $('#formRol').on('submit', function(e) {
         e.preventDefault();
         guardarRol();
+    });
+
+    // Red de seguridad: si #modalRol se muestra, el spinner NUNCA debe
+    // quedar visible por encima (evita que quede pegado si su animación
+    // de cierre no alcanzó a completarse).
+    $('#modalRol').on('show.bs.modal shown.bs.modal', function() {
+        ocultarSpinner();
     });
 });
 
@@ -93,11 +117,11 @@ function abrirModalRol() {
  */
 function editarRol(idRol) {
     // Asegurar que el modal de spinner esté limpio antes de abrirlo
-    $('#modalSpinnerLoading').modal('hide');
+    ocultarSpinner();
 
     // Pequeño delay para asegurar que el modal anterior esté cerrado
     setTimeout(() => {
-        $('#modalSpinnerLoading').modal('show');
+        mostrarSpinner();
 
         axios.get(`/roles/obtener/${idRol}`)
             .then(response => {
@@ -118,7 +142,7 @@ function editarRol(idRol) {
                 cargarUsuariosAdicionalesDelRol(idRol);
 
                 // Forzar cierre del spinner
-                $('#modalSpinnerLoading').modal('hide');
+                ocultarSpinner();
                 $('body').removeClass('modal-open');
                 $('.modal-backdrop').remove();
 
@@ -129,7 +153,7 @@ function editarRol(idRol) {
             })
             .catch(error => {
                 // Forzar cierre del spinner en caso de error
-                $('#modalSpinnerLoading').modal('hide');
+                ocultarSpinner();
                 $('body').removeClass('modal-open');
                 $('.modal-backdrop').remove();
 
@@ -412,7 +436,7 @@ function guardarRol() {
     console.log('Ocultando modal de rol...');
     $('#modalRol').modal('hide');
     console.log('Mostrando modal de spinner...');
-    $('#modalSpinnerLoading').modal('show');
+    mostrarSpinner();
 
     axios[metodo](url, datos)
         .then(response => {
@@ -428,7 +452,7 @@ function guardarRol() {
         })
         .then(response => {
             // Forzar cierre del spinner
-            $('#modalSpinnerLoading').modal('hide');
+            ocultarSpinner();
             $('body').removeClass('modal-open');
             $('.modal-backdrop').remove();
 
@@ -456,7 +480,7 @@ function guardarRol() {
         })
         .catch(error => {
             // Forzar cierre del spinner
-            $('#modalSpinnerLoading').modal('hide');
+            ocultarSpinner();
             $('body').removeClass('modal-open');
             $('.modal-backdrop').remove();
 
@@ -497,11 +521,11 @@ function cambiarEstadoRol(idRol, estadoActual) {
         cancelButtonText: 'Cancelar'
     }).then((result) => {
         if (result.isConfirmed) {
-            $('#modalSpinnerLoading').modal('show');
+            mostrarSpinner();
 
             axios.post(`/roles/cambiar-estado/${idRol}`)
                 .then(response => {
-                    $('#modalSpinnerLoading').modal('hide');
+                    ocultarSpinner();
 
                     Swal.fire({
                         icon: 'success',
@@ -515,7 +539,7 @@ function cambiarEstadoRol(idRol, estadoActual) {
                     $('#tablaRoles').DataTable().ajax.reload(null, false);
                 })
                 .catch(error => {
-                    $('#modalSpinnerLoading').modal('hide');
+                    ocultarSpinner();
                     console.error('Error al cambiar estado:', error);
 
                     Swal.fire({
@@ -543,11 +567,11 @@ function confirmarEliminarRol() {
     const idRol = $('#rolEliminarId').val();
 
     $('#modalConfirmarEliminar').modal('hide');
-    $('#modalSpinnerLoading').modal('show');
+    mostrarSpinner();
 
     axios.delete(`/roles/eliminar/${idRol}`)
         .then(response => {
-            $('#modalSpinnerLoading').modal('hide');
+            ocultarSpinner();
 
             Swal.fire({
                 icon: 'success',
@@ -561,7 +585,7 @@ function confirmarEliminarRol() {
             $('#tablaRoles').DataTable().ajax.reload(null, false);
         })
         .catch(error => {
-            $('#modalSpinnerLoading').modal('hide');
+            ocultarSpinner();
             console.error('Error al eliminar rol:', error);
 
             Swal.fire({
