@@ -14,25 +14,31 @@ let permisosActuales = [];
 let permisosAgregar = [];
 let permisosQuitar = [];
 let permisosDisponibles = [];
+let spinnerRolesTimeout = null;
 
-/**
- * Helpers centralizados para el spinner "Procesando, por favor espere".
- * ocultarSpinner() fuerza el cierre de forma SÍNCRONA (quita la clase
- * "show" y pone display:none directamente) en vez de esperar la
- * transición CSS fade de Bootstrap. Sin esto, bajo carga/latencia el
- * spinner puede quedar visualmente pegado por encima de #modalRol (mismo
- * z-index, pero más adelante en el DOM) si su animación de cierre no
- * alcanza a completarse antes de que se abra el siguiente modal.
- */
-function mostrarSpinner() {
-    $('#modalSpinnerLoading').modal('show');
+function ocultarSpinnerRoles() {
+    clearTimeout(spinnerRolesTimeout);
+    spinnerRolesTimeout = null;
+    $('#modalSpinnerLoading').modal('hide');
 }
 
-function ocultarSpinner() {
-    $('#modalSpinnerLoading').removeClass('show').css('display', 'none').modal('hide');
+function mostrarSpinnerRoles() {
+    clearTimeout(spinnerRolesTimeout);
+    $('#modalSpinnerLoading').modal('show');
+
+    spinnerRolesTimeout = setTimeout(function() {
+        ocultarSpinnerRoles();
+        Swal.fire({
+            icon: 'error',
+            title: 'La operación tardó demasiado',
+            text: 'No se recibió respuesta del servidor. Intente nuevamente.'
+        });
+    }, 45000);
 }
 
 $(document).ready(function() {
+    ocultarSpinnerRoles();
+
     // Inicializar DataTable
     inicializarDataTable();
 
@@ -40,13 +46,6 @@ $(document).ready(function() {
     $('#formRol').on('submit', function(e) {
         e.preventDefault();
         guardarRol();
-    });
-
-    // Red de seguridad: si #modalRol se muestra, el spinner NUNCA debe
-    // quedar visible por encima (evita que quede pegado si su animación
-    // de cierre no alcanzó a completarse).
-    $('#modalRol').on('show.bs.modal shown.bs.modal', function() {
-        ocultarSpinner();
     });
 });
 
@@ -116,14 +115,10 @@ function abrirModalRol() {
  * Editar rol existente
  */
 function editarRol(idRol) {
-    // Asegurar que el modal de spinner esté limpio antes de abrirlo
-    ocultarSpinner();
+    let rolCargado = false;
+    mostrarSpinnerRoles();
 
-    // Pequeño delay para asegurar que el modal anterior esté cerrado
-    setTimeout(() => {
-        mostrarSpinner();
-
-        axios.get(`/roles/obtener/${idRol}`)
+    axios.get(`/roles/obtener/${idRol}`)
             .then(response => {
                 const rol = response.data.data;
 
@@ -140,31 +135,35 @@ function editarRol(idRol) {
                 cargarPermisosDelRol(idRol);
                 cargarSubmenusDisponibles();
                 cargarUsuariosAdicionalesDelRol(idRol);
-
-                // Forzar cierre del spinner
-                ocultarSpinner();
-                $('body').removeClass('modal-open');
-                $('.modal-backdrop').remove();
-
-                // Abrir modal de edición
-                setTimeout(() => {
-                    $('#modalRol').modal('show');
-                }, 300);
+                rolCargado = true;
             })
             .catch(error => {
-                // Forzar cierre del spinner en caso de error
-                ocultarSpinner();
-                $('body').removeClass('modal-open');
-                $('.modal-backdrop').remove();
-
                 console.error('Error al cargar rol:', error);
                 Swal.fire({
                     icon: 'error',
                     title: 'Error',
                     text: error.response?.data?.mensaje || 'No se pudo cargar el rol'
                 });
+            })
+            .finally(() => {
+                if (rolCargado) {
+                    let modalRolAbierto = false;
+                    const abrirModalRolEditado = function() {
+                        if (modalRolAbierto) {
+                            return;
+                        }
+                        modalRolAbierto = true;
+                        $('#modalRol').modal('show');
+                    };
+
+                    $('#modalSpinnerLoading').one('hidden.bs.modal', abrirModalRolEditado);
+                    ocultarSpinnerRoles();
+                    setTimeout(abrirModalRolEditado, 50);
+                    return;
+                }
+
+                ocultarSpinnerRoles();
             });
-    }, 100);
 }
 
 /**
@@ -436,7 +435,7 @@ function guardarRol() {
     console.log('Ocultando modal de rol...');
     $('#modalRol').modal('hide');
     console.log('Mostrando modal de spinner...');
-    mostrarSpinner();
+    mostrarSpinnerRoles();
 
     axios[metodo](url, datos)
         .then(response => {
@@ -451,11 +450,6 @@ function guardarRol() {
             return response;
         })
         .then(response => {
-            // Forzar cierre del spinner
-            ocultarSpinner();
-            $('body').removeClass('modal-open');
-            $('.modal-backdrop').remove();
-
             Swal.fire({
                 icon: 'success',
                 title: '¡Éxito!',
@@ -479,11 +473,6 @@ function guardarRol() {
             permisosQuitar = [];
         })
         .catch(error => {
-            // Forzar cierre del spinner
-            ocultarSpinner();
-            $('body').removeClass('modal-open');
-            $('.modal-backdrop').remove();
-
             console.error('Error al guardar rol:', error);
 
             let mensajeError = 'No se pudo guardar el rol';
@@ -499,7 +488,8 @@ function guardarRol() {
                 title: 'Error',
                 text: mensajeError
             });
-        });
+        })
+        .finally(ocultarSpinnerRoles);
 }
 
 /**
@@ -521,12 +511,10 @@ function cambiarEstadoRol(idRol, estadoActual) {
         cancelButtonText: 'Cancelar'
     }).then((result) => {
         if (result.isConfirmed) {
-            mostrarSpinner();
+            mostrarSpinnerRoles();
 
             axios.post(`/roles/cambiar-estado/${idRol}`)
                 .then(response => {
-                    ocultarSpinner();
-
                     Swal.fire({
                         icon: 'success',
                         title: '¡Éxito!',
@@ -539,7 +527,6 @@ function cambiarEstadoRol(idRol, estadoActual) {
                     $('#tablaRoles').DataTable().ajax.reload(null, false);
                 })
                 .catch(error => {
-                    ocultarSpinner();
                     console.error('Error al cambiar estado:', error);
 
                     Swal.fire({
@@ -547,7 +534,8 @@ function cambiarEstadoRol(idRol, estadoActual) {
                         title: 'Error',
                         text: error.response?.data?.mensaje || 'No se pudo cambiar el estado del rol'
                     });
-                });
+                })
+                .finally(ocultarSpinnerRoles);
         }
     });
 }
@@ -567,12 +555,10 @@ function confirmarEliminarRol() {
     const idRol = $('#rolEliminarId').val();
 
     $('#modalConfirmarEliminar').modal('hide');
-    mostrarSpinner();
+    mostrarSpinnerRoles();
 
     axios.delete(`/roles/eliminar/${idRol}`)
         .then(response => {
-            ocultarSpinner();
-
             Swal.fire({
                 icon: 'success',
                 title: '¡Eliminado!',
@@ -585,7 +571,6 @@ function confirmarEliminarRol() {
             $('#tablaRoles').DataTable().ajax.reload(null, false);
         })
         .catch(error => {
-            ocultarSpinner();
             console.error('Error al eliminar rol:', error);
 
             Swal.fire({
@@ -593,7 +578,8 @@ function confirmarEliminarRol() {
                 title: 'Error',
                 text: error.response?.data?.mensaje || 'No se pudo eliminar el rol'
             });
-        });
+        })
+        .finally(ocultarSpinnerRoles);
 }
 
 /**
