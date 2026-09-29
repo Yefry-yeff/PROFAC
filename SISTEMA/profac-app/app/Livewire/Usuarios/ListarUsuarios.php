@@ -173,6 +173,26 @@ class ListarUsuarios extends Component
 
     public function actualizarUsuarios(Request $request){
         try {
+            $permisosOtorgados = array_values(array_unique(array_map('intval', $request->input('permisos_otorgados', []))));
+            $permisosRevocados = array_values(array_unique(array_map('intval', $request->input('permisos_revocados', []))));
+
+            $validator = Validator::make($request->all(), [
+                'id_usuario' => 'required|integer|exists:users,id',
+                'permisos_otorgados' => 'array',
+                'permisos_otorgados.*' => 'integer|exists:sub_menu,id',
+                'permisos_revocados' => 'array',
+                'permisos_revocados.*' => 'integer|exists:sub_menu,id',
+            ]);
+            if ($validator->fails()) {
+                return response()->json([
+                    'icon' => 'error',
+                    'title' => 'Error',
+                    'text' => $validator->errors()->first(),
+                    'errors' => $validator->errors(),
+                ], 422);
+            }
+
+            $permisosRevocados = array_values(array_diff($permisosRevocados, $permisosOtorgados));
             // Validar que las contraseñas coincidan si se proporciona una nueva
             if (!empty($request->nueva_contrasena)) {
                 if ($request->nueva_contrasena !== $request->confirmar_contrasena) {
@@ -192,6 +212,8 @@ class ListarUsuarios extends Component
                 }
             }
 
+            DB::beginTransaction();
+
             $usuario = usuario::find($request->id_usuario);
             $usuario->identidad        = $request->identidad_usuario ?? null;
             $usuario->name             = $request->nombre_usuario;
@@ -208,6 +230,31 @@ class ListarUsuarios extends Component
             
             $usuario->save();
 
+            DB::table('usuario_submenu')->where('usuario_id', $usuario->id)->delete();
+            $excepciones = [];
+            foreach ($permisosOtorgados as $submenuId) {
+                $excepciones[] = [
+                    'usuario_id' => $usuario->id,
+                    'sub_menu_id' => $submenuId,
+                    'permitido' => 1,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
+            }
+            foreach ($permisosRevocados as $submenuId) {
+                $excepciones[] = [
+                    'usuario_id' => $usuario->id,
+                    'sub_menu_id' => $submenuId,
+                    'permitido' => 0,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
+            }
+            if ($excepciones) {
+                DB::table('usuario_submenu')->insert($excepciones);
+            }
+            DB::commit();
+
             $mensaje = 'Usuario actualizado con éxito.';
             if (!empty($request->nueva_contrasena)) {
                 $mensaje = 'Usuario y contraseña actualizados. El usuario deberá cambiar su contraseña al iniciar sesión.';
@@ -219,7 +266,8 @@ class ListarUsuarios extends Component
                  'text'  => $mensaje
             ], 200);
 
-        } catch (QueryException $e) {
+        } catch (\Throwable $e) {
+            DB::rollBack();
 
         return response()->json([
          'icon'=>'error',
@@ -229,6 +277,61 @@ class ListarUsuarios extends Component
          'error' => $e
         ],402);
         }
+    }
+
+    /**
+     * Devuelve roles y permisos efectivos del usuario, incluyendo excepciones directas.
+     */
+    public function obtenerPermisosUsuario(Request $request, $idUsuario)
+    {
+        $usuario = usuario::find($idUsuario);
+        if (!$usuario) {
+            return response()->json(['message' => 'Usuario no encontrado.'], 404);
+        }
+
+        $rolPrincipalId = (int) $request->get('rol_id', $usuario->rol_id);
+        $roles = DB::table('rol as r')
+            ->leftJoin('usuario_rol as ur', function ($join) use ($idUsuario) {
+                $join->on('ur.rol_id', '=', 'r.id')->where('ur.usuario_id', $idUsuario);
+            })
+            ->where(function ($query) use ($rolPrincipalId) {
+                $query->where('r.id', $rolPrincipalId)->orWhereNotNull('ur.usuario_id');
+            })
+            ->select('r.id', 'r.nombre', DB::raw('CASE WHEN r.id = ' . $rolPrincipalId . ' THEN 1 ELSE 0 END AS es_principal'))
+            ->orderByDesc('es_principal')
+            ->orderBy('r.nombre')
+            ->get();
+
+        $rolIds = $roles->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $heredados = empty($rolIds) ? [] : DB::table('rol_submenu')
+            ->whereIn('rol_id', $rolIds)
+            ->pluck('sub_menu_id')->map(fn ($id) => (int) $id)->unique()->values()->all();
+
+        $directos = DB::table('usuario_submenu')
+            ->where('usuario_id', $idUsuario)
+            ->get(['sub_menu_id', 'permitido']);
+        $otorgados = $directos->where('permitido', 1)->pluck('sub_menu_id')->map(fn ($id) => (int) $id)->all();
+        $revocados = $directos->where('permitido', 0)->pluck('sub_menu_id')->map(fn ($id) => (int) $id)->all();
+        $efectivos = array_values(array_unique(array_merge($heredados, $otorgados)));
+        $efectivos = array_values(array_diff($efectivos, $revocados));
+
+        $permisos = DB::table('sub_menu as sm')
+            ->join('menu as m', function ($join) {
+                $join->on('sm.menu_id', '=', 'm.id')->where('m.estado_id', 1);
+            })
+            ->where('sm.estado_id', 1)
+            ->select('sm.id', 'sm.nombre', 'sm.url as ruta', 'm.id as menu_id', 'm.nombre_menu as menu_nombre')
+            ->orderBy('m.nombre_menu')->orderBy('sm.orden')->orderBy('sm.nombre')
+            ->get();
+
+        return response()->json([
+            'roles' => $roles,
+            'permisos' => $permisos,
+            'heredados' => $heredados,
+            'otorgados' => $otorgados,
+            'revocados' => $revocados,
+            'efectivos' => $efectivos,
+        ]);
     }
 
 

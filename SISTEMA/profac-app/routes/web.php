@@ -628,6 +628,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     /*------------------------------------------------NUEVAS RUTAS DE ACCESO A USUARIOS  */
     Route::post('/usuario/guardar', [ListarUsuarios::class, 'guardarUsuarios']);
     Route::post('/usuario/actualizar', [ListarUsuarios::class, 'actualizarUsuarios']);
+    Route::get('/usuario/{idUsuario}/permisos', [ListarUsuarios::class, 'obtenerPermisosUsuario']);
     Route::post('/usuario/cambiar-contrasena', [ListarUsuarios::class, 'cambiarContrasenaUsuario']);
 
     /*------------------------------------------------ROLES ADICIONALES (multi-rol) del usuario */
