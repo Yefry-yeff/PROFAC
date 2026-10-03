@@ -796,13 +796,29 @@ class ReporteExpo extends Component
             $seccionesSalida = array_map(fn ($s) => [
                 'oferta_id' => $s['oferta_id'],
                 'numero_seccion' => $s['numero_seccion'],
-                'nombre_seccion' => $s['nombre_seccion'],
-                'estado' => $s['estado'],
+                'estado' => $s['estado_seccion'],
                 'estado_facturacion' => $s['estado_facturacion'],
                 'total_ofertado' => $s['total_ofertado'],
                 'total_facturado' => $s['total_facturado'],
                 'num_facturas' => $s['num_facturas'],
             ], $secciones);
+
+            // Acceso directo a las líneas propias de la oferta raíz (sus
+            // cotizacion_has_producto). Siempre se muestra: si no hay
+            // secciones es la única forma de ver el detalle de productos; si
+            // ya hay secciones, permite revisar lo que aún no se ha
+            // repartido/trabajado en ninguna sección.
+            array_unshift($seccionesSalida, [
+                'oferta_id' => $representativa['oferta_id'],
+                'numero_seccion' => null,
+                'nombre_seccion' => 'Productos sin ofertar',
+                'estado' => null,
+                'estado_facturacion' => $representativa['estado_facturacion'],
+                'total_ofertado' => $representativa['total_ofertado'],
+                'total_facturado' => $representativa['total_facturado'],
+                'num_facturas' => $representativa['num_facturas'],
+                'es_raiz' => true,
+            ]);
 
             if ($estadoFacturacion === 'PARCIALMENTE_FACTURADA') {
                 $seccionesSalida[] = [
@@ -868,6 +884,7 @@ class ReporteExpo extends Component
                 eos.cotizacion_origen_id AS oferta_origen_id,
                 eos.numero AS numero_seccion,
                 eos.nombre AS nombre_seccion,
+                eos.estado AS estado_seccion,
                 SUM($netoOfertaExpr) AS total_ofertado,
                 SUM(GREATEST(($brutoOfertaExpr) - ($netoOfertaExpr), 0)) AS descuento,
                 SUM(COALESCE(ppc.precio_base_venta, 0) * chp.cantidad) AS total_costo_oferta,
@@ -916,7 +933,7 @@ class ReporteExpo extends Component
             {$this->whereExpo($expoId)}
             $extra
             GROUP BY c.id, c.nombre_cliente, u.name, ut.name, c.fecha_emision, ec.estado,
-                     eos.cotizacion_origen_id, eos.numero, eos.nombre,
+                     eos.cotizacion_origen_id, eos.numero, eos.nombre, eos.estado,
                      ec.flujo_id, fact.total_facturado, fact.total_costo,
                      fact.cantidad_facturada, fact.num_facturas
             ORDER BY total_ofertado DESC
@@ -944,6 +961,7 @@ class ReporteExpo extends Component
                 'oferta_origen_id' => $row->oferta_origen_id ? (int) $row->oferta_origen_id : null,
                 'numero_seccion' => $row->numero_seccion ? (int) $row->numero_seccion : null,
                 'nombre_seccion' => $row->nombre_seccion,
+                'estado_seccion' => $row->estado_seccion,
                 'estado_facturacion' => $estadoFacturacion,
                 'num_facturas' => (int) $row->num_facturas,
                 'total_ofertado' => round($totalOfertado, 2),

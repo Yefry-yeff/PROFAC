@@ -12,6 +12,9 @@ var reporteExpo = (function () {
     var productoSeleccionado = null;
     var volverAProducto = false;
     var volverAOferta = false;
+    var volverASecciones = false;
+    var flujoSeleccionado = null;
+    var ofertaAbiertaDesdeSecciones = false;
     var origenBuscadorProductos = null;
     var filtroNombres = {};
 
@@ -54,6 +57,30 @@ var reporteExpo = (function () {
             PARCIALMENTE_FACTURADA: 'Parcialmente facturada',
             FACTURADA: 'Facturada',
         })[estado] || String(estado || '').replaceAll('_', ' ');
+    }
+
+    function etiquetaEstadoSeccion(estado) {
+        return ({
+            EN_REVISION: 'En revisión',
+            EN_REVISION_CREDITO: 'Revisión de crédito',
+            EN_REVISION_INVENTARIO: 'Revisión de inventario',
+            PREFACTURADA: 'Prefacturada',
+            FACTURADA: 'Facturada',
+            RECHAZADA_CREDITO: 'Rechazada en crédito',
+            DEVUELTA_INVENTARIO: 'Devuelta de inventario',
+            DEVUELTA_SECCION: 'Devuelta',
+            ANULADA: 'Anulada',
+        })[estado] || String(estado || '').replaceAll('_', ' ');
+    }
+
+    function clasesEstadoSeccion(estado) {
+        if (estado === 'ANULADA' || estado === 'DEVUELTA_INVENTARIO' || estado === 'DEVUELTA_SECCION' || estado === 'RECHAZADA_CREDITO') {
+            return 'bi-seccion-danger';
+        }
+        if (estado === 'FACTURADA' || estado === 'PREFACTURADA') {
+            return 'bi-seccion-success';
+        }
+        return '';
     }
 
     function actualizarUrl(extra) {
@@ -167,7 +194,7 @@ var reporteExpo = (function () {
         ['kpi-ofertado', 'kpi-avance', 'kpi-ofertas', 'kpi-clientes', 'kpi-utilidad', 'kpi-margen', 'kpi-facturas', 'kpi-descuento', 'kpi-oferta-sin-isv', 'kpi-oferta-con-isv', 'kpi-costo']
             .forEach(function (id) { setText(id, '…'); });
 
-        $.get('/reporte/expo/kpis', paramsActuales()).then(function (d) {
+        return $.get('/reporte/expo/kpis', paramsActuales()).then(function (d) {
             setText('kpi-ofertado', fmt(d.total_ofertado));
             setText('kpi-avance', (d.avance_pct !== null ? d.avance_pct : 0) + '%');
             setText('kpi-ofertas', fmtN(d.num_ofertas));
@@ -184,7 +211,7 @@ var reporteExpo = (function () {
 
     /* ─────────────────────────── Gráfica: Estado de ofertas (donut) ──── */
     function cargarEstadoOfertas() {
-        $.get('/reporte/expo/estado-ofertas', paramsActuales()).then(function (rows) {
+        return $.get('/reporte/expo/estado-ofertas', paramsActuales()).then(function (rows) {
             destroyChart('chart-estado');
             if (!get('chart-estado')) return;
             var labelsMap = {
@@ -234,7 +261,7 @@ var reporteExpo = (function () {
 
     /* ─────────────────────────── Gráfica: Ventas por marca (bar) ──────── */
     function cargarVentasPorMarca() {
-        $.get('/reporte/expo/ventas-por-marca', paramsActuales()).then(function (rows) {
+        return $.get('/reporte/expo/ventas-por-marca', paramsActuales()).then(function (rows) {
             destroyChart('chart-marca');
             if (!get('chart-marca')) return;
             var top = rows.slice(0, 12);
@@ -270,7 +297,7 @@ var reporteExpo = (function () {
 
     /* ─────────────────────────── Gráfica: Ventas por asesor (bar) ─────── */
     function cargarVentasPorAsesor() {
-        $.get('/reporte/expo/ventas-por-asesor', paramsActuales()).then(function (rows) {
+        return $.get('/reporte/expo/ventas-por-asesor', paramsActuales()).then(function (rows) {
             destroyChart('chart-asesor');
             if (!get('chart-asesor')) return;
             var top = rows.slice(0, 12);
@@ -302,7 +329,7 @@ var reporteExpo = (function () {
     }
 
     function cargarVentasPorTeleasesor() {
-        $.get('/reporte/expo/ventas-por-teleasesor', paramsActuales()).then(function (rows) {
+        return $.get('/reporte/expo/ventas-por-teleasesor', paramsActuales()).then(function (rows) {
             destroyChart('chart-teleasesor');
             if (!get('chart-teleasesor')) return;
             var top = rows.slice(0, 15);
@@ -375,7 +402,7 @@ var reporteExpo = (function () {
     }
 
     function cargarTopClientes() {
-        $.get('/reporte/expo/top-clientes', paramsActuales()).then(function (rows) {
+        return $.get('/reporte/expo/top-clientes', paramsActuales()).then(function (rows) {
             destroyChart('chart-top-clientes');
             var elemento = get('chart-top-clientes');
             if (!elemento) return;
@@ -399,7 +426,7 @@ var reporteExpo = (function () {
     }
 
     function cargarTopProductos() {
-        $.get('/reporte/expo/top-productos', paramsActuales()).then(function (rows) {
+        return $.get('/reporte/expo/top-productos', paramsActuales()).then(function (rows) {
             destroyChart('chart-top-productos');
             var elemento = get('chart-top-productos');
             if (!elemento) return;
@@ -419,7 +446,7 @@ var reporteExpo = (function () {
 
     /* ─────────────────────────── Gráfica: Evolución diaria (line) ─────── */
     function cargarEvolucionDiaria() {
-        $.get('/reporte/expo/evolucion-diaria', paramsActuales()).then(function (rows) {
+        return $.get('/reporte/expo/evolucion-diaria', paramsActuales()).then(function (rows) {
             destroyChart('chart-evolucion-expo');
             if (!get('chart-evolucion-expo')) return;
 
@@ -442,7 +469,7 @@ var reporteExpo = (function () {
 
     /* ─────────────────────────── Tabla: productos ─────────────────────── */
     function cargarTablaProductos() {
-        $.get('/reporte/expo/tabla-productos', paramsActuales()).then(function (rows) {
+        return $.get('/reporte/expo/tabla-productos', paramsActuales()).then(function (rows) {
             var esFactura = filtro.rentabilidad_base === 'facturas';
             setText('titulo-analitica-productos', esFactura ? 'Analítica de Productos por Facturas' : 'Analítica de Productos por Ofertas');
             setText('th-productos-cantidad-base', esFactura ? 'Cant. Facturada' : 'Cant. Ofertada');
@@ -482,7 +509,7 @@ var reporteExpo = (function () {
     var ofertasPorFlujo = {};
 
     function cargarTablaOfertas() {
-        $.get('/reporte/expo/tabla-ofertas', paramsActuales()).then(function (rows) {
+        return $.get('/reporte/expo/tabla-ofertas', paramsActuales()).then(function (rows) {
             if (dtOfertas) { dtOfertas.destroy(); $('#tabla-expo-ofertas tbody').empty(); }
             var tbody = $('#tabla-expo-ofertas tbody').empty();
             ofertasPorFlujo = {};
@@ -520,31 +547,41 @@ var reporteExpo = (function () {
 
     /* ───────────────────── Modal: secciones del flujo ──────────────────── */
     function abrirSecciones(oferta) {
+        flujoSeleccionado = oferta;
         setText('modal-secciones-titulo', 'Flujo ' + (oferta.flujo_id || '—') + ' · ' + oferta.cliente);
+        var estadoClase = oferta.estado_facturacion === 'FACTURADA' ? 'bi-profit' : (oferta.estado_facturacion === 'PARCIALMENTE_FACTURADA' ? 'text-warning' : '');
         $('#modal-secciones-resumen').html(
             resumenItem('Oferta representativa', '#' + oferta.oferta_id) +
             resumenItem('Total ofertado', fmt(oferta.total_ofertado)) +
             resumenItem('Total facturado', fmt(oferta.total_facturado)) +
-            resumenItem('Facturación', etiquetaEstadoFacturacion(oferta.estado_facturacion))
+            resumenItem('Facturación', etiquetaEstadoFacturacion(oferta.estado_facturacion), estadoClase)
         );
 
         var tbody = $('#tabla-secciones-flujo tbody').empty();
         if (!oferta.secciones || !oferta.secciones.length) {
-            tbody.append('<tr><td colspan="6" class="text-center text-muted">No hay secciones registradas para esta oferta.</td></tr>');
+            tbody.append('<tr><td colspan="5" class="text-center text-muted py-3">No hay secciones registradas para esta oferta.</td></tr>');
         } else {
             oferta.secciones.forEach(function (s) {
                 var esPendiente = !!s.es_pendiente;
+                var esRaiz = !!s.es_raiz;
                 var estadoTxt = etiquetaEstadoFacturacion(s.estado_facturacion);
-                var fila = $('<tr>').attr('title', esPendiente ? '' : 'Abrir detalle de esta sección');
-                if (!esPendiente) {
-                    fila.addClass('bi-row-selectable').attr('data-oferta-id', s.oferta_id);
+                var fila = $('<tr>');
+                if (esPendiente) {
+                    fila.addClass('bi-seccion-pendiente').attr('title', 'Monto aún sin facturar');
                 } else {
-                    fila.addClass('table-warning');
+                    fila.addClass('bi-row-selectable').attr('data-oferta-id', s.oferta_id)
+                        .attr('title', esRaiz ? 'Ver productos propios de la oferta' : 'Abrir detalle de esta sección');
+                    var claseEstado = clasesEstadoSeccion(s.estado);
+                    if (claseEstado) fila.addClass(claseEstado);
+                    if (esRaiz) fila.addClass('bi-seccion-raiz');
                 }
+                var etiquetaSeccion = esRaiz
+                    ? '<i class="fas fa-box mr-1"></i>Productos sin ofertar'
+                    : (esPendiente ? '<i class="fas fa-exclamation-circle mr-1"></i>Productos sin factura'
+                        : 'Sección ' + s.numero_seccion);
                 fila.html(
-                    '<td>' + (s.numero_seccion ? 'Sección ' + s.numero_seccion : (esPendiente ? '—' : 'Oferta principal')) + '</td>' +
-                    '<td>' + esc(s.nombre_seccion || '') + '</td>' +
-                    '<td>' + esc(s.estado || '') + '</td>' +
+                    '<td>' + etiquetaSeccion + '</td>' +
+                    '<td>' + (s.estado ? esc(etiquetaEstadoSeccion(s.estado)) : '<span class="text-muted">—</span>') + '</td>' +
                     '<td><span class="badge ' + (s.estado_facturacion === 'FACTURADA' ? 'badge-success' : (s.estado_facturacion === 'PARCIALMENTE_FACTURADA' ? 'badge-warning' : 'badge-secondary')) + '">' + esc(estadoTxt) + '</span></td>' +
                     '<td class="text-right">' + fmt(s.total_ofertado) + '</td>' +
                     '<td class="text-right">' + fmt(s.total_facturado) + '</td>'
@@ -556,7 +593,7 @@ var reporteExpo = (function () {
             var id = $(this).data('oferta-id');
             if (!id) return;
             $('#modal-secciones-flujo').modal('hide');
-            abrirOferta(id, false);
+            abrirOferta(id, false, true);
         });
 
         $('#modal-secciones-flujo').modal('show');
@@ -671,7 +708,8 @@ var reporteExpo = (function () {
         });
     }
 
-    function abrirOferta(ofertaId, desdeProducto) {
+    function abrirOferta(ofertaId, desdeProducto, desdeSecciones) {
+        ofertaAbiertaDesdeSecciones = !!desdeSecciones;
         if (desdeProducto) {
             volverAProducto = true;
             volverAOferta = false;
@@ -680,11 +718,18 @@ var reporteExpo = (function () {
         $('#modal-oferta-titulo').text('Cargando oferta #' + ofertaId + '…');
         $.get('/reporte/expo/detalle-oferta', paramsActuales({ oferta_id: ofertaId })).then(function (data) {
             renderOferta(data);
+            $('#btn-modal-oferta-volver-secciones').toggle(ofertaAbiertaDesdeSecciones && !!flujoSeleccionado);
             actualizarUrl({ oferta_id: ofertaId, producto_id: desdeProducto ? productoSeleccionado : null });
             $('#modal-oferta-expo').modal('show');
         }).fail(function () {
             alert('No fue posible cargar el detalle de la oferta.');
         });
+    }
+
+    function volverASeccionesDesdeOferta() {
+        if (!flujoSeleccionado) return;
+        volverASecciones = true;
+        $('#modal-oferta-expo').modal('hide');
     }
 
     function renderProducto(data) {
@@ -777,19 +822,43 @@ var reporteExpo = (function () {
     }
 
     /* ─────────────────────────── Orquestador ───────────────────────────── */
+    var spinnerPendientes = 0;
+    var spinnerTimeoutId = null;
+    function mostrarSpinnerCarga() {
+        spinnerPendientes++;
+        $('#reporte-expo-spinner').addClass('show');
+        clearTimeout(spinnerTimeoutId);
+        // Salvaguarda: si alguna petición nunca responde, no dejar el overlay bloqueado.
+        spinnerTimeoutId = setTimeout(function () {
+            spinnerPendientes = 0;
+            $('#reporte-expo-spinner').removeClass('show');
+        }, 20000);
+    }
+    function ocultarSpinnerCarga() {
+        spinnerPendientes = Math.max(0, spinnerPendientes - 1);
+        if (spinnerPendientes === 0) {
+            clearTimeout(spinnerTimeoutId);
+            $('#reporte-expo-spinner').removeClass('show');
+        }
+    }
+
     function recargarTodo() {
         renderChipsFiltro();
         actualizarUrl();
-        cargarKpis();
-        cargarEstadoOfertas();
-        cargarVentasPorMarca();
-        cargarVentasPorAsesor();
-        cargarVentasPorTeleasesor();
-        cargarTopClientes();
-        cargarTopProductos();
-        cargarEvolucionDiaria();
-        cargarTablaProductos();
-        cargarTablaOfertas();
+        mostrarSpinnerCarga();
+        var promesas = [
+            cargarKpis(),
+            cargarEstadoOfertas(),
+            cargarVentasPorMarca(),
+            cargarVentasPorAsesor(),
+            cargarVentasPorTeleasesor(),
+            cargarTopClientes(),
+            cargarTopProductos(),
+            cargarEvolucionDiaria(),
+            cargarTablaProductos(),
+            cargarTablaOfertas(),
+        ];
+        $.when.apply($, promesas).always(ocultarSpinnerCarga);
     }
 
     function init(expoIdInicial) {
@@ -816,6 +885,13 @@ var reporteExpo = (function () {
         $('input[name="expo-f-rentabilidad-base"][value="' + filtro.rentabilidad_base + '"]').prop('checked', true).closest('label').addClass('active').siblings().removeClass('active');
 
         $('#modal-oferta-expo').on('hidden.bs.modal', function () {
+            if (volverASecciones) {
+                volverASecciones = false;
+                ofertaSeleccionada = null;
+                actualizarUrl({ oferta_id: null, producto_id: null });
+                if (flujoSeleccionado) abrirSecciones(flujoSeleccionado);
+                return;
+            }
             if (volverAOferta) return;
             if (volverAProducto && productoSeleccionado) {
                 volverAProducto = false;
@@ -838,7 +914,8 @@ var reporteExpo = (function () {
             actualizarUrl({ producto_id: null, oferta_id: ofertaSeleccionada });
         });
 
-        cargarCatalogoFiltros().then(function () {
+        mostrarSpinnerCarga();
+        cargarCatalogoFiltros().always(ocultarSpinnerCarga).then(function () {
             recargarTodo();
             var ofertaId = query.get('oferta_id');
             var productoId = query.get('producto_id');
@@ -861,6 +938,7 @@ var reporteExpo = (function () {
         parametrosBuscadorProductos: parametrosBuscadorProductos,
         abrirOferta: abrirOferta,
         abrirProducto: abrirProducto,
+        volverASeccionesDesdeOferta: volverASeccionesDesdeOferta,
         cargarCatalogoFiltros: cargarCatalogoFiltros,
     };
 })();

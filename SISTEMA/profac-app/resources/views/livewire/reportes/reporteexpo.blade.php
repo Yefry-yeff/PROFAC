@@ -15,11 +15,35 @@
         #reporteExpoBI .modal-bi-wide { max-width: 96vw; }
         #reporteExpoBI .modal-bi-wide .modal-body { max-height: 78vh; overflow-y: auto; }
         #reporteExpoBI .select2-container { width: 100% !important; }
+        #reporteExpoBI #tabla-secciones-flujo tbody tr { transition: background-color .15s ease; }
+        #reporteExpoBI #tabla-secciones-flujo tbody tr.bi-row-selectable:hover { background: #eef5fb; }
+        #reporteExpoBI #tabla-secciones-flujo .bi-seccion-danger { background: #fdecea !important; }
+        #reporteExpoBI #tabla-secciones-flujo .bi-seccion-danger:hover { background: #fbdedb !important; }
+        #reporteExpoBI #tabla-secciones-flujo .bi-seccion-success { background: #eaf7ee !important; }
+        #reporteExpoBI #tabla-secciones-flujo .bi-seccion-success:hover { background: #d9f0e0 !important; }
+        #reporteExpoBI #tabla-secciones-flujo .bi-seccion-pendiente { background: #fff8e8 !important; }
+        #reporteExpoBI #tabla-secciones-flujo .bi-seccion-raiz { background: #eef3fb; font-weight: 500; }
+        #reporteExpoBI #tabla-secciones-flujo .bi-seccion-raiz:hover { background: #dfe9f7 !important; }
+        #reporte-expo-spinner {
+            display: none;
+            position: fixed; inset: 0; z-index: 9999;
+            background: rgba(255, 255, 255, 0.72);
+            align-items: center; justify-content: center; flex-direction: column;
+            opacity: 0; transition: opacity .15s ease;
+        }
+        #reporte-expo-spinner.show { display: flex; opacity: 1; }
+        #reporte-expo-spinner .spinner-border { width: 3.2rem; height: 3.2rem; color: #2878a9; }
+        #reporte-expo-spinner span { margin-top: 12px; color: #2878a9; font-weight: 600; letter-spacing: .3px; }
         @media (max-width: 767px) {
             #reporteExpoBI .bi-modal-summary { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
             #reporteExpoBI .modal-bi-wide { max-width: 100%; margin: 0; }
         }
     </style>
+
+    <div id="reporte-expo-spinner" wire:ignore>
+        <div class="spinner-border" role="status"><span class="sr-only">Cargando…</span></div>
+        <span>Cargando información del reporte…</span>
+    </div>
 
     <div class="mb-3 d-flex align-items-center">
         <i class="mr-3 fas fa-chart-pie fa-2x text-primary"></i>
@@ -329,7 +353,7 @@
                     <div class="table-responsive">
                         <table class="table table-sm table-bordered table-hover" id="tabla-secciones-flujo">
                             <thead class="thead-light"><tr>
-                                <th>Sección</th><th>Nombre</th><th>Estado</th>
+                                <th>Sección</th><th>Estado</th>
                                 <th>Facturación</th><th class="text-right">Ofertado</th><th class="text-right">Facturado</th>
                             </tr></thead><tbody></tbody>
                         </table>
@@ -349,6 +373,7 @@
                         <h5 class="modal-title mb-0" id="modal-oferta-titulo">Oferta</h5>
                     </div>
                     <div class="ml-auto mr-3">
+                        <button type="button" class="btn btn-sm btn-outline-info" id="btn-modal-oferta-volver-secciones" style="display:none" onclick="reporteExpo.volverASeccionesDesdeOferta()" title="Volver a las secciones del flujo"><i class="fas fa-arrow-left"></i> Secciones</button>
                         <button type="button" class="btn btn-sm btn-outline-primary" onclick="reporteExpo.abrirBuscadorProductos('oferta')" title="Buscar producto"><i class="fas fa-search"></i> Producto</button>
                         <button type="button" class="btn btn-sm btn-success" onclick="reporteExpo.exportarOfertaSeleccionada()" title="Descargar oferta en Excel"><i class="fas fa-file-excel"></i> Excel</button>
                         <button type="button" class="btn btn-sm btn-outline-secondary" onclick="reporteExpo.imprimirOfertaSeleccionada()" title="Imprimir oferta"><i class="fas fa-print"></i> Imprimir</button>
