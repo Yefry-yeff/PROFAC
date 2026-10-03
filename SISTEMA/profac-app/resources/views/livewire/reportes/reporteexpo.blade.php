@@ -208,7 +208,7 @@
     <div class="row">
         <div class="mb-3 col-lg-6">
             <div class="card card-body h-100">
-                <h6 class="font-weight-bold">Estado de las Ofertas <small class="text-muted">(clic para filtrar)</small></h6>
+                <h6 class="font-weight-bold">Ofertado vs facturado por estado <small class="text-muted">(clic para filtrar)</small></h6>
                 <div id="chart-estado"></div>
             </div>
         </div>
@@ -220,31 +220,31 @@
         </div>
         <div class="mb-3 col-lg-6">
             <div class="card card-body h-100">
-                <h6 class="font-weight-bold">Ventas por Marca <small class="text-muted">(clic para filtrar)</small></h6>
+                <h6 class="font-weight-bold">Ofertado vs facturado por Marca <small class="text-muted">(clic para filtrar)</small></h6>
                 <div id="chart-marca"></div>
             </div>
         </div>
         <div class="mb-3 col-lg-6">
             <div class="card card-body h-100">
-                <h6 class="font-weight-bold">Ventas por Asesor <small class="text-muted">(clic para filtrar)</small></h6>
+                <h6 class="font-weight-bold">Ofertado vs facturado por Asesor <small class="text-muted">(clic para filtrar)</small></h6>
                 <div id="chart-asesor"></div>
             </div>
         </div>
         <div class="mb-3 col-lg-6">
             <div class="card card-body h-100">
-                <h6 class="font-weight-bold">Top de Clientes <small class="text-muted">(clic para filtrar)</small></h6>
+                <h6 class="font-weight-bold">Ofertado vs facturado por Cliente <small class="text-muted">(clic para filtrar)</small></h6>
                 <div id="chart-top-clientes"></div>
             </div>
         </div>
         <div class="mb-3 col-lg-6">
             <div class="card card-body h-100">
-                <h6 class="font-weight-bold">Top de Productos <small class="text-muted">(clic para ver analítica)</small></h6>
+                <h6 class="font-weight-bold">Ofertado vs facturado por Producto <small class="text-muted">(clic para ver analítica)</small></h6>
                 <div id="chart-top-productos"></div>
             </div>
         </div>
         <div class="mb-3 col-lg-12">
             <div class="card card-body h-100">
-                <h6 class="font-weight-bold">Rendimiento por Teleasesor <small class="text-muted">ventas netas, utilidad y conversión; clic para filtrar</small></h6>
+                <h6 class="font-weight-bold">Ofertado vs facturado por Teleasesor <small class="text-muted">neto, utilidad y conversión; clic para filtrar</small></h6>
                 <div id="chart-teleasesor"></div>
             </div>
         </div>
@@ -253,7 +253,7 @@
     {{-- TABLA: OFERTAS --}}
     <div class="mb-3 card card-body">
         <div class="d-flex align-items-center mb-2">
-            <h6 class="mb-0 font-weight-bold">Ofertas de la Expo (deduplicadas)</h6>
+            <h6 class="mb-0 font-weight-bold">Todas las ofertas de la Expo</h6>
             <button class="ml-auto btn btn-sm btn-success" onclick="reporteExpo.exportarOfertas()">
                 <i class="fas fa-file-excel"></i> Excel
             </button>
@@ -263,12 +263,14 @@
                 <thead>
                     <tr>
                         <th>Oferta #</th>
+                        <th>Sección / origen</th>
                         <th>Flujo</th>
                         <th>Cliente</th>
                         <th>Asesor</th>
                         <th>Teleasesor</th>
                         <th>Fecha</th>
                         <th>Facturación</th>
+                        <th class="text-right">Facturas</th>
                         <th class="text-right">Ofertado</th>
                         <th class="text-right">Facturado</th>
                         <th class="text-right">Margen Oferta %</th>
@@ -387,7 +389,6 @@
             </div>
         </div>
     </div>
-</div>
 
 <x-buscador-producto
     id-modal="buscadorProductoReporteExpo"
@@ -410,3 +411,4 @@
         reporteExpo.init(document.getElementById('expo-selector').value);
     });
 </script>
+</div>

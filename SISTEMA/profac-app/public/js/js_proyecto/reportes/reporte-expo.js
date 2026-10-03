@@ -195,11 +195,10 @@ var reporteExpo = (function () {
                 SIN_REGISTRO: 'Sin registro',
             };
             var labels = rows.map(function (r) { return labelsMap[r.estado] || r.estado; });
-            var serie = rows.map(function (r) { return parseInt(r.total, 10); });
 
             charts['chart-estado'] = new ApexCharts(get('chart-estado'), {
                 chart: {
-                    type: 'donut', height: 320,
+                    type: 'bar', height: 320,
                     events: {
                         dataPointSelection: function (event, ctx, config) {
                             var estado = rows[config.dataPointIndex].estado;
@@ -209,10 +208,25 @@ var reporteExpo = (function () {
                         }
                     }
                 },
-                series: serie,
-                labels: labels,
-                legend: { position: 'bottom' },
-                tooltip: { y: { formatter: function (v) { return fmtN(v) + ' ofertas'; } } },
+                series: [
+                    { name: 'Ofertado sin ISV', data: rows.map(function (r) { return r.ofertado; }) },
+                    { name: 'Facturado', data: rows.map(function (r) { return r.facturado; }) },
+                ],
+                xaxis: { categories: labels },
+                yaxis: { labels: { formatter: function (v) { return 'L.' + fmtN(v); } } },
+                tooltip: {
+                    shared: true,
+                    intersect: false,
+                    custom: function (ctx) {
+                        var row = rows[ctx.dataPointIndex];
+                        return '<div class="p-2"><strong>' + esc(labels[ctx.dataPointIndex]) + '</strong><br>' +
+                            'Ofertas: ' + fmtN(row.total) + '<br>Ofertado: ' + fmt(row.ofertado) +
+                            '<br>Facturado: ' + fmt(row.facturado) + '</div>';
+                    }
+                },
+                colors: ['#2878a9', '#15906b'],
+                legend: { position: 'top' },
+                plotOptions: { bar: { columnWidth: '58%' } },
             });
             charts['chart-estado'].render();
         });
@@ -238,7 +252,7 @@ var reporteExpo = (function () {
                     }
                 },
                 series: [
-                    { name: 'Ofertado', data: top.map(function (r) { return r.ofertado; }) },
+                    { name: 'Ofertado sin ISV', data: top.map(function (r) { return r.ofertado; }) },
                     { name: 'Facturado', data: top.map(function (r) { return r.facturado; }) },
                 ],
                 xaxis: {
@@ -274,7 +288,7 @@ var reporteExpo = (function () {
                     }
                 },
                 series: [
-                    { name: 'Ofertado', data: top.map(function (r) { return r.ofertado; }) },
+                    { name: 'Ofertado sin ISV', data: top.map(function (r) { return r.ofertado; }) },
                     { name: 'Facturado', data: top.map(function (r) { return r.facturado; }) },
                 ],
                 xaxis: { categories: top.map(function (r) { return r.asesor; }) },
@@ -309,7 +323,7 @@ var reporteExpo = (function () {
                     }
                 },
                 series: [
-                    { name: 'Ofertado', data: top.map(function (r) { return r.ofertado; }) },
+                    { name: 'Ofertado sin ISV', data: top.map(function (r) { return r.ofertado; }) },
                     { name: 'Facturado', data: top.map(function (r) { return r.facturado; }) },
                     { name: 'Utilidad', data: top.map(function (r) { return r.utilidad; }) },
                 ],
@@ -344,7 +358,7 @@ var reporteExpo = (function () {
                 events: { dataPointSelection: alSeleccionar }
             },
             series: [
-                { name: 'Ofertado', data: rows.map(function (r) { return r.ofertado; }) },
+                { name: 'Ofertado sin ISV', data: rows.map(function (r) { return r.ofertado; }) },
                 { name: 'Facturado', data: rows.map(function (r) { return r.facturado; }) },
             ],
             xaxis: {
@@ -472,14 +486,19 @@ var reporteExpo = (function () {
             rows.forEach(function (r) {
                 var estado = etiquetaEstadoFacturacion(r.estado_facturacion);
                 var utilidadClase = r.utilidad >= 0 ? 'bi-profit' : 'bi-loss';
+                var seccion = r.nombre_seccion
+                    ? esc(r.nombre_seccion) + '<br><small>Oferta origen #' + esc(r.oferta_origen_id) + '</small>'
+                    : '<span class="text-muted">Oferta principal</span>';
                 tbody.append('<tr class="bi-row-selectable" data-oferta-id="' + r.oferta_id + '" title="Abrir detalle completo de la oferta">' +
                     '<td>' + r.oferta_id + '</td>' +
+                    '<td>' + seccion + '</td>' +
                     '<td>' + (r.flujo_id || '—') + '</td>' +
                     '<td>' + esc(r.cliente) + '</td>' +
                     '<td>' + esc(r.asesor) + '</td>' +
                     '<td>' + esc(r.teleasesor) + '</td>' +
                     '<td>' + esc(r.fecha_emision || '') + '</td>' +
                     '<td><span class="badge ' + (r.estado_facturacion === 'FACTURADA' ? 'badge-success' : (r.estado_facturacion === 'PARCIALMENTE_FACTURADA' ? 'badge-warning' : 'badge-secondary')) + '">' + esc(estado) + '</span></td>' +
+                    '<td class="text-right">' + fmtN(r.num_facturas) + '</td>' +
                     '<td class="text-right">' + fmt(r.total_ofertado) + '</td>' +
                     '<td class="text-right">' + fmt(r.total_facturado) + '</td>' +
                     '<td class="text-right font-weight-bold ' + utilidadClase + '">' + (r.margen_pct !== null ? r.margen_pct + '%' : 'N/D') + '</td>' +
@@ -515,6 +534,8 @@ var reporteExpo = (function () {
         $('#modal-oferta-general').html(
             infoOferta('Oferta', '#' + o.id) + infoOferta('Flujo', o.flujo_id || 'Sin flujo') +
             infoOferta('Expo', o.expo) + infoOferta('Cliente', o.cliente) +
+            infoOferta('Sección', o.nombre_seccion ? o.nombre_seccion + ' (#' + o.numero_seccion + ')' : 'Oferta principal') +
+            infoOferta('Oferta origen', o.oferta_origen_id ? '#' + o.oferta_origen_id : '—') +
             infoOferta('RTN', o.rtn || 'No registrado') + infoOferta('Asesor comercial', o.asesor) +
             infoOferta('Teleasesor', o.teleasesor) + infoOferta('Fecha / hora', o.fecha + (o.hora ? ' ' + o.hora : '')) +
             infoOferta('Estado', o.estado) + infoOferta('Tipo de venta', o.tipo_venta) +

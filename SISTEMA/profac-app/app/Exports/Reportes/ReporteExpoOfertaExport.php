@@ -25,7 +25,8 @@ class ReporteExpoOfertaExport implements FromArray, ShouldAutoSize, WithStyles
             ['Cliente', $oferta['cliente'], 'RTN', $oferta['rtn']],
             ['Asesor', $oferta['asesor'], 'Teleasesor', $oferta['teleasesor']],
             ['Fecha', $oferta['fecha'], 'Hora', $oferta['hora'], 'Estado', $oferta['estado']],
-            ['Tipo de venta', $oferta['tipo_venta'], 'Condicion de pago', $oferta['condicion_pago']],
+            ['Tipo de venta', $oferta['tipo_venta'], 'Condicion de pago', $oferta['condicion_pago'],
+                'Seccion', $oferta['nombre_seccion'] ?: 'Oferta principal', 'Oferta origen', $oferta['oferta_origen_id']],
             [],
             ['PRODUCTOS'],
             ['Codigo', 'Producto', 'Marca', 'Categoria', 'Cantidad', 'Escala', 'Precio base',
@@ -54,7 +55,21 @@ class ReporteExpoOfertaExport implements FromArray, ShouldAutoSize, WithStyles
         $rows[] = ['Utilidad', $resumen['utilidad']];
         $rows[] = ['Margen %', $resumen['margen_pct']];
 
-        $this->sectionRows = [1, 8, 9, count($this->detalle['productos']) + 11];
+        $filaFacturas = count($rows) + 2;
+        $rows[] = [];
+        $rows[] = ['FACTURAS'];
+        $rows[] = ['Factura #', 'Fecha', 'Cliente', 'Asesor', 'Teleasesor', 'Estado',
+            'Subtotal relacionado', 'Costo', 'Utilidad', 'Cantidad aplicada', 'Productos'];
+        foreach ($this->detalle['facturas'] as $factura) {
+            $rows[] = [
+                $factura['numero'], $factura['fecha'], $factura['cliente'], $factura['asesor'],
+                $factura['teleasesor'], $factura['estado'], $factura['subtotal_relacionado'],
+                $factura['costo'], $factura['utilidad'], $factura['cantidad_aplicada'],
+                count($factura['productos']),
+            ];
+        }
+
+        $this->sectionRows = [1, 8, 9, count($this->detalle['productos']) + 11, $filaFacturas, $filaFacturas + 1];
 
         return $rows;
     }
@@ -86,6 +101,14 @@ class ReporteExpoOfertaExport implements FromArray, ShouldAutoSize, WithStyles
         $sheet->getStyle('D2')->getNumberFormat()->setFormatCode('#,##0');
         $sheet->getStyle('B' . ($filaResumen + 1) . ':B' . ($filaResumen + 8))
             ->getNumberFormat()->setFormatCode('#,##0.00');
+        $filaFacturas = $filaResumen + 10;
+        $ultimaFilaFactura = $filaFacturas + count($this->detalle['facturas']) + 1;
+        if ($ultimaFilaFactura > $filaFacturas + 1) {
+            $sheet->getStyle("G" . ($filaFacturas + 2) . ":I{$ultimaFilaFactura}")
+                ->getNumberFormat()->setFormatCode('#,##0.00');
+            $sheet->getStyle("J" . ($filaFacturas + 2) . ":K{$ultimaFilaFactura}")
+                ->getNumberFormat()->setFormatCode('#,##0.0000');
+        }
         $sheet->freezePane('A10');
 
         return [];
