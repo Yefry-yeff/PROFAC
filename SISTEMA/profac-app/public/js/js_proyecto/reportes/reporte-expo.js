@@ -469,7 +469,7 @@ var reporteExpo = (function () {
                     '</tr>');
             });
             dtProductos = $('#tabla-expo-productos').DataTable({
-                pageLength: 10, lengthChange: true, order: [], language: { url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json' }
+                pageLength: 10, lengthChange: true, order: [], language: { url: '/js/plugins/dataTables/i18n/Spanish.json' }
             });
             $('#tabla-expo-productos tbody').off('click', 'tr').on('click', 'tr', function () {
                 var id = $(this).data('producto-id');
@@ -507,7 +507,7 @@ var reporteExpo = (function () {
                     '</tr>');
             });
             dtOfertas = $('#tabla-expo-ofertas').DataTable({
-                pageLength: 10, lengthChange: true, order: [], language: { url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json' }
+                pageLength: 10, lengthChange: true, order: [], language: { url: '/js/plugins/dataTables/i18n/Spanish.json' }
             });
             $('#tabla-expo-ofertas tbody').off('click', 'tr').on('click', 'tr', function () {
                 var id = $(this).data('oferta-id');
