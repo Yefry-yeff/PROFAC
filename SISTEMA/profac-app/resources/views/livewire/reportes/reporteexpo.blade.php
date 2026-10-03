@@ -263,7 +263,7 @@
                 <thead>
                     <tr>
                         <th>Oferta #</th>
-                        <th>Sección / origen</th>
+                        <th class="text-right"># Secciones</th>
                         <th>Flujo</th>
                         <th>Cliente</th>
                         <th>Asesor</th>
@@ -310,6 +310,32 @@
                 </thead>
                 <tbody></tbody>
             </table>
+        </div>
+    </div>
+
+    {{-- MODAL: SECCIONES DEL FLUJO --}}
+    <div class="modal fade" id="modal-secciones-flujo" tabindex="-1" role="dialog" aria-hidden="true" wire:ignore>
+        <div class="modal-dialog modal-bi-wide" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div>
+                        <small class="text-muted">Secciones del flujo</small>
+                        <h5 class="modal-title mb-0" id="modal-secciones-titulo">Flujo</h5>
+                    </div>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar"><span aria-hidden="true">&times;</span></button>
+                </div>
+                <div class="modal-body">
+                    <div class="bi-modal-summary mb-3" id="modal-secciones-resumen"></div>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered table-hover" id="tabla-secciones-flujo">
+                            <thead class="thead-light"><tr>
+                                <th>Sección</th><th>Nombre</th><th>Estado</th>
+                                <th>Facturación</th><th class="text-right">Ofertado</th><th class="text-right">Facturado</th>
+                            </tr></thead><tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 

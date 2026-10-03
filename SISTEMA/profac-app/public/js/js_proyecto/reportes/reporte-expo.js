@@ -478,20 +478,22 @@ var reporteExpo = (function () {
         });
     }
 
-    /* ─────────────────────────── Tabla: ofertas ────────────────────────── */
+    /* ─────────────────────────── Tabla: ofertas (1 fila por flujo) ────── */
+    var ofertasPorFlujo = {};
+
     function cargarTablaOfertas() {
         $.get('/reporte/expo/tabla-ofertas', paramsActuales()).then(function (rows) {
             if (dtOfertas) { dtOfertas.destroy(); $('#tabla-expo-ofertas tbody').empty(); }
             var tbody = $('#tabla-expo-ofertas tbody').empty();
+            ofertasPorFlujo = {};
             rows.forEach(function (r) {
+                var claveFlujo = r.flujo_id || ('oferta-' + r.oferta_id);
+                ofertasPorFlujo[claveFlujo] = r;
                 var estado = etiquetaEstadoFacturacion(r.estado_facturacion);
                 var utilidadClase = r.utilidad >= 0 ? 'bi-profit' : 'bi-loss';
-                var seccion = r.nombre_seccion
-                    ? esc(r.nombre_seccion) + '<br><small>Oferta origen #' + esc(r.oferta_origen_id) + '</small>'
-                    : '<span class="text-muted">Oferta principal</span>';
-                tbody.append('<tr class="bi-row-selectable" data-oferta-id="' + r.oferta_id + '" title="Abrir detalle completo de la oferta">' +
+                tbody.append('<tr class="bi-row-selectable" data-flujo="' + claveFlujo + '" title="Ver secciones de este flujo">' +
                     '<td>' + r.oferta_id + '</td>' +
-                    '<td>' + seccion + '</td>' +
+                    '<td class="text-right">' + fmtN(r.num_secciones) + '</td>' +
                     '<td>' + (r.flujo_id || '—') + '</td>' +
                     '<td>' + esc(r.cliente) + '</td>' +
                     '<td>' + esc(r.asesor) + '</td>' +
@@ -510,10 +512,54 @@ var reporteExpo = (function () {
                 pageLength: 10, lengthChange: true, order: [], language: { url: '/js/plugins/dataTables/i18n/Spanish.json' }
             });
             $('#tabla-expo-ofertas tbody').off('click', 'tr').on('click', 'tr', function () {
-                var id = $(this).data('oferta-id');
-                if (id) abrirOferta(id, false);
+                var clave = $(this).data('flujo');
+                if (clave !== undefined && ofertasPorFlujo[clave]) abrirSecciones(ofertasPorFlujo[clave]);
             });
         });
+    }
+
+    /* ───────────────────── Modal: secciones del flujo ──────────────────── */
+    function abrirSecciones(oferta) {
+        setText('modal-secciones-titulo', 'Flujo ' + (oferta.flujo_id || '—') + ' · ' + oferta.cliente);
+        $('#modal-secciones-resumen').html(
+            resumenItem('Oferta representativa', '#' + oferta.oferta_id) +
+            resumenItem('Total ofertado', fmt(oferta.total_ofertado)) +
+            resumenItem('Total facturado', fmt(oferta.total_facturado)) +
+            resumenItem('Facturación', etiquetaEstadoFacturacion(oferta.estado_facturacion))
+        );
+
+        var tbody = $('#tabla-secciones-flujo tbody').empty();
+        if (!oferta.secciones || !oferta.secciones.length) {
+            tbody.append('<tr><td colspan="6" class="text-center text-muted">No hay secciones registradas para esta oferta.</td></tr>');
+        } else {
+            oferta.secciones.forEach(function (s) {
+                var esPendiente = !!s.es_pendiente;
+                var estadoTxt = etiquetaEstadoFacturacion(s.estado_facturacion);
+                var fila = $('<tr>').attr('title', esPendiente ? '' : 'Abrir detalle de esta sección');
+                if (!esPendiente) {
+                    fila.addClass('bi-row-selectable').attr('data-oferta-id', s.oferta_id);
+                } else {
+                    fila.addClass('table-warning');
+                }
+                fila.html(
+                    '<td>' + (s.numero_seccion ? 'Sección ' + s.numero_seccion : (esPendiente ? '—' : 'Oferta principal')) + '</td>' +
+                    '<td>' + esc(s.nombre_seccion || '') + '</td>' +
+                    '<td>' + esc(s.estado || '') + '</td>' +
+                    '<td><span class="badge ' + (s.estado_facturacion === 'FACTURADA' ? 'badge-success' : (s.estado_facturacion === 'PARCIALMENTE_FACTURADA' ? 'badge-warning' : 'badge-secondary')) + '">' + esc(estadoTxt) + '</span></td>' +
+                    '<td class="text-right">' + fmt(s.total_ofertado) + '</td>' +
+                    '<td class="text-right">' + fmt(s.total_facturado) + '</td>'
+                );
+                tbody.append(fila);
+            });
+        }
+        $('#tabla-secciones-flujo tbody').off('click', 'tr').on('click', 'tr.bi-row-selectable', function () {
+            var id = $(this).data('oferta-id');
+            if (!id) return;
+            $('#modal-secciones-flujo').modal('hide');
+            abrirOferta(id, false);
+        });
+
+        $('#modal-secciones-flujo').modal('show');
     }
 
     function resumenItem(etiqueta, valor, clase) {

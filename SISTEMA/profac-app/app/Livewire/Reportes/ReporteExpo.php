@@ -686,6 +686,169 @@ class ReporteExpo extends Component
         return Excel::download(new AnaliticaProductosExport($headings, $rows), 'reporte_expo_productos.xlsx');
     }
 
+    /**
+     * Para cada flujo_id dado devuelve el id de la cotización actualmente
+     * marcada como "ganadora" (según el último movimiento registrado en
+     * cotizacion_estado). Si el último movimiento de un flujo fue "quitar
+     * ganadora", ese flujo simplemente no aparece en el mapa devuelto.
+     */
+    private function ofertasGanadorasPorFlujo(array $flujoIds): array
+    {
+        $flujoIds = array_values(array_unique(array_filter(array_map('intval', $flujoIds))));
+        if (empty($flujoIds)) {
+            return [];
+        }
+
+        $rows = DB::select("
+            SELECT ce.flujo_id, ce.cotizacion_id
+            FROM cotizacion_estado ce
+            INNER JOIN (
+                SELECT flujo_id, MAX(id) AS ultimo_id
+                FROM cotizacion_estado
+                WHERE flujo_id IN (" . implode(',', $flujoIds) . ")
+                GROUP BY flujo_id
+            ) ult ON ult.flujo_id = ce.flujo_id AND ult.ultimo_id = ce.id
+            WHERE ce.ganadora = 1
+        ");
+
+        $mapa = [];
+        foreach ($rows as $row) {
+            $mapa[(int) $row->flujo_id] = (int) $row->cotizacion_id;
+        }
+
+        return $mapa;
+    }
+
+    /**
+     * Agrupa las filas planas (oferta principal + secciones) por flujo y
+     * elige UNA oferta representativa por flujo: primero la marcada como
+     * "ganadora" (cotizacion_estado.ganadora vigente); si no hay ganadora
+     * vigente, la última oferta generada (mayor fecha_emision / id).
+     *
+     * El total ofertado se toma únicamente de la oferta representativa
+     * (sus propias líneas en cotizacion_has_producto, que ya incluyen la
+     * totalidad del pedido), mientras que lo facturado se agrega sumando
+     * la oferta representativa + todas sus secciones (ya que facturar una
+     * sección no duplica montos: cada factura referencia líneas propias
+     * de esa sección, distintas de las líneas de la oferta origen).
+     */
+    private function agruparPorFlujo(array $filas): array
+    {
+        $grupos = [];
+        foreach ($filas as $fila) {
+            $clave = $fila['flujo_id'] !== null ? 'flujo_' . $fila['flujo_id'] : 'oferta_' . $fila['oferta_id'];
+            $grupos[$clave][] = $fila;
+        }
+
+        $flujoIds = array_values(array_unique(array_filter(array_column($filas, 'flujo_id'))));
+        $ganadoras = $this->ofertasGanadorasPorFlujo($flujoIds);
+
+        $resultado = [];
+        foreach ($grupos as $grupo) {
+            $raices = array_values(array_filter($grupo, fn ($f) => $f['oferta_origen_id'] === null));
+            if (empty($raices)) {
+                // No debería ocurrir (toda sección tiene un origen), pero por
+                // seguridad se trata el grupo completo como si fueran raíces.
+                $raices = $grupo;
+            }
+
+            $flujoId = $grupo[0]['flujo_id'];
+            $ganadoraId = $flujoId !== null ? ($ganadoras[$flujoId] ?? null) : null;
+
+            $representativa = null;
+            if ($ganadoraId !== null) {
+                foreach ($raices as $raiz) {
+                    if ($raiz['oferta_id'] === $ganadoraId) {
+                        $representativa = $raiz;
+                        break;
+                    }
+                }
+            }
+            if ($representativa === null) {
+                usort($raices, function ($a, $b) {
+                    $fechaA = $a['fecha_emision'] ?? '';
+                    $fechaB = $b['fecha_emision'] ?? '';
+                    return $fechaB <=> $fechaA ?: $b['oferta_id'] <=> $a['oferta_id'];
+                });
+                $representativa = $raices[0];
+            }
+
+            $secciones = array_values(array_filter(
+                $grupo,
+                fn ($f) => $f['oferta_origen_id'] === $representativa['oferta_id']
+            ));
+
+            $totalFacturado = (float) $representativa['total_facturado'];
+            $cantidadFacturada = (float) $representativa['cantidad_facturada'];
+            $numFacturas = (int) $representativa['num_facturas'];
+            foreach ($secciones as $seccion) {
+                $totalFacturado += (float) $seccion['total_facturado'];
+                $cantidadFacturada += (float) $seccion['cantidad_facturada'];
+                $numFacturas += (int) $seccion['num_facturas'];
+            }
+
+            $totalOfertado = (float) $representativa['total_ofertado'];
+            $cantidadOfertada = (float) $representativa['cantidad_ofertada'];
+            $estadoFacturacion = $cantidadFacturada <= 0.0001
+                ? 'NO_FACTURADA'
+                : ($cantidadFacturada + 0.0001 >= $cantidadOfertada ? 'FACTURADA' : 'PARCIALMENTE_FACTURADA');
+
+            $seccionesSalida = array_map(fn ($s) => [
+                'oferta_id' => $s['oferta_id'],
+                'numero_seccion' => $s['numero_seccion'],
+                'nombre_seccion' => $s['nombre_seccion'],
+                'estado' => $s['estado'],
+                'estado_facturacion' => $s['estado_facturacion'],
+                'total_ofertado' => $s['total_ofertado'],
+                'total_facturado' => $s['total_facturado'],
+                'num_facturas' => $s['num_facturas'],
+            ], $secciones);
+
+            if ($estadoFacturacion === 'PARCIALMENTE_FACTURADA') {
+                $seccionesSalida[] = [
+                    'oferta_id' => null,
+                    'numero_seccion' => null,
+                    'nombre_seccion' => 'Productos sin factura',
+                    'estado' => null,
+                    'estado_facturacion' => 'NO_FACTURADA',
+                    'total_ofertado' => round(max($totalOfertado - $totalFacturado, 0), 2),
+                    'total_facturado' => 0,
+                    'num_facturas' => 0,
+                    'es_pendiente' => true,
+                ];
+            }
+
+            $utilidad = $totalOfertado - (float) $representativa['total_costo_oferta'];
+
+            $resultado[] = [
+                'oferta_id' => $representativa['oferta_id'],
+                'flujo_id' => $flujoId,
+                'cliente' => $representativa['cliente'],
+                'asesor' => $representativa['asesor'],
+                'teleasesor' => $representativa['teleasesor'],
+                'fecha_emision' => $representativa['fecha_emision'],
+                'estado' => $representativa['estado'],
+                'oferta_origen_id' => null,
+                'numero_seccion' => null,
+                'nombre_seccion' => null,
+                'estado_facturacion' => $estadoFacturacion,
+                'num_facturas' => $numFacturas,
+                'total_ofertado' => round($totalOfertado, 2),
+                'total_facturado' => round($totalFacturado, 2),
+                'descuento' => $representativa['descuento'],
+                'utilidad' => round($utilidad, 2),
+                'margen_pct' => $totalOfertado > 0 ? round(($utilidad / $totalOfertado) * 100, 2) : null,
+                'avance_pct' => $totalOfertado > 0 ? round(($totalFacturado / $totalOfertado) * 100, 2) : 0,
+                'num_secciones' => count($secciones),
+                'secciones' => $seccionesSalida,
+            ];
+        }
+
+        usort($resultado, fn ($a, $b) => $b['total_ofertado'] <=> $a['total_ofertado']);
+
+        return $resultado;
+    }
+
     private function datosOfertas(Request $r): array
     {
         $expoId = $this->expoIdDesdeRequest($r);
@@ -759,7 +922,7 @@ class ReporteExpo extends Component
             ORDER BY total_ofertado DESC
         ");
 
-        return array_map(function ($row) {
+        $filas = array_map(function ($row) {
             $totalOfertado = (float) $row->total_ofertado;
             $totalFacturado = (float) $row->total_facturado;
             $totalCostoOferta = (float) $row->total_costo_oferta;
@@ -789,8 +952,14 @@ class ReporteExpo extends Component
                 'utilidad' => round($utilidad, 2),
                 'margen_pct' => $totalOfertado > 0 ? round(($utilidad / $totalOfertado) * 100, 2) : null,
                 'avance_pct' => $totalOfertado > 0 ? round(($totalFacturado / $totalOfertado) * 100, 2) : 0,
+                // Campos crudos (no redondeados) usados solo para la agregación por flujo.
+                'cantidad_ofertada' => $cantidadOfertada,
+                'cantidad_facturada' => $cantidadFacturada,
+                'total_costo_oferta' => $totalCostoOferta,
             ];
         }, $rows);
+
+        return $this->agruparPorFlujo($filas);
     }
 
     public function tablaOfertas(Request $r)
@@ -802,10 +971,10 @@ class ReporteExpo extends Component
     {
         $data = $this->datosOfertas($r);
 
-        $headings = ['Oferta #', 'Sección', 'Oferta Origen #', 'Flujo', 'Cliente', 'Asesor', 'Teleasesor', 'Fecha', 'Estado', 'Estado Facturacion', 'Facturas', 'Total Ofertado (L)', 'Total Facturado (L)', 'Margen Oferta %', 'Ganancia Oferta (L)', 'Descuento (L)', 'Avance %'];
+        $headings = ['Oferta #', 'Flujo', '# Secciones', 'Cliente', 'Asesor', 'Teleasesor', 'Fecha', 'Estado', 'Estado Facturacion', 'Facturas', 'Total Ofertado (L)', 'Total Facturado (L)', 'Margen Oferta %', 'Ganancia Oferta (L)', 'Descuento (L)', 'Avance %'];
         $rows = array_map(fn ($o) => [
-            $o['oferta_id'], $o['nombre_seccion'] ?: 'Oferta principal', $o['oferta_origen_id'],
-            $o['flujo_id'], $o['cliente'], $o['asesor'], $o['teleasesor'],
+            $o['oferta_id'], $o['flujo_id'], $o['num_secciones'],
+            $o['cliente'], $o['asesor'], $o['teleasesor'],
             $o['fecha_emision'], $o['estado'], $o['estado_facturacion'], $o['num_facturas'],
             $o['total_ofertado'], $o['total_facturado'], $o['margen_pct'], $o['utilidad'],
             $o['descuento'], $o['avance_pct'],
