@@ -806,6 +806,8 @@
                                 @if(($config->codigo ?? '') === 'cotizacion_clientes_a')
                                     <input type="hidden" name="zone_group_id" id="zone_group_id_hidden" value="">
                                     <input type="hidden" name="direccion_entrega" id="direccion_entrega_hidden" value="">
+                                    <input type="hidden" name="direccion_departamento_id" id="direccion_departamento_id_hidden" value="">
+                                    <input type="hidden" name="direccion_municipio_id" id="direccion_municipio_id_hidden" value="">
                                 @endif
                                 {{-- Tipo de pago --}}
                                 <div class="col-12 col-md-4">
@@ -6237,7 +6239,7 @@
             direcciones.forEach(function(direccion, index) {
                 var seleccionada = direccionActual && direccionActual === direccion.direccion;
                 if (!direccionActual && (direccion.principal || index === 0)) seleccionada = true;
-                html += '<div class="oferta-direccion-opcion ' + (seleccionada ? 'seleccionada' : '') + '" data-direccion="' + ofertaEscapar(direccion.direccion) + '">' +
+                html += '<div class="oferta-direccion-opcion ' + (seleccionada ? 'seleccionada' : '') + '" data-direccion="' + ofertaEscapar(direccion.direccion) + '" data-departamento-id="' + ofertaEscapar(direccion.departamento_id) + '" data-municipio-id="' + ofertaEscapar(direccion.municipio_id) + '">' +
                     '<div class="direccion-etiqueta"><i class="fa fa-map-marker mr-1"></i>' + ofertaEscapar(direccion.etiqueta || 'Sin etiqueta') + '</div>' +
                     '<div class="direccion-ubicacion">' + ofertaEscapar([direccion.departamento_nombre, direccion.municipio_nombre].filter(Boolean).join(' · ')) + '</div>' +
                     '<div class="direccion-texto">' + ofertaEscapar(direccion.direccion) + '</div></div>';
@@ -6379,7 +6381,8 @@
 
     $(document).on('click', '#btn_confirmar_envio_oferta', function() {
         var teleId = $('#tele_asesor_oferta_modal').val() || '';
-        var direccionSeleccionada = $('.oferta-direccion-opcion.seleccionada').data('direccion') || '';
+        var direccionSeleccionadaEl = $('.oferta-direccion-opcion.seleccionada');
+        var direccionSeleccionada = direccionSeleccionadaEl.data('direccion') || '';
         if (!teleId) {
             Swal.fire({ icon: 'warning', title: 'Tele asesor requerido', text: 'Debe seleccionar un tele asesor para la oferta.', customClass: { container: 'swal-sobre-modal' } });
             return;
@@ -6391,9 +6394,13 @@
         var teleHidden = document.getElementById('tele_asesor_hidden');
         var zonaHidden = document.getElementById('zone_group_id_hidden');
         var direccionHidden = document.getElementById('direccion_entrega_hidden');
+        var departamentoHidden = document.getElementById('direccion_departamento_id_hidden');
+        var municipioHidden = document.getElementById('direccion_municipio_id_hidden');
         if (teleHidden) teleHidden.value = teleId;
         if (zonaHidden) zonaHidden.value = '';
         if (direccionHidden) direccionHidden.value = direccionSeleccionada;
+        if (departamentoHidden) departamentoHidden.value = direccionSeleccionadaEl.attr('data-departamento-id') || '';
+        if (municipioHidden) municipioHidden.value = direccionSeleccionadaEl.attr('data-municipio-id') || '';
         ofertaEnvioConfirmado = true;
         $('#modal_envio_oferta').one('hidden.bs.modal', function() {
             document.body.focus();
@@ -6723,8 +6730,12 @@
                     ofertaEnvioConfirmado = false;
                     var zonaOfertaHidden = document.getElementById('zone_group_id_hidden');
                     var direccionOfertaHidden = document.getElementById('direccion_entrega_hidden');
+                    var departamentoOfertaHidden = document.getElementById('direccion_departamento_id_hidden');
+                    var municipioOfertaHidden = document.getElementById('direccion_municipio_id_hidden');
                     if (zonaOfertaHidden) zonaOfertaHidden.value = '';
                     if (direccionOfertaHidden) direccionOfertaHidden.value = '';
+                    if (departamentoOfertaHidden) departamentoOfertaHidden.value = '';
+                    if (municipioOfertaHidden) municipioOfertaHidden.value = '';
                     document.getElementById("btn_venta_coorporativa").disabled = false;
                     $('#modalExitoOferta').modal('show');
                     return;

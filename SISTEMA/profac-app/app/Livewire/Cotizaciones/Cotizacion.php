@@ -462,6 +462,8 @@ class Cotizacion extends Component
             'tele_asesor' => 'required|integer|exists:users,id',
             'zone_group_id' => 'nullable|integer|exists:zone_groups,id',
             'direccion_entrega' => 'nullable|string|max:255',
+            'direccion_departamento_id' => 'nullable|integer|exists:departamento,id',
+            'direccion_municipio_id' => 'nullable|integer|exists:municipio,id',
             // bodega y seleccionarProducto son campos del buscador de productos,
             // no son datos a guardar — los productos reales vienen en bodega{idx}, idProducto{idx}, etc.
 
@@ -913,8 +915,26 @@ class Cotizacion extends Component
             $cotizacion->tele_asesor = $request->tele_asesor;
             $cotizacion->direccion_entrega = $request->input('direccion_entrega') ?: null;
             $zonaPorDireccion = null;
+            $departamentoDireccionId = (int) $request->input('direccion_departamento_id', 0);
+            $municipioDireccionId = (int) $request->input('direccion_municipio_id', 0);
+            if ($departamentoDireccionId > 0) {
+                $zonaPorDireccion = DB::table('zone_group_details as zgd')
+                    ->join('zone_groups as zg', function ($join) {
+                        $join->on('zg.id', '=', 'zgd.zone_group_id')->where('zg.status', 1);
+                    })
+                    ->where('zgd.department_id', $departamentoDireccionId)
+                    ->where('zgd.status', 1)
+                    ->where(function ($query) use ($municipioDireccionId) {
+                        if ($municipioDireccionId > 0) {
+                            $query->where('zgd.municipality_id', $municipioDireccionId);
+                        }
+                        $query->orWhereNull('zgd.municipality_id');
+                    })
+                    ->orderByRaw('zgd.municipality_id IS NULL ASC')
+                    ->value('zg.id');
+            }
             if ($cotizacion->direccion_entrega) {
-                $zonaPorDireccion = DB::table('cliente_direccion as cd')
+                $zonaPorDireccion = $zonaPorDireccion ?: DB::table('cliente_direccion as cd')
                     ->join('zone_group_details as zgd', function ($join) {
                         $join->on('zgd.department_id', '=', 'cd.departamento_id')
                             ->where('zgd.status', 1)
