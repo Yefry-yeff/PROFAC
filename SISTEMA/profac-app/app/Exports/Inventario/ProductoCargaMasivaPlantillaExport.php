@@ -3,6 +3,7 @@
 namespace App\Exports\Inventario;
 
 use App\Services\Inventario\ProductoCargaMasivaService;
+use Maatwebsite\Excel\Concerns\Export;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
@@ -12,7 +13,7 @@ use Maatwebsite\Excel\Concerns\WithTitle;
 use PhpOffice\PhpSpreadsheet\Cell\DataValidation;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class ProductoCargaMasivaPlantillaExport implements WithMultipleSheets
+class ProductoCargaMasivaPlantillaExport implements Export, WithMultipleSheets
 {
     public function __construct(private array $catalogos)
     {

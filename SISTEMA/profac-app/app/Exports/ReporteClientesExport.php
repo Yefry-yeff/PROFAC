@@ -2,9 +2,10 @@
 
 namespace App\Exports;
 
+use Maatwebsite\Excel\Concerns\Export;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 
-class ReporteClientesExport implements WithMultipleSheets
+class ReporteClientesExport implements Export, WithMultipleSheets
 {
     protected $general;
     protected $sinCredito;

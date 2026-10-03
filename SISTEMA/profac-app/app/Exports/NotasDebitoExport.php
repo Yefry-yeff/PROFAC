@@ -2,9 +2,10 @@
 
 namespace App\Exports;
 
+use Maatwebsite\Excel\Concerns\Export;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 
-class NotasDebitoExport implements WithMultipleSheets
+class NotasDebitoExport implements Export, WithMultipleSheets
 {
     protected $rows;
     protected $usuario;
