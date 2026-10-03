@@ -425,4 +425,5 @@
     }
 
 </script>
+@endpush
 
