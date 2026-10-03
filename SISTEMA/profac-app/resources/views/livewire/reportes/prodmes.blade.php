@@ -153,8 +153,8 @@
             "columns": [
                 {data: 'FECHA'},
                 {data: 'FECHA VENCIMIENTO'},
-                {data: 'CRÉDITO/CONTADO'},
-                {data: 'TIPO CLIENTE (AoB)'},
+                {data: 'CRÉDITO O CONTADO'},
+                {data: 'TIPO CLIENTE AoB'},
                 {data: 'VENDEDOR'},
                 {data: 'FACTURADOR'},
                 {data: 'FACTURA'},
@@ -210,5 +210,4 @@
 </script>
 
 @endpush
-
 

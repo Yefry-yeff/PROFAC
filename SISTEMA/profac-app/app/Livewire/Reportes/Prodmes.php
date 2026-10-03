@@ -41,12 +41,12 @@ class Prodmes extends Component
 SELECT
     DATE_FORMAT(A.created_at, '%d-%m-%Y') AS 'FECHA',
     DATE_FORMAT(A.fecha_vencimiento, '%d-%m-%Y') AS 'FECHA VENCIMIENTO',
-    UPPER(tpv.descripcion) AS 'CRÉDITO/CONTADO',
+    UPPER(tpv.descripcion) AS 'CRÉDITO O CONTADO',
 
     CASE A.estado_factura_id
         WHEN 1 THEN 'CLIENTE A'
         WHEN 2 THEN 'CLIENTE B'
-    END AS 'TIPO CLIENTE (AoB)',
+    END AS 'TIPO CLIENTE AoB',
 
     UPPER(us.name) AS 'VENDEDOR',
     UPPER(uf.name) AS 'FACTURADOR',

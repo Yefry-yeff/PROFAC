@@ -54,10 +54,10 @@ class Reportcxc extends Component
                     UPPER(cli.nombre) as 'CLIENTE',
                     (
                         CASE cli.tipo_cliente_id WHEN '1' THEN 'CLIENTE B' WHEN '2' THEN 'CLIENTE A' END
-                    ) AS 'TIPO CLIENTE (AoB)',
+                    ) AS 'TIPO CLIENTE AoB',
                     (
                         CASE A.tipo_pago_id WHEN '1' THEN 'CONTADO' WHEN '2' THEN 'CRÉDITO' END
-                    ) AS 'TIPO CRÉDITO/CONTADO',
+                    ) AS 'TIPO CRÉDITO O CONTADO',
                     B.producto_id as 'CODIGO PRODUCTO',
                     UPPER(
                         concat(C.nombre)
@@ -224,7 +224,7 @@ class Reportcxc extends Component
             c.id as 'CODIGO',
             (
             CASE c.tipo_cliente_id WHEN '1' THEN 'CLIENTE B' WHEN '2' THEN 'CLIENTE A' END
-            ) AS 'TIPO CLIENTE (AoB)',
+            ) AS 'TIPO CLIENTE AoB',
                     UPPER(c.nombre) AS 'CLIENTE',
                     UPPER(pais.nombre) AS 'PAIS',
                     UPPER(departamento.nombre) AS 'DEPARTAMENTO',
@@ -281,10 +281,10 @@ class Reportcxc extends Component
                     UPPER(cli.nombre) as 'CLIENTE',
                     (
                         CASE cli.tipo_cliente_id WHEN '1' THEN 'CLIENTE B' WHEN '2' THEN 'CLIENTE A' END
-                    ) AS 'TIPO CLIENTE (AoB)',
+                    ) AS 'TIPO CLIENTE AoB',
                     (
                         CASE A.tipo_pago_id WHEN '1' THEN 'CONTADO' WHEN '2' THEN 'CRÉDITO' END
-                    ) AS 'TIPO CRÉDITO/CONTADO',
+                    ) AS 'TIPO CRÉDITO O CONTADO',
                     B.producto_id as 'CODIGO PRODUCTO',
                     UPPER(
                         concat(C.nombre)
@@ -468,10 +468,10 @@ class Reportcxc extends Component
                     UPPER(cli.nombre) as 'CLIENTE',
                     (
                         CASE cli.tipo_cliente_id WHEN '1' THEN 'CLIENTE B' WHEN '2' THEN 'CLIENTE A' END
-                    ) AS 'TIPO CLIENTE (AoB)',
+                    ) AS 'TIPO CLIENTE AoB',
                     (
                         CASE A.tipo_pago_id WHEN '1' THEN 'CONTADO' WHEN '2' THEN 'CRÉDITO' END
-                    ) AS 'TIPO CRÉDITO/CONTADO',
+                    ) AS 'TIPO CRÉDITO O CONTADO',
                     B.producto_id as 'CODIGO PRODUCTO',
                     UPPER(
                         concat(C.nombre)

@@ -155,7 +155,7 @@
                 {data: 'COTIZADOR'},
                 {data: 'COTIZACION'},
                 {data: 'CLIENTE'},
-                {data: 'TIPO CLIENTE (AoB)'},
+                {data: 'TIPO CLIENTE AoB'},
                 {data: 'CODIGO PRODUCTO'},
                 {data: 'PRODUCTO'},
                 {data: 'MARCA'},
@@ -210,4 +210,3 @@
 </script>
 
 @endpush
-

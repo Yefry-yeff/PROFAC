@@ -315,8 +315,8 @@
                 {data: 'VENDEDOR'},
                 {data: 'FACTURA'},
                 {data: 'CLIENTE'},
-                {data: 'TIPO CLIENTE (AoB)'},
-                {data: 'TIPO CRÉDITO/CONTADO'},
+                {data: 'TIPO CLIENTE AoB'},
+                {data: 'TIPO CRÉDITO O CONTADO'},
                 {data: 'CODIGO PRODUCTO'},
                 {data: 'PRODUCTO'},
                 {data: 'MARCA'},
@@ -462,7 +462,7 @@
             "columns": [
 
                 {data: 'CODIGO'},
-                {data: 'TIPO CLIENTE (AoB)'},
+                {data: 'TIPO CLIENTE AoB'},
                 {data: 'CLIENTE'},
                 {data: 'DIRECCION'},
                 {data: 'TELEFONO'},
