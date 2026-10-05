@@ -111,6 +111,42 @@ class FacturacionUnificada extends Component
         return response()->json(['results' => $opcion ? [$opcion] : []]);
     }
 
+    /**
+     * Resuelve la zona de reparto (zone_group) a la que pertenece una dirección,
+     * según su departamento/municipio. Usa la misma lógica de resolución que al
+     * guardar la cotización (ver App\Livewire\Cotizaciones\Cotizacion::guardarCotizacion).
+     */
+    public function zonaPorUbicacion(Request $request)
+    {
+        $departamentoId = (int) $request->input('departamento_id', 0);
+        $municipioId = (int) $request->input('municipio_id', 0);
+
+        if ($departamentoId <= 0) {
+            return response()->json(['zona' => null]);
+        }
+
+        $zona = DB::table('zone_group_details as zgd')
+            ->join('zone_groups as zg', function ($join) {
+                $join->on('zg.id', '=', 'zgd.zone_group_id')->where('zg.status', 1);
+            })
+            ->where('zgd.department_id', $departamentoId)
+            ->where('zgd.status', 1)
+            ->where(function ($query) use ($municipioId) {
+                if ($municipioId > 0) {
+                    $query->where('zgd.municipality_id', $municipioId)
+                        ->orWhereNull('zgd.municipality_id');
+                } else {
+                    $query->whereNull('zgd.municipality_id');
+                }
+            })
+            ->orderByRaw('zgd.municipality_id IS NULL ASC')
+            ->first(['zg.id', 'zg.name']);
+
+        return response()->json([
+            'zona' => $zona ? ['id' => $zona->id, 'nombre' => $zona->name] : null,
+        ]);
+    }
+
     public function descripcionProducto(int $idProducto)
     {
         $producto = DB::table('producto')

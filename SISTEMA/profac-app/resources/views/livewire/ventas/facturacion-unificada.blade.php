@@ -54,7 +54,9 @@
             margin-bottom: 4px; display: block;
         }
         .ofr-label .req { color: #e53935; margin-left: 2px; }
-        .oferta-direcciones-lista { max-height: 280px; overflow-y: auto; overflow-x: hidden; padding: 2px; }
+        .oferta-direcciones-lista { max-height: 340px; overflow-y: auto; overflow-x: hidden; padding: 2px; scrollbar-width: thin; }
+        .oferta-direcciones-lista::-webkit-scrollbar { width: 6px; }
+        .oferta-direcciones-lista::-webkit-scrollbar-thumb { background: #b0bec5; border-radius: 4px; }
         .oferta-direccion-opcion { display:block; width:100%; max-width:100%; box-sizing:border-box; overflow:hidden; border: 1px solid #d9e2e7; border-radius: 7px; padding: 8px 10px; margin-bottom: 6px; cursor: pointer; background: #fff; transition: border-color .15s, background .15s, box-shadow .15s; }
         .oferta-direccion-opcion:hover { border-color: #26a69a; background: #f4fbfa; }
         .oferta-direccion-opcion.seleccionada { border-color: #26a69a; background: #e8f5e9; box-shadow: 0 0 0 1px #26a69a; }
@@ -63,6 +65,8 @@
         .oferta-direccion-opcion .direccion-ubicacion { color: #78909c; font-size: .69rem; margin-top: 1px; }
         .oferta-direccion-opcion .direccion-texto { color: #37474f; font-size: .76rem; line-height:1.35; margin-top: 3px; white-space:normal; overflow-wrap:anywhere; word-break:break-word; max-width:100%; }
         .oferta-direccion-opcion .direccion-ubicacion { white-space:normal; overflow-wrap:anywhere; word-break:break-word; }
+        .oferta-zona-entrega { margin-top: 10px; padding: 8px 12px; border-radius: 7px; background: #e3f2fd; border: 1px solid #90caf9; color: #0d47a1; font-size: .78rem; }
+        .oferta-zona-entrega.sin-zona { background: #fff3e0; border-color: #ffcc80; color: #e65100; }
         #modal_envio_oferta .modal-dialog { max-width:700px; width:calc(100% - 1rem); }
         #modal_envio_oferta .modal-content { overflow:hidden; }
         @media (max-width:575px) { #modal_envio_oferta .modal-dialog { width:calc(100% - 1rem); margin:.5rem auto; } }
@@ -1378,6 +1382,10 @@
                                 <input type="search" id="buscar_direccion_oferta" class="form-control form-control-sm mb-2" placeholder="Buscar por etiqueta, municipio o dirección..." autocomplete="off">
                                 <div id="direcciones_oferta_modal" class="oferta-direcciones-lista">
                                     <div class="text-muted small text-center py-2">Cargando direcciones del cliente...</div>
+                                </div>
+                                <div id="oferta_zona_entrega" class="oferta-zona-entrega" style="display:none;">
+                                    <i class="fa-solid fa-route mr-1"></i>
+                                    Zona de reparto: <strong id="oferta_zona_entrega_nombre">—</strong>
                                 </div>
                             </div>
                         </div>
@@ -6245,6 +6253,7 @@
                     '<div class="direccion-texto">' + ofertaEscapar(direccion.direccion) + '</div></div>';
             });
             $('#direcciones_oferta_modal').html(html || '<div class="text-muted small text-center py-2">El cliente no tiene direcciones registradas.</div>');
+            actualizarZonaDireccionSeleccionada();
         });
         var cargaTeleasesores = $.get('/cotizacion/actores-asignados', { cliente_id: clienteId, rol_id: 3 }).done(function(data) {
             var teleasesores = data.results || [];
@@ -6377,7 +6386,41 @@
     $(document).on('click', '.oferta-direccion-opcion', function() {
         $('.oferta-direccion-opcion').removeClass('seleccionada');
         $(this).addClass('seleccionada');
+        actualizarZonaDireccionSeleccionada();
     });
+
+    var ofertaZonaRequestActual = null;
+    function actualizarZonaDireccionSeleccionada() {
+        var seleccionada = $('.oferta-direccion-opcion.seleccionada');
+        var departamentoId = seleccionada.attr('data-departamento-id') || '';
+        var municipioId = seleccionada.attr('data-municipio-id') || '';
+        var zonaBox = $('#oferta_zona_entrega');
+        var zonaNombre = $('#oferta_zona_entrega_nombre');
+        if (!seleccionada.length || !departamentoId) {
+            zonaBox.hide();
+            return;
+        }
+        if (ofertaZonaRequestActual) ofertaZonaRequestActual.abort();
+        zonaBox.removeClass('sin-zona').show();
+        zonaNombre.text('Buscando…');
+        ofertaZonaRequestActual = $.get('/ventas/oferta/zona-por-ubicacion', {
+            departamento_id: departamentoId,
+            municipio_id: municipioId
+        }).done(function(data) {
+            var zona = data && data.zona;
+            if (zona && zona.nombre) {
+                zonaBox.removeClass('sin-zona');
+                zonaNombre.text(zona.nombre);
+            } else {
+                zonaBox.addClass('sin-zona');
+                zonaNombre.text('Sin zona asignada para esta ubicación');
+            }
+        }).fail(function(xhr) {
+            if (xhr.statusText === 'abort') return;
+            zonaBox.addClass('sin-zona');
+            zonaNombre.text('No se pudo determinar la zona');
+        });
+    }
 
     $(document).on('click', '#btn_confirmar_envio_oferta', function() {
         var teleId = $('#tele_asesor_oferta_modal').val() || '';

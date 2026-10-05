@@ -807,6 +807,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/productos/{idProducto}/descripcion', [FacturacionUnificada::class, 'descripcionProducto']);
     Route::get('/expo/oferta/listar-bodega/{idProducto}', [FacturacionUnificada::class, 'listarBodegasExpo']);
     Route::get('/expo/captura-rapida/producto/{identificador}', [FacturacionUnificada::class, 'capturaRapidaExpo']);
+    Route::get('/ventas/oferta/zona-por-ubicacion', [FacturacionUnificada::class, 'zonaPorUbicacion']);
 
     Route::post('/ventas/datos/producto', [FacturacionCorporativa::class, 'obtenerDatosProducto']);
     Route::post('/producto/categorias-disponibles', [FacturacionCorporativa::class, 'obtenerCategoriasProducto']);
