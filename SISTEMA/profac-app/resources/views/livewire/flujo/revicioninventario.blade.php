@@ -1357,7 +1357,17 @@
 
     {{-- ══════════════════════════════════════════════════════════════════ --}}
     {{-- Sincronización en tiempo real (Reverb) de la revisión de inventario --}}
+    {{--                                                                    --}}
+    {{-- IMPORTANTE: se usa @script/@endscript (y no un <script> suelto)    --}}
+    {{-- porque este bloque se renderiza en el <body> ANTES de              --}}
+    {{-- @livewireScripts (que va en el pie de layouts/app.blade.php). Un   --}}
+    {{-- <script> normal se ejecuta de inmediato al parsear el HTML, por lo --}}
+    {{-- que "window.Livewire" todavía no existe y la suscripción nunca se  --}}
+    {{-- intentaba (sin errores visibles: parecía que el feature "no hacía --}}
+    {{-- nada"). @script difiere la ejecución hasta que Livewire está listo --}}
+    {{-- y además entrega $wire ya enlazado a esta instancia del componente.--}}
     {{-- ══════════════════════════════════════════════════════════════════ --}}
+    @script
     <script>
     (function () {
         var canalActual = null;
@@ -1369,7 +1379,7 @@
             if (celda) { celda.textContent = evento.usuario_nombre || '—'; }
         }
 
-        function suscribirRevisionInventario(component, flujoId, cotizacionId) {
+        function suscribir(flujoId, cotizacionId) {
             if (typeof window.getProfacEcho === 'function') window.getProfacEcho();
             if (!window.Echo) return;
 
@@ -1390,7 +1400,7 @@
 
             window.Echo.private(canal).listen('.revision.actualizada', function (evento) {
                 aplicarRevisionEnDom(evento);
-                component.call(
+                $wire.call(
                     'aplicarRevisionRemota',
                     Number(evento.linea_id),
                     !!evento.revisado,
@@ -1400,30 +1410,20 @@
             });
         }
 
-        function intentarSuscribir(component) {
-            try {
-                if (typeof component.get !== 'function') return;
-                var flujoId = component.get('flujoId');
-                var cotizacionId = component.get('cotizacionId');
-                if (flujoId === undefined || cotizacionId === undefined) return;
-                suscribirRevisionInventario(component, flujoId, cotizacionId);
-            } catch (e) {
-                // No es el componente de Revisión de Inventario.
-            }
-        }
+        // Suscripción inicial (por si la página ya carga con un flujo abierto).
+        suscribir($wire.flujoId, $wire.cotizacionId);
 
-        if (window.Livewire) {
-            Livewire.hook('component.init', function ({ component }) {
-                intentarSuscribir(component);
-            });
-
-            queueMicrotask(function () {
-                if (typeof Livewire.all !== 'function') return;
-                Livewire.all().forEach(intentarSuscribir);
-            });
-        }
+        // Livewire actualiza flujoId/cotizacionId sin recargar la página al
+        // entrar/salir del detalle de un flujo: re-suscribimos cada vez.
+        $wire.$watch('flujoId', function () {
+            suscribir($wire.flujoId, $wire.cotizacionId);
+        });
+        $wire.$watch('cotizacionId', function () {
+            suscribir($wire.flujoId, $wire.cotizacionId);
+        });
     })();
     </script>
+    @endscript
 
 </div>
 
