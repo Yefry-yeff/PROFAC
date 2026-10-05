@@ -670,15 +670,108 @@ class ReporteExpo extends Component
         return response()->json($this->datosProductos($r));
     }
 
+    /**
+     * Igual que datosProductos() pero sin agrupar: 1 fila = 1 línea de
+     * producto dentro de 1 oferta concreta. Se usa solo para el Excel,
+     * que necesita Cliente y Flujo por fila (datos que no existen en la
+     * tabla agregada por producto que se muestra en pantalla).
+     */
+    private function datosProductosDetalle(Request $r): array
+    {
+        $expoId = $this->expoIdDesdeRequest($r);
+        $extra = $this->filtrosExtra($r);
+        $netoOfertaExpr = $this->netoOfertaExpr();
+        $brutoOfertaExpr = $this->brutoOfertaExpr();
+
+        $ofertado = DB::select("
+             SELECT chp.id AS linea_id, p.id AS producto_id, p.codigo_barra AS codigo, p.nombre AS producto,
+                 COALESCE(m.nombre,'Sin marca') AS marca,
+                 COALESCE(cat.descripcion,'Sin categoria') AS categoria,
+                 c.id AS oferta_id, COALESCE(c.nombre_cliente, 'Sin cliente') AS cliente,
+                 COALESCE(ec.flujo_id, (SELECT hf.flujo_id FROM historico_flujo hf WHERE hf.tipo_tramite_id = 2 AND hf.tramite_id = c.id ORDER BY hf.id DESC LIMIT 1)) AS flujo_id,
+                 COALESCE(um.nombre, 'N/A') AS unidad_medida,
+                 chp.cantidad AS cantidad_ofertada,
+                 $netoOfertaExpr AS total_ofertado,
+                 GREATEST(($brutoOfertaExpr) - ($netoOfertaExpr), 0) AS descuento,
+                 COALESCE(ppc.precio_base_venta, 0) * chp.cantidad AS costo_ofertado
+            {$this->joinsOfertado()}
+            LEFT JOIN unidad_medida um ON um.id = uv.unidad_medida_id
+            {$this->joinExpoCotizacion($expoId)}
+            {$this->whereExpo($expoId)}
+            $extra
+            ORDER BY c.id, chp.indice
+        ");
+
+        $costoExpr = $this->costoUnitarioExpr();
+        $facturado = DB::select("
+            SELECT chp.id AS linea_id,
+                     SUM(COALESCE(NULLIF(vhp.cantidad_oferta_aplicada,0), vhp.cantidad_s)) AS cantidad_facturada,
+                     SUM(vhp.sub_total_s) AS total_facturado,
+                     SUM(GREATEST((vhp.precio_unidad * vhp.cantidad_s) - vhp.sub_total_s, 0)) AS descuento_facturado,
+                     SUM(($costoExpr) * vhp.cantidad_s) AS total_costo
+            {$this->joinsOfertado()}
+            {$this->joinsFacturado()}
+            {$this->joinExpoCotizacion($expoId)}
+            {$this->whereExpo($expoId)}
+            $extra
+            GROUP BY chp.id
+        ");
+        $fMap = collect($facturado)->keyBy('linea_id');
+
+        $baseFacturas = $r->input('rentabilidad_base') === 'facturas';
+
+        return collect($ofertado)->map(function ($row) use ($fMap, $baseFacturas) {
+            $f = $fMap->get($row->linea_id);
+            $totalFacturado = round((float) ($f->total_facturado ?? 0), 2);
+            $totalOfertado = round((float) $row->total_ofertado, 2);
+            $costoOfertado = round((float) $row->costo_ofertado, 2);
+            $costoFacturado = round((float) ($f->total_costo ?? 0), 2);
+            $totalBase = $baseFacturas ? $totalFacturado : $totalOfertado;
+            $totalCosto = $baseFacturas ? $costoFacturado : $costoOfertado;
+            $descuento = $baseFacturas
+                ? round((float) ($f->descuento_facturado ?? 0), 2)
+                : round((float) $row->descuento, 2);
+            $utilidad = round($totalBase - $totalCosto, 2);
+
+            return [
+                'linea_id' => (int) $row->linea_id,
+                'producto_id' => (int) $row->producto_id,
+                'codigo' => $row->codigo,
+                'producto' => $row->producto,
+                'marca' => $row->marca,
+                'categoria' => $row->categoria,
+                'oferta_id' => (int) $row->oferta_id,
+                'cliente' => $row->cliente,
+                'flujo_id' => $row->flujo_id ? (int) $row->flujo_id : null,
+                'unidad_medida' => $row->unidad_medida,
+                'cantidad_ofertada' => (float) $row->cantidad_ofertada,
+                'cantidad_facturada' => (float) ($f->cantidad_facturada ?? 0),
+                'total_ofertado' => $totalOfertado,
+                'total_facturado' => $totalFacturado,
+                'descuento' => $descuento,
+                'total_base' => $totalBase,
+                'total_costo' => $totalCosto,
+                'utilidad' => $utilidad,
+                'margen_pct' => $totalBase > 0 ? round(($utilidad / $totalBase) * 100, 2) : null,
+            ];
+        })->all();
+    }
+
     public function exportarProductos(Request $r)
     {
-        $data = $this->datosProductos($r);
+        $data = $this->datosProductosDetalle($r);
         $baseFacturas = $r->input('rentabilidad_base') === 'facturas';
         $entidad = $baseFacturas ? 'Factura' : 'Oferta';
 
-        $headings = ['Codigo', 'Producto', 'Marca', 'Categoria', 'Ofertas', 'Cant. ' . ($baseFacturas ? 'Facturada' : 'Ofertada'), 'Venta ' . $entidad . ' (L)', 'Descuento (L)', 'Costo ' . $entidad . ' (L)', 'Utilidad ' . $entidad . ' (L)', 'Margen ' . $entidad . ' %'];
+        $headings = [
+            'Codigo', 'Cliente', 'Flujo', 'Codigo Producto (ID)', 'Unidad de Medida',
+            'Producto', 'Marca', 'Categoria', 'Cant. ' . ($baseFacturas ? 'Facturada' : 'Ofertada'),
+            'Venta ' . $entidad . ' (L)', 'Descuento (L)', 'Costo ' . $entidad . ' (L)',
+            'Utilidad ' . $entidad . ' (L)', 'Margen ' . $entidad . ' %',
+        ];
         $rows = array_map(fn ($p) => [
-            $p['codigo'], $p['producto'], $p['marca'], $p['categoria'], $p['numero_ofertas'],
+            $p['codigo'], $p['cliente'], $p['flujo_id'], $p['producto_id'], $p['unidad_medida'],
+            $p['producto'], $p['marca'], $p['categoria'],
             $baseFacturas ? $p['cantidad_facturada'] : $p['cantidad_ofertada'], $p['total_base'],
             $p['descuento'], $p['total_costo'], $p['utilidad'], $p['margen_pct'],
         ], $data);

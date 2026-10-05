@@ -46,7 +46,7 @@ class AnaliticaProductosExport implements FromArray, WithHeadings, WithStyles, S
             if (preg_match('/\(L\)|Cant\.|Cantidad|Margen|Avance/i', $encabezado)) {
                 $sheet->getStyle("{$columna}2:{$columna}{$ultimaFila}")
                     ->getNumberFormat()->setFormatCode('#,##0.00');
-            } elseif (preg_match('/^(Oferta #|Flujo|Ofertas|Facturas)$/i', $encabezado)) {
+            } elseif (preg_match('/^(Oferta #|Flujo|Ofertas|Facturas|Codigo Producto \(ID\))$/i', $encabezado)) {
                 $sheet->getStyle("{$columna}2:{$columna}{$ultimaFila}")
                     ->getNumberFormat()->setFormatCode('#,##0');
             }
