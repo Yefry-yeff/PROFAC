@@ -13,6 +13,11 @@ Para reemplazar una oferta por un descuento autorizado: abrir **Ofertas**,
 seleccionar la ganadora anterior, usar **Quitar Ganadora** e indicar el motivo.
 Luego seleccionar la nueva oferta, marcarla **Ganadora** y crear sus secciones.
 
+En **Secciones de Ofertas**, la búsqueda solo filtra las filas visibles:
+las cantidades y selecciones permanecen vinculadas a cada línea de la oferta.
+Cambiar la cantidad de un producto no debe modificar otro, aunque se busquen
+consecutivamente o tengan el mismo saldo disponible.
+
 1. crear modelo -> php artisan make:model <directory_name>/<model_name>
 
 2. crear componente -> php artisan make:livewire ShowPosts 

@@ -150,7 +150,8 @@
                                         $inventarioInsuficiente = (float) $producto['disponible_bodega'] < (float) $producto['cantidad_pendiente'];
                                         $faltante = max(0, (float) $producto['cantidad_pendiente'] - (float) $producto['disponible_bodega']);
                                     @endphp
-                                    <tr class="{{ $inventarioInsuficiente ? 'expo-no-stock' : ($seleccionado ? 'expo-selected' : '') }}">
+                                    <tr wire:key="seccion-oferta-{{ $cotizacionOrigenId }}-producto-{{ $producto['id'] }}"
+                                        class="{{ $inventarioInsuficiente ? 'expo-no-stock' : ($seleccionado ? 'expo-selected' : '') }}">
                                         <td class="text-center">
                                             <input type="checkbox" wire:model.live="seleccionados.{{ $producto['id'] }}" {{ !$puedeCrear ? 'disabled' : '' }}>
                                         </td>
