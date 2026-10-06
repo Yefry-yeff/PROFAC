@@ -19,6 +19,7 @@ use App\Services\Expo\LiquidacionOfertaExpo;
 use App\Services\Expo\SaldoLineasOferta;
 use App\Services\Expo\SeccionadorOfertaExpo;
 use App\Support\ExpoConfig;
+use App\Support\FacturasFlujo;
 
 /**
  * Modal reutilizable "Flujo del Pedido".
@@ -989,6 +990,13 @@ class ModalFlujoPedido extends Component
             return;
         }
 
+        $cotizacionGanadoraId = DB::table('historico_flujo')
+            ->where('flujo_id', $this->flujoId)
+            ->where('tipo_tramite_id', 2)
+            ->where('observaciones', 'ganadora')
+            ->orderByDesc('id')
+            ->value('tramite_id');
+
         $latestCredito = DB::table('credito_revision')
             ->select('flujo_id', 'cotizacion_id', DB::raw('MAX(id) as max_id'))
             ->whereNotNull('cotizacion_id')
@@ -1013,6 +1021,7 @@ class ModalFlujoPedido extends Component
             ->leftJoin('historico_flujo as hi', 'hi.id', '=', 'linv.max_id')
             ->leftJoin('prefactura as pf', 'pf.id', '=', 'eos.prefactura_id')
             ->where('eos.flujo_id', $this->flujoId)
+            ->when($cotizacionGanadoraId, fn ($query) => $query->where('eos.cotizacion_origen_id', $cotizacionGanadoraId))
             ->orderBy('eos.numero')
             ->get([
                 'eos.id', 'eos.numero', 'eos.nombre', 'eos.estado', 'eos.cotizacion_origen_id',
@@ -1800,9 +1809,19 @@ class ModalFlujoPedido extends Component
         return true;
     }
 
+    public function tieneFacturasVigentes(): bool
+    {
+        return $this->flujoId && FacturasFlujo::tieneVigentes((int) $this->flujoId);
+    }
+
     public function ganadoraOferta(): void
     {
         if (!$this->ofertaSeleccionada || !$this->flujoId) return;
+
+        if ($this->tieneFacturasVigentes()) {
+            $this->mensajeError = 'Debe anular todas las facturas del flujo antes de cambiar la oferta ganadora.';
+            return;
+        }
 
         $cotizacionId = (int) $this->ofertaSeleccionada['id'];
         $cotizacion   = DB::table('cotizacion')->where('id', $cotizacionId)->first();
@@ -2250,6 +2269,10 @@ class ModalFlujoPedido extends Component
 
         DB::beginTransaction();
         try {
+            if ($this->tieneFacturasVigentes()) {
+                throw new \RuntimeException('Debe anular todas las facturas del flujo antes de quitar la oferta ganadora.');
+            }
+
             // 1. Marcar oferta como QuitadaGanadora
             DB::table('historico_flujo')
                 ->where('flujo_id', $this->flujoId)

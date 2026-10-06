@@ -1,5 +1,18 @@
 //*****comandos utiles****
 
+### Cambio de oferta ganadora después de anular facturas
+
+En el modal del flujo, **Quitar Ganadora** y **Ganadora** se habilitan cuando
+no queda ninguna factura vigente (todas tienen `estado_venta_id = 2`).
+El historial de facturación se conserva y no debe borrarse para desbloquear
+estas acciones. Una factura vigente, incluso vencida, bloquea el cambio también
+en el servidor. En Expo, las secciones mostradas corresponden a la ganadora
+actual; las secciones anteriores se conservan como historial.
+
+Para reemplazar una oferta por un descuento autorizado: abrir **Ofertas**,
+seleccionar la ganadora anterior, usar **Quitar Ganadora** e indicar el motivo.
+Luego seleccionar la nueva oferta, marcarla **Ganadora** y crear sus secciones.
+
 1. crear modelo -> php artisan make:model <directory_name>/<model_name>
 
 2. crear componente -> php artisan make:livewire ShowPosts 
@@ -345,4 +358,3 @@ Facturacion SRP cliente A
 Facturacion SRP cliente B
 FACTURAR-COMPROBANTE
 Vebtas exoneradas
-

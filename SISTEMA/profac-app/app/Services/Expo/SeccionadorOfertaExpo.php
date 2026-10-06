@@ -3,6 +3,7 @@
 namespace App\Services\Expo;
 
 use App\Models\CreditoRevision;
+use App\Support\FacturasFlujo;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -16,6 +17,12 @@ class SeccionadorOfertaExpo
         int $usuarioId
     ): void {
         DB::transaction(function () use ($flujoId, $cotizacionId, $usuarioId) {
+            if (FacturasFlujo::tieneVigentes($flujoId)) {
+                throw ValidationException::withMessages([
+                    'oferta' => 'Debe anular todas las facturas del flujo antes de cambiar la oferta ganadora.',
+                ]);
+            }
+
             $esExpo = DB::table('expo_cotizacion')->where('cotizacion_id', $cotizacionId)->exists();
             $oferta = DB::table('historico_flujo')
                 ->where('flujo_id', $flujoId)

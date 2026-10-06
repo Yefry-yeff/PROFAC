@@ -197,6 +197,7 @@
     $fCancelado   = ($d['estado'] === 'cancelado');
     $tieneOfertas  = count($ofertasPedido) > 0 || ($d['total_ofertas'] > 0);
     $tieneGanadora = ($d['has_ganadora'] > 0);
+    $ofertasBloqueadasPorFactura = $this->tieneFacturasVigentes();
     $esFlujoExpo = collect($ofertasPedido)->contains(fn ($oferta) => !empty($oferta['es_expo']));
     $seccionesExpo = collect($seccionesExpoData)->reject(fn ($seccion) => $seccion['estado'] === 'ANULADA');
     $totalSeccionesExpo = $seccionesExpo->count();
@@ -1248,7 +1249,7 @@
                             <i class="mr-1 fa fa-file-pdf-o"></i> Catálogo PDF
                         </a>
 
-                        @if (!$facturaCompletada && !$esGanDet && !$esAnuDet && !$esVencDet && !$tieneGanadora)
+                        @if (!$ofertasBloqueadasPorFactura && !$esGanDet && !$esAnuDet && !$esVencDet && !$tieneGanadora)
                         <button type="button" wire:click="confirmarAccionOferta('ganadora')"
                                 style="background:linear-gradient(135deg,#1ab394,#0fa37a); color:#fff;
                                        border:none; border-radius:8px; padding:5px 10px;
@@ -1256,7 +1257,7 @@
                             <i class="mr-1 fa fa-trophy"></i> Ganadora
                         </button>
                         @endif
-                        @if (!$facturaCompletada && $esGanDet && !$esAnuDet && !($tieneRevisionCreditoRechazada ?? false))
+                        @if (!$ofertasBloqueadasPorFactura && $esGanDet && !$esAnuDet && !($tieneRevisionCreditoRechazada ?? false))
                         <button type="button" wire:click="confirmarAccionOferta('quitar_ganadora')"
                                 style="background:linear-gradient(135deg,#e67e22,#d35400); color:#fff;
                                        border:none; border-radius:8px; padding:5px 10px;
@@ -1290,7 +1291,7 @@
                     @endif
 
                     {{-- Confirmación: Ganadora --}}
-                    @if (!$facturaCompletada && $confirmAccionOferta === 'ganadora')
+                    @if (!$ofertasBloqueadasPorFactura && $confirmAccionOferta === 'ganadora')
                     @php $confirmandoOfertaExpo = !empty($ofertaSeleccionada['es_expo']); @endphp
                     <div x-data="{}"
                         @unless ($confirmandoOfertaExpo)
@@ -1382,7 +1383,7 @@
                     @endif
 
                     {{-- Confirmación: Quitar Ganadora --}}
-                    @if (!$facturaCompletada && $confirmAccionOferta === 'quitar_ganadora')
+                    @if (!$ofertasBloqueadasPorFactura && $confirmAccionOferta === 'quitar_ganadora')
                     <div x-data="{}"
                          x-on:focus-motivo-oferta.window="setTimeout(() => $refs.quitarGanTA && $refs.quitarGanTA.focus(), 100)"
                          style="margin-top:12px; background:#fff3e0; border:1px solid #ffcc80;
