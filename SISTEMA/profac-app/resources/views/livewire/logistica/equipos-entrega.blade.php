@@ -90,9 +90,7 @@
             background: #f8fafc;
         }
 
-        .eq-page .eq-modal .modal-dialog {
-            max-width: 640px;
-        }
+        .eq-page .eq-modal .modal-dialog { max-width: 980px !important; width: calc(100% - 2rem) !important; }
 
         .eq-page .eq-modal .modal-header {
             border-bottom: 1px solid var(--eq-border);
@@ -131,6 +129,14 @@
         .eq-page .eq-section-title i {
             color: var(--eq-primary);
         }
+        .eq-page .eq-zone-table-wrap { border:1px solid #e2e8f0; border-radius:10px; overflow:hidden; }
+        .eq-page .eq-zone-table { width:100%; table-layout:fixed; margin:0; }
+        .eq-page .eq-zone-table th:first-child { width:18%; }
+        .eq-page .eq-zone-table th:not(:first-child) { width:20.5%; }
+        .eq-page .eq-zone-table thead th { background:#f1f5f9; color:#475569; border:0; font-size:.68rem; text-transform:uppercase; letter-spacing:.03em; white-space:nowrap; }
+        .eq-page .eq-zone-table tbody th { color:#0f766e; font-size:.78rem; white-space:nowrap; background:#f8fafc; }
+        .eq-page .eq-zone-table td, .eq-page .eq-zone-table th { vertical-align:middle; padding:.5rem; }
+        .eq-page .eq-zone-table .form-control { width:100%; min-width:0; font-size:.78rem; padding:.35rem .5rem; text-align:right; }
 
         .eq-page .form-control,
         .eq-page .custom-select {
@@ -242,8 +248,23 @@
             z-index: 10000 !important;
         }
 
-        .eq-page .eq-loading-overlay {
-            position: fixed;
+    .eq-page .historial-item {
+        border-left: 3px solid var(--eq-border);
+        padding: .25rem 0 .25rem .9rem;
+        margin-bottom: .6rem;
+        position: relative;
+    }
+
+    .eq-page .historial-item::before {
+        content: '';
+        position: absolute;
+        left: -7px;
+        top: .35rem;
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        background: var(--eq-primary);
+    }
             inset: 0;
             background: rgba(255, 255, 255, 0.86);
             z-index: 3000;
@@ -362,7 +383,7 @@
                         <span class="eq-hero-icon"><i class="fas fa-truck"></i></span>
                         <div>
                             <h3 class="card-title mb-0">Equipos de Entrega</h3>
-                            <small>Administre camiones, miembros y distribución de comisiones</small>
+                            <small>Administre los camiones/equipos usados en las distribuciones</small>
                         </div>
                     </div>
                     <div class="card-tools">
@@ -378,8 +399,6 @@
                             <tr>
                                 <th>ID</th>
                                 <th>Nombre Equipo</th>
-                                <th>Miembros</th>
-                                <th>% Asignado</th>
                                 <th>Creador</th>
                                 <th>Estado</th>
                                 <th>Fecha Creación</th>
@@ -421,31 +440,9 @@
                                 </div>
                             </div>
                         </div>
-
                         <div class="eq-section">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <div class="eq-section-title mb-0"><i class="fas fa-users"></i>Miembros y Porcentaje de Comisión</div>
-                                <span class="eq-total-inline">Total: <strong id="totalPct">0.00</strong>%</span>
-                            </div>
-
-                            <div class="eq-member-add mb-3">
-                                <div class="d-flex gap-2 align-items-center">
-                                    <div class="flex-grow-1">
-                                        <select class="form-control" id="selectUsuarioNuevo">
-                                            <option value="">-- Seleccione --</option>
-                                            @foreach($usuarios as $u)
-                                                <option value="{{ $u->id }}">{{ $u->name }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                    <div style="width:110px;flex-shrink:0;">
-                                        <input type="number" class="form-control" id="inputPorcentaje" min="0" max="100" step="0.01" placeholder="% Comisión">
-                                    </div>
-                                    <button type="button" class="btn btn-success btn-sm px-3 flex-shrink-0" onclick="agregarMiembroTmp()"><i class="fa fa-plus"></i></button>
-                                </div>
-                            </div>
-
-                            <div id="listaMiembrosTmp" class="eq-list"></div>
+                            <div class="eq-section-title"><i class="fas fa-map-marked-alt"></i>Parámetros por zona</div>
+                            <div class="eq-zone-grid" id="zonasEquipoNuevo"><div class="text-muted small">Cargando zonas...</div></div>
                         </div>
                     </form>
                 </div>
@@ -486,31 +483,9 @@
                                 </div>
                             </div>
                         </div>
-
                         <div class="eq-section">
-                            <div class="eq-section-title"><i class="fas fa-users"></i>Miembros Actuales</div>
-                            <div id="listaMiembrosActuales"></div>
-
-                            <div class="eq-section-title mt-3 d-flex justify-content-between align-items-center">
-                                <span><i class="fas fa-user-plus"></i>Agregar Nuevo Miembro</span>
-                                <span class="eq-total-inline">Total: <strong id="totalPctEditar">0.00</strong>%</span>
-                            </div>
-                            <div class="eq-member-add mb-2">
-                                <div class="d-flex gap-2 align-items-center">
-                                    <div class="flex-grow-1">
-                                        <select class="form-control" id="selectUsuarioEditar">
-                                            <option value="">-- Seleccione --</option>
-                                            @foreach($usuarios as $u)
-                                                <option value="{{ $u->id }}">{{ $u->name }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                    <div style="width:110px;flex-shrink:0;">
-                                        <input type="number" class="form-control" id="inputPorcentajeEditar" min="0" max="100" step="0.01" placeholder="% Comisión">
-                                    </div>
-                                    <button type="button" class="btn btn-success btn-sm px-3 flex-shrink-0" onclick="agregarNuevoMiembro()"><i class="fa fa-plus"></i></button>
-                                </div>
-                            </div>
+                            <div class="eq-section-title"><i class="fas fa-map-marked-alt"></i>Parámetros por zona</div>
+                            <div class="eq-zone-grid" id="zonasEquipoEditar"><div class="text-muted small">Cargando zonas...</div></div>
                         </div>
                     </form>
                 </div>
@@ -521,11 +496,29 @@
             </div>
         </div>
     </div>
+
+    <!-- Modal Historial de Equipo -->
+    <div class="modal fade eq-modal" id="modalHistorialEquipo">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-history mr-2"></i>Historial del Equipo</h5>
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                </div>
+                <div class="modal-body" id="historialEquipoContenido">
+                    <p class="text-muted mb-0">Cargando...</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 @push('scripts')
 <script>
-let tablaEquipos, miembrosTmp = [], equipoEditando = null;
+let tablaEquipos, equipoEditando = null;
 $(document).ready(() => {
     tablaEquipos = $('#tablaEquipos').DataTable({
         processing: true,
@@ -534,8 +527,6 @@ $(document).ready(() => {
         columns: [
             {data: 'id'},
             {data: 'nombre_equipo'},
-            {data: 'miembros'},
-            {data: 'porcentaje'},
             {data: 'creador'},
             {data: 'estado'},
             {data: 'created_at'},
@@ -560,74 +551,51 @@ function ocultarLoaderPantalla() {
     $('#pageLoadingEquipos').addClass('is-hidden');
 }
 
-function filtrarSelect(selectId, texto) {
-    var buscar = texto.toLowerCase();
-    $('#' + selectId + ' option').each(function() {
-        var val = $(this).val();
-        var mostrar = val === '' || $(this).text().toLowerCase().indexOf(buscar) !== -1;
-        $(this).toggle(mostrar);
-    });
-    // Si la opción seleccionada quedó oculta, resetear
-    var selVal = $('#' + selectId).val();
-    if (selVal && $('#' + selectId + ' option:selected').is(':hidden')) {
-        $('#' + selectId).val('');
-    }
-}
-
 function abrirModalNuevoEquipo() {
     $('#formNuevoEquipo')[0].reset();
     $('#inputNombreEquipoNuevo').removeClass('is-invalid');
-    miembrosTmp = [];
-    actualizarListaTmp();
+    cargarZonasEquipo('#zonasEquipoNuevo', []);
     $('#modalNuevoEquipo').modal('show');
 }
 
-function agregarMiembroTmp() {
-    const uid = $('#selectUsuarioNuevo').val();
-    const pct = parseFloat($('#inputPorcentaje').val());
-    if (!uid || !pct) return Swal.fire({title: 'Error', text: 'Complete los datos', icon: 'error', customClass: {container: 'swal-over-modal'}});
-    if (miembrosTmp.find(m => m.user_id == uid)) return Swal.fire({title: 'Error', text: 'Usuario duplicado', icon: 'error', customClass: {container: 'swal-over-modal'}});
-    
-    // Calcular total actual
-    const totalActual = miembrosTmp.reduce((sum, m) => sum + m.porcentaje, 0);
-    const nuevoTotal = totalActual + pct;
-    
-    if (nuevoTotal > 100) {
-        const disponible = 100 - totalActual;
-        return Swal.fire({
-            title: 'Error', 
-            html: `Solo hay <strong>${disponible.toFixed(2)}%</strong> disponible.<br>El total ya es <strong>${totalActual.toFixed(2)}%</strong>`, 
-            icon: 'error',
-            customClass: {container: 'swal-over-modal'}
+function cargarZonasEquipo(selector, valores) {
+    $.get("{{ route('logistica.equipos.zonas') }}", function(response) {
+        var existentes = {};
+        (valores || []).forEach(function(item) { existentes[String(item.zone_group_id)] = item; });
+        var html = '<div class="eq-zone-table-wrap"><table class="table table-sm eq-zone-table"><thead><tr><th>Zona</th><th>Vol. mín.</th><th>Vol. máx.</th><th>Venta mín.</th><th>Peso máx.</th></tr></thead><tbody>';
+        (response.zonas || []).forEach(function(zona) {
+            var item = existentes[String(zona.id)] || {};
+            html += '<tr><th><i class="fas fa-map-marker-alt mr-1"></i>' + zona.name + '</th>' +
+                ['volumen_minimo', 'volumen_maximo', 'monto_minimo_venta', 'peso_maximo'].map(function(campo) {
+                    return '<td><input class="form-control zona-parametro" data-zone="' + zona.id + '" data-field="' + campo + '" type="text" inputmode="decimal" value="' + formatearNumeroEquipo(item[campo] || 0) + '"></td>';
+                }).join('') + '</tr>';
         });
-    }
-    
-    miembrosTmp.push({user_id: uid, porcentaje: pct, nombre: $('#selectUsuarioNuevo option:selected').text()});
-    actualizarListaTmp();
-    $('#selectUsuarioNuevo').val('');
-    $('#inputPorcentaje').val('');
-}
-
-function removerTmp(idx) {
-    miembrosTmp.splice(idx, 1);
-    actualizarListaTmp();
-}
-
-function actualizarListaTmp() {
-    let h = '', t = 0;
-    miembrosTmp.forEach((m, i) => {
-        t += m.porcentaje;
-        h += `<div class="list-group-item d-flex justify-content-between align-items-center"><span class="eq-member-name"><i class="fas fa-user-circle text-secondary"></i>${m.nombre}</span><div><span class="badge badge-info mr-2">${m.porcentaje}%</span><button class="btn btn-sm btn-danger" onclick="removerTmp(${i})"><i class="fa fa-trash"></i></button></div></div>`;
+        html += '</tbody></table></div>';
+        $(selector).html(html || '<div class="text-muted small">No hay zonas activas configuradas.</div>');
+        $(selector + ' .zona-parametro').on('input', function() { this.value = formatearNumeroEquipo(this.value); });
     });
-    $('#listaMiembrosTmp').html(h || '<p class="text-muted mb-0">Sin miembros asignados todavía</p>');
-    $('#totalPct').text(t.toFixed(2));
-    
-    // Habilitar / bloquear inputs según el total
-    if (t >= 100) {
-        $('#selectUsuarioNuevo, #inputPorcentaje').prop('disabled', true);
-    } else {
-        $('#selectUsuarioNuevo, #inputPorcentaje').prop('disabled', false);
-    }
+}
+
+function formatearNumeroEquipo(valor) {
+    var limpio = String(valor ?? '').replace(/,/g, '').replace(/[^0-9.]/g, '');
+    var partes = limpio.split('.');
+    var entero = (partes.shift() || '0').replace(/^0+(?=\d)/, '');
+    var decimal = partes.join('').slice(0, 2);
+    return entero.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (limpio.indexOf('.') >= 0 ? '.' + decimal : '');
+}
+
+function numeroEquipoParaEnviar(valor) {
+    return String(valor ?? '').replace(/,/g, '') || '0';
+}
+
+function obtenerZonasFormulario(selector) {
+    var zonas = {};
+    $(selector + ' .zona-parametro').each(function() {
+        var zone = String($(this).data('zone'));
+        if (!zonas[zone]) zonas[zone] = {zone_group_id: Number(zone)};
+        zonas[zone][$(this).data('field')] = numeroEquipoParaEnviar($(this).val());
+    });
+    return Object.keys(zonas).map(function(zone) { return zonas[zone]; });
 }
 
 function guardarEquipo() {
@@ -639,12 +607,8 @@ function guardarEquipo() {
     }
     $('#inputNombreEquipoNuevo').removeClass('is-invalid');
 
-    if (!miembrosTmp.length) {
-        Swal.fire({title: 'Sin miembros', text: 'Agregue al menos un miembro al equipo.', icon: 'warning', customClass: {container: 'swal-over-modal'}});
-        return;
-    }
     const fd = new FormData($('#formNuevoEquipo')[0]);
-    fd.append('miembros', JSON.stringify(miembrosTmp));
+    fd.append('zonas', JSON.stringify(obtenerZonasFormulario('#zonasEquipoNuevo')));
     $.ajax({
         url: "{{ route('logistica.equipos.guardar') }}",
         type: 'POST',
@@ -664,27 +628,6 @@ function guardarEquipo() {
     });
 }
 
-function verMiembros(id) {
-    $.get("{{ url('/logistica/equipos/miembros') }}/" + id, r => {
-        let h = '<div class="table-responsive eq-members-modal"><table class="table table-sm mb-0"><thead><tr><th>Usuario</th><th class="text-right">% Comisión</th></tr></thead><tbody>';
-        if (!r.miembros.length) {
-            h += '<tr><td colspan="2" class="text-center text-muted py-3">Sin miembros asignados</td></tr>';
-        }
-        r.miembros.forEach(m => {
-            h += `<tr><td><span class="eq-user-badge"><i class="fas fa-user-circle text-secondary"></i>${m.nombre_usuario}</span></td><td class="text-right"><span class="eq-pct-badge">${parseFloat(m.porcentaje_comision).toFixed(2)}%</span></td></tr>`;
-        });
-        h += '</tbody></table></div>';
-        Swal.fire({
-            title: 'Miembros del Equipo',
-            html: h,
-            width: 700,
-            confirmButtonText: 'Cerrar',
-            confirmButtonColor: '#0f766e',
-            customClass: {container: 'swal-over-modal'}
-        });
-    });
-}
-
 function desactivarEquipo(id) {
     Swal.fire({
         title: 'Confirmar',
@@ -701,6 +644,55 @@ function desactivarEquipo(id) {
     });
 }
 
+function verHistorialEquipo(id) {
+    $('#historialEquipoContenido').html('<p class="text-muted mb-0">Cargando...</p>');
+    $('#modalHistorialEquipo').modal('show');
+
+    const campoLabel = {nombre_equipo: 'Nombre', descripcion: 'Descripción', estado_id: 'Estado'};
+    const estadoTexto = v => (String(v) === '1' ? 'Activo' : 'Inactivo');
+
+    $.get("{{ url('/logistica/equipos/historial') }}/" + id, r => {
+        if (!r.success || !r.historial.length) {
+            $('#historialEquipoContenido').html('<p class="text-muted mb-0">Sin movimientos registrados para este equipo.</p>');
+            return;
+        }
+
+        let html = '';
+        r.historial.forEach(h => {
+            if (h.action === 'CREATE') {
+                html += `
+                    <div class="historial-item">
+                        <div><strong>Creado</strong> &mdash; ${h.fecha}</div>
+                        <div class="small text-muted">Nombre: ${h.new_data?.nombre_equipo ?? '-'}</div>
+                        <div class="small text-muted">Por: ${h.usuario}</div>
+                    </div>
+                `;
+            } else {
+                const cambios = [];
+                const oldD = h.old_data || {}, newD = h.new_data || {};
+                Object.keys(newD).forEach(campo => {
+                    if (String(oldD[campo] ?? '') !== String(newD[campo] ?? '')) {
+                        const label = campoLabel[campo] || campo;
+                        const valorAnterior = campo === 'estado_id' ? estadoTexto(oldD[campo]) : (oldD[campo] ?? '-');
+                        const valorNuevo = campo === 'estado_id' ? estadoTexto(newD[campo]) : (newD[campo] ?? '-');
+                        cambios.push(`${label}: ${valorAnterior} &rarr; ${valorNuevo}`);
+                    }
+                });
+                html += `
+                    <div class="historial-item">
+                        <div><strong>Actualizado</strong> &mdash; ${h.fecha}</div>
+                        ${cambios.length ? `<div class="small">${cambios.join('<br>')}</div>` : ''}
+                        <div class="small text-muted">Por: ${h.usuario}</div>
+                    </div>
+                `;
+            }
+        });
+        $('#historialEquipoContenido').html(html);
+    }).fail(() => {
+        $('#historialEquipoContenido').html('<p class="text-danger mb-0">Error al cargar el historial.</p>');
+    });
+}
+
 function editarEquipo(id) {
     equipoEditando = id;
     $.get("{{ url('/logistica/equipos/obtener') }}/" + id, function(r) {
@@ -708,76 +700,10 @@ function editarEquipo(id) {
             $('#editEquipoId').val(r.equipo.id);
             $('#editNombreEquipo').val(r.equipo.nombre_equipo);
             $('#editDescripcion').val(r.equipo.descripcion);
-            $('#selectUsuarioEditar').val('');
-            
-            // Cargar miembros actuales
-            cargarMiembrosActuales(id);
+            cargarZonasEquipo('#zonasEquipoEditar', r.zonas || []);
             $('#modalEditarEquipo').modal('show');
         }
     }).fail(() => Swal.fire({title: 'Error', text: 'No se pudo cargar el equipo', icon: 'error', customClass: {container: 'swal-over-modal'}}));
-}
-
-function cargarMiembrosActuales(equipoId) {
-    $.get("{{ url('/logistica/equipos/miembros') }}/" + equipoId, function(r) {
-        if (r.success) {
-            let html = '<div class="table-responsive"><table class="table table-sm table-bordered"><thead><tr><th>Usuario</th><th>%</th><th></th></tr></thead><tbody>';
-            let total = 0;
-            r.miembros.forEach(m => {
-                total += parseFloat(m.porcentaje_comision);
-                html += `<tr>
-                    <td>${m.nombre_usuario}</td>
-                    <td><span class="badge badge-info">${m.porcentaje_comision}%</span></td>
-                    <td><button type="button" class="btn btn-xs btn-danger" onclick="removerMiembroEquipo(${m.id})"><i class="fa fa-trash"></i></button></td>
-                </tr>`;
-            });
-            html += '</tbody></table></div>';
-            $('#listaMiembrosActuales').html(html);
-            $('#totalPctEditar').text(total.toFixed(2));
-        }
-    });
-}
-
-function agregarNuevoMiembro() {
-    const equipoId = $('#editEquipoId').val();
-    const userId = $('#selectUsuarioEditar').val();
-    const porcentaje = parseFloat($('#inputPorcentajeEditar').val());
-    
-    if (!userId || !porcentaje) return Swal.fire({title: 'Error', text: 'Complete los datos', icon: 'error', customClass: {container: 'swal-over-modal'}});
-    
-    $.post("{{ url('/logistica/equipos/agregar-miembro') }}", {
-        _token: $('meta[name="csrf-token"]').attr('content'),
-        equipo_id: equipoId,
-        user_id: userId,
-        porcentaje: porcentaje
-    }, r => {
-        Swal.fire({title: r.title, text: r.text, icon: r.icon, customClass: {container: 'swal-over-modal'}});
-        if (r.icon === 'success') {
-            cargarMiembrosActuales(equipoId);
-            $('#selectUsuarioEditar').val('');
-            $('#inputPorcentajeEditar').val('');
-        }
-    }).fail(x => Swal.fire({title: x.responseJSON.title, text: x.responseJSON.text, icon: x.responseJSON.icon, customClass: {container: 'swal-over-modal'}}));
-}
-
-function removerMiembroEquipo(miembroId) {
-    Swal.fire({
-        title: 'Confirmar',
-        text: 'Remover este miembro del equipo?',
-        icon: 'warning',
-        showCancelButton: true,
-        customClass: {container: 'swal-over-modal'}
-    }).then(r => {
-        if (r.isConfirmed) {
-            $.post("{{ url('/logistica/equipos/remover-miembro') }}/" + miembroId, {
-                _token: $('meta[name="csrf-token"]').attr('content')
-            }, r => {
-                Swal.fire({title: r.title, text: r.text, icon: r.icon, customClass: {container: 'swal-over-modal'}});
-                if (r.icon === 'success') {
-                    cargarMiembrosActuales(equipoEditando);
-                }
-            }).fail(x => Swal.fire({title: x.responseJSON.title, text: x.responseJSON.text, icon: x.responseJSON.icon, customClass: {container: 'swal-over-modal'}}));
-        }
-    });
 }
 
 function actualizarEquipo() {
@@ -791,6 +717,7 @@ function actualizarEquipo() {
 
     const fd = new FormData($('#formEditarEquipo')[0]);
     fd.append('_token', $('meta[name="csrf-token"]').attr('content'));
+    fd.append('zonas', JSON.stringify(obtenerZonasFormulario('#zonasEquipoEditar')));
     $.ajax({
         url: "{{ url('/logistica/equipos/actualizar') }}",
         method: 'POST',

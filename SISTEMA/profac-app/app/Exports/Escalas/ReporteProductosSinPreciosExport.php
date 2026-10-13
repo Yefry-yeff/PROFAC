@@ -25,7 +25,7 @@ class ReporteProductosSinPreciosExport implements FromQuery, WithHeadings, WithM
 
     const LAST_COL = 'C';
 
-    public function query()
+    public function query(): \Illuminate\Database\Query\Builder
     {
         return DB::table('producto as p')
             ->whereNotExists(function ($sub) {
@@ -53,7 +53,7 @@ class ReporteProductosSinPreciosExport implements FromQuery, WithHeadings, WithM
         return ['A' => 10, 'B' => 22, 'C' => 48];
     }
 
-    public function styles(Worksheet $sheet)
+    public function styles(Worksheet $sheet): ?array
     {
         return [
             1 => [

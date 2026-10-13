@@ -226,8 +226,8 @@
                 {data: 'VENDEDOR'},
                 {data: 'FACTURA'},
                 {data: 'CLIENTE'},
-                {data: 'TIPO CLIENTE (AoB)'},
-                {data: 'TIPO CRÉDITO/CONTADO'},
+                {data: 'TIPO CLIENTE AoB'},
+                {data: 'TIPO CRÉDITO o CONTADO'},
                 {data: 'CODIGO PRODUCTO'},
                 {data: 'PRODUCTO'},
                 {data: 'MARCA'},
@@ -425,4 +425,6 @@
     }
 
 </script>
+@endpush
+
 

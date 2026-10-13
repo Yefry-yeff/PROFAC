@@ -147,6 +147,24 @@
 .usr-chip .usr-chip-remove:hover { background: rgba(180,83,9,.28); }
 .usr-chip-empty { color: #9ca3af; font-size: .78rem; font-style: italic; }
 
+/* -- Permisos directos del usuario -- */
+.usr-tabs { margin-top: 12px; }
+.usr-tabs .nav-link { color: #6c757d; font-size: .78rem; font-weight: 600; padding: 7px 12px; }
+.usr-tabs .nav-link.active { color: var(--pf-orange); border-color: #e8d5bf #e8d5bf #fff; }
+.usr-tab-content { border: 1px solid #e8d5bf; border-top: 0; border-radius: 0 0 6px 6px; padding: 10px; }
+.usr-permisos-toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.usr-permisos-toolbar .form-control:focus { border-color: var(--pf-orange); box-shadow: 0 0 0 .15rem rgba(230,126,34,.18); }
+.usr-permisos-resumen { color: #7d3f00; font-size: .75rem; font-weight: 700; white-space: nowrap; }
+.usr-permisos-lista { max-height: 250px; overflow-y: auto; }
+.usr-permiso-grupo { border: 1px solid #e8d5bf; border-radius: 6px; margin-bottom: 6px; overflow: hidden; }
+.usr-permiso-grupo-titulo { background: #fdf4e7; border-bottom: 1px solid #e8d5bf; color: #7d3f00; font-size: .75rem; font-weight: 700; padding: 5px 8px; }
+.usr-permiso-grupo-items { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px 10px; padding: 6px 8px; }
+.usr-permiso-item { min-width: 0; }
+.usr-permiso-item .custom-control-label { display: block; color: #555; font-size: .75rem; overflow-wrap: anywhere; }
+.usr-permiso-item .custom-control-input:checked ~ .custom-control-label { color: #7d3f00; font-weight: 600; }
+.usr-permiso-origen { color: #9ca3af; font-size: .67rem; font-weight: 400; }
+@media (max-width: 575px) { .usr-permiso-grupo-items { grid-template-columns: 1fr; } }
+
 /* -- Responsive -- */
 @media (max-width: 575px) {
     .modal-dialog { margin: .5rem; }
@@ -231,18 +249,46 @@
                             </div>
                         </form>
 
-                        <p class="modal-section-label mt-2">
-                            <i class="fa fa-user-tag mr-1"></i>Roles adicionales
-                            <span class="text-muted font-weight-normal text-lowercase">(opcional, además del rol principal — se guardan al instante)</span>
-                        </p>
-                        <input type="hidden" id="usr_roladd_usuario_id">
-                        <div class="usr-roladd-buscar">
-                            <select class="form-control form-control-sm" id="usr_roladd_select" style="width:100%"></select>
-                            <button type="button" class="btn-usr-roladd" onclick="agregarRolAdicionalUsuario()">
-                                <i class="fa fa-plus mr-1"></i>Agregar
-                            </button>
+                        <ul class="nav nav-tabs usr-tabs" role="tablist">
+                            <li class="nav-item">
+                                <a class="nav-link active" data-toggle="tab" href="#usr-tab-roles" role="tab">
+                                    <i class="fa fa-users mr-1"></i>Roles
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" data-toggle="tab" href="#usr-tab-permisos" role="tab">
+                                    <i class="fa fa-lock mr-1"></i>Permisos
+                                </a>
+                            </li>
+                        </ul>
+                        <div class="tab-content usr-tab-content">
+                            <div class="tab-pane fade show active" id="usr-tab-roles" role="tabpanel">
+                                <p class="modal-section-label mt-0">
+                                    <i class="fa fa-user-tag mr-1"></i>Roles adicionales
+                                    <span class="text-muted font-weight-normal text-lowercase">(además del rol principal — se guardan al instante)</span>
+                                </p>
+                                <input type="hidden" id="usr_roladd_usuario_id">
+                                <div class="usr-roladd-buscar">
+                                    <select class="form-control form-control-sm" id="usr_roladd_select" style="width:100%"></select>
+                                    <button type="button" class="btn-usr-roladd" onclick="agregarRolAdicionalUsuario()">
+                                        <i class="fa fa-plus mr-1"></i>Agregar
+                                    </button>
+                                </div>
+                                <div id="usr_roladd_lista" class="usr-chip-lista"></div>
+                            </div>
+                            <div class="tab-pane fade" id="usr-tab-permisos" role="tabpanel">
+                                <div class="usr-permisos-toolbar">
+                                    <input type="search" class="form-control form-control-sm" id="usr_permisos_buscar" placeholder="Buscar permiso..." autocomplete="off">
+                                    <span class="usr-permisos-resumen" id="usr_permisos_resumen">0 seleccionados</span>
+                                </div>
+                                <small class="text-muted d-block mb-2" style="font-size:.72rem">
+                                    <i class="fa fa-info-circle"></i> Los permisos heredados vienen de los roles. Puede agregar o revocar excepciones para este usuario.
+                                </small>
+                                <div id="usr_permisos_lista" class="usr-permisos-lista">
+                                    <div class="text-center text-muted py-3"><i class="fa fa-spinner fa-spin mr-1"></i>Cargando permisos...</div>
+                                </div>
+                            </div>
                         </div>
-                        <div id="usr_roladd_lista" class="usr-chip-lista"></div>
                     </div>
 
                     <div class="modal-footer py-2">

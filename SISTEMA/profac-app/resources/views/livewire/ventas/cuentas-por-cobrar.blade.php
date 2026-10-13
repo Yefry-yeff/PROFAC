@@ -1,4 +1,5 @@
 ﻿<div>
+<div>
     <div class="row wrapper border-bottom white-bg page-heading d-flex align-items-center">
         <div class="col-lg-12 col-xl-12 col-md-12 col-sm-12">
             <h2>Cuentas por Cobrar</h2>
@@ -423,3 +424,4 @@
     <strong>Copyright</strong> Distribuciones Valencia &copy; <?php echo "$year";  ?>
 </div>
 <p id="reloj"></p>
+</div>

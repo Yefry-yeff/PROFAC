@@ -179,6 +179,7 @@
 </style>
 @endpush
 
+<div>
 <div class="rpt-wrapper">
   <div class="rpt-tabs-bar">
     <h5><i class="fa fa-bar-chart"></i> Reportes de Precios y Escalas</h5>
@@ -475,6 +476,7 @@
   :use-top-preview="false"
 />
 
+ </div>
 @push('scripts')
 <script src="{{ asset('js/js_proyecto/Escalas/reporteEscalas.js') }}?v=20260903-2"></script>
 @endpush

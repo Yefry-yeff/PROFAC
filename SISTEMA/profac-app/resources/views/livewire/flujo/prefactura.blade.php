@@ -62,7 +62,7 @@
                                                 </span>
                                             </div>
                                             <input type="text"
-                                                   wire:model.debounce.400ms="busquedaCliente"
+                                                   wire:model.live.debounce.400ms="busquedaCliente"
                                                    class="form-control"
                                                    placeholder="Escribe el nombre del cliente o RTN..."
                                                    autocomplete="off"
@@ -91,7 +91,7 @@
                                                 </span>
                                             </div>
                                             <input type="number"
-                                                   wire:model.debounce.400ms="busquedaNumero"
+                                                   wire:model.live.debounce.400ms="busquedaNumero"
                                                    class="form-control"
                                                    placeholder="Ej: 142"
                                                    min="1"

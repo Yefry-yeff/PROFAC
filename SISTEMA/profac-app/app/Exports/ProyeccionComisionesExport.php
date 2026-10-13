@@ -2,6 +2,7 @@
 
 namespace App\Exports;
 
+use Maatwebsite\Excel\Concerns\Export;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 
 /**
@@ -13,7 +14,7 @@ use Maatwebsite\Excel\Concerns\WithMultipleSheets;
  *   3. Gestor de Entregas(capacidad = GESTOR_ENTREGA)
  *   4. Todas             (sin filtro)
  */
-class ProyeccionComisionesExport implements WithMultipleSheets
+class ProyeccionComisionesExport implements Export, WithMultipleSheets
 {
     protected array  $data;
     protected string $empresa;

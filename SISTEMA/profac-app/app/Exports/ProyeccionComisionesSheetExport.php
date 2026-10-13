@@ -130,7 +130,7 @@ class ProyeccionComisionesSheetExport implements FromArray, WithTitle, WithStyle
         ];
     }
 
-    public function styles(Worksheet $sheet)
+    public function styles(Worksheet $sheet): ?array
     {
         $lc = self::LAST_COL;
 

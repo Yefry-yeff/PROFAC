@@ -4,6 +4,7 @@ namespace App\Exports;
 
 use App\Exports\Comisiones\ProyeccionEspecial15AuditoriaSheet;
 use App\Exports\Comisiones\ProyeccionNominaSheet;
+use Maatwebsite\Excel\Concerns\Export;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 
 /**
@@ -16,7 +17,7 @@ use Maatwebsite\Excel\Concerns\WithMultipleSheets;
  *
  * Incluye nómina proyectada, detalle por rol, todas las líneas y auditoría.
  */
-class ProyeccionComisiones15Export implements WithMultipleSheets
+class ProyeccionComisiones15Export implements Export, WithMultipleSheets
 {
     protected array  $data;
     protected string $empresa;

@@ -54,6 +54,28 @@
             margin-bottom: 4px; display: block;
         }
         .ofr-label .req { color: #e53935; margin-left: 2px; }
+        .oferta-direcciones-lista { max-height: 340px; overflow-y: auto; overflow-x: hidden; padding: 2px; scrollbar-width: thin; }
+        .oferta-direcciones-lista::-webkit-scrollbar { width: 6px; }
+        .oferta-direcciones-lista::-webkit-scrollbar-thumb { background: #b0bec5; border-radius: 4px; }
+        .oferta-direccion-opcion { display:block; width:100%; max-width:100%; box-sizing:border-box; overflow:hidden; border: 1px solid #d9e2e7; border-radius: 7px; padding: 8px 10px; margin-bottom: 6px; cursor: pointer; background: #fff; transition: border-color .15s, background .15s, box-shadow .15s; }
+        .oferta-direccion-opcion:hover { border-color: #26a69a; background: #f4fbfa; }
+        .oferta-direccion-opcion.seleccionada { border-color: #26a69a; background: #e8f5e9; box-shadow: 0 0 0 1px #26a69a; }
+        .oferta-direccion-opcion .direccion-etiqueta { color: #1565c0; font-size: .78rem; font-weight: 700; }
+        .oferta-direccion-opcion.seleccionada .direccion-etiqueta { color: #16835b; }
+        .oferta-direccion-opcion .direccion-ubicacion { color: #78909c; font-size: .69rem; margin-top: 1px; }
+        .oferta-direccion-opcion .direccion-texto { color: #37474f; font-size: .76rem; line-height:1.35; margin-top: 3px; white-space:normal; overflow-wrap:anywhere; word-break:break-word; max-width:100%; }
+        .oferta-direccion-opcion .direccion-ubicacion { white-space:normal; overflow-wrap:anywhere; word-break:break-word; }
+        .oferta-zona-entrega { margin-top: 10px; padding: 8px 12px; border-radius: 7px; background: #e3f2fd; border: 1px solid #90caf9; color: #0d47a1; font-size: .78rem; }
+        .oferta-zona-entrega.sin-zona { background: #fff3e0; border-color: #ffcc80; color: #e65100; }
+        #modal_envio_oferta .modal-dialog { max-width:700px; width:calc(100% - 1rem); }
+        #modal_envio_oferta .modal-content { overflow:hidden; }
+        @media (max-width:575px) { #modal_envio_oferta .modal-dialog { width:calc(100% - 1rem); margin:.5rem auto; } }
+        .oferta-nueva-direccion-header { background: linear-gradient(135deg,#1565c0,#42a5f5); border:none; padding:14px 20px; color:#fff; }
+        .oferta-nueva-direccion-header .modal-title { color:#fff; font-size:16px; font-weight:700; }
+        .oferta-nueva-direccion-section { color:#1565c0; border-bottom:1px solid #dce7ef; padding-bottom:6px; margin-bottom:12px; font-size:11px; font-weight:700; letter-spacing:.45px; text-transform:uppercase; }
+        .oferta-nueva-direccion-section small { color:#78909c; font-size:10px; font-weight:400; text-transform:none; letter-spacing:0; margin-left:5px; }
+        .oferta-nueva-direccion-mapa { width:100%; height:220px; min-height:220px; border:1px solid #cfd8dc; border-radius:7px; overflow:hidden; }
+        #modal_nueva_direccion_oferta .form-control:focus { border-color:#2196f3; box-shadow:0 0 0 2px rgba(33,150,243,.15); }
         .form-control.ofr-input {
             border-radius: 8px !important; border: 1px solid #cfd8dc !important; font-size: 13px !important;
         }
@@ -84,6 +106,72 @@
         }
         /* SweetAlert sobre modales de autorización */
         .swal-sobre-modal { z-index: 99999 !important; }
+        .swal2-container.precio-escala-container { padding: 16px !important; }
+        .swal2-popup.precio-escala-popup {
+            width: min(920px, calc(100vw - 32px)) !important;
+            max-height: calc(100vh - 32px); padding: 20px 22px 16px !important;
+            border-radius: 8px !important; overflow: hidden;
+        }
+        .precio-escala-popup .swal2-icon { width: 52px; height: 52px; margin: 0 auto 10px; }
+        .precio-escala-popup .swal2-icon .swal2-icon-content { font-size: 34px; }
+        .precio-escala-popup .swal2-title { padding: 0; color: #37474f; font-size: 21px; }
+        .precio-escala-popup .swal2-html-container {
+            max-height: calc(100vh - 220px); margin: 12px 0 0; padding: 0 2px 2px;
+            overflow-y: auto; color: #455a64;
+        }
+        .precio-escala-popup .swal2-actions { margin: 14px 0 0; }
+        .precio-escala-popup .swal2-styled { margin: 0 4px; padding: 8px 20px; font-size: 13px; }
+        .precio-escala-aviso {
+            display: flex; align-items: center; justify-content: space-between; gap: 12px;
+            margin-bottom: 10px; padding: 9px 12px; border-left: 4px solid #f39c12;
+            border-radius: 0 6px 6px 0; background: #fff8ed; color: #76511c;
+            font-size: 12px; line-height: 1.4; text-align: left;
+        }
+        .precio-escala-conteo {
+            flex-shrink: 0; padding: 3px 9px; border-radius: 12px;
+            background: #f39c12; color: #fff; font-size: 10px; font-weight: 800;
+        }
+        .precio-escala-tabla-contenedor {
+            max-height: 300px; overflow: auto; border: 1px solid #dfe4e8;
+            border-radius: 7px; background: #fff;
+        }
+        .precio-escala-tabla { width: 100%; min-width: 750px; border-collapse: collapse; font-size: 12px; }
+        .precio-escala-tabla th {
+            position: sticky; top: 0; z-index: 1; padding: 8px 10px;
+            border-bottom: 2px solid #d9dee2; background: #f5f7f8; color: #546e7a;
+            font-size: 10px; font-weight: 800; text-transform: uppercase; white-space: nowrap;
+        }
+        .precio-escala-tabla td { padding: 9px 10px; border-bottom: 1px solid #edf0f2; color: #37474f; }
+        .precio-escala-tabla tbody tr:last-child td { border-bottom: 0; }
+        .precio-escala-tabla tbody tr:nth-child(even) { background: #fafbfc; }
+        .precio-escala-tabla .codigo { color: #607d8b; font-weight: 700; white-space: nowrap; }
+        .precio-escala-tabla .producto { min-width: 250px; text-align: left; }
+        .precio-escala-tabla .categoria { text-align: center; }
+        .precio-escala-tabla .categoria span {
+            display: inline-block; min-width: 30px; padding: 3px 8px; border-radius: 4px;
+            background: #e0f2f1; color: #00796b; font-weight: 800;
+        }
+        .precio-escala-tabla .moneda { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+        .precio-escala-tabla .precio-colocado { color: #c45d00; font-weight: 800; }
+        @media (max-width: 575.5px) {
+            .swal2-container.precio-escala-container { padding: 8px !important; }
+            .swal2-popup.precio-escala-popup {
+                width: calc(100vw - 16px) !important; max-height: calc(100vh - 16px);
+                padding: 14px 12px 12px !important;
+            }
+            .precio-escala-popup .swal2-title { font-size: 18px; }
+            .precio-escala-popup .swal2-html-container { max-height: calc(100vh - 200px); }
+            .precio-escala-aviso { align-items: flex-start; }
+            .precio-escala-tabla { min-width: 0; table-layout: fixed; font-size: 9px; }
+            .precio-escala-tabla th { padding: 6px 3px; font-size: 8px; white-space: normal; }
+            .precio-escala-tabla td { padding: 7px 3px; overflow-wrap: anywhere; }
+            .precio-escala-tabla th:nth-child(1) { width: 10%; }
+            .precio-escala-tabla th:nth-child(2) { width: 36%; }
+            .precio-escala-tabla th:nth-child(3) { width: 16%; }
+            .precio-escala-tabla th:nth-child(4),
+            .precio-escala-tabla th:nth-child(5) { width: 19%; }
+            .precio-escala-tabla .moneda { white-space: normal; }
+        }
         /* ── Carrito items ─────────────────────────────────────────── */
         .cart-item-card { transition: box-shadow .15s; }
         .cart-item-card:hover { box-shadow: 0 4px 18px rgba(27,94,32,.14) !important; }
@@ -330,6 +418,9 @@
         }
     </style>
     @endpush
+    @push('styles')
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    @endpush
 
     <div id="cargandoTemporales" role="status" aria-live="polite" aria-label="{{ ($duplicandoOferta || $continuandoOfertaExpo) ? 'Cargando oferta' : 'Cargando registros temporales' }}">
         <div class="carga-temporales-contenido">
@@ -458,7 +549,7 @@
                             </span>
                         </div>
                         <input type="text"
-                               wire:model.debounce.350ms="busquedaPrefactura"
+                               wire:model.live.debounce.350ms="busquedaPrefactura"
                                class="form-control"
                                placeholder="Buscar por # prefactura, # flujo, cliente o RTN..."
                                style="border-radius:0 8px 8px 0;"
@@ -538,7 +629,7 @@
                             </span>
                         </div>
                         <input type="text"
-                               wire:model.debounce.350ms="busquedaFlujo"
+                               wire:model.live.debounce.350ms="busquedaFlujo"
                                class="form-control"
                                placeholder="Buscar por cliente, RTN, # flujo, # pedido u # oferta…"
                                style="border-radius:0 8px 8px 0;"
@@ -716,6 +807,12 @@
                                 {{-- Gestor de Entrega (se selecciona en modal al facturar) --}}
                                 <input type="hidden" name="gestor_entrega" id="gestor_entrega_hidden" value="">
                                 <input type="hidden" name="tele_asesor" id="tele_asesor_hidden" value="{{ Auth::id() }}">
+                                @if(($config->codigo ?? '') === 'cotizacion_clientes_a')
+                                    <input type="hidden" name="zone_group_id" id="zone_group_id_hidden" value="">
+                                    <input type="hidden" name="direccion_entrega" id="direccion_entrega_hidden" value="">
+                                    <input type="hidden" name="direccion_departamento_id" id="direccion_departamento_id_hidden" value="">
+                                    <input type="hidden" name="direccion_municipio_id" id="direccion_municipio_id_hidden" value="">
+                                @endif
                                 {{-- Tipo de pago --}}
                                 <div class="col-12 col-md-4">
                                     <label class="ofr-label">Tipo de Pago <span class="req">*</span></label>
@@ -1168,19 +1265,20 @@
                 <div class="modal-content">
                     <div class="modal-header" style="background:linear-gradient(135deg,#e65100,#f9a826); border:none; padding:14px 20px;">
                         <h3 class="modal-title" style="color:#fff; font-size:16px; font-weight:700; margin:0;">
-                            <i class="fa-solid fa-shield-halved mr-2"></i>Solicitar Autorización SR
+                            <i class="fa-solid fa-shield-halved mr-2"></i><span id="srAuthTitle">Solicitar Autorización SR</span>
                         </h3>
                     </div>
                     <div class="modal-body">
                         <p class="mb-3 text-muted" style="font-size:12px;">
-                            Se enviará un código de autorización por correo al departamento de autorizaciones.
-                            Las filas marcadas en <span style="color:#c62828; font-weight:700;">rojo</span> tienen precio inferior al precio de escala (OPC).
+                            <span id="srAuthDescription">Se enviará un código de autorización por correo al departamento de autorizaciones.
+                            Las filas marcadas en <span style="color:#c62828; font-weight:700;">rojo</span> tienen precio inferior al precio de escala (OPC).</span>
                         </p>
                         <div class="table-responsive">
                             <table class="table table-sm table-bordered" style="font-size:12px; margin-bottom:0;">
                                 <thead style="background:#f5f5f5;">
                                     <tr>
                                         <th>Producto</th>
+                                        <th>Escala seleccionada</th>
                                         <th style="text-align:right; white-space:nowrap;">Precio OPC</th>
                                         <th style="text-align:right; white-space:nowrap;">P.Unitario</th>
                                     </tr>
@@ -1223,9 +1321,7 @@
             </div>
         </div>
 
-        {{-- ============================================================== --}}
-        {{-- MODAL: Seleccionar Gestor de Entrega y Tele Asesor            --}}
-        {{-- ============================================================== --}}
+        {{-- MODAL: Seleccionar Gestor de Entrega y Tele Asesor --}}
         <div class="modal fade" id="modal_gestor_entrega" data-backdrop="static" tabindex="-1" role="dialog" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered" role="document">
                 <div class="modal-content">
@@ -1254,12 +1350,82 @@
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cancelar</button>
                         <button type="button" class="btn btn-primary btn-sm" id="btn_confirmar_gestor">
-                            <i class="fa-solid fa-check mr-1"></i> Confirmar y Facturar
+                            <i class="fa-solid fa-check mr-1"></i> Confirmar
                         </button>
                     </div>
                 </div>
             </div>
         </div>
+
+        {{-- MODAL: Envío de la oferta --}}
+        @if(($config->codigo ?? '') === 'cotizacion_clientes_a')
+            <div class="modal fade" id="modal_envio_oferta" data-backdrop="static" tabindex="-1" role="dialog" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header" style="background:linear-gradient(135deg,#1565c0,#42a5f5); border:none; padding:14px 20px;">
+                            <h3 class="modal-title" style="color:#fff; font-size:16px; font-weight:700; margin:0;">
+                                <i class="fa-solid fa-truck-fast mr-2"></i>Datos de envío de la oferta
+                            </h3>
+                        </div>
+                        <div class="modal-body" style="padding:20px;">
+                            <div class="form-group">
+                                <label class="ofr-label">Tele asesor <span class="req">*</span></label>
+                                <select id="tele_asesor_oferta_modal" class="form-control form-control-sm" style="width:100%;">
+                                    <option value="">-- Seleccionar tele asesor --</option>
+                                </select>
+                            </div>
+                            <div class="form-group mb-0">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <label class="ofr-label mb-1">Dirección de entrega <span class="req">*</span></label>
+                                    <button type="button" class="btn btn-outline-primary btn-sm py-0" id="btn_nueva_direccion_oferta"><i class="fa fa-plus mr-1"></i>Ingresar dirección</button>
+                                </div>
+                                <input type="search" id="buscar_direccion_oferta" class="form-control form-control-sm mb-2" placeholder="Buscar por etiqueta, municipio o dirección..." autocomplete="off">
+                                <div id="direcciones_oferta_modal" class="oferta-direcciones-lista">
+                                    <div class="text-muted small text-center py-2">Cargando direcciones del cliente...</div>
+                                </div>
+                                <div id="oferta_zona_entrega" class="oferta-zona-entrega" style="display:none;">
+                                    <i class="fa-solid fa-route mr-1"></i>
+                                    Zona de reparto: <strong id="oferta_zona_entrega_nombre">—</strong>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cancelar</button>
+                            <button type="button" class="btn btn-primary btn-sm" id="btn_confirmar_envio_oferta">
+                                <i class="fa-solid fa-check mr-1"></i> Continuar y guardar oferta
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        @if(($config->codigo ?? '') === 'cotizacion_clientes_a')
+            <div class="modal fade" id="modal_nueva_direccion_oferta" data-backdrop="static" tabindex="-1" role="dialog" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header oferta-nueva-direccion-header"><h5 class="modal-title"><i class="fa fa-map-marker mr-2"></i>Ingresar dirección de entrega</h5><button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button></div>
+                        <div class="modal-body p-3">
+                            <div class="oferta-nueva-direccion-section"><i class="fa fa-info-circle mr-1"></i>Información de la dirección</div>
+                            <div class="row">
+                                <div class="col-md-4"><div class="form-group"><label class="ofr-label">Etiqueta <span class="req">*</span></label><input id="oferta_nueva_etiqueta" class="form-control form-control-sm" placeholder="Ej. Oficina, Bodega..."></div></div>
+                                <div class="col-md-4"><div class="form-group"><label class="ofr-label">País <span class="req">*</span></label><select id="oferta_nuevo_pais" class="form-control form-control-sm"></select></div></div>
+                                <div class="col-md-4"><div class="form-group"><label class="ofr-label">Departamento <span class="req">*</span></label><select id="oferta_nuevo_departamento" class="form-control form-control-sm"></select></div></div>
+                                <div class="col-md-4"><div class="form-group"><label class="ofr-label">Municipio <span class="req">*</span></label><select id="oferta_nuevo_municipio" class="form-control form-control-sm"></select></div></div>
+                                <div class="col-md-8"><div class="form-group"><label class="ofr-label">Dirección completa <span class="req">*</span></label><textarea id="oferta_nueva_direccion" class="form-control form-control-sm" rows="2" placeholder="Escriba la dirección de entrega..."></textarea></div></div>
+                            </div>
+                            <div class="oferta-nueva-direccion-section mt-1"><i class="fa fa-map mr-1"></i>Ubicación en el mapa <small>Haga clic para colocar el punto exacto</small></div>
+                            <div id="oferta_nueva_direccion_mapa" class="oferta-nueva-direccion-mapa"></div>
+                            <div class="row mt-2">
+                                <div class="col-md-6"><label class="ofr-label">Latitud</label><input id="oferta_nueva_latitud" class="form-control form-control-sm" readonly></div>
+                                <div class="col-md-6"><label class="ofr-label">Longitud</label><input id="oferta_nueva_longitud" class="form-control form-control-sm" readonly></div>
+                            </div>
+                        </div>
+                        <div class="modal-footer"><button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal"><i class="fa fa-times mr-1"></i>Cancelar</button><button type="button" class="btn btn-primary btn-sm" id="btn_guardar_nueva_direccion"><i class="fa fa-save mr-1"></i>Guardar dirección</button></div>
+                    </div>
+                </div>
+            </div>
+        @endif
 
         {{-- MODAL: Ingresar código de autorización --}}
         <div class="modal fade" id="modalPermiso" data-backdrop="static" tabindex="1" role="dialog">
@@ -1283,6 +1449,7 @@
                     </div>
                 </div>
             </div>
+
         </div>
 
         {{-- MODAL: Detalle del Pedido --}}
@@ -2022,6 +2189,7 @@
     <livewire:flujo.modal-flujo-pedido />
 
     @push('scripts')
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
     // ================================================================
     // CONFIGURACIÓN DEL TIPO DE FACTURA (desde PHP)
@@ -2170,6 +2338,7 @@
     var nuevaVentaSolicitada = parametrosVentaTemporal.get('nueva') === '1';
     var ventaTemporalId = nuevaVentaSolicitada ? null : parametrosVentaTemporal.get('temporal_id');
     var ventaTemporalTipo = codigoActual === 'cotizacion_clientes_a' ? 'oferta' : 'factura';
+    var ofertaEnvioConfirmado = false;
     var ventaTemporalRestaurando = false;
     var ventaTemporalFinalizada = false;
     var ventaTemporalTimer = null;
@@ -2199,6 +2368,8 @@
     var retencionEstado = false;
     var diasCredito = 0;
     var diasCreditoAprobadosFlujo = null;
+    var fechaEmisionPrefacturaExpo = @json($esOfertaExpo && $prefacturaVinculada ? $prefacturaVinculada['fecha_emision'] : null);
+    var fechaVencimientoPrefacturaExpo = @json($esOfertaExpo && $prefacturaVinculada ? $prefacturaVinculada['fecha_vencimiento'] : null);
     var modoEditarFactura = new URLSearchParams(window.location.search).get('modo') === 'editar_factura';
     var secuenciaBusquedaProducto = 0;
     var omitirLimpiezaFocoProducto = false;
@@ -2366,6 +2537,79 @@
         document.getElementById('tipo_factura_id').value = tipoFacturaConfig ? tipoFacturaConfig.id : '';
     }
 
+    function cargarEscalasPrecioOfertaFila(indice, categoriaPreferidaId, conservarPrecioUnitario) {
+        if ((codigoActual !== 'cotizacion_clientes_a' && !esEdicionNormalDesdePrefactura) || esOfertaExpo) return Promise.resolve(false);
+
+        var selector = document.getElementById('precios' + indice);
+        var productoId = document.getElementById('idProducto' + indice)?.value;
+        var clienteId = document.getElementById('seleccionarCliente')?.value;
+        var categoriaGrupoId = $('#categoria_cliente_venta_id').data('categoria-cliente-id') || null;
+        if (!selector || !productoId || !clienteId) return Promise.resolve(false);
+
+        return axios.post('/producto/categorias-disponibles', {
+            producto_id: productoId,
+            cliente_id: clienteId,
+            cliente_categoria_escala_id: categoriaGrupoId,
+            solo_categoria_cliente: 1
+        }).then(function(response) {
+            var categorias = response.data.categorias || [];
+            if (!categorias.length) return false;
+
+            var categoriaClienteId = $('#categoria_cliente_venta_id').data('categoria-precio-id') || null;
+            var categoriaSeleccionadaId = categoriaPreferidaId
+                || document.getElementById('escalaExpoId' + indice)?.value
+                || categoriaClienteId;
+            var seleccionada = categorias.find(function(categoria) {
+                return String(categoria.id) === String(categoriaSeleccionadaId);
+            }) || categorias.find(function(categoria) {
+                return String(categoria.id) === String(categoriaClienteId);
+            }) || categorias[0];
+
+            var htmlAnterior = selector.innerHTML;
+            selector.innerHTML = '';
+            categorias.forEach(function(categoria) {
+                var precio = Number(categoria.precio_a || 0).toFixed(2);
+                var esSeleccionada = String(categoria.id) === String(seleccionada.id);
+                var opcion = new Option(precio + ' - ' + categoria.nombre_categoria, precio, esSeleccionada, esSeleccionada);
+                opcion.setAttribute('data-id', 'p1');
+                opcion.setAttribute('data-categoria-precio-id', categoria.id);
+                opcion.setAttribute('data-precios-producto-carga-id', categoria.precios_producto_carga_id);
+                selector.add(opcion);
+            });
+
+            var escala = document.getElementById('escalaExpoId' + indice);
+            var precioCarga = document.getElementById('precios_producto_carga_id' + indice);
+            var precio = document.getElementById('precio' + indice);
+            if (escala) escala.value = seleccionada.id;
+            if (precioCarga) precioCarga.value = seleccionada.precios_producto_carga_id;
+            if (precio) {
+                precio.setAttribute('data-precio-escala', Number(seleccionada.precio_a).toFixed(2));
+                if (!conservarPrecioUnitario) {
+                    precio.value = Number(seleccionada.precio_a).toFixed(2);
+                    precio.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+            }
+
+            return htmlAnterior !== selector.innerHTML;
+        }).catch(function(error) {
+            console.warn('No se pudieron cargar las escalas del producto:', error);
+            return false;
+        });
+    }
+
+    function restaurarEscalasSeleccionablesOferta() {
+        if ((codigoActual !== 'cotizacion_clientes_a' && !esEdicionNormalDesdePrefactura) || esOfertaExpo) return Promise.resolve(false);
+
+        return Promise.all(arregloIdInputs.map(function(indice) {
+            var categoriaId = document.getElementById('escalaExpoId' + indice)?.value
+                || $('#categoria_cliente_venta_id').data('categoria-precio-id')
+                || $('#categoria_cliente_venta_id').val();
+            return cargarEscalasPrecioOfertaFila(indice, categoriaId, true);
+        })).then(function(resultados) {
+            return resultados.some(Boolean);
+        });
+    }
+
     function restaurarPreciosPactadosExpo() {
         if (!esFacturacionExpoDesdePrefactura || !Array.isArray(productosPactadosExpo)) return false;
 
@@ -2437,7 +2681,7 @@
             if (selector) {
                 selector.innerHTML = '';
                 selector.add(new Option(
-                    precioVigente.toFixed(2) + ' - Escala ' + (producto.escalaVigente || ''),
+                    precioVigente.toFixed(2) + ' - ' + (producto.escalaVigente || ''),
                     precioVigente.toFixed(2),
                     true,
                     true
@@ -2462,6 +2706,10 @@
         aplicarConfiguracionTipoFacturaActual();
         var preciosExpoCorregidos = restaurarPreciosPactadosExpo();
         var referenciasEscalaCorregidas = restaurarReferenciasEscalaPrefacturaNormal();
+        var escalasOfertaCorregidas = false;
+        var cargaEscalasOferta = restaurarEscalasSeleccionablesOferta().then(function(corregidas) {
+            escalasOfertaCorregidas = corregidas;
+        });
         var asesorTemporal = controlesTemporales.find(function(control) { return control.id === 'vendedor'; });
         var clienteTemporal = document.getElementById('seleccionarCliente');
         var cargaAsesor = Promise.resolve();
@@ -2478,9 +2726,9 @@
         if (vacio) vacio.classList.toggle('d-none', tieneProductos);
         actualizarContadorCarrito();
         calcularTotalesInicioPagina();
-        return Promise.all([cargaAsesor, cargaStocks]).finally(function() {
+        return Promise.all([cargaAsesor, cargaStocks, cargaEscalasOferta]).finally(function() {
             ventaTemporalRestaurando = false;
-            if (preciosExpoCorregidos || referenciasEscalaCorregidas) {
+            if (preciosExpoCorregidos || referenciasEscalaCorregidas || escalasOfertaCorregidas) {
                 ventaTemporalCambiosPendientes = true;
                 ventaTemporalRevision += 1;
                 return guardarVentaTemporal();
@@ -2992,6 +3240,11 @@
         diasCreditoAprobadosFlujo = (d.diasCreditoAprobados === null || typeof d.diasCreditoAprobados === 'undefined')
             ? null
             : Math.max(0, parseInt(d.diasCreditoAprobados, 10) || 0);
+        if (d.fechaEmisionPrefactura && d.fechaVencimientoPrefactura) {
+            fechaEmisionPrefacturaExpo = d.fechaEmisionPrefactura;
+            fechaVencimientoPrefacturaExpo = d.fechaVencimientoPrefactura;
+            aplicarFechasPrefacturaExpo();
+        }
         // Re-habilitar Select2 de cliente (puede estar disabled en re-render)
         var selC = document.getElementById('seleccionarCliente');
         if (selC) selC.removeAttribute('disabled');
@@ -3457,6 +3710,8 @@
         axios.post('/producto/categorias-disponibles', {
             producto_id: productoId,
             cliente_categoria_escala_id: categoriaEscalaId,
+            cliente_id: clienteId,
+            solo_categoria_cliente: codigoActual === 'cotizacion_clientes_a' && !esOfertaExpo ? 1 : 0,
             expo_id: expoConfig ? expoConfig.id : null
         })
             .then(response => {
@@ -3839,10 +4094,14 @@
                     htmlSelectUnidades += '<option ' + sel + ' value="' + unidad.id + '" data-id="' + unidad.idUnidadVenta + '">' + unidad.nombre + '</option>';
                 });
 
-                // Determinar opciones de precios según configuración
+                // La Oferta carga después todas las escalas del grupo comercial del cliente.
                 let htmlprecios = '';
-                if (tipoFacturaConfig && tipoFacturaConfig.multiples_precios) {
-                    // Múltiples precios A/B/C/D (sin restricción)
+                if (codigoActual === 'cotizacion_clientes_a') {
+                    htmlprecios = '<option value="' + producto.precio1 + '" data-id="p1"'
+                        + ' data-categoria-precio-id="' + producto.categoria_precios_id + '"'
+                        + ' data-precios-producto-carga-id="' + producto.precios_producto_carga_id + '" selected>'
+                        + producto.precio1 + ' - seleccionada</option>';
+                } else if (tipoFacturaConfig && tipoFacturaConfig.multiples_precios) {
                     htmlprecios = '<option value="' + producto.precio1 + '" data-id="p1" selected>' + producto.precio1 + ' - A</option>';
                     if (producto.precio2) htmlprecios += '<option value="' + producto.precio2 + '" data-id="p2">' + producto.precio2 + ' - B</option>';
                     if (producto.precio3) htmlprecios += '<option value="' + producto.precio3 + '" data-id="p3">' + producto.precio3 + ' - C</option>';
@@ -3931,6 +4190,7 @@
                 document.getElementById('carritoVacio').classList.add('d-none');
                 document.getElementById('carritoTablaWrapper').classList.remove('d-none');
                 actualizarContadorCarrito();
+                cargarEscalasPrecioOfertaFila(numeroInputs, producto.categoria_precios_id || categoria_cliente_venta_id, true);
                 reiniciarCapturaProducto();
                 programarGuardadoTemporal();
                 enfocarCantidadCarrito(numeroInputs);
@@ -4866,9 +5126,23 @@
     }
 
     function validacionPrecio(idPrecios, idprecio) {
-        var idPrecioSeleccionado = idPrecios.options[idPrecios.selectedIndex].getAttribute("data-id");
+        var opcionSeleccionada = idPrecios.options[idPrecios.selectedIndex];
+        var idPrecioSeleccionado = opcionSeleccionada.getAttribute("data-id");
         var precioSeleccionado = idPrecios.value;
         var idprecioIngresado = idprecio.id;
+
+        if (codigoActual === 'cotizacion_clientes_a' || esEdicionNormalDesdePrefactura) {
+            var indice = idPrecios.id.replace('precios', '');
+            var categoriaPrecioId = opcionSeleccionada.getAttribute('data-categoria-precio-id');
+            var precioCargaId = opcionSeleccionada.getAttribute('data-precios-producto-carga-id');
+            var escala = document.getElementById('escalaExpoId' + indice);
+            var precioCarga = document.getElementById('precios_producto_carga_id' + indice);
+            if (escala && categoriaPrecioId) escala.value = categoriaPrecioId;
+            if (precioCarga && precioCargaId) precioCarga.value = precioCargaId;
+            document.getElementById(idprecioIngresado).setAttribute("data-precio-escala", precioSeleccionado);
+            programarGuardadoTemporal();
+            return;
+        }
 
         document.getElementById(idprecioIngresado).value = precioSeleccionado;
         // Guarda el precio de la escala seleccionada como referencia. No bloquea la escritura;
@@ -4925,7 +5199,24 @@
     // ================================================================
     // FECHAS Y PAGOS
     // ================================================================
+    function aplicarFechasPrefacturaExpo() {
+        if (!esFacturacionExpoDesdePrefactura || !fechaEmisionPrefacturaExpo || !fechaVencimientoPrefacturaExpo) {
+            return false;
+        }
+
+        var fechaEmision = document.getElementById('fecha_emision');
+        var fechaVencimiento = document.getElementById('fecha_vencimiento');
+        fechaEmision.value = fechaEmisionPrefacturaExpo;
+        fechaVencimiento.value = fechaVencimientoPrefacturaExpo;
+        fechaEmision.readOnly = true;
+        fechaVencimiento.readOnly = true;
+
+        return true;
+    }
+
     function validarFechaPago() {
+        if (aplicarFechasPrefacturaExpo()) return;
+
         let tipoPago = document.getElementById('tipoPagoVenta').value;
         if (tipoPago == 2) {
             document.getElementById('fecha_vencimiento').readOnly = modoEditarFactura;
@@ -4937,6 +5228,8 @@
     }
 
     function sumarDiasCredito() {
+        if (aplicarFechasPrefacturaExpo()) return;
+
         let tipoPago = document.getElementById('tipoPagoVenta').value;
         if (tipoPago == 2) {
             let fechaEmision = document.getElementById("fecha_emision").value;
@@ -5315,12 +5608,12 @@
         fId = fId ? parseInt(fId, 10) : null;
 
         if (pId) {
-            Livewire.emit('abrirFlujoPedido', pId, pasoPreferido || 'pedido');
+            Livewire.dispatch('abrirFlujoPedido', { pedidoId: pId, pasoInicial: pasoPreferido || 'pedido' });
             return;
         }
 
         if (fId) {
-            Livewire.emit('abrirFlujoCotizacion', fId);
+            Livewire.dispatch('abrirFlujoCotizacion', { flujoId: fId });
             return;
         }
 
@@ -5694,14 +5987,42 @@
         });
     }
 
-    function confirmarGanadora(cotizacionId) {
-        axios.post('/cotizacion/marcar-ganadora', { cotizacion_id: cotizacionId }, { headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') } })
-            .then(function() {
+    function confirmarGanadora(cotizacionId, confirmarReinicio) {
+        axios.post('/cotizacion/marcar-ganadora', {
+            cotizacion_id: cotizacionId,
+            confirmar_reinicio: confirmarReinicio === true
+        }, { headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') } })
+            .then(function(response) {
+                var data = response.data || {};
+                if (data.requiere_confirmacion_prefactura) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'El flujo ya está en Prefactura',
+                        text: data.mensaje,
+                        showCancelButton: true,
+                        confirmButtonText: 'Continuar y reiniciar',
+                        cancelButtonText: 'Cancelar',
+                        confirmButtonColor: '#e65100'
+                    }).then(function(result) {
+                        if (result.isConfirmed) {
+                            confirmarGanadora(cotizacionId, true);
+                        }
+                    });
+                    return;
+                }
+
                 $('#modalOfertasGanadoras').modal('hide');
-                Swal.fire({ icon: 'success', title: '¡Ganadora seleccionada!', text: 'La oferta #' + cotizacionId + ' fue marcada como ganadora.' });
+                Swal.fire({
+                    icon: 'success',
+                    title: '¡Ganadora seleccionada!',
+                    text: data.mensaje || ('La oferta #' + cotizacionId + ' fue marcada como ganadora.')
+                });
             })
-            .catch(function() {
-                Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo marcar la oferta como ganadora.' });
+            .catch(function(error) {
+                var mensaje = error.response && error.response.data && error.response.data.error
+                    ? error.response.data.error
+                    : 'No se pudo marcar la oferta como ganadora.';
+                Swal.fire({ icon: 'error', title: 'Error', text: mensaje });
             });
     }
 
@@ -5771,9 +6092,21 @@
         if (codigoActual !== 'cotizacion_clientes_a' && !(tipoFacturaConfig && tipoFacturaConfig.multiples_precios)) {
             var productosBajoEscala = obtenerProductosPorDebajoEscala();
             if (productosBajoEscala.length > 0) {
-                mostrarErrorPrecioBajoEscala(productosBajoEscala);
-                return;
+                var codigoPrecioBajo = document.getElementById('codigo_autorizacion')?.value || '';
+                if (codigoActual === 'exoneradas') {
+                    if (!codigoPrecioBajo) {
+                        mostrarModalSrAutorizacion();
+                        return;
+                    }
+                } else {
+                    mostrarErrorPrecioBajoEscala(productosBajoEscala);
+                    return;
+                }
             }
+        }
+        if (codigoActual === 'cotizacion_clientes_a' && !ofertaEnvioConfirmado) {
+            mostrarModalEnvioOferta();
+            return;
         }
         // 1. Toda factura debe confirmar sus actores antes de guardar.
         if (codigoActual !== 'cotizacion_clientes_a') {
@@ -5853,6 +6186,17 @@
         if (!tbody) return;
         tbody.innerHTML = '';
         var productosSR = [];
+        var esExonerada = codigoActual === 'exoneradas';
+        var titulo = document.getElementById('srAuthTitle');
+        var descripcion = document.getElementById('srAuthDescription');
+        var boton = document.getElementById('btnSolicitarCodigo');
+        if (titulo) titulo.textContent = esExonerada ? 'Autorización por precio inferior' : 'Solicitar Autorización SR';
+        if (descripcion) descripcion.innerHTML = esExonerada
+            ? 'Los siguientes productos tienen un precio inferior a la escala seleccionada. Al continuar se solicitará el código de autorización.'
+            : 'Se enviará un código de autorización por correo al departamento de autorizaciones. Las filas marcadas en <span style="color:#c62828;font-weight:700;">rojo</span> tienen precio inferior al precio de escala (OPC).';
+        if (boton) boton.innerHTML = esExonerada
+            ? '<i class="fa-solid fa-arrow-right mr-1"></i> Continuar y solicitar código'
+            : '<i class="fa-solid fa-paper-plane mr-1"></i> Solicitar Código';
         for (var i = 0; i < arregloIdInputs.length; i++) {
             var idx = arregloIdInputs[i];
             var nombreEl = document.getElementById('nombre' + idx);
@@ -5862,12 +6206,16 @@
             var precioOpc = precioUnitEl ? parseFloat(precioUnitEl.getAttribute('data-precio-escala')) : NaN;
             if (isNaN(precioOpc)) precioOpc = precioSelectEl ? parseFloat(precioSelectEl.value) || 0 : 0;
             var precioUnitario = precioUnitEl ? parseFloat(precioUnitEl.value) || 0 : 0;
+            var escala = precioSelectEl && precioSelectEl.selectedOptions.length
+                ? precioSelectEl.selectedOptions[0].textContent.trim()
+                : 'Escala seleccionada';
             var esBajo = precioUnitario < precioOpc - 0.0001;
             // Solo agregar al arreglo y mostrar en tabla si el precio está por debajo del OPC
             if (!esBajo) continue;
-            productosSR.push({ nombre: nombre, precioOpc: precioOpc, precioUnitario: precioUnitario });
+            productosSR.push({ nombre: nombre, escala: escala, precioOpc: precioOpc, precioUnitario: precioUnitario });
             var tr = '<tr style="background:#ffebee;">'
                 + '<td>' + nombre + '</td>'
+                + '<td>' + escala + '</td>'
                 + '<td style="text-align:right;">' + precioOpc.toFixed(2) + '</td>'
                 + '<td style="text-align:right;color:#c62828;font-weight:700;">' + precioUnitario.toFixed(2) + '</td>'
                 + '</tr>';
@@ -5876,6 +6224,233 @@
         window._srProductos = productosSR;
         $('#modal_sr_autorizacion').modal('show');
     }
+
+    function mostrarModalEnvioOferta() {
+        if (!$('#tele_asesor_oferta_modal').hasClass('select2-hidden-accessible')) {
+            $('#tele_asesor_oferta_modal').select2({
+                dropdownParent: $('#modal_envio_oferta'),
+                placeholder: '-- Seleccionar tele asesor --',
+                allowClear: false
+            });
+        }
+        var clienteId = $('#seleccionarCliente').val() || '';
+        var teleHidden = document.getElementById('tele_asesor_hidden');
+        var teleIdActual = teleHidden ? teleHidden.value : '';
+        var direccionHidden = document.getElementById('direccion_entrega_hidden');
+        $('#tele_asesor_oferta_modal').empty().append(new Option('-- Seleccionar tele asesor --', ''));
+        $('#direcciones_oferta_modal').html('<div class="text-muted small text-center py-2">Cargando direcciones del cliente...</div>');
+        $('#btn_confirmar_envio_oferta').prop('disabled', true);
+        var cargaDirecciones = $.get('/clientes/form/datos/' + clienteId).done(function(data) {
+            var direcciones = data.direcciones || [];
+            var direccionActual = direccionHidden ? direccionHidden.value : '';
+            var html = '';
+            direcciones.forEach(function(direccion, index) {
+                var seleccionada = direccionActual && direccionActual === direccion.direccion;
+                if (!direccionActual && (direccion.principal || index === 0)) seleccionada = true;
+                html += '<div class="oferta-direccion-opcion ' + (seleccionada ? 'seleccionada' : '') + '" data-direccion="' + ofertaEscapar(direccion.direccion) + '" data-departamento-id="' + ofertaEscapar(direccion.departamento_id) + '" data-municipio-id="' + ofertaEscapar(direccion.municipio_id) + '">' +
+                    '<div class="direccion-etiqueta"><i class="fa fa-map-marker mr-1"></i>' + ofertaEscapar(direccion.etiqueta || 'Sin etiqueta') + '</div>' +
+                    '<div class="direccion-ubicacion">' + ofertaEscapar([direccion.departamento_nombre, direccion.municipio_nombre].filter(Boolean).join(' · ')) + '</div>' +
+                    '<div class="direccion-texto">' + ofertaEscapar(direccion.direccion) + '</div></div>';
+            });
+            $('#direcciones_oferta_modal').html(html || '<div class="text-muted small text-center py-2">El cliente no tiene direcciones registradas.</div>');
+            actualizarZonaDireccionSeleccionada();
+        });
+        var cargaTeleasesores = $.get('/cotizacion/actores-asignados', { cliente_id: clienteId, rol_id: 3 }).done(function(data) {
+            var teleasesores = data.results || [];
+            var actualAsignado = teleasesores.some(function(usuario) {
+                return Number(usuario.id) === Number(teleIdActual);
+            });
+            teleasesores.forEach(function(usuario) {
+                var seleccionado = actualAsignado
+                    ? Number(usuario.id) === Number(teleIdActual)
+                    : teleasesores.length === 1;
+                $('#tele_asesor_oferta_modal').append(
+                    new Option(usuario.text, usuario.id, seleccionado, seleccionado)
+                );
+            });
+            $('#tele_asesor_oferta_modal').trigger('change');
+        });
+        $.when(cargaDirecciones, cargaTeleasesores).always(function() {
+            $('#btn_confirmar_envio_oferta').prop('disabled', false);
+        });
+        $('#modal_envio_oferta').modal('show');
+    }
+
+    function ofertaEscapar(texto) {
+        return $('<div>').text(texto || '').html();
+    }
+
+    $(document).on('input', '#buscar_direccion_oferta', function() {
+        var termino = ($(this).val() || '').toLowerCase().trim();
+        $('.oferta-direccion-opcion').each(function() {
+            $(this).toggle(!termino || $(this).text().toLowerCase().indexOf(termino) !== -1);
+        });
+    });
+
+    $(document).on('click', '#btn_nueva_direccion_oferta', function() {
+        $('#oferta_nueva_etiqueta, #oferta_nueva_direccion').val('');
+        $('#oferta_nueva_latitud, #oferta_nueva_longitud').val('');
+        if (ofertaNuevaDireccionMapa) { ofertaNuevaDireccionMapa.remove(); ofertaNuevaDireccionMapa = null; ofertaNuevaDireccionMarcador = null; }
+        $('#oferta_nuevo_pais').html('<option value="">-- Seleccionar país --</option>');
+        $('#oferta_nuevo_departamento').html('<option value="">-- Seleccionar departamento --</option>');
+        $('#oferta_nuevo_municipio').html('<option value="">-- Seleccionar municipio --</option>');
+        $.get('/cliente/pais').done(function(data) {
+            (data.listaPais || []).forEach(function(pais) { $('#oferta_nuevo_pais').append(new Option(pais.nombre, pais.id)); });
+        });
+        $('#modal_nueva_direccion_oferta').modal('show');
+        setTimeout(inicializarMapaNuevaDireccionOferta, 250);
+    });
+
+    var ofertaNuevaDireccionMapa = null;
+    var ofertaNuevaDireccionMarcador = null;
+    function inicializarMapaNuevaDireccionOferta() {
+        if (typeof L === 'undefined') return;
+        if (ofertaNuevaDireccionMapa) { ofertaNuevaDireccionMapa.invalidateSize(true); return; }
+        ofertaNuevaDireccionMapa = L.map('oferta_nueva_direccion_mapa').setView([14.0723, -87.1921], 7);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(ofertaNuevaDireccionMapa);
+        ofertaNuevaDireccionMapa.on('click', function(event) { fijarCoordenadasNuevaDireccion(event.latlng.lat, event.latlng.lng); });
+    }
+    function fijarCoordenadasNuevaDireccion(latitud, longitud) {
+        $('#oferta_nueva_latitud').val(Number(latitud).toFixed(7));
+        $('#oferta_nueva_longitud').val(Number(longitud).toFixed(7));
+        if (!ofertaNuevaDireccionMarcador) ofertaNuevaDireccionMarcador = L.marker([latitud, longitud], { draggable: true }).addTo(ofertaNuevaDireccionMapa);
+        ofertaNuevaDireccionMarcador.setLatLng([latitud, longitud]);
+        ofertaNuevaDireccionMarcador.off('dragend').on('dragend', function(event) { var pos = event.target.getLatLng(); fijarCoordenadasNuevaDireccion(pos.lat, pos.lng); });
+        ofertaNuevaDireccionMapa.setView([latitud, longitud], Math.max(ofertaNuevaDireccionMapa.getZoom(), 15));
+    }
+
+    function geocodificarNuevaDireccion() {
+        if (!ofertaNuevaDireccionMapa) return;
+        var partes = [
+            $('#oferta_nueva_direccion').val(),
+            $('#oferta_nuevo_municipio option:selected').text(),
+            $('#oferta_nuevo_departamento option:selected').text(),
+            $('#oferta_nuevo_pais option:selected').text()
+        ].filter(function (parte) { return parte && parte.indexOf('Seleccionar') === -1; });
+        if (!partes.length) return;
+        fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=' + encodeURIComponent(partes.join(', ')), { headers: { 'Accept-Language': 'es' } })
+            .then(function (response) { return response.json(); })
+            .then(function (resultados) {
+                if (!resultados.length) return;
+                fijarCoordenadasNuevaDireccion(parseFloat(resultados[0].lat), parseFloat(resultados[0].lon));
+            }).catch(function () {});
+    }
+
+    $(document).on('change', '#oferta_nuevo_pais', function() {
+        $('#oferta_nuevo_departamento').html('<option value="">-- Seleccionar departamento --</option>');
+        $('#oferta_nuevo_municipio').html('<option value="">-- Seleccionar municipio --</option>');
+        if (!this.value) return;
+        $.post('/cliente/departamento', { id: this.value }).done(function(data) {
+            (data.listaDeptos || []).forEach(function(item) { $('#oferta_nuevo_departamento').append(new Option(item.nombre, item.id)); });
+            geocodificarNuevaDireccion();
+        });
+    });
+    $(document).on('change', '#oferta_nuevo_departamento', function() {
+        $('#oferta_nuevo_municipio').html('<option value="">-- Seleccionar municipio --</option>');
+        if (!this.value) return;
+        $.post('/cliente/municipio', { id: this.value }).done(function(data) {
+            (data.listaMunicipios || []).forEach(function(item) { $('#oferta_nuevo_municipio').append(new Option(item.nombre, item.id)); });
+            geocodificarNuevaDireccion();
+        });
+    });
+    $(document).on('blur', '#oferta_nueva_direccion', geocodificarNuevaDireccion);
+    $(document).on('click', '#btn_guardar_nueva_direccion', function() {
+        var clienteId = $('#seleccionarCliente').val() || '';
+        var payload = {
+            etiqueta: $('#oferta_nueva_etiqueta').val().trim(),
+            pais_id: $('#oferta_nuevo_pais').val(),
+            departamento_id: $('#oferta_nuevo_departamento').val(),
+            municipio_id: $('#oferta_nuevo_municipio').val(),
+            direccion: $('#oferta_nueva_direccion').val().trim(),
+            latitud: $('#oferta_nueva_latitud').val(),
+            longitud: $('#oferta_nueva_longitud').val()
+        };
+        if (!clienteId || !payload.etiqueta || !payload.pais_id || !payload.departamento_id || !payload.municipio_id || !payload.direccion) {
+            Swal.fire({ icon: 'warning', title: 'Datos incompletos', text: 'Complete etiqueta, ubicación y dirección.' });
+            return;
+        }
+        var boton = $(this).prop('disabled', true);
+        $.post('/clientes/' + clienteId + '/direcciones', payload)
+            .done(function() {
+                $('#modal_nueva_direccion_oferta').one('hidden.bs.modal', function() {
+                    $('.modal-backdrop').remove();
+                    $('body').addClass('modal-open');
+                    mostrarModalEnvioOferta();
+                });
+                $('#modal_nueva_direccion_oferta').modal('hide');
+            }).fail(function(xhr) {
+                Swal.fire({ icon: 'error', title: 'No se pudo guardar', text: (xhr.responseJSON && xhr.responseJSON.message) || 'Intente nuevamente.' });
+            }).always(function() { boton.prop('disabled', false); });
+    });
+
+    $(document).on('click', '.oferta-direccion-opcion', function() {
+        $('.oferta-direccion-opcion').removeClass('seleccionada');
+        $(this).addClass('seleccionada');
+        actualizarZonaDireccionSeleccionada();
+    });
+
+    var ofertaZonaRequestActual = null;
+    function actualizarZonaDireccionSeleccionada() {
+        var seleccionada = $('.oferta-direccion-opcion.seleccionada');
+        var departamentoId = seleccionada.attr('data-departamento-id') || '';
+        var municipioId = seleccionada.attr('data-municipio-id') || '';
+        var zonaBox = $('#oferta_zona_entrega');
+        var zonaNombre = $('#oferta_zona_entrega_nombre');
+        if (!seleccionada.length || !departamentoId) {
+            zonaBox.hide();
+            return;
+        }
+        if (ofertaZonaRequestActual) ofertaZonaRequestActual.abort();
+        zonaBox.removeClass('sin-zona').show();
+        zonaNombre.text('Buscando…');
+        ofertaZonaRequestActual = $.get('/ventas/oferta/zona-por-ubicacion', {
+            departamento_id: departamentoId,
+            municipio_id: municipioId
+        }).done(function(data) {
+            var zona = data && data.zona;
+            if (zona && zona.nombre) {
+                zonaBox.removeClass('sin-zona');
+                zonaNombre.text(zona.nombre);
+            } else {
+                zonaBox.addClass('sin-zona');
+                zonaNombre.text('Sin zona asignada para esta ubicación');
+            }
+        }).fail(function(xhr) {
+            if (xhr.statusText === 'abort') return;
+            zonaBox.addClass('sin-zona');
+            zonaNombre.text('No se pudo determinar la zona');
+        });
+    }
+
+    $(document).on('click', '#btn_confirmar_envio_oferta', function() {
+        var teleId = $('#tele_asesor_oferta_modal').val() || '';
+        var direccionSeleccionadaEl = $('.oferta-direccion-opcion.seleccionada');
+        var direccionSeleccionada = direccionSeleccionadaEl.data('direccion') || '';
+        if (!teleId) {
+            Swal.fire({ icon: 'warning', title: 'Tele asesor requerido', text: 'Debe seleccionar un tele asesor para la oferta.', customClass: { container: 'swal-sobre-modal' } });
+            return;
+        }
+        if (!direccionSeleccionada) {
+            Swal.fire({ icon: 'warning', title: 'Dirección requerida', text: 'Debe seleccionar una dirección de entrega para la oferta.', customClass: { container: 'swal-sobre-modal' } });
+            return;
+        }
+        var teleHidden = document.getElementById('tele_asesor_hidden');
+        var zonaHidden = document.getElementById('zone_group_id_hidden');
+        var direccionHidden = document.getElementById('direccion_entrega_hidden');
+        var departamentoHidden = document.getElementById('direccion_departamento_id_hidden');
+        var municipioHidden = document.getElementById('direccion_municipio_id_hidden');
+        if (teleHidden) teleHidden.value = teleId;
+        if (zonaHidden) zonaHidden.value = '';
+        if (direccionHidden) direccionHidden.value = direccionSeleccionada;
+        if (departamentoHidden) departamentoHidden.value = direccionSeleccionadaEl.attr('data-departamento-id') || '';
+        if (municipioHidden) municipioHidden.value = direccionSeleccionadaEl.attr('data-municipio-id') || '';
+        ofertaEnvioConfirmado = true;
+        $('#modal_envio_oferta').one('hidden.bs.modal', function() {
+            document.body.focus();
+            $('#crear_venta').submit();
+        });
+        $('#modal_envio_oferta').modal('hide');
+    });
 
     function mostrarModalGestorEntrega() {
         var clienteId = $('#seleccionarCliente').val();
@@ -6021,7 +6596,7 @@
         });
     }
 
-    function guardarVenta() {
+    function guardarVenta(confirmarPrecioBajoEscala = false) {
         var ultimaFactura = document.getElementById('ultima_factura');
         var motivoCierre = document.getElementById('motivo_cierre');
         if (ultimaFactura && ultimaFactura.checked && (!motivoCierre || !motivoCierre.value.trim())) {
@@ -6061,6 +6636,7 @@
         data.append("numeroInputs", numeroInputs);
         let text = arregloIdInputs.toString();
         data.append("arregloIdInputs", text);
+        data.set("confirmar_precio_bajo_escala", confirmarPrecioBajoEscala ? "1" : "0");
 
         // numero_venta está fuera del <form>; añadirlo manualmente
         var numeroVentaEl = document.getElementById('numero_venta');
@@ -6100,6 +6676,56 @@
                     confirmarAjustesEscalaAlGuardar(data.ajustes_escala || []);
                     return;
                 }
+                if (data.requiere_confirmacion_precio) {
+                    document.getElementById("btn_venta_coorporativa").disabled = false;
+                    var escaparPrecio = function(valor) { return $('<div>').text(valor == null ? '' : String(valor)).html(); };
+                    var monedaPrecio = function(valor) {
+                        return 'L. ' + Number(valor || 0).toLocaleString('es-HN', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        });
+                    };
+                    var productosPrecio = (data.productos || []).map(function(producto) {
+                        var categoria = String(producto.categoria || '—').replace(/^Escala\s+/i, '');
+                        return '<tr>'
+                            + '<td class="codigo">' + escaparPrecio(producto.codigo) + '</td>'
+                            + '<td class="producto">' + escaparPrecio(producto.producto) + '</td>'
+                            + '<td class="categoria"><span>' + escaparPrecio(categoria) + '</span></td>'
+                            + '<td class="moneda">' + monedaPrecio(producto.precio_escala) + '</td>'
+                            + '<td class="moneda precio-colocado">' + monedaPrecio(producto.precio) + '</td>'
+                            + '</tr>';
+                    }).join('');
+                    var cantidadProductosPrecio = (data.productos || []).length;
+
+                    Swal.fire({
+                        icon: 'warning',
+                        title: data.title,
+                        width: 920,
+                        html: '<div class="precio-escala-aviso"><span>' + escaparPrecio(data.text) + '</span>'
+                            + '<span class="precio-escala-conteo">' + cantidadProductosPrecio + ' producto'
+                            + (cantidadProductosPrecio === 1 ? '' : 's') + '</span></div>'
+                            + '<div class="precio-escala-tabla-contenedor">'
+                            + '<table class="precio-escala-tabla">'
+                            + '<thead><tr><th style="text-align:left;">Cód.</th><th style="text-align:left;">Nombre del producto</th>'
+                            + '<th>Escala seleccionada</th><th style="text-align:right;">Precio de escala</th>'
+                            + '<th style="text-align:right;">Precio colocado</th></tr></thead>'
+                            + '<tbody>' + productosPrecio + '</tbody></table></div>',
+                        showCancelButton: true,
+                        cancelButtonText: 'Cancelar',
+                        confirmButtonText: 'Continuar',
+                        confirmButtonColor: '#00897b',
+                        cancelButtonColor: '#6c757d',
+                        customClass: {
+                            container: 'precio-escala-container',
+                            popup: 'precio-escala-popup'
+                        }
+                    }).then(function(result) {
+                        if (result.isConfirmed) {
+                            guardarVenta(true);
+                        }
+                    });
+                    return;
+                }
                 cambiosPrecioExpoConfirmados = false;
 
                 // Para tipos con código de autorización
@@ -6116,6 +6742,7 @@
                     document.getElementById("btn_venta_coorporativa").disabled = false;
                     var gestorHErr = document.getElementById('gestor_entrega_hidden');
                     if (gestorHErr) { gestorHErr.removeAttribute('data-confirmed'); }
+                    ofertaEnvioConfirmado = false;
                     return;
                 }
 
@@ -6143,6 +6770,15 @@
                         eliminarVentaTemporal();
                         limpiarFormularioVenta(data);
                     }
+                    ofertaEnvioConfirmado = false;
+                    var zonaOfertaHidden = document.getElementById('zone_group_id_hidden');
+                    var direccionOfertaHidden = document.getElementById('direccion_entrega_hidden');
+                    var departamentoOfertaHidden = document.getElementById('direccion_departamento_id_hidden');
+                    var municipioOfertaHidden = document.getElementById('direccion_municipio_id_hidden');
+                    if (zonaOfertaHidden) zonaOfertaHidden.value = '';
+                    if (direccionOfertaHidden) direccionOfertaHidden.value = '';
+                    if (departamentoOfertaHidden) departamentoOfertaHidden.value = '';
+                    if (municipioOfertaHidden) municipioOfertaHidden.value = '';
                     document.getElementById("btn_venta_coorporativa").disabled = false;
                     $('#modalExitoOferta').modal('show');
                     return;
@@ -6198,6 +6834,7 @@
                 document.getElementById("btn_venta_coorporativa").disabled = false;
                 var gestorH = document.getElementById('gestor_entrega_hidden');
                 if (gestorH) { gestorH.removeAttribute('data-confirmed'); }
+                ofertaEnvioConfirmado = false;
                 let data = err.response ? err.response.data : {};
                 console.error('Error al guardar – status:', err.response ? err.response.status : 'sin respuesta', '| body:', data);
                 if (Array.isArray(data.detalles_descuento_expo)) {
@@ -6371,7 +7008,7 @@
     @push('scripts')
     {{-- Re-despacha el evento pedido-seleccionado al cargar si el pedido ya estaba vinculado (desde URL pedidoId) --}}
     <script>
-        document.addEventListener('livewire:load', function () {
+        document.addEventListener('livewire:init', function () {
             window.dispatchEvent(new CustomEvent('pedido-seleccionado', {
                 detail: {
                     clienteId:     {!! (int)$clientePedido['id'] !!},
@@ -6380,6 +7017,8 @@
                     vendedorNombre:{!! json_encode($vendedorDefault['name'] ?? '') !!},
                     flujoId:       {!! json_encode($flujoVinculadoId ?? null) !!},
                     diasCreditoAprobados: {!! json_encode($diasCreditoAprobados) !!},
+                    fechaEmisionPrefactura: {!! json_encode($esOfertaExpo && $prefacturaVinculada ? $prefacturaVinculada['fecha_emision'] : null) !!},
+                    fechaVencimientoPrefactura: {!! json_encode($esOfertaExpo && $prefacturaVinculada ? $prefacturaVinculada['fecha_vencimiento'] : null) !!},
                     numeroOrdenCompra: {!! json_encode($documentosComerciales['numero_orden_compra'] ?? null) !!},
                     archivoOrdenCompra: {!! json_encode($documentosComerciales['archivo_orden_compra'] ?? null) !!},
                     numeroFormaF01: {!! json_encode($documentosComerciales['numero_forma_f01'] ?? null) !!},
@@ -6502,7 +7141,7 @@
             var primerIndiceDuplicadoNormal = numeroInputs;
             if (esCargaDuplicadoNormal) numeroInputs += productos.length;
             var cargaProductos = Promise.all(productos.map(function (prod, posicion) {
-                if (_modoPrefactura || _modoContinuacionExpo) {
+                if (_modoPrefactura || _modoContinuacionExpo || esFacturacionExpoDesdePrefactura) {
                     return agregarProductoDesdePrefactura(prod);
                 }
                 return agregarProductoDesdeOferta(
@@ -6523,13 +7162,15 @@
                     carrito.insertAdjacentHTML('beforeend', _carritoCargaInicial.innerHTML);
                 }
                 _carritoCargaInicial = null;
-                normalizarFilasCarritoExpo();
-                calcularTotalesInicioPagina();
-                actualizarContadorCarrito();
-                if (esContinuandoOfertaExpo && arregloIdInputs.length === lineasOfertaContinuadaEsperadas) {
-                    ofertaContinuadaCargadaCompleta = true;
-                }
-                return actualizarStocksDisponiblesExpo();
+                return restaurarEscalasSeleccionablesOferta().then(function () {
+                    normalizarFilasCarritoExpo();
+                    calcularTotalesInicioPagina();
+                    actualizarContadorCarrito();
+                    if (esContinuandoOfertaExpo && arregloIdInputs.length === lineasOfertaContinuadaEsperadas) {
+                        ofertaContinuadaCargadaCompleta = true;
+                    }
+                    return actualizarStocksDisponiblesExpo();
+                });
             }).then(function () {
                 _cargaInicialEnLote = false;
                 ventaTemporalRestaurando = false;
@@ -6711,17 +7352,9 @@
                         htmlSelectUnidades += '<option ' + sel + ' value="' + u.id + '" data-id="' + u.idUnidadVenta + '">' + u.nombre + '</option>';
                     });
 
-                    // Precio de escala actual según el idPrecioSeleccionado de la oferta original
-                    var idEscala = ((prod.idPrecioSeleccionado || '') + '').toLowerCase().trim();
-                    var precioEscalaActual = parseFloat(prod.precioSeleccionado || 0);
+                    var precioEscalaActual = parseFloat(producto.precio1 || prod.precioSeleccionado || 0);
                     if (!(precioEscalaActual > 0)) {
-                        switch (idEscala) {
-                            case 'a': case 'p1': precioEscalaActual = parseFloat(producto.precio1 || 0); break;
-                            case 'b': case 'p2': precioEscalaActual = parseFloat(producto.precio2 || 0); break;
-                            case 'c': case 'p3': precioEscalaActual = parseFloat(producto.precio3 || 0); break;
-                            case 'd': case 'p4': precioEscalaActual = parseFloat(producto.precio4 || 0); break;
-                            default:             precioEscalaActual = parseFloat(producto.precio1 || 0); break;
-                        }
+                        precioEscalaActual = parseFloat(prod.precio_unidad || 0);
                     }
                     // PRECIO OPC = precio de escala actual; P. UNITARIO = precio que cobró el vendedor
                     var precioOpcFmt    = precioEscalaActual.toFixed(2);
@@ -6729,7 +7362,12 @@
 
                     // Precios
                     var htmlprecios = '';
-                    if (categoriaNombre !== '') {
+                    if (codigoActual === 'cotizacion_clientes_a') {
+                        htmlprecios = '<option value="' + precioOpcFmt + '" data-id="p1"'
+                            + ' data-categoria-precio-id="' + categoriaId + '"'
+                            + ' data-precios-producto-carga-id="' + producto.precios_producto_carga_id + '" selected>'
+                            + precioOpcFmt + ' - ' + (categoriaNombre || 'seleccionada') + '</option>';
+                    } else if (categoriaNombre !== '') {
                         htmlprecios = '<option value="' + precioOpcFmt + '" data-id="p1" selected>' + precioOpcFmt + ' - ' + categoriaNombre + '</option>';
                     } else if (tipoFacturaConfig && tipoFacturaConfig.multiples_precios) {
                         var escalaMap = { 'p1': 'A', 'a': 'A', 'p2': 'B', 'b': 'B', 'p3': 'C', 'c': 'C', 'p4': 'D', 'd': 'D' };
@@ -7068,7 +7706,7 @@
 
         @if(!$clientePedido)
         // Otro cliente: no hay cliente pre-seleccionado; cargar productos al iniciar la página
-        document.addEventListener('livewire:load', function () {
+        document.addEventListener('livewire:init', function () {
             setTimeout(function() { cargarProductosIniciales(); }, 300);
         });
         @endif

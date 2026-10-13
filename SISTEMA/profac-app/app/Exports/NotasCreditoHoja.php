@@ -133,7 +133,7 @@ class NotasCreditoHoja implements FromArray, WithTitle, WithStyles, WithEvents, 
         return $out;
     }
 
-    public function styles(Worksheet $sheet)
+    public function styles(Worksheet $sheet): ?array
     {
         return [];
     }

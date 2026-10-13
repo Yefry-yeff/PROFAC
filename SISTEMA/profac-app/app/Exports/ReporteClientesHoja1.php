@@ -108,7 +108,7 @@ class ReporteClientesHoja1 implements FromArray, WithTitle, WithStyles, WithDraw
         return $out;
     }
 
-    public function drawings()
+    public function drawings(): \PhpOffice\PhpSpreadsheet\Worksheet\BaseDrawing|array
     {
         $d = new Drawing();
         $d->setName('Logo Valencia');
@@ -119,7 +119,7 @@ class ReporteClientesHoja1 implements FromArray, WithTitle, WithStyles, WithDraw
         return $d;
     }
 
-    public function styles(Worksheet $sheet)
+    public function styles(Worksheet $sheet): ?array
     {
         $lastCol = self::LAST_COL;
 

@@ -142,6 +142,54 @@
     }
     .fmp-price-alert .swal2-actions { margin:10px 0 0; }
     .fmp-price-alert .swal2-confirm { margin:0; padding:8px 22px; }
+    /* Modal "Actores de la Factura" (SweetAlert2) con la misma apariencia
+       que el modal Bootstrap equivalente en facturacion-unificada.blade.php */
+    .swal2-popup.swal-gestor-popup {
+        padding:0;
+        border-radius:10px;
+        overflow:hidden;
+        background:#fff;
+    }
+    .swal-gestor-popup .swal2-html-container { margin:0; }
+    .fmp-gestor-header {
+        background:linear-gradient(135deg,#1565c0,#42a5f5);
+        color:#fff;
+        font-size:16px;
+        font-weight:700;
+        padding:14px 20px;
+        text-align:left;
+    }
+    .fmp-gestor-body { padding:20px; text-align:left; }
+    .fmp-gestor-desc { color:#6c757d; font-size:12px; margin:0 0 12px; }
+    .fmp-gestor-label {
+        display:block;
+        font-size:12px;
+        font-weight:600;
+        color:#455a64;
+        margin:0 0 4px;
+    }
+    .fmp-gestor-label .req { color:#e53935; margin-left:2px; }
+    .fmp-gestor-hr { border:none; border-top:1px solid #e0e0e0; margin:18px 0 14px; }
+    .fmp-gestor-section-title {
+        font-size:13px;
+        font-weight:700;
+        color:#1565c0;
+        margin:0 0 12px;
+    }
+    .fmp-gestor-textarea {
+        width:100%;
+        font-size:13px;
+        border:1px solid #ced4da;
+        border-radius:4px;
+        padding:6px 10px;
+        resize:vertical;
+    }
+    .swal-gestor-popup .swal2-actions {
+        margin:0;
+        padding:12px 20px 18px;
+        justify-content:flex-end;
+        gap:8px;
+    }
 </style>
 
 @php
@@ -149,6 +197,7 @@
     $fCancelado   = ($d['estado'] === 'cancelado');
     $tieneOfertas  = count($ofertasPedido) > 0 || ($d['total_ofertas'] > 0);
     $tieneGanadora = ($d['has_ganadora'] > 0);
+    $ofertasBloqueadasPorFactura = $this->tieneFacturasVigentes();
     $esFlujoExpo = collect($ofertasPedido)->contains(fn ($oferta) => !empty($oferta['es_expo']));
     $seccionesExpo = collect($seccionesExpoData)->reject(fn ($seccion) => $seccion['estado'] === 'ANULADA');
     $totalSeccionesExpo = $seccionesExpo->count();
@@ -266,6 +315,11 @@
                         <i class="mr-1 fa fa-calendar"></i>
                         {{ \Carbon\Carbon::parse($d['created_at'])->format('d/m/Y H:i') }}
                     </small>
+                    @if(!empty($d['direccion_entrega']))
+                    <small style="display:block; color:rgba(255,255,255,.88); font-size:11px; margin-top:3px; max-width:720px; white-space:normal; overflow-wrap:anywhere;">
+                        <i class="mr-1 fa fa-map-marker"></i>{{ $d['direccion_entrega'] }}
+                    </small>
+                    @endif
                 </div>
                 <button type="button" wire:click="cerrar"
                         class="close" style="color:#fff; opacity:1; font-size:22px; margin-top:-8px;">
@@ -321,6 +375,11 @@
                             $completado = $etapaExpoCompletada;
                             $activo = $info['key'] === 'prefactura' && !$etapaExpoCompletada && $totalPrefacturaExpo > 0;
                             $pendiente = !$etapaExpoCompletada && !$activo;
+                        }
+                        if (!$esFlujoExpo && $info['key'] === 'revision_credito' && $tieneRevisionCreditoAprobada) {
+                            $completado = true;
+                            $activo = false;
+                            $pendiente = false;
                         }
                         $esSeleccionado = ($info['key'] === $pasoActivo);
                         $delay      = ($paso - 1) * 100;
@@ -928,7 +987,7 @@
                         {{ $mensajeError }}
                     </div>
                     @endif
-                    <textarea wire:model.defer="motivoAnulacion" rows="2"
+                    <textarea wire:model.live="motivoAnulacion" rows="2"
                               placeholder="Motivo de anulación (obligatorio)…"
                               style="width:100%; border:1px solid #ddd; border-radius:8px;
                                      padding:6px 10px; font-size:12px; resize:none;"></textarea>
@@ -1190,7 +1249,7 @@
                             <i class="mr-1 fa fa-file-pdf-o"></i> Catálogo PDF
                         </a>
 
-                        @if (!$facturaCompletada && !$esGanDet && !$esAnuDet && !$esVencDet && !$tieneGanadora)
+                        @if (!$ofertasBloqueadasPorFactura && !$esGanDet && !$esAnuDet && !$esVencDet && !$tieneGanadora)
                         <button type="button" wire:click="confirmarAccionOferta('ganadora')"
                                 style="background:linear-gradient(135deg,#1ab394,#0fa37a); color:#fff;
                                        border:none; border-radius:8px; padding:5px 10px;
@@ -1198,7 +1257,7 @@
                             <i class="mr-1 fa fa-trophy"></i> Ganadora
                         </button>
                         @endif
-                        @if (!$facturaCompletada && $esGanDet && !$esAnuDet && !($tieneRevisionCreditoRechazada ?? false))
+                        @if (!$ofertasBloqueadasPorFactura && $esGanDet && !$esAnuDet && !($tieneRevisionCreditoRechazada ?? false))
                         <button type="button" wire:click="confirmarAccionOferta('quitar_ganadora')"
                                 style="background:linear-gradient(135deg,#e67e22,#d35400); color:#fff;
                                        border:none; border-radius:8px; padding:5px 10px;
@@ -1220,7 +1279,7 @@
                                        font-size:11px; font-weight:700; cursor:pointer;">
                             <i class="mr-1 fa fa-copy"></i> Duplicar
                         </button>
-                        @if (!empty($ofertaSeleccionada['es_expo']) && !$facturaCompletada && !$esAnuDet && !$esVencDet)
+                        @if (!empty($ofertaSeleccionada['es_expo']) && !$facturaCompletada && !$esGanDet && !$esAnuDet && !$esVencDet)
                         <button type="button" wire:click="continuarOfertaExpo"
                                 style="background:linear-gradient(135deg,#00897b,#00695c); color:#fff;
                                        border:none; border-radius:8px; padding:5px 10px;
@@ -1232,7 +1291,7 @@
                     @endif
 
                     {{-- Confirmación: Ganadora --}}
-                    @if (!$facturaCompletada && $confirmAccionOferta === 'ganadora')
+                    @if (!$ofertasBloqueadasPorFactura && $confirmAccionOferta === 'ganadora')
                     @php $confirmandoOfertaExpo = !empty($ofertaSeleccionada['es_expo']); @endphp
                     <div x-data="{}"
                         @unless ($confirmandoOfertaExpo)
@@ -1294,7 +1353,7 @@
                             <label style="display:block; font-size:11px; font-weight:700; color:#616161; margin-bottom:4px;">
                                 Comentario para Créditos (opcional)
                             </label>
-                            <textarea wire:model.defer="comentarioCreditoGanadora"
+                            <textarea wire:model.live="comentarioCreditoGanadora"
                                       x-ref="comentarioGanadoraTA"
                                       rows="2"
                                       placeholder="Escribe una observación para el área de créditos..."
@@ -1324,7 +1383,7 @@
                     @endif
 
                     {{-- Confirmación: Quitar Ganadora --}}
-                    @if (!$facturaCompletada && $confirmAccionOferta === 'quitar_ganadora')
+                    @if (!$ofertasBloqueadasPorFactura && $confirmAccionOferta === 'quitar_ganadora')
                     <div x-data="{}"
                          x-on:focus-motivo-oferta.window="setTimeout(() => $refs.quitarGanTA && $refs.quitarGanTA.focus(), 100)"
                          style="margin-top:12px; background:#fff3e0; border:1px solid #ffcc80;
@@ -1339,7 +1398,7 @@
                             {{ $mensajeError }}
                         </div>
                         @endif
-                        <textarea wire:model.defer="motivoAnulOferta" rows="2"
+                        <textarea wire:model.live="motivoAnulOferta" rows="2"
                                   x-ref="quitarGanTA"
                                   placeholder="Motivo (obligatorio)…"
                                   style="width:100%; border:1px solid #ddd; border-radius:8px;
@@ -1376,7 +1435,7 @@
                             {{ $mensajeError }}
                         </div>
                         @endif
-                        <textarea wire:model.defer="motivoAnulOferta" rows="2"
+                        <textarea wire:model.live="motivoAnulOferta" rows="2"
                                   x-ref="anulOfertaTA"
                                   placeholder="Motivo de anulación (obligatorio)…"
                                   style="width:100%; border:1px solid #ddd; border-radius:8px;
@@ -1468,7 +1527,7 @@
                         @elseif (!$mostrarSelectorClienteDuplicar)
                         {{-- Info: mismo flujo o nuevo flujo --}}
                         @if (!$flujoCancelado)
-                        @if (in_array(3, $flujoTipos) || in_array(5, $flujoTipos))
+                        @if (empty($ofertaSeleccionada['es_expo']) && (in_array(3, $flujoTipos) || in_array(5, $flujoTipos)))
                         <div style="background:#fff3e0; border:1px solid #ffcc80; border-radius:8px;
                                     padding:8px 12px; margin-bottom:8px; font-size:12px; color:#e65100; text-align:left;">
                             <i class="mr-1 fa fa-info-circle"></i>
@@ -1488,14 +1547,20 @@
                                     style="background:linear-gradient(135deg,#1a7efb,#0d6efd); color:#fff;
                                            border:none; border-radius:8px; padding:7px 16px;
                                            font-size:12px; font-weight:700; cursor:pointer;">
+                                @if (!empty($ofertaSeleccionada['es_expo']))
+                                <i class="mr-1 fa fa-copy"></i> Duplicar oferta
+                                @else
                                 <i class="mr-1 fa fa-user"></i> Mismo cliente
+                                @endif
                             </button>
+                            @if (empty($ofertaSeleccionada['es_expo']))
                             <button type="button" wire:click="iniciarDuplicarOtroCliente()"
                                     style="background:linear-gradient(135deg,#1ab394,#0fa37a); color:#fff;
                                            border:none; border-radius:8px; padding:7px 16px;
                                            font-size:12px; font-weight:700; cursor:pointer;">
                                 <i class="mr-1 fa fa-exchange"></i> Otro cliente
                             </button>
+                            @endif
                             <button type="button" wire:click="cancelarConfirmOferta"
                                     style="background:#f0f0f0; color:#555; border:none;
                                            border-radius:8px; padding:7px 14px; font-size:12px; cursor:pointer;">
@@ -1511,7 +1576,7 @@
                             </p>
                             <div style="position:relative;">
                                 <input type="text"
-                                       wire:model.debounce.350ms="busquedaClienteDuplicar"
+                                       wire:model.live.debounce.350ms="busquedaClienteDuplicar"
                                        placeholder="Buscar cliente por nombre o código…"
                                        style="width:100%; padding:7px 10px; border:1px solid #ccc;
                                               border-radius:6px; font-size:12px; box-sizing:border-box;"
@@ -1749,6 +1814,7 @@
                             'FACTURADA' => ['Facturada', '#2e7d32', '#e8f5e9'],
                             'RECHAZADA_CREDITO' => ['Rechazada por crédito', '#c62828', '#ffebee'],
                             'DEVUELTA_INVENTARIO' => ['Rechazada por inventario', '#e65100', '#fff3e0'],
+                            'DEVUELTA_SECCION' => ['Devuelta para edición', '#e65100', '#fff3e0'],
                             default => [str_replace('_', ' ', $estadoSeccion), '#546e7a', '#eceff1'],
                         };
                     @endphp
@@ -1766,7 +1832,7 @@
                         </div>
                         <div style="display:flex; gap:7px; flex-wrap:wrap; margin-top:9px;">
                             <a href="/cotizacion/imprimir/{{ $seccion['cotizacion_id'] }}" target="_blank" class="btn btn-white btn-xs"><i class="fa fa-print mr-1"></i>Imprimir</a>
-                            @if(in_array($estadoSeccion, ['RECHAZADA_CREDITO', 'DEVUELTA_INVENTARIO'], true))
+                            @if(in_array($estadoSeccion, ['RECHAZADA_CREDITO', 'DEVUELTA_INVENTARIO', 'DEVUELTA_SECCION'], true))
                             <a href="{{ route('flujo.secciones_ofertas', ['flujo_id' => $flujoId, 'seccion_id' => $seccion['id']]) }}" class="btn btn-danger btn-xs">
                                 <i class="fa fa-pencil mr-1"></i>Editar y reenviar
                             </a>
@@ -2111,16 +2177,22 @@
                 <div style="display:contents;">
                     @forelse(collect($seccionesExpoData)->filter(fn($seccion) => !empty($seccion['prefactura_id'])) as $seccion)
                         @php
-                        $prefActiva = ($seccion['prefactura_estado'] ?? '') === 'activo';
+                        $prefEstado = $seccion['prefactura_estado'] ?? '';
+                        [$prefEtiqueta, $prefColor, $prefFondo] = match ($prefEstado) {
+                            'activo' => ['LISTA PARA FACTURAR', '#00695c', '#e0f2f1'],
+                            'convertida' => ['FACTURADA', '#1565c0', '#e3f2fd'],
+                            'inactive' => ['ANULADA', '#c62828', '#ffebee'],
+                            default => ['SIN ESTADO', '#546e7a', '#eceff1'],
+                        };
                         $prefSeleccionada = (int) ($prefacturaData['id'] ?? 0) === (int) $seccion['prefactura_id'];
                         @endphp
                     <button type="button" wire:click="seleccionarPrefacturaExpo({{ $seccion['prefactura_id'] }})"
                             wire:key="prefactura-expo-{{ $seccion['prefactura_id'] }}"
                             aria-expanded="{{ $prefSeleccionada ? 'true' : 'false' }}"
-                            style="order:{{ $loop->index * 2 }}; background:{{ $prefSeleccionada ? '#f0fdfa' : '#fff' }}; border:{{ $prefSeleccionada ? '2px' : '1px' }} solid {{ $prefActiva ? '#80cbc4' : '#bbdefb' }}; border-left:4px solid {{ $prefActiva ? '#00897b' : '#1565c0' }}; border-radius:10px; padding:13px 15px; text-align:left; cursor:pointer;">
+                            style="order:{{ $loop->index * 2 }}; background:{{ $prefSeleccionada ? '#f0fdfa' : '#fff' }}; border:{{ $prefSeleccionada ? '2px' : '1px' }} solid {{ $prefColor }}; border-left:4px solid {{ $prefColor }}; border-radius:10px; padding:13px 15px; text-align:left; cursor:pointer;">
                         <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;">
                             <div><strong>{{ $seccion['nombre'] }}</strong><div style="font-size:11px; color:#78909c; margin-top:3px;">Prefactura #{{ $seccion['prefactura_id'] }} · Referencia #{{ $seccion['cotizacion_id'] }}</div></div>
-                            <span style="background:{{ $prefActiva ? '#e0f2f1' : '#e3f2fd' }}; color:{{ $prefActiva ? '#00695c' : '#1565c0' }}; border-radius:12px; padding:3px 10px; font-size:11px; font-weight:700; height:max-content;">{{ $prefActiva ? 'LISTA PARA FACTURAR' : 'FACTURADA' }}</span>
+                            <span style="background:{{ $prefFondo }}; color:{{ $prefColor }}; border-radius:12px; padding:3px 10px; font-size:11px; font-weight:700; height:max-content;">{{ $prefEtiqueta }}</span>
                         </div>
                         <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top:7px; font-size:11px; color:#546e7a;">
                             <span>{{ count($seccion['productos']) }} producto(s) · L {{ number_format($seccion['total'], 2) }}</span>
@@ -2136,7 +2208,9 @@
                 @if ($prefacturaData)
                 @php
                     $pref = $prefacturaData;
+                    $prefActiva = ($pref['estado'] ?? '') === 'activo';
                     $prefFacturada = ($pref['estado'] ?? '') === 'convertida';
+                    $prefAnulada = ($pref['estado'] ?? '') === 'inactive';
                     $indicePrefacturaSeleccionada = collect($seccionesExpoData)
                         ->filter(fn($seccion) => !empty($seccion['prefactura_id']))
                         ->values()
@@ -2176,6 +2250,10 @@
                             @if(($pref['estado'] ?? '') === 'convertida')
                             <span style="background:#e3f2fd; color:#1565c0; border-radius:8px; padding:1px 8px; font-size:10px; font-weight:700;">
                                 <i class="mr-1 fa fa-file-text"></i> Facturada
+                            </span>
+                            @elseif($prefAnulada)
+                            <span style="background:#ffebee; color:#c62828; border-radius:8px; padding:1px 8px; font-size:10px; font-weight:700;">
+                                <i class="mr-1 fa fa-ban"></i> Anulada
                             </span>
                             @else
                                 @if ($prefacturaReservaCompleta)
@@ -2225,7 +2303,7 @@
                     {{-- Botones de acción --}}
                     @if ($confirmAccionPrefactura === null)
                     <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:4px;">
-                        @if ($esFlujoExpo ? !$prefFacturada : !$facturaCompletada)
+                        @if ($esFlujoExpo ? $prefActiva : !$facturaCompletada)
 <button type="button" wire:click="solicitarAutorizacionPrefactura('revertir_prefactura')"
                                 style="background:linear-gradient(135deg,#1a7efb,#0d6efd); color:#fff;
                                        border:none; border-radius:8px; padding:6px 14px;
@@ -2248,7 +2326,7 @@
                             <i class="fa fa-print"></i> Imprimir prefactura
                         </a>
 
-                        @if ($esFlujoExpo ? !$prefFacturada : !$facturaCompletada)
+                        @if ($esFlujoExpo ? $prefActiva : !$facturaCompletada)
                         @if ($prefacturaPuedeFacturar)
                         <button id="btn-facturar-directo" type="button" wire:click="facturarPrefacturaDirecta"
                                 wire:loading.attr="disabled" wire:target="facturarPrefacturaDirecta"
@@ -2355,14 +2433,14 @@
                                 <label style="font-size:11px; font-weight:700; margin-bottom:4px;">Código de autorización</label>
                                 {{-- onkeydown stopPropagation: evita que Bootstrap modal capture el teclado --}}
                                 <input type="password" class="form-control form-control-sm"
-                                       wire:model.defer="codigoAutorizacion"
+                                       wire:model.live="codigoAutorizacion"
                                        onkeydown="event.stopPropagation()"
                                        placeholder="Ingrese el código">
                             </div>
                             <div class="col-12 col-md-8">
                                 <label style="font-size:11px; font-weight:700; margin-bottom:4px;">Motivo / comentario <span style="color:#c0392b;">*</span></label>
                                 <input type="text" class="form-control form-control-sm"
-                                       wire:model.defer="motivoAutorizacion"
+                                       wire:model.live="motivoAutorizacion"
                                        onkeydown="event.stopPropagation()"
                                        placeholder="Motivo requerido">
                             </div>
@@ -2515,7 +2593,7 @@
                     @if ($confirmAccionFactura === 'anular' && $facturaSeleccionadaId === (int)$fac['id'])
                     <div style="background:#fff3e0; border:1px solid #ffcc80; border-radius:8px; padding:12px; margin-top:10px;">
                         <label style="font-size:12px; font-weight:700; color:#e65100;">Motivo de anulación de la factura #{{ $fac['id'] }}</label>
-                        <textarea class="form-control form-control-sm" wire:model.defer="motivoAnulacionFactura" rows="2" maxlength="500"></textarea>
+                        <textarea class="form-control form-control-sm" wire:model.live="motivoAnulacionFactura" rows="2" maxlength="500"></textarea>
                         @if($mensajeError)<div class="text-danger mt-1" style="font-size:12px;">{{ $mensajeError }}</div>@endif
                         <div style="display:flex; gap:8px; margin-top:8px;">
                             <button type="button" wire:click="anularFactura" class="btn btn-danger btn-sm">Confirmar anulación</button>
@@ -2956,7 +3034,7 @@
                             </td>
                             <td style="padding:10px 12px; min-width:340px;">
                                 @if(!empty($linea['destinos']))
-                                <select wire:model.defer="productosSinExistenciaModal.{{ $idx }}.destino_seleccionado"
+                                <select wire:model.live="productosSinExistenciaModal.{{ $idx }}.destino_seleccionado"
                                         class="form-control form-control-sm"
                                         style="border-radius:8px; font-size:12px;">
                                     <option value="">Mantener sin cambio</option>
@@ -2986,7 +3064,7 @@
                 <label style="font-size:12px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">
                     Motivo de la actualización
                 </label>
-                <textarea wire:model.defer="motivoEdicionSinExistencia"
+                <textarea wire:model.live="motivoEdicionSinExistencia"
                           rows="2"
                           class="form-control"
                           placeholder="Opcional: describa por qué se reasignaron estos productos..."
@@ -3001,6 +3079,7 @@
 </div>
 @endif
 
+@push('scripts')
 <script>
     function confirmarLiquidacionExpoFlujo(resumen) {
         var moneda = function(valor) {
@@ -3037,7 +3116,7 @@
                 text: liquidacion.mensaje || 'El aumento fue registrado y aplicado.',
                 confirmButtonText: 'Aceptar'
             }).then(function() {
-                Livewire.emit('recargarFlujo');
+                Livewire.dispatch('recargarFlujo');
             });
         });
     }
@@ -3082,21 +3161,21 @@
             var detail = e.detail;
 
             Swal.fire({
-                title: '<i class="fa fa-truck mr-2" style="color:#1565c0;"></i> Gestor de Entrega',
-                html: '<div style="text-align:left;">'
-                    + '<p style="font-size:13px;color:#666;margin-bottom:16px;">Seleccione el responsable de entrega y el tele asesor para la factura.</p>'
-                    + '<label style="display:block;font-size:12px;font-weight:700;color:#455a64;margin:0 0 6px;">Gestor de entrega</label>'
+                html: '<div class="fmp-gestor-header"><i class="fa-solid fa-users mr-2"></i>Actores de la Factura</div>'
+                    + '<div class="fmp-gestor-body">'
+                    + '<p class="fmp-gestor-desc">Seleccione el responsable de entrega y el tele asesor para esta factura.</p>'
+                    + '<label class="fmp-gestor-label">Gestor de Entrega</label>'
                     + '<select id="swal-gestor-select" style="width:100%;"></select>'
-                    + '<label style="display:block;font-size:12px;font-weight:700;color:#455a64;margin:14px 0 6px;">Tele asesor</label>'
+                    + '<label class="fmp-gestor-label" style="margin-top:14px;">Tele Asesor <span class="req">*</span></label>'
                     + '<select id="swal-tele-asesor-select" style="width:100%;"></select>'
                     + '</div>',
                 showCancelButton: true,
+                reverseButtons: true,
                 confirmButtonText: '<i class="fa fa-check mr-1"></i> Confirmar y Facturar',
                 cancelButtonText: 'Cancelar',
                 confirmButtonColor: '#1b5e20',
                 cancelButtonColor: '#6c757d',
                 allowOutsideClick: false,
-                background: '#f9fbe7',
                 customClass: { popup: 'swal-gestor-popup' },
                 didOpen: function() {
                     // Inicializar Select2 con búsqueda AJAX dentro del SweetAlert2
@@ -3168,7 +3247,6 @@
                 if (!result.isConfirmed) return;
                 var gestorId = result.value ? result.value.gestorId : null;
                 var teleAsesorId = result.value ? result.value.teleAsesorId : null;
-
                 // Bloquear botón y mostrar spinner durante el POST
                 var btn = document.getElementById('btn-facturar-directo');
                 var iconSpan    = document.getElementById('btn-facturar-icon');
@@ -3200,19 +3278,24 @@
                     .catch(function(error) {
                         setLoading(false);
                         var data = error.response ? error.response.data : {};
+                        var warningHtml = (data.warning && data.warning.includes('<')) ? data.warning : undefined;
+                        var tieneTablaInventario = warningHtml && warningHtml.includes('<table');
                         Swal.fire({
                             icon: data.icon || 'error',
                             title: data.title || 'Error',
-                            width: data.productos_escala_cambiada ? 'min(760px, calc(100vw - 28px))' : undefined,
+                            width: data.productos_escala_cambiada
+                                ? 'min(760px, calc(100vw - 28px))'
+                                : (tieneTablaInventario ? 'min(980px, calc(100vw - 28px))' : undefined),
                             customClass: data.productos_escala_cambiada ? { popup: 'fmp-price-alert' } : undefined,
                             confirmButtonText: data.productos_escala_cambiada ? 'Entendido' : 'OK',
                             confirmButtonColor: data.productos_escala_cambiada ? '#1570ef' : undefined,
                             text: data.text || data.warning || (data.detail && data.detail.text) || data.error || 'No se pudo facturar la prefactura.',
-                            html: (data.warning && data.warning.includes('<')) ? data.warning : undefined
+                            html: warningHtml
                         });
                     });
             });
         });
     }
 </script>
+@endpush
 </div>

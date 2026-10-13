@@ -1,4 +1,5 @@
 <div>
+<div>
     @push('styles')
         <style>
 
@@ -861,3 +862,4 @@ $datetim = $act_fecha . ' ' . $act_hora;
     <strong>Copyright</strong> Distribuciones Valencia &copy; <?php echo "$year"; ?>
 </div>
 <p id="reloj"></p>
+</div>

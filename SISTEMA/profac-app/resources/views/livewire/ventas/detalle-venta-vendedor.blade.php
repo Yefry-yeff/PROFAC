@@ -1,5 +1,6 @@
 ﻿
 <div>
+<div>
     @push('styles')
     <style>
         .text-success-custom{
@@ -419,3 +420,4 @@
     <strong>Copyright</strong> Distribuciones Valencia &copy; <?php echo "$year";  ?>
 </div>
 <p id="reloj"></p>
+</div>

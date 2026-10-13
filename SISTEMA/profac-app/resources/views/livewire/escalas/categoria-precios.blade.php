@@ -808,6 +808,7 @@ a.btn.btn-pf-primary:hover {
 </style>
 @endpush
 
+<div>
 <div class="cat-card">
     <div class="cat-card-header">
         <h6><i class="fa fa-tags"></i> Categoría de Precios de Producto</h6>
@@ -1709,6 +1710,7 @@ a.btn.btn-pf-primary:hover {
   </div>
 </div>
 
+ </div>
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 

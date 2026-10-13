@@ -79,6 +79,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Excepciones directas de permisos: permitido=true otorga y false revoca.
+     */
+    public function permisosDirectos()
+    {
+        return $this->hasMany(UsuarioSubmenu::class, 'usuario_id');
+    }
+
+    /**
      * IDs de TODOS los roles del usuario: el principal (rol_id) + los
      * adicionales asignados via usuario_rol. Usar esto (en vez de rol_id
      * directo) para cualquier verificacion de acceso/menu que deba

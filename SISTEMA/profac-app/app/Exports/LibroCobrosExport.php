@@ -2,6 +2,7 @@
 
 namespace App\Exports;
 
+use Maatwebsite\Excel\Concerns\Export;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithEvents;
@@ -26,7 +27,7 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
  *  M  Exonerado       N  Gravado         O  Exento
  *  P  Sub Total       Q  ISV             R  Total Factura
  */
-class LibroCobrosExport implements WithMultipleSheets
+class LibroCobrosExport implements Export, WithMultipleSheets
 {
     protected array $data;
     protected string $fechaInicio;
@@ -222,7 +223,7 @@ class LibroCobrosSheet implements FromArray, WithStyles, WithEvents, WithStrictN
         ];
     }
 
-    public function styles(Worksheet $sheet)
+    public function styles(Worksheet $sheet): ?array
     {
         $lc = self::LAST_COL;
         $sheet->mergeCells("A1:{$lc}1");

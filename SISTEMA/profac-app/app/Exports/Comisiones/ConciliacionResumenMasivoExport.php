@@ -2,9 +2,10 @@
 
 namespace App\Exports\Comisiones;
 
+use Maatwebsite\Excel\Concerns\Export;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 
-class ConciliacionResumenMasivoExport implements WithMultipleSheets
+class ConciliacionResumenMasivoExport implements Export, WithMultipleSheets
 {
     protected array $empleados;
     protected string $periodo;

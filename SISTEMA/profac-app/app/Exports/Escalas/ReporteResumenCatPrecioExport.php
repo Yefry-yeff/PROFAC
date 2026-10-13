@@ -35,7 +35,7 @@ class ReporteResumenCatPrecioExport implements FromQuery, WithHeadings, WithMapp
         $this->estadoId     = $estadoId;
     }
 
-    public function query()
+    public function query(): \Illuminate\Database\Query\Builder
     {
         return DB::table('categoria_precios as cp')
             ->join('cliente_categoria_escala as cce', 'cce.id', '=', 'cp.cliente_categoria_escala_id')
@@ -106,7 +106,7 @@ class ReporteResumenCatPrecioExport implements FromQuery, WithHeadings, WithMapp
         ];
     }
 
-    public function styles(Worksheet $sheet)
+    public function styles(Worksheet $sheet): ?array
     {
         return [
             1 => [

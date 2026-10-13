@@ -107,7 +107,7 @@ class ReporteLogisticaPorFacturaExport implements FromArray, WithStyles, WithEve
         return $out;
     }
 
-    public function styles(Worksheet $sheet)
+    public function styles(Worksheet $sheet): ?array
     {
         $lc = self::LAST_COL;
         $sheet->mergeCells("A1:{$lc}1");

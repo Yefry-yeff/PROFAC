@@ -40,7 +40,7 @@ class PlantillaComisionMasivaExport implements FromCollection, WithHeadings, Wit
      *  rol × cliente_categoria_escala × categoria_precios
      * Si ya existe un registro activo en comision_escala, carga el % actual.
      */
-    public function collection()
+    public function collection(): \Illuminate\Support\Enumerable
     {
         $q = DB::table('rol as r')
             ->crossJoin('cliente_categoria_escala as cce')

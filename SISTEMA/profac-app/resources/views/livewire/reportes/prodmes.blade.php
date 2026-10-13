@@ -61,8 +61,8 @@
                                     <tr>
                                         <th>FECHA</th>
                                         <th>FECHA VENCIMIENTO</th>
-                                        <th>CRÉDITO/CONTADO</th>
-                                        <th>TIPO CLIENTE (AoB)</th>
+                                        <th>CRÉDITO o CONTADO</th>
+                                        <th>TIPO CLIENTE AoB</th>
                                         <th>VENDEDOR</th>
                                         <th>FACTURADOR</th>
                                         <th>FACTURA</th>
@@ -83,8 +83,8 @@
                                     <tr>
                                         <th>FECHA</th>
                                         <th>FECHA VENCIMIENTO</th>
-                                        <th>CRÉDITO/CONTADO</th>
-                                        <th>TIPO CLIENTE (AoB)</th>
+                                        <th>CRÉDITO o CONTADO</th>
+                                        <th>TIPO CLIENTE AoB</th>
                                         <th>VENDEDOR</th>
                                         <th>FACTURADOR</th>
                                         <th>FACTURA</th>
@@ -153,8 +153,8 @@
             "columns": [
                 {data: 'FECHA'},
                 {data: 'FECHA VENCIMIENTO'},
-                {data: 'CRÉDITO/CONTADO'},
-                {data: 'TIPO CLIENTE (AoB)'},
+                {data: 'CRÉDITO o CONTADO'},
+                {data: 'TIPO CLIENTE AoB'},
                 {data: 'VENDEDOR'},
                 {data: 'FACTURADOR'},
                 {data: 'FACTURA'},

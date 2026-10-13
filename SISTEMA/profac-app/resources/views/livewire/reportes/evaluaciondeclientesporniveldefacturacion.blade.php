@@ -238,21 +238,21 @@
                                     <div class="col-md-1 col-sm-3">
                                         <div class="form-group">
                                             <label>Código</label>
-                                            <input type="number" wire:model.lazy="filtCodigo"
+                                            <input type="number" wire:model.live.blur="filtCodigo"
                                                    class="form-control form-control-sm" placeholder="ID">
                                         </div>
                                     </div>
                                     <div class="col-md-2 col-sm-5">
                                         <div class="form-group">
                                             <label>Nombre</label>
-                                            <input type="text" wire:model.debounce.400ms="filtNombre"
+                                            <input type="text" wire:model.live.debounce.400ms="filtNombre"
                                                    class="form-control form-control-sm" placeholder="Buscar nombre…">
                                         </div>
                                     </div>
                                     <div class="col-md-2 col-sm-4">
                                         <div class="form-group">
                                             <label>Estado</label>
-                                            <select wire:model="filtEstado" class="form-control form-control-sm">
+                                            <select wire:model.live="filtEstado" class="form-control form-control-sm">
                                                 <option value="">Todos</option>
                                                 @foreach ($estados as $e)
                                                     <option value="{{ $e->descripcion }}">{{ $e->descripcion }}</option>
@@ -263,7 +263,7 @@
                                     <div class="col-md-2 col-sm-4">
                                         <div class="form-group">
                                             <label>Asesor Comercial</label>
-                                            <select wire:model="filtVendedor" class="form-control form-control-sm">
+                                            <select wire:model.live="filtVendedor" class="form-control form-control-sm">
                                                 <option value="">Todos</option>
                                                 <option value="sin_asignar">Sin Asignar</option>
                                                 @foreach ($vendedores as $v)
@@ -275,7 +275,7 @@
                                     <div class="col-md-2 col-sm-4">
                                         <div class="form-group">
                                             <label>Teleasesor</label>
-                                            <select wire:model="filtTeleasesor" class="form-control form-control-sm">
+                                            <select wire:model.live="filtTeleasesor" class="form-control form-control-sm">
                                                 <option value="">Todos</option>
                                                 <option value="sin_asignar">Sin Asignar</option>
                                                 @foreach ($teleasesores as $teleasesor)
@@ -287,7 +287,7 @@
                                     <div class="col-md-2 col-sm-4">
                                         <div class="form-group">
                                             <label>Req. Atención</label>
-                                            <select wire:model="filtRequiereAt" class="form-control form-control-sm">
+                                            <select wire:model.live="filtRequiereAt" class="form-control form-control-sm">
                                                 <option value="">Todos</option>
                                                 <option value="Sí">Sí</option>
                                                 <option value="No">No</option>
@@ -297,7 +297,7 @@
                                     <div class="col-md-1 col-sm-4">
                                         <div class="form-group">
                                             <label>Mostrar</label>
-                                            <select wire:model="porPagina" class="form-control form-control-sm">
+                                            <select wire:model.live="porPagina" class="form-control form-control-sm">
                                                 <option value="5">5</option>
                                                 <option value="10">10</option>
                                                 <option value="25">25</option>
@@ -310,14 +310,14 @@
                                     <div class="col-md-2 col-sm-6">
                                         <div class="form-group">
                                             <label>Fecha últ. factura desde</label>
-                                            <input type="date" wire:model="filtFechaDesde"
+                                            <input type="date" wire:model.live="filtFechaDesde"
                                                    class="form-control form-control-sm">
                                         </div>
                                     </div>
                                     <div class="col-md-2 col-sm-6">
                                         <div class="form-group">
                                             <label>Fecha últ. factura hasta</label>
-                                            <input type="date" wire:model="filtFechaHasta"
+                                            <input type="date" wire:model.live="filtFechaHasta"
                                                    class="form-control form-control-sm">
                                         </div>
                                     </div>
@@ -602,7 +602,7 @@
 
     document.addEventListener('DOMContentLoaded', function() { initCharts(getChartData()); });
 
-    document.addEventListener('livewire:load', function() {
+    document.addEventListener('livewire:init', function() {
         var livewireApi = window.Livewire || window.livewire;
         if (livewireApi && typeof livewireApi.hook === 'function') {
             livewireApi.hook('message.processed', function() { initCharts(getChartData()); });

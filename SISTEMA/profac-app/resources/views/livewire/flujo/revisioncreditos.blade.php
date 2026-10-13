@@ -325,7 +325,7 @@
                                     <div class="col-md-4 mb-3">
                                         <label style="font-size:12px; font-weight:700; color:#2e7d32;">Días de crédito</label>
                                         <input type="number" min="0"
-                                               wire:model.debounce.300ms="diasCreditoEditable"
+                                               wire:model.live.debounce.300ms="diasCreditoEditable"
                                                class="form-control" style="border-radius:8px; font-size:13px;">
                                         <small class="text-muted">Editable solo para este flujo</small>
                                     </div>
@@ -355,7 +355,7 @@
                                         Observaciones <small style="font-weight:400;">(opcional)</small>
                                     </label>
                                     <input type="text"
-                                           wire:model.defer="observaciones"
+                                           wire:model.live="observaciones"
                                            class="form-control"
                                            placeholder="Notas adicionales..."
                                            style="border-radius:8px; font-size:13px;">
@@ -401,7 +401,7 @@
                                     <label style="font-size:12px; font-weight:700; color:#c62828;">
                                         Motivo de Rechazo <span style="color:#e74c3c;">*</span>
                                     </label>
-                                    <textarea wire:model.defer="motivoRechazo"
+                                    <textarea wire:model.live="motivoRechazo"
                                               class="form-control"
                                               rows="3"
                                               placeholder="Ingrese el motivo del rechazo de crédito..."
@@ -411,7 +411,7 @@
                                     <label style="font-size:12px; font-weight:700; color:#c62828;">
                                         Observaciones <small style="font-weight:400;">(opcional)</small>
                                     </label>
-                                    <textarea wire:model.defer="observaciones"
+                                    <textarea wire:model.live="observaciones"
                                               class="form-control"
                                               rows="3"
                                               placeholder="Notas adicionales..."
@@ -453,6 +453,9 @@
                                     <thead style="background:#f8f9fc;">
                                         <tr>
                                             <th style="padding:8px 12px;">Fecha</th>
+                                            @if(!$esSeccionExpo)
+                                            <th style="padding:8px 12px;">Oferta</th>
+                                            @endif
                                             <th style="padding:8px 12px;">Acción</th>
                                             <th style="padding:8px 12px;">Estado anterior</th>
                                             <th style="padding:8px 12px;">Estado nuevo</th>
@@ -466,18 +469,27 @@
                                             <td style="padding:7px 12px; white-space:nowrap; color:#78909c;">
                                                 {{ \Carbon\Carbon::parse($h['fecha_evento'])->format('d/m/Y H:i') }}
                                             </td>
+                                            @if(!$esSeccionExpo)
+                                            <td style="padding:7px 12px; white-space:nowrap; font-weight:700; color:#1565c0;">
+                                                #{{ $h['cotizacion_id'] ?? '—' }}
+                                            </td>
+                                            @endif
                                             <td style="padding:7px 12px;">
                                                 @php
                                                     $accionColor = match($h['accion']) {
                                                         'aprobado'  => '#27ae60',
                                                         'rechazado' => '#e74c3c',
+                                                        'devuelto_inventario' => '#e67e22',
                                                         'cancelado' => '#95a5a6',
                                                         'creado'    => '#3498db',
                                                         default     => '#546e7a',
                                                     };
+                                                    $accionTexto = $h['accion'] === 'devuelto_inventario'
+                                                        ? 'Devuelto por Inventario'
+                                                        : $h['accion'];
                                                 @endphp
                                                 <span style="font-weight:700; color:{{ $accionColor }}; text-transform:uppercase; font-size:11px;">
-                                                    {{ $h['accion'] }}
+                                                    {{ $accionTexto }}
                                                 </span>
                                             </td>
                                             <td style="padding:7px 12px; color:#78909c;">{{ $h['estado_anterior'] ?? '—' }}</td>
@@ -513,7 +525,7 @@
                         <div style="display:flex; align-items:center; gap:10px;">
                             <span style="background:rgba(255,255,255,.15); color:#ecf0f1; border-radius:20px;
                                          padding:3px 14px; font-size:12px; font-weight:600;">
-                                {{ count($bandejaLlegando) }} pendiente(s)
+                                {{ $countLlegando }} pendiente(s)
                             </span>
                         </div>
                     </div>
@@ -529,7 +541,7 @@
                                     </span>
                                 </div>
                                 <input type="text"
-                                       wire:model.debounce.400ms="busqueda"
+                                       wire:model.live.debounce.400ms="busqueda"
                                        class="form-control"
                                        placeholder="Buscar por cliente, RTN o número de flujo..."
                                        style="font-size:13px;">
@@ -548,7 +560,7 @@
                                 <label style="font-size:12px; color:#78909c; font-weight:600; margin:0; white-space:nowrap;">
                                     Filas por p&aacute;gina:
                                 </label>
-                                <select wire:model="perPage"
+                                <select wire:model.live="perPage"
                                         class="form-control form-control-sm"
                                         style="width:70px; font-size:13px; border-radius:8px;">
                                     <option value="8">8</option>
@@ -563,9 +575,9 @@
                         <div style="padding:0 20px; border-bottom:2px solid #e8eaf0;">
                             <ul class="nav" style="gap:0; border:none;">
                                 @foreach ([
-                                    ['llegando',   'fa-inbox',         'Llegando',  count($bandejaLlegando),   '#1a5276'],
-                                    ['aprobadas',  'fa-check-circle',  'Aprobadas', count($bandejaAprobadas),  '#27ae60'],
-                                    ['rechazadas', 'fa-times-circle',  'Rechazadas',count($bandejaRechazadas), '#e74c3c'],
+                                    ['llegando',   'fa-inbox',         'Llegando',  $countLlegando,   '#1a5276'],
+                                    ['aprobadas',  'fa-check-circle',  'Aprobadas', $countAprobadas,  '#27ae60'],
+                                    ['rechazadas', 'fa-times-circle',  'Rechazadas',$countRechazadas, '#e74c3c'],
                                 ] as [$tab, $icon, $label, $count, $color])
                                 <li class="nav-item">
                                     <button type="button"
@@ -905,19 +917,19 @@
                             <label style="font-weight:700;">Nuevo crédito aprobado</label>
                             <div class="input-group">
                                 <div class="input-group-prepend"><span class="input-group-text">L</span></div>
-                                <input type="text" wire:model.defer="nuevoCreditoClienteTexto"
+                                <input type="text" wire:model.live="nuevoCreditoClienteTexto"
                                        class="form-control" inputmode="decimal" placeholder="0.00">
                             </div>
                         </div>
                         <div class="form-group">
                             <label style="font-weight:700;">Días de crédito</label>
-                            <input type="number" wire:model.defer="nuevosDiasCreditoCliente"
+                            <input type="number" wire:model.live="nuevosDiasCreditoCliente"
                                    class="form-control" min="0" max="365" step="1">
                             <small class="text-muted">Se actualizarán también en la ficha del cliente.</small>
                         </div>
                         <div class="form-group mb-0">
                             <label style="font-weight:700;">Motivo del cambio <span class="text-danger">*</span></label>
-                            <textarea wire:model.defer="motivoAjusteCredito" class="form-control" rows="3"
+                            <textarea wire:model.live="motivoAjusteCredito" class="form-control" rows="3"
                                       maxlength="500" placeholder="Explique por qué se modifica el crédito del cliente..."></textarea>
                             <small class="text-muted">El monto anterior, nuevo monto, usuario, flujo, oferta y motivo quedarán auditados.</small>
                         </div>

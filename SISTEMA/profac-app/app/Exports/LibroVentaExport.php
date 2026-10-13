@@ -135,7 +135,7 @@ class LibroVentaExport implements FromArray, WithStyles, WithEvents, WithStrictN
         return $out;
     }
 
-    public function styles(Worksheet $sheet)
+    public function styles(Worksheet $sheet): ?array
     {
         // Fusionar celdas de cabecera
         $sheet->mergeCells('A1:K1');

@@ -68,7 +68,7 @@
                                         Días de validez <span style="color:#e53935;">*</span>
                                     </label>
                                     <div class="input-group">
-                                        <input type="number" wire:model.defer="diasValidez" min="1"
+                                        <input type="number" wire:model.live="diasValidez" min="1"
                                                class="form-control" style="border-radius:8px 0 0 8px; font-size:15px; font-weight:700; text-align:center;"
                                                placeholder="Ej: 7">
                                         <div class="input-group-append">
@@ -80,7 +80,7 @@
                                     <label style="font-size:11px; font-weight:700; color:#546e7a; text-transform:uppercase; letter-spacing:.5px; margin-bottom:4px; display:block;">
                                         Descripción (aparece en la prefactura)
                                     </label>
-                                    <input type="text" wire:model.defer="descripcionValidez"
+                                    <input type="text" wire:model.live="descripcionValidez"
                                            class="form-control" style="border-radius:8px; font-size:13px;"
                                            placeholder="Ej: 1 semana, 15 días…">
                                 </div>

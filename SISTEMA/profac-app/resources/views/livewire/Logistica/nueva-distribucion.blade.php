@@ -37,7 +37,7 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label><i class="fas fa-users"></i> Equipo de Entrega *</label>
+                                    <label><i class="fas fa-truck"></i> Equipo de Entrega *</label>
                                     <select class="form-control form-control-lg" name="equipo_entrega_id" required>
                                         <option value="">-- Seleccione un equipo --</option>
                                         @foreach($equipos as $eq)
@@ -51,6 +51,27 @@
                                     <label><i class="fas fa-calendar-alt"></i> Fecha Programada *</label>
                                     <input type="date" class="form-control form-control-lg" name="fecha_programada" 
                                            value="{{ date('Y-m-d') }}" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label><i class="fas fa-user-hard-hat"></i> Personal Encargado de la Distribución *</label>
+                                    <select class="form-control" name="personal[]" id="selectPersonalDistribucion" multiple required>
+                                        @foreach($personalDisponible as $p)
+                                            <option value="{{ $p->id }}">{{ $p->name }} ({{ $p->rol }})</option>
+                                        @endforeach
+                                    </select>
+                                    <small class="text-muted">Motoristas, Equipo de Entregas y Picking activos.</small>
+                                </div>
+                                <div id="wrapPorcentajesPersonal" class="mb-3" style="display:none;">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <label class="mb-0"><i class="fas fa-percentage"></i> Porcentaje de comisión por persona *</label>
+                                        <span id="totalPorcentajePersonal" class="badge badge-secondary">Total: 0%</span>
+                                    </div>
+                                    <div id="listaPorcentajesPersonal"></div>
+                                    <small class="text-muted">La suma de los porcentajes debe ser exactamente 100%. Se usará para el cálculo de comisiones.</small>
                                 </div>
                             </div>
                         </div>
@@ -97,8 +118,17 @@
                             <!-- Búsqueda por Zona Geográfica -->
                             <div class="tab-pane fade show active" id="busqueda-zona" role="tabpanel">
                                 <div id="zonasCardsWrap" class="row">
-                                    <div class="col-12 text-center text-muted py-3">
-                                        <i class="fas fa-spinner fa-spin"></i> Cargando zonas...
+                                    @foreach($zonasIniciales as $zona)
+                                    <div class="col-md-4 col-lg-3 mb-3">
+                                        <div class="card h-100 shadow-sm zona-card" style="cursor:pointer;" onclick="verFacturasDeZona('{{ $zona->id }}', '{{ addslashes($zona->name) }}')">
+                                            <div class="card-body text-center"><i class="fas fa-map-marker-alt fa-2x text-primary mb-2"></i><h6 class="mb-1">{{ $zona->name }}</h6><span class="badge badge-secondary">Cargando...</span></div>
+                                        </div>
+                                    </div>
+                                    @endforeach
+                                    <div class="col-md-4 col-lg-3 mb-3">
+                                        <div class="card h-100 shadow-sm zona-card border-secondary" style="cursor:pointer;" onclick="verFacturasDeZona('sin_clasificar', 'Sin clasificar')">
+                                            <div class="card-body text-center"><i class="fas fa-question-circle fa-2x text-secondary mb-2"></i><h6 class="mb-1">Sin clasificar</h6><span class="badge badge-secondary">Cargando...</span></div>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -235,6 +265,10 @@
                                     <small class="text-muted">Productos</small>
                                 </div>
                             </div>
+                        </div>
+                        <div id="resumenVentaMaxima" class="p-2 mb-3 border rounded" style="display:none;background:#f8fafc;">
+                            <div class="d-flex justify-content-between align-items-center mb-1"><strong><i class="fas fa-chart-line text-primary mr-1"></i>Meta de venta</strong><span id="ventaMaximaZonaTexto" class="small text-muted"></span></div>
+                            <div class="row text-center small"><div class="col-4"><span class="text-muted d-block">Venta requerida</span><strong id="ventaMaximaPermitida">0.00</strong></div><div class="col-4"><span class="text-muted d-block">Seleccionado</span><strong id="ventaTotalSeleccionado">0.00</strong></div><div class="col-4"><span class="text-muted d-block">Falta</span><strong id="ventaFaltante">0.00</strong></div></div>
                         </div>
                         <button type="button" class="btn btn-success btn-block btn-lg" onclick="guardarDistribucion()">
                             <i class="fas fa-save"></i> Guardar Distribución
@@ -414,12 +448,102 @@
 .card {
     animation: fadeIn 0.3s ease;
 }
+
+/* Filtro estilo Excel en encabezados de la tabla "Facturas por Zona" */
+.filtro-columna-icono { margin-left: 4px; cursor: pointer; }
+.filtro-columna-icono:hover { color: #0d6efd !important; }
+.filtro-columna-dropdown {
+    z-index: 2000;
+    width: 220px;
+    background: #fff;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    box-shadow: 0 6px 18px rgba(0,0,0,.18);
+    font-size: 13px;
+}
+.filtro-columna-opciones { max-height: 220px; overflow-y: auto; }
+.filtro-columna-opciones label { font-weight: normal; cursor: pointer; }
 </style>
 
 <script>
 // Variables y funciones globales (accesibles desde onclick)
+const parametrosEquipoZona = @json($parametrosEquipoZona);
 let facturasSelTmp = [];
 let clienteSeleccionado = null;
+let personalPorcentajes = {}; // { user_id: porcentaje }
+
+// ========== PERSONAL ENCARGADO: porcentajes de comisión ==========
+let personalPorcentajesManual = {}; // ids cuyo % fue editado a mano por el usuario
+
+function actualizarListaPorcentajesPersonal() {
+    const ids = $('#selectPersonalDistribucion').val() || [];
+
+    // Descartar valores de personas ya no seleccionadas
+    Object.keys(personalPorcentajes).forEach(id => {
+        if (!ids.includes(id)) delete personalPorcentajes[id];
+    });
+    Object.keys(personalPorcentajesManual).forEach(id => {
+        if (!ids.includes(id)) delete personalPorcentajesManual[id];
+    });
+
+    if (!ids.length) {
+        $('#wrapPorcentajesPersonal').hide();
+        $('#listaPorcentajesPersonal').html('');
+        actualizarTotalPorcentajePersonal();
+        return;
+    }
+    $('#wrapPorcentajesPersonal').show();
+
+    // Reparto equitativo del restante entre las personas SIN % editado a mano,
+    // ajustando el redondeo para que la suma total quede en exactamente 100%.
+    const idsManual = ids.filter(id => personalPorcentajesManual[id] !== undefined);
+    const idsAuto = ids.filter(id => personalPorcentajesManual[id] === undefined);
+    const sumaManual = idsManual.reduce((sum, id) => sum + (parseFloat(personalPorcentajes[id]) || 0), 0);
+    const restante = Math.max(0, Math.round((100 - sumaManual) * 100) / 100);
+
+    if (idsAuto.length) {
+        const base = Math.floor((restante / idsAuto.length) * 100) / 100;
+        let acumulado = 0;
+        idsAuto.forEach((id, idx) => {
+            const esUltimo = idx === idsAuto.length - 1;
+            const valor = esUltimo ? Math.round((restante - acumulado) * 100) / 100 : base;
+            personalPorcentajes[id] = valor;
+            acumulado += valor;
+        });
+    }
+    idsManual.forEach(id => { personalPorcentajes[id] = parseFloat(personalPorcentajes[id]) || 0; });
+
+    let html = '';
+    ids.forEach(id => {
+        const nombre = $('#selectPersonalDistribucion option[value="' + id + '"]').text();
+        html += `
+            <div class="d-flex align-items-center mb-2">
+                <div class="flex-grow-1 mr-2">${nombre}</div>
+                <div style="width:110px;">
+                    <div class="input-group input-group-sm">
+                        <input type="number" class="form-control text-right input-porcentaje-personal"
+                               data-id="${id}" min="0" max="100" step="0.01" value="${personalPorcentajes[id]}">
+                        <div class="input-group-append"><span class="input-group-text">%</span></div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    $('#listaPorcentajesPersonal').html(html);
+    actualizarTotalPorcentajePersonal();
+}
+
+function actualizarTotalPorcentajePersonal() {
+    const ids = $('#selectPersonalDistribucion').val() || [];
+    let total = 0;
+    ids.forEach(id => { total += parseFloat(personalPorcentajes[id] ?? 0); });
+    total = Math.round(total * 100) / 100;
+
+    const badge = $('#totalPorcentajePersonal');
+    badge.text('Total: ' + total + '%');
+    badge.removeClass('badge-success badge-danger badge-secondary');
+    badge.addClass(Math.abs(total - 100) < 0.01 ? 'badge-success' : 'badge-danger');
+}
 
 // ========== BÚSQUEDA Y LIMPIEZA ==========
 
@@ -445,6 +569,23 @@ function limpiarClienteSeleccionado() {
 // ========== BÚSQUEDA POR ZONA GEOGRÁFICA ==========
 
 let zonaSeleccionada = null;
+
+function actualizarResumenVentaMaxima() {
+    const equipoId = String($('select[name="equipo_entrega_id"]').val() || '');
+    const zonaId = zonaSeleccionada ? String(zonaSeleccionada.id) : '';
+    const parametro = parametrosEquipoZona.find(item => String(item.equipo_entrega_id) === equipoId && String(item.zone_group_id) === zonaId);
+    const total = facturasSelTmp.reduce((sum, factura) => sum + (parseFloat(factura.total) || 0), 0);
+    const $resumen = $('#resumenVentaMaxima');
+    if (!parametro) { $resumen.hide(); return; }
+    const maximo = parseFloat(parametro.monto_minimo_venta || 0) || 0;
+    const faltante = maximo - total;
+    $('#ventaMaximaZonaTexto').text(zonaSeleccionada.nombre);
+    $('#ventaMaximaPermitida').text(maximo.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}));
+    $('#ventaTotalSeleccionado').text(total.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}));
+    $('#ventaFaltante').text(Math.abs(faltante).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) + (faltante < 0 ? ' (excede)' : ''))
+        .toggleClass('text-danger', faltante < 0).toggleClass('text-warning', faltante >= 0);
+    $resumen.show();
+}
 
 function cargarZonasParaBusqueda() {
     $.get("{{ route('logistica.zonas.resumen') }}", function (data) {
@@ -495,34 +636,56 @@ function limpiarZonaSeleccionada() {
     $('#facturasZonaSeleccionada').hide();
     $('#listaFacturasZona').html('');
     $('#nombreZonaSeleccionada').text('');
+    actualizarResumenVentaMaxima();
 }
 
 function verFacturasDeZona(zonaId, nombreZona) {
     zonaSeleccionada = { id: zonaId, nombre: nombreZona };
+    ventaMaximaAdvertida = false;
     $('#nombreZonaSeleccionada').text(nombreZona);
     $('#facturasZonaSeleccionada').show();
-    $('#listaFacturasZona').html('<div class="text-center text-muted py-3"><i class="fas fa-spinner fa-spin"></i> Cargando facturas...</div>');
+    actualizarResumenVentaMaxima();
+    $('#busquedaZonaTermino').val('');
+    cargarFacturasDeZona('');
+}
 
-    $.get("{{ route('logistica.zonas.facturas') }}", { zona_id: zonaId }, function (data) {
-        const facturas = (data && data.facturas) || [];
-        if (!facturas.length) {
+let timerBusquedaZona;
+function buscarFacturasDeZona(termino) {
+    clearTimeout(timerBusquedaZona);
+    timerBusquedaZona = setTimeout(() => cargarFacturasDeZona(termino), 350);
+}
+
+let facturasZonaCache = [];
+let filtrosColumnaZona = {}; // { asesor_comercial: Set([...]), gestor: Set([...]) }
+
+function cargarFacturasDeZona(termino) {
+    $('#listaFacturasZona').html('<div class="text-center text-muted py-3"><i class="fas fa-spinner fa-spin"></i> Cargando facturas...</div>');
+    filtrosColumnaZona = {};
+
+    $.get("{{ route('logistica.zonas.facturas') }}", { zona_id: zonaSeleccionada.id, search: termino || '' }, function (data) {
+        facturasZonaCache = (data && data.facturas) || [];
+        if (!facturasZonaCache.length) {
             $('#listaFacturasZona').html(`
                 <div class="mb-0 alert alert-info">
                     <i class="fas fa-info-circle"></i>
-                    No hay facturas pendientes en esta zona
+                    ${termino ? 'No hay facturas que coincidan con la búsqueda' : 'No hay facturas pendientes en esta zona'}
                 </div>
             `);
             return;
         }
 
         let html = `
-        <div class="mb-3 d-flex justify-content-between align-items-center">
+        <div class="mb-3 d-flex justify-content-between align-items-center flex-wrap" style="gap:8px;">
             <button type="button" class="btn btn-success btn-sm" onclick="agregarFacturasSeleccionadasZona()">
                 <i class="fas fa-plus-circle"></i> Agregar Seleccionadas
             </button>
-            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="toggleSeleccionarTodasZona()">
-                <i class="fas fa-check-square"></i> Seleccionar Todas
-            </button>
+            <div class="input-group input-group-sm" style="max-width:280px;">
+                <div class="input-group-prepend">
+                    <span class="input-group-text bg-white"><i class="fas fa-search"></i></span>
+                </div>
+                <input type="text" id="busquedaZonaTermino" class="form-control" value="${termino ? termino.replace(/"/g, '&quot;') : ''}"
+                       placeholder="Buscar por factura o cliente..." oninput="buscarFacturasDeZona(this.value)">
+            </div>
         </div>
         <div class="table-responsive">
             <table class="table table-sm table-hover table-bordered">
@@ -532,59 +695,22 @@ function verFacturasDeZona(zonaId, nombreZona) {
                             <input type="checkbox" id="checkTodasFacturasZona" onchange="seleccionarTodasFacturasZona(this.checked)">
                         </th>
                         <th>Factura</th>
-                        <th>Cliente</th>
+                        <th>${columnaFiltroHeaderZona('cliente', 'Cliente')}</th>
                         <th>Municipio</th>
                         <th>Dirección</th>
-                        <th>Asesor Comercial</th>
-                        <th>Gestor de Entrega</th>
+                        <th>${columnaFiltroHeaderZona('asesor_comercial', 'Asesor Comercial')}</th>
+                        <th>${columnaFiltroHeaderZona('gestor', 'Gestor de Entrega')}</th>
                         <th>Fecha</th>
                         <th width="100px" class="text-center">Productos</th>
                         <th width="80px" class="text-center">Estado</th>
                     </tr>
                 </thead>
-                <tbody>`;
-
-        facturas.forEach(f => {
-            const yaAgregada = facturasSelTmp.find(fs => fs.id === f.id);
-            const checkDisabled = yaAgregada ? 'disabled' : '';
-            const rowClass = yaAgregada ? 'table-success' : '';
-            const badge = yaAgregada ? '<span class="badge badge-success"><i class="fas fa-check"></i> Agregada</span>' : '<span class="badge badge-light">Disponible</span>';
-
-            html += `
-                <tr class="${rowClass}">
-                    <td class="text-center">
-                        <input type="checkbox" class="check-factura-zona" ${checkDisabled}
-                               data-id="${f.id}"
-                               data-numero="${f.cai}"
-                               data-cliente="${(f.cliente || '').replace(/"/g, '&quot;')}"
-                               data-total="${f.total}"
-                               data-productos="${f.cantidad_productos || 0}">
-                    </td>
-                    <td>
-                        <strong>#${f.cai}</strong>
-                        <a href="javascript:void(0)" onclick="verDetalleFactura(${f.id})" class="ml-2 text-info" title="Ver detalle">
-                            <i class="fas fa-eye"></i>
-                        </a>
-                    </td>
-                    <td><small>${f.cliente}</small></td>
-                    <td><small>${f.municipio || '-'}</small></td>
-                    <td><small>${f.direccion_completa || '-'}</small></td>
-                    <td><small>${f.asesor_comercial || '-'}</small></td>
-                    <td><small>${f.gestor || '-'}</small></td>
-                    <td><small class="text-muted"><i class="fas fa-calendar"></i> ${f.fecha_emision}</small></td>
-                    <td class="text-center">
-                        <span class="badge badge-info">${f.cantidad_productos || 0} <i class="fas fa-box"></i></span>
-                    </td>
-                    <td class="text-center">${badge}</td>
-                </tr>`;
-        });
-
-        html += `
-                </tbody>
+                <tbody id="tbodyFacturasZona"></tbody>
             </table>
         </div>`;
 
         $('#listaFacturasZona').html(html);
+        renderFilasFacturasZona();
     }).fail(function () {
         $('#listaFacturasZona').html(`
             <div class="mb-0 alert alert-danger">
@@ -595,8 +721,190 @@ function verFacturasDeZona(zonaId, nombreZona) {
     });
 }
 
+function columnaFiltroHeaderZona(campo, etiqueta) {
+    const activo = filtrosColumnaZona[campo] ? 'text-primary' : 'text-muted';
+    return `${etiqueta} <a href="javascript:void(0)" class="filtro-columna-icono ${activo}" data-campo="${campo}" onclick="abrirFiltroColumnaZona('${campo}', this)" title="Filtrar"><i class="fas fa-filter"></i></a>`;
+}
+
+function renderFilasFacturasZona() {
+    const filtradas = facturasZonaCache.filter(f => {
+        return Object.keys(filtrosColumnaZona).every(campo => {
+            const valor = f[campo] || '(En blanco)';
+            return filtrosColumnaZona[campo].has(valor);
+        });
+    });
+
+    if (!filtradas.length) {
+        $('#tbodyFacturasZona').html('<tr><td colspan="10" class="text-center text-muted py-3">Ningún resultado coincide con los filtros aplicados.</td></tr>');
+        return;
+    }
+
+    let html = '';
+    filtradas.forEach(f => {
+        const yaAgregada = facturasSelTmp.find(fs => fs.id === f.id);
+        const checkDisabled = yaAgregada ? 'disabled' : '';
+        const rowClass = yaAgregada ? 'table-success' : '';
+        const badge = yaAgregada ? '<span class="badge badge-success"><i class="fas fa-check"></i> Agregada</span>' : '<span class="badge badge-light">Disponible</span>';
+
+        html += `
+            <tr class="${rowClass}">
+                <td class="text-center">
+                    <input type="checkbox" class="check-factura-zona" ${checkDisabled}
+                           data-id="${f.id}"
+                           data-numero="${f.cai}"
+                           data-cliente="${(f.cliente || '').replace(/"/g, '&quot;')}"
+                           data-total="${f.total}"
+                           data-productos="${f.cantidad_productos || 0}">
+                </td>
+                <td>
+                    <strong>#${f.cai}</strong>
+                    <a href="javascript:void(0)" onclick="verDetalleFactura(${f.id})" class="ml-2 text-info" title="Ver detalle">
+                        <i class="fas fa-eye"></i>
+                    </a>
+                </td>
+                <td><small>${f.cliente}</small></td>
+                <td><small>${f.municipio || '-'}</small></td>
+                <td>
+                    <small class="direccion-factura-texto" data-id="${f.id}">${f.direccion_completa || '-'}</small>
+                    <a href="javascript:void(0)" onclick="editarDireccionFactura(${f.id}, '${(f.direccion_completa || '').replace(/'/g, "\\'")}')" class="ml-1 text-warning" title="Editar dirección">
+                        <i class="fas fa-pencil-alt"></i>
+                    </a>
+                </td>
+                <td><small>${f.asesor_comercial || '-'}</small></td>
+                <td><small>${f.gestor || '-'}</small></td>
+                <td><small class="text-muted"><i class="fas fa-calendar"></i> ${f.fecha_emision}</small></td>
+                <td class="text-center">
+                    <span class="badge badge-info">${f.cantidad_productos || 0} <i class="fas fa-box"></i></span>
+                </td>
+                <td class="text-center">${badge}</td>
+            </tr>`;
+    });
+
+    $('#tbodyFacturasZona').html(html);
+}
+
+let filtroColumnaZonaAnchor = null;
+
+function abrirFiltroColumnaZona(campo, anchorEl) {
+    cerrarFiltroColumnaZona();
+
+    const valoresUnicos = [...new Set(facturasZonaCache.map(f => f[campo] || '(En blanco)'))].sort();
+    const seleccionActual = filtrosColumnaZona[campo] || new Set(valoresUnicos);
+
+    let html = `
+    <div id="dropdownFiltroZona" class="filtro-columna-dropdown position-fixed">
+        <div class="p-2 border-bottom">
+            <input type="text" class="form-control form-control-sm" placeholder="Buscar..." oninput="filtrarOpcionesDropdownZona(this.value)">
+        </div>
+        <div class="p-2 border-bottom">
+            <label class="d-block mb-0">
+                <input type="checkbox" class="chk-todo-filtro-zona" ${seleccionActual.size === valoresUnicos.length ? 'checked' : ''} onchange="toggleTodoFiltroZona(this.checked)">
+                (Seleccionar todo)
+            </label>
+        </div>
+        <div class="filtro-columna-opciones p-2">
+            ${valoresUnicos.map(v => `
+                <label class="d-block mb-1 opcion-filtro-zona" data-valor="${v.toLowerCase().replace(/"/g, '&quot;')}">
+                    <input type="checkbox" class="chk-opcion-filtro-zona" value="${v.replace(/"/g, '&quot;')}" ${seleccionActual.has(v) ? 'checked' : ''}> ${v}
+                </label>
+            `).join('')}
+        </div>
+        <div class="p-2 border-top d-flex justify-content-between">
+            <button type="button" class="btn btn-sm btn-secondary" onclick="cerrarFiltroColumnaZona()">Cancelar</button>
+            <button type="button" class="btn btn-sm btn-primary" onclick="aplicarFiltroColumnaZona('${campo}')">Aceptar</button>
+        </div>
+    </div>`;
+
+    $('body').append(html);
+    filtroColumnaZonaAnchor = anchorEl;
+    posicionarFiltroColumnaZona();
+
+    $(document).on('mousedown.filtroColumnaZona', function (e) {
+        if (!$(e.target).closest('#dropdownFiltroZona, .filtro-columna-icono').length) {
+            cerrarFiltroColumnaZona();
+        }
+    });
+    // Reubicar el dropdown (no cerrarlo) ante cualquier scroll, incluido el de
+    // contenedores internos como .table-responsive, para que quede "pegado" al icono.
+    window.addEventListener('scroll', posicionarFiltroColumnaZona, true);
+    window.addEventListener('resize', posicionarFiltroColumnaZona);
+}
+
+function posicionarFiltroColumnaZona() {
+    const dropdown = document.getElementById('dropdownFiltroZona');
+    if (!dropdown || !filtroColumnaZonaAnchor) return;
+    const rect = filtroColumnaZonaAnchor.getBoundingClientRect();
+    dropdown.style.top = (rect.bottom + 4) + 'px';
+    dropdown.style.left = rect.left + 'px';
+}
+
+function toggleTodoFiltroZona(checked) {
+    $('.opcion-filtro-zona:visible .chk-opcion-filtro-zona').prop('checked', checked);
+}
+
+function filtrarOpcionesDropdownZona(texto) {
+    const buscar = texto.toLowerCase();
+    $('.opcion-filtro-zona').each(function () {
+        $(this).toggle($(this).data('valor').toString().includes(buscar));
+    });
+}
+
+function aplicarFiltroColumnaZona(campo) {
+    const seleccionados = new Set();
+    $('.chk-opcion-filtro-zona:checked').each(function () { seleccionados.add($(this).val()); });
+    const totalOpciones = $('.chk-opcion-filtro-zona').length;
+
+    if (seleccionados.size === totalOpciones) {
+        delete filtrosColumnaZona[campo];
+    } else {
+        filtrosColumnaZona[campo] = seleccionados;
+    }
+
+    $(`.filtro-columna-icono[data-campo="${campo}"]`)
+        .toggleClass('text-primary', !!filtrosColumnaZona[campo])
+        .toggleClass('text-muted', !filtrosColumnaZona[campo]);
+
+    cerrarFiltroColumnaZona();
+    renderFilasFacturasZona();
+}
+
+function cerrarFiltroColumnaZona() {
+    $('#dropdownFiltroZona').remove();
+    $(document).off('mousedown.filtroColumnaZona');
+    window.removeEventListener('scroll', posicionarFiltroColumnaZona, true);
+    window.removeEventListener('resize', posicionarFiltroColumnaZona);
+    filtroColumnaZonaAnchor = null;
+}
+
 function seleccionarTodasFacturasZona(checked) {
     $('.check-factura-zona:not(:disabled)').prop('checked', checked);
+}
+
+function editarDireccionFactura(facturaId, direccionActual) {
+    Swal.fire({
+        title: 'Editar dirección de entrega',
+        input: 'textarea',
+        inputValue: direccionActual || '',
+        inputPlaceholder: 'Dirección de entrega (esta es la que viajará a la carta de entrega)',
+        showCancelButton: true,
+        confirmButtonText: 'Guardar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#28a745'
+    }).then(result => {
+        if (!result.isConfirmed) return;
+        $.ajax({
+            url: "{{ route('logistica.facturas.actualizarDireccion') }}",
+            method: 'POST',
+            data: JSON.stringify({ factura_id: facturaId, direccion_entrega: result.value }),
+            contentType: 'application/json',
+            headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+        }).done(r => {
+            $(`.direccion-factura-texto[data-id="${facturaId}"]`).text(result.value || '-');
+            toastr.success(r.text || 'Dirección actualizada', 'Éxito', { positionClass: 'toast-top-right', timeOut: 2000 });
+        }).fail(x => {
+            Swal.fire({ icon: 'error', title: 'Error', text: x.responseJSON?.text || 'No se pudo actualizar la dirección.' });
+        });
+    });
 }
 
 function toggleSeleccionarTodasZona() {
@@ -898,6 +1206,7 @@ function actualizarPreviewFacturas() {
         totalProductos += parseInt(f.cantidadProductos || 0);
     });
     $('#totalProductosDistribuir').text(totalProductos);
+    actualizarResumenVentaMaxima();
     
     if (total === 0) {
         $('#mensajeVacioPreview').show();
@@ -942,7 +1251,13 @@ function removerFactura(index) {
     });
 }
 
+let guardandoDistribucion = false;
+let ventaMaximaAdvertida = false;
+let ventaMaximaConfirmando = false;
+
 function guardarDistribucion() {
+    if (guardandoDistribucion || ventaMaximaConfirmando) return;
+
     if (!facturasSelTmp.length) {
         Swal.fire({
             icon: 'warning',
@@ -956,6 +1271,7 @@ function guardarDistribucion() {
     const equipoId = $('select[name="equipo_entrega_id"]').val();
     const fechaProgramada = $('input[name="fecha_programada"]').val();
     const observaciones = $('textarea[name="observaciones"]').val();
+    const personal = $('#selectPersonalDistribucion').val() || [];
     
     if (!equipoId) {
         Swal.fire({
@@ -976,16 +1292,67 @@ function guardarDistribucion() {
         });
         return;
     }
+
+    if (!personal.length) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Personal requerido',
+            text: 'Debe asignar al menos un encargado de la distribución',
+            confirmButtonColor: '#28a745'
+        });
+        return;
+    }
+
+    const personalConPorcentaje = personal.map(id => ({
+        user_id: parseInt(id, 10),
+        porcentaje: parseFloat(personalPorcentajes[id]) || 0,
+    }));
+    const totalPorcentaje = Math.round(personalConPorcentaje.reduce((sum, p) => sum + p.porcentaje, 0) * 100) / 100;
+
+    if (Math.abs(totalPorcentaje - 100) >= 0.01) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Porcentajes incompletos',
+            text: `La suma de los porcentajes del personal encargado debe ser exactamente 100%. Actualmente es ${totalPorcentaje}%.`,
+            confirmButtonColor: '#28a745'
+        });
+        return;
+    }
     
     const data = {
         equipo_entrega_id: equipoId,
         fecha_programada: fechaProgramada,
         observaciones: observaciones,
+        personal: personalConPorcentaje,
         facturas: facturasSelTmp.map(f => f.id),
         editar_id: $('#editarDistribucionId').val() || null,
     };
+
+    const equipoZona = parametrosEquipoZona.find(item => String(item.equipo_entrega_id) === String(equipoId) && zonaSeleccionada && String(item.zone_group_id) === String(zonaSeleccionada.id));
+    const ventaRequerida = equipoZona ? (parseFloat(equipoZona.monto_minimo_venta) || 0) : 0;
+    const ventaSeleccionada = facturasSelTmp.reduce((sum, factura) => sum + (parseFloat(factura.total) || 0), 0);
+    const ventaFaltante = ventaRequerida - ventaSeleccionada;
+    if (ventaFaltante > 0.005 && !ventaMaximaAdvertida) {
+        ventaMaximaConfirmando = true;
+        Swal.fire({
+            icon: 'info',
+            title: 'Meta de venta pendiente',
+            text: `Al equipo le faltan L ${ventaFaltante.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})} de venta para cumplir con la meta de la zona. ¿Desea continuar?`,
+            showCancelButton: true,
+            confirmButtonText: 'Sí, continuar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#0f766e'
+        }).then(function(resultado) {
+            ventaMaximaConfirmando = false;
+            if (resultado.isConfirmed) { ventaMaximaAdvertida = true; guardarDistribucion(); }
+        });
+        return;
+    }
+    ventaMaximaAdvertida = false;
     
     console.log('Datos a enviar:', data);
+
+    guardandoDistribucion = true;
 
     // Verificar disponibilidad de facturas antes de guardar
     const facturaIds = data.facturas;
@@ -1007,6 +1374,7 @@ function guardarDistribucion() {
                            <p style="margin-top:10px">Elimínelas del carrito para poder continuar.</p>`,
                     confirmButtonColor: '#f0ad4e'
                 });
+                guardandoDistribucion = false;
                 return;
             }
             _enviarGuardarDistribucion(data);
@@ -1019,6 +1387,7 @@ function guardarDistribucion() {
 }
 
 function _enviarGuardarDistribucion(data) {
+    const $btnGuardar = $('button[onclick="guardarDistribucion()"]').prop('disabled', true);
     $.ajax({
         url: '/logistica/distribuciones/guardar',
         type: 'POST',
@@ -1035,6 +1404,7 @@ function _enviarGuardarDistribucion(data) {
                 .data('distribucion-id', r.distribucion_id)
                 .data('pedido-id', r.pedido_id || null)
                 .modal('show');
+            resetFormularioDistribucion();
         },
         error: function(xhr, status, error) {
             console.error('Error AJAX:', {xhr, status, error});
@@ -1045,8 +1415,31 @@ function _enviarGuardarDistribucion(data) {
                 text: xhr.responseJSON?.text || 'Error al guardar la distribución',
                 confirmButtonColor: '#dc3545'
             });
+        },
+        complete: function() {
+            $btnGuardar.prop('disabled', false);
+            guardandoDistribucion = false;
         }
     });
+}
+
+// Limpia el formulario y refresca las facturas pendientes por zona/búsqueda
+// para que una factura recién asignada deje de aparecer como disponible.
+function resetFormularioDistribucion() {
+    facturasSelTmp = [];
+    clienteSeleccionado = null;
+    personalPorcentajes = {};
+    personalPorcentajesManual = {};
+    $('#editarDistribucionId').val('');
+    $('select[name="equipo_entrega_id"]').val('');
+    $('input[name="fecha_programada"]').val('{{ date('Y-m-d') }}');
+    $('textarea[name="observaciones"]').val('');
+    $('#selectPersonalDistribucion').val([]).trigger('change');
+    actualizarPreviewFacturas();
+    limpiarZonaSeleccionada();
+    limpiarBusquedaFactura();
+    limpiarBusquedaCliente();
+    cargarZonasParaBusqueda();
 }
 
 // ========== ACCIONES DISTRIBUCIÓN ==========
@@ -1058,7 +1451,7 @@ function distribuccionAccion(accion) {
         const pedidoId = $('#modalExitoDistribucion').data('pedido-id');
         $('#modalExitoDistribucion').modal('hide');
         if (pedidoId) {
-            Livewire.emit('abrirFlujoPedido', parseInt(pedidoId), 'entrega');
+            Livewire.dispatch('abrirFlujoPedido', { pedidoId: parseInt(pedidoId), pasoInicial: 'entrega' });
         } else {
             // Sin pedido vinculado, abrir detalle de distribución
             window.location.href = `/logistica/distribuciones?ver=${distribucionId}`;
@@ -1072,6 +1465,21 @@ function distribuccionAccion(accion) {
 
 // Inicialización cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', function() {
+
+// ========== SELECT2: Personal Encargado de la Distribución ==========
+$('#selectPersonalDistribucion').select2({
+    placeholder: '-- Seleccione el personal encargado --',
+    width: '100%',
+}).on('change', function() {
+    actualizarListaPorcentajesPersonal();
+});
+
+$(document).on('input', '.input-porcentaje-personal', function() {
+    const id = String($(this).data('id'));
+    personalPorcentajesManual[id] = true;
+    personalPorcentajes[id] = parseFloat($(this).val()) || 0;
+    actualizarTotalPorcentajePersonal();
+});
 
 // ========== CARGA INICIAL: pestaña "Facturas por Zona" ==========
 cargarZonasParaBusqueda();
@@ -1091,6 +1499,13 @@ cargarZonasParaBusqueda();
         $('select[name="equipo_entrega_id"]').val(d.equipo_entrega_id);
         $('input[name="fecha_programada"]').val(d.fecha_programada);
         $('textarea[name="observaciones"]').val(d.observaciones || '');
+        personalPorcentajes = {};
+        personalPorcentajesManual = {};
+        (d.personal || []).forEach(p => {
+            personalPorcentajes[String(p.user_id)] = parseFloat(p.porcentaje_comision) || 0;
+            personalPorcentajesManual[String(p.user_id)] = true;
+        });
+        $('#selectPersonalDistribucion').val((d.personal || []).map(p => String(p.user_id))).trigger('change');
 
         // Cargar facturas
         facturasSelTmp = d.facturas.map(f => ({
@@ -1341,6 +1756,19 @@ function mostrarFacturasCliente(facturas, nombreCliente) {
     });
     $('#listaFacturasCliente').html(html);
 }
+
+$(document).on('change', 'select[name="equipo_entrega_id"]', actualizarResumenVentaMaxima);
+$(document).on('change', 'select[name="equipo_entrega_id"]', function() { ventaMaximaAdvertida = false; });
+
+if ($('#zonasCardsWrap').length) {
+    cargarZonasParaBusqueda();
+}
+let intentosCargaZonas = 0;
+const sincronizadorZonas = setInterval(function() {
+    const pendientes = $('#zonasCardsWrap .badge-secondary').filter(function() { return $(this).text().indexOf('Cargando') !== -1; }).length;
+    if (!pendientes || intentosCargaZonas++ >= 12) { clearInterval(sincronizadorZonas); return; }
+    cargarZonasParaBusqueda();
+}, 700);
 
 }); // END DOMContentLoaded
 </script>

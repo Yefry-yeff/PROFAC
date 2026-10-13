@@ -3,6 +3,7 @@
 namespace App\Services\Expo;
 
 use App\Models\CreditoRevision;
+use App\Support\FacturasFlujo;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -16,6 +17,12 @@ class SeccionadorOfertaExpo
         int $usuarioId
     ): void {
         DB::transaction(function () use ($flujoId, $cotizacionId, $usuarioId) {
+            if (FacturasFlujo::tieneVigentes($flujoId)) {
+                throw ValidationException::withMessages([
+                    'oferta' => 'Debe anular todas las facturas del flujo antes de cambiar la oferta ganadora.',
+                ]);
+            }
+
             $esExpo = DB::table('expo_cotizacion')->where('cotizacion_id', $cotizacionId)->exists();
             $oferta = DB::table('historico_flujo')
                 ->where('flujo_id', $flujoId)
@@ -338,9 +345,9 @@ class SeccionadorOfertaExpo
             $comentarioCredito
         ) {
             $seccion = DB::table('expo_oferta_seccion')->where('id', $seccionId)->lockForUpdate()->first();
-            if (!$seccion || !in_array($seccion->estado, ['RECHAZADA_CREDITO', 'DEVUELTA_INVENTARIO'], true)) {
+            if (!$seccion || !in_array($seccion->estado, ['RECHAZADA_CREDITO', 'DEVUELTA_INVENTARIO', 'DEVUELTA_SECCION'], true)) {
                 throw ValidationException::withMessages([
-                    'seccion' => 'Sólo puede editar una sección rechazada por Crédito o devuelta por Inventario.',
+                    'seccion' => 'Sólo puede editar una sección devuelta desde Crédito, Inventario o Prefactura.',
                 ]);
             }
 
@@ -538,7 +545,7 @@ class SeccionadorOfertaExpo
                     ->where('origen.cotizacion_id', '=', $cotizacionOrigenId);
             })
             ->where('eos.cotizacion_origen_id', $cotizacionOrigenId)
-            ->whereNotIn('eos.estado', ['ANULADA', 'RECHAZADA_CREDITO', 'DEVUELTA_INVENTARIO'])
+            ->whereNotIn('eos.estado', ['ANULADA', 'RECHAZADA_CREDITO', 'DEVUELTA_INVENTARIO', 'DEVUELTA_SECCION'])
             ->groupBy('origen.id')
             ->selectRaw('origen.id, SUM(hija.cantidad) as cantidad')
             ->pluck('cantidad', 'id')

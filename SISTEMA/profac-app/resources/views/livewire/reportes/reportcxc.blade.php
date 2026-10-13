@@ -1,4 +1,5 @@
 <div>
+<div>
     <style>
         tfoot input {
             width: 100%;
@@ -65,8 +66,8 @@
                                         <th>VENDEDOR</th>
                                         <th>FACTURA</th>
                                         <th>CLIENTE</th>
-                                        <th>TIPO CLIENTE (AoB)</th>
-                                        <th>TIPO CRÉDITO/CONTADO</th>
+                                        <th>TIPO CLIENTE AoB</th>
+                                        <th>TIPO CRÉDITO o CONTADO</th>
                                         <th>CODIGO PRODUCTO</th>
                                         <th>PRODUCTO</th>
                                         <th>MARCA</th>
@@ -93,8 +94,8 @@
                                             <th>VENDEDOR</th>
                                             <th>FACTURA</th>
                                             <th>CLIENTE</th>
-                                            <th>TIPO CLIENTE (AoB)</th>
-                                            <th>TIPO CRÉDITO/CONTADO</th>
+                                            <th>TIPO CLIENTE AoB</th>
+                                            <th>TIPO CRÉDITO o CONTADO</th>
                                             <th>CODIGO PRODUCTO</th>
                                             <th>PRODUCTO</th>
                                             <th>MARCA</th>
@@ -241,7 +242,7 @@
                                 <thead class="">
                                     <tr>
                                         <th>CODIGO</th>
-                                        <th>TIPO CLIENTE (AoB)</th>
+                                        <th>TIPO CLIENTE AoB</th>
                                         <th>CLIENTE</th>
                                         <th>DIRECCION</th>
                                         <th>TELEFONO</th>
@@ -255,7 +256,7 @@
                                     <tfoot>
                                         <tr>
                                             <th>CODIGO</th>
-                                            <th>TIPO CLIENTE (AoB)</th>
+                                            <th>TIPO CLIENTE AoB</th>
                                             <th>CLIENTE</th>
                                             <th>DIRECCION</th>
                                             <th>TELEFONO</th>
@@ -314,8 +315,8 @@
                 {data: 'VENDEDOR'},
                 {data: 'FACTURA'},
                 {data: 'CLIENTE'},
-                {data: 'TIPO CLIENTE (AoB)'},
-                {data: 'TIPO CRÉDITO/CONTADO'},
+                {data: 'TIPO CLIENTE AoB'},
+                {data: 'TIPO CRÉDITO o CONTADO'},
                 {data: 'CODIGO PRODUCTO'},
                 {data: 'PRODUCTO'},
                 {data: 'MARCA'},
@@ -461,7 +462,7 @@
             "columns": [
 
                 {data: 'CODIGO'},
-                {data: 'TIPO CLIENTE (AoB)'},
+                {data: 'TIPO CLIENTE AoB'},
                 {data: 'CLIENTE'},
                 {data: 'DIRECCION'},
                 {data: 'TELEFONO'},
@@ -540,3 +541,4 @@
     <strong>Copyright</strong> Distribuciones Valencia &copy; <?php echo "$year";  ?>
 </div>
 <p id="reloj"></p>
+</div>

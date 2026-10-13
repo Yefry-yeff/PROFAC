@@ -1,0 +1,254 @@
+<?php
+
+namespace App\Livewire\Ventas;
+
+
+use Livewire\Component;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Auth;
+use Validator;
+use Illuminate\Database\QueryException;
+use Throwable;
+use DataTables;
+use Barryvdh\DomPDF\Facade\Pdf;
+
+
+class ListadoFacturasAnuladas extends Component
+{
+    public $tipoFactura;
+
+    public function mount($id)
+    {
+
+        $this->tipoFactura = $id;
+    }
+
+    public function render()
+
+    {
+        $tipoFactura = $this->tipoFactura;
+        $nombreTipo = "";
+        $idTipoVenta = null;
+
+        switch ($tipoFactura) {
+            case "corporativo":
+                $nombreTipo = 'Cliente B';
+                $idTipoVenta = 1;
+                break;
+            case 'estatal':
+                $nombreTipo = 'Cliente A';
+                $idTipoVenta = 2;
+                break;
+            case 'exonerado':
+                $nombreTipo = 'Cliente Exonerado';
+                $idTipoVenta = 3;
+                break;
+
+
+        }
+
+        return view('livewire.ventas.listado-facturas-anuladas',compact('nombreTipo','idTipoVenta'));
+    }
+
+    public function listarFacturas(Request $request)
+    {
+        try {
+            return Datatables::of($this->obtenerFacturas($request))
+                ->addColumn('opciones', function ($listaFacturas) {
+
+                    if($listaFacturas->tipo_venta_id==3){
+                        return
+
+                        '<div class="btn-group">
+                            <button data-toggle="dropdown" class="btn btn-warning dropdown-toggle" aria-expanded="false">Ver
+                                más</button>
+                            <ul class="dropdown-menu" x-placement="bottom-start" style="position: absolute; top: 33px; left: 0px; will-change: top, left;">
+
+                                <li>
+                                    <a class="dropdown-item" href="/detalle/venta/'.$listaFacturas->id.'" > <i class="fa-solid fa-arrows-to-eye text-info"></i> Detalle de venta </a>
+                                </li>
+
+
+
+                                <li>
+                                <a class="dropdown-item" target="_blank"  href="/exonerado/factura/'.$listaFacturas->id.'"> <i class="fa-solid fa-print text-success"></i> Imprimir Factura </a>
+                                </li>
+                                <li>
+                                <a class="dropdown-item" target="_blank"  onclick="detallesDeAnulacion('.$listaFacturas->id.')"> <i class="fa-solid fa-magnifying-glass-plus text-warning"></i> Detalle de Anulación </a>
+                                </li>
+
+
+                            </ul>
+                        </div>';
+                    }else{
+                        return
+
+                        '<div class="btn-group">
+                            <button data-toggle="dropdown" class="btn btn-warning dropdown-toggle" aria-expanded="false">Ver
+                                más</button>
+                            <ul class="dropdown-menu" x-placement="bottom-start" style="position: absolute; top: 33px; left: 0px; will-change: top, left;">
+
+                                <li>
+                                    <a class="dropdown-item" href="/detalle/venta/'.$listaFacturas->id.'" > <i class="fa-solid fa-arrows-to-eye text-info"></i> Detalle de venta </a>
+                                </li>
+
+
+
+                                <li>
+                                <a class="dropdown-item" target="_blank"  href="/factura/cooporativo/'.$listaFacturas->id.'"> <i class="fa-solid fa-print text-success"></i> Imprimir Factura </a>
+                                </li>
+                                <li>
+                                <a class="dropdown-item" target="_blank"  onclick="detallesDeAnulacion('.$listaFacturas->id.')"> <i class="fa-solid fa-magnifying-glass-plus text-warning"></i> Detalle de Anulación </a>
+                                </li>
+
+
+                            </ul>
+                        </div>';
+                    }
+                })
+                ->addColumn('estado_cobro', function () {
+                    return '<p class="text-center"><span class="badge badge-danger p-2" style="font-size:0.75rem">Anulado</span></p>';
+                })
+                ->rawColumns(['opciones','estado_cobro'])
+                ->make(true);
+
+        } catch (QueryException $e) {
+            return response()->json([
+                'message' => 'Ha ocurrido un error al listar las compras.',
+                'errorTh' => $e,
+            ], 402);
+        }
+    }
+
+    public function exportarPdf(Request $request)
+    {
+        $request->validate([
+            'idTipo' => 'required|integer|in:1,2,3',
+            'filtroDesde' => 'nullable|date',
+            'filtroHasta' => 'nullable|date|after_or_equal:filtroDesde',
+        ]);
+
+        $facturas = $this->obtenerFacturas($request);
+        $nombresTipo = [1 => 'Clientes B', 2 => 'Clientes A', 3 => 'Exoneradas'];
+        $nombreTipo = $nombresTipo[(int) $request->idTipo] ?? 'Facturas';
+        $filtros = [
+            'desde' => $request->input('filtroDesde'),
+            'hasta' => $request->input('filtroHasta'),
+            'cai' => trim($request->input('filtroCai', '')),
+            'cliente' => trim($request->input('filtroCliente', '')),
+            'vendedor' => trim($request->input('filtroVendedor', '')),
+            'facturador' => trim($request->input('filtroFacturador', '')),
+        ];
+
+        return Pdf::loadView('pdf.facturas-anuladas', compact('facturas', 'nombreTipo', 'filtros'))
+            ->setPaper('legal', 'landscape')
+            ->download('Facturas_Anuladas_' . now()->format('Y-m-d_H-i') . '.pdf');
+    }
+
+    private function obtenerFacturas(Request $request): array
+    {
+
+            $filtroCai        = trim($request->input('filtroCai', ''));
+            $filtroCliente    = trim($request->input('filtroCliente', ''));
+            $filtroVendedor   = trim($request->input('filtroVendedor', ''));
+            $filtroFacturador = trim($request->input('filtroFacturador', ''));
+            $filtroDesde      = trim($request->input('filtroDesde', ''));
+            $filtroHasta      = trim($request->input('filtroHasta', ''));
+            $whereExtra = '';
+            $bindings   = [(int) $request->idTipo];
+            if ($filtroCai !== '') {
+                $whereExtra .= ' AND factura.cai LIKE ? ';
+                $bindings[] = "%{$filtroCai}%";
+            }
+            if ($filtroCliente !== '') {
+                $whereExtra .= ' AND factura.nombre_cliente LIKE ? ';
+                $bindings[] = "%{$filtroCliente}%";
+            }
+            if ($filtroVendedor !== '') {
+                $whereExtra .= ' AND users.name LIKE ? ';
+                $bindings[] = "%{$filtroVendedor}%";
+            }
+            if ($filtroFacturador !== '') {
+                $whereExtra .= ' AND (SELECT name FROM users WHERE id = factura.users_id) LIKE ? ';
+                $bindings[] = "%{$filtroFacturador}%";
+            }
+            if ($filtroDesde !== '' && $filtroHasta !== '') {
+                $whereExtra .= ' AND DATE(factura.created_at) BETWEEN ? AND ? ';
+                $bindings[] = $filtroDesde;
+                $bindings[] = $filtroHasta;
+            } elseif ($filtroDesde !== '') {
+                $whereExtra .= ' AND DATE(factura.created_at) >= ? ';
+                $bindings[] = $filtroDesde;
+            } elseif ($filtroHasta !== '') {
+                $whereExtra .= ' AND DATE(factura.created_at) <= ? ';
+                $bindings[] = $filtroHasta;
+            }
+
+            return DB::select("
+            select
+                factura.id as id,
+                @i := @i + 1 as contador,
+                numero_factura,
+                cai,
+                fecha_emision,
+                factura.nombre_cliente as nombre,
+                tipo_pago_venta.descripcion,
+                fecha_vencimiento,
+                format(sub_total,2) as sub_total,
+                format(isv,2) as isv,
+                format(total,2) as total,
+                factura.credito,
+            users.name as vendedor,
+            (select name from users where id = factura.users_id) as facturador,
+                (select if(sum(monto) is null,0,sum(monto)) from pago_venta where estado_venta_id = 1   and factura_id = factura.id ) as monto_pagado,
+                factura.estado_venta_id,
+                factura.tipo_venta_id,
+                factura.created_at as fecha_registro
+            from factura
+                inner join cliente
+                on factura.cliente_id = cliente.id
+                inner join tipo_pago_venta
+                on factura.tipo_pago_id = tipo_pago_venta.id
+                inner join users
+                on factura.vendedor = users.id
+                cross join (select @i := 0) r
+            where ( YEAR(factura.created_at) >= (YEAR(NOW())-2) ) and estado_venta_id=2
+              and (factura.tipo_venta_id = ?) {$whereExtra}
+            order by factura.created_at desc
+            ", $bindings);
+    }
+
+    public function detalleFacturaAnulada(Request $request){
+        try {
+
+            $datos = DB::SELECTONE("
+            select
+            A.cai,
+            A.id as codigo_factura,
+            B.motivo,
+            CONCAT(users.name,' en fecha ',B.created_at) as usuario
+            from factura A
+            inner join log_estado_factura B
+            on A.id = B.factura_id
+            inner join users
+            ON users.id = B.users_id
+            where A.id =".$request->id
+        );
+
+
+        return response()->json([
+            'datos' => $datos,
+
+        ],200);
+        } catch (QueryException $e) {
+        return response()->json([
+            'icon' => 'error',
+            'text' => 'Ha ocurrido un error al obtener los detalles de la anulacion',
+            'title' => 'Error!',
+            'message' => 'Ha ocurrido un error',
+            'error' => $e,
+        ],402);
+        }
+    }
+}

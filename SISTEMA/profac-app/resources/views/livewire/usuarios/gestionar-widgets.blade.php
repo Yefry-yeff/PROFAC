@@ -129,7 +129,7 @@
                     <div class="form-group">
                         <label style="font-size:13px; font-weight:600;">Nombre del widget <span class="text-danger">*</span></label>
                         <input type="text" class="form-control form-control-sm @error('fTitle') is-invalid @enderror"
-                               wire:model.lazy="fTitle"
+                               wire:model.live.blur="fTitle"
                                placeholder="Ej: Ventas del Mes">
                         @error('fTitle')<div class="invalid-feedback" style="display:block; font-size:12px;">{{ $message }}</div>@enderror
                     </div>
@@ -138,7 +138,7 @@
                     <div class="form-group">
                         <label style="font-size:13px; font-weight:600;">Tipo de widget <span class="text-danger">*</span></label>
                         <select class="form-control form-control-sm @error('fWidgetType') is-invalid @enderror"
-                                wire:model="fWidgetType">
+                                wire:model.live="fWidgetType">
                             @foreach($widgetTypes as $typeKey => $typeLabel)
                             <option value="{{ $typeKey }}">{{ $typeLabel }}</option>
                             @endforeach
@@ -154,12 +154,12 @@
                         <div class="row" style="margin-top:8px;">
                             <div class="col-6">
                                 <label style="font-size:12px;">Stock mínimo (umbral)</label>
-                                <input type="number" class="form-control form-control-sm" wire:model.lazy="fStockMinimo" min="0">
+                                <input type="number" class="form-control form-control-sm" wire:model.live.blur="fStockMinimo" min="0">
                                 <small class="text-muted">Mostrar productos con stock ≤ este valor</small>
                             </div>
                             <div class="col-6">
                                 <label style="font-size:12px;">Límite de filas</label>
-                                <input type="number" class="form-control form-control-sm" wire:model.lazy="fStockLimite" min="1" max="100">
+                                <input type="number" class="form-control form-control-sm" wire:model.live.blur="fStockLimite" min="1" max="100">
                                 <small class="text-muted">Máximo de productos a mostrar</small>
                             </div>
                         </div>
@@ -174,7 +174,7 @@
                                 <div class="input-group input-group-sm">
                                     <span class="input-group-addon"><i class="fa {{ $fIcon ?: 'fa-question' }}"></i></span>
                                     <input type="text" class="form-control @error('fIcon') is-invalid @enderror"
-                                           wire:model.lazy="fIcon"
+                                           wire:model.live.blur="fIcon"
                                            placeholder="fa-bar-chart">
                                 </div>
                                 @error('fIcon')<div class="text-danger" style="font-size:12px;">{{ $message }}</div>@enderror
@@ -185,9 +185,9 @@
                             <div class="form-group">
                                 <label style="font-size:13px; font-weight:600;">Color</label>
                                 <div class="d-flex align-items-center" style="gap:6px;">
-                                    <input type="color" class="form-control form-control-sm" wire:model="fColor"
+                                    <input type="color" class="form-control form-control-sm" wire:model.live="fColor"
                                            style="height:34px; width:50px; padding:2px; cursor:pointer;">
-                                    <input type="text" class="form-control form-control-sm" wire:model.lazy="fColor"
+                                    <input type="text" class="form-control form-control-sm" wire:model.live.blur="fColor"
                                            placeholder="#1ab394" style="width:90px;">
                                 </div>
                             </div>
@@ -195,7 +195,7 @@
                         <div class="col-3">
                             <div class="form-group">
                                 <label style="font-size:13px; font-weight:600;">Orden</label>
-                                <input type="number" class="form-control form-control-sm" wire:model.lazy="fSortOrder" min="0">
+                                <input type="number" class="form-control form-control-sm" wire:model.live.blur="fSortOrder" min="0">
                             </div>
                         </div>
                     </div>
@@ -203,7 +203,7 @@
                     {{-- Activo --}}
                     <div class="form-group">
                         <label class="d-flex align-items-center" style="font-size:13px; gap:8px; cursor:pointer;">
-                            <input type="checkbox" wire:model="fEnabled" style="width:16px; height:16px;">
+                            <input type="checkbox" wire:model.live="fEnabled" style="width:16px; height:16px;">
                             <span style="font-weight:600;">Widget activo (visible en el dashboard)</span>
                         </label>
                     </div>
@@ -219,7 +219,7 @@
                             <label class="d-flex align-items-center mb-1" style="font-size:13px; cursor:pointer; gap:8px; padding:3px 6px; border-radius:3px;"
                                    onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='transparent'">
                                 <input type="checkbox"
-                                       wire:model="fRolesCheck.{{ $rol->id }}"
+                                       wire:model.live="fRolesCheck.{{ $rol->id }}"
                                        style="width:15px; height:15px;">
                                 {{ $rol->nombre }}
                             </label>
@@ -248,7 +248,7 @@
     function confirmarEliminar(id, nombre) {
         if (typeof Swal === 'undefined') {
             if (confirm('¿Eliminar el widget "' + nombre + '"? Esta acción no se puede deshacer.')) {
-                window.livewire.find(document.querySelector('[wire\\:id]').getAttribute('wire:id')).call('eliminar', id);
+                window.Livewire.find(document.querySelector('[wire\\:id]').getAttribute('wire:id')).call('eliminar', id);
             }
             return;
         }
@@ -265,7 +265,7 @@
             if (result.isConfirmed) {
                 var lw = document.querySelector('[wire\\:id]');
                 if (lw) {
-                    window.livewire.find(lw.getAttribute('wire:id')).call('eliminar', id);
+                    window.Livewire.find(lw.getAttribute('wire:id')).call('eliminar', id);
                 }
             }
         });

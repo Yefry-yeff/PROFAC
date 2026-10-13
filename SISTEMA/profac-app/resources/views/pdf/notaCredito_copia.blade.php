@@ -5,26 +5,18 @@
 
 
         <link rel="stylesheet" href="{{ public_path('css/bootstrap.min.css') }}">
+    @include('pdf.partials.legacy-layout')
     <style>
-        .color-red {
-            color: red;
-        }
-
-        p {
-            font-size: 12px;
-        }
-
-        body {
-            margin: -45px;
-            padding: 0px;
-            /* background-image: url('img/membrete/membrete2.jpg'); */
-
-            background-size: 200% 200%;
-            background-size: cover;
-
-            width: 115% !important;
-
-        }
+        @page { margin: 28px; }
+        .color-red { color: red; }
+        p { font-size: 10px; }
+        body { margin: 0; padding: 0; width: 100%; }
+        .pruebaFondo { width: 100%; }
+        .nota-logo { display:block; width:100%; margin-bottom:12px; }
+        .nota-ancho { width:100% !important; margin-left:0 !important; }
+        .nota-resumen { position:relative !important; margin-left:0 !important; width:100% !important; min-height:250px; }
+        .nota-resumen-notas { left:0 !important; width:57% !important; }
+        .nota-resumen-totales { left:auto !important; right:0 !important; width:41% !important; }
 
         table {
         border-collapse: collapse;
@@ -63,60 +55,32 @@
 
 
     <div class="pruebaFondo">
-        <img src="{{ public_path('img/membrete/Logo3.png') }}" width="800rem"
-        style="margin-left:3%; margin-top:25px; position:absolute;"
-         alt="">
+        <img src="{{ public_path('img/membrete/Logo3.png') }}" class="nota-logo" alt="">
 
-        <b style="position:absolute;right: 100px; top:50px;" >*Copia*</b>
-        <div class="card border border-dark" style="margin-left:44px;  margin-top:150px; width:45rem; height:5.5rem;">
+        <b style="display:block; text-align:right; margin-bottom:8px;" >*Copia*</b>
+        <div class="card border border-dark nota-ancho">
             <div class="card-header">
                 <b>Nota de Credito No. {{$cai->nota_credito_cai}}</b>
                 <b style="position:absolute;right: 10px" >Factura No. {{$cai->factura}}</b>
 
             </div>
 
-            <div class="card-body">
-                <p class="card-text" style="position:absolute;left:20px;  top:50px;"><b>Registro tributario:
-                        08011986138652</b></p>
-                <p class="card-text" style="position:absolute;left:420px;  top:50px;"><b>CAI: {{$cai->cai}}
-                        </b></p>
-                <p class="card-text" style="position:absolute;left:20px;  top:65px;"><b>Fecha límite de emisión: {{$cai->fecha_limite_emision}} </b></p>
-                <p class="card-text" style="position:absolute;left:340px;  top:65px;"><b>Rango autorizado: {{$cai->numero_inicial}} - {{$cai->numero_final}}</b></p>
+            <div class="card-body" style="padding:4px 10px;">
+                <table style="width:100%; border:none; border-collapse:collapse; font-size:10px;">
+                    <tr><td style="border:none; padding:1px 0;"><b>Registro tributario: 08011986138652</b></td><td style="border:none; padding:1px 0; text-align:right;"><b>CAI: {{ $cai->cai }}</b></td></tr>
+                    <tr><td style="border:none; padding:1px 0;"><b>Fecha límite de emisión: {{ $cai->fecha_limite_emision }}</b></td><td style="border:none; padding:1px 0; text-align:right;"><b>Rango autorizado: {{ $cai->numero_inicial }} - {{ $cai->numero_final }}</b></td></tr>
+                </table>
             </div>
         </div>
 
-        <div class="card border border-dark"   style="margin-left:44px; margin-top:10px; width:45rem; height:10.5rem;">
-            <div class="card-body">
-                <p class="card-text" style="position:absolute;left:20px;  top:10px;"><b>Cliente: </b>{{$cliente->nombre}}</p>
-                <p class="card-text" style="position:absolute;left:20px;  top:29px;font-size: 9px; max-width:500px"><b>Dirección:</b> {{$cliente->direccion}}</p>
-
-                <p class="card-text" style="position:absolute;left:20px;  top:47px;"><b>Correo:</b> {{$cliente->correo}}
-                </p>
-                <p class="card-text" style="position:absolute;left:20px;  top:70px;"><b>Notas:</b> {{ $notas }}</p>
-
-
-                <p class="card-text "  style="position:absolute;left:20px;  top:120px;"><b>Correlativo de Ord. exenta</b>
-                </p>
-                <p class="card-text" style="position:absolute;left:250px;  top:120px;"><b>Constancia de registro
-                        exonerado</b></p>
-                <p class="card-text" style="position:absolute;left:500px;  top:120px;"><b>Identificativo del registro de
-                        la SAG</b></p>
-
-
-                <p class="card-text" style="position:absolute;left:520px;  top:10px;"><b>Fecha:</b> {{$cai->fecha_emision}}</p>
-                <p class="card-text" style="position:absolute;left:520px;  top:25px;"><b>Hora:</b> {{$cai->hora}}</p>
-                <p class="card-text" style="position:absolute;left:520px;  top:40px;"><b>Vence:</b> {{$cai->fecha_vencimiento}}</p>
-                <p class="card-text" style="position:absolute;left:520px;  top:57px;"><b>RTN:</b> {{$cliente->rtn}}</p>
-                </p>
-
-
-
-                <p class="card-text" style="position:absolute;left:270px;  top:45px;"><b>Teléfono:</b> {{$cliente->telefono_empresa}}
-                </p>
+        <div class="card border border-dark nota-ancho" style="margin-top:4px;">
+            <div class="card-body" style="padding:4px 10px;">
+                <table style="width:100%; border:none; border-collapse:collapse; font-size:10px;"><tr><td style="width:58%; vertical-align:top; padding:0; border:none;"><p style="margin:0 0 2px;"><b>Cliente:</b> {{ $cliente->nombre }}</p><p style="margin:0 0 2px;"><b>Dirección:</b> {{ $cliente->direccion }}</p><p style="margin:0 0 2px;"><b>Correo:</b> {{ $cliente->correo }} &nbsp;&nbsp; <b>Teléfono:</b> {{ $cliente->telefono_empresa }}</p><p style="margin:0;"><b>Notas:</b> {{ $notas }}</p></td><td style="width:42%; vertical-align:top; padding:0 0 0 10px; border:none; border-left:1px solid #ccc;"><p style="margin:0 0 2px;"><b>Fecha:</b> {{ $cai->fecha_emision }}</p><p style="margin:0 0 2px;"><b>Hora:</b> {{ $cai->hora }}</p><p style="margin:0 0 2px;"><b>Vence:</b> {{ $cai->fecha_vencimiento }}</p><p style="margin:0;"><b>RTN:</b> {{ $cliente->rtn }}</p></td></tr></table>
+                <table style="width:100%; border:none; border-collapse:collapse; font-size:10px; margin-top:3px; border-top:1px solid #ccc;"><tr><td style="width:33%; border:none; padding:2px 0 1px;"><b>Correlativo de Ord. exenta</b></td><td style="width:34%; border:none; padding:2px 0 1px; text-align:center;"><b>Constancia de registro exonerado</b></td><td style="width:33%; border:none; padding:2px 0 1px; text-align:right;"><b>Identificativo del registro de la SAG</b></td></tr><tr><td style="border:none; height:14px; border-bottom:1px solid #aaa;"></td><td style="border:none; height:14px; border-bottom:1px solid #aaa;"></td><td style="border:none; height:14px; border-bottom:1px solid #aaa;"></td></tr></table>
             </div>
         </div>
 
-        <div class="card border border-dark" style="position: relative; margin-left:44px; margin-top:10px; width:45rem; page-break-inside: auto;">
+        <div class="card border border-dark nota-ancho" style="position: relative; margin-top:8px; page-break-inside: auto;">
             <div >
 
 
@@ -177,8 +141,8 @@
 
 
 
-        <div style=" position: relative; margin-left:44px;">
-            <div class="card border border-dark" style="position:absolute;left:0px; margin-top:{{$altura}}px;   width:26rem; height:15rem;">
+        <div class="nota-resumen">
+            <div class="card border border-dark nota-resumen-notas" style="position:absolute; margin-top:{{$altura}}px; height:15rem;">
                 <div class="card-body">
 
                     <div style="position:absolute;left:10px;top:8px;width:390px;font-size:14px;line-height:16px;">

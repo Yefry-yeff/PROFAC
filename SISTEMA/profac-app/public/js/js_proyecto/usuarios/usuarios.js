@@ -4,6 +4,12 @@ $(document).on('submit', '#userEditForm', function(event) {
     actualizarUsuario();
 });
 
+var usrPermisos = {
+    permisos: [],
+    heredados: [],
+    efectivos: []
+};
+
 function guardarUsuario() {
     // Validar que las contraseñas coincidan
     var pass = document.getElementById('pass_user').value;
@@ -113,6 +119,7 @@ function infoUsuario(idUsuario){
 
             selectRoles(response.data[0].rol_id, response.data[0].rol);
             usrCargarRolesAdicionales(response.data[0].id);
+            usrCargarPermisos(response.data[0].id, response.data[0].rol_id);
 
             $("#modal_usuario_rol").modal("show");
         })
@@ -193,6 +200,13 @@ function selectRoles(idRol, rol){
     });
 }
 
+$(document).on('change', '#seleccionarRol', function () {
+    var idUsuario = $('#id_usuario').val();
+    if (idUsuario && this.value) {
+        usrCargarPermisos(idUsuario, this.value);
+    }
+});
+
 function cargarRolesParaNuevoUsuario(){
     axios.get('/usuario/roles/todos').then(function(response) {
         let array = response.data;
@@ -216,6 +230,13 @@ function cargarRolesParaNuevoUsuario(){
 
 function actualizarUsuario() {
     var data = new FormData($('#userEditForm').get(0));
+    var efectivos = usrPermisos.efectivos.map(Number);
+    var heredados = usrPermisos.heredados.map(Number);
+    var otorgados = efectivos.filter(function (id) { return !heredados.includes(id); });
+    var revocados = heredados.filter(function (id) { return !efectivos.includes(id); });
+
+    otorgados.forEach(function (id) { data.append('permisos_otorgados[]', id); });
+    revocados.forEach(function (id) { data.append('permisos_revocados[]', id); });
 
     axios.post("/usuario/actualizar", data)
         .then(response => {
@@ -231,6 +252,82 @@ function actualizarUsuario() {
             console.error(err);
         });
 }
+
+function usrCargarPermisos(idUsuario, rolId) {
+    usrPermisos = { permisos: [], heredados: [], efectivos: [] };
+    $('#usr_permisos_lista').html('<div class="text-center text-muted py-3"><i class="fa fa-spinner fa-spin mr-1"></i>Cargando permisos...</div>');
+
+    axios.get('/usuario/' + idUsuario + '/permisos', { params: { rol_id: rolId || '' } })
+        .then(function (response) {
+            usrPermisos = {
+                permisos: response.data.permisos || [],
+                heredados: (response.data.heredados || []).map(Number),
+                efectivos: (response.data.efectivos || []).map(Number)
+            };
+            usrRenderPermisos();
+        })
+        .catch(function (error) {
+            console.error(error);
+            $('#usr_permisos_lista').html('<div class="alert alert-danger mb-0">No se pudieron cargar los permisos del usuario.</div>');
+        });
+}
+
+function usrPermisoSeleccionado(id) {
+    return usrPermisos.efectivos.includes(Number(id));
+}
+
+function usrEscapeHtml(value) {
+    return $('<div>').text(value || '').html();
+}
+
+function usrRenderPermisos() {
+    var termino = ($('#usr_permisos_buscar').val() || '').trim().toLowerCase();
+    var grupos = {};
+
+    usrPermisos.permisos.forEach(function (permiso) {
+        var texto = ((permiso.menu_nombre || '') + ' ' + (permiso.nombre || '') + ' ' + (permiso.ruta || '')).toLowerCase();
+        if (termino && texto.indexOf(termino) === -1) return;
+        var grupo = permiso.menu_nombre || 'Sin menú';
+        if (!grupos[grupo]) grupos[grupo] = [];
+        grupos[grupo].push(permiso);
+    });
+
+    $('#usr_permisos_resumen').text(usrPermisos.efectivos.length + ' seleccionados');
+    if (!Object.keys(grupos).length) {
+        $('#usr_permisos_lista').html('<div class="text-center text-muted py-3"><i class="fa fa-search mr-1"></i>Sin resultados.</div>');
+        return;
+    }
+
+    var html = '';
+    Object.keys(grupos).sort().forEach(function (nombreGrupo, index) {
+        html += '<section class="usr-permiso-grupo"><div class="usr-permiso-grupo-titulo">' + usrEscapeHtml(nombreGrupo) + '</div><div class="usr-permiso-grupo-items">';
+        grupos[nombreGrupo].forEach(function (permiso) {
+            var id = Number(permiso.id);
+            var inputId = 'usr-permiso-' + id;
+            var heredado = usrPermisos.heredados.includes(id);
+            var otorgado = usrPermisos.efectivos.includes(id) && !heredado;
+            var revocado = heredado && !usrPermisos.efectivos.includes(id);
+            var origen = otorgado ? 'Directo' : (revocado ? 'Revocado' : (heredado ? 'Por rol' : ''));
+            html += '<div class="usr-permiso-item custom-control custom-checkbox">' +
+                '<input type="checkbox" class="custom-control-input usr-permiso-toggle" id="' + inputId + '" data-id="' + id + '" ' + (usrPermisoSeleccionado(id) ? 'checked' : '') + '>' +
+                '<label class="custom-control-label" for="' + inputId + '" title="' + usrEscapeHtml(permiso.ruta) + '">' + usrEscapeHtml(permiso.nombre) + ' <span class="usr-permiso-origen">' + origen + '</span></label>' +
+                '</div>';
+        });
+        html += '</div></section>';
+    });
+    $('#usr_permisos_lista').html(html);
+}
+
+$(document).on('input', '#usr_permisos_buscar', usrRenderPermisos);
+$(document).on('change', '.usr-permiso-toggle', function () {
+    var id = Number($(this).data('id'));
+    if (this.checked && !usrPermisos.efectivos.includes(id)) {
+        usrPermisos.efectivos.push(id);
+    } else if (!this.checked) {
+        usrPermisos.efectivos = usrPermisos.efectivos.filter(function (permisoId) { return permisoId !== id; });
+    }
+    usrRenderPermisos();
+});
 
 function baja(idUsuario){
     Swal.fire({

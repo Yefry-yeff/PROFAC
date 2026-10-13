@@ -295,6 +295,7 @@ function renderExpediente(resp) {
     var totalAbonos      = 0;
     var totalNotasDebito = 0;
     var totalNotasCredito= 0;
+    var totalRebajas     = 0;
     var totalContrapartidasNotaCredito = 0;
     var totalRetencion   = 0;
     $.each(ms, function(i, mov) {
@@ -302,6 +303,7 @@ function renderExpediente(resp) {
         if (mov.tipo === 'ABONO' || mov.tipo === 'PAGO') totalAbonos      += monto;
         if (mov.tipo === 'NOTA_DEBITO')                  totalNotasDebito += monto;
         if (mov.tipo === 'NOTA_CREDITO' || mov.tipo === 'NOTA_CREDITO_EMISION') totalNotasCredito += monto;
+        if (mov.tipo === 'REBAJA')                        totalRebajas      += monto;
         if (mov.tipo === 'NOTA_CREDITO_APLICACION' || mov.tipo === 'NOTA_CREDITO_REEMBOLSO') totalContrapartidasNotaCredito += monto;
         if (mov.tipo === 'RETENCION')                    totalRetencion   += monto;
     });
@@ -314,6 +316,9 @@ function renderExpediente(resp) {
     if (!esAnulada && totalNotasCredito > 0) {
         html += '<div class="rfd-fin-row"><span class="lbl" style="padding-left:12px;color:#6b7280;">↳ Notas de Crédito</span><span class="val" style="color:#e02424;font-weight:600;">- ' + fmtLps(totalNotasCredito) + '</span></div>';
     }
+    if (!esAnulada && totalRebajas > 0) {
+        html += '<div class="rfd-fin-row"><span class="lbl" style="padding-left:12px;color:#6b7280;">↳ Rebajas / cargos a deducir</span><span class="val" style="color:#dc2626;font-weight:600;">- ' + fmtLps(totalRebajas) + '</span></div>';
+    }
     if (!esAnulada && totalContrapartidasNotaCredito > 0) {
         html += '<div class="rfd-fin-row"><span class="lbl" style="padding-left:12px;color:#6b7280;">↳ Aplicaciones / Reembolsos</span><span class="val" style="color:#0e9f6e;font-weight:600;">+ ' + fmtLps(totalContrapartidasNotaCredito) + '</span></div>';
     }
@@ -321,7 +326,7 @@ function renderExpediente(resp) {
         html += '<div class="rfd-fin-row"><span class="lbl" style="padding-left:12px;color:#6b7280;">↳ Retención ISV</span><span class="val" style="color:#0369a1;font-weight:600;">- ' + fmtLps(totalRetencion) + '</span></div>';
     }
     html += '<div class="rfd-fin-row"><span class="lbl">Total Abonado / Pagado</span><span class="val" style="color:#0e9f6e;font-weight:600;">' + fmtLps(totalAbonos) + '</span></div>';
-    var saldoCalculado = (parseFloat(c.total_factura) || 0) + totalNotasDebito + totalContrapartidasNotaCredito - totalNotasCredito - totalRetencion - totalAbonos;
+    var saldoCalculado = (parseFloat(c.total_factura) || 0) + totalNotasDebito + totalContrapartidasNotaCredito - totalNotasCredito - totalRebajas - totalRetencion - totalAbonos;
     if (Math.abs(saldoCalculado) < 0.005 || saldoCalculado < 0) saldoCalculado = 0;
     var saldoClassCalc = saldoCalculado <= 0.01 ? 'saldo-0' : (parseInt(c.dias_vencidos) > 0 ? 'saldo-venc' : '');
     html += '<div class="rfd-fin-row ' + saldoClassCalc + '"><span class="lbl">Saldo Pendiente</span><span class="val">' + (esAnulada ? '' : fmtLps(saldoCalculado)) + '</span></div>';
@@ -442,15 +447,15 @@ function carteraItem(lbl, val) {
     return '<div class="rfd-cartera-item"><div class="ci-lbl">' + lbl + '</div><div class="ci-val">' + (val || '—') + '</div></div>';
 }
 function tipoIcon(t) {
-    var m = { VENTA:'fa-file-text-o', ENTREGA:'fa-truck', ABONO:'fa-money', PAGO:'fa-credit-card', NOTA_CREDITO:'fa-minus-circle', NOTA_CREDITO_EMISION:'fa-file-o', NOTA_CREDITO_APLICACION:'fa-random', NOTA_CREDITO_REEMBOLSO:'fa-reply', NOTA_DEBITO:'fa-plus-circle', VALE:'fa-ticket', RETENCION:'fa-percent' };
+    var m = { VENTA:'fa-file-text-o', ENTREGA:'fa-truck', ABONO:'fa-money', PAGO:'fa-credit-card', NOTA_CREDITO:'fa-minus-circle', NOTA_CREDITO_EMISION:'fa-file-o', NOTA_CREDITO_APLICACION:'fa-random', NOTA_CREDITO_REEMBOLSO:'fa-reply', REBAJA:'fa-minus-circle', NOTA_DEBITO:'fa-plus-circle', VALE:'fa-ticket', RETENCION:'fa-percent' };
     return m[t] || 'fa-circle-o';
 }
 function tipoLabel(t) {
-    var m = { VENTA:'Venta', ENTREGA:'Entrega', ABONO:'Abono Crédito', PAGO:'Pago Contado', NOTA_CREDITO:'Nota de Crédito Recibida', NOTA_CREDITO_EMISION:'Nota de Crédito Emitida', NOTA_CREDITO_APLICACION:'Aplicación de Nota de Crédito', NOTA_CREDITO_REEMBOLSO:'Reembolso de Nota de Crédito', NOTA_DEBITO:'Nota de Débito', VALE:'Vale de Entrega', RETENCION:'Retención ISV' };
+    var m = { VENTA:'Venta', ENTREGA:'Entrega', ABONO:'Abono Crédito', PAGO:'Pago Contado', NOTA_CREDITO:'Nota de Crédito Recibida', NOTA_CREDITO_EMISION:'Nota de Crédito Emitida', NOTA_CREDITO_APLICACION:'Aplicación de Nota de Crédito', NOTA_CREDITO_REEMBOLSO:'Reembolso de Nota de Crédito', REBAJA:'Movimiento de rebaja', NOTA_DEBITO:'Nota de Débito', VALE:'Vale de Entrega', RETENCION:'Retención ISV' };
     return m[t] || t;
 }
 function tipoColorMap(t) {
-    var m = { VENTA:'#1a56db', ENTREGA:'#0e9f6e', ABONO:'#d97706', PAGO:'#7c3aed', NOTA_CREDITO:'#e02424', NOTA_CREDITO_EMISION:'#e02424', NOTA_CREDITO_APLICACION:'#7c3aed', NOTA_CREDITO_REEMBOLSO:'#0369a1', NOTA_DEBITO:'#b45309', VALE:'#e67e22', RETENCION:'#0369a1' };
+    var m = { VENTA:'#1a56db', ENTREGA:'#0e9f6e', ABONO:'#d97706', PAGO:'#7c3aed', NOTA_CREDITO:'#e02424', NOTA_CREDITO_EMISION:'#e02424', NOTA_CREDITO_APLICACION:'#7c3aed', NOTA_CREDITO_REEMBOLSO:'#0369a1', REBAJA:'#dc2626', NOTA_DEBITO:'#b45309', VALE:'#e67e22', RETENCION:'#0369a1' };
     return m[t] || '#6b7280';
 }
 

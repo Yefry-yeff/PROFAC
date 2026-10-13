@@ -194,7 +194,7 @@
                                         <td>
                                             <input
                                                 type="text"
-                                                wire:model.defer="items.{{ $idx }}.nombre_producto"
+                                                wire:model.live="items.{{ $idx }}.nombre_producto"
                                                 class="form-control form-control-sm @error('items.'.$idx.'.nombre_producto') is-invalid @enderror"
                                                 placeholder="Nombre del producto..."
                                                 style="font-size:13px;"
@@ -206,7 +206,7 @@
                                         <td class="text-center">
                                             <input
                                                 type="number"
-                                                wire:model.defer="items.{{ $idx }}.cantidad"
+                                                wire:model.live="items.{{ $idx }}.cantidad"
                                                 class="form-control form-control-sm qty-input @error('items.'.$idx.'.cantidad') is-invalid @enderror"
                                                 min="1"
                                                 step="1"
@@ -249,7 +249,7 @@
                                     <i class="fa fa-comment-o mr-1"></i> Observaciones
                                 </div>
                                 <textarea
-                                    wire:model.defer="observaciones"
+                                    wire:model.live="observaciones"
                                     class="form-control"
                                     rows="3"
                                     placeholder="Notas adicionales para este pedido..."

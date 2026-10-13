@@ -69,7 +69,22 @@
     .ref-entry-comentario { font-size:.83rem; color:#444; word-break:break-word; }
     .btn-ref-del { background:none; border:none; color:#dc3545; padding:2px 4px; font-size:.85rem; line-height:1; cursor:pointer; flex-shrink:0; }
     .btn-ref-del:hover { color:#a71d2a; }
+    .direccion-card { border:1px solid #e0e7ef; border-radius:6px; padding:10px 12px; margin-bottom:10px; background:#fbfcfe; }
+    .direccion-card.principal { border-color:#f2d49a; background:#fffaf2; }
+    .direccion-card-header { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; }
+    .direccion-card-title { color:#7d3f00; font-size:.78rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
+    .direccion-summary { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#777; font-size:.75rem; }
+    .direccion-card.collapsed .direccion-card-header { margin-bottom:0; cursor:pointer; }
+    .direccion-card.collapsed .direccion-card-body { display:none; }
+    .direccion-card.collapsed .direccion-accion { display:none; }
+    .direccion-map { height:230px; border:1px solid #d9e0e8; border-radius:5px; z-index:0; }
+    .direccion-map-help { font-size:.7rem; color:#777; margin-top:4px; }
+    .direccion-coord { font-family:monospace; font-size:.78rem; }
+    @media (max-width: 767px) { .direccion-map { height:190px; } }
 </style>
+@endpush
+@push('styles')
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 @endpush
 
 {{-- Loading overlay --}}
@@ -285,54 +300,14 @@
 
                         {{-- ===== TAB 3: DIRECCIÓN ===== --}}
                         <div class="tab-pane fade tab-section" id="tab-direccion" role="tabpanel">
-                            <p class="form-section-title">Dirección</p>
-                            <div class="row">
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label>País <span class="text-danger">*</span></label>
-                                        <select id="dir_pais" class="form-control" onchange="cargarDeptosForm()">
-                                            <option value="" disabled selected>-- Seleccione --</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label>Departamento <span class="text-danger">*</span></label>
-                                        <select id="dir_depto" class="form-control" onchange="cargarMunicipiosForm()">
-                                            <option value="" disabled selected>-- Seleccione --</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label>Municipio <span class="text-danger">*</span></label>
-                                        <select id="dir_municipio" class="form-control">
-                                            <option value="" disabled selected>-- Seleccione --</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="col-md-12">
-                                    <div class="form-group">
-                                        <label>Dirección Completa <span class="text-danger">*</span></label>
-                                        <textarea id="dir_direccion" class="form-control" rows="3" maxlength="500"></textarea>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-group">
-                                        <label>Latitud</label>
-                                        <input type="text" id="dir_latitud" class="form-control">
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-group">
-                                        <label>Longitud</label>
-                                        <input type="text" id="dir_longitud" class="form-control">
-                                    </div>
-                                </div>
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <p class="form-section-title mb-0">Direcciones del cliente</p>
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="agregarDireccion()">
+                                    <i class="fa fa-plus mr-1"></i>Agregar dirección
+                                </button>
                             </div>
-                            <button class="btn btn-primary mt-2" onclick="guardarDireccion()" id="btn_guardar_direccion" style="display:none;">
-                                <i class="fa fa-save"></i> Guardar Dirección
-                            </button>
+                            <small class="text-muted d-block mb-2">Seleccione una dirección principal. Puede elegir las coordenadas haciendo clic en el mapa o usando su ubicación actual.</small>
+                            <div id="direcciones_container"></div>
                         </div>
 
                         {{-- ===== TAB 4: CRÉDITO ===== --}}
@@ -722,6 +697,7 @@
         puedeEditarCamposRestringidos: @json($puedeEditarCamposRestringidos)
     };
 </script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="{{ asset('js/js_proyecto/cliente/cliente-form.js') }}"></script>
 @endpush
 </x-app-layout>

@@ -19,7 +19,7 @@ class ComprasMesExport implements FromCollection, WithHeadings, ShouldAutoSize
     /**
     * @return \Illuminate\Support\Collection
     */
-    public function collection()
+    public function collection(): \Illuminate\Support\Enumerable
     {
         //return ModelCompra::all();
         return ModelCompra::select("id","numero_factura","codigo_cai","fecha_vencimiento","fecha_emision","fecha_recepcion","isv_compra","sub_total","total","debito","numero_orden")->whereMonth('fecha_emision',$this->mes)->get();

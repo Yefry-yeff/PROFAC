@@ -166,6 +166,14 @@
     @stack('scripts')
     @stack('modals')
     @livewireScripts
+    <script>
+        window.PROFAC_REVERB = {!! json_encode([
+            'key' => config('broadcasting.connections.reverb.key'),
+            'host' => config('broadcasting.connections.reverb.options.host'),
+            'port' => (int) config('broadcasting.connections.reverb.options.port'),
+            'scheme' => config('broadcasting.connections.reverb.options.scheme'),
+        ]) !!};
+    </script>
     <script src="{{ mix('js/app.js') }}"></script>
 
 

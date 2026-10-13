@@ -418,7 +418,7 @@
                 {{-- Nombre --}}
                 <div class="form-group mb-3">
                     <label class="ar-label">Nombre de la regla <span style="color:#ef4444;">*</span></label>
-                    <input type="text" class="ar-input" wire:model.defer="nombre"
+                    <input type="text" class="ar-input" wire:model.live="nombre"
                            placeholder="Ej: Recuperación próxima — 15 días">
                     @error('nombre') <small style="color:#ef4444;">{{ $message }}</small> @enderror
                 </div>
@@ -426,7 +426,7 @@
                 {{-- Tipo --}}
                 <div class="form-group mb-3">
                     <label class="ar-label">Tipo de alerta <span style="color:#ef4444;">*</span></label>
-                    <select class="ar-input ar-select" wire:model="tipo">
+                    <select class="ar-input ar-select" wire:model.live="tipo">
                         <option value="">— Selecciona un tipo —</option>
                         @foreach($tiposAlertas as $key => $info)
                             <option value="{{ $key }}">{{ $info['label'] }}</option>
@@ -448,7 +448,7 @@
                                 {{ $tiposAlertas[$tipo]['param_dias_label'] }}
                                 <span style="color:#ef4444;">*</span>
                             </label>
-                            <input type="number" class="ar-input" wire:model.defer="parametroDias"
+                            <input type="number" class="ar-input" wire:model.live="parametroDias"
                                    min="1" max="365" placeholder="Ej: 15">
                             @error('parametroDias') <small style="color:#ef4444;">{{ $message }}</small> @enderror
                         </div>
@@ -459,7 +459,7 @@
                                 {{ $tiposAlertas[$tipo]['param_umbral_label'] ?? 'Umbral' }}
                                 <span style="color:#ef4444;">*</span>
                             </label>
-                            <input type="number" class="ar-input" wire:model.defer="parametroUmbral"
+                            <input type="number" class="ar-input" wire:model.live="parametroUmbral"
                                    step="0.1" min="0" placeholder="Ej: 6">
                             @error('parametroUmbral') <small style="color:#ef4444;">{{ $message }}</small> @enderror
                         </div>
@@ -469,7 +469,7 @@
                 {{-- Prioridad --}}
                 <div class="form-group mb-3">
                     <label class="ar-label">Prioridad</label>
-                    <select class="ar-input ar-select" wire:model.defer="prioridad">
+                    <select class="ar-input ar-select" wire:model.live="prioridad">
                         <option value="informativa">Informativa</option>
                         <option value="media">Media</option>
                         <option value="alta">Alta</option>
@@ -493,14 +493,14 @@
                         </button>
                     </div>
                     @if($targetTipo === 'rol')
-                        <select class="ar-input ar-select" wire:model.defer="rolId">
+                        <select class="ar-input ar-select" wire:model.live="rolId">
                             <option value="">— Selecciona un rol —</option>
                             @foreach($roles as $rol)
                                 <option value="{{ $rol['id'] }}">{{ $rol['nombre'] }}</option>
                             @endforeach
                         </select>
                     @else
-                        <select class="ar-input ar-select" wire:model.defer="areaId">
+                        <select class="ar-input ar-select" wire:model.live="areaId">
                             <option value="">— Selecciona un área —</option>
                             @foreach($areas as $area)
                                 <option value="{{ $area['id'] }}">{{ $area['nombre'] }}</option>
@@ -513,16 +513,16 @@
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:10px;">
                     <div>
                         <label class="ar-label">Ícono (FontAwesome)</label>
-                        <input type="text" class="ar-input" wire:model.defer="icono"
+                        <input type="text" class="ar-input" wire:model.live="icono"
                                placeholder="fa-bell">
                         <small style="font-size:11px; color:#94a3b8;">Ej: fa-bell, fa-exclamation-triangle, fa-clock-o</small>
                     </div>
                     <div>
                         <label class="ar-label">Color de la notificación</label>
                         <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
-                            <input type="color" wire:model.defer="color"
+                            <input type="color" wire:model.live="color"
                                    style="width:36px; height:36px; border:none; cursor:pointer; border-radius:6px; padding:2px;">
-                            <input type="text" class="ar-input" wire:model.defer="color"
+                            <input type="text" class="ar-input" wire:model.live="color"
                                    placeholder="#f59e0b" style="flex:1;">
                         </div>
                         {{-- Paleta rápida --}}
@@ -539,7 +539,7 @@
                 {{-- Estado --}}
                 <div style="display:flex; align-items:center; gap:10px; margin-top:8px;">
                     <label class="ar-toggle">
-                        <input type="checkbox" wire:model.defer="activo">
+                        <input type="checkbox" wire:model.live="activo">
                         <span class="ar-toggle-slider"></span>
                     </label>
                     <span style="font-size:13px; color:#374151; font-weight:600;">

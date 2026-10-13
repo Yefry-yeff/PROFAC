@@ -15,11 +15,35 @@
         #reporteExpoBI .modal-bi-wide { max-width: 96vw; }
         #reporteExpoBI .modal-bi-wide .modal-body { max-height: 78vh; overflow-y: auto; }
         #reporteExpoBI .select2-container { width: 100% !important; }
+        #reporteExpoBI #tabla-secciones-flujo tbody tr { transition: background-color .15s ease; }
+        #reporteExpoBI #tabla-secciones-flujo tbody tr.bi-row-selectable:hover { background: #eef5fb; }
+        #reporteExpoBI #tabla-secciones-flujo .bi-seccion-danger { background: #fdecea !important; }
+        #reporteExpoBI #tabla-secciones-flujo .bi-seccion-danger:hover { background: #fbdedb !important; }
+        #reporteExpoBI #tabla-secciones-flujo .bi-seccion-success { background: #eaf7ee !important; }
+        #reporteExpoBI #tabla-secciones-flujo .bi-seccion-success:hover { background: #d9f0e0 !important; }
+        #reporteExpoBI #tabla-secciones-flujo .bi-seccion-pendiente { background: #fff8e8 !important; }
+        #reporteExpoBI #tabla-secciones-flujo .bi-seccion-raiz { background: #eef3fb; font-weight: 500; }
+        #reporteExpoBI #tabla-secciones-flujo .bi-seccion-raiz:hover { background: #dfe9f7 !important; }
+        #reporte-expo-spinner {
+            display: none;
+            position: fixed; inset: 0; z-index: 9999;
+            background: rgba(255, 255, 255, 0.72);
+            align-items: center; justify-content: center; flex-direction: column;
+            opacity: 0; transition: opacity .15s ease;
+        }
+        #reporte-expo-spinner.show { display: flex; opacity: 1; }
+        #reporte-expo-spinner .spinner-border { width: 3.2rem; height: 3.2rem; color: #2878a9; }
+        #reporte-expo-spinner span { margin-top: 12px; color: #2878a9; font-weight: 600; letter-spacing: .3px; }
         @media (max-width: 767px) {
             #reporteExpoBI .bi-modal-summary { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
             #reporteExpoBI .modal-bi-wide { max-width: 100%; margin: 0; }
         }
     </style>
+
+    <div id="reporte-expo-spinner" wire:ignore>
+        <div class="spinner-border" role="status"><span class="sr-only">Cargando…</span></div>
+        <span>Cargando información del reporte…</span>
+    </div>
 
     <div class="mb-3 d-flex align-items-center">
         <i class="mr-3 fas fa-chart-pie fa-2x text-primary"></i>
@@ -208,7 +232,7 @@
     <div class="row">
         <div class="mb-3 col-lg-6">
             <div class="card card-body h-100">
-                <h6 class="font-weight-bold">Estado de las Ofertas <small class="text-muted">(clic para filtrar)</small></h6>
+                <h6 class="font-weight-bold">Ofertado vs facturado por estado <small class="text-muted">(clic para filtrar)</small></h6>
                 <div id="chart-estado"></div>
             </div>
         </div>
@@ -220,31 +244,31 @@
         </div>
         <div class="mb-3 col-lg-6">
             <div class="card card-body h-100">
-                <h6 class="font-weight-bold">Ventas por Marca <small class="text-muted">(clic para filtrar)</small></h6>
+                <h6 class="font-weight-bold">Ofertado vs facturado por Marca <small class="text-muted">(clic para filtrar)</small></h6>
                 <div id="chart-marca"></div>
             </div>
         </div>
         <div class="mb-3 col-lg-6">
             <div class="card card-body h-100">
-                <h6 class="font-weight-bold">Ventas por Asesor <small class="text-muted">(clic para filtrar)</small></h6>
+                <h6 class="font-weight-bold">Ofertado vs facturado por Asesor <small class="text-muted">(clic para filtrar)</small></h6>
                 <div id="chart-asesor"></div>
             </div>
         </div>
         <div class="mb-3 col-lg-6">
             <div class="card card-body h-100">
-                <h6 class="font-weight-bold">Top de Clientes <small class="text-muted">(clic para filtrar)</small></h6>
+                <h6 class="font-weight-bold">Ofertado vs facturado por Cliente <small class="text-muted">(clic para filtrar)</small></h6>
                 <div id="chart-top-clientes"></div>
             </div>
         </div>
         <div class="mb-3 col-lg-6">
             <div class="card card-body h-100">
-                <h6 class="font-weight-bold">Top de Productos <small class="text-muted">(clic para ver analítica)</small></h6>
+                <h6 class="font-weight-bold">Ofertado vs facturado por Producto <small class="text-muted">(clic para ver analítica)</small></h6>
                 <div id="chart-top-productos"></div>
             </div>
         </div>
         <div class="mb-3 col-lg-12">
             <div class="card card-body h-100">
-                <h6 class="font-weight-bold">Rendimiento por Teleasesor <small class="text-muted">ventas netas, utilidad y conversión; clic para filtrar</small></h6>
+                <h6 class="font-weight-bold">Ofertado vs facturado por Teleasesor <small class="text-muted">neto, utilidad y conversión; clic para filtrar</small></h6>
                 <div id="chart-teleasesor"></div>
             </div>
         </div>
@@ -253,7 +277,7 @@
     {{-- TABLA: OFERTAS --}}
     <div class="mb-3 card card-body">
         <div class="d-flex align-items-center mb-2">
-            <h6 class="mb-0 font-weight-bold">Ofertas de la Expo (deduplicadas)</h6>
+            <h6 class="mb-0 font-weight-bold">Todas las ofertas de la Expo</h6>
             <button class="ml-auto btn btn-sm btn-success" onclick="reporteExpo.exportarOfertas()">
                 <i class="fas fa-file-excel"></i> Excel
             </button>
@@ -263,12 +287,14 @@
                 <thead>
                     <tr>
                         <th>Oferta #</th>
+                        <th class="text-right"># Secciones</th>
                         <th>Flujo</th>
                         <th>Cliente</th>
                         <th>Asesor</th>
                         <th>Teleasesor</th>
                         <th>Fecha</th>
                         <th>Facturación</th>
+                        <th class="text-right">Facturas</th>
                         <th class="text-right">Ofertado</th>
                         <th class="text-right">Facturado</th>
                         <th class="text-right">Margen Oferta %</th>
@@ -293,8 +319,7 @@
             <table class="table table-sm table-striped table-bordered" id="tabla-expo-productos" style="width:100%">
                 <thead>
                     <tr>
-                        <th>Código producto</th>
-                        <th>Código de barra</th>
+                        <th>Código</th>
                         <th>Producto</th>
                         <th>Marca</th>
                         <th>Categoría</th>
@@ -312,6 +337,32 @@
         </div>
     </div>
 
+    {{-- MODAL: SECCIONES DEL FLUJO --}}
+    <div class="modal fade" id="modal-secciones-flujo" tabindex="-1" role="dialog" aria-hidden="true" wire:ignore>
+        <div class="modal-dialog modal-bi-wide" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div>
+                        <small class="text-muted">Secciones del flujo</small>
+                        <h5 class="modal-title mb-0" id="modal-secciones-titulo">Flujo</h5>
+                    </div>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar"><span aria-hidden="true">&times;</span></button>
+                </div>
+                <div class="modal-body">
+                    <div class="bi-modal-summary mb-3" id="modal-secciones-resumen"></div>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered table-hover" id="tabla-secciones-flujo">
+                            <thead class="thead-light"><tr>
+                                <th>Sección</th><th>Estado</th>
+                                <th>Facturación</th><th class="text-right">Ofertado</th><th class="text-right">Facturado</th>
+                            </tr></thead><tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     {{-- MODAL REUTILIZABLE: OFERTA --}}
     <div class="modal fade" id="modal-oferta-expo" tabindex="-1" role="dialog" aria-hidden="true" wire:ignore>
         <div class="modal-dialog modal-bi-wide" role="document">
@@ -322,6 +373,7 @@
                         <h5 class="modal-title mb-0" id="modal-oferta-titulo">Oferta</h5>
                     </div>
                     <div class="ml-auto mr-3">
+                        <button type="button" class="btn btn-sm btn-outline-info" id="btn-modal-oferta-volver-secciones" style="display:none" onclick="reporteExpo.volverASeccionesDesdeOferta()" title="Volver a las secciones del flujo"><i class="fas fa-arrow-left"></i> Secciones</button>
                         <button type="button" class="btn btn-sm btn-outline-primary" onclick="reporteExpo.abrirBuscadorProductos('oferta')" title="Buscar producto"><i class="fas fa-search"></i> Producto</button>
                         <button type="button" class="btn btn-sm btn-success" onclick="reporteExpo.exportarOfertaSeleccionada()" title="Descargar oferta en Excel"><i class="fas fa-file-excel"></i> Excel</button>
                         <button type="button" class="btn btn-sm btn-outline-secondary" onclick="reporteExpo.imprimirOfertaSeleccionada()" title="Imprimir oferta"><i class="fas fa-print"></i> Imprimir</button>
@@ -388,7 +440,6 @@
             </div>
         </div>
     </div>
-</div>
 
 <x-buscador-producto
     id-modal="buscadorProductoReporteExpo"
@@ -411,3 +462,4 @@
         reporteExpo.init(document.getElementById('expo-selector').value);
     });
 </script>
+</div>

@@ -1,4 +1,5 @@
 <div>
+<div>
     @push('styles')
         <link href="{{ asset('css/plugins/switchery/switchery.css') }}" rel="stylesheet">
 
@@ -545,3 +546,4 @@
     <strong>Copyright</strong> Distribuciones Valencia &copy; <?php echo "$year";  ?>
 </div>
 <p id="reloj"></p>
+</div>

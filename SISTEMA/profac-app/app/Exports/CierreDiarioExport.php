@@ -29,7 +29,7 @@ class CierreDiarioExport implements FromView, WithStyles
         ]);
     }
 
-    public function styles(Worksheet $sheet)
+    public function styles(Worksheet $sheet): ?array
     {
         $sheet->mergeCells('A1:O1');
         $sheet->mergeCells('A2:O2');

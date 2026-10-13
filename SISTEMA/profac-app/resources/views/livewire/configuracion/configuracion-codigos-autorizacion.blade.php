@@ -145,7 +145,7 @@ input:checked + .toggle-slider::before { transform:translateX(20px); }
                         <label class="cca-label">Tiempo de expiración (minutos)</label>
                         <div style="display:flex;align-items:center;gap:8px;">
                             <input type="number" min="1" max="1440"
-                                   wire:model.defer="tiempoExpiracionMinutos"
+                                   wire:model.live="tiempoExpiracionMinutos"
                                    class="cca-input">
                             <span style="font-size:12px;color:#94a3b8;white-space:nowrap;">min.</span>
                         </div>
@@ -159,7 +159,7 @@ input:checked + .toggle-slider::before { transform:translateX(20px); }
                             <p style="margin:3px 0 0;font-size:11px;color:#94a3b8;">Si está desactivado, los códigos no expiran.</p>
                         </div>
                         <label class="toggle-switch" style="margin-left:12px;">
-                            <input type="checkbox" wire:model.defer="expiracionActiva">
+                            <input type="checkbox" wire:model.live="expiracionActiva">
                             <span class="toggle-slider"></span>
                         </label>
                     </div>

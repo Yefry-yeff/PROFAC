@@ -50,9 +50,11 @@ class BusquedaProductoController extends Controller
         // resultados de la página, evitando el costoso JOIN+GROUP BY global.
         $query = DB::table('producto as p')
             ->leftJoin('marca as m', 'm.id', '=', 'p.marca_id')
+            ->leftJoin('unidad_medida as um', 'um.id', '=', 'p.unidad_medida_compra_id')
             ->select([
                 'p.id', 'p.nombre', 'p.codigo_barra', 'p.codigo_estatal',
-                'p.isv', 'm.nombre as marca_nombre',
+                'p.isv', 'p.unidadad_compra', 'p.unidad_medida_compra_id',
+                'um.nombre as unidad_medida_compra_nombre', 'm.nombre as marca_nombre',
             ])
             ->where('p.estado_producto_id', 1);
 
@@ -175,7 +177,9 @@ class BusquedaProductoController extends Controller
 
             $items->each(function ($item) use ($stockMap, $imgMap) {
                 $item->stock  = isset($stockMap[$item->id]) ? (float) $stockMap[$item->id]->stock : 0;
-                $item->imagen = isset($imgMap[$item->id])  ? $imgMap[$item->id]->url_img : null;
+                $item->imagen = isset($imgMap[$item->id])
+                    ? $this->imagenDisponible($imgMap[$item->id]->url_img)
+                    : null;
             });
         }
 
@@ -223,7 +227,8 @@ class BusquedaProductoController extends Controller
     {
         session()->save();
         $bodegaId = $request->get('bodega_id', '');
-        $bodegasExpo = $this->bodegasExpo($request);
+        $expo = $this->configuracionExpo($request);
+        $bodegasExpo = $expo['bodegas'] ?? [];
 
         // Solo JOIN con venta_has_producto (necesario para SUM+GROUP BY de ventas)
         // recibido_bodega e img_producto se consultan aparte para evitar producto
@@ -231,12 +236,19 @@ class BusquedaProductoController extends Controller
         $tvQuery = DB::table('producto as p')
             ->join('venta_has_producto as vhp', 'vhp.producto_id', '=', 'p.id')
             ->leftJoin('marca as m', 'm.id', '=', 'p.marca_id')
+            ->leftJoin('unidad_medida as um', 'um.id', '=', 'p.unidad_medida_compra_id')
             ->select([
                 'p.id', 'p.nombre', 'p.codigo_barra', 'p.codigo_estatal', 'p.isv',
+                'p.unidadad_compra', 'p.unidad_medida_compra_id',
+                'um.nombre as unidad_medida_compra_nombre',
                 'm.nombre as marca_nombre',
                 DB::raw('SUM(vhp.cantidad) as total_vendido'),
             ])
-            ->groupBy('p.id', 'p.nombre', 'p.codigo_barra', 'p.codigo_estatal', 'p.isv', 'm.nombre')
+            ->groupBy(
+                'p.id', 'p.nombre', 'p.codigo_barra', 'p.codigo_estatal', 'p.isv',
+                'p.unidadad_compra', 'p.unidad_medida_compra_id',
+                'um.nombre', 'm.nombre'
+            )
             ->orderByDesc('total_vendido')
             ->limit(12);
 
@@ -289,10 +301,23 @@ class BusquedaProductoController extends Controller
 
             $items->each(function ($item) use ($stockMap, $imgMap) {
                 $item->stock  = isset($stockMap[$item->id]) ? (float) $stockMap[$item->id]->stock : 0;
-                $item->imagen = isset($imgMap[$item->id])  ? $imgMap[$item->id]->url_img : null;
+                $item->imagen = isset($imgMap[$item->id])
+                    ? $this->imagenDisponible($imgMap[$item->id]->url_img)
+                    : null;
             });
         }
 
         return response()->json($items);
+    }
+
+    private function imagenDisponible(?string $ruta): ?string
+    {
+        if (!$ruta) {
+            return null;
+        }
+
+        $rutaRelativa = ltrim(str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $ruta), DIRECTORY_SEPARATOR);
+
+        return is_file(public_path('catalogo' . DIRECTORY_SEPARATOR . $rutaRelativa)) ? $ruta : null;
     }
 }

@@ -131,7 +131,7 @@
                     </span>
                 </div>
                 <input type="text"
-                       wire:model.debounce.300ms="busquedaPed"
+                       wire:model.live.debounce.300ms="busquedaPed"
                        class="form-control"
                        placeholder="Buscar por cliente, RTN o # pedido…"
                        style="border-radius:0 8px 8px 0;">
@@ -273,12 +273,12 @@
                     </span>
                 </div>
                 <input type="text"
-                       wire:model.debounce.300ms="busquedaOfr"
+                       wire:model.live.debounce.300ms="busquedaOfr"
                        class="form-control"
                        placeholder="Buscar por cliente, RTN o # flujo…"
                        style="border-radius:0 8px 8px 0;">
             </div>
-            <select wire:model="filtroTipoVenta" class="form-control" style="max-width:220px; border-radius:8px;">
+            <select wire:model.live="filtroTipoVenta" class="form-control" style="max-width:220px; border-radius:8px;">
                 <option value="">Todos los tipos</option>
                 <option value="expo">Expo</option>
                 @foreach($tiposVenta as $tipoVenta)

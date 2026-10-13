@@ -45,26 +45,26 @@
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label>Búsqueda</label>
-                                    <input type="text" class="form-control" wire:model.debounce.500ms="search" 
+                                    <input type="text" class="form-control" wire:model.live.debounce.500ms="search" 
                                            placeholder="Buscar por nombre, IP o terminal...">
                                 </div>
                             </div>
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label>Fecha Inicio</label>
-                                    <input type="date" class="form-control" wire:model="fechaInicio">
+                                    <input type="date" class="form-control" wire:model.live="fechaInicio">
                                 </div>
                             </div>
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label>Fecha Fin</label>
-                                    <input type="date" class="form-control" wire:model="fechaFin">
+                                    <input type="date" class="form-control" wire:model.live="fechaFin">
                                 </div>
                             </div>
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label>Registros por página</label>
-                                    <select class="form-control" wire:model="perPage">
+                                    <select class="form-control" wire:model.live="perPage">
                                         <option value="10">10</option>
                                         <option value="25">25</option>
                                         <option value="50">50</option>

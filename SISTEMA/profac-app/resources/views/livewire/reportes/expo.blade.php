@@ -57,7 +57,7 @@
                                         <th>COTIZADOR</th>
                                         <th>COTIZACIÓN</th>
                                         <th>CLIENTE</th>
-                                        <th>TIPO CLIENTE (AoB)</th>
+                                        <th>TIPO CLIENTE AoB</th>
                                         <th>CODIGO PRODUCTO</th>
                                         <th>PRODUCTO</th>
                                         <th>MARCA</th>

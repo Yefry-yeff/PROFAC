@@ -70,7 +70,7 @@
                                     </div>
                                     <input
                                         type="text"
-                                        wire:model.debounce.300ms="busquedaCliente"
+                                        wire:model.live.debounce.300ms="busquedaCliente"
                                         class="form-control border-left-0"
                                         placeholder="Nombre o RTN del cliente..."
                                         style="border-radius:0 8px 8px 0;"
@@ -85,7 +85,7 @@
                                 </label>
                                 <input
                                     type="number"
-                                    wire:model.debounce.300ms="filtroNumero"
+                                    wire:model.live.debounce.300ms="filtroNumero"
                                     class="form-control shadow-sm"
                                     placeholder="Ej: 1025"
                                     min="1"
@@ -98,7 +98,7 @@
                                 <label class="font-weight-bold" style="font-size:12px; color:#555;">
                                     <i class="fa fa-filter text-primary"></i> &nbsp;Estado flujo
                                 </label>
-                                <select wire:model="filtroEstado" class="form-control shadow-sm"
+                                <select wire:model.live="filtroEstado" class="form-control shadow-sm"
                                         style="border-radius:8px;">
                                     <option value="">Todos</option>
                                     <option value="pedido">Pedido</option>
@@ -117,7 +117,7 @@
                                 </label>
                                 <input
                                     type="date"
-                                    wire:model="filtroFecha"
+                                    wire:model.live="filtroFecha"
                                     class="form-control shadow-sm"
                                     style="border-radius:8px;"
                                 >
@@ -860,7 +860,7 @@
                     </small>
                     <div class="mt-3 text-left">
                         <label style="font-size:12px; font-weight:700; color:#616161;">Comentario para Créditos (opcional)</label>
-                        <textarea wire:model.defer="comentarioCreditoGanadora"
+                        <textarea wire:model.live="comentarioCreditoGanadora"
                                   rows="2"
                                   class="form-control"
                                   placeholder="Escribe una observación para créditos..."></textarea>
@@ -912,7 +912,7 @@
                         </div>
                         <input
                             type="text"
-                            wire:model.debounce.300ms="busquedaUsuario"
+                            wire:model.live.debounce.300ms="busquedaUsuario"
                             class="form-control"
                             placeholder="Escribe el nombre del usuario..."
                             autocomplete="off"
@@ -1100,7 +1100,7 @@
     <script>
 function cerrarFlujoYEditar(url, titulo) {
     // Close the flujo Livewire modal, then open the edit iframe modal
-    window.livewire.emit('cerrarFlujoDesdeJS');
+    window.Livewire.dispatch('cerrarFlujoDesdeJS');
     setTimeout(function() { abrirModalPedido(url, titulo); }, 350);
 }
 function abrirModalPedido(url, titulo) {
@@ -1130,7 +1130,7 @@ function cerrarModalPedido() {
 // Close on backdrop click
 document.getElementById('pedidoBackdrop').addEventListener('click', cerrarModalPedido);
 $('#modalPedidoForm').on('hidden.bs.modal', function () {
-    window.livewire.emit('pedidoGuardado');
+    window.Livewire.dispatch('pedidoGuardado');
 });
 // Close modal when iframe signals it (e.g. after saving offer)
 window.addEventListener('message', function(e) {

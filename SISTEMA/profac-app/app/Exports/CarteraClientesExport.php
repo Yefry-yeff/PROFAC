@@ -67,7 +67,7 @@ class CarteraClientesExport implements FromArray, WithColumnWidths, WithDrawings
         return $filas;
     }
 
-    public function drawings()
+    public function drawings(): \PhpOffice\PhpSpreadsheet\Worksheet\BaseDrawing|array
     {
         $logo = new Drawing();
         $logo->setName('Logo Valencia');
@@ -94,7 +94,7 @@ class CarteraClientesExport implements FromArray, WithColumnWidths, WithDrawings
         ];
     }
 
-    public function styles(Worksheet $sheet)
+    public function styles(Worksheet $sheet): ?array
     {
         $sheet->mergeCells('A1:' . self::LAST_COL . '1');
         $sheet->mergeCells('A2:' . self::LAST_COL . '2');

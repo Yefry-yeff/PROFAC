@@ -11,6 +11,7 @@ class ReporteExpoDetalleService
         $oferta = DB::table('cotizacion as c')
             ->join('expo_cotizacion as ec', 'ec.cotizacion_id', '=', 'c.id')
             ->join('expo as e', 'e.id', '=', 'ec.expo_id')
+            ->leftJoin('expo_oferta_seccion as eos', 'eos.cotizacion_id', '=', 'c.id')
             ->leftJoin('users as asesor', 'asesor.id', '=', 'c.vendedor')
             ->leftJoin('users as teleasesor', 'teleasesor.id', '=', 'c.users_id')
             ->leftJoin('users as creador', 'creador.id', '=', 'c.created_by')
@@ -22,6 +23,8 @@ class ReporteExpoDetalleService
                 'c.id', 'c.nombre_cliente', 'c.RTN as rtn', 'c.fecha_emision',
                 'c.fecha_vencimiento', 'c.created_at', 'c.updated_at', 'c.nota',
                 'c.porc_descuento', 'c.monto_descuento', 'ec.estado',
+                'eos.cotizacion_origen_id as oferta_origen_id', 'eos.numero as numero_seccion',
+                'eos.nombre as nombre_seccion',
                 'ec.reglas_descuento_snapshot', 'e.id as expo_id', 'e.nombre as expo',
                 'asesor.name as asesor', 'teleasesor.name as teleasesor',
                 'creador.name as creado_por', 'modificador.name as modificado_por',
@@ -82,6 +85,9 @@ class ReporteExpoDetalleService
                 'fecha' => $oferta->fecha_emision,
                 'hora' => $oferta->created_at ? date('H:i:s', strtotime($oferta->created_at)) : null,
                 'estado' => $oferta->estado,
+                'oferta_origen_id' => $oferta->oferta_origen_id ? (int) $oferta->oferta_origen_id : null,
+                'numero_seccion' => $oferta->numero_seccion ? (int) $oferta->numero_seccion : null,
+                'nombre_seccion' => $oferta->nombre_seccion,
                 'tipo_venta' => $oferta->tipo_venta ?: 'Sin asignar',
                 'condicion_pago' => $oferta->condicion_pago ?: 'Sin asignar',
                 'creado_por' => $oferta->creado_por ?: $oferta->teleasesor ?: 'Sin asignar',
@@ -107,16 +113,35 @@ class ReporteExpoDetalleService
             return null;
         }
 
+        $lineasPrefactura = DB::table('prefactura_auditoria as pa')
+            ->join('prefactura as pf', 'pf.id', '=', 'pa.prefactura_id')
+            ->join('prefactura_has_producto as php', 'php.prefactura_id', '=', 'pf.id')
+            ->whereNotNull('pa.factura_id')
+            ->whereNotNull('php.cotizacion_has_producto_id')
+            ->select('pa.factura_id', 'php.cotizacion_has_producto_id', 'php.producto_id', 'php.indice')
+            ->distinct();
+
         $facturado = DB::table('venta_has_producto as vhp')
-            ->join('factura as f', 'f.id', '=', 'vhp.factura_id')
-            ->join('cotizacion_has_producto as chp_fact', 'chp_fact.id', '=', 'vhp.cotizacion_has_producto_id')
+            ->join('factura as f', function ($join) {
+                $join->on('f.id', '=', 'vhp.factura_id')->where('f.estado_venta_id', 1);
+            })
+            ->leftJoinSub($lineasPrefactura, 'pfl', function ($join) {
+                $join->on('pfl.factura_id', '=', 'vhp.factura_id')
+                    ->on('pfl.producto_id', '=', 'vhp.producto_id')
+                    ->on('pfl.indice', '=', 'vhp.indice');
+            })
+            ->join('cotizacion_has_producto as chp_fact', function ($join) {
+                $join->whereRaw('chp_fact.id = COALESCE(vhp.cotizacion_has_producto_id, pfl.cotizacion_has_producto_id)');
+            })
             ->join('producto as p_fact', 'p_fact.id', '=', 'vhp.producto_id')
             ->leftJoin('precios_producto_carga as ppc_fact', 'ppc_fact.id', '=', 'vhp.precios_producto_carga_id')
             ->leftJoin('precios_producto_carga as ppc_oferta', 'ppc_oferta.id', '=', 'chp_fact.precios_producto_carga_id')
-            ->where('f.estado_venta_id', 1)
-            ->whereNotNull('vhp.cotizacion_has_producto_id')
-            ->groupBy('vhp.cotizacion_has_producto_id')
-            ->selectRaw('vhp.cotizacion_has_producto_id, SUM(COALESCE(NULLIF(vhp.cantidad_oferta_aplicada, 0), vhp.cantidad_s)) as cantidad_facturada, SUM(vhp.sub_total_s) as total_facturado, SUM(GREATEST((vhp.precio_unidad * vhp.cantidad_s) - vhp.sub_total_s, 0)) as descuento_facturado, SUM(vhp.isv_s) as isv_facturado, SUM(vhp.total_s) as total_con_impuesto_facturado, SUM(COALESCE(ppc_fact.costoproducto, ppc_oferta.costoproducto, p_fact.costo_promedio, 0) * vhp.cantidad_s) as costo_facturado');
+            ->where(function ($query) {
+                $query->whereNotNull('vhp.cotizacion_has_producto_id')
+                    ->orWhereNotNull('pfl.cotizacion_has_producto_id');
+            })
+            ->groupByRaw('COALESCE(vhp.cotizacion_has_producto_id, pfl.cotizacion_has_producto_id)')
+            ->selectRaw('COALESCE(vhp.cotizacion_has_producto_id, pfl.cotizacion_has_producto_id) as cotizacion_has_producto_id, SUM(COALESCE(NULLIF(vhp.cantidad_oferta_aplicada, 0), vhp.cantidad_s)) as cantidad_facturada, SUM(vhp.sub_total_s) as total_facturado, SUM(GREATEST((vhp.precio_unidad * vhp.cantidad_s) - vhp.sub_total_s, 0)) as descuento_facturado, SUM(vhp.isv_s) as isv_facturado, SUM(vhp.total_s) as total_con_impuesto_facturado, SUM(COALESCE(ppc_fact.costoproducto, ppc_oferta.costoproducto, p_fact.costo_promedio, 0) * vhp.cantidad_s) as costo_facturado');
 
         $rows = DB::table('cotizacion_has_producto as chp')
             ->join('cotizacion as c', 'c.id', '=', 'chp.cotizacion_id')
@@ -221,16 +246,31 @@ class ReporteExpoDetalleService
 
     private function facturasOferta(int $cotizacionId): array
     {
+        $lineasPrefactura = DB::table('prefactura_auditoria as pa')
+            ->join('prefactura as pf', 'pf.id', '=', 'pa.prefactura_id')
+            ->join('prefactura_has_producto as php', 'php.prefactura_id', '=', 'pf.id')
+            ->where('pf.cotizacion_id', $cotizacionId)
+            ->whereNotNull('pa.factura_id')
+            ->whereNotNull('php.cotizacion_has_producto_id')
+            ->select('pa.factura_id', 'php.cotizacion_has_producto_id', 'php.producto_id', 'php.indice')
+            ->distinct();
+
         $facturas = DB::table('factura as f')
             ->join('venta_has_producto as vhp', 'vhp.factura_id', '=', 'f.id')
-            ->join('cotizacion_has_producto as chp', function ($join) use ($cotizacionId) {
-                $join->on('chp.id', '=', 'vhp.cotizacion_has_producto_id')
-                    ->where('chp.cotizacion_id', '=', $cotizacionId);
+            ->leftJoin('cotizacion_has_producto as chp_direct', 'chp_direct.id', '=', 'vhp.cotizacion_has_producto_id')
+            ->leftJoinSub($lineasPrefactura, 'pfl', function ($join) {
+                $join->on('pfl.factura_id', '=', 'vhp.factura_id')
+                    ->on('pfl.producto_id', '=', 'vhp.producto_id')
+                    ->on('pfl.indice', '=', 'vhp.indice');
             })
             ->leftJoin('users as asesor', 'asesor.id', '=', 'f.vendedor')
             ->leftJoin('users as teleasesor', 'teleasesor.id', '=', 'f.users_id')
             ->leftJoin('estado_venta as ev', 'ev.id', '=', 'f.estado_venta_id')
             ->where('f.estado_venta_id', 1)
+            ->where(function ($query) use ($cotizacionId) {
+                $query->where('chp_direct.cotizacion_id', $cotizacionId)
+                    ->orWhereNotNull('pfl.cotizacion_has_producto_id');
+            })
             ->groupBy('f.id', 'f.cai', 'f.numero_factura', 'f.fecha_emision', 'f.nombre_cliente',
                 'f.sub_total', 'f.monto_descuento', 'f.isv', 'f.total', 'asesor.name',
                 'teleasesor.name', 'ev.descripcion')
@@ -252,7 +292,18 @@ class ReporteExpoDetalleService
         }
 
         $lineas = DB::table('venta_has_producto as vhp')
-            ->join('cotizacion_has_producto as chp', 'chp.id', '=', 'vhp.cotizacion_has_producto_id')
+            ->join('factura as f', function ($join) {
+                $join->on('f.id', '=', 'vhp.factura_id')->where('f.estado_venta_id', 1);
+            })
+            ->leftJoin('cotizacion_has_producto as chp_direct', 'chp_direct.id', '=', 'vhp.cotizacion_has_producto_id')
+            ->leftJoinSub($lineasPrefactura, 'pfl', function ($join) {
+                $join->on('pfl.factura_id', '=', 'vhp.factura_id')
+                    ->on('pfl.producto_id', '=', 'vhp.producto_id')
+                    ->on('pfl.indice', '=', 'vhp.indice');
+            })
+            ->join('cotizacion_has_producto as chp', function ($join) {
+                $join->whereRaw('chp.id = COALESCE(vhp.cotizacion_has_producto_id, pfl.cotizacion_has_producto_id)');
+            })
             ->join('producto as p', 'p.id', '=', 'vhp.producto_id')
             ->leftJoin('marca as m', 'm.id', '=', 'p.marca_id')
             ->leftJoin('precios_producto_carga as ppc', 'ppc.id', '=', 'vhp.precios_producto_carga_id')

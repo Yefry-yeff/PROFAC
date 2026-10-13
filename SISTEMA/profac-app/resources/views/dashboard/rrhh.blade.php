@@ -103,7 +103,7 @@ function initRrhhCharts() {
 }
 (function() {
     function run() { if (typeof ApexCharts !== 'undefined') initRrhhCharts(); }
-    if (window.DASH_LOADED) { run(); } else { document.addEventListener('livewire:load', run); }
+    if (window.DASH_LOADED) { run(); } else { document.addEventListener('livewire:init', run); }
     if (!window._rrhhBound) { window._rrhhBound = true; document.addEventListener('livewire:update', run); }
 })();
 </script>

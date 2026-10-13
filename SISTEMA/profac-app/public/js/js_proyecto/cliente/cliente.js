@@ -1,6 +1,141 @@
 ﻿
 
 var idCliente = null;
+var modalDirecciones = [];
+var modalPaises = [];
+var modalMapas = {};
+
+function modalDireccionVacia() {
+    return { etiqueta: '', pais_id: '', departamento_id: '', municipio_id: '', direccion: '', latitud: '', longitud: '', principal: true };
+}
+
+function modalInicializarDirecciones() {
+    modalDirecciones = [modalDireccionVacia()];
+    modalCargarPaises().then(function () { modalRenderizarDirecciones(); });
+}
+
+function modalCargarPaises() {
+    return axios.get('/cliente/pais').then(function (response) {
+        modalPaises = response.data.listaPais || [];
+        return modalPaises;
+    });
+}
+
+function modalEscapar(texto) {
+    return $('<div>').text(texto || '').html();
+}
+
+function modalOpcionesPais(selected) {
+    var html = '<option value="">---Seleccione un país---</option>';
+    modalPaises.forEach(function (pais) {
+        html += '<option value="' + pais.id + '"' + (String(pais.id) === String(selected || '') ? ' selected' : '') + '>' + modalEscapar(pais.nombre) + '</option>';
+    });
+    return html;
+}
+
+function modalRenderizarDirecciones() {
+    Object.keys(modalMapas).forEach(function (index) { modalMapas[index].remove(); });
+    modalMapas = {};
+    var html = '';
+    modalDirecciones.forEach(function (direccion, index) {
+        html += '<article class="modal-direccion-card" data-index="' + index + '"><div class="d-flex justify-content-between align-items-center mb-1"><strong style="font-size:.75rem;color:#7d3f00">Dirección ' + (index + 1) + (direccion.principal ? ' · Principal' : '') + '</strong>' +
+            (modalDirecciones.length > 1 ? '<button type="button" class="btn btn-sm btn-outline-danger modal-quitar-direccion" data-index="' + index + '"><i class="fa fa-trash"></i></button>' : '') + '</div>' +
+            '<div class="row"><div class="col-md-3"><label>Etiqueta <span class="text-danger">*</span></label><input class="form-control form-control-sm modal-dir-field" data-field="etiqueta" data-index="' + index + '" value="' + modalEscapar(direccion.etiqueta) + '" required></div>' +
+            '<div class="col-md-3"><label>País <span class="text-danger">*</span></label><select class="form-control form-control-sm modal-dir-field" data-field="pais_id" data-index="' + index + '" required>' + modalOpcionesPais(direccion.pais_id) + '</select></div>' +
+            '<div class="col-md-3"><label>Departamento <span class="text-danger">*</span></label><select class="form-control form-control-sm modal-dir-field" data-field="departamento_id" data-index="' + index + '" required><option value="">---Seleccione---</option></select></div>' +
+            '<div class="col-md-3"><label>Municipio <span class="text-danger">*</span></label><select class="form-control form-control-sm modal-dir-field" data-field="municipio_id" data-index="' + index + '" required><option value="">---Seleccione---</option></select></div>' +
+            '<div class="col-md-8 mt-2"><label>Dirección completa <span class="text-danger">*</span></label><textarea class="form-control form-control-sm modal-dir-field" data-field="direccion" data-index="' + index + '" rows="2" required>' + modalEscapar(direccion.direccion) + '</textarea></div>' +
+            '<div class="col-md-4 mt-2"><div class="custom-control custom-radio mt-4"><input type="radio" class="custom-control-input modal-dir-principal" name="modal_direccion_principal" id="modal-dir-principal-' + index + '" data-index="' + index + '" ' + (direccion.principal ? 'checked' : '') + '><label class="custom-control-label" for="modal-dir-principal-' + index + '">Principal</label></div></div>' +
+            '<div class="col-md-6 mt-2"><label>Latitud</label><input class="form-control form-control-sm modal-dir-field" data-field="latitud" data-index="' + index + '" value="' + modalEscapar(direccion.latitud) + '"></div>' +
+            '<div class="col-md-6 mt-2"><label>Longitud</label><input class="form-control form-control-sm modal-dir-field" data-field="longitud" data-index="' + index + '" value="' + modalEscapar(direccion.longitud) + '"></div>' +
+            '<div class="col-md-12 mt-2"><div id="modal-direccion-map-' + index + '" class="modal-direccion-map"></div><small class="modal-direccion-summary"><i class="fa fa-info-circle"></i> Haga clic para colocar las coordenadas.</small></div></div></article>';
+    });
+    $('#modal_direcciones_container').html(html);
+    modalDirecciones.forEach(function (direccion, index) {
+        modalCargarCatalogos(index).then(function () { modalUbicarDireccion(index); });
+        modalInicializarMapa(index);
+    });
+}
+
+function modalCargarCatalogos(index) {
+    var direccion = modalDirecciones[index];
+    if (!direccion || !direccion.pais_id) return Promise.resolve();
+    return axios.post('/cliente/departamento', { id: direccion.pais_id }).then(function (response) {
+        var depto = $('.modal-dir-field[data-index="' + index + '"][data-field="departamento_id"]');
+        modalLlenarSelect(depto, response.data.listaDeptos || [], direccion.departamento_id);
+        if (!direccion.departamento_id) return null;
+        return axios.post('/cliente/municipio', { id: direccion.departamento_id });
+    }).then(function (response) {
+        if (!response) return;
+        modalLlenarSelect($('.modal-dir-field[data-index="' + index + '"][data-field="municipio_id"]'), response.data.listaMunicipios || [], direccion.municipio_id);
+    }).catch(function () {});
+}
+
+function modalLlenarSelect($select, items, selected) {
+    var html = '<option value="">---Seleccione---</option>';
+    items.forEach(function (item) { html += '<option value="' + item.id + '"' + (String(item.id) === String(selected || '') ? ' selected' : '') + '>' + modalEscapar(item.nombre) + '</option>'; });
+    $select.html(html);
+}
+
+function modalInicializarMapa(index) {
+    if (typeof L === 'undefined') return;
+    var direccion = modalDirecciones[index];
+    var container = document.getElementById('modal-direccion-map-' + index);
+    if (!container) return;
+    var lat = parseFloat(direccion.latitud), lng = parseFloat(direccion.longitud);
+    var tiene = Number.isFinite(lat) && Number.isFinite(lng);
+    var mapa = L.map(container).setView(tiene ? [lat, lng] : [14.0723, -87.1921], tiene ? 15 : 7);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(mapa);
+    var marker = tiene ? L.marker([lat, lng], { draggable: true }).addTo(mapa) : null;
+    var fijar = function (latitud, longitud) {
+        direccion.latitud = Number(latitud).toFixed(7); direccion.longitud = Number(longitud).toFixed(7);
+        $('.modal-dir-field[data-index="' + index + '"][data-field="latitud"]').val(direccion.latitud);
+        $('.modal-dir-field[data-index="' + index + '"][data-field="longitud"]').val(direccion.longitud);
+        if (!marker) marker = L.marker([latitud, longitud], { draggable: true }).addTo(mapa);
+        marker.setLatLng([latitud, longitud]); mapa.setView([latitud, longitud], Math.max(mapa.getZoom(), 15));
+    };
+    if (marker) marker.on('dragend', function (event) { var pos = event.target.getLatLng(); fijar(pos.lat, pos.lng); });
+    mapa.on('click', function (event) { fijar(event.latlng.lat, event.latlng.lng); });
+    mapa._fijarCoordenadas = fijar;
+    modalMapas[index] = mapa;
+    setTimeout(function () { mapa.invalidateSize(); }, 50);
+}
+
+function modalActualizarMapas() {
+    Object.keys(modalMapas).forEach(function (index) {
+        var mapa = modalMapas[index];
+        if (!mapa) return;
+        mapa.invalidateSize(true);
+        mapa.setView(mapa.getCenter(), mapa.getZoom(), { animate: false });
+    });
+}
+
+function modalUbicarDireccion(index) {
+    var direccion = modalDirecciones[index];
+    var card = $('.modal-direccion-card[data-index="' + index + '"]');
+    if (!direccion || !card.length || !direccion.pais_id) return;
+    var partes = [
+        direccion.direccion,
+        card.find('[data-field="municipio_id"] option:selected').text(),
+        card.find('[data-field="departamento_id"] option:selected').text(),
+        card.find('[data-field="pais_id"] option:selected').text()
+    ].filter(function (parte) { return parte && parte.indexOf('Seleccione') === -1; });
+    if (!partes.length) return;
+
+    fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=' + encodeURIComponent(partes.join(', ')), {
+        headers: { 'Accept-Language': 'es' }
+    }).then(function (response) { return response.json(); }).then(function (resultados) {
+        var mapa = modalMapas[index];
+        if (!mapa || !mapa._fijarCoordenadas || !resultados.length) return;
+        mapa._fijarCoordenadas(parseFloat(resultados[0].lat), parseFloat(resultados[0].lon));
+    }).catch(function () {});
+}
+
+function modalAgregarDireccion() {
+    modalDirecciones.forEach(function (direccion) { direccion.principal = false; });
+    modalDirecciones.push(modalDireccionVacia());
+    modalRenderizarDirecciones();
+}
 
 
 $(document).ready(function() {
@@ -99,6 +234,11 @@ $(document).ready(function() {
         }
 
         function obtenerpaiss() {
+
+                    if (!document.getElementById('pais_cliente')) {
+                        modalCargarPaises();
+                        return;
+                    }
 
             axios.get('/cliente/pais')
                 .then(function(response) {
@@ -325,6 +465,35 @@ $(document).ready(function() {
             $('#tab-crear-datos-tab').tab('show');
             $('#clientesCreacionForm .is-invalid').removeClass('is-invalid');
             $('#badge-tab-crear-datos, #badge-tab-crear-contacto, #badge-tab-crear-ubicacion').addClass('d-none');
+            modalInicializarDirecciones();
+        });
+        $('#tabsCrearCliente a[data-toggle="tab"]').on('shown.bs.tab', function (event) {
+            if ($(event.target).attr('href') === '#tab-crear-ubicacion') {
+                setTimeout(modalActualizarMapas, 100);
+            }
+        });
+
+        $(document).on('input change', '.modal-dir-field', function () {
+            var index = Number($(this).data('index')), field = $(this).data('field');
+            if (modalDirecciones[index]) modalDirecciones[index][field] = $(this).val();
+            if (field === 'pais_id' || field === 'departamento_id') {
+                if (field === 'pais_id') { modalDirecciones[index].departamento_id = ''; modalDirecciones[index].municipio_id = ''; }
+                if (field === 'departamento_id') modalDirecciones[index].municipio_id = '';
+                modalCargarCatalogos(index).then(function () { modalUbicarDireccion(index); });
+            }
+            if (field === 'municipio_id') modalUbicarDireccion(index);
+        });
+        $(document).on('change', '.modal-dir-principal', function () {
+            var index = Number($(this).data('index'));
+            modalDirecciones.forEach(function (direccion, i) { direccion.principal = i === index; });
+            modalRenderizarDirecciones();
+        });
+        $(document).on('click', '.modal-quitar-direccion', function () {
+            if (modalDirecciones.length <= 1) return;
+            var index = Number($(this).data('index')), eraPrincipal = modalDirecciones[index].principal;
+            modalDirecciones.splice(index, 1);
+            if (eraPrincipal) modalDirecciones[0].principal = true;
+            modalRenderizarDirecciones();
         });
 
         $(document).on('submit', '#clientesCreacionForm', function(event) {
@@ -404,22 +573,13 @@ $(document).ready(function() {
           }
 
           // ── Tab Ubicación ──────────────────────────────────────────
-          if (!$('#pais_cliente').val()) {
-              $('#pais_cliente').addClass('is-invalid');
-              errores.ubicacion.push('País');
-          }
-          if (!$('#departamento_cliente').val()) {
-              $('#departamento_cliente').addClass('is-invalid');
-              errores.ubicacion.push('Departamento');
-          }
-          if (!$('#municipio_cliente').val()) {
-              $('#municipio_cliente').addClass('is-invalid');
-              errores.ubicacion.push('Municipio');
-          }
-          if (!$('#direccion_cliente').val().trim()) {
-              $('#direccion_cliente').addClass('is-invalid');
-              errores.ubicacion.push('Dirección');
-          }
+          modalDirecciones.forEach(function (direccion, index) {
+              if (!direccion.etiqueta.trim()) errores.ubicacion.push('Etiqueta de dirección ' + (index + 1));
+              if (!direccion.pais_id) errores.ubicacion.push('País de dirección ' + (index + 1));
+              if (!direccion.departamento_id) errores.ubicacion.push('Departamento de dirección ' + (index + 1));
+              if (!direccion.municipio_id) errores.ubicacion.push('Municipio de dirección ' + (index + 1));
+              if (!direccion.direccion.trim()) errores.ubicacion.push('Dirección de dirección ' + (index + 1));
+          });
 
           return errores;
       }
@@ -455,6 +615,11 @@ $(document).ready(function() {
 
           document.getElementById('btn_crear_cliente').disabled = true;
           var data = new FormData($('#clientesCreacionForm').get(0));
+          data.append('direcciones', JSON.stringify(modalDirecciones));
+          data.set('direccion_cliente', modalDirecciones[0].direccion);
+          data.set('municipio_cliente', modalDirecciones[0].municipio_id);
+          data.set('latitud_cliente', modalDirecciones[0].latitud || '');
+          data.set('longitud_cliente', modalDirecciones[0].longitud || '');
 
           axios.post('/cliente/registrar', data)
               .then(function(response) {

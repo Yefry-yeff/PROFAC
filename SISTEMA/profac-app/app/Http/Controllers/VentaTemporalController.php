@@ -11,7 +11,7 @@ class VentaTemporalController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $request->validate(['tipo' => 'required|in:oferta,factura']);
+        $request->validate(['tipo' => 'required|in:oferta,factura,compra']);
         $this->limpiarVencidos();
 
         $temporales = DB::table('venta_temporal')
@@ -19,13 +19,16 @@ class VentaTemporalController extends Controller
             ->where('tipo', $request->tipo)
             ->orderByDesc('updated_at')
             ->orderByDesc('id')
-            ->get(['id', 'tipo', 'codigo_tipo', 'titulo', 'url_reanudacion', 'expira_at', 'created_at', 'updated_at'])
-            ->unique(function ($temporal) {
+            ->get(['id', 'tipo', 'codigo_tipo', 'titulo', 'url_reanudacion', 'expira_at', 'created_at', 'updated_at']);
+
+        if ($request->tipo !== 'compra') {
+            $temporales = $temporales->unique(function ($temporal) {
                 $titulo = mb_strtolower(trim((string) $temporal->titulo));
                 return $titulo !== '' ? $titulo : 'temporal-' . $temporal->id;
-            })->values();
+            });
+        }
 
-        return response()->json(['data' => $temporales]);
+        return response()->json(['data' => $temporales->values()]);
     }
 
     public function show(int $id): JsonResponse
@@ -44,7 +47,7 @@ class VentaTemporalController extends Controller
     {
         $data = $request->validate([
             'id' => 'nullable|integer',
-            'tipo' => 'required|in:oferta,factura',
+            'tipo' => 'required|in:oferta,factura,compra',
             'codigo_tipo' => 'required|string|max:80',
             'titulo' => 'nullable|string|max:180',
             'url_reanudacion' => ['required', 'string', 'max:2000', 'regex:/^\/(?!\/)/'],
