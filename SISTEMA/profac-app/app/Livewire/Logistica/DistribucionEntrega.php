@@ -24,8 +24,8 @@ class DistribucionEntrega extends Component
         return FacturasDistribucion::condicionFecha($alias);
     }
 
-    // rol_id: 10=Picking, 11=Equipo de Entregas, 17=Motoristas
-    private const ROLES_PERSONAL_DISTRIBUCION = [10, 11, 17];
+    // rol_id: 10=Picking, 11=Equipo de Entregas, 17=Motoristas, 21=Ayudante de Entrega
+    private const ROLES_PERSONAL_DISTRIBUCION = [10, 11, 17, 21];
 
     public function render()
     {
@@ -35,7 +35,8 @@ class DistribucionEntrega extends Component
 
     /**
      * Usuarios activos con rol (principal o adicional) de Picking, Equipo de
-     * Entregas o Motoristas: personal disponible para asignar a una distribución.
+     * Entregas, Motoristas o Ayudante de Entrega: personal disponible para asignar
+     * a una distribución.
      */
     private function obtenerPersonalDisponible()
     {

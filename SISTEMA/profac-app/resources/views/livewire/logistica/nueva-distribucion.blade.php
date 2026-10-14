@@ -63,7 +63,7 @@
                                             <option value="{{ $p->id }}">{{ $p->name }} ({{ $p->rol }})</option>
                                         @endforeach
                                     </select>
-                                    <small class="text-muted">Motoristas, Equipo de Entregas y Picking activos.</small>
+                                    <small class="text-muted">Motoristas, Equipo de Entregas, Picking y Ayudantes de Entrega activos.</small>
                                 </div>
                                 <div id="wrapPorcentajesPersonal" class="mb-3" style="display:none;">
                                     <div class="d-flex justify-content-between align-items-center mb-2">
