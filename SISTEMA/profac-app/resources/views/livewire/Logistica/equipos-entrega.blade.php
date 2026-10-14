@@ -265,6 +265,8 @@
         border-radius: 50%;
         background: var(--eq-primary);
     }
+        .eq-page .eq-loading-overlay {
+            position: fixed;
             inset: 0;
             background: rgba(255, 255, 255, 0.86);
             z-index: 3000;
@@ -276,9 +278,8 @@
             transition: opacity .25s ease;
         }
 
-        .eq-page .eq-loading-overlay.is-hidden {
-            opacity: 0;
-            pointer-events: none;
+        .eq-page .eq-loading-overlay[hidden] {
+            display: none;
         }
 
         .eq-page .eq-loader {
@@ -520,6 +521,12 @@
 <script>
 let tablaEquipos, equipoEditando = null;
 $(document).ready(() => {
+    $('#tablaEquipos').on('xhr.dt', function(event, settings, json) {
+        if (json === null) {
+            ocultarLoaderPantalla();
+        }
+    }).on('error.dt dt-error.dt', ocultarLoaderPantalla);
+
     tablaEquipos = $('#tablaEquipos').DataTable({
         processing: true,
         serverSide: true,
@@ -538,8 +545,6 @@ $(document).ready(() => {
         }
     });
 
-    setTimeout(() => ocultarLoaderPantalla(), 1300);
-
     // Limpiar validación inline al escribir
     $('#inputNombreEquipoNuevo').on('input', function() { $(this).removeClass('is-invalid'); });
     $('#editNombreEquipo').on('input', function() { $(this).removeClass('is-invalid'); });
@@ -548,7 +553,7 @@ $(document).ready(() => {
 });
 
 function ocultarLoaderPantalla() {
-    $('#pageLoadingEquipos').addClass('is-hidden');
+    $('#pageLoadingEquipos').prop('hidden', true).attr('aria-busy', 'false');
 }
 
 function abrirModalNuevoEquipo() {
