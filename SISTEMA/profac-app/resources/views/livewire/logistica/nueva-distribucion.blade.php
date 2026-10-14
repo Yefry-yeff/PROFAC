@@ -1760,16 +1760,6 @@ function mostrarFacturasCliente(facturas, nombreCliente) {
 $(document).on('change', 'select[name="equipo_entrega_id"]', actualizarResumenVentaMaxima);
 $(document).on('change', 'select[name="equipo_entrega_id"]', function() { ventaMaximaAdvertida = false; });
 
-if ($('#zonasCardsWrap').length) {
-    cargarZonasParaBusqueda();
-}
-let intentosCargaZonas = 0;
-const sincronizadorZonas = setInterval(function() {
-    const pendientes = $('#zonasCardsWrap .badge-secondary').filter(function() { return $(this).text().indexOf('Cargando') !== -1; }).length;
-    if (!pendientes || intentosCargaZonas++ >= 12) { clearInterval(sincronizadorZonas); return; }
-    cargarZonasParaBusqueda();
-}, 700);
-
 }); // END DOMContentLoaded
 </script>
 
