@@ -3630,7 +3630,7 @@ class ReportesComisionesGenerales extends Component
         $nombreLimpio = preg_replace('/\s+/', '_', trim($nombreLimpio));
         $filename = 'Comisiones_' . $mesNombre . '_' . $diaIni . '_' . $diaFin . '_' . $nombreLimpio . '.xlsx';
 
-        $response = Excel::download(new class($allSheets) implements \Maatwebsite\Excel\Concerns\WithMultipleSheets {
+        $response = Excel::download(new class($allSheets) implements \Maatwebsite\Excel\Concerns\Export, \Maatwebsite\Excel\Concerns\WithMultipleSheets {
             private array $sheets;
             public function __construct(array $sheets) { $this->sheets = $sheets; }
             public function sheets(): array { return $this->sheets; }
