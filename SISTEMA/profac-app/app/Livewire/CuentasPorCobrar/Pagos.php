@@ -1959,6 +1959,12 @@ class Pagos extends Component
     //  ANULACIÓN DE ABONO
     // ══════════════════════════════════════════════════════════════════
 
+    private function esAbonoDePagoNoIdentificado(int $abonoId): bool
+    {
+        return Schema::hasTable('pni_aplicaciones')
+            && DB::table('pni_aplicaciones')->where('abono_id', $abonoId)->exists();
+    }
+
     /**
      * Devuelve el impacto que tendría anular un abono (solo lectura).
      * Usado para construir la advertencia antes de confirmar.
@@ -1986,6 +1992,10 @@ class Pagos extends Component
 
         if ($abono->estado_abono != 1) {
             return response()->json(['error' => 'Este abono ya fue anulado.'], 422);
+        }
+
+        if ($this->esAbonoDePagoNoIdentificado($abonoId)) {
+            return response()->json(['error' => 'Este abono proviene de Pagos No Identificados y no puede anularse individualmente.'], 422);
         }
 
         $estabasCerrada  = ((int) $abono->estado_cerrado === 2);
@@ -2090,6 +2100,15 @@ class Pagos extends Component
             if ((int) $abono->estado_abono !== 1) {
                 DB::rollBack();
                 return response()->json(['icon' => 'warning', 'title' => 'Advertencia', 'text' => 'Este abono ya fue anulado anteriormente.'], 422);
+            }
+
+            if ($this->esAbonoDePagoNoIdentificado($abonoId)) {
+                DB::rollBack();
+                return response()->json([
+                    'icon' => 'warning',
+                    'title' => 'Aplicación de depósito',
+                    'text' => 'Este abono proviene de Pagos No Identificados. No puede anularse individualmente; requiere un reverso integral del depósito.',
+                ], 422);
             }
 
             $monto           = (float) $abono->monto_abonado;
