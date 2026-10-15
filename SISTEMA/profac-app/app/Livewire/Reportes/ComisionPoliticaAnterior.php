@@ -89,6 +89,10 @@ class ComisionPoliticaAnterior extends Component
                     'periodo_politica_anterior' => (string) ($fila['periodo_politica_anterior'] ?? ''),
                     'fecha_creacion_factura' => (string) ($fila['fecha_creacion_factura'] ?? ''),
                     'producto_ids_politica_anterior' => collect($fila['producto_ids_politica_anterior'] ?? [])
+                        ->when(
+                            (int) ($fila['producto_id'] ?? 0) > 0,
+                            fn($ids) => $ids->push((int) $fila['producto_id'])
+                        )
                         ->map(fn ($id) => (int) $id)
                         ->filter(fn ($id) => $id > 0)
                         ->unique()
@@ -107,6 +111,20 @@ class ComisionPoliticaAnterior extends Component
             if (empty($contexto[$facturaId]['usuario_id']) && $usuarioId > 0) {
                 $contexto[$facturaId]['usuario_id'] = $usuarioId;
             }
+
+            $contexto[$facturaId]['producto_ids_politica_anterior'] = collect(
+                $contexto[$facturaId]['producto_ids_politica_anterior']
+            )
+                ->merge($fila['producto_ids_politica_anterior'] ?? [])
+                ->when(
+                    (int) ($fila['producto_id'] ?? 0) > 0,
+                    fn($ids) => $ids->push((int) $fila['producto_id'])
+                )
+                ->map(fn($id) => (int) $id)
+                ->filter(fn($id) => $id > 0)
+                ->unique()
+                ->values()
+                ->all();
         }
 
         return $contexto;
