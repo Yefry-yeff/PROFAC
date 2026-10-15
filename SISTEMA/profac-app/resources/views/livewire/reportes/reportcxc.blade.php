@@ -66,8 +66,8 @@
                                         <th>VENDEDOR</th>
                                         <th>FACTURA</th>
                                         <th>CLIENTE</th>
-                                        <th>TIPO CLIENTE AoB</th>
-                                        <th>TIPO CRÉDITO o CONTADO</th>
+                                        <th>TIPO CLIENTE (AoB)</th>
+                                        <th>TIPO CRÉDITO/CONTADO</th>
                                         <th>CODIGO PRODUCTO</th>
                                         <th>PRODUCTO</th>
                                         <th>MARCA</th>
@@ -94,8 +94,8 @@
                                             <th>VENDEDOR</th>
                                             <th>FACTURA</th>
                                             <th>CLIENTE</th>
-                                            <th>TIPO CLIENTE AoB</th>
-                                            <th>TIPO CRÉDITO o CONTADO</th>
+                                            <th>TIPO CLIENTE (AoB)</th>
+                                            <th>TIPO CRÉDITO/CONTADO</th>
                                             <th>CODIGO PRODUCTO</th>
                                             <th>PRODUCTO</th>
                                             <th>MARCA</th>
@@ -242,7 +242,7 @@
                                 <thead class="">
                                     <tr>
                                         <th>CODIGO</th>
-                                        <th>TIPO CLIENTE AoB</th>
+                                        <th>TIPO CLIENTE (AoB)</th>
                                         <th>CLIENTE</th>
                                         <th>DIRECCION</th>
                                         <th>TELEFONO</th>
@@ -256,7 +256,7 @@
                                     <tfoot>
                                         <tr>
                                             <th>CODIGO</th>
-                                            <th>TIPO CLIENTE AoB</th>
+                                            <th>TIPO CLIENTE (AoB)</th>
                                             <th>CLIENTE</th>
                                             <th>DIRECCION</th>
                                             <th>TELEFONO</th>
@@ -316,7 +316,7 @@
                 {data: 'FACTURA'},
                 {data: 'CLIENTE'},
                 {data: 'TIPO CLIENTE AoB'},
-                {data: 'TIPO CRÉDITO o CONTADO'},
+                {data: 'TIPO CRÉDITO O CONTADO'},
                 {data: 'CODIGO PRODUCTO'},
                 {data: 'PRODUCTO'},
                 {data: 'MARCA'},

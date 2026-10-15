@@ -261,7 +261,7 @@ function guardarSubmenu() {
                     }
                     
                     if (gen.ruta_generada) {
-                        mensajeCompleto += '\n\n🔗 Agrega esta ruta a routes/web.php:\n' + gen.ruta_generada;
+                        mensajeCompleto += '\n\n🔗 Ruta registrada en routes/web.php:\n' + gen.ruta_generada;
                     }
                     
                     if (gen.errores && gen.errores.length > 0) {
@@ -270,9 +270,9 @@ function guardarSubmenu() {
                 }
                 
                 Swal.fire({
-                    title: 'Éxito',
+                    title: response.data.generacion?.success === false ? 'Submenu creado con advertencias' : 'Éxito',
                     text: mensajeCompleto,
-                    icon: 'success',
+                    icon: response.data.generacion?.success === false ? 'warning' : 'success',
                     confirmButtonText: 'Aceptar',
                     width: '600px'
                 }).then(() => {

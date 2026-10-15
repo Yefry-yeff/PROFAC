@@ -538,8 +538,8 @@
                 { data: 'gestor' },
                 { data: 'asesor_comercial' },
                 { data: 'municipio' },
-                { data: 'nombre_equipo' },
-                { data: 'fecha_entrega_real' },
+                { data: 'nombre_equipo', defaultContent: 'Cierre administrativo' },
+                { data: 'fecha_entrega_real', defaultContent: 'No aplica' },
                 {
                     data: 'id', orderable: false, render: (d) => {
                         return `<button type="button" class="btn btn-xs btn-outline-secondary" onclick="verHistorial(${d})"><i class="fas fa-history"></i></button>`;

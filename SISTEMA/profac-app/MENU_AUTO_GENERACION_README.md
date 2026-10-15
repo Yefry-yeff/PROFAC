@@ -1,233 +1,113 @@
 # Generación Automática de Archivos para Menús - PROFAC
 
-## 📋 Descripción
+## Compatibilidad con Livewire 4
 
-Esta funcionalidad permite **generar automáticamente** los archivos necesarios (controlador, vista y ruta) cuando se crea un nuevo submenu en el sistema de gestión de menús dinámicos.
+La generación conserva el formato de **componente de clase PHP + vista Blade**
+que utiliza el proyecto. Livewire 4 admite este formato; no es necesario migrar
+estos módulos a componentes de archivo único.
 
-## ✨ ¿Qué se genera automáticamente?
+Al crear un submenu con **Generar archivos automáticamente**, el sistema crea:
 
-Cuando creas un submenu con la opción "Generar archivos automáticamente" activada, el sistema crea:
+1. **Componente** en `app/Livewire/`, con namespace `App\Livewire`.
+   Incluye una propiedad pública tipada `$titulo` y `render(): View`.
+2. **Vista** en `resources/views/livewire/`, con título escapado por Blade,
+   breadcrumbs, alertas de sesión y una tabla que indica que el módulo está
+   pendiente de implementar.
+3. **Ruta** insertada en `routes/web.php` antes de
+   `// [auto-routes-anchor]`, dentro del grupo protegido existente.
 
-1. **Controlador Livewire** (`app/Http/Livewire/`)
-   - Con estructura básica lista para usar
-   - Métodos de ejemplo: `listarDatos()`, `guardar()`
-   - Manejo de errores incluido
+No se generan consultas a tablas ficticias, acciones de guardado vacías ni
+botones que invoquen funciones JavaScript inexistentes.
 
-2. **Vista Blade** (`resources/views/livewire/`)
-   - Layout responsive con breadcrumbs
-   - Alertas de éxito/error
-   - Tabla con DataTables lista
-   - Modal de ejemplo
+## Cómo usar
 
-3. **Ruta** (texto generado para copiar en `routes/web.php`)
-   - Formato correcto con namespace completo
-   - Lista para pegar en el archivo de rutas
+1. Abre **Gestión de Menús** (`/menu/gestion`) y selecciona **Nuevo Submenu**.
+2. Completa menú padre, nombre, URL, orden, estado y roles con acceso.
+3. Activa **Generar archivos automáticamente** solo para módulos nuevos.
+4. Guarda y revisa los archivos y la ruta que informa el sistema.
+5. Implementa la lógica de negocio en el componente y su vista.
 
-## 🚀 Cómo usar
+La ruta ya queda registrada: **no debes pegarla nuevamente** en
+`routes/web.php`. Si el despliegue usa rutas cacheadas, ejecuta
+`php artisan route:clear` y reconstruye la caché según el proceso de despliegue.
 
-### Paso 1: Crear un Submenu
+Para enlazar una pantalla existente, desactiva la generación.
 
-1. Ve a la **Gestión de Menús** (`/menu/gestion`)
-2. Haz clic en **"Nuevo Submenu"**
-3. Llena el formulario:
-   - **Menú Principal**: Selecciona el menú padre
-   - **Nombre del Submenu**: Ej: "Gestión de Usuarios"
-   - **URL/Ruta**: Ej: `usuarios/gestion` (sin `/` al inicio)
-   - **Orden**: Número de orden
-   - **Estado**: Activo/Inactivo
-   - **Roles con Acceso**: Selecciona los roles que pueden ver este submenu
-   - ✅ **Generar archivos automáticamente**: Déjalo activado
+## Convenciones de nombres
 
-4. Haz clic en **"Guardar"**
+Se admiten rutas locales con segmentos que comienzan por una letra y contienen
+letras ASCII, números, guiones o guiones bajos. No se admiten URLs externas,
+parámetros de consulta, segmentos vacíos ni nombres de clase PHP inválidos.
+Se normalizan las barras al inicio y al final.
 
-### Paso 2: Revisar los archivos generados
+| URL | Componente bajo `app/Livewire/` | Vista bajo `resources/views/livewire/` |
+|-----|--------------------------------|---------------------------------------|
+| `usuarios/listar` | `Usuarios/Listar.php` | `usuarios/listar.blade.php` |
+| `cuentas_por_cobrar/pagos_no_identificados` | `CuentasPorCobrar/PagosNoIdentificados.php` | `cuentasporcobrar/pagosnoidentificados.blade.php` |
+| `ventas/reportes/por-cliente` | `Ventas/Reportes/PorCliente.php` | `ventas/reportes/porcliente.blade.php` |
+| `reportes` | `General/Reportes.php` | `general/reportes.blade.php` |
 
-El sistema mostrará un mensaje con:
-- ✅ Lista de archivos creados
-- 📝 Ruta generada para agregar a `web.php`
-- ⚠️ Advertencias (si algún archivo ya existía)
-
-**Ejemplo de mensaje:**
-
-```
-Submenu creado correctamente - Se generaron 2 archivo(s).
-
-📁 Archivos creados:
-✓ C:\...\app\Http\Livewire\Usuarios\Gestion.php
-✓ C:\...\resources\views\livewire\usuarios\gestion.blade.php
-
-🔗 Agrega esta ruta a routes/web.php:
-Route::get('/usuarios/gestion', App\Http\Livewire\Usuarios\Gestion::class);
-```
-
-### Paso 3: Agregar la ruta
-
-1. Abre el archivo `routes/web.php`
-2. Dentro del grupo de rutas protegidas (`Route::middleware(['auth:sanctum', 'verified'])->group(function () {`), agrega la ruta generada:
+Los namespaces corresponden a la ubicación del componente. Por ejemplo:
 
 ```php
-Route::middleware(['auth:sanctum', 'verified'])->group(function () {
-    // ... otras rutas ...
-    
-    // Nueva ruta generada
-    Route::get('/usuarios/gestion', App\Http\Livewire\Usuarios\Gestion::class);
-});
-```
+namespace App\Livewire\Usuarios;
 
-3. Guarda el archivo
-
-### Paso 4: Personalizar los archivos
-
-Los archivos generados son plantillas básicas. Personalízalos según tus necesidades:
-
-#### Controlador (`app/Http/Livewire/Usuarios/Gestion.php`)
-```php
-public function listarDatos()
-{
-    try {
-        // Cambia 'tu_tabla' por tu tabla real
-        $datos = DB::table('usuarios')
-            ->select('id', 'nombre', 'email', 'estado_id')
-            ->get();
-        
-        return response()->json([
-            'success' => true,
-            'data' => $datos
-        ], 200);
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'mensaje' => 'Error al listar datos: ' . $e->getMessage()
-        ], 500);
-    }
-}
-```
-
-#### Vista (`resources/views/livewire/usuarios/gestion.blade.php`)
-- Personaliza la tabla según tus campos
-- Agrega modales para crear/editar
-- Agrega scripts JavaScript si necesitas DataTables o validaciones
-
-## 📝 Convenciones de Nombres
-
-El sistema convierte la URL en nombres de archivos siguiendo estas reglas:
-
-| URL ingresada | Controlador | Vista | Namespace |
-|---------------|-------------|-------|-----------|
-| `usuarios/listar` | `Usuarios\Listar.php` | `usuarios/listar.blade.php` | `App\Http\Livewire\Usuarios\Listar` |
-| `inventario/productos` | `Inventario\Productos.php` | `inventario/productos.blade.php` | `App\Http\Livewire\Inventario\Productos` |
-| `reportes` | `General\Reportes.php` | `general/reportes.blade.php` | `App\Http\Livewire\General\Reportes` |
-
-## ⚠️ Advertencias importantes
-
-1. **No sobrescribe archivos existentes**
-   - Si el controlador o vista ya existe, mostrará una advertencia
-   - Los archivos existentes NO se modifican
-
-2. **La ruta NO se agrega automáticamente**
-   - Por seguridad, debes agregar la ruta manualmente a `web.php`
-   - El sistema solo genera el texto que debes copiar
-
-3. **Archivos son plantillas básicas**
-   - Debes personalizarlos según tu lógica de negocio
-   - Incluyen comentarios `// TODO:` donde necesitas agregar código
-
-## 🔧 Estructura de archivos generados
-
-### Controlador Livewire
-```php
-<?php
-
-namespace App\Http\Livewire\Carpeta;
-
+use Illuminate\Contracts\View\View;
 use Livewire\Component;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Auth;
 
-class NombreClase extends Component
+class Listar extends Component
 {
-    public $titulo = 'Título del Módulo';
+    public string $titulo = 'Usuarios';
 
-    public function mount() { }
-
-    public function render()
+    public function render(): View
     {
-        return view('livewire.carpeta.nombreclase');
+        return view('livewire.usuarios.listar');
     }
-
-    public function listarDatos() { }
-    public function guardar($request) { }
 }
 ```
 
-### Vista Blade
-```blade
-<div>
-    <div class="row wrapper border-bottom white-bg page-heading">
-        <!-- Breadcrumbs y título -->
-    </div>
-
-    <div class="wrapper wrapper-content animated fadeInRight">
-        <!-- Alertas de sesión -->
-        
-        <div class="row">
-            <div class="col-lg-12">
-                <div class="ibox">
-                    <!-- Contenido: tabla, botones, etc. -->
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+```php
+Route::get('/usuarios/listar', \App\Livewire\Usuarios\Listar::class);
 ```
 
-## 🎯 Casos de uso
+El layout de las páginas completas se toma de `component_layout` en
+`config/livewire.php` (`layouts.app`).
 
-### ✅ Cuándo usar la generación automática
+## Errores y protección de archivos
 
-- Estás creando un módulo nuevo desde cero
-- Quieres una estructura base rápida
-- El módulo seguirá el patrón estándar de la aplicación
+- Los componentes y vistas existentes no se sobrescriben.
+- La ruta se inserta únicamente después de crear ambos archivos.
+- Si falla un paso, se informa el error y se eliminan los archivos nuevos de
+  ese intento; los archivos preexistentes se conservan.
+- Una ruta duplicada, un archivo de rutas ausente o un ancla ausente se informa
+  como error, no como una generación exitosa.
+- El submenu puede quedar guardado aunque falle la generación. La interfaz
+  muestra una advertencia; esto no significa que su pantalla esté disponible.
 
-### ❌ Cuándo NO usar la generación automática
+### Error «Invalid route action» o clase no encontrada
 
-- El módulo ya tiene archivos creados manualmente
-- Necesitas una estructura muy personalizada
-- Solo quieres agregar una opción al menú sin crear archivos nuevos
+Verifica que una clase `App\Livewire\Carpeta\Pantalla` esté en
+`app/Livewire/Carpeta/Pantalla.php`, no en `app/Http/Livewire/`.
+El generador antiguo utilizaba esa carpeta de Livewire 2 con el namespace
+nuevo, impidiendo que Composer cargara la clase por PSR-4.
 
-## 🐛 Solución de problemas
+### Permisos insuficientes
 
-### Error: "El controlador ya existe"
-**Causa**: Ya existe un archivo con ese nombre
-**Solución**: 
-- Desmarca "Generar archivos automáticamente"
-- O usa una URL diferente para evitar conflicto de nombres
+Comprueba permisos de escritura en `app/Livewire/`,
+`resources/views/livewire/` y `routes/web.php`.
 
-### Error: "No se puede escribir en el directorio"
-**Causa**: Permisos insuficientes en las carpetas
-**Solución**: Verifica permisos de escritura en:
-- `app/Http/Livewire/`
-- `resources/views/livewire/`
+## Pruebas de regresión
 
-### El submenu aparece pero da error 404
-**Causa**: No agregaste la ruta a `web.php`
-**Solución**: Copia la ruta generada y pégala en `routes/web.php`
+```console
+php vendor/phpunit/phpunit/phpunit tests/Unit/MenuGeneratorServiceTest.php
+```
 
-## 📚 Recursos adicionales
+Las pruebas usan un directorio temporal aislado, sin modificar menús, rutas ni
+datos reales. Cubren autoload PSR-4, renderizado Blade, títulos con comillas,
+rutas anidadas, URLs inválidas, archivos existentes y fallos al registrar rutas.
 
-- [Documentación de Livewire](https://laravel-livewire.com/docs)
-- [Guía de Rutas en Laravel](https://laravel.com/docs/routing)
-- [Sistema de Menús Dinámicos](./SISTEMA_MENU_DINAMICO_README.md)
+## Recursos
 
-## 🔄 Historial de cambios
-
-### v1.0.0 (Diciembre 2025)
-- ✨ Implementación inicial de generación automática
-- ✅ Generación de controladores Livewire
-- ✅ Generación de vistas Blade
-- ✅ Generación de texto para rutas
-- ✅ Checkbox opcional en el formulario
-
----
-
-**Nota**: Esta funcionalidad acelera el desarrollo pero los archivos generados son plantillas básicas. Siempre revisa y personaliza el código generado según los requerimientos específicos de tu módulo.
+- [Documentación de Livewire 4](https://livewire.laravel.com/docs/4.x/components)
+- [Rutas de Laravel](https://laravel.com/docs/routing)
+- [Sistema de menús dinámicos](./SISTEMA_MENU_DINAMICO_README.md)

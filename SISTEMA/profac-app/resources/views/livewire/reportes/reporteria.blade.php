@@ -227,7 +227,7 @@
                 {data: 'FACTURA'},
                 {data: 'CLIENTE'},
                 {data: 'TIPO CLIENTE AoB'},
-                {data: 'TIPO CRÉDITO o CONTADO'},
+                {data: 'TIPO CREDITO O CONTADO'},
                 {data: 'CODIGO PRODUCTO'},
                 {data: 'PRODUCTO'},
                 {data: 'MARCA'},
@@ -426,5 +426,4 @@
 
 </script>
 @endpush
-
 

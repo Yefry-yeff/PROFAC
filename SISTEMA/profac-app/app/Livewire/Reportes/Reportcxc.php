@@ -57,7 +57,7 @@ class Reportcxc extends Component
                     ) AS 'TIPO CLIENTE AoB',
                     (
                         CASE A.tipo_pago_id WHEN '1' THEN 'CONTADO' WHEN '2' THEN 'CRÉDITO' END
-                    ) AS 'TIPO CRÉDITO o CONTADO',
+                    ) AS 'TIPO CRÉDITO O CONTADO',
                     B.producto_id as 'CODIGO PRODUCTO',
                     UPPER(
                         concat(C.nombre)
@@ -284,7 +284,7 @@ class Reportcxc extends Component
                     ) AS 'TIPO CLIENTE AoB',
                     (
                         CASE A.tipo_pago_id WHEN '1' THEN 'CONTADO' WHEN '2' THEN 'CRÉDITO' END
-                    ) AS 'TIPO CRÉDITO o CONTADO',
+                    ) AS 'TIPO CRÉDITO O CONTADO',
                     B.producto_id as 'CODIGO PRODUCTO',
                     UPPER(
                         concat(C.nombre)
@@ -471,7 +471,7 @@ class Reportcxc extends Component
                     ) AS 'TIPO CLIENTE AoB',
                     (
                         CASE A.tipo_pago_id WHEN '1' THEN 'CONTADO' WHEN '2' THEN 'CRÉDITO' END
-                    ) AS 'TIPO CRÉDITO o CONTADO',
+                    ) AS 'TIPO CRÉDITO O CONTADO',
                     B.producto_id as 'CODIGO PRODUCTO',
                     UPPER(
                         concat(C.nombre)

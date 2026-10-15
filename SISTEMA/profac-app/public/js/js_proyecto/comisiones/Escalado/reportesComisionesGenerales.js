@@ -1,4 +1,4 @@
-/* === RRHH COMISIONES — REPORTERÍA === */
+﻿/* === RRHH COMISIONES — REPORTERÍA === */
 var dtNomina=null, dtNominaDetalle=null, dtDetalle=null, dtRanking=null, dtRol=null,
     dtFacturas=null, dtProductos=null, dtComparativo=null, dtReversiones=null;
 var dtProyecciones=null;
@@ -2559,7 +2559,7 @@ function generarCuadre() {
         });
 
         dtCuadre = $('#dtCuadre').DataTable({
-            language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json' },
+            language: { url: '/js/plugins/dataTables/i18n/Spanish.json' },
             pageLength: 25,
             order: [[4, 'asc']],
             columnDefs: [
@@ -2780,7 +2780,7 @@ function generarAuditoria() {
         });
 
         dtAuditoria = $('#dtAuditoria').DataTable({
-            language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json' },
+            language: { url: '/js/plugins/dataTables/i18n/Spanish.json' },
             pageLength: 50,
             order: [[4, 'asc']],
             dom: '<"d-flex justify-content-between align-items-center mb-2"lf>rt<"d-flex justify-content-between"ip>'

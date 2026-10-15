@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\File;
 class MenuGeneratorService
 {
     /**
-     * Genera automáticamente controlador, vista y ruta para un submenu
+     * Genera un componente de clase Livewire 4, su vista y su ruta.
      * 
      * @param string $nombre Nombre del submenu
      * @param string $url URL del submenu (ej: usuarios/listar)
@@ -20,44 +20,52 @@ class MenuGeneratorService
             'success' => true,
             'archivos_creados' => [],
             'errores' => [],
-            'ruta_generada' => null
+            'ruta_generada' => null,
+            'ruta_insertada' => false
         ];
 
         try {
             // Parsear la URL para determinar la estructura
-            $urlParts = explode('/', trim($url, '/'));
-            $carpeta = count($urlParts) > 1 ? Str::studly($urlParts[0]) : 'General';
-            $accion = count($urlParts) > 1 ? Str::studly($urlParts[1]) : Str::studly($urlParts[0]);
+            $url = trim((string) $url, '/');
+            if (!preg_match('/^[a-zA-Z][a-zA-Z0-9_-]*(?:\/[a-zA-Z][a-zA-Z0-9_-]*)*$/D', $url)) {
+                throw new \InvalidArgumentException('La URL debe ser una ruta local con segmentos de letras, numeros, guiones o guiones bajos.');
+            }
+            $urlParts = array_map([Str::class, 'studly'], explode('/', $url));
+            if (count($urlParts) === 1) {
+                array_unshift($urlParts, 'General');
+            }
             
             // Nombre de clase del componente Livewire
-            $componenteNombre = $carpeta . '\\' . $accion;
+            $componenteNombre = implode('\\', $urlParts);
             
             // 1. Crear Controlador Livewire
             $controladorCreado = $this->crearControladorLivewire($componenteNombre, $nombre);
             if ($controladorCreado['success']) {
                 $resultados['archivos_creados'][] = $controladorCreado['archivo'];
             } else {
-                $resultados['errores'][] = $controladorCreado['error'];
+                throw new \RuntimeException($controladorCreado['error']);
             }
 
             // 2. Crear Vista Blade
-            $vistaCreada = $this->crearVistaBlade($componenteNombre, $nombre);
+            $vistaCreada = $this->crearVistaBlade($componenteNombre);
             if ($vistaCreada['success']) {
                 $resultados['archivos_creados'][] = $vistaCreada['archivo'];
             } else {
-                $resultados['errores'][] = $vistaCreada['error'];
+                throw new \RuntimeException($vistaCreada['error']);
             }
 
-            // 3. Generar texto de ruta (no se inserta automáticamente por seguridad)
+            // Registrar la ruta solo cuando ambos archivos existen.
             $rutaTexto = $this->generarTextoRuta($url, $componenteNombre);
             $resultados['ruta_generada'] = $rutaTexto;
-
-            // Si hay errores, marcar como parcialmente exitoso
-            if (!empty($resultados['errores'])) {
-                $resultados['success'] = false;
-            }
+            $resultados['ruta_insertada'] = true;
 
         } catch (\Exception $e) {
+            foreach ($resultados['archivos_creados'] as $archivo) {
+                if (!File::delete($archivo)) {
+                    $resultados['errores'][] = 'No se pudo eliminar el archivo incompleto: ' . $archivo;
+                }
+            }
+            $resultados['archivos_creados'] = [];
             $resultados['success'] = false;
             $resultados['errores'][] = 'Error general: ' . $e->getMessage();
         }
@@ -71,11 +79,12 @@ class MenuGeneratorService
     private function crearControladorLivewire($componenteNombre, $tituloModulo)
     {
         try {
-            $namespace = 'App\\Livewire\\' . str_replace('/', '\\', dirname($componenteNombre));
-            $className = basename(str_replace('\\', '/', $componenteNombre));
+            $partes = explode('\\', $componenteNombre);
+            $className = array_pop($partes);
+            $namespace = 'App\\Livewire\\' . implode('\\', $partes);
             
             // Crear directorio si no existe
-            $directorio = app_path('Http/Livewire/' . dirname(str_replace('\\', '/', $componenteNombre)));
+            $directorio = app_path('Livewire/' . implode('/', $partes));
             if (!File::exists($directorio)) {
                 File::makeDirectory($directorio, 0755, true);
             }
@@ -91,86 +100,34 @@ class MenuGeneratorService
                 ];
             }
 
-            // Plantilla del controlador
+            $titulo = var_export($tituloModulo, true);
+            // Mantener componentes de clase, compatibles con Livewire 4.
             $contenido = "<?php
 
 namespace {$namespace};
 
 use Livewire\Component;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Contracts\View\View;
 
 class {$className} extends Component
 {
-    // Propiedades del componente
-    public \$titulo = '{$tituloModulo}';
+    public string \$titulo = {$titulo};
 
-    /**
-     * Inicializar el componente
-     */
-    public function mount()
-    {
-        // Inicialización si es necesaria
-    }
-
-    /**
-     * Renderizar la vista
-     */
-    public function render()
+    public function render(): View
     {
         return view('livewire." . strtolower(str_replace('\\', '.', $componenteNombre)) . "');
-    }
-
-    /**
-     * Ejemplo: Listar datos
-     */
-    public function listarDatos()
-    {
-        try {
-            // TODO: Implementar lógica de listado
-            \$datos = DB::table('tu_tabla')->get();
-            
-            return response()->json([
-                'success' => true,
-                'data' => \$datos
-            ], 200);
-        } catch (\\Exception \$e) {
-            return response()->json([
-                'success' => false,
-                'mensaje' => 'Error al listar datos: ' . \$e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Ejemplo: Guardar registro
-     */
-    public function guardar(\$request)
-    {
-        try {
-            DB::beginTransaction();
-            
-            // TODO: Implementar lógica de guardado
-            
-            DB::commit();
-            
-            return response()->json([
-                'success' => true,
-                'mensaje' => 'Registro guardado correctamente'
-            ], 201);
-        } catch (\\Exception \$e) {
-            DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'mensaje' => 'Error al guardar: ' . \$e->getMessage()
-            ], 500);
-        }
     }
 }
 ";
 
-            // Crear archivo
-            File::put($rutaArchivo, $contenido);
+            try {
+                token_get_all($contenido, TOKEN_PARSE);
+            } catch (\ParseError $e) {
+                throw new \InvalidArgumentException('La URL no produce un nombre de componente PHP valido.', 0, $e);
+            }
+            if (File::put($rutaArchivo, $contenido) === false) {
+                throw new \RuntimeException('No se pudo escribir el componente: ' . $rutaArchivo);
+            }
 
             return [
                 'success' => true,
@@ -188,7 +145,7 @@ class {$className} extends Component
     /**
      * Crea la vista Blade
      */
-    private function crearVistaBlade($componenteNombre, $tituloModulo)
+    private function crearVistaBlade($componenteNombre)
     {
         try {
             // Convertir namespace a ruta de carpetas
@@ -215,13 +172,13 @@ class {$className} extends Component
             $contenido = "<div>
     <div class=\"row wrapper border-bottom white-bg page-heading\">
         <div class=\"col-lg-10\">
-            <h2>{$tituloModulo}</h2>
+            <h2>{{ \$titulo }}</h2>
             <ol class=\"breadcrumb\">
                 <li class=\"breadcrumb-item\">
                     <a href=\"{{ route('dashboard') }}\">Inicio</a>
                 </li>
                 <li class=\"breadcrumb-item active\">
-                    <strong>{$tituloModulo}</strong>
+                    <strong>{{ \$titulo }}</strong>
                 </li>
             </ol>
         </div>
@@ -252,12 +209,7 @@ class {$className} extends Component
             <div class=\"col-lg-12\">
                 <div class=\"ibox\">
                     <div class=\"ibox-title\">
-                        <h5>{$tituloModulo}</h5>
-                        <div class=\"ibox-tools\">
-                            <button type=\"button\" class=\"btn btn-primary btn-sm\" onclick=\"abrirModal()\">
-                                <i class=\"fa fa-plus\"></i> Nuevo
-                            </button>
-                        </div>
+                        <h5>{{ \$titulo }}</h5>
                     </div>
                     <div class=\"ibox-content\">
                         <div class=\"table-responsive\">
@@ -271,7 +223,9 @@ class {$className} extends Component
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {{-- Los datos se cargarán vía AJAX/Livewire --}}
+                                    <tr>
+                                        <td colspan=\"4\" class=\"text-center text-muted\">Modulo pendiente de implementar.</td>
+                                    </tr>
                                 </tbody>
                             </table>
                         </div>
@@ -283,16 +237,12 @@ class {$className} extends Component
     </div>
 </div>
 
-@push('scripts')
-    <script>
-        // TODO: Implementar lógica JavaScript si es necesaria
-        console.log('{$tituloModulo} - Vista cargada');
-    </script>
-@endpush
 ";
 
             // Crear archivo
-            File::put($rutaArchivo, $contenido);
+            if (File::put($rutaArchivo, $contenido) === false) {
+                throw new \RuntimeException('No se pudo escribir la vista: ' . $rutaArchivo);
+            }
 
             return [
                 'success' => true,
@@ -322,18 +272,22 @@ class {$className} extends Component
             $contenido = File::get($webPhpPath);
             
             // Verificar que la ruta no existe ya
-            if (strpos($contenido, "/{$url}'") === false) {
+            if (!preg_match('~[\'"]/' . preg_quote($url, '~') . '[\'"]~', $contenido)) {
                 // Agregar la ruta antes del ancla // [auto-routes-anchor]
                 $lineaRuta = "\n    // Ruta auto-generada para: {$componenteNombre}\n    {$rutaTexto}\n\n";
                 $ancla = '    // [auto-routes-anchor]';
                 $posAncla = strpos($contenido, $ancla);
                 if ($posAncla !== false) {
                     $contenido = substr($contenido, 0, $posAncla) . $lineaRuta . substr($contenido, $posAncla);
-                    File::put($webPhpPath, $contenido);
+                    if (File::put($webPhpPath, $contenido, true) === false) {
+                        throw new \RuntimeException('No se pudo escribir routes/web.php.');
+                    }
+                    return $rutaTexto;
                 }
+                throw new \RuntimeException('No se encontro el ancla [auto-routes-anchor] en routes/web.php.');
             }
+            throw new \RuntimeException('Ya existe una ruta para la URL: /' . $url);
         }
-        
-        return $rutaTexto;
+        throw new \RuntimeException('No se encontro routes/web.php.');
     }
 }

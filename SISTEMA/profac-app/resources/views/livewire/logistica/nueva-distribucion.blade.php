@@ -63,7 +63,7 @@
                                             <option value="{{ $p->id }}">{{ $p->name }} ({{ $p->rol }})</option>
                                         @endforeach
                                     </select>
-                                    <small class="text-muted">Motoristas, Equipo de Entregas y Picking activos.</small>
+                                    <small class="text-muted">Motoristas, Equipo de Entregas, Picking y Ayudantes de Entrega activos.</small>
                                 </div>
                                 <div id="wrapPorcentajesPersonal" class="mb-3" style="display:none;">
                                     <div class="d-flex justify-content-between align-items-center mb-2">
@@ -1759,16 +1759,6 @@ function mostrarFacturasCliente(facturas, nombreCliente) {
 
 $(document).on('change', 'select[name="equipo_entrega_id"]', actualizarResumenVentaMaxima);
 $(document).on('change', 'select[name="equipo_entrega_id"]', function() { ventaMaximaAdvertida = false; });
-
-if ($('#zonasCardsWrap').length) {
-    cargarZonasParaBusqueda();
-}
-let intentosCargaZonas = 0;
-const sincronizadorZonas = setInterval(function() {
-    const pendientes = $('#zonasCardsWrap .badge-secondary').filter(function() { return $(this).text().indexOf('Cargando') !== -1; }).length;
-    if (!pendientes || intentosCargaZonas++ >= 12) { clearInterval(sincronizadorZonas); return; }
-    cargarZonasParaBusqueda();
-}, 700);
 
 }); // END DOMContentLoaded
 </script>

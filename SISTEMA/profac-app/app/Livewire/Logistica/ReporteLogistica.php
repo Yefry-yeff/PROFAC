@@ -9,14 +9,10 @@ use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\ReporteLogisticaPorEquipoExport;
 use App\Exports\ReporteLogisticaPorDistribucionExport;
 use App\Exports\ReporteLogisticaPorFacturaExport;
+use App\Support\Logistica\FacturasDistribucion;
 
 class ReporteLogistica extends Component
 {
-    // Fecha de corte usada por el módulo de Logística de Entregas para considerar
-    // una factura "pendiente" (misma regla que AgrupacionesDeEntregas::FECHA_CORTE_FACTURAS,
-    // usada en "Nueva Distribución" → Facturas por Zona / Sin clasificar).
-    private const FECHA_CORTE_FACTURAS = '2026-05-16';
-
     public function mount() {}
 
     public function render()
@@ -212,6 +208,7 @@ class ReporteLogistica extends Component
             ->whereIn('f.estado_factura_id', [1, 2])
             ->where('f.estado_venta_id', 1)
             ->whereBetween('f.fecha_emision', [$fi, $ff])
+            ->whereRaw(FacturasDistribucion::condicionFecha())
             ->whereNotExists(function ($q) {
                 $q->select(DB::raw(1))
                     ->from('distribuciones_entrega_facturas as def')

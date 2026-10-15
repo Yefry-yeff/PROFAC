@@ -1,5 +1,50 @@
 //*****comandos utiles****
 
+### Corte de facturas de distribucion (GLPI-330)
+
+Nueva Distribucion permite seleccionar facturas emitidas desde el 19/05/2026
+(inclusive) hasta el dia actual. El mismo rango se usa en las busquedas por
+numero/cliente, los pendientes por zona y las facturas sin asignar del reporte.
+
+La migracion `2026_10_13_000001_completar_facturas_historicas_glpi_330.php`
+registra como `completada` en el historial logistico cada factura vigente
+(`estado_factura_id` 1 o 2, `estado_venta_id` 1) anterior al corte y pendiente
+de distribucion: sin entrega confirmada y sin asignacion activa (distribucion
+en estado 1 o 2 con factura no anulada). Incluye las pendientes ya tratadas;
+no modifica las asignadas ni las entregadas. Conserva el estado anterior en
+el comentario solicitado en GLPI-330. Es idempotente.
+Estas facturas aparecen en Completadas y el comentario se consulta en su
+historial. No modifica ventas, pagos, distribuciones ni entregas de productos;
+un cierre administrativo no equivale a una entrega fisica.
+
+Para aplicar el cierre, ejecutar `php artisan migrate`. El rollback de esta
+migracion elimina solo sus anotaciones de cierre GLPI-330.
+
+Como alternativa, ejecutar [el script SQL](database/migrations/completar_pendientes_glpi_330.sql)
+en MySQL/MariaDB sobre la base correspondiente, con respaldo previo. No es
+necesario ejecutar ambas opciones. El script muestra cuantos cierres inserto;
+si ya se aplico la migracion, no duplica los cierres. El script solo registra
+el cierre: para excluir las facturas antiguas de Nueva Distribucion tambien
+deben estar desplegados los cambios de filtrado de la aplicacion.
+
+### Cambio de oferta ganadora después de anular facturas
+
+En el modal del flujo, **Quitar Ganadora** y **Ganadora** se habilitan cuando
+no queda ninguna factura vigente (todas tienen `estado_venta_id = 2`).
+El historial de facturación se conserva y no debe borrarse para desbloquear
+estas acciones. Una factura vigente, incluso vencida, bloquea el cambio también
+en el servidor. En Expo, las secciones mostradas corresponden a la ganadora
+actual; las secciones anteriores se conservan como historial.
+
+Para reemplazar una oferta por un descuento autorizado: abrir **Ofertas**,
+seleccionar la ganadora anterior, usar **Quitar Ganadora** e indicar el motivo.
+Luego seleccionar la nueva oferta, marcarla **Ganadora** y crear sus secciones.
+
+En **Secciones de Ofertas**, la búsqueda solo filtra las filas visibles:
+las cantidades y selecciones permanecen vinculadas a cada línea de la oferta.
+Cambiar la cantidad de un producto no debe modificar otro, aunque se busquen
+consecutivamente o tengan el mismo saldo disponible.
+
 1. crear modelo -> php artisan make:model <directory_name>/<model_name>
 
 2. crear componente -> php artisan make:livewire ShowPosts 
@@ -345,4 +390,3 @@ Facturacion SRP cliente A
 Facturacion SRP cliente B
 FACTURAR-COMPROBANTE
 Vebtas exoneradas
-

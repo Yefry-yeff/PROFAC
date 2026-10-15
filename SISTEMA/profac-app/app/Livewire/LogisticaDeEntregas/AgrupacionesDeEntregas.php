@@ -10,15 +10,12 @@ use App\Models\Logistica\ZoneGroup;
 use App\Models\Logistica\ZoneGroupDetail;
 use App\Models\Logistica\ZoneGroupAudit;
 use DataTables;
+use App\Support\Logistica\FacturasDistribucion;
 
 class AgrupacionesDeEntregas extends Component
 {
     // Propiedades del componente
     public $titulo = 'Agrupaciones de Entregas';
-
-    // Fecha de corte usada por el resto del módulo de Logística de Entregas
-    // (misma regla que DistribucionEntrega para determinar facturas "pendientes")
-    private const FECHA_CORTE_FACTURAS = '2026-05-16';
 
     /**
      * Inicializar el componente
@@ -49,12 +46,12 @@ class AgrupacionesDeEntregas extends Component
      */
     private function condicionFacturaPendiente(): string
     {
-        $fecha = self::FECHA_CORTE_FACTURAS;
+        $fecha = FacturasDistribucion::condicionFecha();
 
         return "
             f.estado_factura_id IN (1, 2)
             AND f.estado_venta_id = 1
-            AND f.fecha_emision >= '{$fecha}'
+            AND {$fecha}
             AND NOT EXISTS (
                 SELECT 1 FROM distribuciones_entrega_facturas def
                 WHERE def.factura_id = f.id

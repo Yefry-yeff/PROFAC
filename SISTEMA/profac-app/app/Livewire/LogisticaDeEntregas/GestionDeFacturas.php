@@ -14,6 +14,7 @@ use App\Models\Logistica\DistribucionEntregaFactura;
 use App\Models\Logistica\EntregaProducto;
 use App\Models\Logistica\EquipoEntrega;
 use DataTables;
+use App\Support\Logistica\FacturasDistribucion;
 
 class GestionDeFacturas extends Component
 {
@@ -22,9 +23,6 @@ class GestionDeFacturas extends Component
 
     // Rol de "Gestor de entregas" (mismo usado en GeneradorFacturasComision)
     private const ROL_GESTOR_ENTREGA_ID = 16;
-
-    // Misma fecha de corte usada en el resto del módulo de Logística de Entregas
-    private const FECHA_CORTE_FACTURAS = '2026-05-16';
 
     // Roles con visión global (ven todas las facturas de todos los gestores):
     // Administrador (1) y Créditos y Cobros (4). Cualquier otro rol solo ve
@@ -62,11 +60,11 @@ class GestionDeFacturas extends Component
      */
     private function condicionFacturaBase(): string
     {
-        $fecha = self::FECHA_CORTE_FACTURAS;
+        $fecha = FacturasDistribucion::condicionFecha();
         return "
             f.estado_factura_id IN (1, 2)
             AND f.estado_venta_id = 1
-            AND f.fecha_emision >= '{$fecha}'
+            AND {$fecha}
         ";
     }
 
@@ -284,8 +282,7 @@ class GestionDeFacturas extends Component
     }
 
     /**
-     * Facturas cuya entrega ya fue completada (estado derivado de
-     * distribuciones_entrega_facturas.estado_entrega = 'entregado').
+     * Facturas entregadas físicamente o completadas administrativamente.
      */
     public function listarCompletadas(Request $request)
     {
@@ -303,20 +300,26 @@ class GestionDeFacturas extends Component
                 m.nombre AS municipio,
                 de.id AS distribucion_id,
                 ee.nombre_equipo,
-                def.fecha_entrega_real
+                def.fecha_entrega_real,
+                cierre.created_at AS fecha_cierre,
+                cierre.observaciones AS comentario_cierre
             FROM factura f
             INNER JOIN cliente c ON c.id = f.cliente_id
-            INNER JOIN distribuciones_entrega_facturas def ON def.factura_id = f.id
-            INNER JOIN distribuciones_entrega de ON de.id = def.distribucion_entrega_id
-            INNER JOIN equipos_entrega ee ON ee.id = de.equipo_entrega_id
+            LEFT JOIN distribuciones_entrega_facturas def ON def.factura_id = f.id AND def.estado_entrega = 'entregado'
+            LEFT JOIN distribuciones_entrega de ON de.id = def.distribucion_entrega_id
+            LEFT JOIN equipos_entrega ee ON ee.id = de.equipo_entrega_id
+            LEFT JOIN factura_tratamiento_entrega_historial cierre ON cierre.id = (
+                SELECT MAX(h.id) FROM factura_tratamiento_entrega_historial h
+                WHERE h.factura_id = f.id AND h.estado = 'completada'
+            )
             LEFT JOIN factura_tratamiento_entrega fte ON fte.factura_id = f.id
             LEFT JOIN departamento d ON d.id = fte.department_id
             LEFT JOIN municipio m ON m.id = fte.municipality_id
             LEFT JOIN users g ON g.id = f.gestor_entrega
             LEFT JOIN users uv ON uv.id = f.vendedor
-            WHERE def.estado_entrega = 'entregado'
+            WHERE (def.estado_entrega = 'entregado' OR cierre.id IS NOT NULL)
             {$filtroGestor}
-            ORDER BY def.fecha_entrega_real DESC
+            ORDER BY COALESCE(cierre.created_at, def.fecha_entrega_real) DESC
         ";
 
         $datos = collect(DB::select($sql, $params));
@@ -366,8 +369,12 @@ class GestionDeFacturas extends Component
             $filtroCompletadas = $this->aplicarFiltroGestor($request, $paramsCompletadas);
             $completadas = DB::select("
                 SELECT COUNT(*) AS total FROM factura f
-                INNER JOIN distribuciones_entrega_facturas def ON def.factura_id = f.id
-                WHERE def.estado_entrega = 'entregado'
+                WHERE (
+                    EXISTS (SELECT 1 FROM distribuciones_entrega_facturas def
+                        WHERE def.factura_id = f.id AND def.estado_entrega = 'entregado')
+                    OR EXISTS (SELECT 1 FROM factura_tratamiento_entrega_historial h
+                        WHERE h.factura_id = f.id AND h.estado = 'completada')
+                )
                 {$filtroCompletadas}
             ", $paramsCompletadas)[0]->total;
 
@@ -533,6 +540,7 @@ class GestionDeFacturas extends Component
                 SELECT f.id FROM factura f
                 INNER JOIN factura_tratamiento_entrega fte ON fte.factura_id = f.id
                 WHERE f.id IN ({$placeholders})
+                AND {$this->condicionFacturaBase()}
                 {$this->condicionNoAsignadaActiva()}
             ", $facturaIds);
 

@@ -628,7 +628,10 @@ class Librocobrosrep extends Component
                 c.monto_cobrado AS total_factura,
                 c.cliente_id AS _cliente_id,
                 c.vendedor AS _vendedor_id,
-                c._banco_id
+                c._banco_id,
+                c.fecha_orden AS _fecha_orden,
+                c.orden_tipo AS _orden_tipo,
+                c.movimiento_id AS _movimiento_id
             FROM calculados c
             LEFT JOIN users u ON u.id = c.vendedor
             LEFT JOIN users tele ON tele.id = c.users_id
@@ -663,7 +666,30 @@ class Librocobrosrep extends Component
             $bindings[] = '%' . $factura . '%';
         }
 
-        $sql .= ' ORDER BY c.fecha_orden ASC, c.orden_tipo ASC, c.movimiento_id ASC';
+        $depositos = DB::table('pagos_no_identificados as p')
+            ->join('banco as b', 'b.id', '=', 'p.banco_id')
+            ->leftJoin('cliente as cliente', 'cliente.id', '=', 'p.cliente_id')
+            ->where('p.saldo_disponible', '>', 0)
+            ->whereNotIn('p.banco_id', [12, 13])
+            ->whereBetween('p.fecha_pago', [$fechaInicio, $fechaFinal])
+            ->when($cliente, fn ($q) => $q->where('p.cliente_id', $cliente))
+            ->when($banco, fn ($q) => $q->where('p.banco_id', $banco))
+            ->when($vendedor || $teleasesor || $gestor || $factura, fn ($q) => $q->whereRaw('1 = 0'))
+            ->selectRaw("
+                NULL AS fecha_venta, NULL AS fecha_vencimiento,
+                p.fecha_pago, COALESCE(cliente.nombre, '') AS cliente,
+                '' AS asesor_comercial, '' AS teleasesor, '' AS factura,
+                p.saldo_disponible AS monto_cobrado, 1 AS impacta_kpi,
+                NULL AS saldo_pendiente, '' AS estado_factura,
+                b.nombre AS banco, p.cuenta_bancaria AS cuenta_banco,
+                p.observaciones, NULL AS exonerado, NULL AS gravado,
+                NULL AS excento, NULL AS subtotal, NULL AS isv, NULL AS total_factura,
+                p.cliente_id AS _cliente_id, NULL AS _vendedor_id, p.banco_id AS _banco_id,
+                p.fecha_pago AS _fecha_orden, 5 AS _orden_tipo, p.id AS _movimiento_id
+            ");
+        $sql = 'SELECT * FROM (' . $sql . ' UNION ALL ' . $depositos->toSql() . ') reporte'
+            . ' ORDER BY _fecha_orden ASC, _orden_tipo ASC, _movimiento_id ASC';
+        $bindings = array_merge($bindings, $depositos->getBindings());
 
         return DB::select($sql, $bindings);
     }
