@@ -526,6 +526,8 @@ Al hacer clic en la factura vinculada se descarga su PDF sin cerrar el detalle. 
 
 ### 16.6 Integración con Libro de Cobros
 
+**Aplicar Pago** permite escribir una observación opcional de hasta 2.000 caracteres. Se añade al comentario de cada abono generado, conservando la referencia de operación y la observación original del depósito. Se muestra en el historial y en el Libro de Cobros con sus exportaciones. El campo se limpia al abrir una nueva aplicación y forma parte del control de reintentos para impedir reutilizar la misma solicitud con una nota distinta.
+
 El reporte vigente (tipo 3), su PDF y Excel incluyen el saldo disponible de los depósitos sin aplicar. Solo muestran observaciones, banco, cuenta receptora, cliente si existe, fecha original de depósito y monto del movimiento. Los campos de factura, estado de factura, asesores e impuestos quedan vacíos; no se inventan cargos fiscales para dinero aún no asociado a una venta.
 
 La aplicación genera abonos normales en `abonos_creditos` y actualiza `aplicacion_pagos`, de modo que el reporte incorpora los importes aplicados mediante su lógica habitual. El depósito totalmente aplicado deja de aparecer como depósito pendiente. Para una aplicación parcial, se presenta el abono normal por lo consumido y el depósito por su saldo restante; nunca se suma otra vez el monto original completo. Los importes disponibles reflejan el estado actual, no un corte histórico de aplicaciones.

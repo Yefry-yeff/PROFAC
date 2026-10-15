@@ -533,6 +533,47 @@ class PagosNoIdentificadosTest extends TestCase
             ->assertSet('modal', 'detalle');
     }
 
+    public function test_application_observation_is_saved_in_abonos_history_and_book(): void
+    {
+        $this->prepararLibroCobros();
+        $primero = $this->registrar('100.00', 1);
+        $segundo = $this->registrar('200.00', 1);
+        $component = Livewire::test(PagosNoIdentificados::class)
+            ->set('seleccionados', [(string) $primero, (string) $segundo])
+            ->call('abrirAplicacion')->assertSet('observacionAplicacion', '')
+            ->assertSee('Observación de la aplicación')
+            ->set('facturaDestino', '1')
+            ->set('observacionAplicacion', 'Referencia bancaria 12345')
+            ->call('aplicar')->assertHasNoErrors();
+        foreach (DB::table('abonos_creditos')->get() as $abono) {
+            $this->assertStringContainsString('Referencia bancaria 12345', $abono->comentario);
+            $this->assertStringContainsString('Prueba', $abono->comentario);
+        }
+        $this->assertCount(2, DB::table('abonos_creditos')->get());
+        $component->call('verDetalle', $primero)->assertSee('Referencia bancaria 12345');
+        foreach ($this->libroCobros()['data'] as $row) {
+            $this->assertStringContainsString('Referencia bancaria 12345', $row['observaciones']);
+        }
+        $this->assertSame('Prueba', DB::table('pagos_no_identificados')->where('id', $primero)->value('observaciones'));
+        $component->set('seleccionados', [(string) $this->registrar('10.00', 1)])
+            ->call('abrirAplicacion')->assertSet('observacionAplicacion', '');
+    }
+
+    public function test_application_observation_is_validated_and_protected_on_retry(): void
+    {
+        $pago = $this->registrar('1000.00', 1);
+        $component = Livewire::test(PagosNoIdentificados::class)
+            ->set('seleccionados', [(string) $pago])->call('abrirAplicacion')
+            ->set('facturaDestino', '1')->set('observacionAplicacion', str_repeat('a', 2001))
+            ->call('aplicar')->assertHasErrors('observaciones');
+        $this->assertSame(0, DB::table('abonos_creditos')->count());
+        $datos = $this->solicitud([$pago], '100.00') + ['observaciones' => 'Nota original'];
+        $id = app(Pagos::class)->aplicar($datos);
+        $this->assertSame($id, app(Pagos::class)->aplicar($datos));
+        $this->expectException(ValidationException::class);
+        app(Pagos::class)->aplicar(array_replace($datos, ['observaciones' => 'Nota distinta']));
+    }
+
     public function test_invoice_download_rejects_invoice_not_linked_to_the_open_payment(): void
     {
         $pago = $this->registrar('1000.00', 1);

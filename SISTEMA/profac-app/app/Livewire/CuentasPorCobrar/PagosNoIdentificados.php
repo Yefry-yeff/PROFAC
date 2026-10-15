@@ -36,6 +36,7 @@ class PagosNoIdentificados extends Component
     public string $clienteDestino = '';
     public string $facturaDestino = '';
     public string $montoAplicar = '';
+    public string $observacionAplicacion = '';
     public bool $confirmarPeriodo = false;
     #[Locked]
     public string $claveRegistro = '';
@@ -179,6 +180,7 @@ class PagosNoIdentificados extends Component
         $this->saldoFactura = '';
         $this->montoAplicar = '';
         $this->confirmarPeriodo = false;
+        $this->observacionAplicacion = '';
         $this->buscarCliente = '';
         $this->buscarFactura = '';
         $this->claveAplicacion = (string) Str::uuid();
@@ -215,6 +217,7 @@ class PagosNoIdentificados extends Component
                 'saldo_factura' => $this->saldoFactura,
                 'clave' => $this->claveAplicacion,
                 'confirmar_periodo' => $this->confirmarPeriodo,
+                'observaciones' => $this->observacionAplicacion,
             ]);
             $this->cerrar();
             $this->seleccionados = [];

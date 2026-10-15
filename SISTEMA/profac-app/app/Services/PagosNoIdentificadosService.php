@@ -221,13 +221,18 @@ class PagosNoIdentificadosService
             'saldos.*' => ['required', 'regex:/^\d{1,10}(?:\.\d{1,2})?$/D'],
             'saldo_factura' => ['required', 'regex:/^\d{1,10}(?:\.\d{1,2})?$/D'],
             'confirmar_periodo' => ['required', 'boolean'],
+            'observaciones' => ['nullable', 'string', 'max:2000'],
         ])->validate();
         $monto = self::centavos((string) $datos['monto']);
         $ids = array_map('intval', $datos['pagos']);
         sort($ids);
         $huella = hash('sha256', json_encode([$ids, (int) $datos['cliente_id'], (int) $datos['factura_id'], $monto]));
+        $observacion = trim((string) ($datos['observaciones'] ?? ''));
+        if ($observacion !== '') {
+            $huella = hash('sha256', $huella . $observacion);
+        }
 
-        return DB::transaction(function () use ($datos, $monto, $ids, $huella) {
+        return DB::transaction(function () use ($datos, $monto, $ids, $huella, $observacion) {
             // Serializar reintentos del mismo usuario antes de consultar la clave idempotente.
             DB::table('users')->where('id', Auth::id())->lockForUpdate()->first();
             $anterior = DB::table('pni_operaciones')->where('clave', $datos['clave'])->first();
@@ -287,7 +292,8 @@ class PagosNoIdentificadosService
                     'aplicacion_pagos_id' => $cuenta->id, 'factura_id' => $factura->id,
                     'banco_id' => $pago->banco_id, 'estado_abono' => 1, 'id_tipo_pago_cobro' => 2,
                     'monto_abonado' => self::decimal($linea['monto']), 'usr_registro' => Auth::id(),
-                    'comentario' => "Pago no identificado #{$pago->id}, operación #{$operacion}. " . $pago->observaciones,
+                    'comentario' => "Pago no identificado #{$pago->id}, operación #{$operacion}. " . $pago->observaciones
+                        . ($observacion !== '' ? "\nObservación de la aplicación: {$observacion}" : ''),
                     'fecha_pago' => $pago->fecha_pago, 'numero_recibo' => "PNI-{$pago->id}",
                     'periodo_comision_original' => $periodo['original'] !== $periodo['asignado'] ? $periodo['original'] : null,
                     'periodo_comision_asignado' => $periodo['original'] !== $periodo['asignado'] ? $periodo['asignado'] : null,
@@ -346,8 +352,9 @@ class PagosNoIdentificadosService
             ->join('pni_operaciones as o', 'o.id', '=', 'a.operacion_id')
             ->join('factura as f', 'f.id', '=', 'o.factura_id')
             ->join('users as u', 'u.id', '=', 'o.usuario_id')
+            ->join('abonos_creditos as ab', 'ab.id', '=', 'a.abono_id')
             ->select('a.*', 'o.factura_id', 'f.cai', 'f.numero_secuencia_cai', 'u.name as usuario',
-                'o.saldo_factura_antes', 'o.saldo_factura_despues')
+                'o.saldo_factura_antes', 'o.saldo_factura_despues', 'ab.comentario as observaciones')
             ->where('a.pago_id', $pagoId)->orderBy('a.id')->get();
     }
 }

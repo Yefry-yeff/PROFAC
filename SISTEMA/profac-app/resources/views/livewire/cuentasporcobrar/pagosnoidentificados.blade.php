@@ -100,6 +100,7 @@
             .pni-page .pni-compact .pni-panel { padding:10px 12px 0; margin-bottom:10px; min-width:0; }
             .pni-page .pni-compact .pni-section { margin:0 0 9px; padding-bottom:5px; }
             .pni-page .pni-compact .form-group { margin-bottom:10px; }
+            .pni-page .pni-compact textarea.form-control { padding:6px 10px; line-height:1.3; }
             .pni-page .pni-compact label { margin-bottom:4px; font-size:12px; }
             .pni-page .pni-compact small { margin-top:3px; font-size:11px; }
             .pni-page .pni-compact .pni-application-table { margin-bottom:8px; font-size:12px; }
@@ -312,6 +313,11 @@
                                     <small>Máximo aplicable: L {{ number_format($maximoAplicable / 100, 2) }}. Puede aplicar un importe menor para conservar saldo.</small>
                                 </div>
                             </div>
+                            <div class="form-group">
+                                <label for="pni-observacion-aplicacion">Observación de la aplicación <span class="text-muted font-weight-normal">(opcional)</span></label>
+                                <textarea id="pni-observacion-aplicacion" class="form-control" rows="2" maxlength="2000" wire:model="observacionAplicacion" placeholder="Escriba el detalle o referencia de este pago"></textarea>
+                                <small>Se guardará en los abonos y se mostrará en el Libro de Cobros.</small>
+                            </div>
                             @if(collect($origenes)->contains(fn ($p) => !$p['cliente_id']))<div class="alert alert-info">Los pagos sin cliente que reciban una aplicación se asignarán al cliente destino. Los pagos no consumidos permanecerán sin identificar.</div>@endif
                             <p class="text-muted">Se utilizan primero los depósitos más antiguos. Esta es la distribución prevista:</p>
                             @if($distribucion)
@@ -363,6 +369,7 @@
                                             <div><dt>Saldo de la factura en esta operación</dt><dd>L {{ number_format($aplicacion->saldo_factura_antes, 2) }} <span class="text-muted font-weight-normal">antes →</span> L {{ number_format($aplicacion->saldo_factura_despues, 2) }} <span class="text-muted font-weight-normal">después</span></dd></div>
                                             <div><dt>Operación que agrupa esta aplicación</dt><dd><button class="btn btn-link p-0" wire:click="verOperacion({{ $aplicacion->operacion_id }})">Operación #{{ $aplicacion->operacion_id }}</button></dd></div>
                                         </dl>
+                                        <div class="mt-3"><strong>Observaciones del abono</strong><p class="pni-note mb-0">{{ $aplicacion->observaciones ?: 'Sin observaciones' }}</p></div>
                                     </article>
                                 @empty
                                     <div class="pni-history-card pni-empty"><i class="fa fa-file-text-o d-block" aria-hidden="true"></i><strong class="d-block mb-2">Este pago aún no tiene aplicaciones a facturas.</strong><span>El saldo continúa disponible. Para utilizarlo, cierre este detalle, seleccione el pago y presione «Aplicar Pago».</span></div>
