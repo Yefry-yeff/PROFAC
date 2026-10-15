@@ -358,8 +358,17 @@ class PagosNoIdentificadosTest extends TestCase
         Livewire::test(PagosNoIdentificados::class)
             ->set('seleccionados', [(string) $pago])->call('abrirAplicacion')
             ->assertSet('clienteDestino', '1')
+            ->assertSee('1. Depósitos que utilizará')
+            ->assertSee('2. Cliente y factura destino')
+            ->assertSee('3. Importe y distribución')
             ->set('facturaDestino', '1')->assertSet('montoAplicar', '800.00')
-            ->set('montoAplicar', '200.00')->call('aplicar')
+            ->assertSee('Monto a aplicar en lempiras', false)
+            ->assertSee('Saldo pendiente después de aplicar')
+            ->assertViewHas('saldoDespues', 0)
+            ->set('montoAplicar', '900.00')->assertViewHas('saldoDespues', null)
+            ->set('montoAplicar', 'incorrecto')->assertViewHas('saldoDespues', null)
+            ->set('montoAplicar', '200.00')->assertViewHas('saldoDespues', 60000)
+            ->call('aplicar')
             ->assertHasNoErrors()->assertSet('modal', '')->assertSet('seleccionados', []);
         $this->assertDatabaseHas('pagos_no_identificados', ['id' => $pago, 'saldo_disponible' => 800, 'estado' => 'parcial']);
     }

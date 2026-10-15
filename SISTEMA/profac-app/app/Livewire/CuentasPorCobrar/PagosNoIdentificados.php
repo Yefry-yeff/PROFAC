@@ -309,9 +309,13 @@ class PagosNoIdentificados extends Component
         $total = array_sum(array_map(fn ($p) => PagosService::centavos($p['saldo_disponible']), $this->origenes));
         $maximoAplicable = $this->saldoFactura !== '' ? min($total, PagosService::centavos($this->saldoFactura)) : 0;
         $distribucion = [];
+        $saldoDespues = null;
         $traslados = [];
         if ($this->modal === 'aplicar' && preg_match('/^\d{1,10}(?:\.\d{1,2})?$/D', $this->montoAplicar)) {
             $monto = PagosService::centavos($this->montoAplicar);
+            if ($monto > 0 && $monto <= $maximoAplicable && $this->saldoFactura !== '') {
+                $saldoDespues = PagosService::centavos($this->saldoFactura) - $monto;
+            }
             if ($monto > 0 && $monto <= $total) {
                 $distribucion = $servicio->distribuir(collect($this->origenes)->map(fn ($p) => (object) $p), $monto);
                 foreach ($distribucion as $linea) {
@@ -335,7 +339,7 @@ class PagosNoIdentificados extends Component
             ->select('a.*', 'b.nombre as banco', 'p.cuenta_bancaria', 'p.fecha_pago', 'p.hora_pago')->orderBy('a.id')->get() : collect();
         return view('livewire.cuentasporcobrar.pagosnoidentificados', compact(
             'pagos', 'bancos', 'usuarios', 'clientes', 'clientesFiltro', 'facturas', 'total', 'distribucion', 'maximoAplicable',
-            'traslados', 'detalle', 'historial', 'totalSeleccionado', 'identificador', 'operacionDetalle', 'resumen'
+            'traslados', 'detalle', 'historial', 'totalSeleccionado', 'identificador', 'operacionDetalle', 'resumen', 'saldoDespues'
         ));
     }
 }

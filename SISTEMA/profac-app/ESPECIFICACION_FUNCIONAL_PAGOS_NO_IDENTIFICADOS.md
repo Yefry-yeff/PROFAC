@@ -516,6 +516,10 @@ Aplicar también la migración incremental `2026_10_15_000002_add_hora_pago_to_p
 
 El importe agrupa los millares con coma mientras se escribe y completa dos decimales con punto al salir del campo. Conserva la posición del cursor al editar y envía el valor sin comas; los importes fuera del límite muestran validación, sin truncarse ni redondearse.
 
+El modal **Aplicar Pago** organiza el proceso en tres pasos: depósitos seleccionados, cliente/factura destino e importe/distribución. Muestra el total disponible y máximo aplicable, así como un resumen de fechas y saldo de la factura. El monto a aplicar utiliza el mismo formato monetario del registro (**L 12,500.00**) y actualiza la distribución al editarlo; cambiar de cliente o factura restablece el importe según las reglas vigentes.
+
+En escritorio, la factura y la distribución se muestran en columnas con espaciado compacto. Las listas extensas tienen desplazamiento interno y el pie de confirmación permanece visible; en móvil se apilan las secciones. El resumen muestra **Saldo pendiente después de aplicar**, calculado en centavos como saldo actual menos importe ingresado, sin guardar cambios hasta confirmar. Si el importe es inválido o supera el máximo, solicita un monto válido en lugar de presentar un saldo proyectado incorrecto.
+
 El detalle presenta tarjetas para total depositado, importe aplicado y saldo disponible, seguidas de los datos bancarios y de registro. Cada aplicación aparece en una tarjeta con factura, fecha, usuario, monto y saldos antes/después identificados por separado. Si no hay aplicaciones, indica cómo aplicar el saldo sin mostrar una tabla vacía. La operación permite consultar los depósitos que la integraron.
 
 Al hacer clic en la factura vinculada se descarga su PDF sin cerrar el detalle. Se reutiliza el generador vigente de facturas (incluida su selección de formato exonerado). La descarga requiere acceso al módulo y una asociación real entre la factura solicitada y el depósito abierto; no permite descargar facturas ajenas al historial.

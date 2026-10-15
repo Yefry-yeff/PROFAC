@@ -81,6 +81,40 @@
             .pni-page .pni-empty { text-align:center; padding:26px 18px; color:#737d88; }
             .pni-page .pni-empty i { font-size:28px; color:#d1b28c; margin-bottom:12px; }
             .pni-page .pni-note { white-space:pre-wrap; overflow-wrap:anywhere; }
+            .pni-page .pni-application-table { font-size:13px; margin-bottom:16px; }
+            .pni-page .pni-application-table th { background:#faf5ed; color:#896237; border-top:0; font-size:11px; text-transform:uppercase; letter-spacing:.03em; }
+            .pni-page .pni-application-table td { vertical-align:middle; color:#46505c; }
+            .pni-page .pni-application-table .pni-numeric { text-align:right; white-space:nowrap; }
+            .pni-page .pni-invoice-summary { background:#f5f8fc; border:1px solid #dfe7f1; border-radius:8px; padding:16px; margin-bottom:18px; }
+            .pni-page .pni-invoice-summary .pni-facts { margin:12px 0 0; }
+            .pni-page .pni-compact { max-width:1100px !important; margin:12px auto; }
+            .pni-page .pni-compact .modal-content { max-height:calc(100dvh - 24px); }
+            .pni-page .pni-compact .modal-header { padding:12px 20px; flex-shrink:0; }
+            .pni-page .pni-compact .modal-body { padding:12px 16px; overflow-y:auto; }
+            .pni-page .pni-compact .modal-footer { padding:10px 16px; flex-shrink:0; }
+            .pni-page .pni-compact .pni-intro { margin-bottom:10px; font-size:12px; }
+            .pni-page .pni-compact .pni-amounts { gap:10px; margin-bottom:10px; }
+            .pni-page .pni-compact .pni-amount-card { padding:9px 12px; }
+            .pni-page .pni-compact .pni-amount-card span { margin-bottom:3px; }
+            .pni-page .pni-compact .pni-amount-card strong { font-size:18px; }
+            .pni-page .pni-compact .pni-panel { padding:10px 12px 0; margin-bottom:10px; min-width:0; }
+            .pni-page .pni-compact .pni-section { margin:0 0 9px; padding-bottom:5px; }
+            .pni-page .pni-compact .form-group { margin-bottom:10px; }
+            .pni-page .pni-compact label { margin-bottom:4px; font-size:12px; }
+            .pni-page .pni-compact small { margin-top:3px; font-size:11px; }
+            .pni-page .pni-compact .pni-application-table { margin-bottom:8px; font-size:12px; }
+            .pni-page .pni-compact .pni-application-table td, .pni-page .pni-compact .pni-application-table th { padding:5px 7px; }
+            .pni-page .pni-compact .table-responsive { max-height:130px; overflow:auto; }
+            .pni-page .pni-compact .pni-invoice-summary { padding:10px 12px; margin-bottom:10px; }
+            .pni-page .pni-compact .pni-facts { gap:8px 12px; margin-top:8px; font-size:12px; }
+            .pni-page .pni-compact .pni-facts dt { margin-bottom:2px; font-size:11px; }
+            .pni-page .pni-compact .pni-empty { padding:12px; }
+            .pni-page .pni-compact .alert { padding:8px 12px; font-size:12px; }
+            .pni-page .pni-application-grid { display:grid; grid-template-columns:minmax(0,1.2fr) minmax(0,1fr); gap:12px; }
+            .pni-page .pni-application-grid .pni-panel { margin-bottom:0; }
+            @media(max-width:767px) {
+                .pni-page .pni-application-grid { grid-template-columns:1fr; }
+            }
             @media(max-width:575px) {
                 .pni-page .pni-editor .modal-body, .pni-page .pni-editor .modal-header, .pni-page .pni-editor .modal-footer { padding:18px; }
                 .pni-page .pni-panel { padding:16px 14px 0; }
@@ -169,7 +203,7 @@
         <div class="pni-page">
         <div class="modal-backdrop show"></div>
         <div class="modal show d-block" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="pni-modal-title" style="overflow-y:auto;" wire:key="modal-{{ $modal }}" x-init="$el.focus()" x-on:keydown.escape.window="$wire.cerrar()">
-            <div class="modal-dialog {{ $modal === 'filtros' ? 'modal-lg modal-dialog-centered pni-filter-modal' : 'modal-xl' }} {{ in_array($modal, ['nuevo', 'aplicar', 'detalle']) ? 'pni-editor' : '' }}" role="document">
+            <div class="modal-dialog {{ $modal === 'filtros' ? 'modal-lg modal-dialog-centered pni-filter-modal' : 'modal-xl' }} {{ in_array($modal, ['nuevo', 'aplicar', 'detalle']) ? 'pni-editor' : '' }} {{ $modal === 'aplicar' ? 'pni-compact' : '' }}" role="document">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h4 id="pni-modal-title" class="modal-title"><i class="fa {{ $modal === 'filtros' ? 'fa-filter' : 'fa-bank' }} mr-2" aria-hidden="true"></i>{{ ['nuevo' => 'Nuevo Pago No Identificado', 'aplicar' => 'Aplicar Pago', 'detalle' => 'Detalle y aplicaciones del pago', 'filtros' => 'Filtros de búsqueda'][$modal] }}</h4>
@@ -225,16 +259,28 @@
                                 </div>
                             </form>
                         @elseif($modal === 'aplicar')
-                            <p><strong>{{ count($origenes) }} pagos seleccionados · Disponible: L {{ number_format($total / 100, 2) }}</strong></p>
-                            <div class="table-responsive"><table class="table table-sm"><thead><tr><th>Pago</th><th>Cliente ID</th><th>Fecha</th><th>Cuenta</th><th>Depósito</th><th>Aplicado</th><th>Disponible</th></tr></thead><tbody>
-                                @foreach($origenes as $origen)<tr><td>#{{ $origen['id'] }}</td><td>{{ $origen['cliente_id'] ?: 'Sin identificar' }}</td><td>{{ \Carbon\Carbon::parse($origen['fecha_pago'])->format('d/m/Y') }} {{ $origen['hora_pago'] ? substr($origen['hora_pago'], 0, 5) : '(hora no registrada)' }}</td><td>{{ $origen['cuenta_bancaria'] }}</td><td>L {{ number_format($origen['monto_original'], 2) }}</td><td>L {{ number_format($origen['monto_original'] - $origen['saldo_disponible'], 2) }}</td><td>L {{ number_format($origen['saldo_disponible'], 2) }}</td></tr>@endforeach
+                            <p class="pni-intro">Seleccione la factura que desea abonar y revise cómo se distribuirá el importe antes de confirmar.</p>
+                            <div class="pni-amounts">
+                                <div class="pni-amount-card"><span>Depósitos seleccionados</span><strong>{{ count($origenes) }}</strong></div>
+                                <div class="pni-amount-card available"><span>Total disponible de los depósitos</span><strong>L {{ number_format($total / 100, 2) }}</strong></div>
+                                <div class="pni-amount-card"><span>Máximo aplicable a esta factura</span><strong>L {{ number_format($maximoAplicable / 100, 2) }}</strong></div>
+                            </div>
+                            <div class="pni-panel">
+                            <p class="pni-section"><i class="fa fa-bank mr-1" aria-hidden="true"></i>1. Depósitos que utilizará</p>
+                            <div class="table-responsive"><table class="table table-sm pni-application-table"><thead><tr><th>Depósito</th><th>Fecha del pago</th><th>Cuenta receptora</th><th class="pni-numeric">Monto original</th><th class="pni-numeric">Ya aplicado</th><th class="pni-numeric">Disponible</th></tr></thead><tbody>
+                                @foreach($origenes as $origen)<tr><td><strong>#{{ $origen['id'] }}</strong></td><td>{{ \Carbon\Carbon::parse($origen['fecha_pago'])->format('d/m/Y') }}<small>{{ $origen['hora_pago'] ? substr($origen['hora_pago'], 0, 5) : 'Hora no registrada' }}</small></td><td>{{ $origen['cuenta_bancaria'] }}</td><td class="pni-numeric">L {{ number_format($origen['monto_original'], 2) }}</td><td class="pni-numeric">L {{ number_format($origen['monto_original'] - $origen['saldo_disponible'], 2) }}</td><td class="pni-numeric"><strong>L {{ number_format($origen['saldo_disponible'], 2) }}</strong></td></tr>@endforeach
                             </tbody></table></div>
+                            </div>
+                            <div class="pni-application-grid">
+                            <div class="pni-panel">
+                            <p class="pni-section"><i class="fa fa-file-text-o mr-1" aria-hidden="true"></i>2. Cliente y factura destino</p>
                             <div class="row">
-                                <div class="col-md-6 form-group">
+                                <div class="col-md-12 form-group">
                                     <label for="pni-cliente-destino">Cliente destino *</label>
                                     <div wire:ignore x-data="pniSelect('clienteDestino', @js($clienteDestino), true)">
                                         <select id="pni-cliente-destino" x-ref="select" class="form-control" data-placeholder="Buscar y seleccionar cliente" @disabled($clienteFijo !== '')><option value=""></option>@foreach($clientes as $cliente)<option value="{{ $cliente->id }}">{{ $cliente->id }} - {{ $cliente->nombre }}</option>@endforeach</select>
                                     </div>
+                                    @if($clienteFijo)<small>El cliente está definido por los depósitos seleccionados.</small>@endif
                                 </div>
                                 <div class="col-md-12 form-group">
                                     <label for="pni-factura-destino">Factura destino *</label>
@@ -243,14 +289,38 @@
                                     </div>
                                     @if($clienteDestino && $facturas->isEmpty())<small class="text-warning">No hay facturas con saldo pendiente que coincidan.</small>@endif
                                 </div>
-                                <div class="col-md-4 form-group"><label for="pni-aplicar-monto">Monto a aplicar *</label><input id="pni-aplicar-monto" type="number" step="0.01" min="0.01" max="{{ $maximoAplicable / 100 }}" class="form-control" wire:model.live.debounce.300ms="montoAplicar"><small>Máximo aplicable: L {{ number_format($maximoAplicable / 100, 2) }}</small></div>
                             </div>
                             @if($facturaActual = $facturas->firstWhere('factura_id', (int) $facturaDestino))
-                                <p><strong>Factura destino:</strong> {{ $facturaActual->cai ?: $facturaActual->numero_secuencia_cai }} · Emisión {{ $facturaActual->fecha_emision }} · Vencimiento {{ $facturaActual->fecha_vencimiento }} · Total L {{ number_format($facturaActual->total, 2) }} · Saldo pendiente L {{ number_format((float) $saldoFactura, 2) }}</p>
+                                <div class="pni-invoice-summary"><strong>Factura {{ $facturaActual->cai ?: $facturaActual->numero_secuencia_cai }}</strong>
+                                    <dl class="pni-facts">
+                                        <div><dt>Fecha de emisión</dt><dd>{{ \Carbon\Carbon::parse($facturaActual->fecha_emision)->format('d/m/Y') }}</dd></div>
+                                        <div><dt>Fecha de vencimiento</dt><dd>{{ \Carbon\Carbon::parse($facturaActual->fecha_vencimiento)->format('d/m/Y') }}</dd></div>
+                                        <div><dt>Total de la factura</dt><dd>L {{ number_format($facturaActual->total, 2) }}</dd></div>
+                                        <div><dt>Saldo pendiente después de aplicar</dt><dd id="pni-saldo-despues">{{ $saldoDespues !== null ? 'L ' . number_format($saldoDespues / 100, 2) : 'Ingrese un monto válido' }}</dd></div>
+                                    </dl>
+                                </div>
                             @endif
+                            </div>
+                            <div class="pni-panel">
+                            <p class="pni-section"><i class="fa fa-money mr-1" aria-hidden="true"></i>3. Importe y distribución</p>
+                            <div class="row">
+                                <div class="col-12 form-group" wire:key="importe-{{ $clienteDestino }}-{{ $facturaDestino }}">
+                                    <label for="pni-aplicar-monto">Monto a aplicar *</label>
+                                    <div class="pni-money" x-data="pniMoney($wire.entangle('montoAplicar'))">
+                                        <span aria-hidden="true">L</span><input id="pni-aplicar-monto" type="text" inputmode="decimal" required class="form-control" aria-label="Monto a aplicar en lempiras" placeholder="0.00" x-ref="amount" x-on:input="input()" x-on:input.debounce.350ms="$wire.set('montoAplicar', raw)" x-on:blur="format()" @disabled(!$facturaDestino)>
+                                    </div>
+                                    <small>Máximo aplicable: L {{ number_format($maximoAplicable / 100, 2) }}. Puede aplicar un importe menor para conservar saldo.</small>
+                                </div>
+                            </div>
                             @if(collect($origenes)->contains(fn ($p) => !$p['cliente_id']))<div class="alert alert-info">Los pagos sin cliente que reciban una aplicación se asignarán al cliente destino. Los pagos no consumidos permanecerán sin identificar.</div>@endif
-                            <h5>Distribución por antigüedad</h5>
-                            <table class="table table-sm"><thead><tr><th>Pago</th><th>A aplicar</th><th>Saldo restante</th></tr></thead><tbody>@foreach($distribucion as $linea)<tr><td>#{{ $linea['pago']->id }}</td><td>L {{ number_format($linea['monto'] / 100, 2) }}</td><td>L {{ number_format($linea['despues'] / 100, 2) }}</td></tr>@endforeach</tbody></table>
+                            <p class="text-muted">Se utilizan primero los depósitos más antiguos. Esta es la distribución prevista:</p>
+                            @if($distribucion)
+                                <div class="table-responsive"><table class="table table-sm pni-application-table"><thead><tr><th>Depósito</th><th class="pni-numeric">Monto que se aplicará</th><th class="pni-numeric">Saldo que quedará disponible</th></tr></thead><tbody>@foreach($distribucion as $linea)<tr><td><strong>#{{ $linea['pago']->id }}</strong></td><td class="pni-numeric">L {{ number_format($linea['monto'] / 100, 2) }}</td><td class="pni-numeric">L {{ number_format($linea['despues'] / 100, 2) }}</td></tr>@endforeach</tbody></table></div>
+                            @else
+                                <p class="pni-empty">Seleccione una factura e ingrese un importe válido para ver la distribución.</p>
+                            @endif
+                            </div>
+                            </div>
                             @if($traslados)
                                 <div class="alert alert-warning">
                                     @foreach($traslados as $traslado)<p>Pago #{{ $traslado['pago'] }}: período {{ $traslado['original'] }} conciliado. Comisión trasladada a {{ $traslado['asignado'] }}; se conserva la fecha original del depósito.</p>@endforeach
