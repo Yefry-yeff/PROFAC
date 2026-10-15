@@ -413,6 +413,17 @@ class Conciliacion extends Component
 
         DB::beginTransaction();
         try {
+            // Compartir el bloqueo con aplicaciones de depósitos antes de tomar el snapshot.
+            DB::table('comision_periodo')->insertOrIgnore([
+                'periodo' => $periodo, 'estado' => ModelComisionPeriodo::ESTADO_ABIERTO,
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+            $existente = DB::table('comision_periodo')->where('periodo', $periodo)->lockForUpdate()->first();
+            if ((int) $existente->estado === ModelComisionPeriodo::ESTADO_CONCILIADO) {
+                DB::rollBack();
+                return response()->json(['icon' => 'warning', 'title' => 'Ya conciliado',
+                    'text' => 'Este período ya fue conciliado previamente.'], 422);
+            }
             // Calcular snapshot en tiempo real
             $snapshot = $this->_calcularSnapshot($periodo);
 
@@ -425,6 +436,7 @@ class Conciliacion extends Component
             );
 
             if ($cantidadFacturasGlobal <= 0 || $totalGlobal <= 0) {
+                DB::rollBack();
                 return response()->json([
                     'icon'  => 'warning',
                     'title' => 'Sin comisiones',
@@ -1477,4 +1489,3 @@ class Conciliacion extends Component
         ]);
     }
 }
-

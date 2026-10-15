@@ -128,7 +128,7 @@ class MenuController extends Controller
             $request->validate([
                 'menu_id' => 'required|integer|exists:menu,id',
                 'nombre' => 'required|string|max:255',
-                'url' => 'nullable|string|max:255',
+                'url' => 'required_if:generar_archivos,1,true|nullable|string|max:255',
                 'orden' => 'required|integer|min:1',
                 'estado_id' => 'required|integer|exists:estado,id',
                 'roles' => 'required|array|min:1',
@@ -153,7 +153,7 @@ class MenuController extends Controller
 
             // Generar archivos automáticamente si se solicita
             $resultadosGeneracion = null;
-            if ($request->generar_archivos === true || $request->generar_archivos === 'true' || $request->generar_archivos === 1) {
+            if ($request->boolean('generar_archivos')) {
                 $resultadosGeneracion = $this->menuGenerator->generarArchivosSubmenu(
                     $request->nombre,
                     $request->url
@@ -177,10 +177,11 @@ class MenuController extends Controller
                 }
                 
                 if (!empty($resultadosGeneracion['ruta_generada'])) {
-                    $respuesta['mensaje'] .= ' - Agrega esta ruta a web.php: ' . $resultadosGeneracion['ruta_generada'];
+                    $respuesta['mensaje'] .= ' - Ruta registrada en web.php.';
                 }
 
                 if (!empty($resultadosGeneracion['errores'])) {
+                    $respuesta['mensaje'] .= ' - No se pudo generar el modulo; revisa las advertencias.';
                     $respuesta['advertencias'] = $resultadosGeneracion['errores'];
                 }
             }
