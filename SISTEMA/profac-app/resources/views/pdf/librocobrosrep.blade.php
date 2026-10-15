@@ -95,11 +95,11 @@
             $p = explode('-', $d);
             return count($p) === 3 ? $p[2].'/'.$p[1].'/'.$p[0] : $d;
         };
-        $grandCobrado = $grandExon = $grandGrav = $grandExen = $grandIsv = 0.0;
+        $grandCobrado = $grandExon = $grandGrav = $grandExen = $grandIsv = $grandFact = 0.0;
     @endphp
 
     @foreach($grouped as $gKey => $group)
-        @php $gCobrado = $gExon = $gGrav = $gExen = $gIsv = 0.0; @endphp
+        @php $gCobrado = $gExon = $gGrav = $gExen = $gIsv = $gFact = 0.0; @endphp
         <table style="margin-bottom:0;">
             <thead>
                 <tr>
@@ -133,10 +133,11 @@
                         $gGrav    += (float)($row['gravado']       ?? 0);
                         $gExen    += (float)($row['excento']       ?? 0);
                         $gIsv     += (float)($row['isv']           ?? 0);
+                        $gFact    += (float)($row['total_factura'] ?? 0);
                     @endphp
                     <tr>
-                        <td>{{ $fmtF($row['fecha_venta'] ?? '') }}</td>
-                        <td>{{ $fmtF($row['fecha_vencimiento'] ?? '') }}</td>
+                        <td>{{ isset($row['fecha_venta']) ? $fmtF($row['fecha_venta']) : '' }}</td>
+                        <td>{{ isset($row['fecha_vencimiento']) ? $fmtF($row['fecha_vencimiento']) : '' }}</td>
                         <td>{{ $fmtF($row['fecha_pago'] ?? '') }}</td>
                         <td style="text-align:left;">{{ $row['cliente'] ?? '' }}</td>
                         <td style="text-align:left;">{{ $row['asesor_comercial'] ?? '' }}</td>
@@ -145,11 +146,11 @@
                         <td style="text-align:right;">{{ $fmtL($row['monto_cobrado'] ?? 0) }}</td>
                         <td>{{ ($row['estado_factura'] ?? '') === 'PAGADA' ? 'COMPLETO' : ($row['estado_factura'] ?? '') }}</td>
                         <td style="text-align:left;">{{ $row['observaciones'] ?? '' }}</td>
-                        <td style="text-align:right;">{{ $fmtL($row['exonerado'] ?? 0) }}</td>
-                        <td style="text-align:right;">{{ $fmtL($row['gravado'] ?? 0) }}</td>
-                        <td style="text-align:right;">{{ $fmtL($row['excento'] ?? 0) }}</td>
-                        <td style="text-align:right;">{{ $fmtL($row['isv'] ?? 0) }}</td>
-                        <td style="text-align:right;font-weight:bold;">{{ $fmtL($row['total_factura'] ?? 0) }}</td>
+                        <td style="text-align:right;">{{ isset($row['exonerado']) ? $fmtL($row['exonerado']) : '' }}</td>
+                        <td style="text-align:right;">{{ isset($row['gravado']) ? $fmtL($row['gravado']) : '' }}</td>
+                        <td style="text-align:right;">{{ isset($row['excento']) ? $fmtL($row['excento']) : '' }}</td>
+                        <td style="text-align:right;">{{ isset($row['isv']) ? $fmtL($row['isv']) : '' }}</td>
+                        <td style="text-align:right;font-weight:bold;">{{ isset($row['total_factura']) ? $fmtL($row['total_factura']) : '' }}</td>
                     </tr>
                 @endforeach
             </tbody>
@@ -160,6 +161,7 @@
                     $grandGrav    += $gGrav;
                     $grandExen    += $gExen;
                     $grandIsv     += $gIsv;
+                    $grandFact    += $gFact;
                 @endphp
                 <tr style="background:#FFF3E0;font-weight:bold;">
                     <td colspan="7" style="text-align:right;font-weight:bold;">Subtotal {{ strtoupper($group['banco']) }}:</td>
@@ -170,7 +172,7 @@
                     <td style="text-align:right;">{{ $fmtL($gGrav) }}</td>
                     <td style="text-align:right;">{{ $fmtL($gExen) }}</td>
                     <td style="text-align:right;">{{ $fmtL($gIsv) }}</td>
-                    <td style="text-align:right;">{{ $fmtL($gCobrado) }}</td>
+                    <td style="text-align:right;">{{ $fmtL($gFact) }}</td>
                 </tr>
             </tfoot>
         </table>
@@ -188,7 +190,7 @@
                 <td style="text-align:right;">{{ $fmtL($grandGrav) }}</td>
                 <td style="text-align:right;">{{ $fmtL($grandExen) }}</td>
                 <td style="text-align:right;">{{ $fmtL($grandIsv) }}</td>
-                <td style="text-align:right;">{{ $fmtL($grandCobrado) }}</td>
+                <td style="text-align:right;">{{ $fmtL($grandFact) }}</td>
             </tr>
         </tfoot>
     </table>

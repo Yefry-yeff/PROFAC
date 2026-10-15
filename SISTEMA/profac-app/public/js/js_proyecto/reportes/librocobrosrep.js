@@ -83,8 +83,8 @@ function cargarTablaLC() {
             }
         },
         columns: [
-            { data: 'fecha_venta', render: function(d) { return fmtFechaLC(d); } },
-            { data: 'fecha_vencimiento', render: function(d) { return fmtFechaLC(d); } },
+            { data: 'fecha_venta', render: function(d) { return d == null ? '' : fmtFechaLC(d); } },
+            { data: 'fecha_vencimiento', render: function(d) { return d == null ? '' : fmtFechaLC(d); } },
             { data: 'fecha_pago', render: function(d) { return fmtFechaLC(d); } },
             { data: 'cliente' },
             { data: 'asesor_comercial' },
@@ -92,18 +92,19 @@ function cargarTablaLC() {
             { data: 'factura', render: function(d) { return '<strong>' + escHtmlLC(d) + '</strong>'; } },
             { data: 'monto_cobrado', className: 'text-right', render: function(d) { return fmtLpsLC(d); } },
             { data: 'estado_factura', render: function(d) {
+                if (!d) return '';
                 var completa = d === 'PAGADA';
                 return '<span class="badge ' + (completa ? 'badge-success' : 'badge-warning') + '">' + (completa ? 'COMPLETO' : d) + '</span>';
             } },
             { data: 'banco' },
             { data: 'cuenta_banco' },
             { data: 'observaciones' },
-            { data: 'exonerado', className: 'text-right', render: function(d) { return fmtLpsLC(d); } },
-            { data: 'gravado', className: 'text-right', render: function(d) { return fmtLpsLC(d); } },
-            { data: 'excento', className: 'text-right', render: function(d) { return fmtLpsLC(d); } },
-            { data: 'subtotal', className: 'text-right', render: function(d) { return fmtLpsLC(d); } },
-            { data: 'isv', className: 'text-right', render: function(d) { return fmtLpsLC(d); } },
-            { data: 'total_factura', className: 'text-right', render: function(d) { return '<strong>' + fmtLpsLC(d) + '</strong>'; } }
+            { data: 'exonerado', className: 'text-right', render: function(d) { return d == null ? '' : fmtLpsLC(d); } },
+            { data: 'gravado', className: 'text-right', render: function(d) { return d == null ? '' : fmtLpsLC(d); } },
+            { data: 'excento', className: 'text-right', render: function(d) { return d == null ? '' : fmtLpsLC(d); } },
+            { data: 'subtotal', className: 'text-right', render: function(d) { return d == null ? '' : fmtLpsLC(d); } },
+            { data: 'isv', className: 'text-right', render: function(d) { return d == null ? '' : fmtLpsLC(d); } },
+            { data: 'total_factura', className: 'text-right', render: function(d) { return d == null ? '' : '<strong>' + fmtLpsLC(d) + '</strong>'; } }
         ],
         order: [[2, 'asc']],
         pageLength: 25,

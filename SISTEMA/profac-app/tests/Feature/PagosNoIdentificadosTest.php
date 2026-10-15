@@ -125,6 +125,150 @@ class PagosNoIdentificadosTest extends TestCase
         ];
     }
 
+    private function prepararLibroCobros(): void
+    {
+        Schema::table('factura', function (Blueprint $t) {
+            $t->string('nombre_cliente')->default('Cliente A');
+            $t->decimal('sub_total_grabado', 12, 2)->default(800);
+            $t->decimal('sub_total_excento', 12, 2)->default(0);
+        });
+        Schema::create('nota_credito', function (Blueprint $t) {
+            $t->id(); $t->integer('factura_id'); $t->integer('estado_nota_id');
+            $t->integer('estado_rebajado'); $t->date('fecha_rebajado')->nullable();
+            $t->date('fecha'); $t->decimal('total', 12, 2); $t->string('comentario')->nullable();
+            $t->string('cai'); $t->timestamps();
+        });
+        Schema::create('nota_credito_creditos', function (Blueprint $t) {
+            $t->id(); $t->unsignedBigInteger('nota_credito_id');
+        });
+        Schema::create('nota_credito_movimientos', function (Blueprint $t) {
+            $t->id(); $t->unsignedBigInteger('credito_id'); $t->string('tipo');
+            $t->integer('factura_id')->nullable(); $t->date('fecha_movimiento');
+            $t->decimal('monto', 12, 2); $t->string('cuenta_reembolso')->nullable();
+            $t->integer('banco_id')->nullable(); $t->integer('tipo_pago_cobro_id')->nullable();
+            $t->timestamps();
+        });
+        Schema::create('tipo_pago_cobro', function (Blueprint $t) {
+            $t->id(); $t->string('descripcion');
+        });
+        if (DB::getDriverName() === 'sqlite') {
+            $pdo = DB::connection()->getPdo();
+            $pdo->sqliteCreateFunction('DATE_FORMAT', fn ($value, $format) => $value ? substr($value, 0, 10) : null, 2);
+            $pdo->sqliteCreateFunction('GREATEST', fn (...$values) => max($values), -1);
+            $pdo->sqliteCreateFunction('CONCAT', fn (...$values) => implode('', $values), -1);
+        }
+    }
+
+    private function libroCobros(array $filtros = []): array
+    {
+        $request = \Illuminate\Http\Request::create('/reporte/Librocobrosrep/datos', 'GET', $filtros + [
+            'tipo' => '3', 'fecha_desde' => '2026-01-01', 'fecha_hasta' => '2026-01-31', 'length' => -1,
+        ]);
+        $this->app->instance('request', $request);
+        $response = app(\App\Livewire\Reportes\Librocobrosrep::class)->consulta($request);
+        $this->assertSame(200, $response->getStatusCode(), $response->getContent());
+        return $response->getData(true);
+    }
+
+    public function test_book_of_collections_replaces_only_the_consumed_deposit_with_normal_payments(): void
+    {
+        $this->prepararLibroCobros();
+        $pago = $this->registrar('1000.00', 1);
+        $reporte = $this->libroCobros();
+        $this->assertCount(1, $reporte['data']);
+        $row = $reporte['data'][0];
+        $this->assertSame('Cliente A', $row['cliente']);
+        $this->assertSame('Banco A', $row['banco']);
+        $this->assertSame('123', $row['cuenta_banco']);
+        $this->assertSame('Prueba', $row['observaciones']);
+        $this->assertSame('2026-01-01', $row['fecha_pago']);
+        foreach (['fecha_venta', 'fecha_vencimiento', 'saldo_pendiente', 'exonerado', 'gravado', 'excento', 'subtotal', 'isv', 'total_factura'] as $campo) {
+            $this->assertNull($row[$campo]);
+        }
+        $this->assertSame('', $row['factura']);
+        $this->assertSame('', $row['estado_factura']);
+        $this->assertEquals(1000, $reporte['kpi_total_cobrado']);
+        $this->assertEquals(0, $reporte['kpi_completas']);
+
+        app(Pagos::class)->aplicar($this->solicitud([$pago], '300.00'));
+        $reporte = $this->libroCobros();
+        $this->assertCount(2, $reporte['data']);
+        $normal = collect($reporte['data'])->firstWhere('factura', 'F-001');
+        $pendiente = collect($reporte['data'])->firstWhere('factura', '');
+        $this->assertEquals(300, $normal['monto_cobrado']);
+        $this->assertSame('PARCIAL', $normal['estado_factura']);
+        $this->assertEquals(500, $normal['saldo_pendiente']);
+        $this->assertEquals(700, $pendiente['monto_cobrado']);
+        $this->assertEquals(1000, $reporte['kpi_total_cobrado']);
+
+        app(Pagos::class)->aplicar($this->solicitud([$pago], '700.00', 2));
+        $reporte = $this->libroCobros();
+        $this->assertCount(2, $reporte['data']);
+        $this->assertNotContains('', array_column($reporte['data'], 'factura'));
+        $this->assertEquals(1000, $reporte['kpi_total_cobrado']);
+    }
+
+    public function test_pending_deposits_respect_book_filters_and_do_not_invent_invoice_data(): void
+    {
+        $this->prepararLibroCobros();
+        $this->registrar('100.00', null);
+        $this->registrar('200.00', 1, '2026-01-31', 2);
+        $this->registrar('300.00', 2, '2026-02-01');
+        $this->assertCount(2, $this->libroCobros()['data']);
+        $this->assertSame('', $this->libroCobros()['data'][0]['cliente']);
+        $this->assertCount(1, $this->libroCobros(['cliente' => '1'])['data']);
+        $this->assertCount(1, $this->libroCobros(['banco' => '2'])['data']);
+        foreach (['vendedor', 'teleasesor', 'gestor', 'factura'] as $filtro) {
+            $this->assertCount(0, $this->libroCobros([$filtro => '1'])['data']);
+        }
+        $this->assertCount(1, $this->libroCobros(['fecha_desde' => '2026-01-31'])['data']);
+    }
+
+    public function test_book_exports_keep_pending_deposits_out_of_invoice_and_tax_totals(): void
+    {
+        $this->prepararLibroCobros();
+        $pago = $this->registrar('1000.00', 1);
+        app(Pagos::class)->aplicar($this->solicitud([$pago], '300.00'));
+        $data = $this->libroCobros()['data'];
+        $export = new \App\Exports\LibroCobrosExport($data, '2026-01-01', '2026-01-31');
+        $sheets = $export->sheets();
+        $this->assertCount(2, $sheets);
+        foreach ($sheets as $sheet) {
+            $rows = $sheet->array();
+            $pendiente = collect(array_slice($rows, 4, -1))->first(fn ($row) => $row[6] === '');
+            $this->assertSame('2026-01-01', $pendiente[2]);
+            $this->assertEquals(700, $pendiente[7]);
+            $this->assertSame('123', $pendiente[10]);
+            $this->assertSame([null, null, null, null, null, null], array_slice($pendiente, 12));
+            $this->assertEquals(1000, end($rows)[7]);
+            $this->assertEquals(300, end($rows)[17]);
+        }
+        $html = view('pdf.librocobrosrep', [
+            'data' => $data, 'tipo' => 3, 'fechaInicio' => '2026-01-01', 'fechaFinal' => '2026-01-31',
+            'grouped' => [['banco' => 'Banco A', 'cuenta' => '123', 'rows' => $data]],
+        ])->render();
+        $dom = new \DOMDocument();
+        @$dom->loadHTML($html);
+        $xpath = new \DOMXPath($dom);
+        $totales = $xpath->query('//tfoot/tr');
+        $this->assertCount(2, $totales);
+        foreach ($totales as $row) {
+            $cells = $row->getElementsByTagName('td');
+            $this->assertSame('L 1,000.00', trim($cells->item(1)->textContent));
+            $this->assertSame('L 300.00', trim($cells->item($cells->length - 1)->textContent));
+        }
+        $rows = $xpath->query('//tbody/tr');
+        $this->assertCount(2, $rows);
+        foreach ($rows as $row) {
+            $cells = $row->getElementsByTagName('td');
+            if (trim($cells->item(6)->textContent) === '') {
+                foreach ([0, 1, 8, 10, 11, 12, 13, 14] as $index) {
+                    $this->assertSame('', trim($cells->item($index)->textContent));
+                }
+            }
+        }
+    }
+
     public function test_registers_without_client_and_does_not_create_an_invoice_payment(): void
     {
         $id = $this->registrar();

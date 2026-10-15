@@ -189,12 +189,12 @@ class LibroCobrosSheet implements FromArray, WithStyles, WithEvents, WithStrictN
                 $r['banco']             ?? '',
                 $r['cuenta_banco']      ?? '',
                 $r['observaciones']     ?? '',
-                $exon,
-                $grav,
-                $exen,
-                $sub,
-                $isv,
-                $fact,
+                isset($r['exonerado']) ? $exon : null,
+                isset($r['gravado']) ? $grav : null,
+                isset($r['excento']) ? $exen : null,
+                isset($r['subtotal']) ? $sub : null,
+                isset($r['isv']) ? $isv : null,
+                isset($r['total_factura']) ? $fact : null,
             ];
         }
 
@@ -274,7 +274,7 @@ class LibroCobrosSheet implements FromArray, WithStyles, WithEvents, WithStrictN
                     $aVal = (string)($sheet->getCell("A{$row}")->getValue() ?? '');
 
                     /* ── Separador vacío ── */
-                    if ($aVal === '') {
+                    if ($aVal === '' && $sheet->getCell("C{$row}")->getValue() === null) {
                         $sheet->getRowDimension($row)->setRowHeight(5);
                         continue;
                     }

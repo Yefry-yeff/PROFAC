@@ -524,6 +524,14 @@ El detalle presenta tarjetas para total depositado, importe aplicado y saldo dis
 
 Al hacer clic en la factura vinculada se descarga su PDF sin cerrar el detalle. Se reutiliza el generador vigente de facturas (incluida su selección de formato exonerado). La descarga requiere acceso al módulo y una asociación real entre la factura solicitada y el depósito abierto; no permite descargar facturas ajenas al historial.
 
+### 16.6 Integración con Libro de Cobros
+
+El reporte vigente (tipo 3), su PDF y Excel incluyen el saldo disponible de los depósitos sin aplicar. Solo muestran observaciones, banco, cuenta receptora, cliente si existe, fecha original de depósito y monto del movimiento. Los campos de factura, estado de factura, asesores e impuestos quedan vacíos; no se inventan cargos fiscales para dinero aún no asociado a una venta.
+
+La aplicación genera abonos normales en `abonos_creditos` y actualiza `aplicacion_pagos`, de modo que el reporte incorpora los importes aplicados mediante su lógica habitual. El depósito totalmente aplicado deja de aparecer como depósito pendiente. Para una aplicación parcial, se presenta el abono normal por lo consumido y el depósito por su saldo restante; nunca se suma otra vez el monto original completo. Los importes disponibles reflejan el estado actual, no un corte histórico de aplicaciones.
+
+Los saldos no aplicados se incluyen en monto de movimiento y total cobrado, pero no en facturas completas, impuestos ni total de factura. Respetan rango de fechas de depósito, cliente y banco. Al filtrar por factura, asesor comercial, teleasesor o gestor, se excluyen los saldos sin aplicación, porque carecen de una factura asociada.
+
 ### 16.5 Validación
 
 ```console
