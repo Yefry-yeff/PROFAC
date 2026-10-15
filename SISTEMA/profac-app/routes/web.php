@@ -1717,5 +1717,9 @@ Route::post('/reporte/ventas-cobros/actualizar-f01/{facturaId}',                
     // Ruta auto-generada para: FlujoDeVenta\VidaUtilDeUnFlujo
     Route::get('/flujo_de_venta/vida_util_de_un_flujo', \App\Livewire\FlujoDeVenta\VidaUtilDeUnFlujo::class);
 
+
+    // Ruta auto-generada para: CuentasPorCobrar\PagosNoIdentificados
+    Route::get('/cuentas_por_cobrar/pagos_no_identificados', \App\Livewire\CuentasPorCobrar\PagosNoIdentificados::class);
+
     // [auto-routes-anchor]
 });
