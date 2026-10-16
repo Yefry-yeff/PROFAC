@@ -1,5 +1,17 @@
 //*****comandos utiles****
 
+### Motivo de anulacion de facturas
+
+La anulacion desde los listados corporativo, estatal y exonerado guarda en
+`log_estado_factura.motivo` el comentario enviado por el usuario, no un texto
+generico. El servidor exige un motivo de texto no vacio antes de iniciar
+la transaccion. El listado unificado tambien valida el motivo en el dialogo.
+El detalle de anulacion consulta ese registro de auditoria.
+
+Los motivos historicos que fueron sustituidos por `Error Involuntario`
+no se reconstruyen automaticamente: necesitan una fuente documental del
+comentario original. El cambio no modifica anulaciones existentes.
+
 ### Signo de facturas anuladas en el kardex
 
 Las anulaciones restituyen inventario y se muestran como `Factura Anulada (+)`.

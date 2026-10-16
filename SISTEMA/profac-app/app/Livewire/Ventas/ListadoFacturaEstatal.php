@@ -334,6 +334,13 @@ class ListadoFacturaEstatal extends Component
             ], 403);
         }
 
+        $datos = $request->validate([
+            'idFactura' => 'required|integer|exists:factura,id',
+            'motivo' => 'required|string',
+        ], [
+            'motivo.required' => 'Debe indicar el motivo de anulación.',
+        ]);
+
         $arrayLog = [];
         try {
         DB::beginTransaction();
@@ -393,7 +400,7 @@ class ListadoFacturaEstatal extends Component
          $logEstado->factura_id = $request->idFactura;
          $logEstado->estado_venta_id_anterior = $estadoVenta->estado_venta_id;
          $logEstado->users_id = Auth::user()->id;
-         $logEstado->motivo = "Error Involuntario";
+         $logEstado->motivo = trim($datos['motivo']);
          $logEstado->save();
 
          $lotes = DB::SELECT("select lote,cantidad_s,unidad_medida_venta_id from venta_has_producto where factura_id = ".$request->idFactura);
@@ -500,4 +507,3 @@ class ListadoFacturaEstatal extends Component
 
      }
 }
-

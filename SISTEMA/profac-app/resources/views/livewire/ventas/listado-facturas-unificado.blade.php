@@ -738,9 +738,16 @@
                     denyButtonText: 'Cancelar',
                     confirmButtonColor: '#19A689',
                     denyButtonColor: '#676A6C',
+                    preConfirm: () => {
+                        const motivo = document.getElementById('comentario').value.trim();
+                        if (!motivo) {
+                            Swal.showValidationMessage('Debe indicar el motivo de anulación.');
+                            return false;
+                        }
+                        return motivo;
+                    },
                 }).then((result) => {
-                    let motivo = document.getElementById("comentario").value;
-                    if (result.isConfirmed && motivo) { anularVenta(idFactura, motivo); }
+                    if (result.isConfirmed) { anularVenta(idFactura, result.value); }
                 });
             }
 
@@ -751,8 +758,10 @@
                         Swal.fire({ icon: data.icon, title: data.title, html: data.text });
                         $('#tbl_listar_compras').DataTable().ajax.reload();
                     })
-                    .catch(() => {
-                        Swal.fire({ icon: 'error', title: 'Error!', text: 'Ha ocurrido un error al anular la factura.' });
+                    .catch(error => {
+                        const errores = error.response && error.response.data && error.response.data.errors;
+                        const mensaje = errores ? Object.values(errores).flat().join('\n') : 'Ha ocurrido un error al anular la factura.';
+                        Swal.fire({ icon: 'error', title: 'Error!', text: mensaje });
                     });
             }
 
