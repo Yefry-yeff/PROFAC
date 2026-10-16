@@ -161,7 +161,7 @@ BEGIN
             p.id AS id_producto,
             f.numero_factura,
             f.id idfactura,
-            CONCAT(NEW.descripcion, ' (-)') AS descripcion,
+            CONCAT(NEW.descripcion, ' (+)') AS descripcion,
             b.id idbodega,
             b.nombre,
             sg.id,

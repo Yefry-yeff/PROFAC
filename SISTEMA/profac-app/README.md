@@ -1,5 +1,20 @@
 //*****comandos utiles****
 
+### Signo de facturas anuladas en el kardex
+
+Las anulaciones restituyen inventario y se muestran como `Factura Anulada (+)`.
+La migracion `2026_10_15_000003_correct_factura_anulada_cardex_sign.php`
+corrige exclusivamente esa rama del trigger instalado y las descripciones
+historicas `Factura Anulada (-)`. Conserva el resto del trigger y no modifica
+cantidades, lotes, fechas, usuarios ni saldos. Afecta al kardex general y por
+producto/bodega, ya que todos consultan los mismos movimientos.
+
+Aplicar con `php artisan migrate` en MySQL, con permisos para consultar y
+recrear el trigger. Si su estructura no coincide con la esperada, la migracion
+falla antes de reemplazarlo. Es idempotente y no admite rollback para no
+reintroducir el signo incorrecto. El script `fix_trigger_comprovante.sql`
+tambien genera las nuevas anulaciones con signo positivo.
+
 ### Corte de facturas de distribucion (GLPI-330)
 
 Nueva Distribucion permite seleccionar facturas emitidas desde el 19/05/2026
