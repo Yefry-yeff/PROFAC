@@ -1217,6 +1217,41 @@ class ReportesComisionesGenerales extends Component
         return max($cantidadVendida - $devueltaExacta - $devueltaPorPrecio, 0);
     }
 
+    private function consolidarFilasPoliticaAnterior($filasExcluidas, int $usuarioId)
+    {
+        return collect($filasExcluidas)
+            ->filter(function ($row) use ($usuarioId) {
+                $capacidad = mb_strtoupper(trim((string) ($row['capacidad'] ?? '')), 'UTF-8');
+                $rolId = (int) ($row['rol_id'] ?? 0);
+
+                return ($row['elegible_politica_anterior'] ?? true) !== false
+                    && (int) ($row['usuario_id'] ?? 0) === $usuarioId
+                    && ($rolId === 2 || in_array($capacidad, ['ASESOR', 'VENDEDOR', 'VENTAS'], true));
+            })
+            ->groupBy(fn($row) => (int) ($row['factura_id'] ?? 0))
+            ->map(function ($lineas) {
+                $fila = $lineas->first();
+                $productoIds = $lineas
+                    ->flatMap(function ($linea) {
+                        $ids = collect($linea['producto_ids_politica_anterior'] ?? []);
+                        $productoId = (int) ($linea['producto_id'] ?? 0);
+
+                        return $productoId > 0 ? $ids->push($productoId) : $ids;
+                    })
+                    ->map(fn($id) => (int) $id)
+                    ->filter(fn($id) => $id > 0)
+                    ->unique()
+                    ->values()
+                    ->all();
+
+                $fila['producto_ids_politica_anterior'] = $productoIds;
+
+                return $fila;
+            })
+            ->filter(fn($row, $facturaId) => (int) $facturaId > 0)
+            ->values();
+    }
+
     public function reporteProyecciones(Request $request)
     {
         [$fi, $ff] = $this->resolveDateRange($request);
@@ -1570,6 +1605,7 @@ class ReportesComisionesGenerales extends Component
                         'usuario' => (string) ($target['usuario'] ?: ('Usuario #' . (int) $target['user_id'])),
                         'razon_no_comisionable' => $motivo,
                         'motivos' => [$motivo],
+                        'elegible_politica_anterior' => true,
                         'producto_ids_politica_anterior' => $esPoliticaAnteriorParcial
                             ? array_values($configPoliticaParcial['producto_ids'])
                             : [],
@@ -1601,6 +1637,8 @@ class ReportesComisionesGenerales extends Component
                         'usuario' => (string) ($target['usuario'] ?: ('Usuario #' . (int) $target['user_id'])),
                         'razon_no_comisionable' => 'Factura sin lineas de productos para comision',
                         'motivos' => ['Factura sin lineas de productos para comision'],
+                        'elegible_politica_anterior' => false,
+                        'producto_ids_politica_anterior' => [],
                         'cantidad' => 0.0,
                         'precio_unidad' => 0.0,
                         'precio_seleccionado' => 0.0,
@@ -1684,6 +1722,9 @@ class ReportesComisionesGenerales extends Component
                             'usuario' => (string) ($target['usuario'] ?: ('Usuario #' . (int) $target['user_id'])),
                             'razon_no_comisionable' => (string) ($motivos[0] ?? 'No aplica para comision'),
                             'motivos' => array_values(array_unique($motivos)),
+                            'producto_id' => (int) $linea->producto_id,
+                            'elegible_politica_anterior' => true,
+                            'producto_ids_politica_anterior' => [(int) $linea->producto_id],
                             'cantidad' => round($cantidad, 4),
                             'precio_unidad' => round($precioUnitario, 4),
                             'precio_seleccionado' => round($precioSeleccionado, 4),
@@ -1766,6 +1807,9 @@ class ReportesComisionesGenerales extends Component
                             'usuario' => (string) ($target['usuario'] ?: ('Usuario #' . (int) $target['user_id'])),
                             'razon_no_comisionable' => 'Comision proyectada igual a 0',
                             'motivos' => ['Comision proyectada igual a 0'],
+                            'producto_id' => (int) $linea->producto_id,
+                            'elegible_politica_anterior' => true,
+                            'producto_ids_politica_anterior' => [(int) $linea->producto_id],
                             'cantidad' => round($cantidad, 4),
                             'precio_unidad' => round($precioUnitario, 4),
                             'precio_seleccionado' => round($precioSeleccionado, 4),
@@ -2815,15 +2859,7 @@ class ReportesComisionesGenerales extends Component
 
         $usuarioId = (int) $request->input('usuario_id');
         $filasExcluidas = collect($payload['excluidas'] ?? []);
-        $filasPolitica = $filasExcluidas
-            ->filter(function ($row) use ($usuarioId) {
-                $capacidad = mb_strtoupper(trim((string) ($row['capacidad'] ?? '')), 'UTF-8');
-
-                return (int) ($row['usuario_id'] ?? 0) === $usuarioId
-                    && in_array($capacidad, ['ASESOR', 'VENDEDOR', 'VENTAS'], true);
-            })
-            ->unique('factura_id')
-            ->values();
+        $filasPolitica = $this->consolidarFilasPoliticaAnterior($filasExcluidas, $usuarioId);
 
         $facturaIdsPolitica = [];
         $estadoPoliticaPorFactura = [];
@@ -3125,16 +3161,7 @@ class ReportesComisionesGenerales extends Component
 
     private function calcularPoliticaAnteriorEspecial15(array $filasExcluidas, int $usuarioId, string $fi, string $ff): array
     {
-        $filas = collect($filasExcluidas)
-            ->filter(function ($row) use ($usuarioId) {
-                $capacidad = mb_strtoupper(trim((string) ($row['capacidad'] ?? '')), 'UTF-8');
-                $rolId = (int) ($row['rol_id'] ?? 0);
-
-                return (int) ($row['usuario_id'] ?? 0) === $usuarioId
-                    && ($rolId === 2 || in_array($capacidad, ['ASESOR', 'VENDEDOR', 'VENTAS'], true));
-            })
-            ->unique('factura_id')
-            ->values();
+        $filas = $this->consolidarFilasPoliticaAnterior($filasExcluidas, $usuarioId);
 
         if ($filas->isEmpty()) {
             $filasFallback = collect($filasExcluidas)
@@ -3630,7 +3657,7 @@ class ReportesComisionesGenerales extends Component
         $nombreLimpio = preg_replace('/\s+/', '_', trim($nombreLimpio));
         $filename = 'Comisiones_' . $mesNombre . '_' . $diaIni . '_' . $diaFin . '_' . $nombreLimpio . '.xlsx';
 
-        $response = Excel::download(new class($allSheets) implements \Maatwebsite\Excel\Concerns\WithMultipleSheets {
+        $response = Excel::download(new class($allSheets) implements \Maatwebsite\Excel\Concerns\Export, \Maatwebsite\Excel\Concerns\WithMultipleSheets {
             private array $sheets;
             public function __construct(array $sheets) { $this->sheets = $sheets; }
             public function sheets(): array { return $this->sheets; }

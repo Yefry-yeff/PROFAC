@@ -216,6 +216,7 @@ function filtrarExcluidasPoliticaAnterior(rows, usuarioFiltro){
     var filtroUsuario = parseInt(usuarioFiltro || 0, 10);
 
     return (Array.isArray(rows) ? rows : []).filter(function(item){
+        if(item && item.elegible_politica_anterior === false) return false;
         if(!esFilaVendedorPoliticaAnterior(item)) return false;
 
         if(filtroUsuario > 0){
@@ -232,8 +233,26 @@ function deduplicarFilasPoliticaAnteriorPorFactura(rows){
 
     (Array.isArray(rows) ? rows : []).forEach(function(item){
         var facturaId = parseInt(item && item.factura_id ? item.factura_id : 0, 10);
-        if(facturaId <= 0 || mapa[facturaId]) return;
-        mapa[facturaId] = item;
+        if(facturaId <= 0) return;
+
+        var productoIds = Array.isArray(item && item.producto_ids_politica_anterior)
+            ? item.producto_ids_politica_anterior.slice()
+            : [];
+        var productoId = parseInt(item && item.producto_id ? item.producto_id : 0, 10);
+        if(productoId > 0) productoIds.push(productoId);
+
+        if(!mapa[facturaId]){
+            mapa[facturaId] = Object.assign({}, item, {
+                producto_ids_politica_anterior: []
+            });
+        }
+
+        productoIds.forEach(function(id){
+            id = parseInt(id || 0, 10);
+            if(id > 0 && !mapa[facturaId].producto_ids_politica_anterior.includes(id)){
+                mapa[facturaId].producto_ids_politica_anterior.push(id);
+            }
+        });
     });
 
     return Object.keys(mapa).map(function(k){ return mapa[k]; });
