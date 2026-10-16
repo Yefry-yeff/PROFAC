@@ -532,9 +532,13 @@
                                     </label>
 
                                     <select class="form-control" id="categoria_cliente_escala_editar"
-                                            name="categoria_cliente_escala_editar">
+                                            name="categoria_cliente_escala_editar"
+                                            @if(!auth()->user()->esAdministrador()) disabled @endif>
                                         <!-- Lo llenamos por JS -->
                                     </select>
+                                    @if(!auth()->user()->esAdministrador())
+                                        <small class="form-text text-muted">Solo el rol Administrador puede modificar este campo.</small>
+                                    @endif
                                 </div>
 
                                 <div class="col-md-12">

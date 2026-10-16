@@ -493,8 +493,27 @@ class Cliente extends Component
            $nombreCliente = str_replace('"'," ",$nombreCliente);
            $nombreCliente = str_replace('´'," ",$nombreCliente);
 
-        DB::beginTransaction();
         $cliente =  ModelCliente::find($request->idCliente);
+        if (!$cliente) {
+            return response()->json([
+                'icon' => 'error',
+                'title' => 'Cliente no encontrado',
+                'text' => 'No se encontró el cliente que intenta editar.',
+            ], 404);
+        }
+
+        $categoriaEscalaSolicitada = (int) $request->input('categoria_cliente_escala_editar', 0);
+        if (!Auth::user()->esAdministrador()
+            && $categoriaEscalaSolicitada > 0
+            && $categoriaEscalaSolicitada !== (int) $cliente->cliente_categoria_escala_id) {
+            return response()->json([
+                'icon' => 'error',
+                'title' => 'Acceso denegado',
+                'text' => 'Solo el rol Administrador puede modificar la categoría de cliente / escala.',
+            ], 403);
+        }
+
+        DB::beginTransaction();
         $cliente->nombre = trim($nombreCliente) ;
         $cliente->direccion = trim($request->direccion_cliente_editar) ;
         $cliente->telefono_empresa = trim($request->telefono_cliente_editar);
@@ -516,7 +535,9 @@ class Cliente extends Component
         $cliente->users_id = Auth::user()->id;
         $cliente->estado_cliente_id = 1;
         $cliente->municipio_id = $request->municipio_cliente_editar;
-        $cliente->cliente_categoria_escala_id = $request->categoria_cliente_escala_editar;
+        if (Auth::user()->esAdministrador() && $categoriaEscalaSolicitada > 0) {
+            $cliente->cliente_categoria_escala_id = $categoriaEscalaSolicitada;
+        }
         $cliente->save();
 
         ModelContacto::where('cliente_id','=', $request->idCliente)
@@ -1518,14 +1539,25 @@ class Cliente extends Component
     public function editarClienteCompleto(Request $request)
     {
         try {
+            $id = (int) $request->cliente_id;
+            $cliente = ModelCliente::findOrFail($id);
+            $categoriaEscalaSolicitada = (int) $request->input('cliente_categoria_escala_id', 0);
+
+            if (!Auth::user()->esAdministrador()
+                && $categoriaEscalaSolicitada > 0
+                && $categoriaEscalaSolicitada !== (int) $cliente->cliente_categoria_escala_id) {
+                return response()->json([
+                    'icon' => 'error',
+                    'title' => 'Acceso denegado',
+                    'text' => 'Solo el rol Administrador puede modificar la categoría de cliente / escala.',
+                ], 403);
+            }
+
             $direcciones = $this->normalizarDirecciones($request);
             $validacionDirecciones = $this->validarDirecciones($direcciones);
             if ($validacionDirecciones) return $validacionDirecciones;
 
             DB::beginTransaction();
-
-            $id     = $request->cliente_id;
-            $cliente = ModelCliente::findOrFail($id);
 
             $nombre = trim(str_replace(["'", '"', '´'], ' ', $request->nombre_cliente));
             $cliente->nombre                     = $nombre;
@@ -1543,7 +1575,9 @@ class Cliente extends Component
             $cliente->vendedor                   = ($request->dp_vendedor_id ?: $request->vendedor_id) ?: $cliente->vendedor;
             $cliente->metodo_pago                = trim($request->dp_metodo_pago ?? '') ?: ($cliente->metodo_pago ?? '');
             $cliente->users_id                   = Auth::user()->id;
-            $cliente->cliente_categoria_escala_id = $request->cliente_categoria_escala_id ?: $cliente->cliente_categoria_escala_id;
+            if (Auth::user()->esAdministrador() && $categoriaEscalaSolicitada > 0) {
+                $cliente->cliente_categoria_escala_id = $categoriaEscalaSolicitada;
+            }
             $this->aplicarDireccionPrincipal($cliente, $direcciones[0]);
 
             // Track exact fields changed using Laravel dirty detection

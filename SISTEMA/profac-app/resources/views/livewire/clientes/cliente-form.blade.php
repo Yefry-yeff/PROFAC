@@ -4,6 +4,7 @@
     $puedeVerCreditoYReferencias = in_array($rolIdClienteForm, [1, 4], true);
     $puedeEditarObservacionesGerencia = in_array($rolIdClienteForm, [1, 4], true);
     $puedeEditarCamposRestringidos = in_array($rolIdClienteForm, [1, 4], true);
+    $puedeEditarCategoriaEscala = auth()->user()->esAdministrador();
 @endphp
 @push('styles')
 <style>
@@ -181,12 +182,16 @@
                                 <div class="col-md-6 col-lg-4">
                                     <div class="form-group">
                                         <label>Categoría de Cliente / Escala <span class="text-danger">*</span></label>
-                                        <select id="dp_escala" class="form-control" @if(!$puedeEditarCamposRestringidos) disabled @endif>
+                                        <select id="dp_escala" class="form-control"
+                                            @if($id ? !$puedeEditarCategoriaEscala : !$puedeEditarCamposRestringidos) disabled @endif>
                                             <option value="" disabled selected>-- Seleccione --</option>
                                             @foreach($categoriasEscala as $cat)
                                                 <option value="{{ $cat->id }}">{{ $cat->nombre_categoria }}</option>
                                             @endforeach
                                         </select>
+                                        @if($id && !$puedeEditarCategoriaEscala)
+                                            <small class="form-text text-muted">Solo el rol Administrador puede modificar este campo.</small>
+                                        @endif
                                     </div>
                                 </div>
                                 <div class="col-md-6 col-lg-4">
