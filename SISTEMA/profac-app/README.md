@@ -1,5 +1,19 @@
 //*****comandos utiles****
 
+### Bodega revisada y prefactura
+
+Al pasar una revision normal a prefactura se guarda la bodega/seccion
+seleccionada de todas las lineas, incluso si la oferta ya tenia
+`resta_inventario = 1` y el selector propuso una ubicacion alternativa.
+Se revalida el stock actual menos reservas, usando el factor de unidad
+y sumando las lineas del mismo producto/destino. La oferta actualizada,
+la auditoria de reasignacion y la prefactura se guardan en la misma
+transaccion. No se trasladan ni ajustan existencias.
+
+Las prefacturas anteriores no se reasignan automaticamente: su ubicacion
+debe corregirse expresamente, verificando disponibilidad y conservando
+la trazabilidad de la ubicacion anterior.
+
 ### Motivo de anulacion de facturas
 
 La anulacion desde los listados corporativo, estatal y exonerado guarda en

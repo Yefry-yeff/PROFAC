@@ -1592,33 +1592,64 @@ class RevicionInventario extends Component
         }
 
         $actualizaciones = [];
+        $solicitadoPorDestino = [];
         foreach ($this->productos as $prod) {
-            if (empty($prod['sin_existencia'])) {
-                continue;
-            }
-
             $seleccion = (string) ($this->bodegaExpoSeleccionada[$prod['idx']] ?? '');
             $destino = collect($prod['destinos_bodega'] ?? [])->first(
                 fn (array $opcion) => (string) $opcion['value'] === $seleccion
             );
 
-            if (!$destino || (float) $destino['stock'] < (float) $prod['cantidad']) {
+            if (!$destino) {
                 $this->mensajeError = 'Seleccione una bodega con existencia suficiente para ' . $prod['nombre_producto'] . '.';
                 return false;
             }
 
             [$bodegaId, $seccionId] = array_map('intval', explode('|', $seleccion, 2));
+            $linea = DB::table('cotizacion_has_producto as chp')
+                ->leftJoin('unidad_medida_venta as umv', 'umv.id', '=', 'chp.unidad_medida_venta_id')
+                ->where('chp.id', (int) $prod['cotizacion_has_producto_id'])
+                ->where('chp.cotizacion_id', $this->cotizacionId)
+                ->select('chp.*', 'umv.unidad_venta as factor_unidad')
+                ->first();
+            $ubicacion = DB::table('seccion as s')
+                ->join('segmento as sg', 'sg.id', '=', 's.segmento_id')
+                ->join('bodega as b', 'b.id', '=', 'sg.bodega_id')
+                ->where('s.id', $seccionId)
+                ->where('b.id', $bodegaId)
+                ->select('b.nombre')
+                ->first();
+
+            if (!$linea || !$ubicacion || (int) $linea->producto_id !== (int) $prod['producto_id']) {
+                $this->mensajeError = 'La línea o bodega seleccionada ya no es válida. Recargue la revisión.';
+                return false;
+            }
+
+            $clave = $linea->producto_id . '|' . $seccionId;
+            $solicitadoPorDestino[$clave] = ($solicitadoPorDestino[$clave] ?? 0)
+                + (float) $linea->cantidad * max(1.0, (float) ($linea->factor_unidad ?? 1));
+            $stock = $this->calcularStockDestinoNormal((int) $linea->producto_id, $seccionId);
+            if ($stock['disponible'] + 0.0001 < $solicitadoPorDestino[$clave]) {
+                $this->mensajeError = 'La bodega seleccionada para ' . $linea->nombre_producto
+                    . ' ya no cubre la cantidad solicitada. Actualice la revisión.';
+                return false;
+            }
+
+            if ((int) $linea->bodega_id === $bodegaId && (int) $linea->seccion_id === $seccionId
+                && (float) $linea->resta_inventario > 0) {
+                continue;
+            }
+
             $actualizaciones[] = [
-                'linea_id' => (int) $prod['cotizacion_has_producto_id'],
+                'linea' => $linea,
                 'bodega_id' => $bodegaId,
                 'seccion_id' => $seccionId,
-                'bodega_nombre' => $destino['bodega_nombre'],
+                'bodega_nombre' => $ubicacion->nombre,
             ];
         }
 
         foreach ($actualizaciones as $actualizacion) {
             DB::table('cotizacion_has_producto')
-                ->where('id', $actualizacion['linea_id'])
+                ->where('id', $actualizacion['linea']->id)
                 ->where('cotizacion_id', $this->cotizacionId)
                 ->update([
                     'Bodega_id' => $actualizacion['bodega_id'],
@@ -1627,6 +1658,25 @@ class RevicionInventario extends Component
                     'resta_inventario' => 1,
                     'updated_at' => now(),
                 ]);
+
+            $linea = $actualizacion['linea'];
+            DB::table('historico_cotizacion_producto_sin_existencia')->insert([
+                'id_cotizacion' => $this->cotizacionId,
+                'id_producto' => $linea->producto_id,
+                'indice_linea' => $linea->indice,
+                'nombre_producto' => $linea->nombre_producto,
+                'id_bodega_origen' => $linea->bodega_id,
+                'id_seccion_origen' => $linea->seccion_id,
+                'id_bodega_actualizacion' => $actualizacion['bodega_id'],
+                'id_seccion_actualizacion' => $actualizacion['seccion_id'],
+                'nombre_bodega_origen' => $linea->nombre_bodega,
+                'nombre_bodega_destino' => $actualizacion['bodega_nombre'],
+                'motivo' => 'Ubicación seleccionada al pasar a Prefactura desde Revisión de Inventario. Flujo #' . $this->flujoId,
+                'created_by' => Auth::id(),
+                'updated_by' => Auth::id(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
         }
 
         return true;
@@ -1797,11 +1847,6 @@ class RevicionInventario extends Component
             return;
         }
 
-        if (!$this->sincronizarBodegasNormalesSeleccionadas()
-            || !$this->sincronizarBodegasExpoSeleccionadas()) {
-            return;
-        }
-
         $cotizacion = DB::table('cotizacion')->where('id', $this->cotizacionId)->first();
         if (!$cotizacion) {
             $this->mensajeError = 'Oferta ganadora no encontrada.';
@@ -1821,7 +1866,7 @@ class RevicionInventario extends Component
             return !((float) ($prod->resta_inventario ?? 0) > 0);
         });
 
-        if ($lineasSinExistencia->isNotEmpty()) {
+        if ($lineasSinExistencia->isNotEmpty() && $this->tieneProductosSinExistencia()) {
             $this->mensajeError = 'No se puede pasar a Prefactura: la oferta contiene productos marcados como sin existencia.';
             return;
         }
@@ -1862,6 +1907,16 @@ class RevicionInventario extends Component
             if (!$revisionActiva) {
                 throw new \RuntimeException('La revisión de inventario ya fue procesada por otro usuario.');
             }
+
+            if (!$this->sincronizarBodegasNormalesSeleccionadas()
+                || !$this->sincronizarBodegasExpoSeleccionadas()) {
+                DB::rollBack();
+                return;
+            }
+
+            $productos = DB::table('cotizacion_has_producto')
+                ->where('cotizacion_id', $this->cotizacionId)
+                ->get();
 
             // Crear prefactura
             $prefacturaId = DB::table('prefactura')->insertGetId([
