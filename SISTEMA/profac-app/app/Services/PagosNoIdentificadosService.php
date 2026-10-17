@@ -47,6 +47,7 @@ class PagosNoIdentificadosService
     public function registrar(array $datos, string $clave): int
     {
         $this->autorizar();
+        $datos['referencia_bancaria'] = trim((string) ($datos['referencia_bancaria'] ?? '')) ?: null;
         Validator::make($datos + ['clave' => $clave], [
             'cliente_id' => ['nullable', 'integer', 'exists:cliente,id'],
             'monto' => ['required', 'regex:/^\d{1,10}(?:\.\d{1,2})?$/D'],
@@ -54,6 +55,7 @@ class PagosNoIdentificadosService
             'hora_pago' => ['nullable', 'date_format:H:i'],
             'banco_id' => ['required', 'integer', Rule::exists('banco', 'id')->whereNotIn('id', [12, 13])],
             'cuenta_bancaria' => ['required', 'string', 'max:45'],
+            'referencia_bancaria' => ['nullable', 'string', 'max:500'],
             'observaciones' => ['nullable', 'string', 'max:2000'],
             'clave' => ['required', 'uuid'],
         ])->validate();
@@ -76,6 +78,7 @@ class PagosNoIdentificadosService
                     || $anterior->hora_pago !== (empty($datos['hora_pago']) ? null : $datos['hora_pago'] . ':00')
                     || (int) $anterior->banco_id !== (int) $datos['banco_id']
                     || $anterior->cuenta_bancaria !== $datos['cuenta_bancaria']
+                    || $anterior->referencia_bancaria !== $datos['referencia_bancaria']
                     || (string) $anterior->observaciones !== (string) ($datos['observaciones'] ?? '')) {
                     throw ValidationException::withMessages(['monto' => 'La solicitud de registro ya fue utilizada con otros datos.']);
                 }
@@ -90,6 +93,7 @@ class PagosNoIdentificadosService
                 'cliente_original_conocido' => !empty($datos['cliente_id']),
                 'banco_id' => $banco->id,
                 'cuenta_bancaria' => $banco->cuenta,
+                'referencia_bancaria' => $datos['referencia_bancaria'],
                 'monto_original' => self::decimal($monto),
                 'saldo_disponible' => self::decimal($monto),
                 'fecha_pago' => $datos['fecha_pago'],
@@ -116,23 +120,21 @@ class PagosNoIdentificadosService
             ->where('p.fecha_pago', '<=', ($filtros['hasta'] ?? '') ?: now()->toDateString())
             ->when($filtros['cliente'] ?? '', fn ($q, $v) => $q->where('p.cliente_id', $v))
             ->when($filtros['banco'] ?? '', fn ($q, $v) => $q->where('p.banco_id', $v))
+            ->when($filtros['referencia'] ?? '', fn ($q, $v) => $q->where('p.referencia_bancaria', 'like', "%{$v}%"))
             ->when($filtros['estado'] ?? '', fn ($q, $v) => $q->where('p.estado', $v))
             ->when($filtros['buscar'] ?? '', function ($q, $v) {
                 $q->where(function ($q) use ($v) {
                     $q->where('c.nombre', 'like', "%{$v}%")->orWhere('p.id', (int) $v)
-                        ->orWhere('p.observaciones', 'like', "%{$v}%");
+                        ->orWhere('p.observaciones', 'like', "%{$v}%")
+                        ->orWhere('p.referencia_bancaria', 'like', "%{$v}%");
                 });
             });
-        if (!empty($filtros['vendedor']) || !empty($filtros['teleasesor'])
-            || !empty($filtros['gestor']) || !empty($filtros['factura'])) {
+        if (!empty($filtros['factura'])) {
             $query->whereExists(function ($q) use ($filtros) {
                 $q->selectRaw('1')->from('pni_aplicaciones as a')
                     ->join('pni_operaciones as o', 'o.id', '=', 'a.operacion_id')
                     ->join('factura as f', 'f.id', '=', 'o.factura_id')
                     ->whereColumn('a.pago_id', 'p.id');
-                foreach (['vendedor' => 'vendedor', 'teleasesor' => 'users_id', 'gestor' => 'gestor_entrega'] as $key => $column) {
-                    $q->when($filtros[$key] ?? '', fn ($q, $v) => $q->where("f.{$column}", $v));
-                }
                 $q->when($filtros['factura'] ?? '', fn ($q, $v) => $q->where(
                     fn ($q) => $q->where('f.cai', 'like', "%{$v}%")->orWhere('f.numero_secuencia_cai', 'like', "%{$v}%")
                 ));

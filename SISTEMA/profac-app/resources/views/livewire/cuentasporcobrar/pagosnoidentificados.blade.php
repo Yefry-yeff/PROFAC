@@ -152,12 +152,11 @@
             </div>
             @if(array_filter($filtros, fn ($v) => $v !== ''))
                 <div class="pni-filter-bar" aria-label="Filtros activos">
-                    @foreach(['desde' => 'Desde', 'hasta' => 'Hasta', 'cliente' => 'Cliente', 'vendedor' => 'Asesor comercial', 'teleasesor' => 'Teleasesor', 'gestor' => 'Gestor', 'banco' => 'Banco', 'factura' => 'Factura', 'estado' => 'Estado', 'buscar' => 'Buscar'] as $campo => $etiqueta)
+                    @foreach(['desde' => 'Desde', 'hasta' => 'Hasta', 'cliente' => 'Cliente', 'banco' => 'Banco', 'referencia' => 'Referencia bancaria', 'factura' => 'Factura', 'estado' => 'Estado', 'buscar' => 'Buscar'] as $campo => $etiqueta)
                         @if($filtros[$campo] !== '')
                             @php
                                 $valor = match($campo) {
                                     'cliente' => $clientesFiltro->firstWhere('id', (int) $filtros[$campo])->nombre ?? $filtros[$campo],
-                                    'vendedor', 'teleasesor', 'gestor' => $usuarios->firstWhere('id', (int) $filtros[$campo])->name ?? $filtros[$campo],
                                     'banco' => $bancos->firstWhere('id', (int) $filtros[$campo])->nombre ?? $filtros[$campo],
                                     'estado' => \App\Services\PagosNoIdentificadosService::ESTADOS[$filtros[$campo]] ?? $filtros[$campo],
                                     default => $filtros[$campo],
@@ -179,7 +178,7 @@
                                     <td><input type="checkbox" aria-label="Seleccionar pago {{ $pago->id }}" wire:model.live="seleccionados" value="{{ $pago->id }}" @disabled($pago->estado === 'aplicado')></td>
                                     <td><button class="btn btn-link p-0" wire:click="verDetalle({{ $pago->id }})">#{{ $pago->id }}</button></td>
                                     <td>{{ $pago->cliente ?: 'Sin identificar' }}</td><td class="text-nowrap">{{ \Carbon\Carbon::parse($pago->fecha_pago)->format('d/m/Y') }}<small class="d-block text-muted">{{ $pago->hora_pago ? substr($pago->hora_pago, 0, 5) : 'Hora no registrada' }}</small></td>
-                                    <td>{{ $pago->banco }}<br><small>{{ $pago->cuenta_bancaria }}</small></td>
+                                    <td>{{ $pago->banco }}<br><small>{{ $pago->cuenta_bancaria }}</small>@if($pago->referencia_bancaria)<small class="d-block text-muted">Ref. {{ $pago->referencia_bancaria }}</small>@endif</td>
                                     <td class="text-nowrap">L {{ number_format($pago->monto_original, 2) }}</td>
                                     <td class="text-nowrap">L {{ number_format($pago->monto_original - $pago->saldo_disponible, 2) }}</td>
                                     <td class="text-nowrap">L {{ number_format($pago->saldo_disponible, 2) }}</td>
@@ -223,15 +222,13 @@
                                 <p class="pni-section"><i class="fa fa-search mr-1" aria-hidden="true"></i>Criterios de búsqueda</p>
                                 <div class="pni-filter-grid"><div class="row">
                                     <div class="col-md-6 form-group"><label for="pni-cliente">Cliente</label><input aria-label="Buscar cliente en filtros" class="form-control mb-1" placeholder="Buscar nombre o código" wire:model.live.debounce.400ms="buscarClienteFiltro"><select id="pni-cliente" class="form-control" wire:model="filtrosEdicion.cliente"><option value="">Todos</option>@foreach($clientesFiltro as $cliente)<option value="{{ $cliente->id }}">{{ $cliente->id }} - {{ $cliente->nombre }}</option>@endforeach</select></div>
-                                    @foreach(['vendedor' => 'Asesor comercial', 'teleasesor' => 'Teleasesor', 'gestor' => 'Gestor de entrega'] as $campo => $etiqueta)
-                                        <div class="col-md-6 form-group"><label for="pni-{{ $campo }}">{{ $etiqueta }}</label><select id="pni-{{ $campo }}" class="form-control" wire:model="filtrosEdicion.{{ $campo }}"><option value="">Todos</option>@foreach($usuarios as $usuario)<option value="{{ $usuario->id }}">{{ $usuario->name }}</option>@endforeach</select></div>
-                                    @endforeach
                                     <div class="col-md-6 form-group"><label for="pni-banco">Banco</label><select id="pni-banco" class="form-control" wire:model="filtrosEdicion.banco"><option value="">Todos</option>@foreach($bancos as $banco)<option value="{{ $banco->id }}">{{ $banco->nombre }} · {{ $banco->cuenta }}</option>@endforeach</select></div>
+                                    <div class="col-md-6 form-group"><label for="pni-referencia">Referencia bancaria</label><input id="pni-referencia" maxlength="500" class="form-control" wire:model="filtrosEdicion.referencia" placeholder="Número o texto de referencia"></div>
                                     <div class="col-md-6 form-group"><label for="pni-factura">N.º de factura</label><input id="pni-factura" class="form-control" wire:model="filtrosEdicion.factura" placeholder="CAI o secuencia"></div>
                                     <div class="col-md-6 form-group"><label for="pni-estado">Estado</label><select id="pni-estado" class="form-control" wire:model="filtrosEdicion.estado"><option value="">Todos</option>@foreach(\App\Services\PagosNoIdentificadosService::ESTADOS as $valor => $texto)<option value="{{ $valor }}">{{ $texto }}</option>@endforeach</select></div>
-                                    <div class="col-md-6 form-group"><label for="pni-buscar">Buscar</label><input id="pni-buscar" class="form-control" wire:model="filtrosEdicion.buscar" placeholder="ID, cliente u observaciones"></div>
+                                    <div class="col-md-6 form-group"><label for="pni-buscar">Buscar</label><input id="pni-buscar" class="form-control" wire:model="filtrosEdicion.buscar" placeholder="ID, cliente, referencia u observaciones"></div>
                                 </div></div>
-                                <p class="text-muted small">Los filtros de factura, asesor, teleasesor y gestor consultan facturas ya vinculadas. Buscar limpia la selección; puede seleccionar hasta 100 pagos entre páginas.</p>
+                                <p class="text-muted small">El filtro de factura consulta facturas ya vinculadas. Buscar limpia la selección; puede seleccionar hasta 100 pagos entre páginas.</p>
                             </form>
                         @elseif($modal === 'nuevo')
                             <form wire:submit="guardar" id="pni-registro">
@@ -248,13 +245,14 @@
                                 <div class="row">
                                     <div class="col-md-5 form-group"><label for="pni-monto">Total depósito *</label><div class="pni-money" x-data="pniMoney($wire.entangle('nuevo.monto'))"><span aria-hidden="true">L</span><input id="pni-monto" type="text" inputmode="decimal" required class="form-control" aria-label="Total depósito en lempiras" placeholder="0.00" x-ref="amount" x-on:input="input()" x-on:blur="format()"></div><small>Lempiras (HNL) · Ejemplo: L 12,500.00</small></div>
                                     <div class="col-md-4 form-group"><label for="pni-fecha">Fecha de pago *</label><input id="pni-fecha" type="date" max="{{ now()->toDateString() }}" required class="form-control" wire:model="nuevo.fecha_pago"></div>
-                                    <div class="col-md-3 form-group"><label for="pni-hora">Hora de pago *</label><input id="pni-hora" type="time" required class="form-control" wire:model="nuevo.hora_pago"><small>Hora local del depósito.</small></div>
+                                    <div class="col-md-3 form-group"><label for="pni-hora">Hora de pago <span class="text-muted font-weight-normal">(opcional)</span></label><input id="pni-hora" type="time" class="form-control" wire:model="nuevo.hora_pago"><small>Hora local del depósito, si se conoce.</small></div>
                                 </div></div>
                                 <div class="pni-panel">
                                 <p class="pni-section"><i class="fa fa-bank mr-1" aria-hidden="true"></i>Cuenta receptora</p>
                                 <div class="row">
                                     <div class="col-md-6 form-group"><label for="pni-nuevo-banco">Banco *</label><select id="pni-nuevo-banco" required class="form-control" wire:model.live.change="nuevo.banco_id"><option value="">Seleccione</option>@foreach($bancos as $banco)<option value="{{ $banco->id }}">{{ $banco->nombre }}</option>@endforeach</select></div>
                                     <div class="col-md-6 form-group"><label for="pni-cuenta">Cuenta bancaria *</label><input id="pni-cuenta" class="form-control" wire:model="nuevo.cuenta_bancaria" readonly required><small>Cuenta receptora del catálogo bancario.</small></div>
+                                    <div class="col-12 form-group"><label for="pni-referencia-bancaria">Referencia bancaria <span class="text-muted font-weight-normal">(opcional)</span></label><input id="pni-referencia-bancaria" maxlength="500" class="form-control" wire:model="nuevo.referencia_bancaria" placeholder="Ejemplo: TRX-2026/001245"><small>Admite letras, números, espacios, guiones y otros caracteres de referencia.</small></div>
                                     <div class="col-12 form-group"><label for="pni-observaciones">Observaciones</label><textarea id="pni-observaciones" maxlength="2000" rows="3" class="form-control" wire:model="nuevo.observaciones"></textarea></div>
                                 </div>
                                 </div>
@@ -348,6 +346,7 @@
                                 <dl class="pni-facts">
                                     <div><dt>Banco receptor</dt><dd>{{ $detalle->banco }}</dd></div>
                                     <div><dt>Cuenta bancaria</dt><dd>{{ $detalle->cuenta_bancaria }}</dd></div>
+                                    <div><dt>Referencia bancaria</dt><dd>{{ $detalle->referencia_bancaria ?: 'Sin referencia registrada' }}</dd></div>
                                     <div><dt>Fecha y hora del pago</dt><dd>{{ \Carbon\Carbon::parse($detalle->fecha_pago)->format('d/m/Y') }} {{ $detalle->hora_pago ? substr($detalle->hora_pago, 0, 5) : '(hora no registrada)' }}</dd></div>
                                     <div><dt>Registrado por</dt><dd>{{ $detalle->creador }}<span class="d-block text-muted font-weight-normal">{{ \Carbon\Carbon::parse($detalle->created_at)->format('d/m/Y H:i') }}</span></dd></div>
                                 </dl>
@@ -378,7 +377,7 @@
                                 <h5>Orígenes de la operación #{{ $operacionId }}</h5>
                                 <p class="text-muted">Depósitos utilizados en esta operación. El saldo de la factura refleja el total de todos estos depósitos.</p>
                                 <div class="table-responsive">
-                                <table class="table table-sm"><thead><tr><th>Pago</th><th>Banco / cuenta</th><th>Fecha de pago</th><th>Monto</th></tr></thead><tbody>@foreach($operacionDetalle as $origen)<tr><td>#{{ $origen->pago_id }}</td><td>{{ $origen->banco }} / {{ $origen->cuenta_bancaria }}</td><td>{{ \Carbon\Carbon::parse($origen->fecha_pago)->format('d/m/Y') }} {{ $origen->hora_pago ? substr($origen->hora_pago, 0, 5) : '(hora no registrada)' }}</td><td>L {{ number_format($origen->monto, 2) }}</td></tr>@endforeach</tbody><tfoot><tr><th colspan="3">Total operación</th><th>L {{ number_format($operacionDetalle->sum('monto'), 2) }}</th></tr></tfoot></table>
+                                <table class="table table-sm"><thead><tr><th>Pago</th><th>Banco / cuenta / referencia</th><th>Fecha de pago</th><th>Monto</th></tr></thead><tbody>@foreach($operacionDetalle as $origen)<tr><td>#{{ $origen->pago_id }}</td><td>{{ $origen->banco }} / {{ $origen->cuenta_bancaria }}<small class="d-block text-muted">{{ $origen->referencia_bancaria ?: 'Sin referencia registrada' }}</small></td><td>{{ \Carbon\Carbon::parse($origen->fecha_pago)->format('d/m/Y') }} {{ $origen->hora_pago ? substr($origen->hora_pago, 0, 5) : '(hora no registrada)' }}</td><td>L {{ number_format($origen->monto, 2) }}</td></tr>@endforeach</tbody><tfoot><tr><th colspan="3">Total operación</th><th>L {{ number_format($operacionDetalle->sum('monto'), 2) }}</th></tr></tfoot></table>
                                 </div>
                             @endif
                         @endif

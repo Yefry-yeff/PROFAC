@@ -87,6 +87,7 @@ class PagosNoIdentificadosTest extends TestCase
         Schema::create('comision_periodo', function (Blueprint $t) { $t->id(); $t->date('periodo')->unique(); $t->integer('estado')->default(0); $t->timestamps(); });
         (require database_path('migrations\2026_10_15_000001_create_pagos_no_identificados_tables.php'))->up();
         (require database_path('migrations\2026_10_15_000002_add_hora_pago_to_pagos_no_identificados.php'))->up();
+        (require database_path('migrations\2026_10_17_000001_add_referencia_bancaria_to_pagos_no_identificados.php'))->up();
         DB::table('users')->insert(['id' => 1, 'name' => 'Operador', 'rol_id' => 1]);
         DB::table('rol')->insert(['id' => 1]);
         DB::table('sub_menu')->insert(['id' => 1, 'url' => Pagos::URL, 'estado_id' => 1]);
@@ -110,7 +111,8 @@ class PagosNoIdentificadosTest extends TestCase
     {
         return app(Pagos::class)->registrar([
             'monto' => $monto, 'cliente_id' => $cliente, 'fecha_pago' => $fecha,
-            'banco_id' => $banco, 'cuenta_bancaria' => $banco === 1 ? '123' : '456', 'observaciones' => 'Prueba',
+            'banco_id' => $banco, 'cuenta_bancaria' => $banco === 1 ? '123' : '456',
+            'referencia_bancaria' => null, 'observaciones' => 'Prueba',
         ], (string) Str::uuid());
     }
 
@@ -487,11 +489,18 @@ class PagosNoIdentificadosTest extends TestCase
             ->assertSet('nuevo.cuenta_bancaria', '123')
             ->set('nuevo.monto', '1000.00')
             ->set('nuevo.fecha_pago', '2026-01-01')
+            ->set('nuevo.referencia_bancaria', 'REF-LIVEWIRE-001')
             ->call('guardar')->assertHasNoErrors()->assertSet('modal', '');
         $pago = (int) DB::table('pagos_no_identificados')->value('id');
+        $this->assertDatabaseHas('pagos_no_identificados', [
+            'id' => $pago,
+            'hora_pago' => null,
+            'referencia_bancaria' => 'REF-LIVEWIRE-001',
+        ]);
         app(Pagos::class)->aplicar($this->solicitud([$pago], '100.00'));
         app(Pagos::class)->aplicar($this->solicitud([$pago], '200.00', 2));
         $component->call('verDetalle', $pago)->assertSee('F-001')->assertSee('F-002')
+            ->assertSee('REF-LIVEWIRE-001')->assertSee('(hora no registrada)')
             ->assertSee('Todas las aplicaciones de este pago')
             ->call('verOperacion', 1)->assertSee('Orígenes de la operación #1');
     }
@@ -610,6 +619,7 @@ class PagosNoIdentificadosTest extends TestCase
         $datos = [
             'cliente_id' => '', 'monto' => '12500.50', 'fecha_pago' => now()->toDateString(),
             'hora_pago' => '11:35', 'banco_id' => '1', 'cuenta_bancaria' => '123',
+            'referencia_bancaria' => 'TRX-2026/001245',
             'observaciones' => '',
         ];
         $clave = (string) Str::uuid();
@@ -617,6 +627,7 @@ class PagosNoIdentificadosTest extends TestCase
         $this->assertSame($id, app(Pagos::class)->registrar($datos, $clave));
         $this->assertDatabaseHas('pagos_no_identificados', [
             'id' => $id, 'hora_pago' => '11:35:00', 'monto_original' => '12500.50',
+            'referencia_bancaria' => 'TRX-2026/001245',
         ]);
         $this->assertCount(1, app(Pagos::class)->consulta([
             'desde' => now()->toDateString(), 'hasta' => now()->toDateString(),
@@ -625,6 +636,34 @@ class PagosNoIdentificadosTest extends TestCase
             ->assertSee('11:35')->assertSee(now()->format('d/m/Y'));
         $this->expectException(ValidationException::class);
         app(Pagos::class)->registrar(array_replace($datos, ['hora_pago' => '13:00']), (string) Str::uuid());
+    }
+
+    public function test_bank_reference_is_limited_to_500_characters_and_protected_on_retry(): void
+    {
+        $datos = [
+            'cliente_id' => '', 'monto' => '100.00', 'fecha_pago' => '2026-01-01',
+            'hora_pago' => '', 'banco_id' => '1', 'cuenta_bancaria' => '123',
+            'referencia_bancaria' => 'ABC-123/2026', 'observaciones' => '',
+        ];
+        $clave = (string) Str::uuid();
+        $id = app(Pagos::class)->registrar($datos, $clave);
+        $this->assertSame($id, app(Pagos::class)->registrar($datos, $clave));
+
+        try {
+            app(Pagos::class)->registrar(
+                array_replace($datos, ['referencia_bancaria' => 'OTRA-REFERENCIA']),
+                $clave
+            );
+            $this->fail('El reintento con otra referencia debió ser rechazado.');
+        } catch (ValidationException) {
+            $this->assertDatabaseCount('pagos_no_identificados', 1);
+        }
+
+        $this->expectException(ValidationException::class);
+        app(Pagos::class)->registrar(
+            array_replace($datos, ['referencia_bancaria' => str_repeat('R', 501)]),
+            (string) Str::uuid()
+        );
     }
 
     public function test_client_and_pending_invoice_selects_are_not_truncated(): void
@@ -637,7 +676,7 @@ class PagosNoIdentificadosTest extends TestCase
         Livewire::test(PagosNoIdentificados::class)->call('abrirNuevo')
             ->assertViewHas('clientes', fn ($clientes) => $clientes->count() === 109)
             ->assertSee('pniSelect', false)->assertDontSee('id="pni-factura-destino"', false)
-            ->set('nuevo.hora_pago', '')->call('guardar')->assertHasErrors('nuevo.hora_pago');
+            ->assertSet('nuevo.hora_pago', '');
         $pago = $this->registrar('100.00');
         Livewire::test(PagosNoIdentificados::class)->set('seleccionados', [(string) $pago])
             ->call('abrirAplicacion')->set('clienteDestino', '1')
@@ -656,6 +695,10 @@ class PagosNoIdentificadosTest extends TestCase
             ->assertDontSee('id="pni-desde"', false)
             ->set('seleccionados', [(string) $pago])
             ->call('abrirFiltros')->assertSet('modal', 'filtros')
+            ->assertSee('Referencia bancaria')
+            ->assertDontSee('Asesor comercial')
+            ->assertDontSee('Teleasesor')
+            ->assertDontSee('Gestor de entrega')
             ->set('filtrosEdicion.cliente', '1')
             ->assertSet('filtros.cliente', '')
             ->assertViewHas('resumen', fn ($r) => (int) $r->cantidad === 2)
@@ -708,15 +751,22 @@ class PagosNoIdentificadosTest extends TestCase
         $this->assertDatabaseHas('aplicacion_pagos', ['id' => 1, 'estado_cerrado' => 2]);
     }
 
-    public function test_filtering_by_invoice_fields_does_not_duplicate_deposits(): void
+    public function test_filtering_by_reference_and_invoice_does_not_duplicate_deposits(): void
     {
-        $pago = $this->registrar();
+        $datos = [
+            'cliente_id' => null, 'monto' => '1000.00', 'fecha_pago' => '2026-01-01',
+            'hora_pago' => '', 'banco_id' => 1, 'cuenta_bancaria' => '123',
+            'referencia_bancaria' => 'REF-ABC-123', 'observaciones' => 'Prueba',
+        ];
+        $pago = app(Pagos::class)->registrar($datos, (string) Str::uuid());
         app(Pagos::class)->aplicar($this->solicitud([$pago], '100.00'));
         app(Pagos::class)->aplicar($this->solicitud([$pago], '100.00', 2));
         $otro = $this->registrar();
-        $consulta = app(Pagos::class)->consulta(['vendedor' => '1', 'teleasesor' => '1', 'gestor' => '1']);
+        $consulta = app(Pagos::class)->consulta(['referencia' => 'ABC-12']);
         $this->assertCount(1, $consulta->get());
         $this->assertSame($pago, (int) $consulta->first()->id);
+        $this->assertCount(1, app(Pagos::class)->consulta(['buscar' => 'REF-ABC'])->get());
+        $this->assertCount(1, app(Pagos::class)->consulta(['factura' => 'F-00'])->get());
         $this->assertNotSame($otro, $pago);
     }
 

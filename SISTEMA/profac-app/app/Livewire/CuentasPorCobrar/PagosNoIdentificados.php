@@ -19,8 +19,8 @@ class PagosNoIdentificados extends Component
 
     protected $paginationTheme = 'bootstrap';
     public array $filtros = [
-        'desde' => '', 'hasta' => '', 'cliente' => '', 'vendedor' => '', 'teleasesor' => '',
-        'gestor' => '', 'banco' => '', 'factura' => '', 'estado' => '', 'buscar' => '',
+        'desde' => '', 'hasta' => '', 'cliente' => '', 'banco' => '', 'referencia' => '',
+        'factura' => '', 'estado' => '', 'buscar' => '',
     ];
     public array $seleccionados = [];
     public array $filtrosEdicion = [];
@@ -31,7 +31,7 @@ class PagosNoIdentificados extends Component
     public string $modal = '';
     public array $nuevo = [
         'cliente_id' => '', 'monto' => '', 'fecha_pago' => '', 'hora_pago' => '', 'banco_id' => '',
-        'cuenta_bancaria' => '', 'observaciones' => '',
+        'cuenta_bancaria' => '', 'referencia_bancaria' => '', 'observaciones' => '',
     ];
     public string $clienteDestino = '';
     public string $facturaDestino = '';
@@ -118,6 +118,7 @@ class PagosNoIdentificados extends Component
             'filtrosEdicion.hasta' => ['nullable', 'date_format:Y-m-d'],
             'filtrosEdicion.buscar' => ['nullable', 'string', 'max:255'],
             'filtrosEdicion.factura' => ['nullable', 'string', 'max:255'],
+            'filtrosEdicion.referencia' => ['nullable', 'string', 'max:500'],
         ];
         if (!empty($this->filtrosEdicion['desde']) && !empty($this->filtrosEdicion['hasta'])) {
             $reglas['filtrosEdicion.hasta'][] = 'after_or_equal:filtrosEdicion.desde';
@@ -141,8 +142,8 @@ class PagosNoIdentificados extends Component
         $this->resetValidation();
         $this->nuevo = [
             'cliente_id' => '', 'monto' => '', 'fecha_pago' => now()->toDateString(),
-            'hora_pago' => now()->format('H:i'),
-            'banco_id' => '', 'cuenta_bancaria' => '', 'observaciones' => '',
+            'hora_pago' => '', 'banco_id' => '', 'cuenta_bancaria' => '',
+            'referencia_bancaria' => '', 'observaciones' => '',
         ];
         $this->buscarCliente = '';
         $this->claveRegistro = (string) Str::uuid();
@@ -157,7 +158,6 @@ class PagosNoIdentificados extends Component
 
     public function guardar(): void
     {
-        $this->validate(['nuevo.hora_pago' => ['required', 'date_format:H:i']]);
         try {
             $id = app(PagosService::class)->registrar($this->nuevo, $this->claveRegistro);
             $this->cerrar();
@@ -273,6 +273,7 @@ class PagosNoIdentificados extends Component
             'filtros.desde' => ['nullable', 'date_format:Y-m-d'],
             'filtros.hasta' => ['nullable', 'date_format:Y-m-d'],
             'filtros.buscar' => ['nullable', 'string', 'max:255'],
+            'filtros.referencia' => ['nullable', 'string', 'max:500'],
         ];
         if ($this->filtros['desde'] && $this->filtros['hasta']) {
             $reglas['filtros.hasta'][] = 'after_or_equal:filtros.desde';
@@ -300,7 +301,6 @@ class PagosNoIdentificados extends Component
             ->orderByRaw('CASE WHEN id = ? THEN 0 ELSE 1 END', [(int) $clienteFiltro])
             ->orderBy('nombre')->limit(50)->get(['id', 'nombre']);
         $bancos = DB::table('banco')->whereNotIn('id', [12, 13])->orderBy('nombre')->get();
-        $usuarios = DB::table('users')->orderBy('name')->get(['id', 'name']);
         $clientes = in_array($this->modal, ['nuevo', 'aplicar'], true)
             ? DB::table('cliente')->orderBy('nombre')->get(['id', 'nombre'])
             : collect();
@@ -339,9 +339,16 @@ class PagosNoIdentificados extends Component
             ->join('pagos_no_identificados as p', 'p.id', '=', 'a.pago_id')
             ->join('banco as b', 'b.id', '=', 'p.banco_id')
             ->where('a.operacion_id', $this->operacionId)
-            ->select('a.*', 'b.nombre as banco', 'p.cuenta_bancaria', 'p.fecha_pago', 'p.hora_pago')->orderBy('a.id')->get() : collect();
+            ->select(
+                'a.*',
+                'b.nombre as banco',
+                'p.cuenta_bancaria',
+                'p.referencia_bancaria',
+                'p.fecha_pago',
+                'p.hora_pago'
+            )->orderBy('a.id')->get() : collect();
         return view('livewire.cuentasporcobrar.pagosnoidentificados', compact(
-            'pagos', 'bancos', 'usuarios', 'clientes', 'clientesFiltro', 'facturas', 'total', 'distribucion', 'maximoAplicable',
+            'pagos', 'bancos', 'clientes', 'clientesFiltro', 'facturas', 'total', 'distribucion', 'maximoAplicable',
             'traslados', 'detalle', 'historial', 'totalSeleccionado', 'identificador', 'operacionDetalle', 'resumen', 'saldoDespues'
         ));
     }
