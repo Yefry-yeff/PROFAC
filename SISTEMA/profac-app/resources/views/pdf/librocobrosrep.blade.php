@@ -3,6 +3,10 @@
 <head>
         <link rel="stylesheet" href="{{ public_path('css/bootstrap.min.css') }}">
     <style>
+        @page {
+            size: letter landscape;
+        }
+
         body {
             font-size: 10px; /* Tamaño de fuente más pequeño */
             margin: 0;

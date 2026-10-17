@@ -1,5 +1,12 @@
 //*****comandos utiles****
 
+### PDF de Libro de Cobros
+
+Todos los formatos del PDF se generan en papel carta horizontal (11 x 8.5
+pulgadas). La plantilla declara `@page { size: letter landscape; }` despues
+de Bootstrap para evitar que su regla de impresion A3 reemplace la orientacion
+solicitada por el generador. Los filtros, datos y totales no cambian.
+
 ### Bodega revisada y prefactura
 
 Al pasar una revision normal a prefactura se guarda la bodega/seccion
