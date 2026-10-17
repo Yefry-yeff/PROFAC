@@ -1018,123 +1018,162 @@ class Pagos extends Component
 
     ///////////////////////////////GESTIONES DE OTRO MOVIMIENTO
 
-    public function guardarOtroMov( Request $request){
+    public function guardarOtroMov(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'codAplicPagoom' => ['required', 'integer', 'min:1'],
+            'idFacturaom' => ['required', 'integer', 'min:1'],
+            'selecttipoMovimiento' => ['required', 'integer', 'in:1,2'],
+            'montoTM' => ['required', 'numeric', 'gt:0', 'regex:/^\d{1,15}(\.\d{1,3})?$/'],
+            'motivoMovimiento' => ['required', 'string', 'max:500'],
+        ], [
+            'selecttipoMovimiento.in' => 'El tipo de movimiento seleccionado no es válido.',
+            'montoTM.gt' => 'El monto debe ser mayor que cero.',
+            'montoTM.regex' => 'El monto admite un máximo de tres decimales.',
+            'motivoMovimiento.required' => 'El comentario del movimiento es obligatorio.',
+        ]);
 
-
-        try {
-            $cm = "'";
-
-                        $otrosMovimientos = new Modelotros_movimientos;
-                            $otrosMovimientos->aplicacion_pagos_id = $request->codAplicPagoom;
-                            $otrosMovimientos->factura_id = $request->idFacturaom;
-                            $otrosMovimientos->monto = $request->montoTM;
-                            $otrosMovimientos->comentario = $request->motivoMovimiento;
-                            $otrosMovimientos->usr_registro = Auth::user()->id;
-                            $otrosMovimientos->estado = 1;
-                            $otrosMovimientos->tipo_movimiento = $request->selecttipoMovimiento;
-                        $otrosMovimientos->save();
-
-
-
-                        $cuentas2 = DB::select("
-
-                        CALL sp_aplicacion_pagos(
-                            '7',
-                            '0',
-                            '".Auth::user()->id."',
-                            '".$request->idFacturaom."',
-                            '".$request->motivoMovimiento."',
-                            '".$request->codAplicPagoom."',
-                            '".$request->selecttipoMovimiento."',
-                            '".$request->montoTM."',
-                            @estado, @msjResultado);");
-
-
-                        if ($request->selecttipoMovimiento=2) {
-
-
-                            $cliente = DB::SELECTONE("select cliente_id from factura where id=".$request->idFacturaom);
-                            $creditoCli = DB::SELECTONE("select credito , cliente_categoria_escala_id from cliente where id=".$cliente->cliente_id);
-
-
-                            $homologoCredito = $creditoCli->credito + $request->montoAbono;
-
-                            $clienteCredito =  ModelCliente::find($cliente->cliente_id);
-                            $clienteCredito->credito = trim($homologoCredito);
-                            $clienteCredito->save();
-
-                        }
-
-                        //dd($cuentas2[0]->estado);
-
-
-                        if ($cuentas2[0]->estado == -1) {
-                            return response()->json([
-                                "text" => "Ha ocurrido un error en el procedimiento almacenado.",
-                                "icon" => "error",
-                                "title"=>"Error!"
-                            ],402);
-                        }
-
-                       $saldoActual2 = DB::selectone("select saldo from aplicacion_pagos where id = ".$request->codAplicPagoom);
-
-                      // dd($request);
-                       if($saldoActual2->saldo == 0){
-                            //dd("Prueba de que llega aqui esta mierda");
-                           $cuentas22 = DB::select("
-                               CALL sp_aplicacion_pagos(
-                                   '9',
-                                   '0',
-                                   '".Auth::user()->id."',
-                                   '0',
-                                   'CIERRE POR SALDO 0',
-                                   '".$request->codAplicPagoAbono."',
-                                   '0',
-                                   '0',
-                                   @estado,
-                                   @msjResultado);");
-
-
-
-                                $generador = app(GeneradorFacturasComision::class);
-                                $arrayfacturas_comision = $generador->generar(
-                                    (int) $request->idFacturaom,
-                                    (int) $request->codAplicPagoom
-                                );
-
-                                if (!empty($arrayfacturas_comision)) {
-                                    $arrayfacturas_comision = app(AplicadorRetencionesMora::class)
-                                        ->aplicar($arrayfacturas_comision, (int) $request->idFacturaom);
-                                    $procesador = app(ProcesadorComisiones::class);
-                                    foreach ($arrayfacturas_comision as $factura) {
-                                        $procesador->procesar($factura);
-                                    }
-                                }
-
-
-                           if ($cuentas22[0]->estado == -1) {
-                               return response()->json([
-                                   "text" => "Ha ocurrido un error en el procedimiento almacenado.",
-                                   "icon" => "error",
-                                   "title"=>"Error!"
-                               ],402);
-                           }
-
-                           /* Me sale más facil procesarlo aqui */
-
-                           /* Distribución de facturas comision */
-
-                       }
-
-            }catch (QueryException $e) {
+        if ($validator->fails()) {
             return response()->json([
-                "icon" => "error",
-                "text" => "Ha ocurrido un error: ".$e,
-                "title"=>"Error!",
-                "error" => $e
-            ],402);
+                'icon' => 'warning',
+                'title' => 'Datos inválidos',
+                'text' => $validator->errors()->first(),
+                'errors' => $validator->errors(),
+            ], 422);
         }
 
+        $aplicacionId = (int) $request->codAplicPagoom;
+        $facturaId = (int) $request->idFacturaom;
+        $tipoMovimiento = (int) $request->selecttipoMovimiento;
+        $monto = round((float) $request->montoTM, 3);
+        $comentario = trim((string) $request->motivoMovimiento);
+        $usuarioId = (int) Auth::id();
+
+        try {
+            $resultado = DB::transaction(function () use (
+                $aplicacionId,
+                $facturaId,
+                $tipoMovimiento,
+                $monto,
+                $comentario,
+                $usuarioId
+            ) {
+                $aplicacion = DB::table('aplicacion_pagos')
+                    ->where('id', $aplicacionId)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$aplicacion
+                    || (int) $aplicacion->estado !== 1
+                    || (int) $aplicacion->factura_id !== $facturaId) {
+                    throw new \DomainException('La aplicación de pago no corresponde a la factura seleccionada.');
+                }
+
+                if ((int) $aplicacion->estado_cerrado === 2) {
+                    throw new \DomainException('La factura ya se encuentra cerrada.');
+                }
+
+                $saldoActual = round((float) $aplicacion->saldo, 3);
+                if ($tipoMovimiento === 2 && $monto > $saldoActual + 0.0001) {
+                    throw new \DomainException('No se puede deducir un monto mayor al saldo actual.');
+                }
+
+                $nuevoSaldo = $tipoMovimiento === 1
+                    ? round($saldoActual + $monto, 3)
+                    : round($saldoActual - $monto, 3);
+                $debeCerrar = abs($nuevoSaldo) <= 0.0001;
+                if ($debeCerrar) {
+                    $nuevoSaldo = 0.0;
+                }
+
+                $otrosMovimientos = new Modelotros_movimientos;
+                $otrosMovimientos->aplicacion_pagos_id = $aplicacionId;
+                $otrosMovimientos->factura_id = $facturaId;
+                $otrosMovimientos->monto = $monto;
+                $otrosMovimientos->comentario = $comentario;
+                $otrosMovimientos->usr_registro = $usuarioId;
+                $otrosMovimientos->estado = 1;
+                $otrosMovimientos->tipo_movimiento = $tipoMovimiento;
+                $otrosMovimientos->save();
+
+                $fechaGestion = now();
+                $actualizacion = [
+                    'saldo' => $nuevoSaldo,
+                    'ultimo_usr_actualizo' => $usuarioId,
+                    'updated_at' => $fechaGestion,
+                ];
+
+                if ($tipoMovimiento === 1) {
+                    $actualizacion['movimiento_suma'] = round(
+                        (float) $aplicacion->movimiento_suma + $monto,
+                        3
+                    );
+                } else {
+                    $actualizacion['movimiento_resta'] = round(
+                        (float) $aplicacion->movimiento_resta + $monto,
+                        3
+                    );
+                }
+
+                if ($debeCerrar) {
+                    $actualizacion['estado_cerrado'] = 2;
+                    $actualizacion['usr_cerro'] = $usuarioId;
+                    $actualizacion['fecha_cierre_factura'] = $fechaGestion;
+                    $actualizacion['comentario'] = 'CIERRE POR OTRO MOVIMIENTO: ' . $comentario;
+                }
+
+                DB::table('aplicacion_pagos')
+                    ->where('id', $aplicacionId)
+                    ->update($actualizacion);
+
+                if ($debeCerrar) {
+                    $fechaCierre = $fechaGestion->toDateString();
+                    $comisiones = app(GeneradorFacturasComision::class)->generar(
+                        $facturaId,
+                        $aplicacionId,
+                        $fechaCierre
+                    );
+
+                    if (!empty($comisiones)) {
+                        $comisiones = app(AplicadorRetencionesMora::class)
+                            ->aplicar($comisiones, $facturaId, $fechaCierre);
+                        $procesador = app(ProcesadorComisiones::class);
+                        foreach ($comisiones as $comision) {
+                            $procesador->procesar($comision);
+                        }
+                    }
+                }
+
+                return [
+                    'cerrada' => $debeCerrar,
+                    'saldo' => $nuevoSaldo,
+                ];
+            });
+
+            return response()->json([
+                'icon' => 'success',
+                'title' => '¡Éxito!',
+                'text' => $resultado['cerrada']
+                    ? 'El movimiento fue registrado y la factura quedó cerrada.'
+                    : 'El movimiento fue registrado correctamente.',
+                'cerrada' => $resultado['cerrada'],
+                'saldo' => $resultado['saldo'],
+            ]);
+        } catch (\DomainException $e) {
+            return response()->json([
+                'icon' => 'warning',
+                'title' => 'No se pudo registrar',
+                'text' => $e->getMessage(),
+            ], 422);
+        } catch (Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'icon' => 'error',
+                'title' => 'Error',
+                'text' => 'No se pudo registrar el movimiento. No se aplicó ningún cambio.',
+            ], 500);
+        }
     }
 
     ///////////////////////////////GESTIONES DE creditos y abonos

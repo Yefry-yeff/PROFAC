@@ -1034,8 +1034,6 @@ $(document).on('submit', '#formOtrosMovimientos', function(event) {
     $('#btn_tipomov').hide();
 
 
-    $('#modalOtrosMovimientos').modal('hide');
-
     event.preventDefault();
     guardarOtroMov();
 });
@@ -1047,6 +1045,7 @@ function guardarOtroMov(){
         .then(response => {
 
             //$('#formEstadoRetencion').parsley().reset();
+            $('#modalOtrosMovimientos').modal('hide');
             $('#tbl_cuentas_facturas_cliente').DataTable().ajax.reload();
             $('#tbl_tipo_movimientos_cliente').DataTable().ajax.reload();
 
@@ -1066,11 +1065,13 @@ function guardarOtroMov(){
 
     })
     .catch(err => {
-        let data = err.response.data;
+        $('#btn_tipomov').css('display','block');
+        $('#btn_tipomov').show();
+        let data = err.response ? err.response.data : {};
         Swal.fire({
-            icon: data.icon,
-            title: data.title,
-            text: data.text
+            icon: data.icon || 'error',
+            title: data.title || 'Error',
+            text: data.text || 'No se pudo registrar el movimiento.'
         })
         console.error(err);
 

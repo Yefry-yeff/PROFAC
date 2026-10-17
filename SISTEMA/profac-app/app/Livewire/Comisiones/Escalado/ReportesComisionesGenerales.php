@@ -57,14 +57,26 @@ class ReportesComisionesGenerales extends Component
             ->selectRaw("ap.factura_id,
                          CASE
                              WHEN DATE(MAX(ap.fecha_cierre_factura)) > COALESCE(MAX(DATE(ac.fecha_pago)), '1000-01-01')
-                              AND COALESCE(MAX(ap.total_notas_credito), 0) > 0
-                              AND EXISTS (
-                                  SELECT 1
-                                  FROM nota_credito nc_cierre
-                                  WHERE nc_cierre.factura_id = ap.factura_id
-                                    AND nc_cierre.estado_nota_id = 1
-                                    AND nc_cierre.estado_rebajado IN (1, 3)
-                                    AND DATE(nc_cierre.fecha_rebajado) = DATE(MAX(ap.fecha_cierre_factura))
+                              AND (
+                                  (
+                                      COALESCE(MAX(ap.total_notas_credito), 0) > 0
+                                      AND EXISTS (
+                                          SELECT 1
+                                          FROM nota_credito nc_cierre
+                                          WHERE nc_cierre.factura_id = ap.factura_id
+                                            AND nc_cierre.estado_nota_id = 1
+                                            AND nc_cierre.estado_rebajado IN (1, 3)
+                                            AND DATE(nc_cierre.fecha_rebajado) = DATE(MAX(ap.fecha_cierre_factura))
+                                      )
+                                  )
+                                  OR EXISTS (
+                                      SELECT 1
+                                      FROM otros_movimientos om_cierre
+                                      WHERE om_cierre.factura_id = ap.factura_id
+                                        AND om_cierre.estado = 1
+                                        AND om_cierre.tipo_movimiento = 2
+                                        AND DATE(om_cierre.created_at) = DATE(MAX(ap.fecha_cierre_factura))
+                                  )
                               )
                                  THEN DATE(MAX(ap.fecha_cierre_factura))
                              ELSE COALESCE(MAX(DATE(ac.fecha_pago)), DATE(MAX(ap.fecha_cierre_factura)))
