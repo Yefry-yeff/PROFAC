@@ -801,6 +801,9 @@ table.dataTable tbody td { font-size: 13px; vertical-align: middle; }
                                 <th>Fecha Creación Factura</th>
                                 <th>Factura</th>
                                 <th style="min-width:280px;">Producto</th>
+                                <th>Cant. Vendida</th>
+                                <th>Cant. Devuelta</th>
+                                <th>Cant. Neta</th>
                                 <th>Cliente</th>
                                 <th>Categoría Precio</th>
                                 <th>Rol Comisión</th>

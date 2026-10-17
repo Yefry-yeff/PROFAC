@@ -633,6 +633,9 @@ function renderProyecciones(resp){
                 {data:'fecha_creacion_factura',className:'text-nowrap',render:function(d){return esc(d || '—');}},
                 {data:'factura',render:function(d){return '<code style="background:#fef2f2;padding:2px 6px;border-radius:4px;font-size:11px;color:#991b1b;">'+esc(d || '—')+'</code>'; }},
                 {data:'producto',width:'280px',render:function(d){return '<div style="min-width:280px;white-space:normal;">'+esc(d || '—')+'</div>'; }},
+                {data:'cantidad_vendida',className:'text-right',render:function(d){return d == null ? '—' : parseFloat(d || 0).toLocaleString('es-HN',{minimumFractionDigits:0,maximumFractionDigits:2});}},
+                {data:'cantidad_devuelta',className:'text-right',render:function(d){return d == null ? '—' : parseFloat(d || 0).toLocaleString('es-HN',{minimumFractionDigits:0,maximumFractionDigits:2});}},
+                {data:'cantidad_neta',className:'text-right',render:function(d){return d == null ? '—' : parseFloat(d || 0).toLocaleString('es-HN',{minimumFractionDigits:0,maximumFractionDigits:2});}},
                 {data:'cliente',render:function(d){return esc(d || '—');}},
                 {data:'categoria_precio',render:function(d){return esc(d || '—');}},
                 {data:'rol_nombre',render:function(d, __, row){return esc(d || row.capacidad || '—');}},
@@ -1073,13 +1076,16 @@ function exportarProyeccionesExcel(tipo){
             + String(ahora.getMinutes()).padStart(2,'0')
             + String(ahora.getSeconds()).padStart(2,'0');
 
-        var dataEx = [['Fecha Pago','Fecha Creacion Factura','Factura','Producto','Cliente','Categoria Precio','Rol Comisión','Usuario','Razon No Comisionable','Detalle Tecnico']];
+        var dataEx = [['Fecha Pago','Fecha Creacion Factura','Factura','Producto','Cantidad Vendida','Cantidad Devuelta','Cantidad Neta','Cliente','Categoria Precio','Rol Comisión','Usuario','Razon No Comisionable','Detalle Tecnico']];
         proyeccionesExcluidasActual.forEach(function(r){
             dataEx.push([
                 r.fecha_pago || '',
                 r.fecha_creacion_factura || '',
                 r.factura || '',
                 r.producto || '',
+                r.cantidad_vendida == null ? '' : r.cantidad_vendida,
+                r.cantidad_devuelta == null ? '' : r.cantidad_devuelta,
+                r.cantidad_neta == null ? '' : r.cantidad_neta,
                 r.cliente || '',
                 r.categoria_precio || '',
                 r.rol_nombre || r.capacidad || '',
@@ -1089,8 +1095,8 @@ function exportarProyeccionesExcel(tipo){
             ]);
         });
         var wsEx = XLSX.utils.aoa_to_sheet(dataEx);
-        wsEx['!autofilter'] = { ref: 'A1:J1' };
-        wsEx['!cols'] = [{wch:12},{wch:20},{wch:20},{wch:30},{wch:36},{wch:24},{wch:16},{wch:24},{wch:34},{wch:80}];
+        wsEx['!autofilter'] = { ref: 'A1:M1' };
+        wsEx['!cols'] = [{wch:12},{wch:20},{wch:20},{wch:30},{wch:16},{wch:16},{wch:14},{wch:36},{wch:24},{wch:16},{wch:24},{wch:34},{wch:80}];
         var wbEx = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wbEx, wsEx, 'Excluidas');
         XLSX.writeFile(wbEx, 'facturas_excluidas_' + stamp + '.xlsx');

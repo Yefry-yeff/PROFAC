@@ -1383,8 +1383,11 @@ class ReportesComisionesGenerales extends Component
             ->join('nota_credito as nc', 'nc.id', '=', 'ncp.nota_credito_id')
             ->whereIn('nc.factura_id', $facturaIds)
             ->where('nc.estado_nota_id', 1)
-            ->groupBy('nc.factura_id', 'ncp.producto_id', 'ncp.seccion_id', 'ncp.unidad_medida_venta_id', 'ncp.precios_producto_carga_id', 'ncp.precio_unidad')
+            ->whereIn('nc.estado_rebajado', [1, 3])
+            ->groupBy('nc.id', 'nc.numero_nota', 'nc.factura_id', 'ncp.producto_id', 'ncp.seccion_id', 'ncp.unidad_medida_venta_id', 'ncp.precios_producto_carga_id', 'ncp.precio_unidad')
             ->selectRaw('nc.factura_id,
+                         nc.id as nota_credito_id,
+                         nc.numero_nota,
                          ncp.producto_id,
                          ncp.seccion_id,
                          ncp.unidad_medida_venta_id,
@@ -1523,12 +1526,39 @@ class ReportesComisionesGenerales extends Component
             $esPoliticaAnteriorParcial = $configPoliticaParcial !== null
                 && !empty($cierre->politica_anterior_parcial);
             $lineas = collect($lineasFactura->get($facturaId, collect([])))->values();
-            $devueltasFactura = $this->indexarCantidadesDevueltas(
-                collect($cantidadesDevueltas->get($facturaId, collect([])))
+            $devolucionesFactura = collect($cantidadesDevueltas->get($facturaId, collect([])));
+            $notasCreditoPorProducto = $devolucionesFactura->groupBy(
+                fn($devolucion) => (int) $devolucion->producto_id
             );
+            $devueltasFactura = $this->indexarCantidadesDevueltas($devolucionesFactura);
+            $lineasDevueltasTotalmente = collect();
             $lineas = $lineas
-                ->map(function ($linea) use (&$devueltasFactura) {
-                    $linea->cantidad = $this->cantidadComisionableTrasDevoluciones($linea, $devueltasFactura);
+                ->map(function ($linea) use (&$devueltasFactura, $notasCreditoPorProducto, $lineasDevueltasTotalmente) {
+                    $cantidadVendida = max((float) ($linea->cantidad ?? 0), 0);
+                    $cantidadNeta = $this->cantidadComisionableTrasDevoluciones($linea, $devueltasFactura);
+                    $cantidadDevuelta = max($cantidadVendida - $cantidadNeta, 0);
+
+                    if ($cantidadVendida > 0.005
+                        && $cantidadDevuelta > 0.005
+                        && $cantidadNeta <= 0.005) {
+                        $lineaDevuelta = clone $linea;
+                        $lineaDevuelta->cantidad_vendida = $cantidadVendida;
+                        $lineaDevuelta->cantidad_devuelta = $cantidadDevuelta;
+                        $lineaDevuelta->cantidad = 0.0;
+                        $lineaDevuelta->notas_credito = collect(
+                            $notasCreditoPorProducto->get((int) $linea->producto_id, collect())
+                        )
+                            ->map(fn($nota) => [
+                                'id' => (int) $nota->nota_credito_id,
+                                'numero' => trim((string) ($nota->numero_nota ?? '')),
+                            ])
+                            ->unique('id')
+                            ->values()
+                            ->all();
+                        $lineasDevueltasTotalmente->push($lineaDevuelta);
+                    }
+
+                    $linea->cantidad = $cantidadNeta;
                     return $linea;
                 })
                 ->filter(fn($linea) => (float) $linea->cantidad > 0.005)
@@ -1622,7 +1652,86 @@ class ReportesComisionesGenerales extends Component
                     continue;
                 }
 
+                foreach ($lineasDevueltasTotalmente as $lineaDevuelta) {
+                    $precioUnitario = (float) ($lineaDevuelta->precio_unidad ?? 0);
+                    $precioSeleccionado = (float) ($lineaDevuelta->precioSeleccionado ?? 0);
+                    $cantidadVendida = (float) ($lineaDevuelta->cantidad_vendida ?? 0);
+                    $notas = collect($lineaDevuelta->notas_credito ?? []);
+                    $referenciasNotas = $notas
+                        ->map(function ($nota) {
+                            $referencia = '#' . (int) ($nota['id'] ?? 0);
+                            $numero = trim((string) ($nota['numero'] ?? ''));
+
+                            return $numero !== '' ? $referencia . ' (documento ' . $numero . ')' : $referencia;
+                        })
+                        ->filter()
+                        ->values()
+                        ->all();
+                    $motivo = count($referenciasNotas) === 1
+                        ? 'Devolución total por nota de crédito ' . $referenciasNotas[0]
+                        : 'Devolución total por notas de crédito ' . implode(', ', $referenciasNotas);
+
+                    $excluidas[] = [
+                        'factura_id' => $facturaId,
+                        'factura' => (string) ($factura->cai ?? ('#' . $facturaId)),
+                        'fecha_pago' => (string) ($cierre->fecha_pago_cierre ?? ''),
+                        'fecha_creacion_factura' => (string) ($factura->fecha_creacion_factura ?? ''),
+                        'cliente' => (string) ($factura->cliente ?? 'N/A'),
+                        'producto_id' => (int) $lineaDevuelta->producto_id,
+                        'producto' => (string) ($lineaDevuelta->producto ?? ('Producto #' . (int) $lineaDevuelta->producto_id)),
+                        'categoria_precio' => (string) ($lineaDevuelta->categoria_precio ?? 'N/A'),
+                        'capacidad' => (string) $target['capacidad'],
+                        'rol_id' => (int) $target['rol_id'],
+                        'rol_nombre' => (string) $target['rol_nombre'],
+                        'usuario_id' => (int) $target['user_id'],
+                        'usuario' => (string) ($target['usuario'] ?: ('Usuario #' . (int) $target['user_id'])),
+                        'razon_no_comisionable' => $motivo,
+                        'motivos' => [$motivo],
+                        'elegible_politica_anterior' => false,
+                        'producto_ids_politica_anterior' => [],
+                        'notas_credito' => $lineaDevuelta->notas_credito,
+                        'cantidad_vendida' => round($cantidadVendida, 4),
+                        'cantidad_devuelta' => round((float) $lineaDevuelta->cantidad_devuelta, 4),
+                        'cantidad_neta' => 0.0,
+                        'cantidad' => 0.0,
+                        'precio_unidad' => round($precioUnitario, 4),
+                        'precio_seleccionado' => round($precioSeleccionado, 4),
+                        'base_original' => round(
+                            $cantidadVendida * ($precioSeleccionado > 0 ? $precioSeleccionado : $precioUnitario),
+                            4
+                        ),
+                        'base_unitaria' => 0.0,
+                        'base_comisionable' => 0.0,
+                        'porcentaje_promedio' => 0.0,
+                        'comision_proyectada' => 0.0,
+                        'detalle_lineas' => [
+                            [
+                                'producto' => (string) ($lineaDevuelta->producto ?? ('Producto #' . (int) $lineaDevuelta->producto_id)),
+                                'categoria_precio' => (string) ($lineaDevuelta->categoria_precio ?? 'N/A'),
+                                'cantidad_vendida' => $cantidadVendida,
+                                'cantidad_devuelta' => (float) $lineaDevuelta->cantidad_devuelta,
+                                'cantidad_neta' => 0.0,
+                                'precio_unitario' => round($precioUnitario, 4),
+                                'precio_para_comision' => round(
+                                    $precioSeleccionado > 0 ? $precioSeleccionado : $precioUnitario,
+                                    4
+                                ),
+                                'base_unitaria' => 0.0,
+                                'base_comisionable' => 0.0,
+                                'porcentaje' => 0.0,
+                                'comision_linea' => 0.0,
+                                'motivo' => $motivo,
+                            ],
+                        ],
+                    ];
+                    $facturasExcluidas[$facturaId] = true;
+                }
+
                 if ($lineas->isEmpty()) {
+                    if ($lineasDevueltasTotalmente->isNotEmpty()) {
+                        continue;
+                    }
+
                     $excluidas[] = [
                         'factura_id' => $facturaId,
                         'factura' => (string) ($factura->cai ?? ('#' . $facturaId)),
