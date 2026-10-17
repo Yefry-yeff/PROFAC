@@ -1,5 +1,14 @@
 //*****comandos utiles****
 
+### PDF de Libro de Cobros
+
+Todos los formatos del PDF se generan en papel carta horizontal (11 x 8.5
+pulgadas), con margenes de 18 puntos. La plantilla usa estilos propios, sin
+las reglas de impresion de Bootstrap. Las tablas tienen ancho fijo, columnas
+distribuidas dentro de la hoja y salto de linea para textos largos; el
+encabezado tambien se ajusta al ancho imprimible. Los filtros, datos y totales
+no cambian.
+
 ### Bodega revisada y prefactura
 
 Al pasar una revision normal a prefactura se guarda la bodega/seccion

@@ -352,12 +352,12 @@ class Librocobrosrep extends Component
                     'fechaInicio' => $fechaInicio,
                     'fechaFinal'  => $fechaFinal,
                     'tipo'        => 3,
-                ])->setPaper('legal', 'landscape');
+                ])->setPaper('letter', 'landscape');
             } else {
                 $consulta = DB::select("CALL sp_reportesxfecha(?, ?, ?)", [$tipo, $fechaInicio, $fechaFinal]);
                 $data = json_decode(json_encode($consulta), true);
                 $pdf  = PDF::loadView('pdf.librocobrosrep', compact('data', 'fechaInicio', 'fechaFinal'))
-                           ->setPaper('oficio', 'landscape');
+                           ->setPaper('letter', 'landscape');
             }
 
             $response = $pdf->download("LibroCobros_{$fechaInicio}_a_{$fechaFinal}.pdf");
