@@ -98,12 +98,28 @@ class ComisionesRulesTest extends TestCase
         ]);
 
         DB::table('venta_has_producto')->insert([
-            'factura_id' => 1,
-            'cantidad' => 2,
-            'precio_unidad' => 500,
-            'precioSeleccionado' => 100,
-            'precios_producto_carga_id' => 700,
-            'producto_id' => 1,
+            [
+                'factura_id' => 1,
+                'cantidad' => 2,
+                'cantidad_s' => 0.5,
+                'precio_unidad' => 500,
+                'precioSeleccionado' => 100,
+                'precios_producto_carga_id' => 700,
+                'producto_id' => 1,
+                'seccion_id' => 1,
+                'unidad_medida_venta_id' => 1,
+            ],
+            [
+                'factura_id' => 1,
+                'cantidad' => 2,
+                'cantidad_s' => 1.5,
+                'precio_unidad' => 500,
+                'precioSeleccionado' => 100,
+                'precios_producto_carga_id' => 700,
+                'producto_id' => 1,
+                'seccion_id' => 1,
+                'unidad_medida_venta_id' => 1,
+            ],
         ]);
 
         DB::table('comision_escala')->insert([
@@ -130,6 +146,8 @@ class ComisionesRulesTest extends TestCase
         $this->assertCount(1, $resultado);
         $this->assertSame(2, $resultado[0]['rol_id']);
         $this->assertEquals(2.0, $resultado[0]['monto_rol']);
+        $this->assertSame(1, DB::table('producto_comision')->count());
+        $this->assertEquals(2.0, (float) DB::table('producto_comision')->value('cantidad'));
         $this->assertEquals(2.0, (float) DB::table('producto_comision')->value('monto_comision'));
     }
 
@@ -231,9 +249,20 @@ class ComisionesRulesTest extends TestCase
         ]);
 
         DB::table('precios_producto_carga')->insert([
-            'id' => 701,
-            'categoria_precios_id' => 602,
-            'precio_base_venta' => 100,
+            [
+                'id' => 701,
+                'categoria_precios_id' => 602,
+                'producto_id' => 1,
+                'precio_base_venta' => 100,
+                'precio_a' => 100,
+            ],
+            [
+                'id' => 702,
+                'categoria_precios_id' => 601,
+                'producto_id' => 1,
+                'precio_base_venta' => 150,
+                'precio_a' => 150,
+            ],
         ]);
 
         DB::table('venta_has_producto')->insert([
@@ -803,7 +832,9 @@ class ComisionesRulesTest extends TestCase
         Schema::create('precios_producto_carga', function (Blueprint $table) {
             $table->integer('id')->primary();
             $table->integer('categoria_precios_id');
+            $table->integer('producto_id')->nullable();
             $table->decimal('precio_base_venta', 12, 4)->nullable();
+            $table->decimal('precio_a', 12, 4)->nullable();
         });
 
         Schema::create('producto', function (Blueprint $table) {
@@ -815,11 +846,14 @@ class ComisionesRulesTest extends TestCase
             $table->increments('id');
             $table->integer('factura_id');
             $table->decimal('cantidad', 12, 4);
+            $table->decimal('cantidad_s', 12, 4)->nullable();
             $table->decimal('precio_unidad', 12, 4);
             $table->string('idPrecioSeleccionado')->nullable();
             $table->decimal('precioSeleccionado', 12, 4)->nullable();
             $table->integer('precios_producto_carga_id');
             $table->integer('producto_id');
+            $table->integer('seccion_id')->nullable();
+            $table->integer('unidad_medida_venta_id')->nullable();
         });
 
         Schema::create('comision_rol_config', function (Blueprint $table) {

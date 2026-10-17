@@ -217,12 +217,22 @@ class GeneradorFacturasComision
             $escala[$row->rol_id . '_' . $row->cliente_categoria_escala_id . '_' . $row->categoria_precios_id] = $row;
         }
 
-        // Líneas de producto con su categoria_precios_id
+        // Consolidar los lotes que pertenecen a una misma línea comercial.
         $productos = DB::table('venta_has_producto as vp')
             ->join('precios_producto_carga as ppc', 'ppc.id', '=', 'vp.precios_producto_carga_id')
             ->where('vp.factura_id', $facturaId)
+            ->groupBy(
+                'vp.factura_id',
+                'vp.producto_id',
+                'vp.seccion_id',
+                'vp.unidad_medida_venta_id',
+                'vp.precios_producto_carga_id',
+                'vp.precio_unidad',
+                'vp.precioSeleccionado',
+                'ppc.categoria_precios_id'
+            )
             ->selectRaw(
-                'vp.cantidad,
+                'COALESCE(SUM(vp.cantidad_s), SUM(vp.cantidad)) as cantidad,
                  vp.precio_unidad,
                  vp.precioSeleccionado,
                  COALESCE(NULLIF(vp.precioSeleccionado, 0), vp.precio_unidad) as precio_para_comision,
@@ -412,4 +422,3 @@ class GeneradorFacturasComision
         return max($cantidadVendida - $devuelta - $devueltaPorPrecio, 0);
     }
 }
-

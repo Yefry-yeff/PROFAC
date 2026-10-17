@@ -1024,12 +1024,12 @@ class Pagos extends Component
             'codAplicPagoom' => ['required', 'integer', 'min:1'],
             'idFacturaom' => ['required', 'integer', 'min:1'],
             'selecttipoMovimiento' => ['required', 'integer', 'in:1,2'],
-            'montoTM' => ['required', 'numeric', 'gt:0', 'regex:/^\d{1,15}(\.\d{1,3})?$/'],
+            'montoTM' => ['required', 'numeric', 'gt:0', 'regex:/^\d{1,15}(\.\d{1,2})?$/'],
             'motivoMovimiento' => ['required', 'string', 'max:500'],
         ], [
             'selecttipoMovimiento.in' => 'El tipo de movimiento seleccionado no es válido.',
             'montoTM.gt' => 'El monto debe ser mayor que cero.',
-            'montoTM.regex' => 'El monto admite un máximo de tres decimales.',
+            'montoTM.regex' => 'El monto admite un máximo de dos decimales.',
             'motivoMovimiento.required' => 'El comentario del movimiento es obligatorio.',
         ]);
 
@@ -1045,7 +1045,7 @@ class Pagos extends Component
         $aplicacionId = (int) $request->codAplicPagoom;
         $facturaId = (int) $request->idFacturaom;
         $tipoMovimiento = (int) $request->selecttipoMovimiento;
-        $monto = round((float) $request->montoTM, 3);
+        $monto = round((float) $request->montoTM, 2);
         $comentario = trim((string) $request->motivoMovimiento);
         $usuarioId = (int) Auth::id();
 
@@ -1073,14 +1073,14 @@ class Pagos extends Component
                     throw new \DomainException('La factura ya se encuentra cerrada.');
                 }
 
-                $saldoActual = round((float) $aplicacion->saldo, 3);
+                $saldoActual = round((float) $aplicacion->saldo, 2);
                 if ($tipoMovimiento === 2 && $monto > $saldoActual + 0.0001) {
                     throw new \DomainException('No se puede deducir un monto mayor al saldo actual.');
                 }
 
                 $nuevoSaldo = $tipoMovimiento === 1
-                    ? round($saldoActual + $monto, 3)
-                    : round($saldoActual - $monto, 3);
+                    ? round($saldoActual + $monto, 2)
+                    : round($saldoActual - $monto, 2);
                 $debeCerrar = abs($nuevoSaldo) <= 0.0001;
                 if ($debeCerrar) {
                     $nuevoSaldo = 0.0;
@@ -1106,12 +1106,12 @@ class Pagos extends Component
                 if ($tipoMovimiento === 1) {
                     $actualizacion['movimiento_suma'] = round(
                         (float) $aplicacion->movimiento_suma + $monto,
-                        3
+                        2
                     );
                 } else {
                     $actualizacion['movimiento_resta'] = round(
                         (float) $aplicacion->movimiento_resta + $monto,
-                        3
+                        2
                     );
                 }
 

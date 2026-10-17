@@ -1017,7 +1017,7 @@
                         <div class="col-md-6">
                             <div class="ap-form-group">
                                 <label><i class="fa fa-dollar mr-1"></i> Monto a Aplicar <span id="om-saldo-label" style="color:#1a7a4a;font-weight:600;font-size:.82rem;"></span></label>
-                                <input required type="number" step="any" min="0" class="form-control" id="montoTM" name="montoTM" placeholder="0.00">
+                                <input required type="number" step="0.01" min="0.01" class="form-control" id="montoTM" name="montoTM" placeholder="0.00">
                             </div>
                         </div>
                         <div class="col-12">
