@@ -21,6 +21,7 @@ use App\Models\ModelTipoAjuste;
 use App\Models\ModelLogTranslados;
 use App\Models\ModelRecibirBodega;
 use App\Models\ModelAjusteProducto;
+use App\Services\Inventario\DistribuidorLotesAjuste;
 
 class Ajustes extends Component
 
@@ -63,7 +64,7 @@ class Ajustes extends Component
                 on A.segmento_id = B.id
                 inner join recibido_bodega C
                 on A.id = C.seccion_id
-                where C.cantidad_disponible <> 0 and B.bodega_id = ".$request->bodegaId." and A.descripcion like  '%".$request->search."%'
+                where C.cantidad_disponible > 0 and B.bodega_id = ".$request->bodegaId." and A.descripcion like  '%".$request->search."%'
                 group by A.id, text
                 "
             );
@@ -102,7 +103,7 @@ class Ajustes extends Component
          on seccion.segmento_id = segmento.id
          inner join bodega
          on segmento.bodega_id = bodega.id
-         where A.cantidad_disponible <> 0 and bodega.id=".$request->idBodega." and seccion.id = ".$request->idSeccion." and (B.nombre like '%".$request->search."%' or B.id like '%".$request->search."%') limit 15
+         where A.cantidad_disponible > 0 and bodega.id=".$request->idBodega." and seccion.id = ".$request->idSeccion." and (B.nombre like '%".$request->search."%' or B.id like '%".$request->search."%') limit 15
          ");
 
         return response()->json([
@@ -199,7 +200,7 @@ class Ajustes extends Component
                 inner join segmento on seccion.segmento_id = segmento.id
                 inner join bodega on segmento.bodega_id = bodega.id
                 inner join unidad_medida C on B.unidad_medida_compra_id = C.id
-            where A.cantidad_disponible <> 0
+            where A.cantidad_disponible > 0
                 and A.producto_id = ?
             group by B.id, B.nombre, C.nombre, bodega.id, bodega.nombre, seccion.id, seccion.descripcion
             order by bodega.nombre, seccion.descripcion
@@ -252,10 +253,27 @@ class Ajustes extends Component
 
         try
         {
-                // dd($request->all());
+                    $validator = Validator::make($request->all(), [
+                        'tipo_ajuste_id' => ['required', 'integer', 'exists:tipo_ajuste,id'],
+                        'solicitado_por' => ['required', 'integer', 'exists:users,id'],
+                        'fecha' => ['required', 'date'],
+                        'comentario' => ['required', 'string'],
+                        'arregloIdInputs' => ['required', 'string'],
+                    ]);
+
+                    if ($validator->fails()) {
+                        throw new \DomainException($validator->errors()->first());
+                    }
 
                     $arrayTemporal = $request->arregloIdInputs;
-                    $arregloIdInputs  = explode(',', $arrayTemporal);
+                    $arregloIdInputs = array_values(array_unique(array_filter(
+                        array_map('intval', explode(',', $arrayTemporal)),
+                        fn ($id) => $id >= 0
+                    )));
+
+                    if (empty($arregloIdInputs)) {
+                        throw new \DomainException('Debe agregar al menos un producto al ajuste.');
+                    }
 
                     $msjCantidadRestarEncabezado ="Ajuste no realizado, los siguientes productos no tienen cantidad suficiente en bodega: <br>";
                     $msjCantidadRestarCuerpo ="";
@@ -266,21 +284,54 @@ class Ajustes extends Component
                         $keyAritmetica = "aritmetica".$arregloIdInputs[$i];
                         $keyIdProducto = "idProducto".$arregloIdInputs[$i];
                         $keyNombre_producto = "nombre_producto".$arregloIdInputs[$i];
+                        $keyPrecio_producto = "precio_producto".$arregloIdInputs[$i];
                         $keyCantidad = "cantidad".$arregloIdInputs[$i];
                         $keyTotal_unidades = "total_unidades".$arregloIdInputs[$i];
+                        $keyIdUnidadVenta = "idUnidadVenta".$arregloIdInputs[$i];
 
 
-                        $idsRecibido = array_values(array_filter(array_map('intval', explode(',', (string) $request->$keyIdRecibido))));
-                        $aritmetica = $request->$keyAritmetica;
-                        $idProducto = $request->$keyIdProducto;
+                        $lineaValidator = Validator::make([
+                            'ids_recibido' => $request->$keyIdRecibido,
+                            'aritmetica' => $request->$keyAritmetica,
+                            'producto_id' => $request->$keyIdProducto,
+                            'precio_producto' => $request->$keyPrecio_producto,
+                            'cantidad' => $request->$keyCantidad,
+                            'total_unidades' => $request->$keyTotal_unidades,
+                            'unidad_medida_venta_id' => $request->$keyIdUnidadVenta,
+                        ], [
+                            'ids_recibido' => ['required', 'regex:/^\d+(,\d+)*$/'],
+                            'aritmetica' => ['required', 'integer', 'in:1,2'],
+                            'producto_id' => ['required', 'integer', 'exists:producto,id'],
+                            'precio_producto' => ['required', 'numeric', 'min:0'],
+                            'cantidad' => ['required', 'integer', 'min:1'],
+                            'total_unidades' => ['required', 'integer', 'min:1'],
+                            'unidad_medida_venta_id' => ['required', 'integer', 'exists:unidad_medida_venta,id'],
+                        ]);
+
+                        if ($lineaValidator->fails()) {
+                            throw new \DomainException($lineaValidator->errors()->first());
+                        }
+
+                        $idsRecibido = array_values(array_unique(array_filter(array_map('intval', explode(',', (string) $request->$keyIdRecibido)))));
+                        $aritmetica = (int) $request->$keyAritmetica;
+                        $idProducto = (int) $request->$keyIdProducto;
                         $nombre_producto = $request->$keyNombre_producto;
-                        $cantidad = $request->$keyCantidad;
-                        $total_unidades = $request->$keyTotal_unidades;
+                        $cantidad = (int) $request->$keyCantidad;
+                        $total_unidades = (int) $request->$keyTotal_unidades;
 
 
-                        $lotes = ModelRecibirBodega::whereIn('id', $idsRecibido)
-                            ->where('producto_id', $idProducto)
-                            ->get();
+                        $lotesQuery = ModelRecibirBodega::whereIn('id', $idsRecibido)
+                            ->where('producto_id', $idProducto);
+
+                        if ($aritmetica === 2) {
+                            $lotesQuery->where('cantidad_disponible', '>', 0);
+                        }
+
+                        $lotes = $lotesQuery->get();
+
+                        if ($lotes->count() !== count($idsRecibido) || $lotes->pluck('seccion_id')->unique()->count() !== 1) {
+                            throw new \DomainException('Los lotes seleccionados no corresponden al mismo producto y sección.');
+                        }
 
                         if($aritmetica==1){
                             $operacion = $lotes->sum('cantidad_disponible') + $total_unidades;
@@ -338,43 +389,50 @@ class Ajustes extends Component
 
 
 
-                        $idsRecibido = array_values(array_filter(array_map('intval', explode(',', (string) $request->$keyIdRecibido))));
-                        $aritmetica = $request->$keyAritmetica;
-                        $idProducto = $request->$keyIdProducto;
+                        $idsRecibido = array_values(array_unique(array_filter(array_map('intval', explode(',', (string) $request->$keyIdRecibido)))));
+                        $aritmetica = (int) $request->$keyAritmetica;
+                        $idProducto = (int) $request->$keyIdProducto;
                         $nombre_producto = $request->$keyNombre_producto;
                         $cantidad_dispo = $request->$keyCantidad_dispo;
                         // $unidad = $request->$keyUnidad;
                         $precio_producto = $request-> $keyPrecio_producto;
-                        $cantidad = $request->$keyCantidad;
-                        $total_unidades = $request->$keyTotal_unidades;
-                        $idUnidadVenta = $request->$keyIdUnidadVenta;
+                        $cantidad = (int) $request->$keyCantidad;
+                        $total_unidades = (int) $request->$keyTotal_unidades;
+                        $idUnidadVenta = (int) $request->$keyIdUnidadVenta;
 
-
-
-                        $lotes = ModelRecibirBodega::whereIn('id', $idsRecibido)
+                        if (!DB::table('unidad_medida_venta')
+                            ->where('id', $idUnidadVenta)
                             ->where('producto_id', $idProducto)
+                            ->exists()) {
+                            throw new \DomainException('La unidad de medida no corresponde al producto seleccionado.');
+                        }
+
+                        $lotesQuery = ModelRecibirBodega::whereIn('id', $idsRecibido)
+                            ->where('producto_id', $idProducto);
+
+                        if ($aritmetica === 2) {
+                            $lotesQuery->where('cantidad_disponible', '>', 0);
+                        }
+
+                        $lotes = $lotesQuery
                             ->orderBy('created_at')
                             ->orderBy('id')
                             ->lockForUpdate()
                             ->get();
+
+                        if ($lotes->count() !== count($idsRecibido) || $lotes->pluck('seccion_id')->unique()->count() !== 1) {
+                            throw new \DomainException('Los lotes seleccionados cambiaron o ya no tienen existencia positiva.');
+                        }
 
                         if($aritmetica==1){
                             $ajusteTipoAritmetica = "Ajuste de tipo suma de unidades";
                             $distribucion = [[$lotes->first(), $total_unidades]];
                         }elseif($aritmetica==2){
                             $ajusteTipoAritmetica = "Ajuste de tipo resta de unidades";
-                            $distribucion = [];
-                            $unidadesPendientes = $total_unidades;
-
-                            foreach ($lotes as $lote) {
-                                if ($unidadesPendientes <= 0) {
-                                    break;
-                                }
-
-                                $unidadesLote = min($lote->cantidad_disponible, $unidadesPendientes);
-                                $distribucion[] = [$lote, $unidadesLote];
-                                $unidadesPendientes -= $unidadesLote;
-                            }
+                            $distribucion = array_map(
+                                fn ($asignacion) => [$asignacion['lote'], $asignacion['unidades']],
+                                app(DistribuidorLotesAjuste::class)->distribuir($lotes, $total_unidades)
+                            );
 
                         }
 
@@ -430,6 +488,13 @@ class Ajustes extends Component
 
 
                     ], 200);
+        } catch (\DomainException $e) {
+            DB::rollback();
+            return response()->json([
+                'icon' => 'warning',
+                'text' => $e->getMessage(),
+                'title' => 'No se pudo realizar el ajuste',
+            ], 422);
         } catch (QueryException $e) {
             DB::rollback();
         return response()->json([
@@ -439,12 +504,22 @@ class Ajustes extends Component
             'message' => 'Ha ocurrido un error',
             'error' => $e,
         ],402);
+        } catch (\Throwable $e) {
+            DB::rollback();
+            report($e);
+
+            return response()->json([
+                'icon' => 'error',
+                'text' => 'Ha ocurrido un error al realizar el ajuste. No se aplicó ningún cambio.',
+                'title' => 'Error!',
+            ], 500);
         } finally {
             $lock->release();
         }
         }
 
         public function imprimirAjuste($idAjuste){
+            $idAjuste = (int) $idAjuste;
 /*
             $productos = DB::SELECT("
             select
@@ -506,12 +581,12 @@ class Ajustes extends Component
             ajuste_has_producto.producto_id,
             producto.nombre as 'producto',
             unidad_medida.nombre as 'medida',
-            ajuste_has_producto.cantidad,
+            SUM(ajuste_has_producto.cantidad) as cantidad,
             ajuste_has_producto.precio_producto,
             bodega.nombre as 'bodega',
             seccion.descripcion as 'seccion',
             (
-              ajuste_has_producto.precio_producto * ajuste_has_producto.cantidad
+              ajuste_has_producto.precio_producto * SUM(ajuste_has_producto.cantidad)
             ) as 'total',
             if(ajuste_has_producto.tipo_aritmetica = 1,'+','-') as aritmetica
           from
@@ -525,7 +600,18 @@ class Ajustes extends Component
             inner join unidad_medida on (unidad_medida.id = unidad_medida_venta.unidad_medida_id  )
 
           where
-            ajuste_has_producto.ajuste_id = ".$idAjuste
+            ajuste_has_producto.ajuste_id = ".$idAjuste."
+          group by
+            ajuste_has_producto.producto_id,
+            producto.nombre,
+            unidad_medida.nombre,
+            ajuste_has_producto.precio_producto,
+            bodega.id,
+            bodega.nombre,
+            seccion.id,
+            seccion.descripcion,
+            ajuste_has_producto.tipo_aritmetica
+            "
             );
 
 
