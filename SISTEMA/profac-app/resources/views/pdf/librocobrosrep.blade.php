@@ -1,34 +1,33 @@
 ﻿<!DOCTYPE html>
 <html lang="es">
 <head>
-        <link rel="stylesheet" href="{{ public_path('css/bootstrap.min.css') }}">
     <style>
         @page {
             size: letter landscape;
+            margin: 18pt;
         }
 
         body {
-            font-size: 10px; /* Tamaño de fuente más pequeño */
+            font-family: DejaVu Sans, sans-serif;
+            font-size: 7pt;
             margin: 0;
-            padding: 5px; /* Márgenes reducidos */
+            padding: 0;
         }
 
         .header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 10px; /* Espacio reducido */
+            text-align: center;
+            margin-bottom: 12pt;
         }
 
         .header img {
-            width: 600px; /* Tamaño ajustado para el logo */
+            width: 540pt;
+            max-width: 100%;
             height: auto;
         }
 
         .header-text {
             text-align: center;
-            flex-grow: 1;
-            margin-left: 10px;
+            margin-top: 6pt;
         }
 
         .header-text h1 {
@@ -37,24 +36,29 @@
         }
 
         .header-text p {
-            margin: 0;
-            font-size: 12px; /* Legibilidad mejorada */
+            margin: 2pt 0;
+            font-size: 9pt;
         }
 
         table {
             width: 100%;
+            table-layout: fixed;
             border-collapse: collapse;
             margin: 5px 0; /* Reducido para ocupar menos espacio */
             margin-top: 10px;
-            font-size: 8px; /* Tamaño de fuente más pequeño */
+            font-size: 5.5pt;
             border: 1px solid #ddd;
         }
 
         table th,
         table td {
             border: 1px solid #ddd;
-            padding: 1px; /* Menor espacio entre celdas */
+            padding: 2pt 1pt;
             text-align: center;
+            vertical-align: top;
+            overflow-wrap: break-word;
+            word-wrap: break-word;
+            line-height: 1.2;
         }
 
         table thead {
@@ -79,8 +83,8 @@
 </head>
 <body>
     <div class="header">
-        <img src="{{ public_path('img/membrete/Logo3.png') }}" style="margin-left:10%; margin-top:-25px; position:absolute;" alt="">
-        <div class="header-text" style="margin-left:10%; margin-top:60px; width:45rem; height:5.5rem;">
+        <img src="{{ public_path('img/membrete/Logo3.png') }}" alt="">
+        <div class="header-text">
             <p>RTN: 08011986138652</p>
             <p>LIBRO GENERAL DE COBROS GOBIERNO</p>
             @php
@@ -105,6 +109,11 @@
     @foreach($grouped as $gKey => $group)
         @php $gCobrado = $gExon = $gGrav = $gExen = $gIsv = $gFact = 0.0; @endphp
         <table style="margin-bottom:0;">
+            <colgroup>
+                @foreach([5, 5, 5, 12, 7, 7, 8, 8, 6, 12, 5, 5, 5, 5, 5] as $ancho)
+                    <col style="width:{{ $ancho }}%;">
+                @endforeach
+            </colgroup>
             <thead>
                 <tr>
                     <th colspan="15" style="background:#1F3864;color:#fff;text-align:left;padding:4px 8px;font-size:8px;font-weight:bold;">
@@ -184,6 +193,11 @@
     @endforeach
 
     <table>
+        <colgroup>
+            @foreach([5, 5, 5, 12, 7, 7, 8, 8, 6, 12, 5, 5, 5, 5, 5] as $ancho)
+                <col style="width:{{ $ancho }}%;">
+            @endforeach
+        </colgroup>
         <tfoot>
             <tr style="background:#c05000;color:#fff;font-weight:bold;">
                 <td colspan="7" style="text-align:right;font-weight:bold;">TOTAL GENERAL:</td>
@@ -259,7 +273,6 @@
                 <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['RETENCION']), 2) }}</th>
                 <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['TOTAL PAGADO']), 2) }}</th>
                 <th colspan="5"></th>
-                <th></th>
             </tr>
         </tfoot>
     </table>

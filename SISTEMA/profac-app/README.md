@@ -3,9 +3,11 @@
 ### PDF de Libro de Cobros
 
 Todos los formatos del PDF se generan en papel carta horizontal (11 x 8.5
-pulgadas). La plantilla declara `@page { size: letter landscape; }` despues
-de Bootstrap para evitar que su regla de impresion A3 reemplace la orientacion
-solicitada por el generador. Los filtros, datos y totales no cambian.
+pulgadas), con margenes de 18 puntos. La plantilla usa estilos propios, sin
+las reglas de impresion de Bootstrap. Las tablas tienen ancho fijo, columnas
+distribuidas dentro de la hoja y salto de linea para textos largos; el
+encabezado tambien se ajusta al ancho imprimible. Los filtros, datos y totales
+no cambian.
 
 ### Bodega revisada y prefactura
 
