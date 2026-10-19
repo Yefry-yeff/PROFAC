@@ -198,6 +198,78 @@ class ComisionesRulesTest extends TestCase
         ]);
     }
 
+    public function test_only_configured_invoice_uses_net_payment_date_for_projection(): void
+    {
+        DB::table('factura')->insert([
+            'id' => 29949,
+            'users_id' => 64,
+            'vendedor' => 86,
+            'cliente_id' => 1025,
+            'tipo_pago_id' => 1,
+            'fecha_emision' => '2026-09-22',
+            'sub_total' => 4239.44,
+            'total' => 4609.31,
+            'cai' => '000-001-01-00044864',
+        ]);
+        DB::table('aplicacion_pagos')->insert([
+            'id' => 37322,
+            'factura_id' => 29949,
+            'estado' => 1,
+            'saldo' => 0,
+        ]);
+        DB::table('abonos_creditos')->insert([
+            'id' => 29485,
+            'aplicacion_pagos_id' => 37322,
+            'factura_id' => 29949,
+            'estado_abono' => 1,
+            'fecha_pago' => '2026-09-24',
+        ]);
+        DB::table('nota_credito')->insert([
+            'id' => 507,
+            'fecha' => '2026-10-19',
+            'sub_total' => 2151.60,
+            'factura_id' => 29949,
+            'estado_nota_id' => 1,
+            'estado_rebajado' => 1,
+        ]);
+        DB::table('nota_credito_creditos')->insert([
+            'id' => 551,
+            'nota_credito_id' => 507,
+        ]);
+        DB::table('nota_credito_movimientos')->insert([
+            'id' => 53,
+            'credito_id' => 551,
+            'tipo' => 'aplicacion',
+            'factura_id' => 29949,
+            'aplicacion_pagos_id' => 37322,
+        ]);
+        DB::table('otros_movimientos')->insert([
+            'id' => 256,
+            'aplicacion_pagos_id' => 37322,
+            'factura_id' => 29949,
+            'estado' => 1,
+            'tipo_movimiento' => 2,
+        ]);
+
+        $method = new \ReflectionMethod(ReportesComisionesGenerales::class, 'cierresPagoNetoNotaCredito');
+        $cierresSeptiembre = $method->invoke(
+            app(ReportesComisionesGenerales::class),
+            '2026-09-01',
+            '2026-09-30'
+        );
+        $cierresOctubre = $method->invoke(
+            app(ReportesComisionesGenerales::class),
+            '2026-10-01',
+            '2026-10-31'
+        );
+
+        $this->assertCount(1, $cierresSeptiembre);
+        $this->assertSame(29949, (int) $cierresSeptiembre->first()->factura_id);
+        $this->assertSame('2026-09-24', $cierresSeptiembre->first()->fecha_pago_cierre);
+        $this->assertTrue($cierresSeptiembre->first()->pago_neto_nota_credito);
+        $this->assertCount(0, $cierresOctubre);
+    }
+
     public function test_generador_sr_uses_lowest_price_category_for_client_scale(): void
     {
         DB::table('users')->insert([
@@ -578,6 +650,14 @@ class ComisionesRulesTest extends TestCase
             ['id' => 3, 'nombre' => 'Dispensador Jabon'],
         ]);
 
+        DB::table('aplicacion_pagos')->insert([
+            'id' => 9003,
+            'factura_id' => 20,
+            'estado' => 1,
+            'estado_cerrado' => 2,
+            'saldo' => 0,
+        ]);
+
         DB::table('facturas_comision')->insert([
             'id' => 200,
             'fecha_cierre_factura' => '2026-06-15',
@@ -698,6 +778,14 @@ class ComisionesRulesTest extends TestCase
         DB::table('producto')->insert([
             'id' => 8300,
             'nombre' => 'Producto Duplicado',
+        ]);
+
+        DB::table('aplicacion_pagos')->insert([
+            'id' => 9300,
+            'factura_id' => 30,
+            'estado' => 1,
+            'estado_cerrado' => 2,
+            'saldo' => 0,
         ]);
 
         DB::table('facturas_comision')->insert([
@@ -909,6 +997,7 @@ class ComisionesRulesTest extends TestCase
             $table->decimal('sub_total', 12, 4);
             $table->integer('factura_id');
             $table->integer('estado_nota_id')->default(1);
+            $table->integer('estado_rebajado')->default(2);
         });
 
         Schema::create('nota_credito_has_producto', function (Blueprint $table) {
@@ -919,6 +1008,43 @@ class ComisionesRulesTest extends TestCase
             $table->decimal('precio_unidad', 12, 4);
             $table->integer('unidad_medida_venta_id');
             $table->integer('precios_producto_carga_id')->nullable();
+        });
+
+        Schema::create('aplicacion_pagos', function (Blueprint $table) {
+            $table->integer('id')->primary();
+            $table->integer('factura_id');
+            $table->integer('estado')->default(1);
+            $table->integer('estado_cerrado')->default(0);
+            $table->decimal('saldo', 12, 4)->default(0);
+        });
+
+        Schema::create('abonos_creditos', function (Blueprint $table) {
+            $table->integer('id')->primary();
+            $table->integer('aplicacion_pagos_id');
+            $table->integer('factura_id');
+            $table->integer('estado_abono')->default(1);
+            $table->date('fecha_pago');
+        });
+
+        Schema::create('nota_credito_creditos', function (Blueprint $table) {
+            $table->integer('id')->primary();
+            $table->integer('nota_credito_id');
+        });
+
+        Schema::create('nota_credito_movimientos', function (Blueprint $table) {
+            $table->integer('id')->primary();
+            $table->integer('credito_id');
+            $table->string('tipo');
+            $table->integer('factura_id');
+            $table->integer('aplicacion_pagos_id');
+        });
+
+        Schema::create('otros_movimientos', function (Blueprint $table) {
+            $table->integer('id')->primary();
+            $table->integer('aplicacion_pagos_id');
+            $table->integer('factura_id');
+            $table->integer('estado')->default(1);
+            $table->integer('tipo_movimiento');
         });
 
         Schema::create('comision_periodo', function (Blueprint $table) {

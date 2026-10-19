@@ -25,6 +25,18 @@ use App\Support\Comisiones\ProyeccionEspecial15;
 
 class ReportesComisionesGenerales extends Component
 {
+    private const FACTURAS_PAGO_NETO_NOTA_CREDITO = [
+        29949 => [
+            'cai' => '000-001-01-00044864',
+            'aplicacion_pagos_id' => 37322,
+            'abono_id' => 29485,
+            'nota_credito_id' => 507,
+            'nota_credito_movimiento_id' => 53,
+            'otro_movimiento_id' => 256,
+            'fecha_pago_efectiva' => '2026-09-24',
+        ],
+    ];
+
     private const FACTURAS_POLITICA_ANTERIOR_EXCLUSIVA = [
         27811 => [
             'cai' => '000-001-01-00042727',
@@ -81,6 +93,67 @@ class ReportesComisionesGenerales extends Component
                                  THEN DATE(MAX(ap.fecha_cierre_factura))
                              ELSE COALESCE(MAX(DATE(ac.fecha_pago)), DATE(MAX(ap.fecha_cierre_factura)))
                          END as fecha_pago_cierre");
+    }
+
+    private function cierresPagoNetoNotaCredito(string $fechaInicio, string $fechaFin)
+    {
+        return collect(self::FACTURAS_PAGO_NETO_NOTA_CREDITO)
+            ->filter(function (array $config) use ($fechaInicio, $fechaFin) {
+                return $config['fecha_pago_efectiva'] >= $fechaInicio
+                    && $config['fecha_pago_efectiva'] <= $fechaFin;
+            })
+            ->map(function (array $config, int $facturaId) {
+                $cierre = DB::table('factura as f')
+                    ->join('aplicacion_pagos as ap', function ($join) use ($config) {
+                        $join->on('ap.factura_id', '=', 'f.id')
+                            ->where('ap.id', '=', $config['aplicacion_pagos_id'])
+                            ->where('ap.estado', '=', 1)
+                            ->where('ap.saldo', '<=', 0.0001);
+                    })
+                    ->join('abonos_creditos as ac', function ($join) use ($config) {
+                        $join->on('ac.aplicacion_pagos_id', '=', 'ap.id')
+                            ->where('ac.id', '=', $config['abono_id'])
+                            ->where('ac.estado_abono', '=', 1)
+                            ->whereDate('ac.fecha_pago', '=', $config['fecha_pago_efectiva']);
+                    })
+                    ->join('nota_credito as nc', function ($join) use ($config) {
+                        $join->on('nc.factura_id', '=', 'f.id')
+                            ->where('nc.id', '=', $config['nota_credito_id'])
+                            ->where('nc.estado_nota_id', '=', 1)
+                            ->whereIn('nc.estado_rebajado', [1, 3]);
+                    })
+                    ->join('nota_credito_creditos as ncc', 'ncc.nota_credito_id', '=', 'nc.id')
+                    ->join('nota_credito_movimientos as ncm', function ($join) use ($config) {
+                        $join->on('ncm.credito_id', '=', 'ncc.id')
+                            ->where('ncm.id', '=', $config['nota_credito_movimiento_id'])
+                            ->where('ncm.tipo', '=', 'aplicacion')
+                            ->whereColumn('ncm.aplicacion_pagos_id', 'ap.id')
+                            ->whereColumn('ncm.factura_id', 'f.id');
+                    })
+                    ->join('otros_movimientos as om', function ($join) use ($config) {
+                        $join->on('om.aplicacion_pagos_id', '=', 'ap.id')
+                            ->where('om.id', '=', $config['otro_movimiento_id'])
+                            ->where('om.estado', '=', 1)
+                            ->where('om.tipo_movimiento', '=', 2)
+                            ->whereColumn('om.factura_id', 'f.id');
+                    })
+                    ->where('f.id', $facturaId)
+                    ->where('f.cai', $config['cai'])
+                    ->select('f.id as factura_id')
+                    ->first();
+
+                if (!$cierre) {
+                    return null;
+                }
+
+                $cierre->fecha_pago_cierre = $config['fecha_pago_efectiva'];
+                $cierre->fecha_pago_real = $config['fecha_pago_efectiva'];
+                $cierre->pago_neto_nota_credito = true;
+
+                return $cierre;
+            })
+            ->filter()
+            ->values();
     }
 
     private function esRangoExcepcionalPoliticaAnterior(string $fechaInicio, string $fechaFin): bool
@@ -1281,6 +1354,11 @@ class ReportesComisionesGenerales extends Component
             ->havingRaw('fecha_pago_cierre IS NOT NULL')
             ->havingBetween('fecha_pago_cierre', [$fi, $ff])
             ->get();
+
+        $cierres = $cierres
+            ->concat($this->cierresPagoNetoNotaCredito($fi, $ff))
+            ->unique('factura_id')
+            ->values();
 
         if ($this->esRangoExcepcionalPoliticaAnterior($fi, $ff)) {
             $cierresExcepcionales = $this->queryCierresProyeccion()
@@ -3116,6 +3194,24 @@ class ReportesComisionesGenerales extends Component
                 ->get()
                 ->keyBy(fn($row) => (int) $row->factura_id);
 
+        foreach ($this->cierresPagoNetoNotaCredito(
+            (string) $request->input('fechaInicio'),
+            (string) $request->input('fechaFin')
+        ) as $cierreExcepcional) {
+            $facturaId = (int) $cierreExcepcional->factura_id;
+            if (!in_array($facturaId, $facturaIds, true)) {
+                continue;
+            }
+
+            $config = self::FACTURAS_PAGO_NETO_NOTA_CREDITO[$facturaId];
+            $pagosPorFactura->put($facturaId, (object) [
+                'factura_id' => $facturaId,
+                'cantidad_abonos' => 1,
+                'fecha_primer_abono' => $config['fecha_pago_efectiva'],
+                'fecha_cierre' => $config['fecha_pago_efectiva'],
+            ]);
+        }
+
         $bancosCierre = empty($facturaIds)
             ? collect()
             : DB::table('abonos_creditos as ac')
@@ -3541,6 +3637,33 @@ class ReportesComisionesGenerales extends Component
                 $baseComisionable += (float) $br->cantidad * (float) $br->precio;
             }
             $baseComisionable = round($baseComisionable, 2);
+        }
+
+        foreach (array_keys(self::FACTURAS_PAGO_NETO_NOTA_CREDITO) as $facturaIdExcepcional) {
+            if (!in_array($facturaIdExcepcional, $uniqueFacturaIds, true)) {
+                continue;
+            }
+
+            $baseOriginal = $baseRows
+                ->where('factura_id', $facturaIdExcepcional)
+                ->sum(fn($row) => (float) $row->cantidad * (float) $row->precio);
+            $lineasContadas = [];
+            $baseNeta = 0.0;
+            foreach ($filas as $fila) {
+                if ((int) ($fila['factura_id'] ?? 0) !== $facturaIdExcepcional) {
+                    continue;
+                }
+
+                $lineaKey = (string) ($fila['linea_key'] ?? '');
+                if ($lineaKey === '' || isset($lineasContadas[$lineaKey])) {
+                    continue;
+                }
+
+                $lineasContadas[$lineaKey] = true;
+                $baseNeta += (float) ($fila['base_comisionable'] ?? 0);
+            }
+
+            $baseComisionable = round($baseComisionable - $baseOriginal + $baseNeta, 2);
         }
 
         // Total cobrado: directo desde abonos_creditos, igual que Libro de Cobros
