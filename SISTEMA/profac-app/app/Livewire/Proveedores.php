@@ -42,16 +42,19 @@ class Proveedores extends Component
     public function proveerdoresModelInsert(Request $request){
         /* dd($request->telefono_prov_2); */
             $validator = Validator::make($request->all(), [
-                'codigo_prov' => 'required',
-                'nombre_prov' => 'required',
-                'direccion_prov' => 'required',
-                'contacto_prov' => 'required',
-                'telefono_prov' => 'required',               
-                'rtn_prov' => 'required',   
-                'municipio_prov' => 'required',
-                'giro_neg_prov' => 'required',
-                'categoria_prov' => 'required',
-                'retencion_prov' => 'required',
+                'codigo_prov' => 'required|string|max:45',
+                'nombre_prov' => 'required|string|max:100',
+                'direccion_prov' => 'required|string',
+                'contacto_prov' => 'required|string|max:45',
+                'telefono_prov' => 'required|string|max:45',
+                'telefono_prov_2' => 'nullable|string|max:45',
+                'correo_prov' => 'nullable|email|max:45',
+                'correo_prov_2' => 'nullable|email|max:45',
+                'rtn_prov' => 'required|string|max:45',
+                'municipio_prov' => 'required|integer|exists:municipio,id',
+                'giro_neg_prov' => 'required|integer|exists:tipo_personalidad,id',
+                'categoria_prov' => 'required|integer|exists:categoria,id',
+                'retencion_prov' => 'required|integer|exists:retenciones,id',
             ], [
                 'codigo_prov' => 'Codigo es requerido',
                 'nombre_prov' => 'nombre es requerido',
@@ -84,9 +87,9 @@ class Proveedores extends Component
                 $crearProveedores->direccion=trim($request->direccion_prov);
                 $crearProveedores->contacto=trim($request->contacto_prov);
                 $crearProveedores->telefono_1=trim($request->telefono_prov);
-                $crearProveedores->telefono_2=trim($request->telefono_prov_2);
-                $crearProveedores->correo_1=trim($request->correo_prov);
-                $crearProveedores->correo_2=trim($request->correo_prov_2);
+                $crearProveedores->telefono_2=trim((string) $request->telefono_prov_2);
+                $crearProveedores->correo_1=trim((string) $request->correo_prov);
+                $crearProveedores->correo_2=trim((string) $request->correo_prov_2);
                 $crearProveedores->rtn=trim($request->rtn_prov);
                 $crearProveedores->registrado_por=Auth::user()->id;              
                 $crearProveedores->municipio_id=$request->municipio_prov;
@@ -112,7 +115,12 @@ class Proveedores extends Component
                 DB::commit();
 
                 return response()->json([
-                    'message' => 'Creado con exito.',                   
+                    'message' => 'Creado con exito.',
+                    'proveedor' => [
+                        'id' => $crearProveedores->id,
+                        'text' => $crearProveedores->id . ' - ' . $crearProveedores->nombre,
+                        'rtn' => $crearProveedores->rtn,
+                    ],
                 ], 200); 
                
             } catch (QueryException $e) {

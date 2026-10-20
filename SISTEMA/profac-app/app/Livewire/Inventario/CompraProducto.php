@@ -26,7 +26,19 @@ class CompraProducto extends Component
 
         $ordenNumero = DB::selectOne("select concat(YEAR(NOW()),'-',count(id)+1)  as 'numero' from compra");
 
-        return view('livewire.inventario.compra-producto',compact( "ordenNumero"));
+        $municipios = DB::table('municipio as m')
+            ->join('departamento as d', 'd.id', '=', 'm.departamento_id')
+            ->join('pais as p', 'p.id', '=', 'd.pais_id')
+            ->orderBy('p.nombre')->orderBy('d.nombre')->orderBy('m.nombre')
+            ->get(['m.id', 'm.nombre', 'd.nombre as departamento', 'p.nombre as pais']);
+        $categorias = \App\Models\Categoria::all();
+        $retenciones = \App\Models\Retenciones::all();
+        $tipoPersonalidad = \App\Models\TipoPersonalidad::all();
+        $unidadesMedida = DB::table('unidad_medida')->orderBy('nombre')->get(['id', 'nombre', 'simbolo']);
+
+        return view('livewire.inventario.compra-producto', compact(
+            'ordenNumero', 'municipios', 'categorias', 'retenciones', 'tipoPersonalidad', 'unidadesMedida'
+        ));
     }
 
     public function listarProveedores(Request $request){
@@ -36,15 +48,17 @@ class CompraProducto extends Component
             $busqueda = trim((string) $request->get('search', ''));
             $proveedores = DB::table('proveedores')
                 ->where('estado_id', 1)
+                ->when($request->filled('id'), fn ($query) => $query->where('id', $request->integer('id')))
                 ->when($busqueda !== '', function ($query) use ($busqueda) {
                     $query->where(function ($subquery) use ($busqueda) {
                         $subquery->where('id', 'LIKE', "%{$busqueda}%")
-                            ->orWhere('nombre', 'LIKE', "%{$busqueda}%");
+                            ->orWhere('nombre', 'LIKE', "%{$busqueda}%")
+                            ->orWhere('rtn', 'LIKE', "%{$busqueda}%");
                     });
                 })
                 ->orderBy('nombre')
                 ->limit(15)
-                ->get(['id', DB::raw("CONCAT(id, ' - ', nombre) as text")]);
+                ->get(['id', 'rtn', DB::raw("CONCAT(id, ' - ', nombre) as text")]);
 
             return response()->json([
                 "results" => $proveedores,

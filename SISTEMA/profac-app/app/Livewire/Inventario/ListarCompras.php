@@ -39,6 +39,7 @@ class ListarCompras extends Component
                 users.name as usuario,
                 compra.created_at as fecha_registro,
                 (select count(compra_id) as contador from recibido_bodega where compra_id = compra.id  ) as 'conteo_bodega'
+                , 'compra' as tipo_documento
             from compra
             inner join users
             on compra.users_id = users.id
@@ -48,8 +49,27 @@ class ListarCompras extends Component
             order by compra.id DESC 
             ");
 
+            $gastos = DB::table('gastos as g')
+                ->join('proveedores as p', 'p.id', '=', 'g.proveedor_id')
+                ->join('users as u', 'u.id', '=', 'g.usuario_id')
+                ->where('g.incluir_reporte_compras', true)->where('g.estado', 'activo')
+                ->select([
+                    DB::raw("CONCAT('G-', g.id) as id"),
+                    'g.id as gasto_id',
+                    DB::raw("CONCAT('GASTO-', g.id) as numero_orden"),
+                    'g.numero_factura', 'g.fecha_emision', 'g.fecha_vencimiento', 'g.total',
+                    DB::raw("'NO APLICA' as estado_retencion"),
+                    'p.nombre', 'u.name as usuario', 'g.created_at as fecha_registro',
+                    DB::raw('0 as conteo_bodega'), DB::raw("'gasto' as tipo_documento"),
+                ])->get();
+            $listarCompras = collect($listarCompras)->concat($gastos)->sortByDesc('fecha_registro')->values();
+
             return Datatables::of($listarCompras)
             ->addColumn('opciones', function ($listarCompras) {
+                if ($listarCompras->tipo_documento === 'gasto') {
+                    return '<a class="btn btn-primary btn-sm" target="_blank" rel="noopener" href="' .
+                        url('/gastos/imprimir/' . $listarCompras->gasto_id) . '">Imprimir gasto</a>';
+                }
 
                 return
 
@@ -78,6 +98,9 @@ class ListarCompras extends Component
                 </div>';
             })
             ->addColumn('anular', function ($listarCompras) {
+                if ($listarCompras->tipo_documento === 'gasto') {
+                    return '<span class="text-muted">No aplica (gasto)</span>';
+                }
 
                 if($listarCompras->conteo_bodega > 0){
 
@@ -120,10 +143,8 @@ class ListarCompras extends Component
     public function export($month){
         try {
 
-            $arrayMes = explode('-', $month);
-            $mes= $arrayMes[1];
-            
-            return Excel::download(new ComprasMesExport($mes), 'DatosComprasMes.xlsx');
+            validator(['mes' => $month], ['mes' => 'required|date_format:Y-m'])->validate();
+            return Excel::download(new ComprasMesExport($month), 'DatosComprasMes.xlsx');
 
         } catch (QueryException $e) {
             return response()->json([

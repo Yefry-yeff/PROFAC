@@ -1,5 +1,68 @@
 //*****comandos utiles****
 
+### Compras y gastos independientes
+
+En `/producto/compra`, el selector Nueva compra / Nuevo gasto conserva el
+carrito de productos del catalogo para compras. En gasto se agregan nombres
+libres, cantidades enteras, precios antes de impuesto y tasas de ISV de
+0%, 15% o 18%, las mismas opciones actuales del catalogo (no existe una
+tabla de tasas). El servidor valida las tasas y recalcula por linea en
+centavos; no acepta totales enviados por el navegador. Se admiten hasta
+2,000 lineas por registro.
+
+La cabecera distribuye factura, CAI, proveedor y RTN en una fila, y tipo de
+pago y fechas en otra, con controles alineados y adaptacion a movil.
+Solo en gastos se elige una unidad de medida por linea del catalogo
+`unidad_medida`. Este catalogo no tiene estado activo/inactivo: por decision
+funcional se muestran todas sus unidades sin agregar estados. La unidad es
+descriptiva y no multiplica ni convierte cantidades.
+Cada linea permite descuento de 0% a 100%, incluidos ambos limites, con
+hasta dos decimales y 0% por defecto. Valores fuera del rango bloquean el guardado
+y muestran un error en lugar de calcular totales negativos:
+subtotal bruto = cantidad x precio; descuento = subtotal bruto x porcentaje;
+subtotal neto = bruto - descuento; ISV = neto x tasa; total = neto + ISV.
+Descuento e impuesto se redondean a centavos por linea; el resumen suma los
+netos. El servidor recalcula todo y persiste unidad, porcentaje y monto
+descontado. Los temporales conservan ambos campos; temporales anteriores
+abren con descuento cero si no lo tenian y requieren elegir unidad antes de guardar.
+Los gastos historicos conservan sus importes y muestran sin unidad si no
+se habia registrado. Las compras conservan unidades y calculos originales.
+Aplicar tambien `2026_10_18_000002_add_unidad_descuento_to_gasto_detalles.php`.
+
+Los gastos usan `gastos` y `gasto_detalles`. No crean productos, compras,
+recepciones, lotes ni cambios de costo/stock. Ya no hay pantalla de detalle,
+abonos, saldos pendientes ni anulacion en este tramite; los metodos de pago
+y la ruta de comprobantes fueron retirados. Las tablas, archivos y saldos
+anteriores se conservan sin borrar ni reinterpretar datos historicos.
+
+La casilla "Incluir este gasto en el reporte de Compras", junto al titulo
+de cabecera y desmarcada por defecto, se conserva en temporales y al guardar.
+Marcada: aparece solo en el listado de Compras y su Excel mensual.
+Desmarcada: aparece solo en `/gastos`. Los gastos incluidos en Compras llevan
+prefijos `G-` / `GASTO-` para distinguirlos de compras con el mismo ID, y
+solo permiten imprimir, sin acciones de recepcion, abono o anulacion de compra.
+El Excel respeta mes y anio y no exporta debito para estos gastos.
+
+Al guardar se abre el PDF carta vertical `/gastos/imprimir/{id}` en otra
+pestana, con membrete usado en facturas, proveedor/RTN, factura/CAI, fechas,
+unidades, descuentos, impuestos y totales. El mensaje de exito ofrece un
+enlace de impresion si el navegador bloquea ventanas. Ambos listados permiten
+reimprimir. Es un comprobante de registro, no una factura fiscal de venta.
+Aplicar `2026_10_18_000003_add_incluir_reporte_compras_to_gastos.php`;
+los gastos anteriores permanecen en Gastos por defecto.
+
+El boton + junto al proveedor abre su registro obligatorio completo sin
+abandonar el formulario y selecciona el proveedor creado. El RTN se muestra
+en solo lectura; tambien se recupera al abrir temporales antiguos.
+Compras y gastos comparten la bandeja de temporales de 24 horas, con su
+modo guardado en la cabecera. Cambiar de modo guarda primero el borrador;
+si falla, no se descarta el formulario. Los temporales antiguos siguen
+abriendose como compras.
+
+Aplicar solamente la migracion `2026_10_18_000001_create_gastos_tables.php`
+para instalar las tres tablas nuevas. No modifica los registros de compras.
+La impresion de gastos requiere autenticacion, igual que los listados.
+
 ### PDF de Libro de Cobros
 
 Todos los formatos del PDF se generan en papel carta horizontal (11 x 8.5
