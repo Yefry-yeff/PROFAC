@@ -37,6 +37,16 @@ class ReportesComisionesGenerales extends Component
         ],
     ];
 
+    private const FACTURAS_AJUSTE_CENTAVOS_FECHA_PAGO = [
+        29372 => [
+            'cai' => '000-001-01-00044288',
+            'aplicacion_pagos_id' => 37004,
+            'abono_id' => 29001,
+            'otro_movimiento_id' => 248,
+            'fecha_pago_efectiva' => '2026-08-26',
+        ],
+    ];
+
     private const FACTURAS_POLITICA_ANTERIOR_EXCLUSIVA = [
         27811 => [
             'cai' => '000-001-01-00042727',
@@ -149,6 +159,53 @@ class ReportesComisionesGenerales extends Component
                 $cierre->fecha_pago_cierre = $config['fecha_pago_efectiva'];
                 $cierre->fecha_pago_real = $config['fecha_pago_efectiva'];
                 $cierre->pago_neto_nota_credito = true;
+
+                return $cierre;
+            })
+            ->filter()
+            ->values();
+    }
+
+    private function cierresAjusteCentavosFechaPago(string $fechaInicio, string $fechaFin)
+    {
+        return collect(self::FACTURAS_AJUSTE_CENTAVOS_FECHA_PAGO)
+            ->filter(function (array $config) use ($fechaInicio, $fechaFin) {
+                return $config['fecha_pago_efectiva'] >= $fechaInicio
+                    && $config['fecha_pago_efectiva'] <= $fechaFin;
+            })
+            ->map(function (array $config, int $facturaId) {
+                $cierre = DB::table('factura as f')
+                    ->join('aplicacion_pagos as ap', function ($join) use ($config) {
+                        $join->on('ap.factura_id', '=', 'f.id')
+                            ->where('ap.id', '=', $config['aplicacion_pagos_id'])
+                            ->where('ap.estado', '=', 1)
+                            ->where('ap.saldo', '<=', 0.0001);
+                    })
+                    ->join('abonos_creditos as ac', function ($join) use ($config) {
+                        $join->on('ac.aplicacion_pagos_id', '=', 'ap.id')
+                            ->where('ac.id', '=', $config['abono_id'])
+                            ->where('ac.estado_abono', '=', 1)
+                            ->whereDate('ac.fecha_pago', '=', $config['fecha_pago_efectiva']);
+                    })
+                    ->join('otros_movimientos as om', function ($join) use ($config) {
+                        $join->on('om.aplicacion_pagos_id', '=', 'ap.id')
+                            ->where('om.id', '=', $config['otro_movimiento_id'])
+                            ->where('om.estado', '=', 1)
+                            ->where('om.tipo_movimiento', '=', 2)
+                            ->whereColumn('om.factura_id', 'f.id');
+                    })
+                    ->where('f.id', $facturaId)
+                    ->where('f.cai', $config['cai'])
+                    ->select('f.id as factura_id')
+                    ->first();
+
+                if (!$cierre) {
+                    return null;
+                }
+
+                $cierre->fecha_pago_cierre = $config['fecha_pago_efectiva'];
+                $cierre->fecha_pago_real = $config['fecha_pago_efectiva'];
+                $cierre->ajuste_centavos_fecha_pago = true;
 
                 return $cierre;
             })
@@ -1349,14 +1406,22 @@ class ReportesComisionesGenerales extends Component
             $facturaIdsExcepcion,
             array_keys(self::FACTURAS_POLITICA_ANTERIOR_PARCIAL)
         )));
+        $facturaIdsFechaEfectivaExcepcional = array_values(array_unique(array_merge(
+            array_keys(self::FACTURAS_PAGO_NETO_NOTA_CREDITO),
+            array_keys(self::FACTURAS_AJUSTE_CENTAVOS_FECHA_PAGO)
+        )));
         $cierres = $this->queryCierresProyeccion()
-            ->whereNotIn('ap.factura_id', $facturaIdsExcepcion)
+            ->whereNotIn('ap.factura_id', array_values(array_unique(array_merge(
+                $facturaIdsExcepcion,
+                $facturaIdsFechaEfectivaExcepcional
+            ))))
             ->havingRaw('fecha_pago_cierre IS NOT NULL')
             ->havingBetween('fecha_pago_cierre', [$fi, $ff])
             ->get();
 
         $cierres = $cierres
             ->concat($this->cierresPagoNetoNotaCredito($fi, $ff))
+            ->concat($this->cierresAjusteCentavosFechaPago($fi, $ff))
             ->unique('factura_id')
             ->values();
 
@@ -3204,6 +3269,24 @@ class ReportesComisionesGenerales extends Component
             }
 
             $config = self::FACTURAS_PAGO_NETO_NOTA_CREDITO[$facturaId];
+            $pagosPorFactura->put($facturaId, (object) [
+                'factura_id' => $facturaId,
+                'cantidad_abonos' => 1,
+                'fecha_primer_abono' => $config['fecha_pago_efectiva'],
+                'fecha_cierre' => $config['fecha_pago_efectiva'],
+            ]);
+        }
+
+        foreach ($this->cierresAjusteCentavosFechaPago(
+            (string) $request->input('fechaInicio'),
+            (string) $request->input('fechaFin')
+        ) as $cierreExcepcional) {
+            $facturaId = (int) $cierreExcepcional->factura_id;
+            if (!in_array($facturaId, $facturaIds, true)) {
+                continue;
+            }
+
+            $config = self::FACTURAS_AJUSTE_CENTAVOS_FECHA_PAGO[$facturaId];
             $pagosPorFactura->put($facturaId, (object) [
                 'factura_id' => $facturaId,
                 'cantidad_abonos' => 1,

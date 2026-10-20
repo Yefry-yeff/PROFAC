@@ -270,6 +270,60 @@ class ComisionesRulesTest extends TestCase
         $this->assertCount(0, $cierresOctubre);
     }
 
+    public function test_cent_adjustment_invoice_uses_payment_date_only_in_august(): void
+    {
+        DB::table('factura')->insert([
+            'id' => 29372,
+            'users_id' => 27,
+            'vendedor' => 24,
+            'gestor_entrega' => 27,
+            'cliente_id' => 81,
+            'tipo_pago_id' => 1,
+            'fecha_emision' => '2026-08-21',
+            'sub_total' => 63925.55,
+            'total' => 63925.55,
+            'cai' => '000-001-01-00044288',
+        ]);
+        DB::table('aplicacion_pagos')->insert([
+            'id' => 37004,
+            'factura_id' => 29372,
+            'estado' => 1,
+            'saldo' => 0,
+        ]);
+        DB::table('abonos_creditos')->insert([
+            'id' => 29001,
+            'aplicacion_pagos_id' => 37004,
+            'factura_id' => 29372,
+            'estado_abono' => 1,
+            'fecha_pago' => '2026-08-26',
+        ]);
+        DB::table('otros_movimientos')->insert([
+            'id' => 248,
+            'aplicacion_pagos_id' => 37004,
+            'factura_id' => 29372,
+            'estado' => 1,
+            'tipo_movimiento' => 2,
+        ]);
+
+        $method = new \ReflectionMethod(ReportesComisionesGenerales::class, 'cierresAjusteCentavosFechaPago');
+        $cierresAgosto = $method->invoke(
+            app(ReportesComisionesGenerales::class),
+            '2026-08-01',
+            '2026-08-31'
+        );
+        $cierresSeptiembre = $method->invoke(
+            app(ReportesComisionesGenerales::class),
+            '2026-09-01',
+            '2026-09-30'
+        );
+
+        $this->assertCount(1, $cierresAgosto);
+        $this->assertSame(29372, (int) $cierresAgosto->first()->factura_id);
+        $this->assertSame('2026-08-26', $cierresAgosto->first()->fecha_pago_cierre);
+        $this->assertTrue($cierresAgosto->first()->ajuste_centavos_fecha_pago);
+        $this->assertCount(0, $cierresSeptiembre);
+    }
+
     public function test_generador_sr_uses_lowest_price_category_for_client_scale(): void
     {
         DB::table('users')->insert([
