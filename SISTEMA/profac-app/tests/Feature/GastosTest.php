@@ -58,6 +58,7 @@ class GastosTest extends TestCase
         (require database_path('migrations\2026_10_18_000001_create_gastos_tables.php'))->up();
         (require database_path('migrations\2026_10_18_000002_add_unidad_descuento_to_gasto_detalles.php'))->up();
         (require database_path('migrations\2026_10_18_000003_add_incluir_reporte_compras_to_gastos.php'))->up();
+        (require database_path('migrations\2026_10_20_000001_create_gasto_auditoria_table.php'))->up();
         Schema::create('unidad_medida', function (Blueprint $t) {
             $t->increments('id'); $t->string('nombre'); $t->string('simbolo');
         });
@@ -406,7 +407,7 @@ class GastosTest extends TestCase
     {
         $this->travelTo(\Carbon\Carbon::parse('2026-10-19 23:58:12'));
         $primero = $this->guardar();
-        $segundo = $this->guardar(['numero_factura' => 'SEGUNDO', 'incluir_reporte_compras' => true]);
+        $segundo = $this->guardar(['numero_factura' => 'SEGUNDO']);
         $otro = $this->guardar(['numero_factura' => 'SIN-CAMBIOS']);
 
         Livewire::test(Gastos::class)->set('seleccionados', [(string) $primero, (string) $segundo])
@@ -438,7 +439,7 @@ class GastosTest extends TestCase
             'estado' => 'anulado', 'anulado_por' => 1, 'anulado_at' => '2026-10-18 10:00:00',
         ]);
 
-        foreach (['anularSeleccionados', 'pasarACompras'] as $accion) {
+        foreach (['anularSeleccionados', 'pasarACompras', 'quitarDeCompras'] as $accion) {
             Livewire::test(Gastos::class)->call($accion)->assertHasErrors('seleccionados');
             Livewire::test(Gastos::class)->set('motivoAnulacion', 'Registro incorrecto')->set('seleccionados', [(string) $activo, '99999'])
                 ->call($accion)->assertHasErrors('seleccionados');
@@ -469,6 +470,10 @@ class GastosTest extends TestCase
         $this->assertCount(1, (new ComprasMesExport('2026-10'))->collection());
         Livewire::test(Gastos::class)->set('seleccionados', [(string) $id])
             ->set('motivoAnulacion', 'Registro incorrecto')
+            ->call('anularSeleccionados')->assertHasErrors('seleccionados');
+        Livewire::test(Gastos::class)->set('seleccionados', [(string) $id])
+            ->call('quitarDeCompras')->assertHasNoErrors()
+            ->set('seleccionados', [(string) $id])->set('motivoAnulacion', 'Registro incorrecto')
             ->call('anularSeleccionados')->assertHasNoErrors()->assertSee('Anulado');
         $this->assertCount(0, (new ComprasMesExport('2026-10'))->collection());
     }
@@ -493,16 +498,78 @@ class GastosTest extends TestCase
         $this->assertSame('Documento duplicado', DB::table('gastos')->find($id)->motivo_anulacion);
     }
 
+    public function test_ciclo_de_compras_y_anulacion_con_auditoria_inmutable_y_bloqueos_atomicos(): void
+    {
+        $id = $this->guardar();
+        $incluido = $this->guardar(['numero_factura' => 'INCLUIDO', 'incluir_reporte_compras' => true]);
+        $this->assertSame(2, DB::table('gasto_auditoria')->where('accion', 'registrar')->count());
+        $inicial = DB::table('gasto_auditoria')->where('gasto_id', $incluido)->first();
+        $this->assertTrue(json_decode($inicial->despues, true)['incluir_reporte_compras']);
+
+        Livewire::test(Gastos::class)->set('seleccionados', [(string) $id, (string) $incluido])
+            ->set('motivoAnulacion', 'Intento bloqueado')->call('anularSeleccionados')
+            ->assertHasErrors('seleccionados')->assertNotDispatched('gastos-accion-completada');
+        $this->assertSame(2, DB::table('gasto_auditoria')->count());
+        $this->assertSame('activo', DB::table('gastos')->find($id)->estado);
+
+        Livewire::test(Gastos::class)->set('seleccionados', [(string) $id])
+            ->call('pasarACompras')->assertHasNoErrors()
+            ->set('seleccionados', [(string) $id])->call('pasarACompras')->assertHasErrors('seleccionados');
+        $this->assertSame(3, DB::table('gasto_auditoria')->count());
+        DB::table('users')->insert(['id' => 2, 'name' => 'Segundo usuario']);
+        $user = new User;
+        $user->forceFill(['id' => 2, 'name' => 'Segundo usuario']);
+        Auth::setUser($user);
+        $this->travelTo(\Carbon\Carbon::parse('2026-10-20 02:00:00'));
+        Livewire::test(Gastos::class)->set('seleccionados', [(string) $id])
+            ->call('quitarDeCompras')->assertHasNoErrors()->assertSee('Retiro de compras')
+            ->assertSee('Segundo usuario')->assertSee('20/10/2026 02:00:00')
+            ->set('seleccionados', [(string) $id])->call('quitarDeCompras')->assertHasErrors('seleccionados');
+        $this->assertEquals(0, DB::table('gastos')->find($id)->incluir_reporte_compras);
+        $this->assertFalse((new ComprasMesExport('2026-10'))->collection()->contains('id', 'G-' . $id));
+        $evento = DB::table('gasto_auditoria')->where('gasto_id', $id)->where('accion', 'quitar_compras')->first();
+        $this->assertSame(2, $evento->usuario_id);
+        $this->assertTrue(json_decode($evento->antes, true)['incluir_reporte_compras']);
+        $this->assertFalse(json_decode($evento->despues, true)['incluir_reporte_compras']);
+        Livewire::test(Gastos::class)->set('seleccionados', [(string) $id])
+            ->set('motivoAnulacion', 'Documento duplicado')->call('anularSeleccionados')->assertHasNoErrors();
+        $antes = DB::table('gasto_auditoria')->orderBy('id')->get()->toJson();
+        foreach (['pasarACompras', 'quitarDeCompras', 'anularSeleccionados'] as $accion) {
+            Livewire::test(Gastos::class)->set('seleccionados', [(string) $id, (string) $incluido])
+                ->set('motivoAnulacion', 'Intento bloqueado')->call($accion)->assertHasErrors('seleccionados');
+        }
+        $this->assertSame($antes, DB::table('gasto_auditoria')->orderBy('id')->get()->toJson());
+        $this->assertEquals(1, DB::table('gastos')->find($incluido)->incluir_reporte_compras);
+        $this->assertSame(['registrar', 'incluir_compras', 'quitar_compras', 'anular'],
+            DB::table('gasto_auditoria')->where('gasto_id', $id)->orderBy('id')->pluck('accion')->all());
+    }
+
     public function test_acciones_y_exportacion_requieren_usuario_autenticado(): void
     {
         $id = $this->guardar();
         Auth::logout();
-        foreach (['anularSeleccionados', 'pasarACompras', 'exportarExcel'] as $accion) {
+        foreach (['anularSeleccionados', 'pasarACompras', 'quitarDeCompras', 'exportarExcel'] as $accion) {
             Livewire::test(Gastos::class)->set('seleccionados', [(string) $id])
                 ->call($accion)->assertForbidden();
         }
         $this->assertSame('activo', DB::table('gastos')->find($id)->estado);
         $this->assertEquals(0, DB::table('gastos')->find($id)->incluir_reporte_compras);
+    }
+
+    public function test_seleccion_mixta_quita_solo_incluidos_y_no_duplica_auditoria(): void
+    {
+        $normal = $this->guardar();
+        $incluido = $this->guardar(['numero_factura' => 'EN-COMPRAS', 'incluir_reporte_compras' => true]);
+        Livewire::test(Gastos::class)->set('seleccionados', [(string) $normal, (string) $incluido])
+            ->call('quitarDeCompras')->assertHasNoErrors()->assertDispatched('gastos-accion-completada');
+        $this->assertSame(1, DB::table('gasto_auditoria')->where('accion', 'quitar_compras')->count());
+        $this->assertSame($incluido, DB::table('gasto_auditoria')->where('accion', 'quitar_compras')->value('gasto_id'));
+        $this->assertSame(0, DB::table('gastos')->where('incluir_reporte_compras', true)->count());
+        Livewire::test(Gastos::class)->set('seleccionados', [(string) $normal, (string) $incluido])
+            ->call('pasarACompras')->assertHasNoErrors();
+        $this->assertSame(2, DB::table('gasto_auditoria')->where('accion', 'incluir_compras')->count());
+        $this->assertSame(0, DB::table('compra')->count());
+        $this->assertCount(2, (new ComprasMesExport('2026-10'))->collection());
     }
 
     public function test_excel_gastos_incluye_estados_auditoria_y_filtro(): void
@@ -513,6 +580,8 @@ class GastosTest extends TestCase
         $anulado = $this->guardar(['numero_factura' => 'REPORTE-ANULADO', 'incluir_reporte_compras' => true]);
         $this->guardar(['numero_factura' => 'FUERA-DE-FILTRO']);
         Livewire::test(Gastos::class)->set('seleccionados', [(string) $anulado])
+            ->call('quitarDeCompras')->assertHasNoErrors()
+            ->set('seleccionados', [(string) $anulado])
             ->set('motivoAnulacion', 'Error de registro')->call('anularSeleccionados')->assertHasNoErrors();
         $export = new GastosExport([
             'desde' => '2026-10-01', 'hasta' => '2026-10-31', 'factura' => 'REPORTE-', 'proveedor' => '',
@@ -522,7 +591,7 @@ class GastosTest extends TestCase
         $this->assertSame('Registrado', $rows['G-' . $registrado]['estado']);
         $this->assertSame('Pasado al reporte de compras', $rows['G-' . $trasladado]['estado']);
         $this->assertSame('Anulado', $rows['G-' . $anulado]['estado']);
-        $this->assertSame('Si', $rows['G-' . $anulado]['reporte_compras']);
+        $this->assertSame('No', $rows['G-' . $anulado]['reporte_compras']);
         $this->assertSame('Usuario prueba', $rows['G-' . $anulado]['anulado_por']);
         $this->assertSame(now()->format('d/m/Y H:i:s'), $rows['G-' . $anulado]['anulado_at']);
         $this->assertSame('Error de registro', $rows['G-' . $anulado]['motivo_anulacion']);

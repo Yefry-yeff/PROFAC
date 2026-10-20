@@ -64,11 +64,24 @@ comentarios vacios o que contengan solo espacios. Se muestran el
 nombre del usuario y la fecha y hora (incluidos segundos). La accion conserva
 importes y detalles, sin movimientos de inventario ni abonos. Los anulados
 se excluyen del listado y Excel de compras aunque antes se hayan trasladado.
+No se permite incluir en compras un gasto anulado ni anular uno actualmente
+incluido en compras. Primero debe usarse "Quitar del reporte de compras",
+con confirmacion modal. El gasto retirado vuelve al estado Registrado y deja
+de aparecer en el listado y Excel de compras; sigue visible en Gastos.
+En selecciones mixtas, incluir/quitar modifica solo los activos que requieren
+el cambio; si hay anulados o IDs inexistentes se rechaza toda la operacion.
 Las acciones se aplican en una transaccion, revalidando que todos los IDs
 existan y sigan activos; una seleccion obsoleta no produce cambios parciales.
 "Pasar al reporte de compras" tambien requiere confirmacion en un modal del
-sistema, sin dialogos nativos del navegador. Ambos modales muestran errores,
+sistema, sin dialogos nativos del navegador. Los modales muestran errores,
 permanecen abiertos si falla la accion y se cierran solo al completarla.
+Cada alta, inclusion, retiro y anulacion se registra en `gasto_auditoria`,
+con usuario, fecha y hora, valores antes/despues y motivo para la anulacion.
+La auditoria y el cambio son atomicos; un fallo revierte ambos. Las acciones
+sin cambios no crean eventos duplicados. El historial es visible desplegando
+la fila de cada gasto con clic, Enter o espacio; el checkbox solo selecciona.
+No se reconstruye ni inventa
+la auditoria de movimientos anteriores a su instalacion.
 
 "Exportar Excel", a la derecha de las acciones junto a "Anular seleccionados",
 incluye todos los resultados de los filtros aplicados,
@@ -100,8 +113,8 @@ abriendose como compras.
 
 Aplicar solamente la migracion `2026_10_18_000001_create_gastos_tables.php`
 para instalar las tres tablas nuevas. No modifica los registros de compras.
-Los listados, acciones y exportaciones requieren autenticacion. No se requiere
-una migracion adicional para las acciones masivas: se usan los campos existentes.
+Los listados, acciones y exportaciones requieren autenticacion. Para el historial
+aplicar `2026_10_20_000001_create_gasto_auditoria_table.php` antes de usar el reporte.
 
 ### PDF de Libro de Cobros
 

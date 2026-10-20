@@ -23,6 +23,8 @@
         .gastos-reporte .gastos-compras { background:#fff0e4; color:#9c4609; }
         .gastos-reporte .gastos-anulado { background:#ffebee; color:#b71c1c; }
         .gastos-reporte .gastos-total { text-align:right; font-weight:700; white-space:nowrap; }
+        .gastos-reporte .gastos-fila { cursor:pointer; }
+        .gastos-reporte [x-cloak] { display:none !important; }
     </style>
     @endpush
 
@@ -61,12 +63,16 @@
             </div>
             <div class="gastos-actions mb-3">
                 <button type="button" class="btn gastos-transferir" data-toggle="modal" data-target="#modalPasarComprasGastos"
-                    wire:loading.attr="disabled" @disabled(count($seleccionados) === 0)>
+                    wire:loading.attr="disabled" @disabled(!$puedeIncluir)>
                     <i class="fa fa-exchange-alt mr-1"></i>Pasar al reporte de compras
                 </button>
                 <button type="button" class="btn btn-danger" data-toggle="modal" data-target="#modalAnularGastos"
-                    wire:loading.attr="disabled" @disabled(count($seleccionados) === 0)>
+                    wire:loading.attr="disabled" @disabled(!$puedeAnular)>
                     <i class="fa fa-ban mr-1"></i>Anular seleccionados
+                </button>
+                <button type="button" class="btn btn-white" data-toggle="modal" data-target="#modalQuitarComprasGastos"
+                    wire:loading.attr="disabled" @disabled(!$puedeQuitar)>
+                    <i class="fa fa-undo mr-1"></i>Quitar del reporte de compras
                 </button>
                 <span wire:loading role="status" class="text-muted">Procesando...</span>
                 <button type="button" class="btn gastos-excel ml-auto" wire:click="exportarExcel" wire:loading.attr="disabled"
@@ -79,10 +85,16 @@
                     <thead><tr><th><input id="seleccionarTodosGastos" type="checkbox"
                         aria-label="Seleccionar todos los gastos activos filtrados" title="Seleccionar todos (todas las páginas)"
                         wire:model.live="seleccionarTodos" wire:loading.attr="disabled"></th><th>ID</th><th>Factura</th><th>Proveedor</th><th>Emisión</th><th class="text-right">Total</th><th>Estado</th><th>Anulado por</th><th>Fecha y hora de anulación</th><th>Motivo de anulación</th></tr></thead>
-                    <tbody>
+                    <tbody x-data="{ historial: null }">
                     @forelse ($gastos as $gasto)
-                        <tr wire:key="gasto-{{ $gasto->id }}">
-                            <td><input type="checkbox" aria-label="Seleccionar gasto G-{{ $gasto->id }}" value="{{ $gasto->id }}"
+                        <tr wire:key="gasto-{{ $gasto->id }}" class="gastos-fila" tabindex="0"
+                            title="Ver cambios del gasto"
+                            x-on:click="historial = historial === {{ $gasto->id }} ? null : {{ $gasto->id }}"
+                            x-on:keydown.enter.prevent="historial = historial === {{ $gasto->id }} ? null : {{ $gasto->id }}"
+                            x-on:keydown.space.prevent="historial = historial === {{ $gasto->id }} ? null : {{ $gasto->id }}"
+                            x-bind:aria-expanded="historial === {{ $gasto->id }}"
+                            aria-controls="cambiosGasto{{ $gasto->id }}">
+                            <td x-on:click.stop x-on:keydown.stop><input type="checkbox" aria-label="Seleccionar gasto G-{{ $gasto->id }}" value="{{ $gasto->id }}"
                                 wire:model.live="seleccionados" wire:loading.attr="disabled" @disabled($gasto->estado !== 'activo')></td>
                             <td>G-{{ $gasto->id }}</td><td>{{ $gasto->numero_factura }}</td><td>{{ $gasto->proveedor }}</td>
                             <td>{{ $gasto->fecha_emision }}</td><td class="gastos-total">L. {{ number_format($gasto->total, 2) }}</td>
@@ -95,6 +107,22 @@
                             <td>{{ $gasto->anulado_por_nombre ?? '—' }}</td>
                             <td class="text-nowrap">{{ $gasto->anulado_at?->format('d/m/Y H:i:s') ?? '—' }}</td>
                             <td>{{ $gasto->motivo_anulacion ?? '—' }}</td>
+                        </tr>
+                        <tr wire:key="auditoria-gasto-{{ $gasto->id }}" id="cambiosGasto{{ $gasto->id }}"
+                            x-show="historial === {{ $gasto->id }}" x-cloak>
+                            <td colspan="10">
+                                    @forelse ($auditoria->get($gasto->id, collect()) as $evento)
+                                        <div class="border-bottom py-2">
+                                            <strong>{{ ['registrar' => 'Registro del gasto', 'anular' => 'Anulación', 'incluir_compras' => 'Inclusión en compras', 'quitar_compras' => 'Retiro de compras'][$evento->accion] ?? $evento->accion }}</strong>
+                                            — {{ $evento->usuario ?? 'Usuario ID '.$evento->usuario_id }}
+                                            — {{ \Carbon\Carbon::parse($evento->created_at)->format('d/m/Y H:i:s') }}
+                                            @if ($evento->motivo)<div>Motivo: {{ $evento->motivo }}</div>@endif
+                                            <small class="d-block text-muted">Antes: {{ $evento->antes ?? 'Sin registro' }} · Después: {{ $evento->despues }}</small>
+                                        </div>
+                                    @empty
+                                        <p class="text-muted mb-0">Registro anterior a la auditoría. Los cambios siguientes quedarán registrados.</p>
+                                    @endforelse
+                            </td>
                         </tr>
                     @empty <tr><td colspan="10" class="text-center text-muted">No hay gastos registrados.</td></tr> @endforelse
                     </tbody>
@@ -112,7 +140,7 @@
                     </div>
                     <div class="modal-body">
                         <p>¿Desea anular los {{ count($seleccionados) }} gastos seleccionados?</p>
-                        <p class="text-muted">Se registrará su usuario y la fecha y hora. Los gastos anulados no se incluirán en el reporte de compras.</p>
+                        <p class="text-muted">Se registrará su usuario y la fecha y hora. No puede anular gastos incluidos en compras: debe quitarlos primero de ese reporte.</p>
                         @error('seleccionados')<div class="alert alert-danger" role="alert">{{ $message }}</div>@enderror
                         @foreach ($errors->get('seleccionados.*') as $mensajes)
                             @foreach ($mensajes as $mensaje)<div class="alert alert-danger" role="alert">{{ $mensaje }}</div>@endforeach
@@ -123,7 +151,7 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-white" data-dismiss="modal" wire:loading.attr="disabled">Cancelar</button>
-                        <button type="submit" class="btn btn-danger" wire:loading.attr="disabled" @disabled(count($seleccionados) === 0)>Confirmar anulación</button>
+                        <button type="submit" class="btn btn-danger" wire:loading.attr="disabled" @disabled(!$puedeAnular)>Confirmar anulación</button>
                     </div>
                 </form>
             </div>
@@ -146,7 +174,27 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-white" data-dismiss="modal" wire:loading.attr="disabled">Cancelar</button>
-                        <button type="submit" class="btn gastos-transferir" wire:loading.attr="disabled" @disabled(count($seleccionados) === 0)>Confirmar traslado</button>
+                        <button type="submit" class="btn gastos-transferir" wire:loading.attr="disabled" @disabled(!$puedeIncluir)>Confirmar traslado</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <div class="modal fade" id="modalQuitarComprasGastos" tabindex="-1" role="dialog"
+            aria-labelledby="tituloQuitarComprasGastos" aria-hidden="true" wire:ignore.self data-backdrop="static" data-keyboard="false">
+            <div class="modal-dialog modal-dialog-centered" role="document">
+                <form class="modal-content" wire:submit="quitarDeCompras">
+                    <div class="modal-header gastos-transferir">
+                        <h5 class="modal-title text-white" id="tituloQuitarComprasGastos">Quitar del reporte de compras</h5>
+                        <button type="button" class="close text-white" data-dismiss="modal" aria-label="Cerrar" wire:loading.attr="disabled"><span aria-hidden="true">&times;</span></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>¿Desea quitar del reporte de compras los gastos incluidos de su selección?</p>
+                        <p>Permanecerán en Gastos como registrados. Se auditarán el usuario, la fecha y hora y el estado anterior y posterior. Los gastos que no estén en compras no se modificarán.</p>
+                        @error('seleccionados')<div class="alert alert-danger" role="alert">{{ $message }}</div>@enderror
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-white" data-dismiss="modal" wire:loading.attr="disabled">Cancelar</button>
+                        <button type="submit" class="btn gastos-transferir" wire:loading.attr="disabled" @disabled(!$puedeQuitar)>Confirmar retiro</button>
                     </div>
                 </form>
             </div>
@@ -216,7 +264,7 @@
             $wire.on('gastos-filtros-aplicados', () => modal.modal('hide'));
             $wire.on('gastos-proveedor-limpiado', () => proveedor.val('').trigger('change.select2'));
             $wire.on('gastos-accion-completada', () => {
-                $('#modalAnularGastos, #modalPasarComprasGastos').modal('hide');
+                $('#modalAnularGastos, #modalPasarComprasGastos, #modalQuitarComprasGastos').modal('hide');
             });
         </script>
         @endscript

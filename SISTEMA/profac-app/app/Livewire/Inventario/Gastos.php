@@ -101,17 +101,23 @@ class Gastos extends Component
 
     public function anularSeleccionados(): void
     {
-        $this->aplicarAccion(true);
+        $this->aplicarAccion('anular');
     }
 
     public function pasarACompras(): void
     {
-        $this->aplicarAccion(false);
+        $this->aplicarAccion('incluir_compras');
     }
 
-    private function aplicarAccion(bool $anular): void
+    public function quitarDeCompras(): void
+    {
+        $this->aplicarAccion('quitar_compras');
+    }
+
+    private function aplicarAccion(string $accion): void
     {
         abort_unless(Auth::check(), 403);
+        $anular = $accion === 'anular';
         if ($anular) {
             $this->motivoAnulacion = trim($this->motivoAnulacion);
         }
@@ -129,7 +135,7 @@ class Gastos extends Component
         ]);
 
         try {
-            $cantidad = DB::transaction(function () use ($anular) {
+            $cantidad = DB::transaction(function () use ($anular, $accion) {
                 $gastos = Gasto::whereIn('id', $this->seleccionados)->orderBy('id')->lockForUpdate()->get();
                 if ($gastos->count() !== count($this->seleccionados)
                     || $gastos->contains(fn ($gasto) => $gasto->estado !== 'activo')) {
@@ -138,24 +144,46 @@ class Gastos extends Component
                     ]);
                 }
 
-                $query = Gasto::whereIn('id', $this->seleccionados);
+                if ($anular && $gastos->contains(fn ($gasto) => $gasto->incluir_reporte_compras)) {
+                    throw ValidationException::withMessages([
+                        'seleccionados' => 'No se pueden anular gastos incluidos en compras. Quitelos primero del reporte de compras.',
+                    ]);
+                }
+
                 if ($anular) {
-                    return $query->update([
+                    $cambios = [
                         'estado' => 'anulado', 'anulado_por' => Auth::id(), 'anulado_at' => now(),
                         'motivo_anulacion' => $this->motivoAnulacion,
                         'updated_at' => now(),
-                    ]);
+                    ];
+                    $afectados = $gastos;
+                } else {
+                    $incluir = $accion === 'incluir_compras';
+                    $afectados = $gastos->filter(fn ($gasto) => $gasto->incluir_reporte_compras !== $incluir);
+                    if ($afectados->isEmpty()) {
+                        throw ValidationException::withMessages([
+                            'seleccionados' => $incluir
+                                ? 'Los gastos seleccionados ya estan en el reporte de compras.'
+                                : 'Los gastos seleccionados no estan en el reporte de compras.',
+                        ]);
+                    }
+                    $cambios = ['incluir_reporte_compras' => $incluir, 'updated_at' => now()];
                 }
 
-                if (!$gastos->contains(fn ($gasto) => !$gasto->incluir_reporte_compras)) {
-                    throw ValidationException::withMessages([
-                        'seleccionados' => 'Los gastos seleccionados ya estan en el reporte de compras.',
-                    ]);
+                foreach ($afectados as $gasto) {
+                    $antes = [
+                        'estado' => $gasto->estado,
+                        'incluir_reporte_compras' => $gasto->incluir_reporte_compras,
+                    ];
+                    $despues = [
+                        'estado' => $cambios['estado'] ?? $gasto->estado,
+                        'incluir_reporte_compras' => $cambios['incluir_reporte_compras'] ?? $gasto->incluir_reporte_compras,
+                    ];
+                    $this->registrarAuditoria($gasto->id, $accion, $antes, $despues,
+                        $anular ? $this->motivoAnulacion : null);
                 }
 
-                return $query->where('incluir_reporte_compras', false)->update([
-                    'incluir_reporte_compras' => true, 'updated_at' => now(),
-                ]);
+                return Gasto::whereIn('id', $afectados->pluck('id'))->update($cambios);
             });
         } catch (QueryException $exception) {
             report($exception);
@@ -166,8 +194,20 @@ class Gastos extends Component
         $this->limpiarSeleccion();
         session()->flash('gastos_mensaje', $anular
             ? "Se anularon {$cantidad} gastos. Se registro el usuario y la fecha y hora."
-            : "Se pasaron {$cantidad} gastos al reporte de compras. Permanecen en este listado.");
+            : ($accion === 'incluir_compras'
+                ? "Se pasaron {$cantidad} gastos al reporte de compras. Permanecen en este listado."
+                : "Se quitaron {$cantidad} gastos del reporte de compras. Permanecen en Gastos."));
         $this->dispatch('gastos-accion-completada');
+    }
+
+    private function registrarAuditoria(int $id, string $accion, ?array $antes, array $despues, ?string $motivo = null): void
+    {
+        DB::table('gasto_auditoria')->insert([
+            'gasto_id' => $id, 'usuario_id' => Auth::id(), 'accion' => $accion,
+            'antes' => $antes === null ? null : json_encode($antes, JSON_THROW_ON_ERROR),
+            'despues' => json_encode($despues, JSON_THROW_ON_ERROR),
+            'motivo' => $motivo, 'created_at' => now(),
+        ]);
     }
 
     public function exportarExcel()
@@ -181,8 +221,20 @@ class Gastos extends Component
     {
         $gastos = Gasto::reporte()->filtrar($this->filtrosAplicados)->orderByDesc('gastos.id')->paginate(20);
         $proveedores = DB::table('proveedores')->orderBy('nombre')->get(['id', 'nombre']);
+        $auditoria = DB::table('gasto_auditoria as a')
+            ->leftJoin('users as u', 'u.id', '=', 'a.usuario_id')
+            ->whereIn('a.gasto_id', $gastos->pluck('id'))
+            ->select('a.*', 'u.name as usuario')->orderByDesc('a.id')->get()->groupBy('gasto_id');
+        $seleccion = Gasto::whereIn('id', $this->seleccionados)->get();
+        $seleccionActiva = $seleccion->isNotEmpty() && $seleccion->count() === count($this->seleccionados)
+            && $seleccion->every(fn ($gasto) => $gasto->estado === 'activo');
+        $puedeAnular = $seleccionActiva && $seleccion->every(fn ($gasto) => !$gasto->incluir_reporte_compras);
+        $puedeIncluir = $seleccionActiva && $seleccion->contains(fn ($gasto) => !$gasto->incluir_reporte_compras);
+        $puedeQuitar = $seleccionActiva && $seleccion->contains(fn ($gasto) => $gasto->incluir_reporte_compras);
 
-        return view('livewire.inventario.gastos', compact('gastos', 'proveedores'));
+        return view('livewire.inventario.gastos', compact(
+            'gastos', 'proveedores', 'auditoria', 'puedeAnular', 'puedeIncluir', 'puedeQuitar'
+        ));
     }
 
     public function guardar(Request $request)
@@ -280,6 +332,9 @@ class Gastos extends Component
             foreach (array_chunk($lineas, 200) as $grupo) {
                 DB::table('gasto_detalles')->insert(array_map(fn ($linea) => $linea + ['gasto_id' => $id], $grupo));
             }
+            $this->registrarAuditoria($id, 'registrar', null, [
+                'estado' => 'activo', 'incluir_reporte_compras' => (bool) ($data['incluir_reporte_compras'] ?? false),
+            ]);
             return $id;
         });
 
