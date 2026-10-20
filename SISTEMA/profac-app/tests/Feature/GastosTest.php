@@ -118,6 +118,22 @@ class GastosTest extends TestCase
         Schema::create('recibido_bodega', function (Blueprint $t) {
             $t->id(); $t->integer('compra_id');
         });
+        Schema::create('boleta_compra', function (Blueprint $t) {
+            $t->increments('id');
+            $t->string('numero_boleta'); $t->string('cliente'); $t->string('direccion')->default('');
+            $t->string('rtn_dni')->nullable(); $t->string('telefono')->nullable(); $t->text('comentario')->nullable();
+            $t->date('fecha'); $t->decimal('sub_total', 15, 2); $t->decimal('total', 15, 2);
+            $t->integer('estado')->default(1); $t->integer('users_id'); $t->integer('cai_boleta_id')->nullable();
+            $t->string('editado_por')->nullable(); $t->timestamp('editado_at')->nullable(); $t->timestamps();
+        });
+        Schema::create('boleta_compra_detalle', function (Blueprint $t) {
+            $t->id(); $t->integer('boleta_compra_id'); $t->integer('linea'); $t->string('descripcion');
+            $t->decimal('precio', 15, 2); $t->decimal('cantidad', 15, 2); $t->decimal('importe', 15, 2); $t->timestamps();
+        });
+        Schema::create('cai_boleta_compra', function (Blueprint $t) {
+            $t->increments('id'); $t->string('cai');
+        });
+        (require database_path('migrations\2026_10_20_000002_add_reporte_compras_to_boletas.php'))->up();
         DB::table('users')->insert(['id' => 1, 'name' => 'Usuario prueba']);
         DB::table('proveedores')->insert(['id' => 1, 'nombre' => 'Proveedor prueba', 'rtn' => '08011999000001', 'estado_id' => 1]);
         DB::table('producto')->insert([
@@ -368,8 +384,8 @@ class GastosTest extends TestCase
         $this->assertSame('GASTO-EN-COMPRAS', $gastoExportado['numero_factura']);
         $this->assertEquals(20, $gastoExportado['importe_exento']);
         $this->assertEquals(60, $gastoExportado['base_15']);
-        $this->assertSame('FA', $gastoExportado['clase_documento']);
-        $this->assertSame('FA', $datos->first()['clase_documento']);
+        $this->assertSame('FA-factura', $gastoExportado['clase_documento']);
+        $this->assertSame('FA-factura', $datos->first()['clase_documento']);
         $this->assertCount(count($export->headings()), $gastoExportado);
         $xlsx = \Maatwebsite\Excel\Facades\Excel::raw($export, \Maatwebsite\Excel\Excel::XLSX);
         $this->assertStringStartsWith('PK', $xlsx);
@@ -653,14 +669,14 @@ class GastosTest extends TestCase
         $this->assertCount(11, $gasto);
         $this->assertSame('08011999000001', $compra['rtn']);
         $this->assertSame('Proveedor prueba', $compra['proveedor']);
-        $this->assertSame('FA', $compra['clase_documento']);
-        $this->assertSame('FA', $gasto['clase_documento']);
+        $this->assertSame('FA-factura', $compra['clase_documento']);
+        $this->assertSame('FA-factura', $gasto['clase_documento']);
         $this->assertSame('17/10/2026', $compra['fecha_emision']);
         $this->assertSame($compra['fecha_emision'], $compra['fecha_contable']);
         $this->assertSame($gasto['fecha_emision'], $gasto['fecha_contable']);
-        $this->assertSame([40.0, 240.0, 280.0, 280.0], array_values(array_slice($compra, 7)));
-        $this->assertSame([18.0, 45.0, 63.0, 63.0], array_values(array_slice($gasto, 7)));
-        $this->assertSame([0.0, 0.0, 0.0, 0.0], array_values(array_slice($solo18, 7)));
+        $this->assertSame([40.0, 240.0, 280.0, null], array_values(array_slice($compra, 7)));
+        $this->assertSame([18.0, 45.0, null, 63.0], array_values(array_slice($gasto, 7)));
+        $this->assertSame([0.0, 0.0, null, 0.0], array_values(array_slice($solo18, 7)));
         $xlsx = \Maatwebsite\Excel\Facades\Excel::raw($export, \Maatwebsite\Excel\Excel::XLSX);
         $archivo = tempnam(sys_get_temp_dir(), 'compras-fiscal-');
         try {
@@ -668,16 +684,59 @@ class GastosTest extends TestCase
             $libro = \PhpOffice\PhpSpreadsheet\IOFactory::load($archivo);
             $hoja = $libro->getActiveSheet();
             $this->assertSame(11, \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($hoja->getHighestColumn()));
-            $this->assertSame('08011999000001', $hoja->getCell('A2')->getValue());
-            $this->assertSame('000123', $hoja->getCell('C2')->getValue());
-            $this->assertSame('001-002-01-00000001', $hoja->getCell('D2')->getValue());
-            $this->assertSame('s', $hoja->getCell('A2')->getDataType());
-            $this->assertSame('n', $hoja->getCell('H2')->getDataType());
-            $this->assertEquals(0, $hoja->getCell('H4')->getValue());
-            $this->assertSame('#,##0.00', $hoja->getStyle('K3')->getNumberFormat()->getFormatCode());
+            $this->assertSame('08011999000001', $hoja->getCell('A6')->getValue());
+            $this->assertSame('000123', $hoja->getCell('C6')->getValue());
+            $this->assertSame('001-002-01-00000001', $hoja->getCell('D6')->getValue());
+            $this->assertSame('FA-factura', $hoja->getCell('B6')->getValue());
+            $this->assertSame('FA-factura', $hoja->getCell('B7')->getValue());
+            $this->assertSame('s', $hoja->getCell('A6')->getDataType());
+            $this->assertSame('n', $hoja->getCell('H6')->getDataType());
+            $this->assertEquals(0, $hoja->getCell('H8')->getValue());
+            $this->assertEquals(280, $hoja->getCell('J6')->getValue());
+            $this->assertNull($hoja->getCell('K6')->getValue());
+            $this->assertNull($hoja->getCell('J7')->getValue());
+            $this->assertEquals(63, $hoja->getCell('K7')->getValue());
+            $this->assertNull($hoja->getCell('J8')->getValue());
+            $this->assertSame('n', $hoja->getCell('K8')->getDataType());
+            $this->assertEquals(0, $hoja->getCell('K8')->getValue());
+            $this->assertSame('#,##0.00', $hoja->getStyle('K7')->getNumberFormat()->getFormatCode());
+            $this->assertSame('REPORTE DE COMPRAS', $hoja->getCell('A2')->getValue());
+            $this->assertStringContainsString('Usuario prueba', $hoja->getCell('A3')->getValue());
+            $this->assertStringContainsString('2026-10-01 al 2026-10-31', $hoja->getCell('A4')->getValue());
+            $this->assertSame($export->headings(), $hoja->rangeToArray('A5:K5')[0]);
+            $this->assertCount(1, $hoja->getDrawingCollection());
+            $this->assertSame('E07000', $hoja->getStyle('A5')->getFill()->getStartColor()->getRGB());
+            $this->assertSame('FFF4E8', $hoja->getStyle('A6')->getFill()->getStartColor()->getRGB());
+            $this->assertSame('FFFFFF', $hoja->getStyle('A7')->getFill()->getStartColor()->getRGB());
+            $this->assertSame('126B5B', $hoja->getStyle('J6')->getFont()->getColor()->getRGB());
+            $this->assertSame('126B5B', $hoja->getStyle('K6')->getFont()->getColor()->getRGB());
+            $this->assertSame('A5:K8', $hoja->getAutoFilter()->getRange());
+            $this->assertSame('E6', $hoja->getFreezePane());
+            $this->assertFalse($hoja->getShowGridlines());
             $libro->disconnectWorksheets();
         } finally {
             unlink($archivo);
+        }
+    }
+
+    public function test_excel_compras_sin_resultados_conserva_formato_y_encabezados(): void
+    {
+        $export = new ComprasMesExport('2026-10');
+        $this->assertCount(0, $export->collection());
+        $ruta = tempnam(sys_get_temp_dir(), 'compras-vacio-');
+        try {
+            file_put_contents($ruta, \Maatwebsite\Excel\Facades\Excel::raw($export, \Maatwebsite\Excel\Excel::XLSX));
+            $libro = \PhpOffice\PhpSpreadsheet\IOFactory::load($ruta);
+            $hoja = $libro->getActiveSheet();
+            $this->assertSame('Compras', $hoja->getTitle());
+            $this->assertSame(5, $hoja->getHighestRow());
+            $this->assertSame($export->headings(), $hoja->rangeToArray('A5:K5')[0]);
+            $this->assertCount(1, $hoja->getDrawingCollection());
+            $this->assertSame('E07000', $hoja->getStyle('A5')->getFill()->getStartColor()->getRGB());
+            $this->assertSame('A5:K5', $hoja->getAutoFilter()->getRange());
+            $libro->disconnectWorksheets();
+        } finally {
+            unlink($ruta);
         }
     }
 

@@ -117,16 +117,31 @@ class CrearBoletaCompra extends Component
 
     public function anularBoletaCompra(Request $request)
     {
+        $request->validate(['id' => 'required|integer|min:1']);
         try {
-            DB::table('boleta_compra')
-                ->where('id', $request->id)
-                ->update(['estado' => 2, 'updated_at' => now()]);
+            $respuesta = DB::transaction(function () use ($request) {
+                $boleta = DB::table('boleta_compra')->where('id', $request->id)->lockForUpdate()->first();
+                if (!$boleta || (int) $boleta->estado !== 1 || $boleta->incluir_reporte_compras) {
+                    return response()->json(['message' => 'No se puede anular una boleta incluida en Compras o ya anulada. Primero retirela del reporte.'], 422);
+                }
+                DB::table('boleta_compra')->where('id', $boleta->id)->update(['estado' => 2, 'updated_at' => now()]);
+                DB::table('boleta_compra_auditoria')->insert([
+                    'boleta_compra_id' => $boleta->id, 'usuario_id' => Auth::id(), 'accion' => 'anular',
+                    'antes' => json_encode(['estado' => (int) $boleta->estado]),
+                    'despues' => json_encode(['estado' => 2]), 'created_at' => now(),
+                ]);
+                return null;
+            });
+            if ($respuesta) {
+                return $respuesta;
+            }
 
             return response()->json([
                 'status'  => 'success',
                 'message' => 'Boleta anulada correctamente.',
             ]);
         } catch (\Exception $e) {
+            report($e);
             return response()->json([
                 'status'  => 'error',
                 'message' => 'Error al anular la boleta.',

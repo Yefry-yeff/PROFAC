@@ -15,6 +15,7 @@ use DataTables;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\ComprasMesExport;
 use App\Support\FiltrosCompras;
+use App\Support\BoletasCompras;
 
 class ListarCompras extends Component
 {
@@ -55,10 +56,23 @@ class ListarCompras extends Component
                     'p.nombre', 'u.name as usuario', 'g.created_at as fecha_registro',
                     DB::raw('0 as conteo_bodega'), DB::raw("'gasto' as tipo_documento"),
                 ])->get();
-            $listarCompras = collect($listarCompras)->concat($gastos)->sortByDesc('fecha_registro')->values();
+            $boletas = BoletasCompras::aplicarCompras(DB::table('boleta_compra as b'), $filtros)
+                ->join('users as u', 'u.id', '=', 'b.users_id')
+                ->select([
+                    DB::raw("CONCAT('B-', b.id) as id"), DB::raw("CONCAT('BOLETA-', b.id) as numero_orden"),
+                    'b.numero_boleta as numero_factura', 'b.fecha as fecha_emision',
+                    DB::raw('NULL as fecha_vencimiento'), 'b.total',
+                    DB::raw("'NO APLICA' as estado_retencion"), 'b.cliente as nombre',
+                    'u.name as usuario', 'b.created_at as fecha_registro',
+                    DB::raw('0 as conteo_bodega'), DB::raw("'boleta' as tipo_documento"),
+                ])->get();
+            $listarCompras = collect($listarCompras)->concat($gastos)->concat($boletas)->sortByDesc('fecha_registro')->values();
 
             return Datatables::of($listarCompras)
             ->addColumn('opciones', function ($listarCompras) {
+                if ($listarCompras->tipo_documento === 'boleta') {
+                    return '<span class="text-muted">Boleta incluida en Compras</span>';
+                }
                 if ($listarCompras->tipo_documento === 'gasto') {
                     return '<span class="text-muted">No aplica (gasto)</span>';
                 }
@@ -90,6 +104,9 @@ class ListarCompras extends Component
                 </div>';
             })
             ->addColumn('anular', function ($listarCompras) {
+                if ($listarCompras->tipo_documento === 'boleta') {
+                    return '<span class="text-muted">Retirar desde Boletas</span>';
+                }
                 if ($listarCompras->tipo_documento === 'gasto') {
                     return '<span class="text-muted">No aplica (gasto)</span>';
                 }

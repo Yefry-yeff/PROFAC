@@ -774,6 +774,8 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::post('/boleta/compra/anular',             [CrearBoletaCompra::class,    'anularBoletaCompra']);
     Route::get('/boleta/compra/historial',           HistorialBoletaCompra::class);
     Route::post('/boleta/compra/listar',             [HistorialBoletaCompra::class,'listadoBoletaCompra']);
+    Route::post('/boleta/compra/reporte-compras',    [HistorialBoletaCompra::class,'cambiarReporteCompras']);
+    Route::get('/boleta/compra/excel',              [HistorialBoletaCompra::class,'exportar']);
     Route::get('/boleta/compra/imprimir/{id}',       [HistorialBoletaCompra::class,'imprimirOriginal']);
     Route::get('/boleta/compra/imprimir/copia/{id}', [HistorialBoletaCompra::class,'imprimirCopia']);
     Route::get('/boleta/compra/editar/{id}',         EditarBoletaCompra::class);

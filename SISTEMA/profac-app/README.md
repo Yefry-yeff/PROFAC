@@ -46,13 +46,20 @@ El Excel de compras respeta mes y anio y usa exclusivamente estas columnas:
 200-RTN, 600-Clase de documento, 7-CAI, 8-Numero de documento,
 71-Nombre del proveedor, 900-Fecha emision, 100-Fecha contable,
 110-Importe exento, 1511-Importe base 15%, 270-Monto al costo y 280-Monto al gasto.
-Compras y gastos usan FA; OC queda reservado para otros comprobantes aun no definidos.
+Compras y gastos usan FA-factura; las boletas incluidas usan
+OC-Otros comprobantes de pago.
+El Excel de compras incluye logo y membrete de Distribuciones Valencia,
+fecha/usuario de generacion y filtros aplicados. Los encabezados son naranja,
+las filas alternan blanco/naranja claro y los montos al costo/gasto son verdes.
+Conserva las 11 columnas, anchos legibles, filtros de Excel y paneles inmovilizados.
 La fecha contable es igual a la emision. Los importes suman los subtotales netos
 de los productos, sin ISV: tasa 0 para exento y tasa 15 para base 15%.
 En compras se usa la tasa del producto del catalogo y el subtotal persistido del
 detalle; en gastos, la tasa y el subtotal neto persistidos por linea.
-La base del 18% se excluye de todos estos importes. Tanto costo como gasto
-son exento + base 15%, sin distribuirlos por origen ni sumar el impuesto.
+La base del 18% se excluye de todos estos importes. Exento + base 15%, sin
+sumar el impuesto, se coloca solo en Monto al costo para compras y solo en
+Monto al gasto para gastos incluidos en compras. La columna que no corresponde
+al origen queda vacia; un importe aplicable de cero se conserva como numero.
 RTN, CAI y factura se conservan como texto; los cuatro importes son numericos
 con dos decimales. Este formato sustituye las columnas anteriores del Excel
 de compras, no modifica el Excel independiente de gastos ni la auditoria.
@@ -64,6 +71,37 @@ rango y criterios, incluso si abarca varios meses; la ruta mensual anterior
 continua disponible. "Limpiar" restaura el mes vigente y borra factura/proveedor.
 Se conservan las acciones de detalle, recepcion, pagos, incidencias y anulacion
 de compras con sus restricciones existentes.
+
+### Boletas incluidas en el reporte de compras
+
+En `/boleta/compra/historial` se seleccionan una o varias boletas activas;
+el checkbox del encabezado abarca todas las paginas del filtro, no solo la
+visible. Las anuladas permanecen visibles con checkbox bloqueado.
+Los estados son Registrada, Pasada al reporte de compras y Anulada.
+Incluir y quitar requieren confirmacion modal y registran usuario, fecha/hora
+y valores antes/despues en `boleta_compra_auditoria`, en la misma transaccion.
+Las selecciones mixtas solo cambian las que necesitan transicion; una seleccion
+con IDs inexistentes o anulados se rechaza completa. No se duplican inclusiones.
+Hacer clic en una fila (o Enter/espacio) despliega sus cambios auditados.
+No se reconstruye historial anterior.
+
+Las incluidas no se pueden editar ni anular, tampoco mediante los endpoints;
+primero se retiran de Compras. Las anulaciones nuevas tambien quedan auditadas.
+Las boletas aparecen en Compras con prefijo B-, sin acciones de inventario.
+El Excel usa RTN/DNI y cliente como RTN/proveedor, CAI de la boleta y numero
+de boleta como documento. Todos los importes de los conceptos son exentos,
+la base 15% es cero y solo se llena Monto al costo; Monto al gasto queda vacio.
+No se usa el total de cabecera para calcular estos importes.
+Los filtros de Compras aplican fecha y numero de boleta; al filtrar proveedor
+se exige coincidencia de su RTN con el RTN/DNI de la boleta.
+
+El historial permite filtrar fechas y buscar boleta/cliente/RTN/direccion.
+Su Excel incluye todas las boletas del filtro aplicado, sin depender de la
+seleccion, con las 11 columnas fiscales mas Estado y el mismo logo/colores
+del Excel de compras. Las anuladas se conservan en este Excel historico,
+pero nunca se incluyen en Compras. Aplicar la migracion
+`2026_10_20_000002_add_reporte_compras_to_boletas.php`; las boletas anteriores
+no se incluyen automaticamente y no se modifican sus importes ni numeracion.
 
 El reporte de gastos usa la cabecera naranja y acentos verdes del sistema.
 Permite seleccionar uno o varios gastos activos. El checkbox del encabezado

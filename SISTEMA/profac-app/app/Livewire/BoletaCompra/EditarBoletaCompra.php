@@ -24,6 +24,7 @@ class EditarBoletaCompra extends Component
         if (!$this->boleta) {
             abort(404, 'Boleta no encontrada.');
         }
+        abort_if($this->boleta->incluir_reporte_compras, 403, 'Primero retire la boleta del reporte de Compras para editarla.');
 
         $this->detalles = DB::SELECT("
             SELECT id, linea, descripcion,
