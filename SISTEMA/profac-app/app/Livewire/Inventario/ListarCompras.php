@@ -67,8 +67,7 @@ class ListarCompras extends Component
             return Datatables::of($listarCompras)
             ->addColumn('opciones', function ($listarCompras) {
                 if ($listarCompras->tipo_documento === 'gasto') {
-                    return '<a class="btn btn-primary btn-sm" target="_blank" rel="noopener" href="' .
-                        url('/gastos/imprimir/' . $listarCompras->gasto_id) . '">Imprimir gasto</a>';
+                    return '<span class="text-muted">No aplica (gasto)</span>';
                 }
 
                 return

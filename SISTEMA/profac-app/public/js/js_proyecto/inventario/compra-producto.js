@@ -184,10 +184,11 @@
             return '<option value="' + unidad.id + '"' + (Number(item.unidad_medida_id) === Number(unidad.id) ? ' selected' : '') + '>' +
                 escapeHtml(unidad.nombre.trim()) + ' (' + escapeHtml(unidad.simbolo.trim()) + ')</option>';
         }).join('');
+        var precio = '<td><input type="number" aria-label="Precio unitario" class="form-control cmp-number" min="0" max="999999999.99" step="0.01" required data-compra-field="precio" data-id="' + id + '" value="' + escapeHtml(item.precio) + '"></td>';
+        var cantidad = '<td><input type="number" aria-label="Cantidad" class="form-control cmp-number" min="1" max="1000000" step="1" required data-compra-field="cantidad" data-id="' + id + '" value="' + escapeHtml(item.cantidad) + '"></td>';
         return '<tr data-row-id="' + id + '">' +
             '<td><input class="form-control cmp-expense-name" aria-label="Nombre del producto" maxlength="255" required data-compra-field="nombre" data-id="' + id + '" value="' + escapeHtml(item.nombre) + '"></td>' +
-            '<td><input type="number" aria-label="Precio" class="form-control cmp-number" min="0" max="999999999.99" step="0.01" required data-compra-field="precio" data-id="' + id + '" value="' + escapeHtml(item.precio) + '"></td>' +
-            '<td><input type="number" aria-label="Cantidad" class="form-control cmp-number" min="1" max="1000000" step="1" required data-compra-field="cantidad" data-id="' + id + '" value="' + escapeHtml(item.cantidad) + '"></td>' +
+            cantidad + precio +
             '<td><select aria-label="Unidad de medida" class="form-control cmp-expense-unit" required data-compra-field="unidad_medida_id" data-id="' + id + '">' + unidades + '</select></td>' +
             '<td><select aria-label="Tasa ISV" class="form-control cmp-tax-rate" data-compra-field="isv_porcentaje" data-id="' + id + '">' + tasas + '</select></td>' +
             '<td class="cmp-money" data-compra-output="subtotal_bruto" data-id="' + id + '">' + money(item.subtotal_bruto) + '</td>' +
@@ -204,6 +205,16 @@
         element('modoDocumentoCompra').value = state.modo;
         element('tituloDocumentoCompra').textContent = gasto ? 'Nuevo gasto' : 'Nueva compra';
         element('datosDocumentoCompra').textContent = gasto ? 'Datos del gasto' : 'Datos de la compra';
+        var priceHeader = element('columnaPrecioCompra');
+        var quantityHeader = element('columnaCantidadCompra');
+        if (gasto) {
+            quantityHeader.parentNode.insertBefore(quantityHeader, priceHeader);
+        } else {
+            priceHeader.parentNode.insertBefore(priceHeader, quantityHeader);
+        }
+        var listingLink = element('listadoDocumentoCompra');
+        listingLink.href = gasto ? '/gastos' : '/producto/listar/compras';
+        listingLink.textContent = gasto ? 'Listado de gastos' : 'Listado de compras';
         element('ordenDocumentoCompra').classList.toggle('d-none', gasto);
         element('opcionReporteComprasGasto').classList.toggle('d-none', !gasto);
         element('busquedaCatalogoCompra').classList.toggle('d-none', gasto);
@@ -745,8 +756,6 @@
         window.clearTimeout(state.draftTimer);
         var payload = payloadForPurchase();
         var endpoint = state.modo === 'gasto' ? '/gastos/guardar' : '/producto/compra/guardar';
-        var printWindow = state.modo === 'gasto' ? window.open('', '_blank') : null;
-        if (printWindow) printWindow.opener = null;
         element('crear_compra').inert = true;
         ['btnNuevaCompra', 'btnTemporalesCompra', 'modoDocumentoCompra'].forEach(function (id) { element(id).disabled = true; });
         var button = element('guardarCompraBtn');
@@ -756,8 +765,6 @@
         state.draftQueue.then(function () {
             return axios.post(endpoint, payload);
         }).then(function (response) {
-            var printUrl = response.data.gasto && response.data.gasto.impresion_url;
-            if (printUrl && printWindow && !printWindow.closed) printWindow.location.href = printUrl;
             var deleteDraft = state.temporalId
                 ? axios.delete('/ventas/temporales/' + encodeURIComponent(state.temporalId)).catch(function () {
                     Swal.fire({ icon: 'warning', title: 'Registro guardado', text: 'No se pudo eliminar su temporal. Elimínelo antes de intentar usarlo de nuevo para evitar duplicados.' });
@@ -769,13 +776,10 @@
                 refreshDraftCount();
                 if (deleted !== false) Swal.fire({
                     icon: 'success', title: 'Registro guardado',
-                    html: printUrl
-                        ? 'El gasto se guardó correctamente.<br><a class="btn btn-primary mt-3" target="_blank" rel="noopener" href="' + escapeHtml(printUrl) + '">Abrir documento de impresión</a>'
-                        : 'El registro se guardó correctamente.'
+                    text: 'El registro se guardó correctamente.'
                 });
             });
         }).catch(function (error) {
-            if (printWindow && !printWindow.closed) printWindow.close();
             Swal.fire({ icon: 'error', title: 'No se pudo guardar', text: firstError(error) });
         }).finally(function () {
             state.saving = false;

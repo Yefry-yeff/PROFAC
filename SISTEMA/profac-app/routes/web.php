@@ -715,7 +715,6 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/producto/compra', CompraProducto::class);
     Route::get('/gastos', \App\Livewire\Inventario\Gastos::class)->name('gastos');
     Route::post('/gastos/guardar', [\App\Livewire\Inventario\Gastos::class, 'guardar']);
-    Route::get('/gastos/imprimir/{id}', [\App\Livewire\Inventario\Gastos::class, 'imprimir'])->name('gastos.imprimir');
     Route::get('/producto/lista/proveedores', [CompraProducto::class, 'listarProveedores']);
     Route::get('/producto/tipo/pagos', [CompraProducto::class, 'listarFormasPago']);
     Route::get('/producto/listar/producto', [CompraProducto::class, 'listarProductos']);

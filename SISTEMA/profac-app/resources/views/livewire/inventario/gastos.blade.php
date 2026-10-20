@@ -1,29 +1,224 @@
-<div class="wrapper wrapper-content">
-    <div class="ibox">
-        <div class="ibox-title d-flex justify-content-between align-items-center">
-            <h2>Gastos</h2>
-            <a href="{{ url('/producto/compra?modo=gasto') }}" class="btn btn-primary">Nuevo gasto</a>
+<div class="gastos-reporte">
+    @push('styles')
+    <style>
+        .gastos-reporte .gastos-header { background:linear-gradient(135deg,#f39c12,#e05a00); padding:22px 28px; color:#fff; }
+        .gastos-reporte .gastos-header h2 { margin:0 0 5px; font-weight:700; color:#fff; }
+        .gastos-reporte .gastos-header p { margin:0; }
+        .gastos-reporte .gastos-header .btn { color:#52636a; }
+        .gastos-reporte .gastos-actions { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+        .gastos-reporte .gastos-panel { border:1px solid #e3e8ea; border-radius:8px; background:#fff; box-shadow:0 2px 10px rgba(38,50,56,.05); padding:20px; }
+        .gastos-reporte .gastos-toolbar { border-bottom:1px solid #edf0f1; padding-bottom:15px; margin-bottom:15px; }
+        #modalFiltrosGastos .modal-header { background:linear-gradient(135deg,#f39c12,#e05a00); color:#fff; }
+        #modalFiltrosGastos .modal-title,#modalFiltrosGastos .close { color:#fff; }
+        #modalFiltrosGastos .modal-body { background:#fdfaf6; }
+        #modalFiltrosGastos .select2-container { width:100% !important; }
+        .gastos-reporte .gastos-excel { background:#1e8449; border-color:#1e8449; color:#fff; }
+        .gastos-reporte .gastos-transferir { background:#e8751a; border-color:#e8751a; color:#fff; }
+        .gastos-reporte .gastos-excel:hover,.gastos-reporte .gastos-transferir:hover { filter:brightness(.92); color:#fff; }
+        .gastos-reporte .table thead th { background:#f3f6f7; color:#52636a; border-bottom:2px solid #dce4e6; white-space:nowrap; }
+        .gastos-reporte .table td { vertical-align:middle; }
+        .gastos-reporte input[type=checkbox] { accent-color:#16856f; width:16px; height:16px; vertical-align:middle; cursor:pointer; }
+        .gastos-reporte .gastos-estado { display:inline-block; padding:5px 9px; border-radius:12px; font-size:11px; font-weight:700; }
+        .gastos-reporte .gastos-registrado { background:#e8f5f1; color:#126b5b; }
+        .gastos-reporte .gastos-compras { background:#fff0e4; color:#9c4609; }
+        .gastos-reporte .gastos-anulado { background:#ffebee; color:#b71c1c; }
+        .gastos-reporte .gastos-total { text-align:right; font-weight:700; white-space:nowrap; }
+    </style>
+    @endpush
+
+    <div class="gastos-header d-flex justify-content-between align-items-center flex-wrap">
+        <div>
+            <h2><i class="fa fa-list-alt mr-2"></i>Reporte de gastos</h2>
+            <p>Inventario / Gastos</p>
         </div>
-        <div class="ibox-content">
-            <p class="text-muted">Gastos no incluidos en el reporte de Compras. No se registran abonos ni movimientos de inventario.</p>
-            <label for="buscarGasto">Buscar por factura o proveedor</label>
-            <input id="buscarGasto" type="search" class="form-control mb-3" wire:model.live.debounce.400ms="buscar">
+        <a href="{{ url('/producto/compra?modo=gasto') }}" class="btn btn-white"><i class="fa fa-plus mr-1"></i>Nuevo gasto</a>
+    </div>
+    <div class="wrapper wrapper-content">
+        <div class="gastos-panel">
+            <p class="text-muted">Todos los gastos, incluidos los anulados y los pasados al reporte de compras. No se registran abonos ni movimientos de inventario.</p>
+            @if (session()->has('gastos_mensaje'))
+                <div class="alert alert-success" role="status">{{ session('gastos_mensaje') }}</div>
+            @endif
+            @if ($errors->any())
+                <div class="alert alert-danger" role="alert">
+                    @foreach ($errors->all() as $error)<div>{{ $error }}</div>@endforeach
+                </div>
+            @endif
+            <div class="gastos-actions gastos-toolbar">
+                <button type="button" class="btn btn-white" data-toggle="modal" data-target="#modalFiltrosGastos">
+                    <i class="fa fa-filter mr-1"></i>Filtros
+                </button>
+                <span class="text-muted">
+                    Emisión: {{ $filtrosAplicados['desde'] }} al {{ $filtrosAplicados['hasta'] }}
+                    @if (!empty($filtrosAplicados['factura'])) · Factura: {{ $filtrosAplicados['factura'] }} @endif
+                    @if (!empty($filtrosAplicados['proveedor'])) · Proveedor: {{ $proveedores->firstWhere('id', $filtrosAplicados['proveedor'])?->nombre }} @endif
+                </span>
+            </div>
+            <div class="gastos-actions mb-3">
+                <span class="badge badge-primary">{{ count($seleccionados) }} seleccionados</span>
+                <button type="button" class="btn btn-white btn-sm" wire:click="limpiarSeleccion" wire:loading.attr="disabled" @disabled(count($seleccionados) === 0)>Limpiar selección</button>
+                <span class="text-muted">El checkbox del encabezado selecciona todos los gastos activos filtrados, de todas las páginas.</span>
+            </div>
+            <div class="gastos-actions mb-3">
+                <button type="button" class="btn gastos-transferir" data-toggle="modal" data-target="#modalPasarComprasGastos"
+                    wire:loading.attr="disabled" @disabled(count($seleccionados) === 0)>
+                    <i class="fa fa-exchange-alt mr-1"></i>Pasar al reporte de compras
+                </button>
+                <button type="button" class="btn btn-danger" data-toggle="modal" data-target="#modalAnularGastos"
+                    wire:loading.attr="disabled" @disabled(count($seleccionados) === 0)>
+                    <i class="fa fa-ban mr-1"></i>Anular seleccionados
+                </button>
+                <span wire:loading role="status" class="text-muted">Procesando...</span>
+                <button type="button" class="btn gastos-excel ml-auto" wire:click="exportarExcel" wire:loading.attr="disabled"
+                    title="Exportar todos los gastos filtrados, con sus estados">
+                    <i class="fa fa-file-excel mr-1"></i>Exportar Excel
+                </button>
+            </div>
             <div class="table-responsive">
-                <table class="table table-striped">
-                    <thead><tr><th>ID</th><th>Factura</th><th>Proveedor</th><th>Emisión</th><th>Total</th><th>Estado</th><th>Documento</th></tr></thead>
+                <table class="table table-striped table-hover">
+                    <thead><tr><th><input id="seleccionarTodosGastos" type="checkbox"
+                        aria-label="Seleccionar todos los gastos activos filtrados" title="Seleccionar todos (todas las páginas)"
+                        wire:model.live="seleccionarTodos" wire:loading.attr="disabled"></th><th>ID</th><th>Factura</th><th>Proveedor</th><th>Emisión</th><th class="text-right">Total</th><th>Estado</th><th>Anulado por</th><th>Fecha y hora de anulación</th><th>Motivo de anulación</th></tr></thead>
                     <tbody>
                     @forelse ($gastos as $gasto)
                         <tr wire:key="gasto-{{ $gasto->id }}">
+                            <td><input type="checkbox" aria-label="Seleccionar gasto G-{{ $gasto->id }}" value="{{ $gasto->id }}"
+                                wire:model.live="seleccionados" wire:loading.attr="disabled" @disabled($gasto->estado !== 'activo')></td>
                             <td>G-{{ $gasto->id }}</td><td>{{ $gasto->numero_factura }}</td><td>{{ $gasto->proveedor }}</td>
-                            <td>{{ $gasto->fecha_emision }}</td><td>L. {{ number_format($gasto->total, 2) }}</td>
-                            <td>{{ $gasto->estado === 'anulado' ? 'Anulado' : 'Registrado' }}</td>
-                            <td><a class="btn btn-sm btn-primary" href="{{ url('/gastos/imprimir/'.$gasto->id) }}" target="_blank" rel="noopener">Imprimir gasto</a></td>
+                            <td>{{ $gasto->fecha_emision }}</td><td class="gastos-total">L. {{ number_format($gasto->total, 2) }}</td>
+                            <td>
+                                <span class="gastos-estado {{ $gasto->estado === 'anulado' ? 'gastos-anulado' : ($gasto->incluir_reporte_compras ? 'gastos-compras' : 'gastos-registrado') }}">{{ $gasto->estado_reporte }}</span>
+                                @if ($gasto->estado === 'anulado' && $gasto->incluir_reporte_compras)
+                                    <small class="d-block text-muted">Pasado al reporte de compras; excluido por anulación.</small>
+                                @endif
+                            </td>
+                            <td>{{ $gasto->anulado_por_nombre ?? '—' }}</td>
+                            <td class="text-nowrap">{{ $gasto->anulado_at?->format('d/m/Y H:i:s') ?? '—' }}</td>
+                            <td>{{ $gasto->motivo_anulacion ?? '—' }}</td>
                         </tr>
-                    @empty <tr><td colspan="7">No hay gastos registrados.</td></tr> @endforelse
+                    @empty <tr><td colspan="10" class="text-center text-muted">No hay gastos registrados.</td></tr> @endforelse
                     </tbody>
                 </table>
             </div>
             {{ $gastos->links() }}
         </div>
+        <div class="modal fade" id="modalAnularGastos" tabindex="-1" role="dialog"
+            aria-labelledby="tituloAnularGastos" aria-hidden="true" wire:ignore.self data-backdrop="static" data-keyboard="false">
+            <div class="modal-dialog modal-dialog-centered" role="document">
+                <form class="modal-content" wire:submit="anularSeleccionados">
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title text-white" id="tituloAnularGastos"><i class="fa fa-ban mr-2"></i>Anular gastos</h5>
+                        <button type="button" class="close text-white" data-dismiss="modal" aria-label="Cerrar" wire:loading.attr="disabled"><span aria-hidden="true">&times;</span></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>¿Desea anular los {{ count($seleccionados) }} gastos seleccionados?</p>
+                        <p class="text-muted">Se registrará su usuario y la fecha y hora. Los gastos anulados no se incluirán en el reporte de compras.</p>
+                        @error('seleccionados')<div class="alert alert-danger" role="alert">{{ $message }}</div>@enderror
+                        @foreach ($errors->get('seleccionados.*') as $mensajes)
+                            @foreach ($mensajes as $mensaje)<div class="alert alert-danger" role="alert">{{ $mensaje }}</div>@endforeach
+                        @endforeach
+                        <label for="motivoAnulacionGasto">Motivo de anulación <span class="text-danger">*</span></label>
+                        <textarea id="motivoAnulacionGasto" class="form-control" rows="3" maxlength="1000" required aria-required="true" wire:model="motivoAnulacion" wire:loading.attr="disabled"></textarea>
+                        @error('motivoAnulacion')<div class="text-danger" role="alert">{{ $message }}</div>@enderror
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-white" data-dismiss="modal" wire:loading.attr="disabled">Cancelar</button>
+                        <button type="submit" class="btn btn-danger" wire:loading.attr="disabled" @disabled(count($seleccionados) === 0)>Confirmar anulación</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <div class="modal fade" id="modalPasarComprasGastos" tabindex="-1" role="dialog"
+            aria-labelledby="tituloPasarComprasGastos" aria-hidden="true" wire:ignore.self data-backdrop="static" data-keyboard="false">
+            <div class="modal-dialog modal-dialog-centered" role="document">
+                <form class="modal-content" wire:submit="pasarACompras">
+                    <div class="modal-header gastos-transferir">
+                        <h5 class="modal-title text-white" id="tituloPasarComprasGastos"><i class="fa fa-exchange-alt mr-2"></i>Pasar al reporte de compras</h5>
+                        <button type="button" class="close text-white" data-dismiss="modal" aria-label="Cerrar" wire:loading.attr="disabled"><span aria-hidden="true">&times;</span></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>¿Desea pasar los {{ count($seleccionados) }} gastos seleccionados al reporte de compras?</p>
+                        <p class="text-muted">Seguirán visibles en Gastos con el estado «Pasado al reporte de compras», sin duplicar los registros.</p>
+                        @error('seleccionados')<div class="alert alert-danger" role="alert">{{ $message }}</div>@enderror
+                        @foreach ($errors->get('seleccionados.*') as $mensajes)
+                            @foreach ($mensajes as $mensaje)<div class="alert alert-danger" role="alert">{{ $mensaje }}</div>@endforeach
+                        @endforeach
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-white" data-dismiss="modal" wire:loading.attr="disabled">Cancelar</button>
+                        <button type="submit" class="btn gastos-transferir" wire:loading.attr="disabled" @disabled(count($seleccionados) === 0)>Confirmar traslado</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <div class="modal fade" id="modalFiltrosGastos" tabindex="-1" role="dialog"
+            aria-labelledby="tituloFiltrosGastos" aria-hidden="true" wire:ignore.self>
+            <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+                <form class="modal-content" wire:submit="aplicarFiltros">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="tituloFiltrosGastos"><i class="fa fa-filter mr-2"></i>Filtros de búsqueda</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar"><span aria-hidden="true">&times;</span></button>
+                    </div>
+                    <div class="modal-body">
+                        @if ($errors->has('filtros.*'))
+                            <div class="alert alert-danger" role="alert">
+                                @foreach ($errors->get('filtros.*') as $mensajes)
+                                    @foreach ($mensajes as $mensaje)<div>{{ $mensaje }}</div>@endforeach
+                                @endforeach
+                            </div>
+                        @endif
+                        <p class="font-weight-bold">Fecha de emisión</p>
+                        <div class="row">
+                            <div class="col-md-6 form-group">
+                                <label for="gastosDesde">Desde</label>
+                                <input id="gastosDesde" type="date" class="form-control" wire:model="filtros.desde" required>
+                            </div>
+                            <div class="col-md-6 form-group">
+                                <label for="gastosHasta">Hasta</label>
+                                <input id="gastosHasta" type="date" class="form-control" wire:model="filtros.hasta" required>
+                            </div>
+                            <div class="col-md-6 form-group">
+                                <label for="gastosFactura">Número de factura</label>
+                                <input id="gastosFactura" type="text" class="form-control" maxlength="255" wire:model="filtros.factura">
+                            </div>
+                            <div class="col-md-6 form-group">
+                                <label for="gastosProveedor">Nombre de proveedor</label>
+                                <div wire:ignore>
+                                    <select id="gastosProveedor" class="form-control">
+                                        <option value="">Todos los proveedores</option>
+                                        @foreach ($proveedores as $proveedor)
+                                            <option value="{{ $proveedor->id }}">{{ $proveedor->nombre }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-white" wire:click="limpiarFiltros" wire:loading.attr="disabled"><i class="fa fa-eraser mr-1"></i>Limpiar</button>
+                        <button type="submit" class="btn gastos-transferir" wire:loading.attr="disabled"><i class="fa fa-search mr-1"></i>Buscar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        @script
+        <script>
+            const modal = $('#modalFiltrosGastos');
+            const proveedor = $('#gastosProveedor');
+            proveedor.select2({
+                dropdownParent: modal,
+                placeholder: 'Todos los proveedores',
+                allowClear: true,
+                width: '100%'
+            }).on('change', function () {
+                $wire.set('filtros.proveedor', this.value, false);
+            });
+            $wire.on('gastos-filtros-aplicados', () => modal.modal('hide'));
+            $wire.on('gastos-proveedor-limpiado', () => proveedor.val('').trigger('change.select2'));
+            $wire.on('gastos-accion-completada', () => {
+                $('#modalAnularGastos, #modalPasarComprasGastos').modal('hide');
+            });
+        </script>
+        @endscript
     </div>
 </div>

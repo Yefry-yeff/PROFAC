@@ -30,24 +30,63 @@ se habia registrado. Las compras conservan unidades y calculos originales.
 Aplicar tambien `2026_10_18_000002_add_unidad_descuento_to_gasto_detalles.php`.
 
 Los gastos usan `gastos` y `gasto_detalles`. No crean productos, compras,
-recepciones, lotes ni cambios de costo/stock. Ya no hay pantalla de detalle,
-abonos, saldos pendientes ni anulacion en este tramite; los metodos de pago
-y la ruta de comprobantes fueron retirados. Las tablas, archivos y saldos
+recepciones, lotes ni cambios de costo/stock. No hay pantalla de detalle,
+abonos ni saldos pendientes en este tramite. Las tablas, archivos y saldos
 anteriores se conservan sin borrar ni reinterpretar datos historicos.
+El boton de listado cambia entre Compras y Gastos segun el tipo de registro.
+En gastos el orden de captura es producto, cantidad y precio unitario.
 
 La casilla "Incluir este gasto en el reporte de Compras", junto al titulo
 de cabecera y desmarcada por defecto, se conserva en temporales y al guardar.
-Marcada: aparece solo en el listado de Compras y su Excel mensual.
-Desmarcada: aparece solo en `/gastos`. Los gastos incluidos en Compras llevan
-prefijos `G-` / `GASTO-` para distinguirlos de compras con el mismo ID, y
-solo permiten imprimir, sin acciones de recepcion, abono o anulacion de compra.
-El Excel respeta mes y anio y no exporta debito para estos gastos.
+Marcada: aparece tambien en el listado de Compras y su Excel mensual.
+Todos los gastos permanecen en `/gastos`, incluso trasladados y anulados.
+Los incluidos en Compras llevan prefijos `G-` / `GASTO-` para distinguirlos
+de compras con el mismo ID, sin acciones de recepcion, abono o anulacion de compra.
+El Excel de compras respeta mes y anio, no exporta debito para estos gastos
+y agrega Estado para identificar "Pasado al reporte de compras".
 
-Al guardar se abre el PDF carta vertical `/gastos/imprimir/{id}` en otra
-pestana, con membrete usado en facturas, proveedor/RTN, factura/CAI, fechas,
-unidades, descuentos, impuestos y totales. El mensaje de exito ofrece un
-enlace de impresion si el navegador bloquea ventanas. Ambos listados permiten
-reimprimir. Es un comprobante de registro, no una factura fiscal de venta.
+El reporte de gastos usa la cabecera naranja y acentos verdes del sistema.
+Permite seleccionar uno o varios gastos activos. El checkbox del encabezado
+de la tabla selecciona todos los gastos activos filtrados, no solo la pagina
+visible. Los anulados no se pueden seleccionar.
+El boton "Filtros" abre un modal como Libro de cobros: fecha de emision desde
+y hasta (ambas inclusivas y con el mes vigente completo por defecto), numero
+de factura y proveedor con Select2. Los criterios se combinan; la factura
+admite coincidencias parciales y el proveedor se filtra por su ID.
+"Buscar" aplica los filtros, reinicia la pagina y limpia la seleccion;
+"Limpiar" restaura el mes vigente sin factura ni proveedor. Se validan las
+fechas y el proveedor antes de reemplazar los filtros aplicados.
+"Pasar al reporte de compras" marca los seleccionados sin duplicarlos ni
+quitarlos de Gastos, con estado "Pasado al reporte de compras".
+"Anular seleccionados" abre un modal con el motivo y confirmacion; registra `anulado_por`,
+`anulado_at` y un motivo obligatorio de hasta 1000 caracteres; se rechazan
+comentarios vacios o que contengan solo espacios. Se muestran el
+nombre del usuario y la fecha y hora (incluidos segundos). La accion conserva
+importes y detalles, sin movimientos de inventario ni abonos. Los anulados
+se excluyen del listado y Excel de compras aunque antes se hayan trasladado.
+Las acciones se aplican en una transaccion, revalidando que todos los IDs
+existan y sigan activos; una seleccion obsoleta no produce cambios parciales.
+"Pasar al reporte de compras" tambien requiere confirmacion en un modal del
+sistema, sin dialogos nativos del navegador. Ambos modales muestran errores,
+permanecen abiertos si falla la accion y se cierran solo al completarla.
+
+"Exportar Excel", a la derecha de las acciones junto a "Anular seleccionados",
+incluye todos los resultados de los filtros aplicados,
+de todas las paginas, con estado, indicador de traslado a Compras,
+usuario/fecha/hora y motivo de anulacion. No depende de los checkboxes.
+El Excel usa el logo `public/img/membrete/Logo3.png`, membrete, encabezados
+naranja, filas alternadas y totales en verde, como los demas reportes.
+Las primeras columnas son ID, proveedor, CAI, numero de documento (factura),
+emision, recepcion, vencimiento, importe exento, importe gravado, ISV y total.
+Despues se conservan estado, indicador de traslado y datos de anulacion.
+Exento suma los subtotales netos de las lineas con tasa 0%; gravado suma los
+de tasas mayores que cero (15% y 18%). Ambos son posteriores al descuento y
+anteriores al impuesto; no se recalculan con el catalogo actual.
+Los montos son numericos con formato monetario y dos decimales; CAI y numero
+de documento se exportan como texto para conservar sus ceros iniciales.
+Al guardar solo se registra el gasto y se muestra confirmacion: no se abre
+ni se genera documento de impresion. Se retiraron la ruta, plantilla y
+acciones de impresion de gastos.
 Aplicar `2026_10_18_000003_add_incluir_reporte_compras_to_gastos.php`;
 los gastos anteriores permanecen en Gastos por defecto.
 
@@ -61,7 +100,8 @@ abriendose como compras.
 
 Aplicar solamente la migracion `2026_10_18_000001_create_gastos_tables.php`
 para instalar las tres tablas nuevas. No modifica los registros de compras.
-La impresion de gastos requiere autenticacion, igual que los listados.
+Los listados, acciones y exportaciones requieren autenticacion. No se requiere
+una migracion adicional para las acciones masivas: se usan los campos existentes.
 
 ### PDF de Libro de Cobros
 

@@ -24,7 +24,8 @@ class ComprasMesExport implements FromCollection, WithHeadings, ShouldAutoSize
     {
         [$anio, $mes] = explode('-', $this->mes);
         $compras = ModelCompra::select("id","numero_factura","codigo_cai","fecha_vencimiento","fecha_emision","fecha_recepcion","isv_compra","sub_total","total","debito","numero_orden")
-            ->whereYear('fecha_emision', $anio)->whereMonth('fecha_emision', $mes)->get();
+            ->whereYear('fecha_emision', $anio)->whereMonth('fecha_emision', $mes)->get()
+            ->map(fn ($compra) => array_merge($compra->toArray(), ['estado' => 'Compra']));
         $gastos = DB::table('gastos')->where('incluir_reporte_compras', true)->where('estado', 'activo')
             ->whereYear('fecha_emision', $anio)->whereMonth('fecha_emision', $mes)
             ->orderBy('id')->get()->map(fn ($gasto) => [
@@ -33,6 +34,7 @@ class ComprasMesExport implements FromCollection, WithHeadings, ShouldAutoSize
                 'fecha_emision' => $gasto->fecha_emision, 'fecha_recepcion' => $gasto->fecha_recepcion,
                 'isv_compra' => $gasto->isv, 'sub_total' => $gasto->subtotal, 'total' => $gasto->total,
                 'debito' => null, 'numero_orden' => 'GASTO-' . $gasto->id,
+                'estado' => 'Pasado al reporte de compras',
             ]);
         return $compras->toBase()->concat($gastos);
     }
@@ -51,6 +53,7 @@ class ComprasMesExport implements FromCollection, WithHeadings, ShouldAutoSize
             'Total',
             'Débito',
             'Número de Orden',
+            'Estado',
         ];
     }
 }

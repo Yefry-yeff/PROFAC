@@ -131,7 +131,7 @@
                     <option value="compra">Nueva compra</option>
                     <option value="gasto">Nuevo gasto</option>
                 </select>
-                <a href="{{ url('/gastos') }}" class="btn btn-white ml-2">Listado de gastos</a>
+                <a id="listadoDocumentoCompra" href="{{ url('/producto/listar/compras') }}" class="btn btn-white ml-2">Listado de compras</a>
             </div>
             <form autocomplete="off" id="crear_compra" name="crear_compra">
                 <section class="cmp-panel">
@@ -197,7 +197,7 @@
                     </div>
                     <div id="herramientasGasto" class="cmp-search-band d-none">
                         <button type="button" id="agregarLineaGasto" class="btn btn-primary"><i class="fa fa-plus"></i> Agregar producto / gasto</button>
-                        <small class="ml-2 text-muted">Nombre libre, sin registrar productos ni afectar inventario. Al guardar se abre el documento de impresión.</small>
+                        <small class="ml-2 text-muted">Nombre libre, sin registrar productos ni afectar inventario.</small>
                     </div>
                     <div class="cmp-cart-tools">
                         <div class="cmp-cart-filter">
@@ -209,7 +209,7 @@
                     <div class="cmp-table-wrap">
                         <table class="table cmp-table">
                             <thead>
-                                <tr><th>Producto</th><th>Precio unitario</th><th>Cantidad</th><th id="columnaUnidadCompra">Unidad de compra</th><th id="columnaVencimientoCompra">Vencimiento</th><th class="text-right">Subtotal</th><th id="columnaDescuentoGasto" class="d-none">Descuento %</th><th id="columnaNetoGasto" class="text-right d-none">Subtotal neto</th><th class="text-right">ISV</th><th class="text-right">Total</th><th></th></tr>
+                                <tr><th>Producto</th><th id="columnaPrecioCompra">Precio unitario</th><th id="columnaCantidadCompra">Cantidad</th><th id="columnaUnidadCompra">Unidad de compra</th><th id="columnaVencimientoCompra">Vencimiento</th><th class="text-right">Subtotal</th><th id="columnaDescuentoGasto" class="d-none">Descuento %</th><th id="columnaNetoGasto" class="text-right d-none">Subtotal neto</th><th class="text-right">ISV</th><th class="text-right">Total</th><th></th></tr>
                             </thead>
                             <tbody id="productosCompraBody"></tbody>
                         </table>

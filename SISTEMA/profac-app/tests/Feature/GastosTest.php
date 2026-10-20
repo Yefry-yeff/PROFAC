@@ -6,6 +6,7 @@ use App\Livewire\Inventario\CompraProducto;
 use App\Livewire\Inventario\Gastos;
 use App\Livewire\Inventario\ListarCompras;
 use App\Exports\ComprasMesExport;
+use App\Exports\GastosExport;
 use App\Livewire\Proveedores;
 use App\Models\User;
 use Illuminate\Contracts\Console\Kernel;
@@ -46,6 +47,7 @@ class GastosTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->travelTo(\Carbon\Carbon::parse('2026-10-20 00:00:00'));
         $this->assertSame('gastos_testing', DB::connection()->getName());
         if (DB::getDriverName() === 'sqlite') {
             DB::connection()->getPdo()->sqliteCreateFunction('CONCAT', fn (...$partes) => implode('', $partes));
@@ -200,9 +202,6 @@ class GastosTest extends TestCase
         $this->assertEquals(35.51, $gasto->isv);
         $this->assertEquals(262.76, $gasto->total);
         $this->assertEquals(262.76, $gasto->saldo);
-        $pdf = (new Gastos)->imprimir($id);
-        $this->assertSame('application/pdf', $pdf->headers->get('Content-Type'));
-        $this->assertStringStartsWith('%PDF-', $pdf->getContent());
         $this->assertSame(0, DB::table('compra')->count());
         $this->assertEquals(5, DB::table('producto')->find(1)->ultimo_costo_compra);
     }
@@ -227,7 +226,6 @@ class GastosTest extends TestCase
     {
         $id = $this->guardar();
         DB::table('gasto_detalles')->where('gasto_id', $id)->update(['unidad_medida_id' => null]);
-        $this->assertStringStartsWith('%PDF-', (new Gastos)->imprimir($id)->getContent());
         $this->assertEquals(207, DB::table('gastos')->find($id)->total);
     }
 
@@ -313,29 +311,24 @@ class GastosTest extends TestCase
         $this->guardar(['productos' => [['nombre' => 'Cero', 'cantidad' => 1, 'precio' => '0', 'isv_porcentaje' => 0]]]);
     }
 
-    public function test_listado_sin_detalle_abonos_ni_saldos_y_pdf_autenticado(): void
+    public function test_listado_sin_impresion_detalle_abonos_ni_saldos(): void
     {
-        $id = $this->guardar();
-        Livewire::test(Gastos::class)->assertSee('GASTO-001')->assertSee('Imprimir gasto')
+        $this->guardar();
+        Livewire::test(Gastos::class)->assertSee('GASTO-001')->assertDontSee('Imprimir gasto')
+            ->assertDontSee('Documento')
             ->assertDontSee('Detalle y pagos')->assertDontSee('Historial de pagos')
             ->assertDontSee('Saldo')->assertDontSee('Registrar abono')->assertSee('Registrado')
-            ->set('buscar', 'Inexistente')->assertSee('No hay gastos registrados.');
+            ->set('filtros.factura', 'Inexistente')->call('aplicarFiltros')->assertSee('No hay gastos registrados.');
         $this->assertFalse(method_exists(Gastos::class, 'registrarPago'));
         $this->assertFalse(method_exists(Gastos::class, 'ver'));
         $this->assertFalse(method_exists(Gastos::class, 'anular'));
         $this->assertSame(0, DB::table('gasto_pagos')->count());
-        $response = (new Gastos)->imprimir($id);
-        $this->assertSame('application/pdf', $response->headers->get('Content-Type'));
-        $this->assertStringContainsString('inline', $response->headers->get('Content-Disposition'));
-        $contenido = $response->getContent();
-        $this->assertStringStartsWith('%PDF-', $contenido);
-        $this->assertSame(1, preg_match('/\/MediaBox\s*\[\s*0(?:\.0+)?\s+0(?:\.0+)?\s+612(?:\.0+)?\s+792(?:\.0+)?\s*\]/', $contenido));
         Auth::logout();
         $this->get('/gastos')->assertRedirect();
-        $this->get('/gastos/imprimir/' . $id)->assertRedirect();
+        $this->get('/gastos/imprimir/1')->assertNotFound();
     }
 
-    public function test_casilla_clasifica_exclusivamente_y_excel_filtra_mes_y_anio(): void
+    public function test_gastos_permanecen_visibles_y_excel_compras_filtra_mes_anio_y_estado(): void
     {
         $normal = $this->guardar(['numero_factura' => 'SOLO-GASTOS']);
         $compra = $this->guardar(['numero_factura' => 'GASTO-EN-COMPRAS', 'incluir_reporte_compras' => true]);
@@ -347,8 +340,9 @@ class GastosTest extends TestCase
         DB::table('gastos')->where('id', $anulado)->update(['estado' => 'anulado']);
         $this->assertEquals(0, DB::table('gastos')->find($normal)->incluir_reporte_compras);
         $this->assertEquals(1, DB::table('gastos')->find($compra)->incluir_reporte_compras);
-        Livewire::test(Gastos::class)->assertSee('SOLO-GASTOS')->assertDontSee('GASTO-EN-COMPRAS')
-            ->assertDontSee('OTRO-ANIO')->assertDontSee('ANULADO');
+        Livewire::test(Gastos::class)->assertSee('SOLO-GASTOS')->assertSee('GASTO-EN-COMPRAS')
+            ->assertDontSee('OTRO-ANIO')->assertDontSee('OTRO-MES')
+            ->assertSee('ANULADO')->assertSee('Pasado al reporte de compras');
 
         $this->crearCompraDePrueba();
         $response = (new ListarCompras)->listarCompras();
@@ -358,7 +352,9 @@ class GastosTest extends TestCase
         $this->assertFalse($rows->contains('numero_factura', 'ANULADO'));
         $row = $rows->firstWhere('numero_factura', 'GASTO-EN-COMPRAS');
         $this->assertSame('G-' . $compra, $row['id']);
-        $this->assertStringContainsString('/gastos/imprimir/' . $compra, $row['opciones']);
+        $this->assertStringContainsString('No aplica (gasto)', $row['opciones']);
+        $this->assertStringNotContainsString('Imprimir gasto', $row['opciones']);
+        $this->assertStringNotContainsString('/gastos/imprimir/', $row['opciones']);
         $this->assertStringNotContainsString('/recibir/', $row['opciones']);
         $this->assertStringNotContainsString('/pagos/', $row['opciones']);
         $this->assertStringNotContainsString('anularCompra(', $row['anular']);
@@ -371,55 +367,343 @@ class GastosTest extends TestCase
         $this->assertSame('GASTO-EN-COMPRAS', $gastoExportado['numero_factura']);
         $this->assertEquals(207, $gastoExportado['total']);
         $this->assertNull($gastoExportado['debito']);
+        $this->assertSame('Pasado al reporte de compras', $gastoExportado['estado']);
+        $this->assertSame('Compra', $datos->first()['estado']);
         $this->assertCount(count($export->headings()), $gastoExportado);
         $xlsx = \Maatwebsite\Excel\Facades\Excel::raw($export, \Maatwebsite\Excel\Excel::XLSX);
         $this->assertStringStartsWith('PK', $xlsx);
     }
 
-    public function test_guardado_devuelve_url_del_documento_sin_crear_abonos(): void
+    public function test_seleccionar_todos_incluye_todas_las_paginas_y_respeta_busqueda_y_estado(): void
+    {
+        for ($i = 1; $i <= 25; $i++) {
+            $this->guardar(['numero_factura' => 'LOTE-' . $i, 'incluir_reporte_compras' => $i === 1]);
+        }
+        $otro = $this->guardar(['numero_factura' => 'OTRO']);
+        $anulado = $this->guardar(['numero_factura' => 'LOTE-ANULADO']);
+        DB::table('gastos')->where('id', $anulado)->update(['estado' => 'anulado']);
+
+        Livewire::test(Gastos::class)->set('filtros.factura', 'LOTE-')->call('aplicarFiltros')
+            ->set('seleccionarTodos', true)
+            ->assertSet('seleccionados', array_map('strval', range(1, 25)))
+            ->call('setPage', 2)->assertSet('seleccionarTodos', true)
+            ->set('seleccionados', ['1'])->assertSet('seleccionarTodos', false)
+            ->set('seleccionarTodos', true)->set('seleccionarTodos', false)
+            ->assertSet('seleccionados', [])
+            ->set('seleccionarTodos', true)->call('pasarACompras')->assertHasNoErrors()
+            ->assertSet('seleccionados', [])->assertSet('seleccionarTodos', false);
+
+        $this->assertSame(25, DB::table('gastos')->where('incluir_reporte_compras', true)->count());
+        $this->assertEquals(0, DB::table('gastos')->find($otro)->incluir_reporte_compras);
+        $this->assertEquals(0, DB::table('gastos')->find($anulado)->incluir_reporte_compras);
+        Livewire::test(Gastos::class)->set('filtros.factura', 'LOTE-')->call('aplicarFiltros')->set('seleccionarTodos', true)
+            ->set('filtros.factura', 'OTRO')->call('aplicarFiltros')->assertSet('seleccionados', [])->assertSet('seleccionarTodos', false)
+            ->set('filtros.factura', 'INEXISTENTE')->call('aplicarFiltros')->set('seleccionarTodos', true)
+            ->assertSet('seleccionados', [])->assertSet('seleccionarTodos', false);
+    }
+
+    public function test_anula_varios_y_guarda_usuario_hora_y_motivo_sin_modificar_importes(): void
+    {
+        $this->travelTo(\Carbon\Carbon::parse('2026-10-19 23:58:12'));
+        $primero = $this->guardar();
+        $segundo = $this->guardar(['numero_factura' => 'SEGUNDO', 'incluir_reporte_compras' => true]);
+        $otro = $this->guardar(['numero_factura' => 'SIN-CAMBIOS']);
+
+        Livewire::test(Gastos::class)->set('seleccionados', [(string) $primero, (string) $segundo])
+            ->set('motivoAnulacion', 'Factura duplicada')->call('anularSeleccionados')
+            ->assertHasNoErrors()->assertDispatched('gastos-accion-completada')->assertSet('seleccionados', [])
+            ->assertSee('Usuario prueba')->assertSee('19/10/2026 23:58:12')->assertSee('Factura duplicada');
+
+        foreach ([$primero, $segundo] as $id) {
+            $gasto = DB::table('gastos')->find($id);
+            $this->assertSame('anulado', $gasto->estado);
+            $this->assertSame(1, $gasto->anulado_por);
+            $this->assertSame('2026-10-19 23:58:12', $gasto->anulado_at);
+            $this->assertSame('Factura duplicada', $gasto->motivo_anulacion);
+            $this->assertEquals(207, $gasto->total);
+        }
+        $this->assertSame('activo', DB::table('gastos')->find($otro)->estado);
+        $this->assertCount(0, (new ComprasMesExport('2026-10'))->collection());
+        $this->assertSame(0, DB::table('compra')->count());
+        $this->assertSame(0, DB::table('gasto_pagos')->count());
+        $this->assertSame(9, DB::table('gasto_detalles')->count());
+        $this->travelBack();
+    }
+
+    public function test_acciones_rechazan_selecciones_invalidas_sin_cambios_parciales(): void
+    {
+        $activo = $this->guardar();
+        $anulado = $this->guardar(['numero_factura' => 'ANULADO']);
+        DB::table('gastos')->where('id', $anulado)->update([
+            'estado' => 'anulado', 'anulado_por' => 1, 'anulado_at' => '2026-10-18 10:00:00',
+        ]);
+
+        foreach (['anularSeleccionados', 'pasarACompras'] as $accion) {
+            Livewire::test(Gastos::class)->call($accion)->assertHasErrors('seleccionados');
+            Livewire::test(Gastos::class)->set('motivoAnulacion', 'Registro incorrecto')->set('seleccionados', [(string) $activo, '99999'])
+                ->call($accion)->assertHasErrors('seleccionados');
+            Livewire::test(Gastos::class)->set('motivoAnulacion', 'Registro incorrecto')->set('seleccionados', [(string) $activo, (string) $anulado])
+                ->call($accion)->assertHasErrors('seleccionados');
+            Livewire::test(Gastos::class)->set('seleccionados', ['1', '1'])
+                ->call($accion)->assertHasErrors('seleccionados.0');
+        }
+        Livewire::test(Gastos::class)->set('seleccionados', [(string) $activo])
+            ->set('motivoAnulacion', str_repeat('x', 1001))->call('anularSeleccionados')
+            ->assertHasErrors('motivoAnulacion')->assertNotDispatched('gastos-accion-completada');
+
+        $this->assertSame('activo', DB::table('gastos')->find($activo)->estado);
+        $this->assertEquals(0, DB::table('gastos')->find($activo)->incluir_reporte_compras);
+        $this->assertSame('2026-10-18 10:00:00', DB::table('gastos')->find($anulado)->anulado_at);
+    }
+
+    public function test_traslado_individual_no_duplica_y_gasto_sigue_visible(): void
+    {
+        $id = $this->guardar();
+        Livewire::test(Gastos::class)->set('seleccionados', [(string) $id])
+            ->call('pasarACompras')->assertHasNoErrors()->assertDispatched('gastos-accion-completada')->assertSee('GASTO-001')
+            ->assertSee('Pasado al reporte de compras')
+            ->set('seleccionados', [(string) $id])->call('pasarACompras')
+            ->assertHasErrors('seleccionados');
+        $this->assertSame(1, DB::table('gastos')->count());
+        $this->assertSame(0, DB::table('compra')->count());
+        $this->assertCount(1, (new ComprasMesExport('2026-10'))->collection());
+        Livewire::test(Gastos::class)->set('seleccionados', [(string) $id])
+            ->set('motivoAnulacion', 'Registro incorrecto')
+            ->call('anularSeleccionados')->assertHasNoErrors()->assertSee('Anulado');
+        $this->assertCount(0, (new ComprasMesExport('2026-10'))->collection());
+    }
+
+    public function test_anulacion_exige_motivo_no_vacio_y_conserva_el_modal_si_falta(): void
+    {
+        $id = $this->guardar();
+        foreach (['', '   ', "\t\n"] as $motivo) {
+            Livewire::test(Gastos::class)->set('seleccionados', [(string) $id])
+                ->set('motivoAnulacion', $motivo)->call('anularSeleccionados')
+                ->assertHasErrors(['motivoAnulacion' => 'required'])
+                ->assertNotDispatched('gastos-accion-completada');
+            $gasto = DB::table('gastos')->find($id);
+            $this->assertSame('activo', $gasto->estado);
+            $this->assertNull($gasto->anulado_por);
+            $this->assertNull($gasto->anulado_at);
+            $this->assertNull($gasto->motivo_anulacion);
+        }
+        Livewire::test(Gastos::class)->set('seleccionados', [(string) $id])
+            ->set('motivoAnulacion', '  Documento duplicado  ')->call('anularSeleccionados')
+            ->assertHasNoErrors()->assertDispatched('gastos-accion-completada');
+        $this->assertSame('Documento duplicado', DB::table('gastos')->find($id)->motivo_anulacion);
+    }
+
+    public function test_acciones_y_exportacion_requieren_usuario_autenticado(): void
+    {
+        $id = $this->guardar();
+        Auth::logout();
+        foreach (['anularSeleccionados', 'pasarACompras', 'exportarExcel'] as $accion) {
+            Livewire::test(Gastos::class)->set('seleccionados', [(string) $id])
+                ->call($accion)->assertForbidden();
+        }
+        $this->assertSame('activo', DB::table('gastos')->find($id)->estado);
+        $this->assertEquals(0, DB::table('gastos')->find($id)->incluir_reporte_compras);
+    }
+
+    public function test_excel_gastos_incluye_estados_auditoria_y_filtro(): void
+    {
+        $this->travelTo(\Carbon\Carbon::parse('2026-10-19 23:58:12'));
+        $registrado = $this->guardar(['numero_factura' => 'REPORTE-REGISTRADO']);
+        $trasladado = $this->guardar(['numero_factura' => 'REPORTE-COMPRAS', 'incluir_reporte_compras' => true]);
+        $anulado = $this->guardar(['numero_factura' => 'REPORTE-ANULADO', 'incluir_reporte_compras' => true]);
+        $this->guardar(['numero_factura' => 'FUERA-DE-FILTRO']);
+        Livewire::test(Gastos::class)->set('seleccionados', [(string) $anulado])
+            ->set('motivoAnulacion', 'Error de registro')->call('anularSeleccionados')->assertHasNoErrors();
+        $export = new GastosExport([
+            'desde' => '2026-10-01', 'hasta' => '2026-10-31', 'factura' => 'REPORTE-', 'proveedor' => '',
+        ]);
+        $rows = $export->collection()->keyBy('id');
+        $this->assertCount(3, $rows);
+        $this->assertSame('Registrado', $rows['G-' . $registrado]['estado']);
+        $this->assertSame('Pasado al reporte de compras', $rows['G-' . $trasladado]['estado']);
+        $this->assertSame('Anulado', $rows['G-' . $anulado]['estado']);
+        $this->assertSame('Si', $rows['G-' . $anulado]['reporte_compras']);
+        $this->assertSame('Usuario prueba', $rows['G-' . $anulado]['anulado_por']);
+        $this->assertSame(now()->format('d/m/Y H:i:s'), $rows['G-' . $anulado]['anulado_at']);
+        $this->assertSame('Error de registro', $rows['G-' . $anulado]['motivo_anulacion']);
+        foreach ($rows as $row) {
+            $this->assertCount(count($export->headings()), $row);
+        }
+        $xlsx = \Maatwebsite\Excel\Facades\Excel::raw($export, \Maatwebsite\Excel\Excel::XLSX);
+        $this->assertStringStartsWith('PK', $xlsx);
+        $ruta = tempnam(sys_get_temp_dir(), 'gastos_excel_');
+        try {
+            file_put_contents($ruta, $xlsx);
+            $archivo = \PhpOffice\PhpSpreadsheet\IOFactory::load($ruta);
+            $sheet = $archivo->getActiveSheet();
+            $hoja = $sheet->toArray();
+            $this->assertSame($export->headings(), $hoja[4]);
+            $this->assertSame('Anulado', $hoja[5][11]);
+            $this->assertSame('Usuario prueba', $hoja[5][13]);
+            $this->assertSame('19/10/2026 23:58:12', $hoja[5][14]);
+            $this->assertSame('Pasado al reporte de compras', $hoja[6][11]);
+            $this->assertSame('REPORTE DE GASTOS', $sheet->getCell('A2')->getValue());
+            $this->assertStringContainsString('Usuario prueba', $sheet->getCell('A3')->getValue());
+            $this->assertSame('E07000', $sheet->getStyle('A5')->getFill()->getStartColor()->getRGB());
+            $this->assertSame('FFFFFF', $sheet->getStyle('A5')->getFont()->getColor()->getRGB());
+            $this->assertSame('FFF4E8', $sheet->getStyle('A6')->getFill()->getStartColor()->getRGB());
+            $this->assertSame('126B5B', $sheet->getStyle('K6')->getFont()->getColor()->getRGB());
+            $this->assertCount(1, $sheet->getDrawingCollection());
+            $this->assertSame('Logo Valencia', $sheet->getDrawingCollection()[0]->getName());
+            $this->assertSame('A1', $sheet->getDrawingCollection()[0]->getCoordinates());
+            $this->assertSame('A5:P8', $sheet->getAutoFilter()->getRange());
+            $this->assertSame('E6', $sheet->getFreezePane());
+            $this->assertFalse($sheet->getShowGridlines());
+            $this->assertSame(20.0, (float) $sheet->getCell('H6')->getValue());
+            $this->assertSame(160.0, (float) $sheet->getCell('I6')->getValue());
+            $this->assertSame('"L. " #,##0.00', $sheet->getStyle('H6')->getNumberFormat()->getFormatCode());
+            $archivo->disconnectWorksheets();
+        } finally {
+            unlink($ruta);
+        }
+        Livewire::test(Gastos::class)->set('filtros.factura', 'REPORTE-')->call('aplicarFiltros')->call('exportarExcel')
+            ->assertFileDownloaded('Gastos_20261019_235812.xlsx');
+        $this->travelBack();
+    }
+
+    public function test_excel_gastos_respeta_orden_e_importes_netos_por_tasa_y_preserva_documentos(): void
+    {
+        $id = $this->guardar([
+            'numero_factura' => '00001234', 'cai' => '00005678',
+            'productos' => [
+                ['nombre' => 'Exento', 'cantidad' => 2, 'precio' => '100.00',
+                    'isv_porcentaje' => 0, 'descuento_porcentaje' => 10],
+                ['nombre' => 'Gravado 15', 'cantidad' => 3, 'precio' => '20.00',
+                    'isv_porcentaje' => 15, 'descuento_porcentaje' => 50],
+                ['nombre' => 'Gravado 18', 'cantidad' => 1, 'precio' => '100.00',
+                    'isv_porcentaje' => 18, 'descuento_porcentaje' => 0],
+                ['nombre' => 'Gravado descontado', 'cantidad' => 1, 'precio' => '100.00',
+                    'isv_porcentaje' => 15, 'descuento_porcentaje' => 100],
+            ],
+        ]);
+        $export = new GastosExport([
+            'desde' => '2026-10-01', 'hasta' => '2026-10-31', 'factura' => '', 'proveedor' => '',
+        ]);
+        $this->assertSame([
+            'ID', 'Nombre del proveedor', 'CAI', 'Numero de documento', 'Fecha de emision',
+            'Fecha de recepcion', 'Fecha de vencimiento', 'Importe exento', 'Importe gravado', 'ISV', 'Total',
+        ], array_slice($export->headings(), 0, 11));
+        $row = $export->collection()->first();
+        $this->assertSame('G-' . $id, $row['id']);
+        $this->assertSame('Proveedor prueba', $row['proveedor']);
+        $this->assertSame(180.0, $row['importe_exento']);
+        $this->assertSame(130.0, $row['importe_gravado']);
+        $this->assertSame(22.5, $row['isv']);
+        $this->assertSame(332.5, $row['total']);
+        $this->assertSame($row['total'], $row['importe_exento'] + $row['importe_gravado'] + $row['isv']);
+
+        $ruta = tempnam(sys_get_temp_dir(), 'gastos_formato_');
+        try {
+            file_put_contents($ruta, \Maatwebsite\Excel\Facades\Excel::raw($export, \Maatwebsite\Excel\Excel::XLSX));
+            $archivo = \PhpOffice\PhpSpreadsheet\IOFactory::load($ruta);
+            $sheet = $archivo->getActiveSheet();
+            $this->assertSame('00005678', $sheet->getCell('C6')->getValue());
+            $this->assertSame('00001234', $sheet->getCell('D6')->getValue());
+            $this->assertSame('17/10/2026', $sheet->getCell('E6')->getValue());
+            $this->assertSame('s', $sheet->getCell('D6')->getDataType());
+            $this->assertSame('n', $sheet->getCell('H6')->getDataType());
+            $this->assertSame('n', $sheet->getCell('K6')->getDataType());
+            $archivo->disconnectWorksheets();
+        } finally {
+            unlink($ruta);
+        }
+    }
+
+    public function test_excel_gastos_sin_resultados_conserva_logo_y_encabezados(): void
+    {
+        $export = new GastosExport([
+            'desde' => '2026-10-01', 'hasta' => '2026-10-31', 'factura' => '', 'proveedor' => '',
+        ]);
+        $this->assertCount(0, $export->collection());
+        $ruta = tempnam(sys_get_temp_dir(), 'gastos_vacio_');
+        try {
+            file_put_contents($ruta, \Maatwebsite\Excel\Facades\Excel::raw($export, \Maatwebsite\Excel\Excel::XLSX));
+            $archivo = \PhpOffice\PhpSpreadsheet\IOFactory::load($ruta);
+            $sheet = $archivo->getActiveSheet();
+            $this->assertSame(5, $sheet->getHighestRow());
+            $this->assertSame($export->headings(), $sheet->toArray()[4]);
+            $this->assertCount(1, $sheet->getDrawingCollection());
+            $archivo->disconnectWorksheets();
+        } finally {
+            unlink($ruta);
+        }
+    }
+
+    public function test_guardado_solo_devuelve_el_registro_sin_crear_abonos(): void
     {
         $response = (new Gastos)->guardar(new Request($this->datos()));
         $data = $response->getData(true);
-        $this->assertSame(url('/gastos/imprimir/' . $data['gasto']['id']), $data['gasto']['impresion_url']);
+        $this->assertSame(201, $response->getStatusCode());
+        $this->assertSame(1, $data['gasto']['id']);
+        $this->assertArrayNotHasKey('impresion_url', $data['gasto']);
         $this->assertSame(0, DB::table('gasto_pagos')->count());
     }
 
-    public function test_pdf_multipagina_muestra_unidades_descuentos_y_totales_sin_abonos(): void
+    public function test_acciones_presentan_modales_sin_confirmacion_nativa(): void
     {
-        $id = $this->guardar(['incluir_reporte_compras' => true, 'productos' => array_fill(0, 60, [
-            'nombre' => 'Concepto extenso de gasto para impresion ' . str_repeat('1234567890', 8),
-            'cantidad' => 2, 'precio' => '100.00', 'isv_porcentaje' => 15,
-            'unidad_medida_id' => 2, 'descuento_porcentaje' => 10,
-        ])]);
-        $gasto = DB::table('gastos as g')->join('proveedores as p', 'p.id', '=', 'g.proveedor_id')
-            ->join('users as u', 'u.id', '=', 'g.usuario_id')->where('g.id', $id)
-            ->first(['g.*', 'p.nombre as proveedor', 'p.rtn', 'p.direccion', 'u.name as usuario']);
-        $lineas = DB::table('gasto_detalles as gd')->leftJoin('unidad_medida as um', 'um.id', '=', 'gd.unidad_medida_id')
-            ->where('gd.gasto_id', $id)->get(['gd.*', 'um.nombre as unidad_medida']);
-        $html = view('pdf.gasto', compact('gasto', 'lineas'))->render();
-        $this->assertStringContainsString('COMPROBANTE DE GASTO', $html);
-        $this->assertStringContainsString('RESMA', $html);
-        $this->assertStringContainsString('10.00%', $html);
-        $this->assertStringContainsString('12,420.00', $html);
-        $this->assertStringNotContainsString('Saldo', $html);
-        $this->assertStringNotContainsString('Abono', $html);
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.gasto', compact('gasto', 'lineas'))->setPaper('letter');
-        $bounds = [];
-        $pdf->getDomPDF()->setCallbacks([[
-            'event' => 'end_frame',
-            'f' => function ($frame) use (&$bounds) {
-                if (in_array($frame->get_node()->nodeName, ['td', 'th', '#text'], true)
-                    && trim($frame->get_node()->textContent) !== '') {
-                    $bounds[] = [$frame->get_position('x'), $frame->get_margin_width()];
-                }
-            },
-        ]]);
-        $contenido = $pdf->output();
-        $this->assertStringStartsWith('%PDF-', $contenido);
-        $this->assertGreaterThan(1, $pdf->getDomPDF()->getCanvas()->get_page_count());
-        foreach ($bounds as [$x, $width]) {
-            $this->assertGreaterThanOrEqual(27.5, $x);
-            $this->assertLessThanOrEqual(584.5, $x + $width);
+        $id = $this->guardar();
+        Livewire::test(Gastos::class)->set('seleccionados', [(string) $id])
+            ->assertSee('data-target="#modalAnularGastos"', false)
+            ->assertSee('data-target="#modalPasarComprasGastos"', false)
+            ->assertSee('wire:submit="anularSeleccionados"', false)
+            ->assertSee('wire:submit="pasarACompras"', false)
+            ->assertSee('Confirmar anulación')->assertSee('Confirmar traslado')
+            ->assertDontSee('wire:confirm', false);
+        $this->assertSame('activo', DB::table('gastos')->find($id)->estado);
+        $this->assertEquals(0, DB::table('gastos')->find($id)->incluir_reporte_compras);
+    }
+
+    public function test_filtros_del_mes_fechas_inclusivas_factura_y_proveedor_se_comparten_con_excel_y_seleccion(): void
+    {
+        DB::table('proveedores')->insert(['id' => 2, 'nombre' => 'Segundo proveedor', 'estado_id' => 1]);
+        $inicio = $this->guardar(['numero_factura' => 'FILTRO-INICIO', 'fecha_emision' => '2026-10-01']);
+        $fin = $this->guardar(['numero_factura' => 'FILTRO-FIN', 'fecha_emision' => '2026-10-31', 'fecha_vencimiento' => '2026-11-05']);
+        $this->guardar(['numero_factura' => 'OTRA-FACTURA']);
+        $this->guardar(['numero_factura' => 'FILTRO-OTRO-PROVEEDOR', 'seleccionarProveedorId' => 2]);
+        $septiembre = $this->guardar(['numero_factura' => 'FILTRO-SEPTIEMBRE', 'fecha_emision' => '2026-09-30']);
+        $this->guardar(['numero_factura' => 'FILTRO-NOVIEMBRE', 'fecha_emision' => '2026-11-01', 'fecha_vencimiento' => '2026-11-05']);
+
+        $component = Livewire::test(Gastos::class)
+            ->assertSet('filtros.desde', '2026-10-01')->assertSet('filtros.hasta', '2026-10-31')
+            ->assertSee('FILTRO-INICIO')->assertSee('FILTRO-FIN')
+            ->assertDontSee('FILTRO-SEPTIEMBRE')->assertDontSee('FILTRO-NOVIEMBRE')
+            ->set('filtros.factura', 'FILTRO-')->set('filtros.proveedor', '1')
+            ->assertSee('OTRA-FACTURA')
+            ->call('aplicarFiltros')->assertHasNoErrors()->assertDispatched('gastos-filtros-aplicados')
+            ->assertDontSee('OTRA-FACTURA')->assertDontSee('FILTRO-OTRO-PROVEEDOR')
+            ->set('seleccionarTodos', true)->assertSet('seleccionados', [(string) $inicio, (string) $fin]);
+
+        $export = new GastosExport($component->get('filtrosAplicados'));
+        $this->assertSame(['G-' . $fin, 'G-' . $inicio], $export->collection()->pluck('id')->all());
+        $component->set('filtros.desde', '2026-09-01')->set('filtros.hasta', '2026-09-30')
+            ->call('aplicarFiltros')->assertSet('seleccionados', [])
+            ->assertSee('FILTRO-SEPTIEMBRE')->assertDontSee('FILTRO-INICIO')
+            ->set('seleccionarTodos', true)->assertSet('seleccionados', [(string) $septiembre])
+            ->call('limpiarFiltros')->assertHasNoErrors()
+            ->assertSet('filtros.desde', '2026-10-01')->assertSet('filtros.hasta', '2026-10-31')
+            ->assertSet('filtros.factura', '')->assertSet('filtros.proveedor', '')
+            ->assertSet('seleccionados', [])->assertSee('OTRA-FACTURA');
+    }
+
+    public function test_filtros_invalidos_no_reemplazan_los_aplicados_ni_la_seleccion(): void
+    {
+        $id = $this->guardar();
+        foreach ([
+            ['desde', '', 'filtros.desde'],
+            ['desde', 'no-fecha', 'filtros.desde'],
+            ['hasta', '2026-09-30', 'filtros.hasta'],
+            ['proveedor', '99999', 'filtros.proveedor'],
+            ['factura', str_repeat('x', 256), 'filtros.factura'],
+        ] as [$campo, $valor, $error]) {
+            Livewire::test(Gastos::class)->set('seleccionarTodos', true)
+                ->set('filtros.' . $campo, $valor)->call('aplicarFiltros')->assertHasErrors($error)
+                ->assertSet('filtrosAplicados.desde', '2026-10-01')
+                ->assertSet('seleccionados', [(string) $id])->assertSee('GASTO-001');
         }
     }
 

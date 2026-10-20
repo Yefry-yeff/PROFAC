@@ -2,14 +2,18 @@
 
 namespace App\Livewire\Inventario;
 
+use App\Exports\GastosExport;
+use App\Models\Gasto;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
+use Livewire\Attributes\Locked;
 use Livewire\WithPagination;
+use Maatwebsite\Excel\Facades\Excel;
 
 class Gastos extends Component
 {
@@ -19,44 +23,166 @@ class Gastos extends Component
 
     protected $paginationTheme = 'bootstrap';
 
-    public string $buscar = '';
+    public array $filtros = [];
+    #[Locked]
+    public array $filtrosAplicados = [];
+    public array $seleccionados = [];
+    public bool $seleccionarTodos = false;
+    public string $motivoAnulacion = '';
 
-    public function updatedBuscar(): void
+    public function mount(): void
     {
+        $this->filtros = $this->filtrosAplicados = $this->filtrosDelMes();
+    }
+
+    private function filtrosDelMes(): array
+    {
+        return [
+            'desde' => now()->startOfMonth()->toDateString(),
+            'hasta' => now()->endOfMonth()->toDateString(),
+            'factura' => '', 'proveedor' => '',
+        ];
+    }
+
+    public function aplicarFiltros(): void
+    {
+        $this->validate([
+            'filtros.desde' => 'required|date_format:Y-m-d',
+            'filtros.hasta' => 'required|date_format:Y-m-d|after_or_equal:filtros.desde',
+            'filtros.factura' => 'nullable|string|max:255',
+            'filtros.proveedor' => 'nullable|integer|exists:proveedores,id',
+        ], [
+            'filtros.desde.required' => 'Indique la fecha de emision desde.',
+            'filtros.hasta.required' => 'Indique la fecha de emision hasta.',
+            'date_format' => 'Ingrese una fecha valida.',
+            'after_or_equal' => 'La fecha hasta no puede ser anterior a la fecha desde.',
+            'exists' => 'Seleccione un proveedor valido.',
+            'integer' => 'Seleccione un proveedor valido.',
+            'max' => 'El numero de factura no puede superar 255 caracteres.',
+        ]);
+        $this->filtrosAplicados = $this->filtros;
         $this->resetPage();
+        $this->limpiarSeleccion();
+        $this->dispatch('gastos-filtros-aplicados');
+    }
+
+    public function limpiarFiltros(): void
+    {
+        $this->filtros = $this->filtrosDelMes();
+        $this->aplicarFiltros();
+        $this->dispatch('gastos-proveedor-limpiado');
+    }
+
+    public function updatedSeleccionarTodos(bool $value): void
+    {
+        $this->seleccionados = $value
+            ? Gasto::reporte()->filtrar($this->filtrosAplicados)->where('gastos.estado', 'activo')
+                ->orderBy('gastos.id')->pluck('gastos.id')->map(fn ($id) => (string) $id)->all()
+            : [];
+        $this->seleccionarTodos = $value && count($this->seleccionados) > 0;
+        $this->resetValidation();
+    }
+
+    public function updatedSeleccionados(): void
+    {
+        $this->seleccionarTodos = count($this->seleccionados) > 0
+            && !Gasto::reporte()->filtrar($this->filtrosAplicados)->where('gastos.estado', 'activo')
+                ->whereNotIn('gastos.id', $this->seleccionados)->exists();
+        $this->resetValidation();
+    }
+
+    public function limpiarSeleccion(): void
+    {
+        $this->seleccionados = [];
+        $this->seleccionarTodos = false;
+        $this->motivoAnulacion = '';
+        $this->resetValidation();
+    }
+
+    public function anularSeleccionados(): void
+    {
+        $this->aplicarAccion(true);
+    }
+
+    public function pasarACompras(): void
+    {
+        $this->aplicarAccion(false);
+    }
+
+    private function aplicarAccion(bool $anular): void
+    {
+        abort_unless(Auth::check(), 403);
+        if ($anular) {
+            $this->motivoAnulacion = trim($this->motivoAnulacion);
+        }
+        $this->validate([
+            'seleccionados' => 'required|array|min:1',
+            'seleccionados.*' => 'required|integer|min:1|distinct',
+            'motivoAnulacion' => $anular ? 'required|string|max:1000' : 'nullable|string|max:1000',
+        ], [
+            'seleccionados.required' => 'Seleccione al menos un gasto.',
+            'seleccionados.min' => 'Seleccione al menos un gasto.',
+            'seleccionados.*.integer' => 'La seleccion de gastos no es valida.',
+            'seleccionados.*.distinct' => 'La seleccion contiene gastos repetidos.',
+            'motivoAnulacion.required' => 'El motivo de anulacion es obligatorio.',
+            'motivoAnulacion.max' => 'El motivo no puede superar 1000 caracteres.',
+        ]);
+
+        try {
+            $cantidad = DB::transaction(function () use ($anular) {
+                $gastos = Gasto::whereIn('id', $this->seleccionados)->orderBy('id')->lockForUpdate()->get();
+                if ($gastos->count() !== count($this->seleccionados)
+                    || $gastos->contains(fn ($gasto) => $gasto->estado !== 'activo')) {
+                    throw ValidationException::withMessages([
+                        'seleccionados' => 'Algun gasto ya fue anulado o no existe. Actualice la seleccion.',
+                    ]);
+                }
+
+                $query = Gasto::whereIn('id', $this->seleccionados);
+                if ($anular) {
+                    return $query->update([
+                        'estado' => 'anulado', 'anulado_por' => Auth::id(), 'anulado_at' => now(),
+                        'motivo_anulacion' => $this->motivoAnulacion,
+                        'updated_at' => now(),
+                    ]);
+                }
+
+                if (!$gastos->contains(fn ($gasto) => !$gasto->incluir_reporte_compras)) {
+                    throw ValidationException::withMessages([
+                        'seleccionados' => 'Los gastos seleccionados ya estan en el reporte de compras.',
+                    ]);
+                }
+
+                return $query->where('incluir_reporte_compras', false)->update([
+                    'incluir_reporte_compras' => true, 'updated_at' => now(),
+                ]);
+            });
+        } catch (QueryException $exception) {
+            report($exception);
+            $this->addError('seleccionados', 'No se pudo actualizar los gastos. Intente de nuevo.');
+            return;
+        }
+
+        $this->limpiarSeleccion();
+        session()->flash('gastos_mensaje', $anular
+            ? "Se anularon {$cantidad} gastos. Se registro el usuario y la fecha y hora."
+            : "Se pasaron {$cantidad} gastos al reporte de compras. Permanecen en este listado.");
+        $this->dispatch('gastos-accion-completada');
+    }
+
+    public function exportarExcel()
+    {
+        abort_unless(Auth::check(), 403);
+
+        return Excel::download(new GastosExport($this->filtrosAplicados), 'Gastos_' . now()->format('Ymd_His') . '.xlsx');
     }
 
     public function render()
     {
-        $gastos = DB::table('gastos as g')
-            ->join('proveedores as p', 'p.id', '=', 'g.proveedor_id')
-            ->where('g.incluir_reporte_compras', false)
-            ->when(trim($this->buscar) !== '', function ($query) {
-                $query->where(function ($query) {
-                    $query->where('g.numero_factura', 'like', '%' . trim($this->buscar) . '%')
-                        ->orWhere('p.nombre', 'like', '%' . trim($this->buscar) . '%');
-                });
-            })
-            ->select('g.*', 'p.nombre as proveedor')
-            ->orderByDesc('g.id')->paginate(20);
+        $gastos = Gasto::reporte()->filtrar($this->filtrosAplicados)->orderByDesc('gastos.id')->paginate(20);
+        $proveedores = DB::table('proveedores')->orderBy('nombre')->get(['id', 'nombre']);
 
-        return view('livewire.inventario.gastos', compact('gastos'));
-    }
-
-    public function imprimir(int $id)
-    {
-        $gasto = DB::table('gastos as g')
-            ->join('proveedores as p', 'p.id', '=', 'g.proveedor_id')
-            ->leftJoin('users as u', 'u.id', '=', 'g.usuario_id')
-            ->where('g.id', $id)
-            ->first(['g.*', 'p.nombre as proveedor', 'p.rtn', 'p.direccion', 'u.name as usuario']);
-        abort_unless($gasto, 404);
-        $lineas = DB::table('gasto_detalles as gd')
-            ->leftJoin('unidad_medida as um', 'um.id', '=', 'gd.unidad_medida_id')
-            ->where('gd.gasto_id', $id)->orderBy('gd.id')
-            ->get(['gd.*', 'um.nombre as unidad_medida']);
-        return Pdf::loadView('pdf.gasto', compact('gasto', 'lineas'))
-            ->setPaper('letter')->stream('gasto_' . $id . '.pdf');
+        return view('livewire.inventario.gastos', compact('gastos', 'proveedores'));
     }
 
     public function guardar(Request $request)
@@ -159,7 +285,7 @@ class Gastos extends Component
 
         return response()->json([
             'message' => 'Gasto registrado correctamente.',
-            'gasto' => ['id' => $id, 'impresion_url' => url('/gastos/imprimir/' . $id)],
+            'gasto' => ['id' => $id],
         ], 201);
     }
 }
