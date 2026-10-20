@@ -42,8 +42,20 @@ Marcada: aparece tambien en el listado de Compras y su Excel mensual.
 Todos los gastos permanecen en `/gastos`, incluso trasladados y anulados.
 Los incluidos en Compras llevan prefijos `G-` / `GASTO-` para distinguirlos
 de compras con el mismo ID, sin acciones de recepcion, abono o anulacion de compra.
-El Excel de compras respeta mes y anio, no exporta debito para estos gastos
-y agrega Estado para identificar "Pasado al reporte de compras".
+El Excel de compras respeta mes y anio y usa exclusivamente estas columnas:
+200-RTN, 600-Clase de documento, 7-CAI, 8-Numero de documento,
+71-Nombre del proveedor, 900-Fecha emision, 100-Fecha contable,
+110-Importe exento, 1511-Importe base 15%, 270-Monto al costo y 280-Monto al gasto.
+Compras y gastos usan FA; OC queda reservado para otros comprobantes aun no definidos.
+La fecha contable es igual a la emision. Los importes suman los subtotales netos
+de los productos, sin ISV: tasa 0 para exento y tasa 15 para base 15%.
+En compras se usa la tasa del producto del catalogo y el subtotal persistido del
+detalle; en gastos, la tasa y el subtotal neto persistidos por linea.
+La base del 18% se excluye de todos estos importes. Tanto costo como gasto
+son exento + base 15%, sin distribuirlos por origen ni sumar el impuesto.
+RTN, CAI y factura se conservan como texto; los cuatro importes son numericos
+con dos decimales. Este formato sustituye las columnas anteriores del Excel
+de compras, no modifica el Excel independiente de gastos ni la auditoria.
 El reporte de compras usa cabecera naranja, acentos verdes y un modal de filtros
 como Gastos: emision desde/hasta inclusivas (mes vigente por defecto), factura
 parcial y proveedor con Select2. Los filtros se aplican a compras activas y

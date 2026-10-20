@@ -366,10 +366,10 @@ class GastosTest extends TestCase
         $this->assertCount(2, $datos);
         $gastoExportado = $datos->last();
         $this->assertSame('GASTO-EN-COMPRAS', $gastoExportado['numero_factura']);
-        $this->assertEquals(207, $gastoExportado['total']);
-        $this->assertNull($gastoExportado['debito']);
-        $this->assertSame('Pasado al reporte de compras', $gastoExportado['estado']);
-        $this->assertSame('Compra', $datos->first()['estado']);
+        $this->assertEquals(20, $gastoExportado['importe_exento']);
+        $this->assertEquals(60, $gastoExportado['base_15']);
+        $this->assertSame('FA', $gastoExportado['clase_documento']);
+        $this->assertSame('FA', $datos->first()['clase_documento']);
         $this->assertCount(count($export->headings()), $gastoExportado);
         $xlsx = \Maatwebsite\Excel\Facades\Excel::raw($export, \Maatwebsite\Excel\Excel::XLSX);
         $this->assertStringStartsWith('PK', $xlsx);
@@ -526,7 +526,7 @@ class GastosTest extends TestCase
             ->assertSee('Segundo usuario')->assertSee('20/10/2026 02:00:00')
             ->set('seleccionados', [(string) $id])->call('quitarDeCompras')->assertHasErrors('seleccionados');
         $this->assertEquals(0, DB::table('gastos')->find($id)->incluir_reporte_compras);
-        $this->assertFalse((new ComprasMesExport('2026-10'))->collection()->contains('id', 'G-' . $id));
+        $this->assertFalse((new ComprasMesExport('2026-10'))->collection()->contains('numero_factura', DB::table('gastos')->find($id)->numero_factura));
         $evento = DB::table('gasto_auditoria')->where('gasto_id', $id)->where('accion', 'quitar_compras')->first();
         $this->assertSame(2, $evento->usuario_id);
         $this->assertTrue(json_decode($evento->antes, true)['incluir_reporte_compras']);
@@ -610,6 +610,74 @@ class GastosTest extends TestCase
             } catch (ValidationException $exception) {
                 $this->assertNotEmpty($exception->errors());
             }
+        }
+    }
+
+    public function test_excel_compras_formato_fiscal_importes_por_producto_y_ceros_iniciales(): void
+    {
+        $this->crearCompraDePrueba();
+        $detalle = (array) DB::table('compra_has_producto')->first();
+        foreach ([2 => 0, 3 => 18] as $id => $tasa) {
+            $producto = (array) DB::table('producto')->find(1);
+            $producto['id'] = $id;
+            $producto['isv'] = $tasa;
+            DB::table('producto')->insert($producto);
+            DB::table('compra_has_producto')->insert(array_replace($detalle, [
+                'producto_id' => $id, 'sub_total_producto' => $id === 2 ? 40 : 100,
+                'isv' => $id === 2 ? 0 : 18, 'precio_total' => $id === 2 ? 40 : 118,
+            ]));
+        }
+        DB::table('compra')->where('id', 1)->update([
+            'numero_factura' => '001-002-01-00000001', 'codigo_cai' => '000123',
+            'sub_total' => 999, 'total' => 999,
+        ]);
+        $this->guardar(['numero_factura' => 'G-FISCAL', 'cai' => '000456', 'incluir_reporte_compras' => true,
+            'productos' => [
+                ['nombre' => 'Exento', 'cantidad' => 2, 'precio' => '10.00', 'descuento_porcentaje' => 10, 'isv_porcentaje' => 0],
+                ['nombre' => 'Base 15', 'cantidad' => 3, 'precio' => '20.00', 'descuento_porcentaje' => 25, 'isv_porcentaje' => 15],
+                ['nombre' => 'Base 18 excluida', 'cantidad' => 2, 'precio' => '100.00', 'isv_porcentaje' => 18],
+            ]]);
+        $this->guardar(['numero_factura' => 'SOLO-18', 'incluir_reporte_compras' => true,
+            'productos' => [
+                ['nombre' => 'Solo 18', 'cantidad' => 1, 'precio' => '100.00', 'isv_porcentaje' => 18],
+            ]]);
+        $export = new ComprasMesExport('2026-10');
+        $this->assertSame([
+            '200-RTN', '600-Clase de documento', '7-CAI',
+            '8-Nº documento (establecimiento - punto de emisión - tipo documento - correlativo)',
+            '71-Nº Nombre del proveedor', '900-Fecha emisión', '100-Fecha contable',
+            '110-Importe exento', '1511-Importe base 15%', '270-Monto al costo', '280-Monto al gasto',
+        ], $export->headings());
+        [$compra, $gasto, $solo18] = $export->collection()->all();
+        $this->assertCount(11, $compra);
+        $this->assertCount(11, $gasto);
+        $this->assertSame('08011999000001', $compra['rtn']);
+        $this->assertSame('Proveedor prueba', $compra['proveedor']);
+        $this->assertSame('FA', $compra['clase_documento']);
+        $this->assertSame('FA', $gasto['clase_documento']);
+        $this->assertSame('17/10/2026', $compra['fecha_emision']);
+        $this->assertSame($compra['fecha_emision'], $compra['fecha_contable']);
+        $this->assertSame($gasto['fecha_emision'], $gasto['fecha_contable']);
+        $this->assertSame([40.0, 240.0, 280.0, 280.0], array_values(array_slice($compra, 7)));
+        $this->assertSame([18.0, 45.0, 63.0, 63.0], array_values(array_slice($gasto, 7)));
+        $this->assertSame([0.0, 0.0, 0.0, 0.0], array_values(array_slice($solo18, 7)));
+        $xlsx = \Maatwebsite\Excel\Facades\Excel::raw($export, \Maatwebsite\Excel\Excel::XLSX);
+        $archivo = tempnam(sys_get_temp_dir(), 'compras-fiscal-');
+        try {
+            file_put_contents($archivo, $xlsx);
+            $libro = \PhpOffice\PhpSpreadsheet\IOFactory::load($archivo);
+            $hoja = $libro->getActiveSheet();
+            $this->assertSame(11, \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($hoja->getHighestColumn()));
+            $this->assertSame('08011999000001', $hoja->getCell('A2')->getValue());
+            $this->assertSame('000123', $hoja->getCell('C2')->getValue());
+            $this->assertSame('001-002-01-00000001', $hoja->getCell('D2')->getValue());
+            $this->assertSame('s', $hoja->getCell('A2')->getDataType());
+            $this->assertSame('n', $hoja->getCell('H2')->getDataType());
+            $this->assertEquals(0, $hoja->getCell('H4')->getValue());
+            $this->assertSame('#,##0.00', $hoja->getStyle('K3')->getNumberFormat()->getFormatCode());
+            $libro->disconnectWorksheets();
+        } finally {
+            unlink($archivo);
         }
     }
 
