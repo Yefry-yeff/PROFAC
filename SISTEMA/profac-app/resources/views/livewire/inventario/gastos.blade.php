@@ -18,6 +18,7 @@
         .gastos-reporte .table thead th { background:#f3f6f7; color:#52636a; border-bottom:2px solid #dce4e6; white-space:nowrap; }
         .gastos-reporte .table td { vertical-align:middle; }
         .gastos-reporte input[type=checkbox] { accent-color:#16856f; width:16px; height:16px; vertical-align:middle; cursor:pointer; }
+        .gastos-reporte input[type=checkbox].gastos-checkbox-anulado { appearance:none; background:#dfe3e6; border:1px solid #b0b8bf; border-radius:2px; cursor:not-allowed; opacity:1; }
         .gastos-reporte .gastos-estado { display:inline-block; padding:5px 9px; border-radius:12px; font-size:11px; font-weight:700; }
         .gastos-reporte .gastos-registrado { background:#e8f5f1; color:#126b5b; }
         .gastos-reporte .gastos-compras { background:#fff0e4; color:#9c4609; }
@@ -95,6 +96,8 @@
                             x-bind:aria-expanded="historial === {{ $gasto->id }}"
                             aria-controls="cambiosGasto{{ $gasto->id }}">
                             <td x-on:click.stop x-on:keydown.stop><input type="checkbox" aria-label="Seleccionar gasto G-{{ $gasto->id }}" value="{{ $gasto->id }}"
+                                class="{{ $gasto->estado === 'anulado' ? 'gastos-checkbox-anulado' : '' }}"
+                                title="{{ $gasto->estado === 'anulado' ? 'Gasto anulado: seleccion bloqueada' : 'Seleccionar gasto' }}"
                                 wire:model.live="seleccionados" wire:loading.attr="disabled" @disabled($gasto->estado !== 'activo')></td>
                             <td>G-{{ $gasto->id }}</td><td>{{ $gasto->numero_factura }}</td><td>{{ $gasto->proveedor }}</td>
                             <td>{{ $gasto->fecha_emision }}</td><td class="gastos-total">L. {{ number_format($gasto->total, 2) }}</td>
