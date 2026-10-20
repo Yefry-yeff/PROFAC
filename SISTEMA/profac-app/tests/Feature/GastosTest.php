@@ -572,6 +572,47 @@ class GastosTest extends TestCase
         $this->assertCount(2, (new ComprasMesExport('2026-10'))->collection());
     }
 
+    public function test_filtros_compras_se_aplican_a_compras_gastos_y_excel_con_limites_inclusivos(): void
+    {
+        $this->crearCompraDePrueba();
+        DB::table('compra')->where('id', 1)->update(['numero_factura' => 'MATCH-COMPRA', 'fecha_emision' => '2026-09-30']);
+        DB::table('proveedores')->insert(['id' => 2, 'nombre' => 'Otro proveedor', 'estado_id' => 1]);
+        $this->guardar(['numero_factura' => 'MATCH-GASTO', 'incluir_reporte_compras' => true]);
+        $this->guardar(['numero_factura' => 'MATCH-OTRO', 'incluir_reporte_compras' => true, 'seleccionarProveedorId' => 2]);
+        $this->guardar(['numero_factura' => 'NO-COINCIDE', 'incluir_reporte_compras' => true]);
+        $this->guardar(['numero_factura' => 'MATCH-FUERA', 'incluir_reporte_compras' => true,
+            'fecha_emision' => '2026-10-18']);
+        $this->guardar(['numero_factura' => 'MATCH-SOLO-GASTOS']);
+        $anulado = $this->guardar(['numero_factura' => 'MATCH-ANULADO', 'incluir_reporte_compras' => true]);
+        DB::table('gastos')->where('id', $anulado)->update(['estado' => 'anulado']);
+        $filtros = ['desde' => '2026-09-30', 'hasta' => '2026-10-17', 'factura' => 'MATCH-', 'proveedor' => '1'];
+        $response = (new ListarCompras)->listarCompras(new Request($filtros));
+        $this->assertSame(200, $response->getStatusCode());
+        $facturas = collect($response->getData(true)['data'])->pluck('numero_factura')->sort()->values()->all();
+        $this->assertSame(['MATCH-COMPRA', 'MATCH-GASTO'], $facturas);
+        $export = new ComprasMesExport($filtros);
+        $this->assertSame($facturas, $export->collection()->pluck('numero_factura')->sort()->values()->all());
+        $actual = (new ListarCompras)->listarCompras(new Request());
+        $this->assertNotContains('MATCH-COMPRA', collect($actual->getData(true)['data'])->pluck('numero_factura')->all());
+        DB::table('compra')->where('id', 1)->update(['estado_compra_id' => 2]);
+        $this->assertSame(['MATCH-GASTO'], (new ComprasMesExport($filtros))->collection()->pluck('numero_factura')->all());
+    }
+
+    public function test_reporte_compras_rechaza_filtros_invalidos(): void
+    {
+        foreach ([
+            ['desde' => 'no-fecha'], ['hasta' => '2026-09-01'], ['proveedor' => '99999'],
+            ['factura' => str_repeat('x', 256)],
+        ] as $filtros) {
+            try {
+                (new ListarCompras)->listarCompras(new Request($filtros));
+                $this->fail('Se aceptaron filtros invalidos.');
+            } catch (ValidationException $exception) {
+                $this->assertNotEmpty($exception->errors());
+            }
+        }
+    }
+
     public function test_excel_gastos_incluye_estados_auditoria_y_filtro(): void
     {
         $this->travelTo(\Carbon\Carbon::parse('2026-10-19 23:58:12'));

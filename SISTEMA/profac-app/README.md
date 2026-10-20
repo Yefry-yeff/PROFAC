@@ -44,6 +44,14 @@ Los incluidos en Compras llevan prefijos `G-` / `GASTO-` para distinguirlos
 de compras con el mismo ID, sin acciones de recepcion, abono o anulacion de compra.
 El Excel de compras respeta mes y anio, no exporta debito para estos gastos
 y agrega Estado para identificar "Pasado al reporte de compras".
+El reporte de compras usa cabecera naranja, acentos verdes y un modal de filtros
+como Gastos: emision desde/hasta inclusivas (mes vigente por defecto), factura
+parcial y proveedor con Select2. Los filtros se aplican a compras activas y
+gastos activos incluidos en compras. El boton Excel exporta exactamente ese
+rango y criterios, incluso si abarca varios meses; la ruta mensual anterior
+continua disponible. "Limpiar" restaura el mes vigente y borra factura/proveedor.
+Se conservan las acciones de detalle, recepcion, pagos, incidencias y anulacion
+de compras con sus restricciones existentes.
 
 El reporte de gastos usa la cabecera naranja y acentos verdes del sistema.
 Permite seleccionar uno o varios gastos activos. El checkbox del encabezado

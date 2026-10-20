@@ -3,6 +3,7 @@
 namespace App\Exports;
 
 use App\Models\ModelCompra;
+use App\Support\FiltrosCompras;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
@@ -11,9 +12,17 @@ use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 class ComprasMesExport implements FromCollection, WithHeadings, ShouldAutoSize
 {
     
-    public function __construct(private string $mes)
+    private array $filtros;
+
+    public function __construct(string|array $mes)
     {
-        validator(['mes' => $mes], ['mes' => 'required|date_format:Y-m'])->validate();
+        if (is_string($mes)) {
+            validator(['mes' => $mes], ['mes' => 'required|date_format:Y-m'])->validate();
+            $fecha = \Carbon\Carbon::createFromFormat('!Y-m', $mes);
+            $mes = ['desde' => $fecha->copy()->startOfMonth()->toDateString(),
+                'hasta' => $fecha->copy()->endOfMonth()->toDateString()];
+        }
+        $this->filtros = FiltrosCompras::validar($mes);
     }
 
 
@@ -22,12 +31,13 @@ class ComprasMesExport implements FromCollection, WithHeadings, ShouldAutoSize
     */
     public function collection(): \Illuminate\Support\Enumerable
     {
-        [$anio, $mes] = explode('-', $this->mes);
-        $compras = ModelCompra::select("id","numero_factura","codigo_cai","fecha_vencimiento","fecha_emision","fecha_recepcion","isv_compra","sub_total","total","debito","numero_orden")
-            ->whereYear('fecha_emision', $anio)->whereMonth('fecha_emision', $mes)->get()
+        $compras = FiltrosCompras::aplicar(
+            ModelCompra::select("id","numero_factura","codigo_cai","fecha_vencimiento","fecha_emision","fecha_recepcion","isv_compra","sub_total","total","debito","numero_orden")
+                ->where('estado_compra_id', 1), $this->filtros, 'compra', 'proveedores_id')->get()
             ->map(fn ($compra) => array_merge($compra->toArray(), ['estado' => 'Compra']));
-        $gastos = DB::table('gastos')->where('incluir_reporte_compras', true)->where('estado', 'activo')
-            ->whereYear('fecha_emision', $anio)->whereMonth('fecha_emision', $mes)
+        $gastos = FiltrosCompras::aplicar(
+            DB::table('gastos')->where('incluir_reporte_compras', true)->where('estado', 'activo'),
+            $this->filtros, 'gastos', 'proveedor_id')
             ->orderBy('id')->get()->map(fn ($gasto) => [
                 'id' => 'G-' . $gasto->id, 'numero_factura' => $gasto->numero_factura,
                 'codigo_cai' => $gasto->cai, 'fecha_vencimiento' => $gasto->fecha_vencimiento,
