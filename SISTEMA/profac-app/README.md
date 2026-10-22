@@ -1,5 +1,44 @@
 //*****comandos utiles****
 
+### Correo de codigos de autorizacion
+
+`POST /ventas/solicitud/codigo` envia el correo antes de confirmar el registro
+del codigo. Si el transporte SMTP falla, revierte ese registro, registra la
+excepcion en Laravel y responde HTTP 503 con un mensaje para el usuario.
+La pantalla de facturacion muestra ese mensaje y permite reintentar.
+
+Si el log indica `certificate verify failed`, revisar la cadena del certificado
+del servidor de correo y las autoridades de confianza de OpenSSL en el PHP
+que ejecuta la aplicacion. En Laragon, configurar en su `php.ini` activo:
+
+```ini
+openssl.cafile="C:\laragon\etc\ssl\cacert.pem"
+```
+
+El archivo debe existir y contener certificados CA vigentes y confiables.
+`curl.cainfo` no configura las conexiones SMTP de OpenSSL. Reiniciar el
+servidor PHP despues del cambio (incluido `php artisan serve` si se utiliza).
+No desactivar la verificacion del certificado ni del nombre del servidor.
+
+### Inventario al editar facturas
+
+SR Gobierno guarda por `POST /ventas/estatal/guardar`; SR Precio por
+`POST /ventas/corporativo/guardar`. El endpoint `/exonerado/venta/guardar`
+corresponde a facturas exoneradas, no a todas las ventas SR.
+
+En `editar_factura`, tanto la seleccion de bodega como la validacion de
+guardado suman `venta_has_producto.numero_unidades_resta_inventario` de la
+factura original, filtrando por producto y seccion. Son unidades base por
+lote: no sumar `cantidad` ni `resta_inventario_total`, que se repiten entre
+lotes. `resta_inventario` pertenece a la reserva de prefacturas y no existe
+en el detalle de ventas. La correccion no requiere una migracion.
+
+Pruebas: `php artisan test tests\Feature\InventarioEdicionFacturaTest.php`.
+Requieren una base MySQL vacia y aislada, indicada en
+`INVENTARIO_EDICION_TEST_MYSQL_DATABASE`, cuyo nombre cumpla
+`profac_inventario_edicion_<hex>_testing`. Las pruebas recrean sus tablas;
+sin esa variable se omiten para no utilizar la base de la aplicacion.
+
 ### Compras y gastos independientes
 
 En `/producto/compra`, el selector Nueva compra / Nuevo gasto conserva el
