@@ -147,7 +147,7 @@
     .swal2-popup.swal-gestor-popup {
         padding:0;
         border-radius:10px;
-        overflow:hidden;
+        overflow:visible;
         background:#fff;
     }
     .swal-gestor-popup .swal2-html-container { margin:0; }
@@ -158,6 +158,7 @@
         font-weight:700;
         padding:14px 20px;
         text-align:left;
+        border-radius:10px 10px 0 0;
     }
     .fmp-gestor-body { padding:20px; text-align:left; }
     .fmp-gestor-desc { color:#6c757d; font-size:12px; margin:0 0 12px; }

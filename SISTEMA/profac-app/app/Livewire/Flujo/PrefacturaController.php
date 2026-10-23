@@ -1187,7 +1187,7 @@ class PrefacturaController
 
         $seccionExpo = DB::table('expo_oferta_seccion')
             ->where('prefactura_id', $id)
-            ->first(['cotizacion_origen_id']);
+            ->first(['flujo_id', 'numero', 'cotizacion_origen_id']);
         $esOfertaExpo = (bool) $seccionExpo || DB::table('expo_cotizacion')
             ->where('cotizacion_id', (int) $pf->cotizacion_id)
             ->exists();
@@ -1234,12 +1234,19 @@ class PrefacturaController
             return response()->json(['error' => 'La prefactura no tiene productos.'], 422);
         }
 
-        $cambiosEscala = $esOfertaExpo
-            ? $this->obtenerCambiosEscalaOfertaExpo(
-                $productos,
-                (int) ($seccionExpo->cotizacion_origen_id ?? $pf->cotizacion_id)
-            )
-            : $this->obtenerCambiosEscalaPrefactura($productos);
+        $permitePrecioInferior = (int) ($pf->flujo_id ?? 0) === 4487
+            && (int) ($seccionExpo->flujo_id ?? 0) === 4487
+            && in_array((int) ($seccionExpo->numero ?? 0), [1, 2], true);
+
+        $cambiosEscala = [];
+        if (!$permitePrecioInferior) {
+            $cambiosEscala = $esOfertaExpo
+                ? $this->obtenerCambiosEscalaOfertaExpo(
+                    $productos,
+                    (int) ($seccionExpo->cotizacion_origen_id ?? $pf->cotizacion_id)
+                )
+                : $this->obtenerCambiosEscalaPrefactura($productos);
+        }
         if (!empty($cambiosEscala)) {
             return $this->respuestaCambiosEscalaPrefactura($cambiosEscala);
         }
