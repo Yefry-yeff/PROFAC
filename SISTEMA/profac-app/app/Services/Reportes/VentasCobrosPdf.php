@@ -126,10 +126,18 @@ class VentasCobrosPdf
 
     private function header(Canvas $canvas, string $font, string $bold, array $widths, string $month, string $generated): float
     {
-        $canvas->image(public_path('img' . DIRECTORY_SEPARATOR . 'membrete' . DIRECTORY_SEPARATOR . 'Logo3.png'), self::MARGIN, self::MARGIN, 75, 35);
-        $canvas->text(110, 18, 'DISTRIBUCIONES VALENCIA - RTN: 08011986138652', $bold, 10, [0.1, 0.23, 0.36]);
-        $canvas->text(110, 33, 'REPORTE DE VENTAS Y COBROS', $bold, 9);
-        $canvas->text(110, 46, 'Generado: ' . $generated, $font, 7);
+        $logo = public_path('img' . DIRECTORY_SEPARATOR . 'membrete' . DIRECTORY_SEPARATOR . 'Logo3.png');
+        $dimensions = getimagesize($logo);
+        if ($dimensions === false) {
+            throw new \RuntimeException('No se pudieron leer las dimensiones del logo del reporte.');
+        }
+        $logoHeight = 35;
+        $logoWidth = $logoHeight * $dimensions[0] / $dimensions[1];
+        $textX = self::MARGIN + $logoWidth + 18;
+        $canvas->image($logo, self::MARGIN, self::MARGIN, $logoWidth, $logoHeight);
+        $canvas->text($textX, 18, 'DISTRIBUCIONES VALENCIA - RTN: 08011986138652', $bold, 10, [0.1, 0.23, 0.36]);
+        $canvas->text($textX, 33, 'REPORTE DE VENTAS Y COBROS', $bold, 9);
+        $canvas->text($textX, 46, 'Generado: ' . $generated, $font, 7);
         $canvas->filled_rectangle(self::MARGIN, 63, array_sum($widths), 15, [0.1, 0.23, 0.36]);
         $canvas->text(self::MARGIN + 4, 65, $month, $bold, 8, [1, 1, 1]);
         $x = self::MARGIN;

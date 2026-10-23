@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Livewire\Reportes\ReporteVentasCobros;
 use App\Services\Reportes\VentasCobrosPdf;
+use Dompdf\Canvas;
 use Dompdf\Dompdf;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Http\Request;
@@ -85,6 +86,33 @@ class VentasCobrosPdfTest extends TestCase
         foreach ([[], [$this->row()]] as $rows) {
             $this->assertStringStartsWith('%PDF-', app(VentasCobrosPdf::class)->generar($rows));
         }
+    }
+
+    public function test_logo_conserva_proporcion_y_no_se_superpone_al_encabezado(): void
+    {
+        $dompdf = app(Dompdf::class);
+        $font = $dompdf->getFontMetrics()->getFont('DejaVu Sans');
+        $bold = $dompdf->getFontMetrics()->getFont('DejaVu Sans', 'bold');
+        $canvas = \Mockery::mock(Canvas::class)->shouldIgnoreMissing();
+        $logoRight = 0;
+        $canvas->shouldReceive('image')->once()->withArgs(function ($path, $x, $y, $width, $height) use (&$logoRight) {
+            [$originalWidth, $originalHeight] = getimagesize($path);
+            $this->assertEqualsWithDelta($originalWidth / $originalHeight, $width / $height, 0.001);
+            $this->assertGreaterThan(300, $width);
+            $this->assertLessThan(63, $y + $height);
+            $logoRight = $x + $width;
+            return true;
+        });
+        $canvas->shouldReceive('get_text_width')->andReturn(1);
+        $canvas->shouldReceive('text')->withArgs(function ($x, $y, $text, $font, $size, ...$options) use (&$logoRight, $dompdf) {
+            if ($y < 63) {
+                $this->assertGreaterThan($logoRight, $x);
+                $this->assertLessThanOrEqual(990, $x + $dompdf->getCanvas()->get_text_width($text, $font, $size));
+            }
+            return true;
+        });
+        $method = new \ReflectionMethod(VentasCobrosPdf::class, 'header');
+        $method->invoke(app(VentasCobrosPdf::class), $canvas, $font, $bold, array_fill(0, 31, 30), 'OCTUBRE 2026', '23/10/2026 01:22');
     }
 
     public function test_pagina_por_mes_y_conserva_textos_que_superan_una_pagina(): void
