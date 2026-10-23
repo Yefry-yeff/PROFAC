@@ -538,16 +538,11 @@ function _exportarForm(url) {
     form.submit();
     form.remove();
 }
-function exportarPdf() {
+async function exportarPdf() {
     var f   = getFiltros();
     var tok = $('meta[name="csrf-token"]').attr('content');
-    var downloadToken = 'vcpdf_' + Date.now() + '_' + Math.floor(Math.random() * 1000000);
-    var cookieName = 'vc_pdf_download_token';
-    document.cookie = cookieName + '=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/';
-
-    var form = $('<form method="POST"></form>').attr('action', '/reporte/ventas-cobros/exportar-pdf/null/null/null/null');
     var fields = {
-        _token: tok, download_token: downloadToken,
+        _token: tok,
         vendedor: f.vendedor || '', teleasesor: f.teleasesor || '', cliente: f.cliente || '',
         factura: f.factura || '', fecha_desde: f.fecha_desde || '',
         fecha_hasta: f.fecha_hasta || '', fecha_pago_desde: f.fecha_pago_desde || '',
@@ -555,9 +550,6 @@ function exportarPdf() {
         estado_f01: f.estado_f01 || '', modo_pago: f.modo_pago || '',
         banco: f.banco || '', cuenta: f.cuenta || ''
     };
-    $.each(fields, function(k, v) { form.append($('<input type="hidden">').attr('name', k).val(v)); });
-    $('body').append(form);
-
     Swal.fire({
         title: 'Generando PDF',
         html: 'Preparando documento...<br><small>Este proceso puede tardar varios minutos.</small>',
@@ -565,25 +557,30 @@ function exportarPdf() {
         didOpen: function() { Swal.showLoading(); }
     });
 
-    var startedAt = Date.now();
-    var timer = setInterval(function() {
-        var prefix = cookieName + '=', val = '';
-        document.cookie.split(';').forEach(function(c) {
-            var t = c.trim();
-            if (t.indexOf(prefix) === 0) val = decodeURIComponent(t.substring(prefix.length));
+    try {
+        var response = await fetch('/reporte/ventas-cobros/exportar-pdf/null/null/null/null', {
+            method: 'POST',
+            headers: { 'Accept': 'application/pdf, application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            body: new URLSearchParams(fields)
         });
-        if (val === downloadToken) {
-            clearInterval(timer);
-            document.cookie = cookieName + '=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/';
-            Swal.close();
-        } else if (Date.now() - startedAt > 15 * 60 * 1000) {
-            clearInterval(timer);
-            Swal.fire({ icon: 'warning', title: 'Demora en descarga', text: 'La generación sigue en proceso. Intenta nuevamente.' });
+        if (!response.ok || !(response.headers.get('Content-Type') || '').includes('application/pdf')) {
+            throw new Error('No se pudo generar el PDF. Intente nuevamente o contacte al administrador.');
         }
-    }, 400);
-
-    form.trigger('submit');
-    setTimeout(function() { form.remove(); }, 1500);
+        var url = URL.createObjectURL(await response.blob());
+        var link = document.createElement('a');
+        link.href = url;
+        var disposition = response.headers.get('Content-Disposition') || '';
+        var filename = disposition.match(/filename="([^"]+)"/);
+        link.download = filename ? filename[1] : 'ReporteVentasCobros.pdf';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(function() { URL.revokeObjectURL(url); }, 60000);
+        Swal.close();
+    } catch (error) {
+        console.error('Error al exportar PDF de ventas y cobros:', error);
+        Swal.fire({ icon: 'error', title: 'Error al generar PDF', text: error.message });
+    }
 }
 function _vcProgressHtml(pct, msg) {
     var safe = Math.max(3, Math.min(100, parseInt(pct, 10) || 3));

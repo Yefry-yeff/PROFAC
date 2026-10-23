@@ -6,7 +6,7 @@ use Livewire\Component;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Yajra\DataTables\DataTables;
-use Barryvdh\DomPDF\Facade\Pdf;
+use App\Services\Reportes\VentasCobrosPdf;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\ReporteVentasCobrosExport;
 use Illuminate\Support\Facades\Auth;
@@ -1112,13 +1112,11 @@ class ReporteVentasCobros extends Component
                 $this->norm($request->input('fecha_pago_hasta')),
                 $this->norm($request->input('teleasesor'))
             );
-            $item = 0;
-            foreach ($rows as &$r) { $r->item = ++$item; }
-
-            $pdf = Pdf::loadView('pdf.reporteventascobros', compact('rows'))
-                      ->setPaper('legal', 'landscape');
-
-            $response = $pdf->download("ReporteVentasCobros_" . now()->format('Y-m-d') . ".pdf");
+            $contenido = app(VentasCobrosPdf::class)->generar($rows);
+            $response = response($contenido, 200, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'attachment; filename="ReporteVentasCobros_' . now()->format('Y-m-d') . '.pdf"',
+            ]);
 
             $downloadToken = (string) $request->input('download_token', '');
             if ($downloadToken !== '') {
@@ -1127,7 +1125,8 @@ class ReporteVentasCobros extends Component
 
             return $response;
         } catch (\Throwable $e) {
-            return response()->json(['message' => $e->getMessage()], 500);
+            report($e);
+            return response()->json(['message' => 'No se pudo generar el PDF de ventas y cobros.'], 500);
         }
     }
 
