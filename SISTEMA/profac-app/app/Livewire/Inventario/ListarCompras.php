@@ -14,42 +14,68 @@ use DataTables;
 
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\ComprasMesExport;
+use App\Support\FiltrosCompras;
+use App\Support\BoletasCompras;
 
 class ListarCompras extends Component
 {
     public function render()
     {
-        return view('livewire.inventario.listar-compras');
+        $proveedores = DB::table('proveedores')->orderBy('nombre')->get(['id', 'nombre']);
+        return view('livewire.inventario.listar-compras', compact('proveedores'));
     }
 
-    public function listarCompras(){
+    public function listarCompras(?Request $request = null){
+        $filtros = FiltrosCompras::validar(($request ?? request())->only('desde', 'hasta', 'factura', 'proveedor'));
 
         try {
 
-            $listarCompras = DB::SELECT("
-            select
-                compra.id as id,
-                numero_orden,
-                numero_factura,
-                fecha_emision,
-                fecha_vencimiento,
-                total,
-                IF(monto_retencion = 0,'SIN RETENCION','CON RETENCION') as 'estado_retencion',
-                proveedores.nombre,
-                users.name as usuario,
-                compra.created_at as fecha_registro,
-                (select count(compra_id) as contador from recibido_bodega where compra_id = compra.id  ) as 'conteo_bodega'
-            from compra
-            inner join users
-            on compra.users_id = users.id
-            inner join proveedores
-            on compra.proveedores_id = proveedores.id
-            where compra.estado_compra_id = 1
-            order by compra.id DESC 
-            ");
+            $listarCompras = FiltrosCompras::aplicar(
+                DB::table('compra')->join('proveedores', 'proveedores.id', '=', 'compra.proveedores_id')
+                    ->join('users', 'users.id', '=', 'compra.users_id')->where('compra.estado_compra_id', 1),
+                $filtros, 'compra', 'proveedores_id'
+            )->select([
+                'compra.id', 'numero_orden', 'numero_factura', 'fecha_emision', 'fecha_vencimiento', 'total',
+                DB::raw("IF(monto_retencion = 0,'SIN RETENCION','CON RETENCION') as estado_retencion"),
+                'proveedores.nombre', 'users.name as usuario', 'compra.created_at as fecha_registro',
+                DB::raw('(select count(*) from recibido_bodega where compra_id = compra.id) as conteo_bodega'),
+                DB::raw("'compra' as tipo_documento"),
+            ])->orderByDesc('compra.id')->get();
+
+            $gastos = FiltrosCompras::aplicar(DB::table('gastos as g')
+                ->join('proveedores as p', 'p.id', '=', 'g.proveedor_id')
+                ->join('users as u', 'u.id', '=', 'g.usuario_id')
+                ->where('g.incluir_reporte_compras', true)->where('g.estado', 'activo'),
+                $filtros, 'g', 'proveedor_id')
+                ->select([
+                    DB::raw("CONCAT('G-', g.id) as id"),
+                    'g.id as gasto_id',
+                    DB::raw("CONCAT('GASTO-', g.id) as numero_orden"),
+                    'g.numero_factura', 'g.fecha_emision', 'g.fecha_vencimiento', 'g.total',
+                    DB::raw("'NO APLICA' as estado_retencion"),
+                    'p.nombre', 'u.name as usuario', 'g.created_at as fecha_registro',
+                    DB::raw('0 as conteo_bodega'), DB::raw("'gasto' as tipo_documento"),
+                ])->get();
+            $boletas = BoletasCompras::aplicarCompras(DB::table('boleta_compra as b'), $filtros)
+                ->join('users as u', 'u.id', '=', 'b.users_id')
+                ->select([
+                    DB::raw("CONCAT('B-', b.id) as id"), DB::raw("CONCAT('BOLETA-', b.id) as numero_orden"),
+                    'b.numero_boleta as numero_factura', 'b.fecha as fecha_emision',
+                    DB::raw('NULL as fecha_vencimiento'), 'b.total',
+                    DB::raw("'NO APLICA' as estado_retencion"), 'b.cliente as nombre',
+                    'u.name as usuario', 'b.created_at as fecha_registro',
+                    DB::raw('0 as conteo_bodega'), DB::raw("'boleta' as tipo_documento"),
+                ])->get();
+            $listarCompras = collect($listarCompras)->concat($gastos)->concat($boletas)->sortByDesc('fecha_registro')->values();
 
             return Datatables::of($listarCompras)
             ->addColumn('opciones', function ($listarCompras) {
+                if ($listarCompras->tipo_documento === 'boleta') {
+                    return '<span class="text-muted">Boleta incluida en Compras</span>';
+                }
+                if ($listarCompras->tipo_documento === 'gasto') {
+                    return '<span class="text-muted">No aplica (gasto)</span>';
+                }
 
                 return
 
@@ -78,6 +104,12 @@ class ListarCompras extends Component
                 </div>';
             })
             ->addColumn('anular', function ($listarCompras) {
+                if ($listarCompras->tipo_documento === 'boleta') {
+                    return '<span class="text-muted">Retirar desde Boletas</span>';
+                }
+                if ($listarCompras->tipo_documento === 'gasto') {
+                    return '<span class="text-muted">No aplica (gasto)</span>';
+                }
 
                 if($listarCompras->conteo_bodega > 0){
 
@@ -108,6 +140,7 @@ class ListarCompras extends Component
             ->make(true);
            
         } catch (QueryException $e) {
+            report($e);
             return response()->json([
                 'message' => 'Ha ocurrido un error al listar las compras.',
                 'errorTh' => $e,
@@ -117,13 +150,14 @@ class ListarCompras extends Component
 
     }
 
-    public function export($month){
+    public function export($month, Request $request){
         try {
 
-            $arrayMes = explode('-', $month);
-            $mes= $arrayMes[1];
-            
-            return Excel::download(new ComprasMesExport($mes), 'DatosComprasMes.xlsx');
+            validator(['mes' => $month], ['mes' => 'required|date_format:Y-m'])->validate();
+            $filtros = $request->hasAny(['desde', 'hasta', 'factura', 'proveedor'])
+                ? FiltrosCompras::validar($request->only('desde', 'hasta', 'factura', 'proveedor'))
+                : $month;
+            return Excel::download(new ComprasMesExport($filtros), 'DatosComprasMes.xlsx');
 
         } catch (QueryException $e) {
             return response()->json([

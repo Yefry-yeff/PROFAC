@@ -526,12 +526,11 @@ class FacturacionEstatal extends Component
                     if ($histFactura) {
                         $facturaEditId = (int) $histFactura;
                         $addBackClause = "COALESCE((
-                            SELECT SUM(vhp_e.cantidad)
+                            SELECT SUM(vhp_e.numero_unidades_resta_inventario)
                             FROM venta_has_producto vhp_e
                             WHERE vhp_e.factura_id = {$facturaEditId}
                               AND vhp_e.producto_id = {$prodId}
                               AND vhp_e.seccion_id  = A.seccion_id
-                              AND vhp_e.resta_inventario = 1
                         ), 0)";
                     }
                 }
@@ -923,12 +922,11 @@ class FacturacionEstatal extends Component
                 : '';
 
             $addBackFacturaClause = $facturaEditAddBackId > 0
-                ? "+ IFNULL((SELECT SUM(vhp_e.cantidad)
+                ? "+ IFNULL((SELECT SUM(vhp_e.numero_unidades_resta_inventario)
                               FROM venta_has_producto vhp_e
                               WHERE vhp_e.factura_id = {$facturaEditAddBackId}
                                 AND vhp_e.producto_id = " . (int)$request->$keyIdProducto . "
-                                AND vhp_e.seccion_id  = " . (int)$request->$keyIdSeccion . "
-                                AND vhp_e.resta_inventario = 1), 0)"
+                                AND vhp_e.seccion_id  = " . (int)$request->$keyIdSeccion . "), 0)"
                 : '';
 
             // Stock neto = stock_real + stock_factura_editada - reservado en prefacturas activas

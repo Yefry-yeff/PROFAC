@@ -3325,7 +3325,10 @@
             })
             .catch(err => {
                 console.log(err);
-                Swal.fire({ icon: 'error', title: 'Error', text: 'Error al solicitar código' });
+                var mensaje = err.response?.status === 503
+                    ? err.response.data.message
+                    : 'Error al solicitar código';
+                Swal.fire({ icon: 'error', title: 'Error', text: mensaje });
             })
             .finally(function() {
                 if (btnSolicitar) btnSolicitar.disabled = false;

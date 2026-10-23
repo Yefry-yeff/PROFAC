@@ -41,6 +41,8 @@
         }
         #tbl_boletas tbody tr:hover { background: #fffcf5; }
         .swal2-container { z-index: 2000 !important; }
+        .boleta-check:disabled { accent-color: #aaa; cursor: not-allowed; opacity: .5; }
+        #tbl_boletas tbody tr { cursor: pointer; }
     </style>
     @endpush
 
@@ -78,6 +80,10 @@
                                            value="{{ date('Y-m-d') }}">
                                 </div>
                             </div>
+                            <div class="col-12 col-md-3">
+                                <label class="font-weight-bold small" for="buscarBoletasTexto">Boleta, cliente, RTN o direccion:</label>
+                                <input id="buscarBoletasTexto" class="form-control" maxlength="255">
+                            </div>
                             <div class="col-12 col-sm-12 col-md-3 d-flex align-items-end">
                                 <button type="button" class="btn btn-primary mb-3" onclick="buscarBoletas()">
                                     <i class="fa fa-search mr-1"></i> Buscar
@@ -98,16 +104,27 @@
                         <h5><i class="fa fa-list"></i> Listado de Boletas de Compra</h5>
                     </div>
                     <div class="cdx-card-body">
+                        <div class="d-flex flex-wrap align-items-center mb-3" style="gap:8px">
+                            <span id="boletasSeleccionadas">0 seleccionadas</span>
+                            <button id="incluirBoletas" class="btn btn-primary" disabled>Pasar al reporte de compras</button>
+                            <button id="quitarBoletas" class="btn btn-warning" disabled>Quitar del reporte de compras</button>
+                            <a id="excelBoletas" class="btn btn-success ml-auto disabled" aria-disabled="true">
+                                <i class="fa fa-file-excel-o mr-1"></i> Exportar Excel
+                            </a>
+                        </div>
+                        <div id="errorBoletas" class="alert alert-danger d-none" role="alert"></div>
                         <div class="table-responsive">
                             <table class="table table-bordered table-hover" id="tbl_boletas">
                                 <thead>
                                     <tr>
+                                        <th><input id="seleccionarBoletas" type="checkbox" aria-label="Seleccionar todas las boletas activas filtradas"></th>
                                         <th>No. Boleta</th>
                                         <th>Cliente</th>
                                         <th>Dirección</th>
                                         <th>Fecha</th>
                                         <th>Total (L.)</th>
                                         <th>Registrado por</th>
+                                        <th>Estado</th>
                                         <th>Opciones</th>
                                     </tr>
                                 </thead>
@@ -120,78 +137,27 @@
         </div>
     </div>
 
+    <div class="modal fade" id="modalReporteBoletas" tabindex="-1" role="dialog" aria-labelledby="tituloReporteBoletas" wire:ignore.self>
+        <div class="modal-dialog modal-dialog-centered" role="document"><div class="modal-content">
+            <div class="modal-header" style="background:var(--pf-grad);color:white">
+                <h5 id="tituloReporteBoletas" class="modal-title">Reporte de compras</h5>
+                <button class="close" data-dismiss="modal" aria-label="Cerrar"><span aria-hidden="true">&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <p id="confirmacionReporteBoletas"></p>
+                <p>El cambio quedara auditado con usuario, fecha y hora. Las boletas incluidas no se pueden editar ni anular hasta retirarlas de Compras.</p>
+                <div id="errorAccionBoletas" class="alert alert-danger d-none" role="alert"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                <button id="confirmarReporteBoletas" class="btn btn-primary">Confirmar</button>
+            </div>
+        </div></div>
+    </div>
+
     @push('scripts')
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script>
-        var tablaBoletas = null;
-
-        function buscarBoletas() {
-            var fechaInicio = $('#fechaInicio').val();
-            var fechaFinal  = $('#fechaFinal').val();
-
-            if (!fechaInicio || !fechaFinal) {
-                Swal.fire('Atención', 'Por favor seleccione un rango de fechas.', 'warning');
-                return;
-            }
-
-            if (tablaBoletas) {
-                tablaBoletas.destroy();
-            }
-
-            tablaBoletas = $('#tbl_boletas').DataTable({
-                language: { url: '/js/plugins/dataTables/i18n/Spanish.json' },
-                pageLength: 5,
-                responsive: true,
-                ajax: {
-                    url: '/boleta/compra/listar',
-                    type: 'POST',
-                    data: {
-                        fechaInicio: fechaInicio,
-                        fechaFinal:  fechaFinal,
-                        _token: '{{ csrf_token() }}'
-                    }
-                },
-                columns: [
-                    { data: 'numero_boleta' },
-                    { data: 'cliente' },
-                    { data: 'direccion' },
-                    { data: 'fecha' },
-                    { data: 'total' },
-                    { data: 'registrado_por' },
-                    { data: 'opciones', orderable: false, searchable: false }
-                ]
-            });
-        }
-
-        function anularBoleta(id) {
-            Swal.fire({
-                title: '¿Anular boleta?',
-                text: 'Esta acción no se puede deshacer.',
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#d33',
-                cancelButtonColor: '#6c757d',
-                confirmButtonText: 'Sí, anular',
-                cancelButtonText: 'Cancelar'
-            }).then(function(result) {
-                if (result.isConfirmed) {
-                    axios.post('/boleta/compra/anular', {
-                        id: id,
-                        _token: '{{ csrf_token() }}'
-                    }).then(function(response) {
-                        Swal.fire('Anulada', 'La boleta fue anulada correctamente.', 'success');
-                        buscarBoletas();
-                    }).catch(function(error) {
-                        Swal.fire('Error', 'No se pudo anular la boleta.', 'error');
-                    });
-                }
-            });
-        }
-
-        $(document).ready(function() {
-            buscarBoletas();
-        });
-    </script>
+    <script src="{{ asset('js/js_proyecto/boleta-compras/historial.js') }}?v={{ filemtime(public_path('js/js_proyecto/boleta-compras/historial.js')) }}"></script>
     @endpush
 </div>

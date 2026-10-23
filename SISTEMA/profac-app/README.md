@@ -1,5 +1,218 @@
 //*****comandos utiles****
 
+### Correo de codigos de autorizacion
+
+`POST /ventas/solicitud/codigo` envia el correo antes de confirmar el registro
+del codigo. Si el transporte SMTP falla, revierte ese registro, registra la
+excepcion en Laravel y responde HTTP 503 con un mensaje para el usuario.
+La pantalla de facturacion muestra ese mensaje y permite reintentar.
+
+Si el log indica `certificate verify failed`, revisar la cadena del certificado
+del servidor de correo y las autoridades de confianza de OpenSSL en el PHP
+que ejecuta la aplicacion. En Laragon, configurar en su `php.ini` activo:
+
+```ini
+openssl.cafile="C:\laragon\etc\ssl\cacert.pem"
+```
+
+El archivo debe existir y contener certificados CA vigentes y confiables.
+`curl.cainfo` no configura las conexiones SMTP de OpenSSL. Reiniciar el
+servidor PHP despues del cambio (incluido `php artisan serve` si se utiliza).
+No desactivar la verificacion del certificado ni del nombre del servidor.
+
+### Inventario al editar facturas
+
+SR Gobierno guarda por `POST /ventas/estatal/guardar`; SR Precio por
+`POST /ventas/corporativo/guardar`. El endpoint `/exonerado/venta/guardar`
+corresponde a facturas exoneradas, no a todas las ventas SR.
+
+En `editar_factura`, tanto la seleccion de bodega como la validacion de
+guardado suman `venta_has_producto.numero_unidades_resta_inventario` de la
+factura original, filtrando por producto y seccion. Son unidades base por
+lote: no sumar `cantidad` ni `resta_inventario_total`, que se repiten entre
+lotes. `resta_inventario` pertenece a la reserva de prefacturas y no existe
+en el detalle de ventas. La correccion no requiere una migracion.
+
+Pruebas: `php artisan test tests\Feature\InventarioEdicionFacturaTest.php`.
+Requieren una base MySQL vacia y aislada, indicada en
+`INVENTARIO_EDICION_TEST_MYSQL_DATABASE`, cuyo nombre cumpla
+`profac_inventario_edicion_<hex>_testing`. Las pruebas recrean sus tablas;
+sin esa variable se omiten para no utilizar la base de la aplicacion.
+
+### Compras y gastos independientes
+
+En `/producto/compra`, el selector Nueva compra / Nuevo gasto conserva el
+carrito de productos del catalogo para compras. En gasto se agregan nombres
+libres, cantidades enteras, precios antes de impuesto y tasas de ISV de
+0%, 15% o 18%, las mismas opciones actuales del catalogo (no existe una
+tabla de tasas). El servidor valida las tasas y recalcula por linea en
+centavos; no acepta totales enviados por el navegador. Se admiten hasta
+2,000 lineas por registro.
+
+La cabecera distribuye factura, CAI, proveedor y RTN en una fila, y tipo de
+pago y fechas en otra, con controles alineados y adaptacion a movil.
+Solo en gastos se elige una unidad de medida por linea del catalogo
+`unidad_medida`. Este catalogo no tiene estado activo/inactivo: por decision
+funcional se muestran todas sus unidades sin agregar estados. La unidad es
+descriptiva y no multiplica ni convierte cantidades.
+Cada linea permite descuento de 0% a 100%, incluidos ambos limites, con
+hasta dos decimales y 0% por defecto. Valores fuera del rango bloquean el guardado
+y muestran un error en lugar de calcular totales negativos:
+subtotal bruto = cantidad x precio; descuento = subtotal bruto x porcentaje;
+subtotal neto = bruto - descuento; ISV = neto x tasa; total = neto + ISV.
+Descuento e impuesto se redondean a centavos por linea; el resumen suma los
+netos. El servidor recalcula todo y persiste unidad, porcentaje y monto
+descontado. Los temporales conservan ambos campos; temporales anteriores
+abren con descuento cero si no lo tenian y requieren elegir unidad antes de guardar.
+Los gastos historicos conservan sus importes y muestran sin unidad si no
+se habia registrado. Las compras conservan unidades y calculos originales.
+Aplicar tambien `2026_10_18_000002_add_unidad_descuento_to_gasto_detalles.php`.
+
+Los gastos usan `gastos` y `gasto_detalles`. No crean productos, compras,
+recepciones, lotes ni cambios de costo/stock. No hay pantalla de detalle,
+abonos ni saldos pendientes en este tramite. Las tablas, archivos y saldos
+anteriores se conservan sin borrar ni reinterpretar datos historicos.
+El boton de listado cambia entre Compras y Gastos segun el tipo de registro.
+En gastos el orden de captura es producto, cantidad y precio unitario.
+
+La casilla "Incluir este gasto en el reporte de Compras", junto al titulo
+de cabecera y desmarcada por defecto, se conserva en temporales y al guardar.
+Marcada: aparece tambien en el listado de Compras y su Excel mensual.
+Todos los gastos permanecen en `/gastos`, incluso trasladados y anulados.
+Los incluidos en Compras llevan prefijos `G-` / `GASTO-` para distinguirlos
+de compras con el mismo ID, sin acciones de recepcion, abono o anulacion de compra.
+El Excel de compras respeta mes y anio y usa exclusivamente estas columnas:
+200-RTN, 600-Clase de documento, 7-CAI, 8-Numero de documento,
+71-Nombre del proveedor, 900-Fecha emision, 100-Fecha contable,
+110-Importe exento, 1511-Importe base 15%, 270-Monto al costo y 280-Monto al gasto.
+Compras y gastos usan FA-factura; las boletas incluidas usan
+OC-Otros comprobantes de pago.
+El Excel de compras incluye logo y membrete de Distribuciones Valencia,
+fecha/usuario de generacion y filtros aplicados. Los encabezados son naranja,
+las filas alternan blanco/naranja claro y los montos al costo/gasto son verdes.
+Conserva las 11 columnas, anchos legibles, filtros de Excel y paneles inmovilizados.
+La fecha contable es igual a la emision. Los importes suman los subtotales netos
+de los productos, sin ISV: tasa 0 para exento y tasa 15 para base 15%.
+En compras se usa la tasa del producto del catalogo y el subtotal persistido del
+detalle; en gastos, la tasa y el subtotal neto persistidos por linea.
+La base del 18% se excluye de todos estos importes. Exento + base 15%, sin
+sumar el impuesto, se coloca solo en Monto al costo para compras y solo en
+Monto al gasto para gastos incluidos en compras. La columna que no corresponde
+al origen queda vacia; un importe aplicable de cero se conserva como numero.
+RTN, CAI y factura se conservan como texto; los cuatro importes son numericos
+con dos decimales. Este formato sustituye las columnas anteriores del Excel
+de compras, no modifica el Excel independiente de gastos ni la auditoria.
+El reporte de compras usa cabecera naranja, acentos verdes y un modal de filtros
+como Gastos: emision desde/hasta inclusivas (mes vigente por defecto), factura
+parcial y proveedor con Select2. Los filtros se aplican a compras activas y
+gastos activos incluidos en compras. El boton Excel exporta exactamente ese
+rango y criterios, incluso si abarca varios meses; la ruta mensual anterior
+continua disponible. "Limpiar" restaura el mes vigente y borra factura/proveedor.
+Se conservan las acciones de detalle, recepcion, pagos, incidencias y anulacion
+de compras con sus restricciones existentes.
+
+### Boletas incluidas en el reporte de compras
+
+En `/boleta/compra/historial` se seleccionan una o varias boletas activas;
+el checkbox del encabezado abarca todas las paginas del filtro, no solo la
+visible. Las anuladas permanecen visibles con checkbox bloqueado.
+Los estados son Registrada, Pasada al reporte de compras y Anulada.
+Incluir y quitar requieren confirmacion modal y registran usuario, fecha/hora
+y valores antes/despues en `boleta_compra_auditoria`, en la misma transaccion.
+Las selecciones mixtas solo cambian las que necesitan transicion; una seleccion
+con IDs inexistentes o anulados se rechaza completa. No se duplican inclusiones.
+Hacer clic en una fila (o Enter/espacio) despliega sus cambios auditados.
+No se reconstruye historial anterior.
+
+Las incluidas no se pueden editar ni anular, tampoco mediante los endpoints;
+primero se retiran de Compras. Las anulaciones nuevas tambien quedan auditadas.
+Las boletas aparecen en Compras con prefijo B-, sin acciones de inventario.
+El Excel usa RTN/DNI y cliente como RTN/proveedor, CAI de la boleta y numero
+de boleta como documento. Todos los importes de los conceptos son exentos,
+la base 15% es cero y solo se llena Monto al costo; Monto al gasto queda vacio.
+No se usa el total de cabecera para calcular estos importes.
+Los filtros de Compras aplican fecha y numero de boleta; al filtrar proveedor
+se exige coincidencia de su RTN con el RTN/DNI de la boleta.
+
+El historial permite filtrar fechas y buscar boleta/cliente/RTN/direccion.
+Su Excel incluye todas las boletas del filtro aplicado, sin depender de la
+seleccion, con las 11 columnas fiscales mas Estado y el mismo logo/colores
+del Excel de compras. Las anuladas se conservan en este Excel historico,
+pero nunca se incluyen en Compras. Aplicar la migracion
+`2026_10_20_000002_add_reporte_compras_to_boletas.php`; las boletas anteriores
+no se incluyen automaticamente y no se modifican sus importes ni numeracion.
+
+El reporte de gastos usa la cabecera naranja y acentos verdes del sistema.
+Permite seleccionar uno o varios gastos activos. El checkbox del encabezado
+de la tabla selecciona todos los gastos activos filtrados, no solo la pagina
+visible. Los anulados no se pueden seleccionar.
+El boton "Filtros" abre un modal como Libro de cobros: fecha de emision desde
+y hasta (ambas inclusivas y con el mes vigente completo por defecto), numero
+de factura y proveedor con Select2. Los criterios se combinan; la factura
+admite coincidencias parciales y el proveedor se filtra por su ID.
+"Buscar" aplica los filtros, reinicia la pagina y limpia la seleccion;
+"Limpiar" restaura el mes vigente sin factura ni proveedor. Se validan las
+fechas y el proveedor antes de reemplazar los filtros aplicados.
+"Pasar al reporte de compras" marca los seleccionados sin duplicarlos ni
+quitarlos de Gastos, con estado "Pasado al reporte de compras".
+"Anular seleccionados" abre un modal con el motivo y confirmacion; registra `anulado_por`,
+`anulado_at` y un motivo obligatorio de hasta 1000 caracteres; se rechazan
+comentarios vacios o que contengan solo espacios. Se muestran el
+nombre del usuario y la fecha y hora (incluidos segundos). La accion conserva
+importes y detalles, sin movimientos de inventario ni abonos. Los anulados
+se excluyen del listado y Excel de compras aunque antes se hayan trasladado.
+No se permite incluir en compras un gasto anulado ni anular uno actualmente
+incluido en compras. Primero debe usarse "Quitar del reporte de compras",
+con confirmacion modal. El gasto retirado vuelve al estado Registrado y deja
+de aparecer en el listado y Excel de compras; sigue visible en Gastos.
+En selecciones mixtas, incluir/quitar modifica solo los activos que requieren
+el cambio; si hay anulados o IDs inexistentes se rechaza toda la operacion.
+Las acciones se aplican en una transaccion, revalidando que todos los IDs
+existan y sigan activos; una seleccion obsoleta no produce cambios parciales.
+"Pasar al reporte de compras" tambien requiere confirmacion en un modal del
+sistema, sin dialogos nativos del navegador. Los modales muestran errores,
+permanecen abiertos si falla la accion y se cierran solo al completarla.
+Cada alta, inclusion, retiro y anulacion se registra en `gasto_auditoria`,
+con usuario, fecha y hora, valores antes/despues y motivo para la anulacion.
+La auditoria y el cambio son atomicos; un fallo revierte ambos. Las acciones
+sin cambios no crean eventos duplicados. El historial es visible desplegando
+la fila de cada gasto con clic, Enter o espacio; el checkbox solo selecciona.
+No se reconstruye ni inventa
+la auditoria de movimientos anteriores a su instalacion.
+
+"Exportar Excel", a la derecha de las acciones junto a "Anular seleccionados",
+incluye todos los resultados de los filtros aplicados,
+de todas las paginas, con estado, indicador de traslado a Compras,
+usuario/fecha/hora y motivo de anulacion. No depende de los checkboxes.
+El Excel usa el logo `public/img/membrete/Logo3.png`, membrete, encabezados
+naranja, filas alternadas y totales en verde, como los demas reportes.
+Las primeras columnas son ID, proveedor, CAI, numero de documento (factura),
+emision, recepcion, vencimiento, importe exento, importe gravado, ISV y total.
+Despues se conservan estado, indicador de traslado y datos de anulacion.
+Exento suma los subtotales netos de las lineas con tasa 0%; gravado suma los
+de tasas mayores que cero (15% y 18%). Ambos son posteriores al descuento y
+anteriores al impuesto; no se recalculan con el catalogo actual.
+Los montos son numericos con formato monetario y dos decimales; CAI y numero
+de documento se exportan como texto para conservar sus ceros iniciales.
+Al guardar solo se registra el gasto y se muestra confirmacion: no se abre
+ni se genera documento de impresion. Se retiraron la ruta, plantilla y
+acciones de impresion de gastos.
+Aplicar `2026_10_18_000003_add_incluir_reporte_compras_to_gastos.php`;
+los gastos anteriores permanecen en Gastos por defecto.
+
+El boton + junto al proveedor abre su registro obligatorio completo sin
+abandonar el formulario y selecciona el proveedor creado. El RTN se muestra
+en solo lectura; tambien se recupera al abrir temporales antiguos.
+Compras y gastos comparten la bandeja de temporales de 24 horas, con su
+modo guardado en la cabecera. Cambiar de modo guarda primero el borrador;
+si falla, no se descarta el formulario. Los temporales antiguos siguen
+abriendose como compras.
+
+Aplicar solamente la migracion `2026_10_18_000001_create_gastos_tables.php`
+para instalar las tres tablas nuevas. No modifica los registros de compras.
+Los listados, acciones y exportaciones requieren autenticacion. Para el historial
+aplicar `2026_10_20_000001_create_gasto_auditoria_table.php` antes de usar el reporte.
+
 ### PDF de Libro de Cobros
 
 Todos los formatos del PDF se generan en papel carta horizontal (11 x 8.5

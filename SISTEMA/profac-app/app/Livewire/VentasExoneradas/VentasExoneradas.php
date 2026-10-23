@@ -291,12 +291,11 @@ class VentasExoneradas extends Component
                 : '';
 
             $addBackFacturaClause = $facturaEditAddBackId > 0
-                ? "+ IFNULL((SELECT SUM(vhp_e.cantidad)
+                ? "+ IFNULL((SELECT SUM(vhp_e.numero_unidades_resta_inventario)
                               FROM venta_has_producto vhp_e
                               WHERE vhp_e.factura_id = {$facturaEditAddBackId}
                                 AND vhp_e.producto_id = " . (int)$request->$keyIdProducto . "
-                                AND vhp_e.seccion_id  = " . (int)$request->$keyIdSeccion . "
-                                AND vhp_e.resta_inventario = 1), 0)"
+                                AND vhp_e.seccion_id  = " . (int)$request->$keyIdSeccion . "), 0)"
                 : '';
 
             $resultado = DB::selectONE("
@@ -1382,5 +1381,3 @@ class VentasExoneradas extends Component
 
     }
 }
-
-

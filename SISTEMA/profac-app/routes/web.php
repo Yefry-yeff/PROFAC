@@ -713,6 +713,8 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/producto/diseno/{id}', DisenoProducto::class)->name('producto.diseno');
     Route::post('/producto/diseno/editar', [Producto::class, 'editarProductoDiseno'])->name('producto.diseno.editar');
     Route::get('/producto/compra', CompraProducto::class);
+    Route::get('/gastos', \App\Livewire\Inventario\Gastos::class)->name('gastos');
+    Route::post('/gastos/guardar', [\App\Livewire\Inventario\Gastos::class, 'guardar']);
     Route::get('/producto/lista/proveedores', [CompraProducto::class, 'listarProveedores']);
     Route::get('/producto/tipo/pagos', [CompraProducto::class, 'listarFormasPago']);
     Route::get('/producto/listar/producto', [CompraProducto::class, 'listarProductos']);
@@ -772,6 +774,8 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::post('/boleta/compra/anular',             [CrearBoletaCompra::class,    'anularBoletaCompra']);
     Route::get('/boleta/compra/historial',           HistorialBoletaCompra::class);
     Route::post('/boleta/compra/listar',             [HistorialBoletaCompra::class,'listadoBoletaCompra']);
+    Route::post('/boleta/compra/reporte-compras',    [HistorialBoletaCompra::class,'cambiarReporteCompras']);
+    Route::get('/boleta/compra/excel',              [HistorialBoletaCompra::class,'exportar']);
     Route::get('/boleta/compra/imprimir/{id}',       [HistorialBoletaCompra::class,'imprimirOriginal']);
     Route::get('/boleta/compra/imprimir/copia/{id}', [HistorialBoletaCompra::class,'imprimirCopia']);
     Route::get('/boleta/compra/editar/{id}',         EditarBoletaCompra::class);

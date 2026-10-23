@@ -27,6 +27,7 @@ use App\Models\User;
 use App\Models\ModelCodigoAutorizacion;
 use App\Models\ConfiguracionCodigoAutorizacion;
 use Mail;
+use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 
 
 class SinRestriccionPrecio extends Component
@@ -84,7 +85,6 @@ class SinRestriccionPrecio extends Component
         $autorizacion->fecha_expiracion = $config->expiracion_activa
             ? now()->addMinutes($config->tiempo_expiracion_minutos)
             : null;
-        $autorizacion->save();
 
         $productos    = $request->input('productos', []);
         $usuario      = Auth::user()->name ?? 'N/A';
@@ -112,11 +112,22 @@ class SinRestriccionPrecio extends Component
 
         // env('MAIL_FROM_ADRESS') (typo) devuelve null cuando la config está cacheada; usar config() con fallback.
         $fromAddress = config('mail.from.address') ?: 'soporte_tecnico@distribucionesvalencia.hn';
-        Mail::send('email/solicitud', $viewData, function($msj) use($subject,$for,$fromAddress){
-            $msj->from($fromAddress,"Soporte Técnico Distribuciones Valencia ");
-            $msj->subject($subject);
-            $msj->to($for);
-        });
+        try {
+            DB::transaction(function () use ($autorizacion, $viewData, $subject, $for, $fromAddress) {
+                $autorizacion->save();
+                Mail::send('email/solicitud', $viewData, function($msj) use($subject,$for,$fromAddress){
+                    $msj->from($fromAddress,"Soporte Técnico Distribuciones Valencia ");
+                    $msj->subject($subject);
+                    $msj->to($for);
+                });
+            });
+        } catch (TransportExceptionInterface $e) {
+            report($e);
+
+            return response()->json([
+                'message' => 'No se pudo enviar el correo con el codigo de autorizacion. Intente nuevamente; si el problema persiste, contacte a soporte tecnico.',
+            ], 503);
+        }
         return response()->json(["message"=>"exito"],200);
 
     }
