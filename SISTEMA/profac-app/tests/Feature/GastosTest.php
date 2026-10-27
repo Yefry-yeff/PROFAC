@@ -964,10 +964,21 @@ class GastosTest extends TestCase
         $this->assertArrayHasKey('rtn_prov', $response->getData(true)['errors']);
     }
 
-    public function test_compra_conserva_unidades_impuesto_y_costos_del_catalogo(): void
+    public function test_compra_respeta_tasa_isv_seleccionada_y_calcula_costos(): void
     {
         $this->crearCompraDePrueba();
         $this->assertSame(0, DB::table('gastos')->count());
+    }
+
+    public function test_compra_rechaza_tasa_isv_no_permitida(): void
+    {
+        $response = (new CompraProducto)->guardarCompra(new Request($this->datos([
+            'productos' => [['producto_id' => 1, 'precio' => '10', 'cantidad' => 2, 'isv_porcentaje' => 16]],
+        ])));
+
+        $this->assertSame(406, $response->getStatusCode());
+        $this->assertArrayHasKey('productos.0.isv_porcentaje', $response->getData(true)['errors']);
+        $this->assertSame(0, DB::table('compra')->count());
     }
 
     private function crearCompraDePrueba(): void
@@ -978,10 +989,12 @@ class GastosTest extends TestCase
         $this->assertSame(200, $response->getStatusCode());
         $compra = DB::table('compra')->first();
         $this->assertEquals(240, $compra->sub_total);
-        $this->assertEquals(36, $compra->isv_compra);
-        $this->assertEquals(276, $compra->total);
-        $this->assertEquals(276, $compra->debito);
-        $this->assertEquals(11.5, DB::table('producto')->find(1)->ultimo_costo_compra);
+        $this->assertEquals(0, $compra->isv_compra);
+        $this->assertEquals(240, $compra->total);
+        $this->assertEquals(240, $compra->debito);
+        $this->assertEquals(10, DB::table('producto')->find(1)->ultimo_costo_compra);
         $this->assertSame(1, DB::table('compra_has_producto')->count());
+        $this->assertEquals(0, DB::table('compra_has_producto')->first()->isv);
+        $this->assertEquals(240, DB::table('compra_has_producto')->first()->precio_total);
     }
 }

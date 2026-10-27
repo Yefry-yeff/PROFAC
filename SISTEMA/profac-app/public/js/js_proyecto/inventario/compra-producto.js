@@ -53,6 +53,10 @@
             parsed >= 0 && parsed <= 100 && Math.abs(parsed * 100 - Math.round(parsed * 100)) < 0.000001;
     }
 
+    function validTaxRate(value) {
+        return config.tasasIsv.some(function (tasa) { return Number(value) === Number(tasa); });
+    }
+
     function calculateItem(item) {
         item.descuento_invalido = state.modo === 'gasto' && !validDiscount(item.descuento_porcentaje);
         if (item.descuento_invalido) {
@@ -157,6 +161,9 @@
         var metadata = 'ID ' + item.producto_id;
         if (item.codigo_barra) metadata += ' · C.B. ' + item.codigo_barra;
         if (item.marca_nombre) metadata += ' · ' + item.marca_nombre;
+        var tasas = config.tasasIsv.map(function (tasa) {
+            return '<option value="' + tasa + '"' + (Number(item.isv_porcentaje) === Number(tasa) ? ' selected' : '') + '>' + tasa + '%</option>';
+        }).join('');
 
         return '<tr data-row-id="' + item.producto_id + '">' +
             '<td><div class="cmp-product">' +
@@ -169,7 +176,8 @@
             '<td><input type="date" class="form-control form-control-sm cmp-date" data-compra-field="fecha_expiracion" data-id="' + item.producto_id + '" value="' + escapeHtml(item.fecha_expiracion) + '"></td>' +
             '<td class="cmp-money" data-compra-output="subtotal" data-id="' + item.producto_id + '">' + money(item.subtotal) + '</td>' +
             '<td class="d-none"></td><td class="d-none"></td>' +
-            '<td class="cmp-money" data-compra-output="isv_total" data-id="' + item.producto_id + '">' + money(item.isv_total) + '</td>' +
+            '<td><select aria-label="Tasa ISV" class="form-control form-control-sm cmp-tax-rate" data-compra-field="isv_porcentaje" data-id="' + item.producto_id + '" required>' + tasas + '</select>' +
+                '<small class="cmp-money d-block" data-compra-output="isv_total" data-id="' + item.producto_id + '">' + money(item.isv_total) + '</small></td>' +
             '<td class="cmp-money" data-compra-output="total" data-id="' + item.producto_id + '">' + money(item.total) + '</td>' +
             '<td><button type="button" class="cmp-remove" data-remove-id="' + item.producto_id + '" title="Quitar producto"><i class="fa fa-trash"></i></button></td>' +
         '</tr>';
@@ -735,6 +743,7 @@
         var invalid = state.order.find(function (id) {
             var item = state.items[id];
             return item.precio === '' || number(item.precio) < 0 || number(item.cantidad) < 1 ||
+                !validTaxRate(item.isv_porcentaje) ||
                 (state.modo === 'gasto' && (!item.nombre.trim() ||
                     !config.unidadesMedida.some(function (unidad) { return Number(unidad.id) === Number(item.unidad_medida_id); }) ||
                     !validDiscount(item.descuento_porcentaje)));
@@ -744,7 +753,7 @@
             state.page = Math.ceil((state.order.indexOf(invalid) + 1) / state.pageSize);
             element('filtrarCarritoCompra').value = '';
             renderCart();
-            Swal.fire({ icon: 'warning', title: 'Revise el producto', text: state.modo === 'gasto' ? 'Complete nombre, unidad, precio, cantidad y descuento entre 0% y 100%.' : 'Complete el precio y una cantidad válida.' });
+            Swal.fire({ icon: 'warning', title: 'Revise el producto', text: state.modo === 'gasto' ? 'Complete nombre, unidad, precio, cantidad, tasa de ISV y descuento entre 0% y 100%.' : 'Complete el precio, una cantidad válida y la tasa de ISV.' });
             return false;
         }
         return true;
@@ -863,7 +872,7 @@
         });
         element('productosCompraBody').addEventListener('input', function (event) {
             var input = event.target.closest('[data-compra-field]');
-            if (!input) return;
+            if (!input || input.tagName === 'SELECT') return;
             var item = state.items[Number(input.dataset.id)];
             if (!item) return;
             var field = input.dataset.compraField;
@@ -877,6 +886,21 @@
             scheduleDraftSave();
         });
         element('productosCompraBody').addEventListener('change', function (event) {
+            var select = event.target.closest('select[data-compra-field]');
+            if (select) {
+                var item = state.items[Number(select.dataset.id)];
+                if (!item) return;
+                var field = select.dataset.compraField;
+                if (field === 'isv_porcentaje') {
+                    var oldValues = { subtotal: item.subtotal, isv: item.isv_total, total: item.total };
+                    item[field] = select.value;
+                    updateItemTotals(item, oldValues);
+                } else {
+                    item[field] = select.value;
+                }
+                scheduleDraftSave();
+                return;
+            }
             var input = event.target.closest('[data-compra-field="precio"]');
             if (!input || input.value === '') return;
             input.value = roundMoney(input.value).toFixed(2);

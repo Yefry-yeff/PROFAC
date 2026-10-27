@@ -7,6 +7,7 @@ use Livewire\Component;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Auth;
 use Validator;
 
@@ -244,6 +245,7 @@ class CompraProducto extends Component
             'productos.*.producto_id' => 'required|integer|distinct',
             'productos.*.precio' => 'required|numeric|min:0',
             'productos.*.cantidad' => 'required|integer|min:1',
+            'productos.*.isv_porcentaje' => ['required', 'integer', Rule::in(Gastos::TASAS_ISV)],
             'productos.*.fecha_expiracion' => 'nullable|date',
         ],[
             'numero_factura.required' => 'Número Factura es requerido',
@@ -255,6 +257,8 @@ class CompraProducto extends Component
             'productos.required' => 'Debe agregar al menos un producto a la compra.',
             'productos.min' => 'Debe agregar al menos un producto a la compra.',
             'productos.*.producto_id.distinct' => 'No se permiten productos duplicados.',
+            'productos.*.isv_porcentaje.required' => 'Debe seleccionar una tasa de ISV para cada producto.',
+            'productos.*.isv_porcentaje.in' => 'Seleccione una tasa de ISV válida: 0%, 15% o 18%.',
         ]);
 
         if ($validator->fails()) {
@@ -299,11 +303,12 @@ class CompraProducto extends Component
                     $producto = $productos[$productoId];
                     $precio = round((float) $item['precio'], 2);
                     $cantidad = (int) $item['cantidad'];
+                    $porcentajeIsv = (int) $item['isv_porcentaje'];
                     $unidadesCompra = (int) $producto->unidadad_compra;
                     $subtotal = round($precio * $cantidad * $unidadesCompra, 2);
-                    $isv = round($subtotal * ((float) $producto->isv / 100), 2);
+                    $isv = round($subtotal * ($porcentajeIsv / 100), 2);
                     $total = round($subtotal + $isv, 2);
-                    $costoActual = round($precio + ($precio * ((float) $producto->isv / 100)), 2);
+                    $costoActual = round($precio + ($precio * ($porcentajeIsv / 100)), 2);
                     $primeraCompra = $primerasCompras->get($productoId);
                     $costoPromedio = $costoActual;
 
