@@ -576,6 +576,128 @@
         }
     }
 
+    window.obtenerDepartamentos = function () {
+        var country = element('pais_prov').value;
+        var departments = element('depto_prov');
+        var municipalities = element('municipio_prov');
+        departments.innerHTML = '<option value="">Seleccione un departamento</option>';
+        municipalities.innerHTML = '<option value="">Seleccione un municipio</option>';
+        if (!country) return;
+
+        axios.post('/proveedores/obeter/departamentos', { id: country }).then(function (response) {
+            if (element('pais_prov').value !== country) return;
+            departments.innerHTML = '<option value="">Seleccione un departamento</option>' +
+                (response.data.departamentos || []).map(function (department) {
+                    return '<option value="' + escapeHtml(department.id) + '">' + escapeHtml(department.nombre) + '</option>';
+                }).join('');
+        }).catch(function () {
+            Swal.fire({ icon: 'error', title: 'No se pudieron cargar los departamentos', text: 'Intente nuevamente.' });
+        });
+    };
+
+    window.obtenerMunicipios = function () {
+        var department = element('depto_prov').value;
+        var municipalities = element('municipio_prov');
+        municipalities.innerHTML = '<option value="">Seleccione un municipio</option>';
+        if (!department) return;
+
+        axios.post('/proveedores/obeter/municipios', { id: department }).then(function (response) {
+            if (element('depto_prov').value !== department) return;
+            municipalities.innerHTML = '<option value="">Seleccione un municipio</option>' +
+                (response.data.departamentos || []).map(function (municipality) {
+                    return '<option value="' + escapeHtml(municipality.id) + '">' + escapeHtml(municipality.nombre) + '</option>';
+                }).join('');
+        }).catch(function () {
+            Swal.fire({ icon: 'error', title: 'No se pudieron cargar los municipios', text: 'Intente nuevamente.' });
+        });
+    };
+
+    function clearProviderErrors(form) {
+        var errors = form.querySelector('.proveedor-form-errors');
+        errors.replaceChildren();
+        errors.classList.add('d-none');
+        form.querySelectorAll('[aria-invalid="true"]').forEach(function (field) {
+            field.removeAttribute('aria-invalid');
+            field.classList.remove('is-invalid');
+        });
+    }
+
+    function showProviderErrors(form, response) {
+        var container = form.querySelector('.proveedor-form-errors');
+        var errors = response && response.errors;
+        container.replaceChildren();
+        if (errors) {
+            Object.keys(errors).forEach(function (name) {
+                var field = Array.from(form.elements).find(function (input) {
+                    return input.name === name && !input.disabled && input.type !== 'hidden';
+                });
+                if (field) {
+                    field.setAttribute('aria-invalid', 'true');
+                    field.classList.add('is-invalid');
+                }
+                errors[name].forEach(function (message) {
+                    var line = document.createElement('div');
+                    line.textContent = message;
+                    container.appendChild(line);
+                });
+            });
+        } else {
+            container.textContent = response && response.message
+                ? response.message : 'No se pudo guardar el proveedor. Intente nuevamente.';
+        }
+        container.classList.remove('d-none');
+        container.focus();
+    }
+
+    function updateProviderNoRecord(check) {
+        var field = element(check.dataset.sinRegistro);
+        if (check.checked) {
+            if (!field.disabled) {
+                check.dataset.valorAnterior = field.value === check.dataset.sinRegistroValor ? '' : field.value;
+            }
+            field.value = check.dataset.sinRegistroValor;
+        } else if (field.disabled) {
+            field.value = check.dataset.valorAnterior || '';
+        }
+        field.disabled = check.checked;
+        field.classList.remove('is-invalid');
+        field.removeAttribute('aria-invalid');
+    }
+
+    function updateProviderRetention(check) {
+        var section = check.closest('fieldset');
+        var select = section.querySelector('select');
+        section.querySelector('[data-retencion-opciones]').classList.toggle('d-none', !check.checked);
+        section.querySelector('[data-sin-retencion]').disabled = check.checked;
+        select.disabled = !check.checked;
+        select.required = check.checked;
+        check.setAttribute('aria-expanded', String(check.checked));
+        if (!check.checked) {
+            select.classList.remove('is-invalid');
+            select.removeAttribute('aria-invalid');
+        }
+    }
+
+    function resetProviderModal(modal) {
+        var form = modal.querySelector('form');
+        form.reset();
+        clearProviderErrors(form);
+        form.querySelectorAll('[data-sin-registro]').forEach(function (check) {
+            delete check.dataset.valorAnterior;
+            check.checked = false;
+            var field = element(check.dataset.sinRegistro);
+            field.value = '';
+            field.disabled = false;
+            updateProviderNoRecord(check);
+        });
+        var retention = form.querySelector('[data-aplicar-retencion]');
+        retention.checked = false;
+        updateProviderRetention(retention);
+        form.querySelector('#depto_prov').innerHTML = '<option value="">Seleccione un departamento</option>';
+        form.querySelector('#municipio_prov').innerHTML = '<option value="">Seleccione un municipio</option>';
+        if (window.jQuery && $.fn.parsley) $(form).parsley().reset();
+    }
+
     function restoreDraftContent(content, temporalId) {
         var header = content.cabecera || {};
         state.restoring = true;
@@ -800,10 +922,16 @@
     }
 
     function bindEvents() {
-        $('#proveedorCompraModal').on('show.bs.modal', function () {
-            document.body.classList.add('cmp-provider-open');
+        $('#modal_proveedores_crear').on('show.bs.modal', function () {
+            document.body.classList.add('proveedor-modal-open');
+            this.querySelectorAll('[data-proveedor-telefono]').forEach(function (field) {
+                if (/^[0-9]{8}$/.test(field.value)) field.value = field.value.slice(0, 4) + '-' + field.value.slice(4);
+            });
+            this.querySelectorAll('[data-sin-registro]').forEach(updateProviderNoRecord);
+            updateProviderRetention(this.querySelector('[data-aplicar-retencion]'));
         }).on('hidden.bs.modal', function () {
-            document.body.classList.remove('cmp-provider-open');
+            document.body.classList.remove('proveedor-modal-open');
+            resetProviderModal(this);
         });
         element('agregarLineaGasto').addEventListener('click', addExpense);
         element('incluirReporteComprasGasto').addEventListener('change', scheduleDraftSave);
@@ -828,23 +956,35 @@
                 });
             });
         });
-        element('proveedorCompraForm').addEventListener('submit', function (event) {
+        element('proveedorCreacionForm').addEventListener('submit', function (event) {
             event.preventDefault();
             var form = this;
             if (!form.reportValidity()) return;
-            var button = element('guardarProveedorCompra');
-            var error = element('proveedorCompraError');
+            var button = document.querySelector('[form="proveedorCreacionForm"][type="submit"]');
             button.disabled = true;
-            error.classList.add('d-none');
+            clearProviderErrors(form);
             axios.post('/proveedores/crear', new FormData(form)).then(function (response) {
                 setProvider(response.data.proveedor);
                 scheduleDraftSave();
-                $('#proveedorCompraModal').modal('hide');
-                form.reset();
+                $('#modal_proveedores_crear').modal('hide');
+                Swal.fire({ icon: 'success', title: 'Proveedor creado', text: 'Se creó y seleccionó el proveedor.' });
             }).catch(function (failure) {
-                error.textContent = firstError(failure);
-                error.classList.remove('d-none');
+                showProviderErrors(form, failure.response && failure.response.data);
             }).finally(function () { button.disabled = false; });
+        });
+        element('modal_proveedores_crear').addEventListener('change', function (event) {
+            if (event.target.matches('[data-sin-registro]')) updateProviderNoRecord(event.target);
+            if (event.target.matches('[data-aplicar-retencion]')) updateProviderRetention(event.target);
+        });
+        element('modal_proveedores_crear').addEventListener('input', function (event) {
+            var field = event.target.closest('[data-proveedor-telefono]');
+            if (!field) return;
+            var cursor = field.selectionStart;
+            var digitsBeforeCursor = field.value.slice(0, cursor).replace(/\D/g, '').length;
+            var digits = field.value.replace(/\D/g, '').slice(0, 8);
+            field.value = digits.length > 4 ? digits.slice(0, 4) + '-' + digits.slice(4) : digits;
+            var position = Math.min(digitsBeforeCursor + (digitsBeforeCursor > 4 ? 1 : 0), field.value.length);
+            field.setSelectionRange(position, position);
         });
         element('abrirBuscadorCompra').addEventListener('click', openProductFinder);
         element('buscarProductoCompra').addEventListener('keydown', function (event) {

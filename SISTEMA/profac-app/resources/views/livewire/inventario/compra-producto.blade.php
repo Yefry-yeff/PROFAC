@@ -1,6 +1,14 @@
 <div>
     @push('styles')
     <style>
+        .proveedores-view {
+            --proveedores-orange:#e67e22;
+            --proveedores-muted:#6b7280;
+            --proveedores-border:#e8d5bf;
+        }
+        @include('livewire.partials.proveedor-modal-styles')
+    </style>
+    <style>
         .cmp-shell { --cmp-green:#16856f; --cmp-orange:#e8751a; --cmp-ink:#263238; }
         .cmp-shell input::-webkit-outer-spin-button,
         .cmp-shell input::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
@@ -81,9 +89,6 @@
         .cmp-temp-copy strong,.cmp-temp-copy small { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         .cmp-temp-copy small { margin-top:2px; color:#78909c; font-size:10px; }
         .cmp-temp-delete { border:0; background:transparent; color:#c62828; }
-        #proveedorCompraModal { z-index:4100; }
-        #proveedorCompraModal .modal-body { max-height:calc(100vh - 180px); overflow-y:auto; }
-        body.cmp-provider-open .modal-backdrop { z-index:4090; }
         @media (max-width:991.5px) {
             .cmp-header-field,.cmp-header-field.provider,.cmp-header-field.rtn { grid-column:span 6; }
             .cmp-footer { grid-template-columns:repeat(3,1fr); }
@@ -156,7 +161,7 @@
                                 <label class="cmp-label" for="seleccionarProveedor">Proveedor<span class="text-danger">*</span></label>
                                 <div class="cmp-provider-control">
                                     <div class="cmp-provider-select"><select id="seleccionarProveedor" class="form-control" required><option value="">Seleccione un proveedor</option></select></div>
-                                    <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#proveedorCompraModal" title="Crear proveedor" aria-label="Crear proveedor"><i class="fa fa-plus"></i></button>
+                                    <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal_proveedores_crear" title="Crear proveedor" aria-label="Crear proveedor"><i class="fa fa-plus"></i></button>
                                 </div>
                             </div>
                             <div class="cmp-header-field rtn">
@@ -234,48 +239,7 @@
         </div>
     </div>
 
-    <div class="modal fade" id="proveedorCompraModal" tabindex="-1" role="dialog" aria-labelledby="proveedorCompraTitulo">
-        <div class="modal-dialog modal-dialog-centered modal-lg" role="document"><div class="modal-content">
-            <div class="modal-header">
-                <h4 id="proveedorCompraTitulo" class="modal-title">Crear proveedor</h4>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar"><span aria-hidden="true">&times;</span></button>
-            </div>
-            <form id="proveedorCompraForm">
-                <div class="modal-body">
-                    <div id="proveedorCompraError" class="alert alert-danger d-none" role="alert"></div>
-                    <div class="row">
-                        @foreach (['nombre_prov' => 'Nombre del proveedor', 'contacto_prov' => 'Contacto', 'telefono_prov' => 'Teléfono', 'rtn_prov' => 'RTN'] as $campo => $etiqueta)
-                            <div class="col-md-6 mb-3">
-                                <label for="inline_{{ $campo }}">{{ $etiqueta }} *</label>
-                                <input id="inline_{{ $campo }}" name="{{ $campo }}" type="text" class="form-control" required maxlength="{{ $campo === 'nombre_prov' ? 100 : 45 }}">
-                            </div>
-                        @endforeach
-                        <div class="col-md-6 mb-3"><label for="inline_correo_prov">Correo electrónico</label><input id="inline_correo_prov" name="correo_prov" type="email" maxlength="45" class="form-control"></div>
-                        <div class="col-12 mb-3"><label for="inline_direccion_prov">Dirección *</label><textarea id="inline_direccion_prov" name="direccion_prov" required maxlength="1000" class="form-control"></textarea></div>
-                        <div class="col-md-6 mb-3">
-                            <label for="inline_municipio_prov">País / Departamento / Municipio *</label>
-                            <select id="inline_municipio_prov" name="municipio_prov" required class="form-control">
-                                <option value="">Seleccione una ubicación</option>
-                                @foreach ($municipios as $municipio)
-                                    <option value="{{ $municipio->id }}">{{ $municipio->pais }} / {{ $municipio->departamento }} / {{ $municipio->nombre }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        @foreach (['giro_neg_prov' => ['Tipo de personalidad', $tipoPersonalidad], 'categoria_prov' => ['Categoría', $categorias], 'retencion_prov' => ['Retención del proveedor', $retenciones]] as $campo => [$etiqueta, $opciones])
-                            <div class="col-md-6 mb-3">
-                                <label for="inline_{{ $campo }}">{{ $etiqueta }} *</label>
-                                <select id="inline_{{ $campo }}" name="{{ $campo }}" required class="form-control">
-                                    <option value="">Seleccione una opción</option>
-                                    @foreach ($opciones as $opcion)<option value="{{ $opcion->id }}">{{ $opcion->nombre }}</option>@endforeach
-                                </select>
-                            </div>
-                        @endforeach
-                    </div>
-                </div>
-                <div class="modal-footer"><button type="button" class="btn btn-white" data-dismiss="modal">Cancelar</button><button type="submit" id="guardarProveedorCompra" class="btn btn-primary">Crear y seleccionar</button></div>
-            </form>
-        </div></div>
-    </div>
+    @include('livewire.partials.proveedor-crear-modal')
 
     <x-buscador-producto
         id-modal="buscadorProductoCompra"

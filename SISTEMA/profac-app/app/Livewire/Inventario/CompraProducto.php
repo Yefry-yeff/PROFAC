@@ -27,18 +27,14 @@ class CompraProducto extends Component
 
         $ordenNumero = DB::selectOne("select concat(YEAR(NOW()),'-',count(id)+1)  as 'numero' from compra");
 
-        $municipios = DB::table('municipio as m')
-            ->join('departamento as d', 'd.id', '=', 'm.departamento_id')
-            ->join('pais as p', 'p.id', '=', 'd.pais_id')
-            ->orderBy('p.nombre')->orderBy('d.nombre')->orderBy('m.nombre')
-            ->get(['m.id', 'm.nombre', 'd.nombre as departamento', 'p.nombre as pais']);
+        $paises = \App\Models\Pais::all();
         $categorias = \App\Models\Categoria::all();
         $retenciones = \App\Models\Retenciones::all();
         $tipoPersonalidad = \App\Models\TipoPersonalidad::all();
         $unidadesMedida = DB::table('unidad_medida')->orderBy('nombre')->get(['id', 'nombre', 'simbolo']);
 
         return view('livewire.inventario.compra-producto', compact(
-            'ordenNumero', 'municipios', 'categorias', 'retenciones', 'tipoPersonalidad', 'unidadesMedida'
+            'ordenNumero', 'paises', 'categorias', 'retenciones', 'tipoPersonalidad', 'unidadesMedida'
         ));
     }
 
