@@ -329,6 +329,7 @@ function mostrarModalEditar(id){
         document.getElementById("editar_rtn_prov").value = proveedor.rtn;
         document.getElementById("editar_retencion_prov").value = response.data.retencionProveedor;
         const editForm = document.getElementById('proveedorEditarForm');
+        editForm.querySelector('[data-aplicar-retencion]').checked = Number(response.data.retencionProveedor) !== 1;
         editForm.querySelector('[name="editar_rtn_sin_registro"]').checked = proveedor.rtn === 'N/A';
         editForm.querySelector('[name="editar_telefono_1_sin_registro"]').checked = !proveedor.telefono_1;
         editForm.querySelector('[name="editar_telefono_2_sin_registro"]').checked = !proveedor.telefono_2;
@@ -584,7 +585,8 @@ function mostrarErroresProveedor(formId, response) {
     container.replaceChildren();
     if (errors) {
         Object.entries(errors).forEach(([name, messages]) => {
-            const field = form.elements.namedItem(name);
+            const field = Array.from(form.elements).find(element =>
+                element.name === name && !element.disabled && element.type !== 'hidden');
             if (field) {
                 field.setAttribute('aria-invalid', 'true');
                 field.classList.add('is-invalid');
@@ -606,6 +608,7 @@ $(document).on('hidden.bs.modal', '#modal_proveedores_crear, #modal_proveedores_
     document.body.classList.remove('proveedor-modal-open');
     const form = this.querySelector('form');
     form.reset();
+    actualizarRetencionProveedor(form.querySelector('[data-aplicar-retencion]'));
     form.querySelectorAll('[data-sin-registro]').forEach(check => {
         delete check.dataset.valorAnterior;
         actualizarSinRegistroProveedor(check);
@@ -624,6 +627,26 @@ $(document).on('show.bs.modal', '#modal_proveedores_crear, #modal_proveedores_ed
         }
     });
     this.querySelectorAll('[data-sin-registro]').forEach(actualizarSinRegistroProveedor);
+    actualizarRetencionProveedor(this.querySelector('[data-aplicar-retencion]'));
+});
+
+function actualizarRetencionProveedor(check) {
+    const section = check.closest('fieldset');
+    const select = section.querySelector('select');
+    section.querySelector('[data-retencion-opciones]').classList.toggle('d-none', !check.checked);
+    section.querySelector('[data-sin-retencion]').disabled = check.checked;
+    select.disabled = !check.checked;
+    select.required = check.checked;
+    check.setAttribute('aria-expanded', String(check.checked));
+    if (!check.checked) {
+        select.classList.remove('is-invalid');
+        select.removeAttribute('aria-invalid');
+        $(select).parsley().reset();
+    }
+}
+
+$(document).on('change', '.proveedores-view [data-aplicar-retencion]', function() {
+    actualizarRetencionProveedor(this);
 });
 
 function actualizarSinRegistroProveedor(check) {

@@ -181,7 +181,7 @@ class ProveedoresTest extends TestCase
         $this->assertSame(422, $this->crear($this->datos())->getStatusCode());
     }
 
-    public function test_formulario_tiene_tres_secciones_y_solo_los_campos_solicitados(): void
+    public function test_formulario_tiene_cuatro_secciones_y_retencion_condicional(): void
     {
         $html = view('livewire.partials.proveedor-form', [
             'editar' => false,
@@ -190,7 +190,11 @@ class ProveedoresTest extends TestCase
             'paises' => DB::table('pais')->get(),
             'retenciones' => DB::table('retenciones')->get(),
         ])->render();
-        $this->assertSame(3, substr_count($html, '<fieldset'));
+        $this->assertSame(4, substr_count($html, '<fieldset'));
+        $this->assertStringContainsString('data-aplicar-retencion', $html);
+        $this->assertStringContainsString('data-sin-retencion', $html);
+        $this->assertStringContainsString('class="form-group d-none" data-retencion-opciones', $html);
+        $this->assertStringContainsString('class="form-control" disabled', $html);
         foreach (array_keys($this->datos()) as $campo) {
             $this->assertStringContainsString('name="' . $campo . '"', $html);
         }

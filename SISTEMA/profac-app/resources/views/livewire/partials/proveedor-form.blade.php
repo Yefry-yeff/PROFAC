@@ -37,14 +37,6 @@
                 @endforeach
             </select>
         </div>
-        <div class="col-md-6 form-group">
-            <label for="{{ $prefijo }}retencion_prov">Retención</label>
-            <select id="{{ $prefijo }}retencion_prov" name="{{ $prefijo }}retencion_prov" class="form-control">
-                @foreach ($retenciones as $retencion)
-                    <option value="{{ $retencion->id }}" @selected($retencion->id == 1)>{{ $retencion->nombre }}</option>
-                @endforeach
-            </select>
-        </div>
     </div>
 </fieldset>
 <fieldset class="proveedor-section">
@@ -106,5 +98,27 @@
             <label for="{{ $prefijo }}direccion_prov">Dirección <span class="text-danger">*</span></label>
             <textarea id="{{ $prefijo }}direccion_prov" name="{{ $prefijo }}direccion_prov" class="form-control" rows="3" placeholder="Barrio, colonia, calle y referencias del lugar" required></textarea>
         </div>
+    </div>
+</fieldset>
+<fieldset class="proveedor-section">
+    <legend><span class="proveedor-section-number">04</span> Retención</legend>
+    <div class="form-group">
+        <label class="proveedor-no-registro" for="{{ $prefijo }}aplicar_retencion">
+            <input id="{{ $prefijo }}aplicar_retencion" type="checkbox" data-aplicar-retencion
+                aria-controls="{{ $prefijo }}retencion_opciones" aria-expanded="false">
+            Aplicar retención a este proveedor
+        </label>
+        <input type="hidden" name="{{ $prefijo }}retencion_prov" value="1" data-sin-retencion>
+    </div>
+    <div id="{{ $prefijo }}retencion_opciones" class="form-group d-none" data-retencion-opciones>
+        <label for="{{ $prefijo }}retencion_prov">Tipo de retención <span class="text-danger">*</span></label>
+        <select id="{{ $prefijo }}retencion_prov" name="{{ $prefijo }}retencion_prov" class="form-control" disabled>
+            <option value="">Seleccione una retención</option>
+            @foreach ($retenciones as $retencion)
+                @if ($retencion->id != 1)
+                    <option value="{{ $retencion->id }}">{{ $retencion->nombre }}</option>
+                @endif
+            @endforeach
+        </select>
     </div>
 </fieldset>
