@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\DB;
 use Auth;
 use Validator;
 use Illuminate\Database\QueryException;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Throwable;
 use App\Models\User;
 use App\Models\Modelproveedores;
@@ -40,29 +42,38 @@ class Proveedores extends Component
     }
 
     public function proveerdoresModelInsert(Request $request){
-        /* dd($request->telefono_prov_2); */
+        $this->normalizarRegistroProveedor($request);
             $validator = Validator::make($request->all(), [
-                'codigo_prov' => 'required|string|max:45',
                 'nombre_prov' => 'required|string|max:100',
                 'direccion_prov' => 'required|string',
-                'contacto_prov' => 'required|string|max:45',
-                'telefono_prov' => 'required|string|max:45',
-                'telefono_prov_2' => 'nullable|string|max:45',
+                'contacto_prov' => 'nullable|string|max:45',
+                'telefono_prov' => ['required_unless:telefono_1_sin_registro,1', 'nullable', 'string', 'regex:/^[0-9]{4}-[0-9]{4}$/D'],
+                'telefono_prov_2' => ['nullable', 'string', 'regex:/^[0-9]{4}-[0-9]{4}$/D'],
                 'correo_prov' => 'nullable|email|max:45',
                 'correo_prov_2' => 'nullable|email|max:45',
-                'rtn_prov' => 'required|string|max:45',
-                'municipio_prov' => 'required|integer|exists:municipio,id',
+                'rtn_prov' => ['required', 'string', 'max:45',
+                    Rule::when(!$request->boolean('rtn_sin_registro'), ['regex:/^[A-Za-z0-9]+$/D', Rule::unique('proveedores', 'rtn')])],
+                'rtn_sin_registro' => 'sometimes|boolean',
+                'telefono_1_sin_registro' => 'sometimes|boolean',
+                'telefono_2_sin_registro' => 'sometimes|boolean',
+                'pais_prov' => 'sometimes|required|integer|exists:pais,id',
+                'depto_prov' => ['required_with:pais_prov', 'integer', Rule::exists('departamento', 'id')->where('pais_id', $request->pais_prov)],
+                'municipio_prov' => ['required', 'integer', $request->filled('depto_prov')
+                    ? Rule::exists('municipio', 'id')->where('departamento_id', $request->depto_prov)
+                    : Rule::exists('municipio', 'id')],
                 'giro_neg_prov' => 'required|integer|exists:tipo_personalidad,id',
                 'categoria_prov' => 'required|integer|exists:categoria,id',
-                'retencion_prov' => 'required|integer|exists:retenciones,id',
+                'retencion_prov' => 'nullable|integer|exists:retenciones,id',
             ], [
-                'codigo_prov' => 'Codigo es requerido',
                 'nombre_prov' => 'nombre es requerido',
                 'direccion_prov' => 'Direccion es requerido',
                 'contacto_prov' => 'Contacto es requerido',
-                'telefono_prov' => 'Telefono es requerido',
-                'telefono_prov_2' => 'Telefono 2 es requerido',
-                'rtn_prov' => 'RTN es requerido',     
+                'telefono_prov.required_unless' => 'Ingrese el teléfono 1 o marque Sin registro.',
+                'telefono_prov.regex' => 'El teléfono 1 debe tener el formato ####-####.',
+                'telefono_prov_2.regex' => 'El teléfono 2 debe tener el formato ####-####.',
+                'rtn_prov.required' => 'El RTN es obligatorio.',
+                'rtn_prov.unique' => 'Ya existe un proveedor con este RTN.',
+                'rtn_prov.regex' => 'El RTN solo puede contener letras y números; si no tiene registro, marque Sin registro.',
                 'municipio_prov' => 'Municipio es requerido',
                 'giro_neg_prov' => 'Giro es requerido',
                 'categoria_prov' => 'Categoria es requerido',
@@ -79,14 +90,14 @@ class Proveedores extends Component
 
             try {
 
-                DB::beginTransaction();
+                $crearProveedores = DB::transaction(function () use ($request) {
+                $this->validarRtnDisponible($request->rtn_prov, 'rtn_prov');
 
                 $crearProveedores = new Modelproveedores;
-                $crearProveedores->codigo=trim($request->codigo_prov);
                 $crearProveedores->nombre=trim($request->nombre_prov);
                 $crearProveedores->direccion=trim($request->direccion_prov);
-                $crearProveedores->contacto=trim($request->contacto_prov);
-                $crearProveedores->telefono_1=trim($request->telefono_prov);
+                $crearProveedores->contacto=trim((string) $request->contacto_prov);
+                $crearProveedores->telefono_1=trim((string) $request->telefono_prov);
                 $crearProveedores->telefono_2=trim((string) $request->telefono_prov_2);
                 $crearProveedores->correo_1=trim((string) $request->correo_prov);
                 $crearProveedores->correo_2=trim((string) $request->correo_prov_2);
@@ -97,8 +108,10 @@ class Proveedores extends Component
                 $crearProveedores->categoria_id=$request->categoria_prov;  
                 $crearProveedores->estado_id=1;
                 $crearProveedores->save();
+                $crearProveedores->codigo = (string) $crearProveedores->id;
+                $crearProveedores->save();
 
-                if($request->retencion_prov != 1){
+                if($request->filled('retencion_prov') && $request->retencion_prov != 1){
                     $retencionesProveedor = new RetencionesProveedores;
                     $retencionesProveedor->retenciones_id = $request->retencion_prov;
                     $retencionesProveedor->proveedores_id = $crearProveedores->id;
@@ -112,7 +125,8 @@ class Proveedores extends Component
 
                 //$crearProveedores->retencion=$request->retencion_prov;
 
-                DB::commit();
+                return $crearProveedores;
+                }, 3);
 
                 return response()->json([
                     'message' => 'Creado con exito.',
@@ -123,9 +137,11 @@ class Proveedores extends Component
                     ],
                 ], 200); 
                
+            } catch (ValidationException $e) {
+                return response()->json(['message' => $e->getMessage(), 'errors' => $e->errors()], 422);
             } catch (QueryException $e) {
 
-                DB::rollback(); 
+                report($e);
          
                 return response()->json([
                     'message' => 'Ha ocurrido un error.',
@@ -199,6 +215,7 @@ class Proveedores extends Component
          direccion,
          contacto,
          correo_1,
+         telefono_1,
          rtn,
          estado_id,
          (select retenciones_id from retenciones_has_proveedores where (retenciones_has_proveedores.proveedores_id = proveedores.id and retenciones_id = 2)  ) as 'uno_porciento'    
@@ -216,10 +233,9 @@ class Proveedores extends Component
 
                         '
                         <div class="btn-group">
-                        <button data-toggle="dropdown" class="btn btn-warning dropdown-toggle" aria-expanded="false">Ver
+                        <button type="button" data-toggle="dropdown" data-boundary="viewport" class="btn btn-warning dropdown-toggle" aria-expanded="false">Ver
                             más</button>
-                        <ul class="dropdown-menu" x-placement="bottom-start"
-                            style="position: absolute; top: 33px; left: 0px; will-change: top, left;">
+                        <ul class="dropdown-menu dropdown-menu-right">
                             <li><a class="dropdown-item" href="#" onclick="mostrarModalEditar('.$listaProveedores->id.')"> <i class="fa fa-pencil m-r-5 text-warning"></i>
                                     Editar</a></li>
                             <li><a class="dropdown-item" href="#" onclick="desactivarProveedor('.$listaProveedores->id.')"> <i class="fa fa-times text-danger" aria-hidden="true"></i>
@@ -237,10 +253,9 @@ class Proveedores extends Component
                         
                         '
                         <div class="btn-group">
-                        <button data-toggle="dropdown" class="btn btn-warning dropdown-toggle" aria-expanded="false">Ver
+                        <button type="button" data-toggle="dropdown" data-boundary="viewport" class="btn btn-warning dropdown-toggle" aria-expanded="false">Ver
                             más</button>
-                        <ul class="dropdown-menu" x-placement="bottom-start"
-                            style="position: absolute; top: 33px; left: 0px; will-change: top, left;">
+                        <ul class="dropdown-menu dropdown-menu-right">
                             <li><a class="dropdown-item" href="#" onclick="mostrarModalEditar('.$listaProveedores->id.')"> <i class="fa fa-pencil m-r-5 text-warning"></i>
                                     Editar</a></li>
                             <li><a class="dropdown-item" href="#" onclick="activarProveedor('.$listaProveedores->id.')"> <i class="fa fa-check-circle text-success" aria-hidden="true"></i>
@@ -353,12 +368,14 @@ class Proveedores extends Component
             $paises = Pais::all();
 
             $departamentos = DB::SELECT("
-            select id, CONCAT(UPPER(SUBSTRING(nombre,1,1)),LOWER(SUBSTRING(nombre,2))) as 'nombre' from departamento ");
+            select id, pais_id, CONCAT(UPPER(SUBSTRING(nombre,1,1)),LOWER(SUBSTRING(nombre,2))) as 'nombre' from departamento ");
 
 
-            $municipios = DB::SELECT("select id, CONCAT(UPPER(SUBSTRING(nombre,1,1)),LOWER(SUBSTRING(nombre,2))) as 'nombre' from municipio ");
+            $municipios = DB::SELECT("select id, departamento_id, CONCAT(UPPER(SUBSTRING(nombre,1,1)),LOWER(SUBSTRING(nombre,2))) as 'nombre' from municipio ");
             $tipoPersonalidad = TipoPersonalidad::all();
             $categoria = Categoria::all();
+            $retencionProveedor = RetencionesProveedores::where('proveedores_id', $proveedor->id)
+                ->where('retenciones_id', '<>', 1)->value('retenciones_id') ?? 1;
 
             return response()->json([
                 "paises" => $paises,
@@ -369,7 +386,8 @@ class Proveedores extends Component
                 "paisProveedor" => $paisProveedor,
                 "proveedor" => $proveedor,
                 "tipoPersonalidad"=>$tipoPersonalidad,
-                "categoria"=>$categoria
+                "categoria"=>$categoria,
+                "retencionProveedor" => $retencionProveedor,
 
             ],200);
 
@@ -385,27 +403,46 @@ class Proveedores extends Component
     }
 
     public function editarProveedor(Request $request){
+        $this->normalizarRegistroProveedor($request, 'editar_');
+        $rtnSinCambios = is_string($request->editar_rtn_prov) && Modelproveedores::whereKey((int) $request->idProveedor)
+            ->where('rtn', $request->editar_rtn_prov)->exists();
 
         $validator = Validator::make($request->all(), [
-            'idProveedor' => 'required',
-            'editar_codigo_prov' => 'required',
-            'editar_nombre_prov' => 'required',
-            'editar_direccion_prov' => 'required',
-            'editar_contacto_prov' => 'required',
-            'editar_telefono_prov' => 'required',               
-            'editar_rtn_prov' => 'required',   
-            'editar_municipio_prov' => 'required',
-            'editar_giro_neg_prov' => 'required',
-            'editar_categoria_prov' => 'required',
+            'idProveedor' => 'required|integer|exists:proveedores,id',
+            'editar_nombre_prov' => 'required|string|max:100',
+            'editar_direccion_prov' => 'required|string',
+            'editar_contacto_prov' => 'nullable|string|max:45',
+            'editar_telefono_prov' => ['required_unless:editar_telefono_1_sin_registro,1', 'nullable', 'string', 'regex:/^[0-9]{4}-[0-9]{4}$/D'],
+            'editar_telefono_prov_2' => ['nullable', 'string', 'regex:/^[0-9]{4}-[0-9]{4}$/D'],
+            'editar_correo_prov' => 'nullable|email|max:45',
+            'editar_correo_prov_2' => 'nullable|email|max:45',
+            'editar_rtn_prov' => ['required', 'string', 'max:45',
+                Rule::when(!$request->boolean('editar_rtn_sin_registro'), ['regex:/^[A-Za-z0-9]+$/D']),
+                Rule::when(!$request->boolean('editar_rtn_sin_registro') && !$rtnSinCambios,
+                    [Rule::unique('proveedores', 'rtn')->ignore((int) $request->idProveedor)])],
+            'editar_rtn_sin_registro' => 'sometimes|boolean',
+            'editar_telefono_1_sin_registro' => 'sometimes|boolean',
+            'editar_telefono_2_sin_registro' => 'sometimes|boolean',
+            'editar_retencion_prov' => 'sometimes|required|integer|exists:retenciones,id',
+            'editar_pais_prov' => 'sometimes|required|integer|exists:pais,id',
+            'editar_depto_prov' => ['required_with:editar_pais_prov', 'integer', Rule::exists('departamento', 'id')->where('pais_id', $request->editar_pais_prov)],
+            'editar_municipio_prov' => ['required', 'integer', $request->filled('editar_depto_prov')
+                ? Rule::exists('municipio', 'id')->where('departamento_id', $request->editar_depto_prov)
+                : Rule::exists('municipio', 'id')],
+            'editar_giro_neg_prov' => 'required|integer|exists:tipo_personalidad,id',
+            'editar_categoria_prov' => 'required|integer|exists:categoria,id',
             
         ], [
-            'editar_codigo_prov' => 'Codigo es requerido',
             'editar_nombre_prov' => 'nombre es requerido',
-            'editar_ireccion_prov' => 'Direccion es requerido',
+            'editar_direccion_prov' => 'Direccion es requerido',
             'editar_contacto_prov' => 'Contacto es requerido',
-            'editar_telefono_prov' => 'Telefono es requerido',
-            'editar_telefono_prov_2' => 'Telefono 2 es requerido',
-            'editar_rtn_prov' => 'RTN es requerido',     
+            'editar_telefono_prov.required_unless' => 'Ingrese el teléfono 1 o marque Sin registro.',
+            'editar_telefono_prov.regex' => 'El teléfono 1 debe tener el formato ####-####.',
+            'editar_telefono_prov_2.regex' => 'El teléfono 2 debe tener el formato ####-####.',
+            'editar_rtn_prov.required' => 'El RTN es obligatorio.',
+            'editar_rtn_prov.unique' => 'Ya existe un proveedor con este RTN.',
+            'editar_rtn_prov.regex' => 'El RTN solo puede contener letras y números; si no tiene registro, marque Sin registro.',
+            'editar_retencion_prov.exists' => 'Seleccione una retención válida.',
             'editar_municipio_prov' => 'Municipio es requerido',
             'editar_giro_neg_prov' => 'Giro es requerido',
             'editar_categoria_prov' => 'Categoria es requerido',
@@ -419,30 +456,53 @@ class Proveedores extends Component
             ], 422);
         }
         try {
+                DB::transaction(function () use ($request) {
+                $this->validarRtnDisponible($request->editar_rtn_prov, 'editar_rtn_prov', (int) $request->idProveedor);
 
                 $crearProveedores = Modelproveedores::find($request['idProveedor']);
-                $crearProveedores->codigo=trim($request->editar_codigo_prov);
                 $crearProveedores->nombre=trim($request->editar_nombre_prov);
                 $crearProveedores->direccion=trim($request->editar_direccion_prov);
-                $crearProveedores->contacto=trim($request->editar_contacto_prov);
-                $crearProveedores->telefono_1=trim($request->editar_telefono_prov);
-                $crearProveedores->telefono_2=trim($request->editar_telefono_prov_2);
-                $crearProveedores->correo_1=trim($request->editar_correo_prov);
-                $crearProveedores->correo_2=trim($request->editar_correo_prov_2);
+                if ($request->has('editar_contacto_prov')) {
+                    $crearProveedores->contacto=trim((string) $request->editar_contacto_prov);
+                }
+                $crearProveedores->telefono_1=trim((string) $request->editar_telefono_prov);
+                $crearProveedores->telefono_2=trim((string) $request->editar_telefono_prov_2);
+                $crearProveedores->correo_1=trim((string) $request->editar_correo_prov);
+                if ($request->has('editar_correo_prov_2')) {
+                    $crearProveedores->correo_2=trim((string) $request->editar_correo_prov_2);
+                }
                 $crearProveedores->rtn=trim($request->editar_rtn_prov);
                 $crearProveedores->registrado_por=Auth::user()->id;              
                 $crearProveedores->municipio_id=$request->editar_municipio_prov;
                 $crearProveedores->tipo_personalidad_id=$request->editar_giro_neg_prov;
                 $crearProveedores->categoria_id=$request->editar_categoria_prov;                 
                 $crearProveedores->save();
-
+                if ($request->has('editar_retencion_prov')) {
+                    $retenciones = RetencionesProveedores::where('proveedores_id', $crearProveedores->id);
+                    $ids = (clone $retenciones)->pluck('retenciones_id');
+                    $seleccion = (int) $request->editar_retencion_prov;
+                    if (($seleccion === 1 && $ids->isNotEmpty())
+                        || ($seleccion !== 1 && ($ids->count() !== 1 || (int) $ids->first() !== $seleccion))) {
+                        $retenciones->delete();
+                        if ($seleccion !== 1) {
+                            $retencion = new RetencionesProveedores;
+                            $retencion->proveedores_id = $crearProveedores->id;
+                            $retencion->retenciones_id = $seleccion;
+                            $retencion->save();
+                        }
+                    }
+                }
+                }, 3);
 
 
             return response()->json([
                 'message' => 'Editado con exito.',                   
             ], 200); 
            
+        } catch (ValidationException $e) {
+            return response()->json(['message' => $e->getMessage(), 'errors' => $e->errors()], 422);
         } catch (QueryException $e) {
+            report($e);
           
          
             return response()->json([
@@ -452,6 +512,46 @@ class Proveedores extends Component
               
             ], 402);  
            
+        }
+    }
+
+    private function validarRtnDisponible(string $rtn, string $campo, ?int $excepto = null): void
+    {
+        if ($rtn === 'N/A') {
+            return;
+        }
+        // Serialize provider writes until legacy duplicates can be replaced by a unique RTN index.
+        Modelproveedores::orderBy('id')->lockForUpdate()->first(['id']);
+        if ($excepto !== null && Modelproveedores::whereKey($excepto)->where('rtn', $rtn)->exists()) {
+            return;
+        }
+        $proveedor = Modelproveedores::where('rtn', $rtn)
+            ->when($excepto !== null, fn ($query) => $query->where('id', '<>', $excepto))
+            ->lockForUpdate()
+            ->first(['id']);
+
+        if ($proveedor !== null) {
+            throw ValidationException::withMessages([$campo => 'Ya existe un proveedor con este RTN.']);
+        }
+    }
+
+    private function normalizarRegistroProveedor(Request $request, string $prefijo = ''): void
+    {
+        $rtn = $request->input($prefijo . 'rtn_prov');
+        $request->merge([$prefijo . 'rtn_prov' => $request->boolean($prefijo . 'rtn_sin_registro')
+            ? 'N/A' : (is_string($rtn) ? trim($rtn) : $rtn)]);
+
+        foreach (['telefono_prov' => 'telefono_1_sin_registro', 'telefono_prov_2' => 'telefono_2_sin_registro'] as $campo => $check) {
+            $telefono = $request->input($prefijo . $campo);
+            if ($request->boolean($prefijo . $check)) {
+                $telefono = '';
+            } elseif (is_string($telefono)) {
+                $telefono = trim($telefono);
+                if (preg_match('/^[0-9]{8}$/D', $telefono)) {
+                    $telefono = substr($telefono, 0, 4) . '-' . substr($telefono, 4);
+                }
+            }
+            $request->merge([$prefijo . $campo => $telefono]);
         }
     }
 }

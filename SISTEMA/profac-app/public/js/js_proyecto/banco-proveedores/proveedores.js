@@ -7,8 +7,10 @@ $(document).ready(function() {
 });
 
 function obtenerDepartamentos() {
-    document.getElementById("depto_prov").innerHTML = "<option selected disabled>---Seleccione un Departamento---</option>"
+    document.getElementById("depto_prov").innerHTML = '<option value="">Seleccione un departamento</option>';
+    document.getElementById("municipio_prov").innerHTML = '<option value="">Seleccione un municipio</option>';
     var id = document.getElementById("pais_prov").value;
+    if (!id) return;
     //console.log(id)
     ///proveedores/obeter/departamento
     let datos = {
@@ -19,7 +21,8 @@ function obtenerDepartamentos() {
         .then(function(response) {
 
             let array = response.data.departamentos;
-            let html = "";
+            if (document.getElementById("pais_prov").value !== id) return;
+            let html = '<option value="">Seleccione un departamento</option>';
 
             array.forEach(departamento => {
 
@@ -49,8 +52,10 @@ function obtenerDepartamentos() {
 }
 
 function obtenerMunicipios() {
+    document.getElementById("municipio_prov").innerHTML = '<option value="">Seleccione un municipio</option>';
     //municipio_prov
     var id = document.getElementById("depto_prov").value;
+    if (!id) return;
 
     let datos = {
         "id": id
@@ -61,7 +66,8 @@ function obtenerMunicipios() {
         .then(function(response) {
 
             let array = response.data.departamentos;
-            let html = "";
+            if (document.getElementById("depto_prov").value !== id) return;
+            let html = '<option value="">Seleccione un municipio</option>';
 
             array.forEach(municipio => {
 
@@ -135,7 +141,7 @@ $(document).ready(function() {
                 data: 'direccion'
             },
             {
-                data: 'contacto'
+                data: 'telefono_1'
             },
             {
                 data: 'correo_1'
@@ -169,6 +175,8 @@ $(document).on('submit', '#proveedorCreacionForm', function(event) {
 
 function crearProveedores() {
     var data = new FormData($('#proveedorCreacionForm').get(0));
+    limpiarErroresProveedor('proveedorCreacionForm');
+    $('button[form="proveedorCreacionForm"][type="submit"]').prop('disabled', true);
 
     $.ajax({
         type: "POST",
@@ -200,12 +208,10 @@ function crearProveedores() {
 
         },
         error: function(jqXHR, textStatus, errorThrown) {
-            console.log(jqXHR.responseJSON.message);
-            Swal.fire({
-                icon: 'warning',
-                title: 'Error',
-                text: 'Ha ocurrido un error al mostrar la lista de proveedores'
-            })
+            mostrarErroresProveedor('proveedorCreacionForm', jqXHR.responseJSON);
+        },
+        complete: function() {
+            $('button[form="proveedorCreacionForm"][type="submit"]').prop('disabled', false);
         }
     });
 }
@@ -315,15 +321,17 @@ function mostrarModalEditar(id){
 
 
         document.getElementById("idProveedor").value = proveedor.id;
-        document.getElementById("editar_codigo_prov").value = proveedor.codigo;
         document.getElementById("editar_nombre_prov").value = proveedor.nombre;
         document.getElementById("editar_direccion_prov").value = proveedor.direccion;
-        document.getElementById("editar_contacto_prov").value = proveedor.contacto;
         document.getElementById("editar_telefono_prov").value = proveedor.telefono_1;
         document.getElementById("editar_telefono_prov_2").value = proveedor.telefono_2;
         document.getElementById("editar_correo_prov").value = proveedor.correo_1;
-        document.getElementById("editar_correo_prov_2").value = proveedor.correo_2;
         document.getElementById("editar_rtn_prov").value = proveedor.rtn;
+        document.getElementById("editar_retencion_prov").value = response.data.retencionProveedor;
+        const editForm = document.getElementById('proveedorEditarForm');
+        editForm.querySelector('[name="editar_rtn_sin_registro"]').checked = proveedor.rtn === 'N/A';
+        editForm.querySelector('[name="editar_telefono_1_sin_registro"]').checked = !proveedor.telefono_1;
+        editForm.querySelector('[name="editar_telefono_2_sin_registro"]').checked = !proveedor.telefono_2;
 
 
         paises.forEach( pais =>{
@@ -342,7 +350,7 @@ function mostrarModalEditar(id){
 
 
 
-        departamentos.forEach( departamento =>{
+        departamentos.filter(departamento => departamento.pais_id === undefined || departamento.pais_id == paisProveedor).forEach( departamento =>{
             if(departamento.id === departamentoProveedor ){
 
                 htmlSelectDepto += `
@@ -356,7 +364,7 @@ function mostrarModalEditar(id){
 
         });
 
-        municipios.forEach( municipio =>{
+        municipios.filter(municipio => municipio.departamento_id === undefined || municipio.departamento_id == departamentoProveedor).forEach( municipio =>{
 
             if(municipio.id == municipioProveedor){
 
@@ -436,8 +444,10 @@ function mostrarModalEditar(id){
 }
 
 function editarObtenerDepartamentos() {
-
+    document.getElementById("editar_depto_prov").innerHTML = '<option value="">Seleccione un departamento</option>';
+    document.getElementById("editar_municipio_prov").innerHTML = '<option value="">Seleccione un municipio</option>';
     var id = document.getElementById("editar_pais_prov").value;
+    if (!id) return;
 
 
     //console.log(id)
@@ -450,7 +460,8 @@ function editarObtenerDepartamentos() {
         .then(function(response) {
 
             let array = response.data.departamentos;
-            let html = "";
+            if (document.getElementById("editar_pais_prov").value !== id) return;
+            let html = '<option value="">Seleccione un departamento</option>';
 
             array.forEach(departamento => {
 
@@ -480,8 +491,10 @@ function editarObtenerDepartamentos() {
 }
 
 function editarObtenerMunicipios() {
+    document.getElementById("editar_municipio_prov").innerHTML = '<option value="">Seleccione un municipio</option>';
     //municipio_prov
     var id = document.getElementById("editar_depto_prov").value;
+    if (!id) return;
 
     let datos = {
         "id": id
@@ -492,7 +505,8 @@ function editarObtenerMunicipios() {
         .then(function(response) {
 
             let array = response.data.departamentos;
-            let html = "";
+            if (document.getElementById("editar_depto_prov").value !== id) return;
+            let html = '<option value="">Seleccione un municipio</option>';
 
             array.forEach(municipio => {
 
@@ -526,6 +540,8 @@ editarProveedor();
 
 function editarProveedor(){
     var data = new FormData($('#proveedorEditarForm').get(0));
+    limpiarErroresProveedor('proveedorEditarForm');
+    $('button[form="proveedorEditarForm"][type="submit"]').prop('disabled', true);
     axios.post("/proveedores/editar/guardar", data)
     .then( response =>{
         document.getElementById("proveedorEditarForm").reset();
@@ -543,15 +559,98 @@ function editarProveedor(){
 
 
     })
-    .catch( err =>{
-            Swal.fire({
-                icon: 'warning',
-                title: 'Error',
-                text: 'Ha ocurrido un error al editar el proveedor'
-            })
+    .catch(err => {
+        mostrarErroresProveedor('proveedorEditarForm', err.response && err.response.data);
     })
+    .finally(() => {
+        $('button[form="proveedorEditarForm"][type="submit"]').prop('disabled', false);
+    });
 
 
 
 
 }
+
+function limpiarErroresProveedor(formId) {
+    const form = document.getElementById(formId);
+    $(form).find('.proveedor-form-errors').empty().addClass('d-none');
+    $(form).find('[aria-invalid="true"]').removeAttr('aria-invalid').removeClass('is-invalid');
+}
+
+function mostrarErroresProveedor(formId, response) {
+    const form = document.getElementById(formId);
+    const container = form.querySelector('.proveedor-form-errors');
+    const errors = response && response.errors;
+    container.replaceChildren();
+    if (errors) {
+        Object.entries(errors).forEach(([name, messages]) => {
+            const field = form.elements.namedItem(name);
+            if (field) {
+                field.setAttribute('aria-invalid', 'true');
+                field.classList.add('is-invalid');
+            }
+            messages.forEach(message => {
+                const line = document.createElement('div');
+                line.textContent = message;
+                container.appendChild(line);
+            });
+        });
+    } else {
+        container.textContent = response && response.message ? response.message : 'No se pudo guardar el proveedor. Intente nuevamente.';
+    }
+    container.classList.remove('d-none');
+    container.focus();
+}
+
+$(document).on('hidden.bs.modal', '#modal_proveedores_crear, #modal_proveedores_editar', function() {
+    document.body.classList.remove('proveedor-modal-open');
+    const form = this.querySelector('form');
+    form.reset();
+    form.querySelectorAll('[data-sin-registro]').forEach(check => {
+        delete check.dataset.valorAnterior;
+        actualizarSinRegistroProveedor(check);
+    });
+    $(form).parsley().reset();
+    limpiarErroresProveedor(form.id);
+    $(form).find('select[id$="depto_prov"]').html('<option value="">Seleccione un departamento</option>');
+    $(form).find('select[id$="municipio_prov"]').html('<option value="">Seleccione un municipio</option>');
+});
+
+$(document).on('show.bs.modal', '#modal_proveedores_crear, #modal_proveedores_editar', function() {
+    document.body.classList.add('proveedor-modal-open');
+    this.querySelectorAll('[data-proveedor-telefono]').forEach(field => {
+        if (/^[0-9]{8}$/.test(field.value)) {
+            field.value = field.value.slice(0, 4) + '-' + field.value.slice(4);
+        }
+    });
+    this.querySelectorAll('[data-sin-registro]').forEach(actualizarSinRegistroProveedor);
+});
+
+function actualizarSinRegistroProveedor(check) {
+    const field = document.getElementById(check.dataset.sinRegistro);
+    if (check.checked) {
+        if (!field.disabled) {
+            check.dataset.valorAnterior = field.value === check.dataset.sinRegistroValor ? '' : field.value;
+        }
+        field.value = check.dataset.sinRegistroValor;
+    } else if (field.disabled) {
+        field.value = check.dataset.valorAnterior || '';
+    }
+    field.disabled = check.checked;
+    field.classList.remove('is-invalid');
+    field.removeAttribute('aria-invalid');
+    $(field).parsley().reset();
+}
+
+$(document).on('change', '.proveedores-view [data-sin-registro]', function() {
+    actualizarSinRegistroProveedor(this);
+});
+
+$(document).on('input', '.proveedores-view [data-proveedor-telefono]', function() {
+    const cursor = this.selectionStart;
+    const digitsBeforeCursor = this.value.slice(0, cursor).replace(/\D/g, '').length;
+    const digits = this.value.replace(/\D/g, '').slice(0, 8);
+    this.value = digits.length > 4 ? digits.slice(0, 4) + '-' + digits.slice(4) : digits;
+    const position = Math.min(digitsBeforeCursor + (digitsBeforeCursor > 4 ? 1 : 0), this.value.length);
+    this.setSelectionRange(position, position);
+});

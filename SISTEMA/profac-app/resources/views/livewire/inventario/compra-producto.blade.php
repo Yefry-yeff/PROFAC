@@ -244,7 +244,7 @@
                 <div class="modal-body">
                     <div id="proveedorCompraError" class="alert alert-danger d-none" role="alert"></div>
                     <div class="row">
-                        @foreach (['codigo_prov' => 'Código', 'nombre_prov' => 'Nombre del proveedor', 'contacto_prov' => 'Contacto', 'telefono_prov' => 'Teléfono', 'rtn_prov' => 'RTN'] as $campo => $etiqueta)
+                        @foreach (['nombre_prov' => 'Nombre del proveedor', 'contacto_prov' => 'Contacto', 'telefono_prov' => 'Teléfono', 'rtn_prov' => 'RTN'] as $campo => $etiqueta)
                             <div class="col-md-6 mb-3">
                                 <label for="inline_{{ $campo }}">{{ $etiqueta }} *</label>
                                 <input id="inline_{{ $campo }}" name="{{ $campo }}" type="text" class="form-control" required maxlength="{{ $campo === 'nombre_prov' ? 100 : 45 }}">
