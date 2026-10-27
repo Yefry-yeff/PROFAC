@@ -26,6 +26,7 @@ use App\Models\logCredito;
 use App\Models\User;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\NotasCreditoExport;
+use App\Services\NotaCredito\AnuladorNotaCredito;
 
 class ListadoNotaCredito extends Component
 {
@@ -185,26 +186,42 @@ class ListadoNotaCredito extends Component
 
     public function asientos($idNotaCredito)
     {
+        $notaActiva = (int) DB::table('nota_credito')->where('id', (int) $idNotaCredito)->value('estado_nota_id') === 1;
+        $movimientosAnulados = [
+            AnuladorNotaCredito::TIPO_APLICACION_ANULADA,
+            AnuladorNotaCredito::TIPO_REEMBOLSO_ANULADO,
+        ];
+
         $asientos = DB::table('nota_credito_asientos as a')
             ->join('nota_credito_asiento_detalles as d', 'd.asiento_id', '=', 'a.id')
             ->leftJoin('users as u', 'u.id', '=', 'a.users_id')
+            ->leftJoin('nota_credito_movimientos as m', 'm.id', '=', 'a.movimiento_id')
             ->where('a.nota_credito_id', (int) $idNotaCredito)
             ->orderBy('a.fecha')
             ->orderBy('a.id')
             ->orderBy('d.id')
             ->select(
-                'a.id', 'a.tipo', 'a.fecha', 'a.descripcion', 'u.name as usuario',
-                'd.cuenta_codigo', 'd.cuenta_nombre', 'd.debe', 'd.haber'
+                'a.id', 'a.tipo', 'a.fecha', 'a.descripcion', 'a.movimiento_id', 'm.tipo as movimiento_tipo',
+                'u.name as usuario', 'd.cuenta_codigo', 'd.cuenta_nombre', 'd.debe', 'd.haber'
             )
             ->get()
             ->groupBy('id')
-            ->map(function ($detalles) {
+            ->map(function ($detalles) use ($notaActiva, $movimientosAnulados) {
                 $primero = $detalles->first();
+                $anulado = $primero->tipo === 'emision'
+                    ? !$notaActiva
+                    : in_array($primero->movimiento_tipo, $movimientosAnulados, true);
+
                 return [
                     'tipo' => $primero->tipo,
+                    'movimiento_id' => $primero->movimiento_id ? (int) $primero->movimiento_id : null,
                     'fecha' => $primero->fecha,
                     'descripcion' => $primero->descripcion,
                     'usuario' => $primero->usuario,
+                    'anulado' => $anulado,
+                    'anulable' => $notaActiva
+                        && $primero->tipo === 'aplicacion'
+                        && $primero->movimiento_tipo === AnuladorNotaCredito::TIPO_APLICACION,
                     'detalles' => $detalles->map(function ($detalle) {
                         return [
                             'codigo' => $detalle->cuenta_codigo,
@@ -216,7 +233,63 @@ class ListadoNotaCredito extends Component
                 ];
             })->values();
 
-        return response()->json(['asientos' => $asientos]);
+        return response()->json(['asientos' => $asientos, 'nota_activa' => $notaActiva]);
+    }
+
+    public function previsualizarAnulacion($idNotaCredito, AnuladorNotaCredito $anulador)
+    {
+        try {
+            return response()->json($anulador->previsualizarNota((int) $idNotaCredito));
+        } catch (\DomainException $e) {
+            return response()->json(['icon' => 'warning', 'title' => 'Advertencia', 'text' => e($e->getMessage())], 404);
+        }
+    }
+
+    public function previsualizarReversionAplicacion($idMovimiento, AnuladorNotaCredito $anulador)
+    {
+        return response()->json($anulador->previsualizarAplicacion((int) $idMovimiento));
+    }
+
+    public function revertirAplicacion(Request $request, AnuladorNotaCredito $anulador)
+    {
+        try {
+            $datos = $request->validate([
+                'idMovimiento' => 'required|integer',
+                'motivo' => 'required|string|min:5|max:1000',
+            ], [
+                'motivo.required' => 'Ingrese el motivo de la anulación.',
+                'motivo.min' => 'El motivo de la anulación debe tener al menos 5 caracteres.',
+            ]);
+
+            $resultado = $anulador->revertirAplicacion((int) $datos['idMovimiento'], $datos['motivo'], (int) Auth::id());
+
+            return response()->json([
+                'icon' => 'success',
+                'title' => 'Aplicación anulada',
+                'text' => 'La aplicación fue revertida y el crédito quedó disponible nuevamente en la nota.',
+                'resultado' => $resultado,
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'icon' => 'warning',
+                'title' => 'Datos incompletos',
+                'text' => collect($e->errors())->flatten()->first(),
+            ], 422);
+        } catch (\DomainException $e) {
+            return response()->json([
+                'icon' => 'warning',
+                'title' => 'No se puede anular',
+                'text' => e($e->getMessage()),
+            ], 422);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'icon' => 'error',
+                'title' => 'Error',
+                'text' => 'Ha ocurrido un error al anular la aplicación. No se realizó ningún cambio.',
+            ], 500);
+        }
     }
 
     public function exportarExcel(Request $request)

@@ -1093,6 +1093,9 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/nota/credito/imprimir/{idNota}', [ListadoNotaCredito::class, 'imprimirnotaCreditoOriginal']);
     Route::get('/nota/credito/imprimir/copia/{idNota}', [ListadoNotaCredito::class, 'imprimirnotaCreditoCopia']);
     Route::post('/nota/credito/anular', [CrearNotaCredito::class, 'anularNotaCredito']);
+    Route::get('/nota/credito/anular/previsualizar/{idNotaCredito}', [ListadoNotaCredito::class, 'previsualizarAnulacion']);
+    Route::get('/nota/credito/aplicacion/{idMovimiento}/previsualizar-reversion', [ListadoNotaCredito::class, 'previsualizarReversionAplicacion']);
+    Route::post('/nota/credito/aplicacion/revertir', [ListadoNotaCredito::class, 'revertirAplicacion']);
 
 
 

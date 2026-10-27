@@ -51,6 +51,7 @@ class AjustadorComisionNotaCredito
             [$montoCalculado, $detalle] = $this->calcularMonto($nota, $factura, $comision, $lineasNota);
             $ajustadoAnterior = (float) DB::table('nota_credito_ajustes_comision')
                 ->where('facturas_comision_id', $comision->id)
+                ->whereNull('anulado_at')
                 ->sum('monto');
             $disponible = max(0, round((float) $comision->monto_rol - $ajustadoAnterior, 2));
             $monto = min(round($montoCalculado, 2), $disponible);
@@ -103,6 +104,51 @@ class AjustadorComisionNotaCredito
         }
 
         return $resultado;
+    }
+
+    /**
+     * Devuelve a los empleados lo rebajado por una nota anulada. Si el período donde se
+     * rebajó ya fue conciliado, el monto se acredita en el siguiente período abierto.
+     */
+    public function revertir(int $notaCreditoId, int $usuarioId): array
+    {
+        $ajustes = DB::table('nota_credito_ajustes_comision')
+            ->where('nota_credito_id', $notaCreditoId)
+            ->whereNull('anulado_at')
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get();
+
+        $resultado = [];
+        foreach ($ajustes as $ajuste) {
+            $periodo = $this->siguientePeriodoAbierto(Carbon::parse($ajuste->periodo_aplicado)->startOfMonth());
+            $this->acreditarAcumulado((int) $ajuste->user_id, (int) $ajuste->rol_id, $periodo, (float) $ajuste->monto);
+
+            DB::table('nota_credito_ajustes_comision')->where('id', $ajuste->id)->update([
+                'anulado_at' => now(),
+                'anulado_por' => $usuarioId,
+                'updated_at' => now(),
+            ]);
+
+            $resultado[] = [
+                'facturas_comision_id' => (int) $ajuste->facturas_comision_id,
+                'user_id' => (int) $ajuste->user_id,
+                'rol_id' => (int) $ajuste->rol_id,
+                'monto' => round((float) $ajuste->monto, 2),
+                'periodo_original' => $ajuste->periodo_aplicado,
+                'periodo_acreditado' => $periodo->toDateString(),
+            ];
+        }
+
+        return $resultado;
+    }
+
+    public function ajustesPendientes(int $notaCreditoId)
+    {
+        return DB::table('nota_credito_ajustes_comision')
+            ->where('nota_credito_id', $notaCreditoId)
+            ->whereNull('anulado_at')
+            ->get();
     }
 
     private function calcularMonto(object $nota, object $factura, object $comision, $lineasNota): array
@@ -178,7 +224,7 @@ class AjustadorComisionNotaCredito
         return $id ? (int) $id : null;
     }
 
-    private function siguientePeriodoAbierto(Carbon $periodo): Carbon
+    public function siguientePeriodoAbierto(Carbon $periodo): Carbon
     {
         for ($intento = 0; $intento < 24; $intento++) {
             $conciliado = DB::table('comision_periodo')
@@ -194,7 +240,12 @@ class AjustadorComisionNotaCredito
         throw new \RuntimeException('No se encontró un período abierto para rebajar la comisión.');
     }
 
-    private function rebajarAcumulado(int $userId, int $rolId, Carbon $periodo, float $monto): void
+    public function acreditarAcumulado(int $userId, int $rolId, Carbon $periodo, float $monto): void
+    {
+        $this->rebajarAcumulado($userId, $rolId, $periodo, -$monto);
+    }
+
+    public function rebajarAcumulado(int $userId, int $rolId, Carbon $periodo, float $monto): void
     {
         $registro = DB::table('comision_empleado')
             ->where('users_comision', $userId)

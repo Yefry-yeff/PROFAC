@@ -225,6 +225,7 @@
 
 
     @push('scripts')
+    <script src="{{ asset('js/js_proyecto/nota-credito/anular-nota-credito.js') }}?v={{ filemtime(public_path('js/js_proyecto/nota-credito/anular-nota-credito.js')) }}"></script>
     <script src="{{ asset('js/js_proyecto/nota-credito/listado-nota-credito.js') }}"></script>
     <script>
     var ncTable = null;

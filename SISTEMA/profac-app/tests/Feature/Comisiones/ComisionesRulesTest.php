@@ -1131,6 +1131,8 @@ class ComisionesRulesTest extends TestCase
             $table->decimal('monto', 12, 2);
             $table->boolean('comision_pagada');
             $table->json('detalle_calculo')->nullable();
+            $table->timestamp('anulado_at')->nullable();
+            $table->unsignedBigInteger('anulado_por')->nullable();
             $table->timestamps();
             $table->unique(['nota_credito_id', 'facturas_comision_id'], 'uk_nc_ajuste_comision');
         });

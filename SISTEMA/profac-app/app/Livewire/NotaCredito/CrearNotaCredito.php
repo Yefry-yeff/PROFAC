@@ -21,6 +21,7 @@ use App\Models\ModelRecibirBodega;
 use App\Models\ModelCAI;
 use App\Http\Controllers\CAI\Notificaciones;
 use App\Services\NotaCredito\GestorCreditoNota;
+use App\Services\NotaCredito\AnuladorNotaCredito;
 
 class CrearNotaCredito extends Component
 {
@@ -906,117 +907,63 @@ class CrearNotaCredito extends Component
      } */
 
 
-     public function anularNotaCredito(Request $request){
-        $arrayLog = [];
+     public function anularNotaCredito(Request $request, AnuladorNotaCredito $anulador){
         try {
-        DB::beginTransaction();
+            $datos = $request->validate([
+                'idNotaCredito' => 'required|integer',
+                'motivo' => 'required|string|min:5|max:1000',
+            ], [
+                'motivo.required' => 'Ingrese el motivo de la anulación.',
+                'motivo.min' => 'El motivo de la anulación debe tener al menos 5 caracteres.',
+            ]);
 
-         $notaCredito = DB::table('nota_credito')
-             ->where('id', (int) $request->idNotaCredito)
-             ->lockForUpdate()
-             ->first();
+            $resultado = $anulador->anularNota((int) $datos['idNotaCredito'], $datos['motivo'], (int) Auth::id());
 
-         if (!$notaCredito) {
-            DB::rollBack();
             return response()->json([
-                "text" => "La nota de crédito no existe.",
-                "icon" => "warning",
-                "title" => "Advertencia!",
-            ], 404);
-         }
-
-         if($notaCredito->estado_nota_id == 2 ){
-            DB::rollBack();
+                'text' => $this->resumenAnulacion($resultado),
+                'icon' => 'success',
+                'title' => 'Nota anulada',
+                'resultado' => $resultado,
+            ], 200);
+        } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
-                "text" =>"<p  class='text-left'>Esta nota de credito no puede ser anulada, dado que ha sido anulada anteriormente.</p>",
-                "icon" => "warning",
-                "title" => "Advertencia!",
-            ],402);
-         }
-
-         $credito = DB::table('nota_credito_creditos')
-             ->where('nota_credito_id', (int) $request->idNotaCredito)
-             ->lockForUpdate()
-             ->first();
-         $tieneMovimientos = $credito && DB::table('nota_credito_movimientos')
-             ->where('credito_id', $credito->id)
-             ->exists();
-
-         if ($tieneMovimientos) {
-            DB::rollBack();
-            return response()->json([
-                "text" => "La nota de crédito ya tiene aplicaciones o reembolsos. Debe revertir esos movimientos antes de anularla.",
-                "icon" => "warning",
-                "title" => "No se puede anular",
+                'icon' => 'warning',
+                'title' => 'Datos incompletos',
+                'text' => collect($e->errors())->flatten()->first(),
             ], 422);
-         }
-
-         $compra = ModelNotaCredito::find($request->idNotaCredito);
-         $compra->estado_nota_id = 2;
-         $compra->save();
-
-         if ($credito) {
-            DB::table('nota_credito_creditos')
-                ->where('id', $credito->id)
-                ->update([
-                    'saldo_disponible' => 0,
-                    'estado' => 'anulado',
-                    'updated_at' => now(),
-                ]);
-         }
-
-
-
-         $lotes = DB::SELECT("
-         select
-           (select lote from venta_has_producto where factura_id = A.factura_id  and producto_id = B.producto_id AND seccion_id = B.seccion_id AND precio_unidad = B.precio_unidad AND unidad_medida_venta_id = B.unidad_medida_venta_id limit 1) as lote,
-           (B.cantidad * C.unidad_venta ) as numero_unidades_resta_inventario,
-            B.unidad_medida_venta_id
-        from nota_credito A
-        inner join nota_credito_has_producto B
-        on A.id = B.nota_credito_id
-        inner join unidad_medida_venta C
-        on B.unidad_medida_venta_id = C.id
-        where A.id = ".$request->idNotaCredito);
-
-         foreach ($lotes as $lote) {
-                $recibidoBodega = ModelRecibirBodega::find($lote->lote);
-                $recibidoBodega->cantidad_disponible = $recibidoBodega->cantidad_disponible + $lote->numero_unidades_resta_inventario;
-                $recibidoBodega->save();
-
-                array_push($arrayLog,[
-                    'origen'=>$lote->lote,
-                    'destino'=>$lote->lote,
-                    'factura_id'=>$request->idFactura,
-                    'cantidad'=>$lote->numero_unidades_resta_inventario,
-                    "unidad_medida_venta_id"=>$lote->unidad_medida_venta_id,
-                    "users_id"=> Auth::user()->id,
-                    "descripcion"=>"Nota credito anulado",
-                    "created_at"=>now(),
-                    "updated_at"=>now(),
-                ]);
-
-            };
-
-            ModelLogTranslados::insert($arrayLog);
-
-
-
-
-         DB::commit();
-        return response()->json([
-            "text" =>"Nota de credito anulada con éxito.",
-            "icon" => "success",
-            "title" => "Exito",
-        ],200);
+        } catch (\DomainException $e) {
+            return response()->json([
+                'icon' => 'warning',
+                'title' => 'No se puede anular',
+                'text' => e($e->getMessage()),
+            ], 422);
         } catch (\Throwable $e) {
+            report($e);
 
-        DB::rollback();
-        return response()->json([
-            'message' => 'Ha ocurrido un error',
-            'error' => $e
-        ], 402);
+            return response()->json([
+                'icon' => 'error',
+                'title' => 'Error',
+                'text' => 'Ha ocurrido un error al anular la nota de crédito. No se realizó ningún cambio.',
+            ], 500);
+        }
+     }
+
+     private function resumenAnulacion(array $resultado): string
+     {
+        $lineas = ['Nota de crédito anulada con éxito.'];
+        if ($resultado['aplicaciones']) {
+            $lineas[] = count($resultado['aplicaciones']) . ' aplicación(es) revertida(s) en cuentas por cobrar.';
+        }
+        if ($resultado['reembolsos']) {
+            $lineas[] = count($resultado['reembolsos']) . ' reembolso(s) revertido(s) contablemente.';
+        }
+        if ($resultado['inventario']) {
+            $lineas[] = 'Inventario de la devolución descontado.';
+        }
+        if ($resultado['ajustes_comision']) {
+            $lineas[] = 'Ajustes de comisión devueltos a los empleados.';
         }
 
+        return implode('<br>', array_map('e', $lineas));
      }
 }

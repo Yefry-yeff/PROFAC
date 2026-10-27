@@ -23,65 +23,7 @@ function ajustesPorfecha(){
 }
 
 
-function anularNota(idNotaCredito, idFactura){
-    axios.post('/nota/credito/anular', {
-                        idFactura: idFactura,
-                        idNotaCredito: idNotaCredito
-                    })
-                    .then(response => {
-
-                        let data = response.data;
-
-                        Swal.fire({
-                            icon: data.icon,
-                            title: data.title,
-                            html: data.text,
-
-                        })
-
-                        location.reload()
-
-
-                        return;
-
-
-                    })
-                    .catch(err => {
-                        let data = err.response && err.response.data ? err.response.data : {};
-                        Swal.fire({
-                            icon: data.icon || "error",
-                            title: data.title || "Error",
-                            html: data.text || "Ha ocurrido un error al anular nota de crédito.",
-                        })
-
-                    })
-}
-
-function verAsientosNota(idNotaCredito) {
-    axios.get('/nota/credito/asientos/' + idNotaCredito).then(function(response) {
-        var asientos = response.data.asientos || [];
-        if (!asientos.length) {
-            Swal.fire({ icon: 'info', title: 'Sin ajuste contable', text: 'Esta nota no tiene asientos contables registrados.' });
-            return;
-        }
-
-        var moneda = function(valor) {
-            return Number(valor || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        };
-        var html = asientos.map(function(asiento) {
-            var filas = asiento.detalles.map(function(detalle) {
-                return '<tr><td class="text-left"><small>' + detalle.codigo + '</small><br>' + detalle.cuenta + '</td>' +
-                    '<td class="text-right">L ' + moneda(detalle.debe) + '</td>' +
-                    '<td class="text-right">L ' + moneda(detalle.haber) + '</td></tr>';
-            }).join('');
-            return '<div class="text-left mb-3"><strong>' + asiento.descripcion + '</strong>' +
-                '<div class="text-muted small">' + asiento.fecha + ' · ' + (asiento.usuario || 'Sistema') + '</div></div>' +
-                '<div class="table-responsive"><table class="table table-sm table-bordered"><thead><tr><th>Cuenta</th><th>Debe</th><th>Haber</th></tr></thead><tbody>' + filas + '</tbody></table></div>';
-        }).join('<hr>');
-
-        Swal.fire({ title: 'Ajustes contables de la nota', html: html, width: 850, confirmButtonText: 'Cerrar' });
-    });
-}
+// anularNota y verAsientosNota se definen en anular-nota-credito.js
 
 function gestionarCreditoNota(idNotaCredito, credito, deuda) {
     axios.get('/listar/aplicacion/bancos').then(function(response) {

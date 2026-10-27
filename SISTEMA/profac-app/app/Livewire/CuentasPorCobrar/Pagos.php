@@ -316,7 +316,8 @@ class Pagos extends Component
                         DATE_FORMAT(ot.created_at, '%Y-%m-%d') AS fechaCreacion,
                         DATE_FORMAT(ot.created_at, '%Y-%m-%d %H:%i:%s') AS fechaRegistro,
                         ot.factura_id,
-                        NULL AS comentarioNotaCredito
+                        NULL AS comentarioNotaCredito,
+                        NULL AS motivoAnulacion
                     FROM otros_movimientos ot
                     INNER JOIN aplicacion_pagos ap ON ap.id = ot.aplicacion_pagos_id
                     INNER JOIN factura f ON f.id = ot.factura_id
@@ -339,7 +340,8 @@ class Pagos extends Component
                         DATE_FORMAT(COALESCE(nc.fecha_rebajado, nc.updated_at), '%Y-%m-%d') AS fechaCreacion,
                         DATE_FORMAT(COALESCE(nc.fecha_rebajado, nc.updated_at), '%Y-%m-%d %H:%i:%s') AS fechaRegistro,
                         nc.factura_id,
-                        nc.comentario AS comentarioNotaCredito
+                        nc.comentario AS comentarioNotaCredito,
+                        NULL AS motivoAnulacion
                     FROM nota_credito nc
                     INNER JOIN factura f ON f.id = nc.factura_id
                     INNER JOIN aplicacion_pagos ap ON ap.factura_id = nc.factura_id
@@ -373,21 +375,25 @@ class Pagos extends Component
                                 ELSE CONCAT(' - ', ncm.comentario)
                             END
                         ) AS comentario,
-                        1 AS estadoMov,
+                        CASE WHEN ncm.tipo = 'aplicacion' THEN 1 ELSE 2 END AS estadoMov,
                         u.name AS userRegistro,
                         DATE_FORMAT(ncm.fecha_movimiento, '%Y-%m-%d') AS fechaCreacion,
                         DATE_FORMAT(ncm.created_at, '%Y-%m-%d %H:%i:%s') AS fechaRegistro,
                         ncm.factura_id,
-                        nc.comentario AS comentarioNotaCredito
+                        nc.comentario AS comentarioNotaCredito,
+                        rev.comentario AS motivoAnulacion
                     FROM nota_credito_movimientos ncm
                     INNER JOIN nota_credito_creditos ncc ON ncc.id = ncm.credito_id
                     INNER JOIN nota_credito nc ON nc.id = ncc.nota_credito_id
                     INNER JOIN aplicacion_pagos ap ON ap.id = ncm.aplicacion_pagos_id
                     INNER JOIN factura fd ON fd.id = ncm.factura_id
                     LEFT JOIN users u ON u.id = ncm.users_id
+                    LEFT JOIN nota_credito_movimientos rev
+                        ON rev.movimiento_origen_id = ncm.id
+                        AND rev.tipo = 'reversion_aplicacion'
                     WHERE ap.cliente_id = ?
                         AND ap.estado = 1
-                        AND ncm.tipo = 'aplicacion'
+                        AND ncm.tipo IN ('aplicacion', 'aplicacion_anulada')
                 ) AS movimientos
                 ORDER BY movimientos.fechaRegistro DESC
             ", [(int) $id, (int) $id, (int) $id]);
@@ -398,7 +404,10 @@ class Pagos extends Component
                         $movimiento->comentarioNotaCredito
                     );
                 }
-                unset($movimiento->comentarioNotaCredito);
+                if ($movimiento->motivoAnulacion !== null) {
+                    $movimiento->comentario .= ' | ANULADA: ' . $movimiento->motivoAnulacion;
+                }
+                unset($movimiento->comentarioNotaCredito, $movimiento->motivoAnulacion);
             }
 
 
@@ -516,15 +525,8 @@ class Pagos extends Component
                     ->join('nota_credito as nc', 'nc.id', '=', 'cc.nota_credito_id')
                     ->where('cc.cliente_id', $clienteId)
                     ->where('nc.estado_nota_id', 1)
-                    ->where('cc.estado', 'disponible')
-                    ->where('cc.monto_aplicado', '<=', 0.005)
-                    ->where('cc.monto_reembolsado', '<=', 0.005)
+                    ->whereIn('cc.estado', ['disponible', 'parcial'])
                     ->where('cc.saldo_disponible', '>', 0.005)
-                    ->whereNotExists(function ($query) {
-                        $query->select(DB::raw(1))
-                            ->from('nota_credito_movimientos as ncm')
-                            ->whereColumn('ncm.credito_id', 'cc.id');
-                    })
                     ->orderBy('nc.fecha')
                     ->orderBy('nc.id')
                     ->select(
@@ -552,15 +554,8 @@ class Pagos extends Component
                     ->join('nota_credito_creditos as cc', 'cc.nota_credito_id', '=', 'nc.id')
                     ->where('nc.id', (int) $idNotaCredito)
                     ->where('nc.estado_nota_id', 1)
-                    ->where('cc.estado', 'disponible')
-                    ->where('cc.monto_aplicado', '<=', 0.005)
-                    ->where('cc.monto_reembolsado', '<=', 0.005)
+                    ->whereIn('cc.estado', ['disponible', 'parcial'])
                     ->where('cc.saldo_disponible', '>', 0.005)
-                    ->whereNotExists(function ($query) {
-                        $query->select(DB::raw(1))
-                            ->from('nota_credito_movimientos as ncm')
-                            ->whereColumn('ncm.credito_id', 'cc.id');
-                    })
                     ->select(
                         'nc.comentario',
                         'nc.total',
@@ -881,15 +876,8 @@ class Pagos extends Component
                 ->join('nota_credito as nc', 'nc.id', '=', 'cc.nota_credito_id')
                 ->where('cc.nota_credito_id', (int) $request->selectNotaCredito)
                 ->where('nc.estado_nota_id', 1)
-                ->where('cc.estado', 'disponible')
-                ->where('cc.monto_aplicado', '<=', 0.005)
-                ->where('cc.monto_reembolsado', '<=', 0.005)
+                ->whereIn('cc.estado', ['disponible', 'parcial'])
                 ->where('cc.saldo_disponible', '>', 0.005)
-                ->whereNotExists(function ($query) {
-                    $query->select(DB::raw(1))
-                        ->from('nota_credito_movimientos as ncm')
-                        ->whereColumn('ncm.credito_id', 'cc.id');
-                })
                 ->select('cc.*')
                 ->first();
 
