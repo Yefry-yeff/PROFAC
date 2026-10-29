@@ -157,7 +157,7 @@ class ListarCompras extends Component
             $filtros = $request->hasAny(['desde', 'hasta', 'factura', 'proveedor'])
                 ? FiltrosCompras::validar($request->only('desde', 'hasta', 'factura', 'proveedor'))
                 : $month;
-            return Excel::download(new ComprasMesExport($filtros), 'DatosComprasMes.xlsx');
+            return Excel::download(new ComprasMesExport($filtros), 'Compras_' . now()->format('Y-m-d') . '.xlsx');
 
         } catch (QueryException $e) {
             return response()->json([

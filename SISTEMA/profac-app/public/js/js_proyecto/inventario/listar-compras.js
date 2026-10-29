@@ -7,10 +7,21 @@ $(document).ready(function() {
     $('#comprasProveedor').select2({ dropdownParent: modal, placeholder: 'Todos los proveedores', allowClear: true, width: '100%' });
 
     function updateSummary() {
-        var summary = 'Emisión: ' + filtros.desde + ' al ' + filtros.hasta;
-        if (filtros.factura) summary += ' · Factura: ' + filtros.factura;
-        if (filtros.proveedor) summary += ' · Proveedor: ' + $('#comprasProveedor option:selected').text();
-        $('#resumenFiltrosCompras').text(summary);
+        var bar = $('#resumenFiltrosCompras').empty();
+        var badges = [
+            { label: 'Desde', value: filtros.desde },
+            { label: 'Hasta', value: filtros.hasta }
+        ];
+        if (filtros.factura) badges.push({ label: 'Factura', value: filtros.factura });
+        if (filtros.proveedor) badges.push({ label: 'Proveedor', value: $('#comprasProveedor option:selected').text() });
+
+        badges.forEach(function (badge) {
+            var item = $('<span>').addClass('compras-filtro-badge');
+            $('<strong>').text(badge.label + ':').appendTo(item);
+            item.append(document.createTextNode(' ' + badge.value));
+            bar.append(item);
+        });
+        bar.css('display', 'flex');
         $('#exportarComprasExcel').attr('href', '/compras/excel_mes/' + filtros.desde.slice(0, 7) + '?' + $.param(filtros));
     }
     updateSummary();
