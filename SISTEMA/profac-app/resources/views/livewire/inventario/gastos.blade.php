@@ -9,15 +9,30 @@
         .gastos-reporte .reporte-create-button { display:inline-flex; align-items:center; gap:7px; padding:10px 16px; color:#fff!important; background:linear-gradient(135deg,#f39c12 0%,#e05a00 100%); border:0; border-radius:7px; font-size:.82rem; font-weight:700; box-shadow:0 3px 8px rgba(224,90,0,.22); transition:transform .18s, box-shadow .18s, filter .18s; }
         .gastos-reporte .reporte-create-button:hover,.gastos-reporte .reporte-create-button:focus { color:#fff!important; filter:brightness(.96); transform:translateY(-1px); box-shadow:0 5px 12px rgba(224,90,0,.28); }
         .gastos-reporte .gastos-actions { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
-        .gastos-reporte .gastos-panel { border:1px solid #e3e8ea; border-radius:8px; background:#fff; box-shadow:0 2px 10px rgba(38,50,56,.05); padding:20px; }
-        .gastos-reporte .gastos-toolbar { border-bottom:1px solid #edf0f1; padding-bottom:15px; margin-bottom:15px; }
-        #modalFiltrosGastos .modal-header { background:linear-gradient(135deg,#f39c12,#e05a00); color:#fff; }
-        #modalFiltrosGastos .modal-title,#modalFiltrosGastos .close { color:#fff; }
-        #modalFiltrosGastos .modal-body { background:#fdfaf6; }
+        .gastos-reporte .gastos-panel { border:1px solid #e8d5bf; border-radius:8px; background:#fff; box-shadow:0 2px 8px rgba(0,0,0,.10); padding:0; overflow:hidden; }
+        .gastos-reporte .gastos-panel-body { padding:16px 20px 20px; }
+        .gastos-reporte .gastos-toolbar { display:flex; align-items:center; justify-content:flex-end; gap:8px; flex-wrap:wrap; padding:12px 20px; background:linear-gradient(135deg,#f39c12 0%,#e05a00 100%); }
+        .gastos-reporte .btn-gastos-action { background:rgba(255,255,255,.18)!important; color:#fff!important; border:1.5px solid rgba(255,255,255,.5)!important; border-radius:5px!important; font-weight:600!important; font-size:.78rem; padding:5px 14px; transition:background .18s; white-space:nowrap; cursor:pointer; }
+        .gastos-reporte .btn-gastos-action:hover { background:rgba(255,255,255,.30)!important; color:#fff!important; }
+        .gastos-reporte .gastos-filtros-bar { display:flex; padding:8px 16px; background:#fdfaf5; border-bottom:1px solid #e8d5bf; align-items:center; gap:6px; flex-wrap:wrap; font-size:.78rem; }
+        .gastos-reporte .gastos-filtro-badge { display:inline-flex; align-items:center; gap:5px; background:#fff8ee; border:1px solid #f2d49a; border-radius:12px; padding:2px 10px; font-size:.75rem; color:#7d3f00; }
+        #modalFiltrosGastos .modal-header { background:linear-gradient(135deg,#f39c12 0%,#e05a00 100%); color:#fff; border-radius:8px 8px 0 0; padding:14px 20px; }
+        #modalFiltrosGastos .modal-title { color:#fff; font-size:.95rem; font-weight:700; }
+        #modalFiltrosGastos .close { color:#fff; opacity:.8; text-shadow:none; font-size:1.4rem; }
+        #modalFiltrosGastos .modal-body { background:#fdfaf6; padding:18px 20px 8px; }
+        #modalFiltrosGastos .modal-footer { background:#f8f4ef; border-top:1px solid #ead9c8; padding:10px 20px; }
+        #modalFiltrosGastos .form-group label { font-size:.78rem; font-weight:600; color:#555; margin-bottom:3px; }
+        #modalFiltrosGastos .form-control { border-color:#ddd; border-radius:5px; font-size:.82rem; }
+        #modalFiltrosGastos .form-control:focus { border-color:#e67e22; box-shadow:0 0 0 .15rem rgba(230,126,34,.18); }
         #modalFiltrosGastos .select2-container { width:100% !important; }
-        .gastos-reporte .gastos-excel { background:#1e8449; border-color:#1e8449; color:#fff; }
+        .gastos-reporte .modal-section-label { font-size:.68rem; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:#e67e22; border-bottom:2px solid #fdebd0; padding-bottom:5px; margin-bottom:14px; margin-top:6px; display:flex; align-items:center; gap:5px; }
+        .gastos-reporte .modal-filter-grid { background:#fff; border:1px solid #ead9c8; border-radius:7px; padding:14px 16px 6px; margin-bottom:14px; }
+        .gastos-reporte .date-input-icon { position:relative; }
+        .gastos-reporte .date-input-icon i { position:absolute; left:9px; top:50%; transform:translateY(-50%); color:#aaa; font-size:.78rem; pointer-events:none; }
+        .gastos-reporte .date-input-icon input { padding-left:28px; }
+        .gastos-reporte .gastos-buscar { background:linear-gradient(135deg,#f39c12,#e05a00); color:#fff; border:none; font-weight:600; padding:6px 20px; border-radius:5px; }
         .gastos-reporte .gastos-transferir { background:#e8751a; border-color:#e8751a; color:#fff; }
-        .gastos-reporte .gastos-excel:hover,.gastos-reporte .gastos-transferir:hover { filter:brightness(.92); color:#fff; }
+        .gastos-reporte .gastos-transferir:hover { filter:brightness(.92); color:#fff; }
         .gastos-reporte .table thead th { background:#f3f6f7; color:#52636a; border-bottom:2px solid #dce4e6; white-space:nowrap; }
         .gastos-reporte .table td { vertical-align:middle; }
         .gastos-reporte input[type=checkbox] { accent-color:#16856f; width:16px; height:16px; vertical-align:middle; cursor:pointer; }
@@ -48,6 +63,26 @@
     </div>
     <div class="wrapper wrapper-content">
         <div class="gastos-panel">
+            <div class="gastos-toolbar">
+                <button type="button" class="btn-gastos-action" wire:click="exportarExcel" wire:loading.attr="disabled"
+                    title="Exportar todos los gastos filtrados, con sus estados">
+                    <i class="fa fa-file-excel-o mr-1"></i>Excel
+                </button>
+                <button type="button" class="btn-gastos-action" data-toggle="modal" data-target="#modalFiltrosGastos">
+                    <i class="fa fa-filter mr-1"></i>Filtros
+                </button>
+            </div>
+            <div class="gastos-filtros-bar" aria-live="polite">
+                <span class="gastos-filtro-badge"><strong>Desde:</strong> {{ $filtrosAplicados['desde'] }}</span>
+                <span class="gastos-filtro-badge"><strong>Hasta:</strong> {{ $filtrosAplicados['hasta'] }}</span>
+                @if (!empty($filtrosAplicados['factura']))
+                    <span class="gastos-filtro-badge"><strong>Factura:</strong> {{ $filtrosAplicados['factura'] }}</span>
+                @endif
+                @if (!empty($filtrosAplicados['proveedor']))
+                    <span class="gastos-filtro-badge"><strong>Proveedor:</strong> {{ $proveedores->firstWhere('id', $filtrosAplicados['proveedor'])?->nombre }}</span>
+                @endif
+            </div>
+            <div class="gastos-panel-body">
             <p class="text-muted">Todos los gastos, incluidos los anulados y los pasados al reporte de compras. No se registran abonos ni movimientos de inventario.</p>
             @if (session()->has('gastos_mensaje'))
                 <div class="alert alert-success" role="status">{{ session('gastos_mensaje') }}</div>
@@ -57,16 +92,6 @@
                     @foreach ($errors->all() as $error)<div>{{ $error }}</div>@endforeach
                 </div>
             @endif
-            <div class="gastos-actions gastos-toolbar">
-                <button type="button" class="btn btn-white" data-toggle="modal" data-target="#modalFiltrosGastos">
-                    <i class="fa fa-filter mr-1"></i>Filtros
-                </button>
-                <span class="text-muted">
-                    Emisión: {{ $filtrosAplicados['desde'] }} al {{ $filtrosAplicados['hasta'] }}
-                    @if (!empty($filtrosAplicados['factura'])) · Factura: {{ $filtrosAplicados['factura'] }} @endif
-                    @if (!empty($filtrosAplicados['proveedor'])) · Proveedor: {{ $proveedores->firstWhere('id', $filtrosAplicados['proveedor'])?->nombre }} @endif
-                </span>
-            </div>
             <div class="gastos-actions mb-3">
                 <span class="badge badge-primary">{{ count($seleccionados) }} seleccionados</span>
                 <button type="button" class="btn btn-white btn-sm" wire:click="limpiarSeleccion" wire:loading.attr="disabled" @disabled(count($seleccionados) === 0)>Limpiar selección</button>
@@ -86,10 +111,6 @@
                     <i class="fa fa-undo mr-1"></i>Quitar del reporte de compras
                 </button>
                 <span wire:loading role="status" class="text-muted">Procesando...</span>
-                <button type="button" class="btn gastos-excel ml-auto" wire:click="exportarExcel" wire:loading.attr="disabled"
-                    title="Exportar todos los gastos filtrados, con sus estados">
-                    <i class="fa fa-file-excel mr-1"></i>Exportar Excel
-                </button>
             </div>
             <div class="table-responsive">
                 <table class="table table-striped table-hover">
@@ -142,6 +163,7 @@
                 </table>
             </div>
             {{ $gastos->links() }}
+            </div>
         </div>
         <div class="modal fade" id="modalAnularGastos" tabindex="-1" role="dialog"
             aria-labelledby="tituloAnularGastos" aria-hidden="true" wire:ignore.self data-backdrop="static" data-keyboard="false">
@@ -217,7 +239,7 @@
             <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
                 <form class="modal-content" wire:submit="aplicarFiltros">
                     <div class="modal-header">
-                        <h5 class="modal-title" id="tituloFiltrosGastos"><i class="fa fa-filter mr-2"></i>Filtros de búsqueda</h5>
+                        <h5 class="modal-title" id="tituloFiltrosGastos"><i class="fa fa-filter mr-2"></i>Filtros de Búsqueda</h5>
                         <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar"><span aria-hidden="true">&times;</span></button>
                     </div>
                     <div class="modal-body">
@@ -228,22 +250,32 @@
                                 @endforeach
                             </div>
                         @endif
-                        <p class="font-weight-bold">Fecha de emisión</p>
+                        <p class="modal-section-label"><i class="fa fa-calendar"></i>Rango de fechas</p>
+                        <div class="modal-filter-grid">
                         <div class="row">
                             <div class="col-md-6 form-group">
                                 <label for="gastosDesde">Desde</label>
-                                <input id="gastosDesde" type="date" class="form-control" wire:model="filtros.desde" required>
+                                <div class="date-input-icon"><i class="fa fa-calendar-o"></i>
+                                    <input id="gastosDesde" type="date" class="form-control form-control-sm" wire:model="filtros.desde" required>
+                                </div>
                             </div>
                             <div class="col-md-6 form-group">
                                 <label for="gastosHasta">Hasta</label>
-                                <input id="gastosHasta" type="date" class="form-control" wire:model="filtros.hasta" required>
+                                <div class="date-input-icon"><i class="fa fa-calendar-o"></i>
+                                    <input id="gastosHasta" type="date" class="form-control form-control-sm" wire:model="filtros.hasta" required>
+                                </div>
                             </div>
+                        </div>
+                        </div>
+                        <p class="modal-section-label"><i class="fa fa-search"></i>Criterios de búsqueda</p>
+                        <div class="modal-filter-grid">
+                        <div class="row">
                             <div class="col-md-6 form-group">
                                 <label for="gastosFactura">Número de factura</label>
-                                <input id="gastosFactura" type="text" class="form-control" maxlength="255" wire:model="filtros.factura">
+                                <input id="gastosFactura" type="text" class="form-control form-control-sm" maxlength="255" wire:model="filtros.factura">
                             </div>
                             <div class="col-md-6 form-group">
-                                <label for="gastosProveedor">Nombre de proveedor</label>
+                                <label for="gastosProveedor">Proveedor</label>
                                 <div wire:ignore>
                                     <select id="gastosProveedor" class="form-control">
                                         <option value="">Todos los proveedores</option>
@@ -254,10 +286,11 @@
                                 </div>
                             </div>
                         </div>
+                        </div>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-white" wire:click="limpiarFiltros" wire:loading.attr="disabled"><i class="fa fa-eraser mr-1"></i>Limpiar</button>
-                        <button type="submit" class="btn gastos-transferir" wire:loading.attr="disabled"><i class="fa fa-search mr-1"></i>Buscar</button>
+                    <div class="modal-footer py-2">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" wire:click="limpiarFiltros" wire:loading.attr="disabled"><i class="fa fa-eraser mr-1"></i>Limpiar filtros</button>
+                        <button type="submit" class="btn btn-sm gastos-buscar" wire:loading.attr="disabled"><i class="fa fa-search mr-1"></i>Buscar</button>
                     </div>
                 </form>
             </div>
