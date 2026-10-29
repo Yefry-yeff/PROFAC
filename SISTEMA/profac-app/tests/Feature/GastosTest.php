@@ -936,12 +936,74 @@ class GastosTest extends TestCase
             ['hasta', '2026-09-30', 'filtros.hasta'],
             ['proveedor', '99999', 'filtros.proveedor'],
             ['factura', str_repeat('x', 256), 'filtros.factura'],
+            ['estado', 'invalido', 'filtros.estado'],
         ] as [$campo, $valor, $error]) {
             Livewire::test(Gastos::class)->set('seleccionarTodos', true)
                 ->set('filtros.' . $campo, $valor)->call('aplicarFiltros')->assertHasErrors($error)
                 ->assertSet('filtrosAplicados.desde', '2026-10-01')
                 ->assertSet('seleccionados', [(string) $id])->assertSee('GASTO-001');
         }
+    }
+
+    public function test_estado_filtra_tabla_excel_y_seleccion_sin_ocultar_anulados_incluidos(): void
+    {
+        $registrado = $this->guardar(['numero_factura' => 'ESTADO-REGISTRADO']);
+        $compras = $this->guardar(['numero_factura' => 'ESTADO-COMPRAS']);
+        $anulado = $this->guardar(['numero_factura' => 'ESTADO-ANULADO']);
+        DB::table('gastos')->where('id', $compras)->update(['incluir_reporte_compras' => true]);
+        DB::table('gastos')->where('id', $anulado)->update(['estado' => 'anulado', 'incluir_reporte_compras' => true]);
+
+        $component = Livewire::test(Gastos::class);
+        foreach (['registrado' => $registrado, 'compras' => $compras, 'anulado' => $anulado] as $estado => $id) {
+            $component->set('filtros.estado', $estado)->call('aplicarFiltros')
+                ->assertHasNoErrors()
+                ->assertViewHas('gastos', fn ($gastos) => $gastos->pluck('id')->all() === [$id])
+                ->set('seleccionarTodos', true)
+                ->assertSet('seleccionados', $estado === 'anulado' ? [] : [(string) $id]);
+            $this->assertSame(['G-' . $id], (new GastosExport($component->get('filtrosAplicados')))->collection()->pluck('id')->all());
+        }
+        $component->call('limpiarFiltros')->assertSet('filtrosAplicados.estado', '')
+            ->assertViewHas('gastos', fn ($gastos) => $gastos->total() === 3);
+    }
+
+    public function test_orden_de_gastos_alterna_direcciones_y_se_aplica_al_excel(): void
+    {
+        $z = $this->guardar(['numero_factura' => 'ZZZ']);
+        $a = $this->guardar(['numero_factura' => 'AAA']);
+        $component = Livewire::test(Gastos::class)
+            ->call('ordenarPor', 'numero_factura')->assertSet('direccionOrden', 'asc')
+            ->assertViewHas('gastos', fn ($gastos) => $gastos->pluck('id')->all() === [$a, $z]);
+        $this->assertSame(['G-' . $a, 'G-' . $z], (new GastosExport(
+            $component->get('filtrosAplicados'), 'numero_factura', 'asc'
+        ))->collection()->pluck('id')->all());
+        $component->call('ordenarPor', 'numero_factura')->assertSet('direccionOrden', 'desc')
+            ->assertViewHas('gastos', fn ($gastos) => $gastos->pluck('id')->all() === [$z, $a]);
+        foreach (array_keys(\App\Models\Gasto::COLUMNAS_ORDEN) as $columna) {
+            $component->call('ordenarPor', $columna)->assertHasNoErrors();
+        }
+        $component->call('ordenarPor', 'columna_invalida')->assertHasErrors('columna');
+    }
+
+    public function test_orden_es_global_numerico_y_reinicia_pagina_sin_perder_seleccion(): void
+    {
+        $ids = [];
+        for ($i = 1; $i <= 22; $i++) {
+            $id = $this->guardar(['numero_factura' => 'ORDEN-' . $i]);
+            DB::table('gastos')->where('id', $id)->update(['total' => $i]);
+            $ids[] = $id;
+        }
+
+        $component = Livewire::test(Gastos::class)->set('seleccionarTodos', true)
+            ->call('ordenarPor', 'id')
+            ->assertViewHas('gastos', fn ($gastos) => $gastos->pluck('id')->all() === array_slice($ids, 0, 20))
+            ->call('gotoPage', 2)
+            ->assertViewHas('gastos', fn ($gastos) => $gastos->pluck('id')->all() === array_slice($ids, 20))
+            ->call('ordenarPor', 'total')
+            ->assertViewHas('gastos', fn ($gastos) => $gastos->currentPage() === 1
+                && $gastos->pluck('id')->all() === array_slice($ids, 0, 20))
+            ->assertSet('seleccionados', array_map('strval', $ids));
+        $component->call('ordenarPor', 'total')
+            ->assertViewHas('gastos', fn ($gastos) => $gastos->pluck('id')->all() === array_slice(array_reverse($ids), 0, 20));
     }
 
     public function test_proveedores_devuelven_rtn_y_creacion_inline_seleccionable(): void

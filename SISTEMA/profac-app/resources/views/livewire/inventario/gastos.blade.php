@@ -35,6 +35,9 @@
         .gastos-reporte .gastos-transferir:hover { filter:brightness(.92); color:#fff; }
         .gastos-reporte .table thead th { background:#f3f6f7; color:#52636a; border-bottom:2px solid #dce4e6; white-space:nowrap; }
         .gastos-reporte .table td { vertical-align:middle; }
+        .gastos-reporte .gastos-sort { display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%; padding:0; border:0; background:transparent; color:inherit; font:inherit; text-align:left; cursor:pointer; }
+        .gastos-reporte .gastos-sort:focus-visible { outline:2px solid #e67e22; outline-offset:3px; }
+        .gastos-reporte .gastos-sort i { color:#e67e22; }
         .gastos-reporte input[type=checkbox] { accent-color:#16856f; width:16px; height:16px; vertical-align:middle; cursor:pointer; }
         .gastos-reporte input[type=checkbox].gastos-checkbox-anulado { appearance:none; background:#dfe3e6; border:1px solid #b0b8bf; border-radius:2px; cursor:not-allowed; opacity:1; }
         .gastos-reporte .gastos-estado { display:inline-block; padding:5px 9px; border-radius:12px; font-size:11px; font-weight:700; }
@@ -81,6 +84,9 @@
                 @if (!empty($filtrosAplicados['proveedor']))
                     <span class="gastos-filtro-badge"><strong>Proveedor:</strong> {{ $proveedores->firstWhere('id', $filtrosAplicados['proveedor'])?->nombre }}</span>
                 @endif
+                @if (!empty($filtrosAplicados['estado']))
+                    <span class="gastos-filtro-badge"><strong>Estado:</strong> {{ \App\Models\Gasto::ESTADOS_REPORTE[$filtrosAplicados['estado']] }}</span>
+                @endif
             </div>
             <div class="gastos-panel-body">
             <p class="text-muted">Todos los gastos, incluidos los anulados y los pasados al reporte de compras. No se registran abonos ni movimientos de inventario.</p>
@@ -116,7 +122,17 @@
                 <table class="table table-striped table-hover">
                     <thead><tr><th><input id="seleccionarTodosGastos" type="checkbox"
                         aria-label="Seleccionar todos los gastos activos filtrados" title="Seleccionar todos (todas las páginas)"
-                        wire:model.live="seleccionarTodos" wire:loading.attr="disabled"></th><th>ID</th><th>Factura</th><th>Proveedor</th><th>Emisión</th><th class="text-right">Total</th><th>Estado</th><th>Anulado por</th><th>Fecha y hora de anulación</th><th>Motivo de anulación</th></tr></thead>
+                        wire:model.live="seleccionarTodos" wire:loading.attr="disabled"></th>
+                        @foreach (['id' => 'ID', 'numero_factura' => 'Factura', 'proveedor' => 'Proveedor', 'fecha_emision' => 'Emisión', 'total' => 'Total', 'estado' => 'Estado', 'anulado_por' => 'Anulado por', 'anulado_at' => 'Fecha y hora de anulación', 'motivo_anulacion' => 'Motivo de anulación'] as $columna => $etiqueta)
+                            <th scope="col" aria-sort="{{ $columnaOrden === $columna ? ($direccionOrden === 'asc' ? 'ascending' : 'descending') : 'none' }}">
+                                <button type="button" class="gastos-sort" wire:click="ordenarPor('{{ $columna }}')" wire:loading.attr="disabled"
+                                    aria-label="Ordenar por {{ $etiqueta }} {{ $columnaOrden === $columna && $direccionOrden === 'asc' ? 'descendente' : 'ascendente' }}">
+                                    {{ $etiqueta }}
+                                    <i class="fa {{ $columnaOrden === $columna ? ($direccionOrden === 'asc' ? 'fa-sort-asc' : 'fa-sort-desc') : 'fa-sort' }}" aria-hidden="true"></i>
+                                </button>
+                            </th>
+                        @endforeach
+                    </tr></thead>
                     <tbody x-data="{ historial: null }">
                     @forelse ($gastos as $gasto)
                         <tr wire:key="gasto-{{ $gasto->id }}" class="gastos-fila" tabindex="0"
@@ -273,6 +289,15 @@
                             <div class="col-md-6 form-group">
                                 <label for="gastosFactura">Número de factura</label>
                                 <input id="gastosFactura" type="text" class="form-control form-control-sm" maxlength="255" wire:model="filtros.factura">
+                            </div>
+                            <div class="col-md-6 form-group">
+                                <label for="gastosEstado">Estado</label>
+                                <select id="gastosEstado" class="form-control form-control-sm" wire:model="filtros.estado">
+                                    <option value="">Todos los estados</option>
+                                    @foreach (\App\Models\Gasto::ESTADOS_REPORTE as $valor => $etiqueta)
+                                        <option value="{{ $valor }}">{{ $etiqueta }}</option>
+                                    @endforeach
+                                </select>
                             </div>
                             <div class="col-md-6 form-group">
                                 <label for="gastosProveedor">Proveedor</label>

@@ -26,7 +26,7 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 class GastosExport extends DefaultValueBinder implements FromCollection, WithHeadings, WithColumnWidths,
     WithCustomStartCell, WithCustomValueBinder, WithDrawings, WithStrictNullComparison, WithStyles, WithTitle
 {
-    public function __construct(private array $filtros)
+    public function __construct(private array $filtros, private string $columnaOrden = 'id', private string $direccionOrden = 'desc')
     {
     }
 
@@ -40,7 +40,7 @@ class GastosExport extends DefaultValueBinder implements FromCollection, WithHea
         return Gasto::reporte()->filtrar($this->filtros)
             ->leftJoinSub($importes, 'importes', 'importes.gasto_id', '=', 'gastos.id')
             ->addSelect('importes.importe_exento', 'importes.importe_gravado')
-            ->orderByDesc('gastos.id')->get()->map(fn ($gasto) => [
+            ->ordenar($this->columnaOrden, $this->direccionOrden)->get()->map(fn ($gasto) => [
             'id' => 'G-' . $gasto->id,
             'proveedor' => $gasto->proveedor,
             'cai' => $gasto->cai,
@@ -120,7 +120,8 @@ class GastosExport extends DefaultValueBinder implements FromCollection, WithHea
         $sheet->setCellValue('A4', 'Emision: ' . $this->filtros['desde'] . ' al ' . $this->filtros['hasta']
             . '   |   Documento: ' . ($this->filtros['factura'] ?: 'Todos')
             . '   |   Proveedor: ' . (empty($this->filtros['proveedor']) ? 'Todos'
-                : DB::table('proveedores')->where('id', $this->filtros['proveedor'])->value('nombre')));
+                : DB::table('proveedores')->where('id', $this->filtros['proveedor'])->value('nombre'))
+            . '   |   Estado: ' . (Gasto::ESTADOS_REPORTE[$this->filtros['estado'] ?? ''] ?? 'Todos'));
         $sheet->getRowDimension(1)->setRowHeight(62);
         $sheet->getRowDimension(2)->setRowHeight(24);
         $sheet->getRowDimension(3)->setRowHeight(18);

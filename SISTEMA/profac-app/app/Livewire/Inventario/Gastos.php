@@ -29,6 +29,10 @@ class Gastos extends Component
     public array $seleccionados = [];
     public bool $seleccionarTodos = false;
     public string $motivoAnulacion = '';
+    #[Locked]
+    public string $columnaOrden = 'id';
+    #[Locked]
+    public string $direccionOrden = 'desc';
 
     public function mount(): void
     {
@@ -40,7 +44,7 @@ class Gastos extends Component
         return [
             'desde' => now()->startOfMonth()->toDateString(),
             'hasta' => now()->endOfMonth()->toDateString(),
-            'factura' => '', 'proveedor' => '',
+            'factura' => '', 'proveedor' => '', 'estado' => '',
         ];
     }
 
@@ -51,6 +55,7 @@ class Gastos extends Component
             'filtros.hasta' => 'required|date_format:Y-m-d|after_or_equal:filtros.desde',
             'filtros.factura' => 'nullable|string|max:255',
             'filtros.proveedor' => 'nullable|integer|exists:proveedores,id',
+            'filtros.estado' => ['nullable', Rule::in(array_keys(Gasto::ESTADOS_REPORTE))],
         ], [
             'filtros.desde.required' => 'Indique la fecha de emision desde.',
             'filtros.hasta.required' => 'Indique la fecha de emision hasta.',
@@ -59,6 +64,7 @@ class Gastos extends Component
             'exists' => 'Seleccione un proveedor valido.',
             'integer' => 'Seleccione un proveedor valido.',
             'max' => 'El numero de factura no puede superar 255 caracteres.',
+            'filtros.estado.in' => 'Seleccione un estado valido.',
         ]);
         $this->filtrosAplicados = $this->filtros;
         $this->resetPage();
@@ -71,6 +77,18 @@ class Gastos extends Component
         $this->filtros = $this->filtrosDelMes();
         $this->aplicarFiltros();
         $this->dispatch('gastos-proveedor-limpiado');
+    }
+
+    public function ordenarPor(string $columna): void
+    {
+        validator(['columna' => $columna], [
+            'columna' => ['required', Rule::in(array_keys(Gasto::COLUMNAS_ORDEN))],
+        ])->validate();
+
+        $this->direccionOrden = $this->columnaOrden === $columna && $this->direccionOrden === 'asc'
+            ? 'desc' : 'asc';
+        $this->columnaOrden = $columna;
+        $this->resetPage();
     }
 
     public function updatedSeleccionarTodos(bool $value): void
@@ -214,12 +232,13 @@ class Gastos extends Component
     {
         abort_unless(Auth::check(), 403);
 
-        return Excel::download(new GastosExport($this->filtrosAplicados), 'Gastos_' . now()->format('Ymd_His') . '.xlsx');
+        return Excel::download(new GastosExport($this->filtrosAplicados, $this->columnaOrden, $this->direccionOrden), 'Gastos_' . now()->format('Ymd_His') . '.xlsx');
     }
 
     public function render()
     {
-        $gastos = Gasto::reporte()->filtrar($this->filtrosAplicados)->orderByDesc('gastos.id')->paginate(20);
+        $gastos = Gasto::reporte()->filtrar($this->filtrosAplicados)
+            ->ordenar($this->columnaOrden, $this->direccionOrden)->paginate(20);
         $proveedores = DB::table('proveedores')->orderBy('nombre')->get(['id', 'nombre']);
         $auditoria = DB::table('gasto_auditoria as a')
             ->leftJoin('users as u', 'u.id', '=', 'a.usuario_id')
