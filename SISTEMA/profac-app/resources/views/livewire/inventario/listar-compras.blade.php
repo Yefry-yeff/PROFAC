@@ -1,11 +1,13 @@
 <div class="compras-reporte">
     @push('styles')
     <style>
-        .compras-reporte .compras-header { background:linear-gradient(135deg,#f39c12,#e05a00); padding:22px 28px; color:#fff; }
-        .compras-reporte .compras-header h2 { color:#fff; margin:0 0 5px; font-weight:700; }
-        .compras-reporte .compras-header p { margin:0; }
-        .compras-reporte .compras-header .btn { color:#52636a; }
-        .compras-reporte .reporte-selector { width:auto; min-width:190px; color:#52636a; border:1px solid #fff; border-radius:5px; font-size:.82rem; font-weight:600; }
+        .compras-reporte .compras-header { background:#fff; padding:22px 28px; color:#676a6c; border-bottom:1px solid #e7eaec; box-shadow:0 1px 3px rgba(0,0,0,.04); }
+        .compras-reporte .compras-header h2 { color:#343a40; margin:0 0 5px; font-weight:700; }
+        .compras-reporte .compras-header p { margin:0; color:#889198; font-size:.82rem; }
+        .compras-reporte .reporte-selector { width:auto; min-width:210px; height:40px; padding:0 36px 0 13px; color:#69421f; background-color:#fff; border:1px solid #ead9c8; border-radius:7px; font-size:.84rem; font-weight:600; box-shadow:0 2px 6px rgba(125,63,0,.08); cursor:pointer; transition:border-color .18s, box-shadow .18s; }
+        .compras-reporte .reporte-selector:hover,.compras-reporte .reporte-selector:focus { border-color:#e67e22; box-shadow:0 0 0 .18rem rgba(230,126,34,.16); outline:0; }
+        .compras-reporte .reporte-create-button { display:inline-flex; align-items:center; gap:7px; padding:10px 16px; color:#fff!important; background:linear-gradient(135deg,#f39c12 0%,#e05a00 100%); border:0; border-radius:7px; font-size:.82rem; font-weight:700; box-shadow:0 3px 8px rgba(224,90,0,.22); transition:transform .18s, box-shadow .18s, filter .18s; }
+        .compras-reporte .reporte-create-button:hover,.compras-reporte .reporte-create-button:focus { color:#fff!important; filter:brightness(.96); transform:translateY(-1px); box-shadow:0 5px 12px rgba(224,90,0,.28); }
         .compras-reporte .compras-panel { padding:0; background:#fff; border:1px solid #e8d5bf; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,.10); overflow:hidden; }
         .compras-reporte .compras-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; flex-wrap:wrap; padding:12px 20px; background:linear-gradient(135deg,#f39c12 0%,#e05a00 100%); }
         .compras-reporte .btn-compras-action { background:rgba(255,255,255,.18)!important; color:#fff!important; border:1.5px solid rgba(255,255,255,.5)!important; border-radius:5px!important; font-weight:600!important; font-size:.78rem; padding:5px 14px; transition:background .18s; white-space:nowrap; cursor:pointer; }
@@ -39,7 +41,7 @@
                 <option value="{{ url('/producto/listar/compras') }}" selected>Reporte de compras</option>
                 <option value="{{ route('gastos') }}">Reporte de gastos</option>
             </select>
-            <a href="{{ url('/producto/compra') }}" class="btn btn-white"><i class="fa fa-plus mr-1"></i>Nueva compra</a>
+            <a href="{{ url('/producto/compra') }}" class="btn reporte-create-button"><i class="fa fa-plus"></i>Nueva compra</a>
         </div>
     </div>
     <div class="wrapper wrapper-content">
