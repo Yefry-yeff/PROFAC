@@ -49,7 +49,11 @@ class ListadoNotasND extends Component
             cli.nombre as cliente,
             fa.cai as factura,
             B.descripcion as motivo,
-            A.comentario,
+            CASE
+                WHEN A.estado_nota_id = 2 AND reversion_nota.motivo IS NOT NULL
+                    THEN CONCAT(COALESCE(A.comentario, ''), ' // ', reversion_nota.motivo)
+                ELSE A.comentario
+            END as comentario,
             A.sub_total as sub_total,
             A.isv as isv,
             A.total as total,
@@ -69,6 +73,8 @@ class ListadoNotasND extends Component
                 WHEN 'anulado' THEN 'Anulada'
                 ELSE 'Sin billetera'
             END as estado_credito,
+            CASE WHEN A.estado_nota_id = 2 THEN 'Anulada' ELSE 'Vigente' END as estado_nota,
+            A.estado_nota_id,
             A.created_at as fecha_registro,
             name as registrado_por
             from nota_credito A
@@ -77,10 +83,16 @@ class ListadoNotasND extends Component
             inner join factura fa on fa.id = A.factura_id
             inner join cliente cli on cli.id = fa.cliente_id
             left join nota_credito_creditos cc on cc.nota_credito_id = A.id
+            left join (
+                select nota_credito_id, max(id) as ultima_reversion_id
+                from nota_credito_reversiones
+                where alcance = 'nota'
+                group by nota_credito_id
+            ) ultima_anulacion on ultima_anulacion.nota_credito_id = A.id
+            left join nota_credito_reversiones reversion_nota on reversion_nota.id = ultima_anulacion.ultima_reversion_id
             where
             fa.tipo_venta_id = 1
             and fa.estado_venta_id <> 2
-            and estado_nota_id <> 2
             and A.fecha BETWEEN '".$request->fechaInicio."' and '".$request->fechaFinal."'"
             . ($request->cliente_id ? " and cli.id = " . intval($request->cliente_id) : "")
             . ($request->motivo_id  ? " and A.motivo_nota_credito_id = " . intval($request->motivo_id) : "")
@@ -89,6 +101,9 @@ class ListadoNotasND extends Component
 
             return Datatables::of($listado)
             ->addColumn('opciones', function ($nota) {
+                    $anular = (int) $nota->estado_nota_id === 2
+                        ? ''
+                        : '<li><a class="dropdown-item" onclick="anularNota('.$nota->codigo.','.$nota->idFactura.' )" class="btn btn-sm btn-warning "><i class="fa-solid fa-trash"></i> Anular</a></li>';
                     $gestionar = (float) $nota->saldo_disponible > 0.005
                         ? '<li><a class="dropdown-item" onclick="gestionarCreditoNota('.$nota->codigo.','.$nota->saldo_disponible.','.$nota->saldo_pendiente_cliente.')"><i class="fa fa-random"></i> Gestionar crédito</a></li>'
                         : '';
@@ -98,14 +113,19 @@ class ListadoNotasND extends Component
                         más</button>
                         <ul class="dropdown-menu" x-placement="bottom-start" style="position: absolute; top: 33px; left: 0px; will-change: top, left;">
                         '.$gestionar.'
-                        <li><a class="dropdown-item" onclick="anularNota('.$nota->codigo.','.$nota->idFactura.' )" class="btn btn-sm btn-warning "><i class="fa-solid fa-trash"></i> Anular</a></li>
+                        '.$anular.'
                             <li><a class="dropdown-item" href="/nota/credito/imprimir/'.$nota->codigo.'" target="_blank" class="btn btn-sm btn-warning "><i class="fa-solid fa-file-invoice"></i> Imprimir Original</a></li>
                             <li><a class="dropdown-item" href="/nota/credito/imprimir/copia/'.$nota->codigo.'" target="_blank" class="btn btn-sm btn-warning "><i class="fa-solid fa-file-invoice"></i> Imprimir Copia</a></li>
                             <li><a class="dropdown-item" onclick="verAsientosNota('.$nota->codigo.')"><i class="fa fa-balance-scale"></i> Ver ajustes contables</a></li>
                         </ul>
                     </div>';
             })
-            ->rawColumns(['opciones'])
+            ->editColumn('estado_nota', function ($nota) {
+                return (int) $nota->estado_nota_id === 2
+                    ? '<span class="badge badge-danger">Anulada</span>'
+                    : '<span class="badge badge-success">Vigente</span>';
+            })
+            ->rawColumns(['opciones', 'estado_nota'])
             ->make(true);
 
            } catch (QueryException $e) {
@@ -121,7 +141,13 @@ class ListadoNotasND extends Component
         try {
             $listado = DB::SELECT("
                 SELECT A.id as codigo, A.cai, cli.nombre as cliente, fa.cai as factura,
-                    B.descripcion as motivo, A.comentario, A.sub_total, A.isv, A.total,
+                    B.descripcion as motivo,
+                    CASE
+                        WHEN A.estado_nota_id = 2 AND reversion_nota.motivo IS NOT NULL
+                            THEN CONCAT(COALESCE(A.comentario, ''), ' // ', reversion_nota.motivo)
+                        ELSE A.comentario
+                    END as comentario,
+                    A.sub_total, A.isv, A.total,
                     COALESCE(cc.monto_aplicado, 0) as monto_aplicado,
                     COALESCE(cc.monto_reembolsado, 0) as monto_reembolsado,
                     COALESCE(cc.saldo_disponible, 0) as saldo_disponible,
@@ -133,6 +159,7 @@ class ListadoNotasND extends Component
                         WHEN 'anulado' THEN 'Anulada'
                         ELSE 'Sin billetera'
                     END as estado_credito,
+                    CASE WHEN A.estado_nota_id = 2 THEN 'Anulada' ELSE 'Vigente' END as estado_nota,
                     A.created_at as fecha_registro, users.name as registrado_por
                 FROM nota_credito A
                 INNER JOIN motivo_nota_credito B ON A.motivo_nota_credito_id = B.id
@@ -140,9 +167,15 @@ class ListadoNotasND extends Component
                 INNER JOIN factura fa ON fa.id = A.factura_id
                 INNER JOIN cliente cli ON cli.id = fa.cliente_id
                 LEFT JOIN nota_credito_creditos cc ON cc.nota_credito_id = A.id
+                LEFT JOIN (
+                    SELECT nota_credito_id, MAX(id) AS ultima_reversion_id
+                    FROM nota_credito_reversiones
+                    WHERE alcance = 'nota'
+                    GROUP BY nota_credito_id
+                ) ultima_anulacion ON ultima_anulacion.nota_credito_id = A.id
+                LEFT JOIN nota_credito_reversiones reversion_nota ON reversion_nota.id = ultima_anulacion.ultima_reversion_id
                 WHERE fa.tipo_venta_id = 1
                 AND fa.estado_venta_id <> 2
-                AND estado_nota_id <> 2
                 AND A.fecha BETWEEN '".$request->fechaInicio."' AND '".$request->fechaFinal."'"
                 . ($request->cliente_id ? " AND cli.id = " . intval($request->cliente_id) : "")
                 . ($request->motivo_id  ? " AND A.motivo_nota_credito_id = " . intval($request->motivo_id) : "")

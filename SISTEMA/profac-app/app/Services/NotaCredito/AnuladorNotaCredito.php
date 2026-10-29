@@ -300,18 +300,26 @@ class AnuladorNotaCredito
             $producto = $recibido ? DB::table('producto')->where('id', $recibido->producto_id)->value('nombre') : null;
             $disponible = $recibido ? (float) $recibido->cantidad_disponible : 0.0;
             $suficiente = $recibido && $disponible + 0.0001 >= $devolucion['cantidad'];
+            $bloqueoInventario = null;
+
+            if (!$recibido) {
+                $bloqueoInventario = "El lote {$lote} de la devolución ya no existe en inventario.";
+            } elseif (!$suficiente) {
+                $bloqueoInventario = "No hay inventario suficiente para descontar la devolución de {$producto} (lote {$lote}): requiere {$devolucion['cantidad']} y hay {$disponible}.";
+            }
+
             $inventario[$lote] = [
                 'lote' => (int) $lote,
                 'producto' => $producto,
                 'cantidad' => $devolucion['cantidad'],
                 'disponible' => $disponible,
+                'existe' => (bool) $recibido,
                 'suficiente' => (bool) $suficiente,
+                'bloqueo' => $bloqueoInventario,
             ];
 
-            if (!$recibido) {
-                $bloqueos[] = "El lote {$lote} de la devolución ya no existe en inventario.";
-            } elseif (!$suficiente) {
-                $bloqueos[] = "No hay inventario suficiente para descontar la devolución de {$producto} (lote {$lote}): requiere {$devolucion['cantidad']} y hay {$disponible}.";
+            if ($bloqueoInventario) {
+                $bloqueos[] = $bloqueoInventario;
             }
         }
 

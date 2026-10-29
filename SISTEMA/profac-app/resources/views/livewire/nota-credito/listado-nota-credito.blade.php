@@ -109,19 +109,16 @@
                             <table id="tbl_nc_a" class="table table-hover table-bordered" style="width:100%;">
                                 <thead>
                                     <tr>
-                                        <th>Código</th>
-                                        <th>Registro N°</th>
                                         <th>Cliente</th>
                                         <th>N° Factura</th>
                                         <th>Motivo</th>
                                         <th>Comentario</th>
-                                        <th class="text-right">Sub Total</th>
-                                        <th class="text-right">ISV</th>
                                         <th class="text-right">Total fiscal</th>
                                         <th class="text-right">Aplicado</th>
                                         <th class="text-right">Reembolsado</th>
                                         <th class="text-right">Disponible</th>
                                         <th>Estado del crédito</th>
+                                        <th>Estado de la nota</th>
                                         <th>Fecha</th>
                                         <th>Registrado por</th>
                                         <th>Opciones</th>
@@ -264,19 +261,16 @@
                 }
             },
             columns: [
-                { data: 'codigo' },
-                { data: 'cai' },
                 { data: 'cliente' },
                 { data: 'factura' },
                 { data: 'motivo' },
                 { data: 'comentario' },
-                { data: 'sub_total',    className: 'text-right' },
-                { data: 'isv',          className: 'text-right' },
                 { data: 'total',        className: 'text-right' },
                 { data: 'monto_aplicado', className: 'text-right' },
                 { data: 'monto_reembolsado', className: 'text-right' },
                 { data: 'saldo_disponible', className: 'text-right' },
                 { data: 'estado_credito' },
+                { data: 'estado_nota' },
                 { data: 'fecha_registro' },
                 { data: 'registrado_por' },
                 { data: 'opciones', orderable: false, searchable: false }

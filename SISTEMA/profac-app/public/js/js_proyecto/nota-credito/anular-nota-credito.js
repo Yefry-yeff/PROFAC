@@ -15,6 +15,41 @@
         }).join('') + '</ul>';
     };
 
+    var cantidad = function (valor) {
+        return Number(valor || 0).toLocaleString('es-HN', { maximumFractionDigits: 2 });
+    };
+
+    var mensajeBloqueos = function (previa) {
+        var faltantes = (previa.inventario || []).filter(function (lote) {
+            return lote.bloqueo;
+        });
+        var bloqueosInventario = faltantes.map(function (lote) { return lote.bloqueo; });
+        var otrosBloqueos = previa.bloqueos.filter(function (bloqueo) {
+            return bloqueosInventario.indexOf(bloqueo) === -1;
+        });
+        var html = '';
+
+        if (faltantes.length) {
+            html += '<p class="text-left mb-2">No se puede anular porque no hay inventario suficiente para estas devoluciones:</p>' +
+                '<div class="table-responsive"><table class="table table-sm table-bordered text-left mb-2">' +
+                '<thead class="thead-light"><tr><th>Producto</th><th>Lote</th><th>Requiere</th><th>Disponible</th><th>Estado</th></tr></thead><tbody>';
+            html += faltantes.map(function (lote) {
+                return '<tr><td>' + esc(lote.producto || 'Producto no disponible') + '</td>' +
+                    '<td>' + esc(lote.lote) + '</td>' +
+                    '<td class="text-right">' + cantidad(lote.cantidad) + '</td>' +
+                    '<td class="text-right">' + cantidad(lote.disponible) + '</td>' +
+                    '<td>' + (lote.existe ? 'Inventario insuficiente' : 'Lote no encontrado') + '</td></tr>';
+            }).join('');
+            html += '</tbody></table></div>';
+        }
+
+        if (otrosBloqueos.length) {
+            html += lista(otrosBloqueos.map(esc));
+        }
+
+        return html;
+    };
+
     var errorDe = function (err, porDefecto) {
         var datos = err && err.response && err.response.data ? err.response.data : {};
         return datos.text || porDefecto;
@@ -100,7 +135,7 @@
         axios.get('/nota/credito/anular/previsualizar/' + idNotaCredito).then(function (respuesta) {
             var previa = respuesta.data;
             if (!previa.puede) {
-                Swal.fire({ icon: 'warning', title: 'No se puede anular', html: lista(previa.bloqueos.map(esc)) });
+                Swal.fire({ icon: 'warning', title: 'No se puede anular', html: mensajeBloqueos(previa), width: 850 });
                 return;
             }
 

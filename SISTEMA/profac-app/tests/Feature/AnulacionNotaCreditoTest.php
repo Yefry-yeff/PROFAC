@@ -523,6 +523,10 @@ class AnulacionNotaCreditoTest extends TestCase
         $previa = $this->servicio()->previsualizarNota(1);
         $this->assertFalse($previa['puede']);
         $this->assertFalse($previa['inventario'][0]['suficiente']);
+        $this->assertSame('Producto prueba', $previa['inventario'][0]['producto']);
+        $this->assertSame(10.0, $previa['inventario'][0]['cantidad']);
+        $this->assertSame(4.0, $previa['inventario'][0]['disponible']);
+        $this->assertNotEmpty($previa['inventario'][0]['bloqueo']);
 
         try {
             $this->servicio()->anularNota(1, 'Intento sin inventario', 3);

@@ -16,12 +16,13 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 /**
  * Hoja del reporte Notas de Crédito.
  *
- * Columnas (A..P):
+ * Columnas (A..Q):
  *  A(0) #   B(1) FECHA   C(2) CÓDIGO NC   D(3) REGISTRO N°
  *  E(4) CLIENTE   F(5) N° FACTURA   G(6) MOTIVO
  *  H(7) COMENTARIO   I(8) SUB TOTAL   J(9) ISV   K(10) TOTAL FISCAL
  *  L(11) APLICADO   M(12) REEMBOLSADO   N(13) DISPONIBLE
- *  O(14) ESTADO DEL CRÉDITO   P(15) REGISTRADO POR
+ *  O(14) ESTADO DEL CRÉDITO   P(15) ESTADO DE LA NOTA
+ *  Q(16) REGISTRADO POR
  */
 class NotasCreditoHoja implements FromArray, WithTitle, WithStyles, WithEvents, WithStrictNullComparison
 {
@@ -29,8 +30,8 @@ class NotasCreditoHoja implements FromArray, WithTitle, WithStyles, WithEvents, 
     protected $usuario;
     protected $titulo;
 
-    const LAST_COL  = 'P';
-    const COL_COUNT = 16;
+    const LAST_COL  = 'Q';
+    const COL_COUNT = 17;
 
     public function __construct($rows, $usuario = 'Sistema', $titulo = 'Notas de Crédito')
     {
@@ -72,7 +73,7 @@ class NotasCreditoHoja implements FromArray, WithTitle, WithStyles, WithEvents, 
             '#', 'FECHA', 'CÓDIGO NC', 'REGISTRO N°', 'CLIENTE',
             'N° FACTURA', 'MOTIVO', 'COMENTARIO',
             'SUB TOTAL', 'ISV', 'TOTAL FISCAL', 'APLICADO', 'REEMBOLSADO',
-            'DISPONIBLE', 'ESTADO DEL CRÉDITO', 'REGISTRADO POR',
+            'DISPONIBLE', 'ESTADO DEL CRÉDITO', 'ESTADO DE LA NOTA', 'REGISTRADO POR',
         ];
 
         $totSubTotal   = 0.0;
@@ -115,6 +116,7 @@ class NotasCreditoHoja implements FromArray, WithTitle, WithStyles, WithEvents, 
                 $reembolsado,
                 $disponible,
                 $r->estado_credito ?? '',
+                $r->estado_nota ?? '',
                 $r->registrado_por  ?? '',
             ];
         }
@@ -220,7 +222,7 @@ class NotasCreditoHoja implements FromArray, WithTitle, WithStyles, WithEvents, 
                 // ── Anchos de columna ─────────────────────────────────────────
                 $widths = ['A' => 5, 'B' => 14, 'C' => 10, 'D' => 26, 'E' => 30,
                            'F' => 26, 'G' => 24, 'H' => 30, 'I' => 14, 'J' => 12, 'K' => 14,
-                           'L' => 14, 'M' => 14, 'N' => 14, 'O' => 22, 'P' => 22];
+                           'L' => 14, 'M' => 14, 'N' => 14, 'O' => 22, 'P' => 22, 'Q' => 22];
                 foreach ($widths as $col => $w) {
                     $sheet->getColumnDimension($col)->setWidth($w);
                 }

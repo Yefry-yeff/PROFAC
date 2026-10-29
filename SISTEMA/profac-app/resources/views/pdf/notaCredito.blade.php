@@ -17,6 +17,7 @@
         .nota-resumen-notas { left:0 !important; width:57% !important; }
         .nota-resumen-totales { left:auto !important; right:0 !important; width:41% !important; }
         .nota-firmas { left:0 !important; width:100% !important; }
+        .nota-anulada-watermark { position:fixed; top:38%; left:0; width:100%; color:rgba(190,0,0,.24); font-size:76px; font-weight:bold; text-align:center; transform:rotate(-35deg); z-index:9999; }
 
         table {
         border-collapse: collapse;
@@ -46,6 +47,10 @@
 </head>
 
 <body>
+
+@if($notaAnulada)
+    <div class="nota-anulada-watermark">ANULADO</div>
+@endif
 
 @php
     $altura =20;
