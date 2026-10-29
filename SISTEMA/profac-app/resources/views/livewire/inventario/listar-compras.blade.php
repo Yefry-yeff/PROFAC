@@ -5,6 +5,7 @@
         .compras-reporte .compras-header h2 { color:#fff; margin:0 0 5px; font-weight:700; }
         .compras-reporte .compras-header p { margin:0; }
         .compras-reporte .compras-header .btn { color:#52636a; }
+        .compras-reporte .reporte-selector { width:auto; min-width:190px; color:#52636a; border:1px solid #fff; border-radius:5px; font-size:.82rem; font-weight:600; }
         .compras-reporte .compras-panel { padding:0; background:#fff; border:1px solid #e8d5bf; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,.10); overflow:hidden; }
         .compras-reporte .compras-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; flex-wrap:wrap; padding:12px 20px; background:linear-gradient(135deg,#f39c12 0%,#e05a00 100%); }
         .compras-reporte .btn-compras-action { background:rgba(255,255,255,.18)!important; color:#fff!important; border:1.5px solid rgba(255,255,255,.5)!important; border-radius:5px!important; font-weight:600!important; font-size:.78rem; padding:5px 14px; transition:background .18s; white-space:nowrap; cursor:pointer; }
@@ -32,7 +33,14 @@
     @endpush
     <div class="compras-header d-flex justify-content-between align-items-center flex-wrap">
         <div><h2><i class="fa fa-shopping-cart mr-2"></i>Reporte de compras</h2><p>Inventario / Compras</p></div>
-        <a href="{{ url('/producto/compra') }}" class="btn btn-white"><i class="fa fa-plus mr-1"></i>Nueva compra</a>
+        <div class="d-flex align-items-center flex-wrap" style="gap:8px">
+            <label for="selectorReporteInventario" class="sr-only">Seleccionar reporte</label>
+            <select id="selectorReporteInventario" class="form-control reporte-selector" onchange="if (this.value) window.location.href = this.value">
+                <option value="{{ url('/producto/listar/compras') }}" selected>Reporte de compras</option>
+                <option value="{{ route('gastos') }}">Reporte de gastos</option>
+            </select>
+            <a href="{{ url('/producto/compra') }}" class="btn btn-white"><i class="fa fa-plus mr-1"></i>Nueva compra</a>
+        </div>
     </div>
     <div class="wrapper wrapper-content">
         <div class="compras-panel">

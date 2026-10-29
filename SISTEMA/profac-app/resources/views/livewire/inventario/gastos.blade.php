@@ -5,6 +5,7 @@
         .gastos-reporte .gastos-header h2 { margin:0 0 5px; font-weight:700; color:#fff; }
         .gastos-reporte .gastos-header p { margin:0; }
         .gastos-reporte .gastos-header .btn { color:#52636a; }
+        .gastos-reporte .reporte-selector { width:auto; min-width:190px; color:#52636a; border:1px solid #fff; border-radius:5px; font-size:.82rem; font-weight:600; }
         .gastos-reporte .gastos-actions { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
         .gastos-reporte .gastos-panel { border:1px solid #e3e8ea; border-radius:8px; background:#fff; box-shadow:0 2px 10px rgba(38,50,56,.05); padding:20px; }
         .gastos-reporte .gastos-toolbar { border-bottom:1px solid #edf0f1; padding-bottom:15px; margin-bottom:15px; }
@@ -34,7 +35,14 @@
             <h2><i class="fa fa-list-alt mr-2"></i>Reporte de gastos</h2>
             <p>Inventario / Gastos</p>
         </div>
-        <a href="{{ url('/producto/compra?modo=gasto') }}" class="btn btn-white"><i class="fa fa-plus mr-1"></i>Nuevo gasto</a>
+        <div class="d-flex align-items-center flex-wrap" style="gap:8px">
+            <label for="selectorReporteInventario" class="sr-only">Seleccionar reporte</label>
+            <select id="selectorReporteInventario" class="form-control reporte-selector" onchange="if (this.value) window.location.href = this.value">
+                <option value="{{ url('/producto/listar/compras') }}">Reporte de compras</option>
+                <option value="{{ route('gastos') }}" selected>Reporte de gastos</option>
+            </select>
+            <a href="{{ url('/producto/compra?modo=gasto') }}" class="btn btn-white"><i class="fa fa-plus mr-1"></i>Nuevo gasto</a>
+        </div>
     </div>
     <div class="wrapper wrapper-content">
         <div class="gastos-panel">
