@@ -57,17 +57,17 @@ class AnuladorNotaCredito
         ];
     }
 
-    public function anularNota(int $notaCreditoId, string $motivo, int $usuarioId): array
+    public function anularNota(int $notaCreditoId, string $motivo, int $usuarioId, array $bodegasSeleccionadas = []): array
     {
         $motivo = $this->validarMotivo($motivo);
 
-        return DB::transaction(function () use ($notaCreditoId, $motivo, $usuarioId) {
+        return DB::transaction(function () use ($notaCreditoId, $motivo, $usuarioId, $bodegasSeleccionadas) {
             if (!DB::table('nota_credito')->where('id', $notaCreditoId)->exists()) {
                 throw new DomainException('La nota de crédito no existe.');
             }
 
             $this->gestor->asegurarCredito($notaCreditoId);
-            $plan = $this->planearNota($notaCreditoId, true);
+            $plan = $this->planearNota($notaCreditoId, true, $bodegasSeleccionadas);
             if (!empty($plan['bloqueos'])) {
                 throw new DomainException(implode(' ', $plan['bloqueos']));
             }
@@ -105,7 +105,14 @@ class AnuladorNotaCredito
             }
 
             $ajustes = $this->ajustador->revertir($notaCreditoId, $usuarioId);
-            $inventario = $this->revertirInventario($nota, $plan['devoluciones'], $plan['lineas'], $usuarioId, $motivo);
+            $inventario = $this->revertirInventario(
+                $nota,
+                $plan['devoluciones'],
+                $plan['lineas'],
+                $plan['inventario'],
+                $usuarioId,
+                $motivo
+            );
 
             DB::table('nota_credito_creditos')->where('id', $credito->id)->update([
                 'monto_aplicado' => 0,
@@ -223,7 +230,7 @@ class AnuladorNotaCredito
         return $bloquear ? $consulta->lockForUpdate() : $consulta;
     }
 
-    private function planearNota(int $notaCreditoId, bool $bloquear): array
+    private function planearNota(int $notaCreditoId, bool $bloquear, array $bodegasSeleccionadas = []): array
     {
         $nota = $this->tabla('nota_credito', $bloquear)->where('id', $notaCreditoId)->first();
         if (!$nota) {
@@ -296,32 +303,91 @@ class AnuladorNotaCredito
         $devoluciones = $this->resolverDevoluciones($nota, $lineas);
         $inventario = [];
         foreach ($devoluciones as $lote => $devolucion) {
-            $recibido = $this->tabla('recibido_bodega', $bloquear)->where('id', $lote)->first();
-            $producto = $recibido ? DB::table('producto')->where('id', $recibido->producto_id)->value('nombre') : null;
-            $disponible = $recibido ? (float) $recibido->cantidad_disponible : 0.0;
-            $suficiente = $recibido && $disponible + 0.0001 >= $devolucion['cantidad'];
-            $bloqueoInventario = null;
-
-            if (!$recibido) {
-                $bloqueoInventario = "El lote {$lote} de la devolución ya no existe en inventario.";
-            } elseif (!$suficiente) {
-                $bloqueoInventario = "No hay inventario suficiente para descontar la devolución de {$producto} (lote {$lote}): requiere {$devolucion['cantidad']} y hay {$disponible}.";
+            $origen = DB::table('recibido_bodega as rb')
+                ->leftJoin('seccion as s', 's.id', '=', 'rb.seccion_id')
+                ->leftJoin('segmento as sg', 'sg.id', '=', 's.segmento_id')
+                ->leftJoin('bodega as b', 'b.id', '=', 'sg.bodega_id')
+                ->leftJoin('producto as p', 'p.id', '=', 'rb.producto_id')
+                ->where('rb.id', $lote)
+                ->first([
+                    'rb.producto_id',
+                    'b.id as bodega_id',
+                    'b.nombre as bodega',
+                    'p.nombre as producto',
+                ]);
+            $productoId = (int) ($origen->producto_id ?? $devolucion['producto_id'] ?? 0);
+            if ($productoId === 0) {
+                $productoId = (int) DB::table('venta_has_producto')
+                    ->where('factura_id', $nota->factura_id)
+                    ->where('lote', $lote)
+                    ->value('producto_id');
             }
-
-            $inventario[$lote] = [
-                'lote' => (int) $lote,
+            $producto = $origen->producto ?? DB::table('producto')->where('id', $productoId)->value('nombre');
+            $inventario[$productoId] ??= [
+                'producto_id' => $productoId,
+                'codigo' => $productoId,
                 'producto' => $producto,
-                'cantidad' => $devolucion['cantidad'],
-                'disponible' => $disponible,
-                'existe' => (bool) $recibido,
-                'suficiente' => (bool) $suficiente,
-                'bloqueo' => $bloqueoInventario,
+                'cantidad' => 0.0,
+                'bodegas_origen' => [],
+                'bodegas' => [],
             ];
-
-            if ($bloqueoInventario) {
-                $bloqueos[] = $bloqueoInventario;
+            $devoluciones[$lote]['producto_id'] = $productoId;
+            $inventario[$productoId]['cantidad'] += (float) $devolucion['cantidad'];
+            if ($origen && $origen->bodega_id) {
+                $inventario[$productoId]['bodegas_origen'][(int) $origen->bodega_id] = $origen->bodega;
             }
         }
+
+        foreach ($inventario as $productoId => &$item) {
+            $stock = DB::table('recibido_bodega as rb')
+                ->join('seccion as s', 's.id', '=', 'rb.seccion_id')
+                ->join('segmento as sg', 'sg.id', '=', 's.segmento_id')
+                ->join('bodega as b', 'b.id', '=', 'sg.bodega_id')
+                ->where('rb.producto_id', $productoId)
+                ->when($bloquear, fn ($query) => $query->lockForUpdate())
+                ->get([
+                    'rb.id as lote',
+                    'rb.cantidad_disponible',
+                    'b.id as bodega_id',
+                    'b.nombre as bodega',
+                ]);
+            $bodegas = [];
+            foreach ($stock as $fila) {
+                $bodegaId = (int) $fila->bodega_id;
+                $bodegas[$bodegaId] ??= [
+                    'id' => $bodegaId,
+                    'nombre' => $fila->bodega,
+                    'disponible' => 0.0,
+                ];
+                $bodegas[$bodegaId]['disponible'] += max(0, (float) $fila->cantidad_disponible);
+            }
+            foreach ($item['bodegas_origen'] as $bodegaId => $nombre) {
+                $bodegas[$bodegaId] ??= [
+                    'id' => $bodegaId,
+                    'nombre' => $nombre,
+                    'disponible' => 0.0,
+                ];
+            }
+            $item['bodegas'] = array_values($bodegas);
+            $origenId = (int) (array_key_first($item['bodegas_origen']) ?? 0);
+            $seleccionada = (int) ($bodegasSeleccionadas[$productoId] ?? $origenId);
+            $bodegaElegida = collect($item['bodegas'])->firstWhere('id', $seleccionada);
+            $item['bodega_id'] = $bodegaElegida ? $seleccionada : null;
+            $item['bodega'] = $item['bodegas_origen']
+                ? implode(', ', array_unique(array_values($item['bodegas_origen'])))
+                : 'No disponible';
+            $item['disponible'] = (float) ($bodegaElegida['disponible'] ?? 0);
+            $item['suficiente'] = (bool) ($bodegaElegida
+                && $item['disponible'] + 0.0001 >= $item['cantidad']);
+            $item['bloqueo'] = $item['suficiente']
+                ? null
+                : "No hay inventario suficiente de {$item['producto']} (código {$productoId}) en la bodega seleccionada: requiere {$item['cantidad']} y hay {$item['disponible']}.";
+            if (!$item['suficiente']) {
+                $bloqueos[] = $item['bloqueo'];
+            }
+            unset($item['bodegas_origen']);
+        }
+        unset($item);
 
         $comisionesNetas = $lineas->isNotEmpty()
             ? DB::table('facturas_comision')
@@ -725,27 +791,77 @@ class AnuladorNotaCredito
      * Quita del inventario lo que la devolución había reingresado y restaura los contadores
      * de la factura para que esas unidades puedan volver a devolverse en otra nota.
      */
-    private function revertirInventario(object $nota, array $devoluciones, $lineas, int $usuarioId, string $motivo): array
+    private function revertirInventario(object $nota, array $devoluciones, $lineas, array $inventario, int $usuarioId, string $motivo): array
     {
         $resultado = [];
         foreach ($devoluciones as $lote => $devolucion) {
             $cantidad = (float) $devolucion['cantidad'];
-            $recibido = DB::table('recibido_bodega')->where('id', $lote)->lockForUpdate()->first();
-            if (!$recibido || (float) $recibido->cantidad_disponible + 0.0001 < $cantidad) {
-                throw new DomainException("No hay inventario suficiente en el lote {$lote} para revertir la devolución.");
+            $recibidoOrigen = DB::table('recibido_bodega')->where('id', $lote)->first();
+            $productoId = (int) ($recibidoOrigen->producto_id ?? $devolucion['producto_id'] ?? 0);
+            if (!$productoId) {
+                $productoId = (int) DB::table('venta_has_producto')
+                    ->where('factura_id', $nota->factura_id)
+                    ->where('lote', $lote)
+                    ->value('producto_id');
             }
-
-            DB::table('recibido_bodega')->where('id', $lote)->update([
-                'cantidad_disponible' => round((float) $recibido->cantidad_disponible - $cantidad, 4),
-                'updated_at' => now(),
-            ]);
+            $filaOrigen = DB::table('venta_has_producto')
+                ->where('factura_id', $nota->factura_id)
+                ->where('lote', $lote)
+                ->where('producto_id', $productoId)
+                ->first(['seccion_id']);
+            $seccionOrigen = $recibidoOrigen->seccion_id ?? $filaOrigen->seccion_id ?? 0;
+            $bodegaId = (int) ($inventario[$productoId]['bodega_id'] ?? 0);
+            $stocks = DB::table('recibido_bodega as rb')
+                ->join('seccion as s', 's.id', '=', 'rb.seccion_id')
+                ->join('segmento as sg', 'sg.id', '=', 's.segmento_id')
+                ->where('rb.producto_id', $productoId)
+                ->where('sg.bodega_id', $bodegaId)
+                ->where('rb.cantidad_disponible', '>', 0)
+                ->orderByRaw('CASE WHEN rb.id = ? THEN 0 ELSE 1 END', [(int) $lote])
+                ->orderBy('rb.id')
+                ->lockForUpdate()
+                ->get(['rb.id', 'rb.cantidad_disponible']);
+            $pendienteInventario = $cantidad;
+            foreach ($stocks as $stock) {
+                $descontar = min($pendienteInventario, (float) $stock->cantidad_disponible);
+                if ($descontar <= 0) {
+                    continue;
+                }
+                DB::table('recibido_bodega')->where('id', $stock->id)->update([
+                    'cantidad_disponible' => round((float) $stock->cantidad_disponible - $descontar, 4),
+                    'updated_at' => now(),
+                ]);
+                DB::table('log_translado')->insert([
+                    'origen' => $stock->id,
+                    'destino' => null,
+                    'cantidad' => $descontar,
+                    'users_id' => $usuarioId,
+                    'descripcion' => self::DESCRIPCION_LOG_ANULACION,
+                    'comentario' => $motivo,
+                    'factura_id' => $nota->factura_id,
+                    'nota_credito_id' => $nota->id,
+                    'unidad_medida_venta_id' => $devolucion['unidad_medida_venta_id'],
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+                $resultado[] = [
+                    'producto_id' => $productoId,
+                    'bodega_id' => $bodegaId,
+                    'lote' => (int) $stock->id,
+                    'cantidad' => $descontar,
+                ];
+                $pendienteInventario -= $descontar;
+            }
+            if ($pendienteInventario > 0.0001) {
+                throw new DomainException("No hay inventario suficiente en la bodega seleccionada para revertir la devolución del producto {$productoId}.");
+            }
 
             $pendiente = $cantidad;
             $netoLote = 0.0;
             $filas = DB::table('venta_has_producto')
                 ->where('factura_id', $nota->factura_id)
-                ->where('producto_id', $recibido->producto_id)
-                ->where('seccion_id', $recibido->seccion_id)
+                ->where('producto_id', $productoId)
+                ->where('seccion_id', $seccionOrigen)
                 ->where('lote', $lote)
                 ->lockForUpdate()
                 ->get();
@@ -775,21 +891,6 @@ class AnuladorNotaCredito
                 ->where('descripcion', '<>', self::DESCRIPCION_LOG_ANULACION)
                 ->update(['cantidad' => $netoLote, 'updated_at' => now()]);
 
-            DB::table('log_translado')->insert([
-                'origen' => $lote,
-                'destino' => null,
-                'cantidad' => $cantidad,
-                'users_id' => $usuarioId,
-                'descripcion' => self::DESCRIPCION_LOG_ANULACION,
-                'comentario' => $motivo,
-                'factura_id' => $nota->factura_id,
-                'nota_credito_id' => $nota->id,
-                'unidad_medida_venta_id' => $devolucion['unidad_medida_venta_id'],
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-
-            $resultado[] = ['lote' => (int) $lote, 'cantidad' => $cantidad];
         }
 
         foreach ($lineas as $linea) {

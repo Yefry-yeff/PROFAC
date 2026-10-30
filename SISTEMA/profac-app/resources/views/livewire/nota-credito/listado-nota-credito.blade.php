@@ -109,6 +109,8 @@
                             <table id="tbl_nc_a" class="table table-hover table-bordered" style="width:100%;">
                                 <thead>
                                     <tr>
+                                        <th>ID Nota</th>
+                                        <th>Secuencia CAI</th>
                                         <th>Cliente</th>
                                         <th>N° Factura</th>
                                         <th>Motivo</th>
@@ -202,6 +204,13 @@
                                     </select>
                                 </div>
                             </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Número de secuencia CAI</label>
+                                    <input type="text" id="nc_fil_secuencia_cai" class="form-control form-control-sm"
+                                        autocomplete="off" placeholder="Buscar secuencia CAI">
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -231,7 +240,8 @@
         fecha_hasta: '{{ date("Y-m-t") }}',
         cliente_id:  '',
         motivo_id:   '',
-        user_id:     ''
+        user_id:     '',
+        numero_secuencia_cai: ''
     };
 
     $(document).ready(function() {
@@ -258,9 +268,12 @@
                     d.cliente_id  = ncFiltros.cliente_id;
                     d.motivo_id   = ncFiltros.motivo_id;
                     d.user_id     = ncFiltros.user_id;
+                    d.numero_secuencia_cai = ncFiltros.numero_secuencia_cai;
                 }
             },
             columns: [
+                { data: 'codigo' },
+                { data: 'numero_secuencia_cai' },
                 { data: 'cliente' },
                 { data: 'factura' },
                 { data: 'motivo' },
@@ -285,6 +298,7 @@
         ncFiltros.cliente_id  = $('#nc_fil_cliente').val()  || '';
         ncFiltros.motivo_id   = $('#nc_fil_motivo').val()   || '';
         ncFiltros.user_id     = $('#nc_fil_usuario').val()  || '';
+        ncFiltros.numero_secuencia_cai = $('#nc_fil_secuencia_cai').val().trim();
         $('#modalFiltrosNC').modal('hide');
         ncCargarTabla();
         ncActualizarBadges();
@@ -296,7 +310,9 @@
         $('#nc_fil_cliente').val(null).trigger('change');
         $('#nc_fil_motivo').val('');
         $('#nc_fil_usuario').val(null).trigger('change');
-        ncFiltros = { fecha_desde: '{{ $fechaInicio }}', fecha_hasta: '{{ date("Y-m-t") }}', cliente_id: '', motivo_id: '', user_id: '' };
+        $('#nc_fil_secuencia_cai').val('');
+        ncFiltros = { fecha_desde: '{{ $fechaInicio }}', fecha_hasta: '{{ date("Y-m-t") }}', cliente_id: '', motivo_id: '', user_id: '', numero_secuencia_cai: '' };
+        ncCargarTabla();
         ncActualizarBadges();
     }
 
@@ -310,6 +326,7 @@
                 cliente_id:  ncFiltros.cliente_id,
                 motivo_id:   ncFiltros.motivo_id,
                 user_id:     ncFiltros.user_id,
+                numero_secuencia_cai: ncFiltros.numero_secuencia_cai,
                 tipo_venta:  2
             },
             success: function(r) {
@@ -331,6 +348,7 @@
         if (ncFiltros.cliente_id)  badges.push({ lbl:'Cliente', val:$('#nc_fil_cliente option:selected').text() });
         if (ncFiltros.motivo_id)   badges.push({ lbl:'Motivo',  val:$('#nc_fil_motivo option:selected').text() });
         if (ncFiltros.user_id)     badges.push({ lbl:'Usuario', val:$('#nc_fil_usuario option:selected').text() });
+        if (ncFiltros.numero_secuencia_cai) badges.push({ lbl:'Secuencia CAI', val:ncFiltros.numero_secuencia_cai });
         if (badges.length) {
             bar.show();
             badges.forEach(function(b) { bar.append('<span class="filtro-badge-nc"><strong>' + b.lbl + ':</strong> ' + b.val + '</span> '); });
@@ -341,7 +359,8 @@
         var tok  = $('meta[name="csrf-token"]').attr('content');
         var form = $('<form method="POST" action="/nota/credito/exportar-excel"></form>');
         var f = { _token: tok, fechaInicio: ncFiltros.fecha_desde, fechaFinal: ncFiltros.fecha_hasta,
-                  cliente_id: ncFiltros.cliente_id, motivo_id: ncFiltros.motivo_id, user_id: ncFiltros.user_id };
+                  cliente_id: ncFiltros.cliente_id, motivo_id: ncFiltros.motivo_id, user_id: ncFiltros.user_id,
+                  numero_secuencia_cai: ncFiltros.numero_secuencia_cai };
         $.each(f, function(k,v){ form.append($('<input type="hidden">').attr('name',k).val(v)); });
         $('body').append(form); form.submit(); form.remove();
     }

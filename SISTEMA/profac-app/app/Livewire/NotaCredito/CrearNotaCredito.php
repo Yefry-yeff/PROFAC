@@ -912,12 +912,19 @@ class CrearNotaCredito extends Component
             $datos = $request->validate([
                 'idNotaCredito' => 'required|integer',
                 'motivo' => 'required|string|min:5|max:1000',
+                'bodegas' => 'nullable|array',
+                'bodegas.*' => 'required|integer|exists:bodega,id',
             ], [
                 'motivo.required' => 'Ingrese el motivo de la anulación.',
                 'motivo.min' => 'El motivo de la anulación debe tener al menos 5 caracteres.',
             ]);
 
-            $resultado = $anulador->anularNota((int) $datos['idNotaCredito'], $datos['motivo'], (int) Auth::id());
+            $resultado = $anulador->anularNota(
+                (int) $datos['idNotaCredito'],
+                $datos['motivo'],
+                (int) Auth::id(),
+                $datos['bodegas'] ?? []
+            );
 
             return response()->json([
                 'text' => $this->resumenAnulacion($resultado),

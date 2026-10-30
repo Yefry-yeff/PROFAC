@@ -30,6 +30,17 @@ use App\Services\NotaCredito\AnuladorNotaCredito;
 
 class ListadoNotaCredito extends Component
 {
+    private function filtroNumeroSecuenciaCai(Request $request, array &$bindings): string
+    {
+        $numeroSecuencia = trim((string) $request->input('numero_secuencia_cai', ''));
+        if ($numeroSecuencia === '') {
+            return '';
+        }
+
+        $bindings[] = '%' . $numeroSecuencia . '%';
+        return ' AND CAST(A.numero_secuencia_cai AS CHAR) LIKE ?';
+    }
+
     public function render()
     {
         $fechaActual = date('n');
@@ -59,11 +70,13 @@ class ListadoNotaCredito extends Component
 
     public function listadoNotaCredito(Request $request){
         try{
-            $listado = DB::SELECT("
+            $bindings = [];
+            $sql = "
             select
             fa.id as idFactura,
             A.id as codigo,
             A.cai,
+            A.numero_secuencia_cai,
             cli.nombre as cliente,
             fa.cai as factura,
             B.descripcion as motivo,
@@ -117,7 +130,8 @@ class ListadoNotaCredito extends Component
             . ($request->cliente_id ? " and cli.id = " . intval($request->cliente_id) : "")
             . ($request->motivo_id  ? " and A.motivo_nota_credito_id = " . intval($request->motivo_id) : "")
             . ($request->user_id    ? " and A.users_id = " . intval($request->user_id) : "")
-            );
+            . $this->filtroNumeroSecuenciaCai($request, $bindings);
+            $listado = DB::select($sql, $bindings);
             //dd($listado);
             /* A.estado_nota_dec = 1 */
             return Datatables::of($listado)
@@ -190,7 +204,9 @@ class ListadoNotaCredito extends Component
                 . ($request->cliente_id ? " AND cli.id = " . intval($request->cliente_id) : "")
                 . ($request->motivo_id  ? " AND A.motivo_nota_credito_id = " . intval($request->motivo_id) : "")
                 . ($request->user_id    ? " AND A.users_id = " . intval($request->user_id) : "");
-            $row = DB::selectOne($sql);
+            $bindings = [];
+            $sql .= $this->filtroNumeroSecuenciaCai($request, $bindings);
+            $row = DB::selectOne($sql, $bindings);
             return response()->json([
                 'success'     => true,
                 'total'       => $row->total       ?? 0,
@@ -314,7 +330,8 @@ class ListadoNotaCredito extends Component
     public function exportarExcel(Request $request)
     {
         try {
-            $listado = DB::SELECT("
+            $bindings = [];
+            $sql = "
                 SELECT A.id as codigo, A.cai, cli.nombre as cliente, fa.cai as factura,
                     B.descripcion as motivo,
                     CASE
@@ -354,8 +371,9 @@ class ListadoNotaCredito extends Component
                 . ($request->cliente_id ? " AND cli.id = " . intval($request->cliente_id) : "")
                 . ($request->motivo_id  ? " AND A.motivo_nota_credito_id = " . intval($request->motivo_id) : "")
                 . ($request->user_id    ? " AND A.users_id = " . intval($request->user_id) : "")
-                . " ORDER BY A.fecha DESC"
-            );
+                . $this->filtroNumeroSecuenciaCai($request, $bindings)
+                . " ORDER BY A.fecha DESC";
+            $listado = DB::select($sql, $bindings);
             $usuario = Auth::check() ? Auth::user()->name : 'Sistema';
             return Excel::download(
                 new NotasCreditoExport($listado, $usuario, 'Notas de Crédito — Clientes A'),
@@ -895,5 +913,3 @@ class ListadoNotaCredito extends Component
             ->all();
     }
 }
-
-

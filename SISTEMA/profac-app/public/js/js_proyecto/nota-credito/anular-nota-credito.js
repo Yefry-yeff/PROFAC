@@ -30,15 +30,16 @@
         var html = '';
 
         if (faltantes.length) {
-            html += '<p class="text-left mb-2">No se puede anular porque no hay inventario suficiente para estas devoluciones:</p>' +
+            html += '<p class="text-left mb-2">No hay inventario suficiente en la bodega seleccionada para estas devoluciones:</p>' +
                 '<div class="table-responsive"><table class="table table-sm table-bordered text-left mb-2">' +
-                '<thead class="thead-light"><tr><th>Producto</th><th>Lote</th><th>Requiere</th><th>Disponible</th><th>Estado</th></tr></thead><tbody>';
+                '<thead class="thead-light"><tr><th>Código</th><th>Producto</th><th>Bodega</th><th>Requiere</th><th>Disponible</th><th>Estado</th></tr></thead><tbody>';
             html += faltantes.map(function (lote) {
-                return '<tr><td>' + esc(lote.producto || 'Producto no disponible') + '</td>' +
-                    '<td>' + esc(lote.lote) + '</td>' +
+                return '<tr><td>' + esc(lote.codigo || lote.producto_id || '') + '</td>' +
+                    '<td>' + esc(lote.producto || 'Producto no disponible') + '</td>' +
+                    '<td>' + esc(lote.bodega || 'No disponible') + '</td>' +
                     '<td class="text-right">' + cantidad(lote.cantidad) + '</td>' +
                     '<td class="text-right">' + cantidad(lote.disponible) + '</td>' +
-                    '<td>' + (lote.existe ? 'Inventario insuficiente' : 'Lote no encontrado') + '</td></tr>';
+                    '<td>Inventario insuficiente</td></tr>';
             }).join('');
             html += '</tbody></table></div>';
         }
@@ -90,9 +91,36 @@
         html += bloque('Comisiones', previa.ajustes_comision.cantidad > 0
             ? ['Se devuelven ' + moneda(previa.ajustes_comision.monto) + ' rebajados a empleados (' + previa.ajustes_comision.cantidad + ' ajuste(s))']
             : []);
-        html += bloque('Inventario', previa.inventario.map(function (lote) {
-            return esc(lote.producto || 'Lote ' + lote.lote) + ': se descuentan ' + lote.cantidad + ' unidad(es) del inventario devuelto';
-        }));
+        if (previa.inventario.length) {
+            html += '<p class="mb-1 mt-3"><strong>Inventario por rebajar</strong></p>' +
+                '<p class="text-muted small">Seleccione la bodega de donde se descontará cada producto.</p>' +
+                '<div class="table-responsive"><table class="table table-sm table-bordered text-left mb-2">' +
+                '<thead class="thead-light"><tr><th>Código</th><th>Producto</th><th>Bodega de origen</th><th>Requiere</th><th>Bodega para rebajar</th></tr></thead><tbody>';
+            html += previa.inventario.map(function (item) {
+                var bodegas = item.bodegas || [];
+                var disponible = bodegas.filter(function (bodega) {
+                    return Number(bodega.disponible) + 0.0001 >= Number(item.cantidad);
+                });
+                var seleccion = item.bodega_id && disponible.some(function (bodega) {
+                    return Number(bodega.id) === Number(item.bodega_id);
+                }) ? Number(item.bodega_id) : (disponible.length ? Number(disponible[0].id) : '');
+                var opciones = '<option value="">— Seleccione bodega —</option>' + bodegas.map(function (bodega) {
+                    var suficiente = Number(bodega.disponible) + 0.0001 >= Number(item.cantidad);
+                    return '<option value="' + Number(bodega.id) + '"' +
+                        (Number(bodega.id) === seleccion ? ' selected' : '') +
+                        (!suficiente ? ' disabled' : '') + '>' +
+                        esc(bodega.nombre) + ' · Disponible: ' + cantidad(bodega.disponible) +
+                        (suficiente ? '' : ' · Insuficiente') + '</option>';
+                }).join('');
+                return '<tr><td>' + esc(item.codigo || item.producto_id || '') + '</td>' +
+                    '<td>' + esc(item.producto || 'Producto no disponible') + '</td>' +
+                    '<td>' + esc(item.bodega || 'No disponible') + '</td>' +
+                    '<td class="text-right">' + cantidad(item.cantidad) + '</td>' +
+                    '<td><select class="form-control form-control-sm nc-bodega-inventario" data-producto="' +
+                    Number(item.producto_id) + '">' + opciones + '</select></td></tr>';
+            }).join('');
+            html += '</tbody></table></div>';
+        }
         html += '<p class="mt-3 mb-1">Se generan los asientos de reverso de <strong>' + previa.asientos + '</strong> ajuste(s) contable(s).</p>';
 
         if (previa.advertencias.length) {
@@ -114,7 +142,7 @@
                     return 'Ingrese un motivo de al menos 5 caracteres.';
                 }
             },
-            width: 720,
+            width: opciones.width || 720,
             showCancelButton: true,
             confirmButtonText: opciones.confirmar,
             cancelButtonText: 'Cancelar',
@@ -122,7 +150,15 @@
             showLoaderOnConfirm: true,
             allowOutsideClick: function () { return !Swal.isLoading(); },
             preConfirm: function (motivo) {
-                return axios.post(opciones.url, Object.assign({}, opciones.datos, { motivo: motivo.trim() }))
+                var datos = typeof opciones.datos === 'function' ? opciones.datos() : opciones.datos;
+                if (opciones.validarDatos) {
+                    var error = opciones.validarDatos(datos);
+                    if (error) {
+                        Swal.showValidationMessage(error);
+                        return false;
+                    }
+                }
+                return axios.post(opciones.url, Object.assign({}, datos, { motivo: motivo.trim() }))
                     .then(function (respuesta) { return respuesta.data; })
                     .catch(function (err) {
                         Swal.showValidationMessage(errorDe(err, 'No se pudo completar la anulación.'));
@@ -134,7 +170,16 @@
     window.anularNota = function (idNotaCredito) {
         axios.get('/nota/credito/anular/previsualizar/' + idNotaCredito).then(function (respuesta) {
             var previa = respuesta.data;
-            if (!previa.puede) {
+            var inventarioPuedeElegirse = (previa.inventario || []).every(function (item) {
+                return (item.bodegas || []).some(function (bodega) {
+                    return Number(bodega.disponible) + 0.0001 >= Number(item.cantidad);
+                });
+            });
+            var bloqueosInventario = (previa.inventario || []).map(function (item) { return item.bloqueo; });
+            var otrosBloqueos = (previa.bloqueos || []).filter(function (bloqueo) {
+                return bloqueosInventario.indexOf(bloqueo) === -1;
+            });
+            if (otrosBloqueos.length || !inventarioPuedeElegirse) {
                 Swal.fire({ icon: 'warning', title: 'No se puede anular', html: mensajeBloqueos(previa), width: 850 });
                 return;
             }
@@ -142,9 +187,22 @@
             pedirMotivo({
                 titulo: 'Anular nota de crédito',
                 html: resumenNota(previa),
+                width: previa.inventario.length ? 960 : 720,
                 confirmar: 'Sí, anular nota',
                 url: '/nota/credito/anular',
-                datos: { idNotaCredito: idNotaCredito }
+                datos: function () {
+                    var bodegas = {};
+                    $('.nc-bodega-inventario').each(function () {
+                        bodegas[$(this).data('producto')] = $(this).val();
+                    });
+                    return { idNotaCredito: idNotaCredito, bodegas: bodegas };
+                },
+                validarDatos: function (datos) {
+                    var incompleto = Object.keys(datos.bodegas).some(function (productoId) {
+                        return !datos.bodegas[productoId];
+                    });
+                    return incompleto ? 'Seleccione una bodega con inventario suficiente para cada producto.' : null;
+                }
             }).then(function (resultado) {
                 if (resultado.isConfirmed && resultado.value) {
                     Swal.fire({ icon: 'success', title: resultado.value.title, html: resultado.value.text }).then(recargar);

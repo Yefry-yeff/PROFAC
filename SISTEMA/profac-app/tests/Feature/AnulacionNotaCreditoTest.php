@@ -173,6 +173,20 @@ class AnulacionNotaCreditoTest extends TestCase
             $t->integer('id')->primary();
             $t->string('nombre');
         });
+        Schema::create('bodega', function (Blueprint $t) {
+            $t->integer('id')->primary();
+            $t->string('nombre');
+        });
+        Schema::create('segmento', function (Blueprint $t) {
+            $t->integer('id')->primary();
+            $t->integer('bodega_id');
+            $t->string('descripcion');
+        });
+        Schema::create('seccion', function (Blueprint $t) {
+            $t->integer('id')->primary();
+            $t->integer('segmento_id');
+            $t->string('descripcion');
+        });
         Schema::create('recibido_bodega', function (Blueprint $t) {
             $t->integer('id')->primary();
             $t->integer('producto_id');
@@ -257,6 +271,18 @@ class AnulacionNotaCreditoTest extends TestCase
         ]);
         DB::table('unidad_medida_venta')->insert(['id' => 1, 'unidad_venta' => 1]);
         DB::table('producto')->insert(['id' => 1, 'nombre' => 'Producto prueba']);
+        DB::table('bodega')->insert([
+            ['id' => 1, 'nombre' => 'Bodega de origen'],
+            ['id' => 2, 'nombre' => 'Bodega alterna'],
+        ]);
+        DB::table('segmento')->insert([
+            ['id' => 1, 'bodega_id' => 1, 'descripcion' => 'Segmento origen'],
+            ['id' => 2, 'bodega_id' => 2, 'descripcion' => 'Segmento alterno'],
+        ]);
+        DB::table('seccion')->insert([
+            ['id' => 1, 'segmento_id' => 1, 'descripcion' => 'Sección origen'],
+            ['id' => 2, 'segmento_id' => 2, 'descripcion' => 'Sección alterna'],
+        ]);
     }
 
     /** Nota 1 de 100 aplicada 60 a la factura 10 y 40 a la 11 (ambas cerradas por la nota). */
@@ -539,6 +565,30 @@ class AnulacionNotaCreditoTest extends TestCase
         $this->assertSame(['aplicacion', 'aplicacion'], DB::table('nota_credito_movimientos')->pluck('tipo')->all());
         $this->assertEquals([0, 0], DB::table('aplicacion_pagos')->pluck('saldo')->map(fn ($v) => $v + 0)->all());
         $this->assertSame(0, DB::table('nota_credito_reversiones')->count());
+    }
+
+    public function test_anulacion_permite_seleccionar_bodega_alterna_y_muestra_codigo_producto(): void
+    {
+        $this->notaAplicada();
+        $this->devolucionDeInventario(4);
+        DB::table('recibido_bodega')->insert([
+            'id' => 2, 'producto_id' => 1, 'seccion_id' => 2, 'cantidad_disponible' => 20,
+        ]);
+
+        $previa = $this->servicio()->previsualizarNota(1);
+        $producto = $previa['inventario'][0];
+        $this->assertSame(1, $producto['codigo']);
+        $this->assertSame('Bodega de origen', $producto['bodega']);
+        $this->assertSame(10.0, $producto['cantidad']);
+        $this->assertCount(2, $producto['bodegas']);
+
+        $this->servicio()->anularNota(1, 'Rebajar bodega alterna', 3, [1 => 2]);
+
+        $this->assertEquals(4, DB::table('recibido_bodega')->where('id', 1)->value('cantidad_disponible'));
+        $this->assertEquals(10, DB::table('recibido_bodega')->where('id', 2)->value('cantidad_disponible'));
+        $this->assertSame(2, (int) DB::table('log_translado')
+            ->where('descripcion', 'Nota credito anulado')
+            ->value('origen'));
     }
 
     public function test_reglas_de_bloqueo_motivo_y_nota_inexistente(): void
