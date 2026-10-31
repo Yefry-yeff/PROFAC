@@ -2,6 +2,7 @@
 
 namespace App\Exports;
 
+use App\Services\ComisionDepositoPromerica;
 use Maatwebsite\Excel\Concerns\Export;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithStyles;
@@ -66,7 +67,8 @@ class LibroCobrosExport implements Export, WithMultipleSheets
                 $this->fechaInicio,
                 $this->fechaFinal,
                 $title,
-                $label
+                $label,
+                ComisionDepositoPromerica::esPromerica($group['bank'])
             );
         }
 
@@ -102,16 +104,15 @@ class LibroCobrosSheet implements FromArray, WithStyles, WithEvents, WithStrictN
     protected string $fechaFinal;
     protected string $sheetTitle;
     protected string $label;
-
-    const LAST_COL  = 'R';
-    const COL_COUNT = 18;
+    protected bool $promerica;
 
     public function __construct(
         $data,
         string $fechaInicio,
         string $fechaFinal,
         string $sheetTitle,
-        string $label
+        string $label,
+        bool $promerica = false
     )
     {
         $this->data       = is_array($data) ? $data : json_decode(json_encode($data), true);
@@ -119,6 +120,7 @@ class LibroCobrosSheet implements FromArray, WithStyles, WithEvents, WithStrictN
         $this->fechaFinal  = $fechaFinal;
         $this->sheetTitle = $sheetTitle;
         $this->label = $label;
+        $this->promerica = $promerica;
     }
 
     public function title(): string
@@ -131,23 +133,24 @@ class LibroCobrosSheet implements FromArray, WithStyles, WithEvents, WithStrictN
         $out = [];
 
         /* ── Fila 1 — empresa ── */
-        $r1 = array_fill(0, self::COL_COUNT, '');
+        $columnCount = $this->promerica ? 22 : 18;
+        $r1 = array_fill(0, $columnCount, '');
         $r1[0] = 'DISTRIBUCIONES VALENCIA   |   RTN: 08011986138652';
         $out[] = $r1;
 
         /* ── Fila 2 — título ── */
-        $r2 = array_fill(0, self::COL_COUNT, '');
+        $r2 = array_fill(0, $columnCount, '');
         $r2[0] = 'LIBRO DE COBROS — CONCILIACIÓN BANCARIA' . ($this->label === 'Todos' ? '' : ' | ' . $this->label);
         $out[] = $r2;
 
         /* ── Fila 3 — rango ── */
-        $r3 = array_fill(0, self::COL_COUNT, '');
+        $r3 = array_fill(0, $columnCount, '');
         $r3[0] = 'Período: ' . $this->fechaInicio . '  a  ' . $this->fechaFinal
                . '     Generado: ' . now()->format('d/m/Y H:i');
         $out[] = $r3;
 
         /* ── Fila 4 — cabeceras ── */
-        $out[] = [
+        $headers = [
             'FECHA VENTA', 'FECHA VCTO.', 'FECHA PAGO',
             'CLIENTE', 'ASESOR COMERCIAL', 'TELEASESOR', 'N° FACTURA',
             'MONTO MOVIMIENTO', 'ESTADO',
@@ -155,8 +158,17 @@ class LibroCobrosSheet implements FromArray, WithStyles, WithEvents, WithStrictN
             'EXONERADO', 'GRAVADO', 'EXENTO',
             'SUB TOTAL', 'ISV', 'TOTAL FACTURA',
         ];
+        $out[] = $this->promerica
+            ? array_merge(
+                array_slice($headers, 0, 7),
+                ['MOVIMIENTO', 'COMISIÓN COBRADA (3%)', 'COMISIÓN DEL BANCO (2.6%)'],
+                array_slice($headers, 7),
+                ['OTRO']
+            )
+            : $headers;
 
         $grandCobrado = $grandExon = $grandGrav = $grandExen = $grandSub = $grandIsv = $grandFact = 0.0;
+        $grandRecibido = $grandComision = $grandBanco = $grandNeto = $grandOtro = 0.0;
 
         foreach ($this->data as $item) {
             $r = (array) $item;
@@ -176,7 +188,7 @@ class LibroCobrosSheet implements FromArray, WithStyles, WithEvents, WithStrictN
             $grandIsv     += $isv;
             $grandFact    += $fact;
 
-            $out[] = [
+            $row = [
                 $r['fecha_venta']       ?? '',
                 $r['fecha_vencimiento'] ?? '',
                 $r['fecha_pago']        ?? '',
@@ -196,18 +208,63 @@ class LibroCobrosSheet implements FromArray, WithStyles, WithEvents, WithStrictN
                 isset($r['isv']) ? $isv : null,
                 isset($r['total_factura']) ? $fact : null,
             ];
+            if ($this->promerica) {
+                $recibidoCentavos = ComisionDepositoPromerica::centavos(
+                    number_format((float) ($r['monto_recibido'] ?? 0), 2, '.', '')
+                );
+                $comisionCentavos = ComisionDepositoPromerica::centavos(
+                    number_format((float) ($r['comision_cobrada'] ?? 0), 2, '.', '')
+                );
+                $bancoCentavos = ComisionDepositoPromerica::comisionBancoCentavos($recibidoCentavos);
+                $netoCentavos = $recibidoCentavos - $bancoCentavos;
+                $otroCentavos = ComisionDepositoPromerica::centavos(
+                    number_format((float) ($r['otro'] ?? 0), 2, '.', '')
+                );
+                $grandRecibido += $recibidoCentavos / 100;
+                $grandComision += $comisionCentavos / 100;
+                $grandBanco += $bancoCentavos / 100;
+                $grandNeto += $netoCentavos / 100;
+                $grandOtro += $otroCentavos / 100;
+                $row = array_merge(
+                    array_slice($row, 0, 7),
+                    [
+                        $recibidoCentavos / 100,
+                        $comisionCentavos / 100,
+                        $bancoCentavos / 100,
+                    ],
+                    [$netoCentavos / 100],
+                    array_slice($row, 8),
+                    [$otroCentavos / 100]
+                );
+            }
+            $out[] = $row;
         }
 
         /* ── Fila totales generales ── */
-        $totRow     = array_fill(0, self::COL_COUNT, '');
+        $totRow     = array_fill(0, $columnCount, '');
         $totRow[0]  = 'TOTALES';
-        $totRow[7]  = $grandCobrado;
-        $totRow[12] = $grandExon;
-        $totRow[13] = $grandGrav;
-        $totRow[14] = $grandExen;
-        $totRow[15] = $grandSub;
-        $totRow[16] = $grandIsv;
-        $totRow[17] = $grandFact;
+        if ($this->promerica) {
+            $totRow[0] = 'TOTALES';
+            $totRow[7] = $grandRecibido;
+            $totRow[8] = $grandComision;
+            $totRow[9] = $grandBanco;
+            $totRow[10] = $grandNeto;
+            $totRow[15] = $grandExon;
+            $totRow[16] = $grandGrav;
+            $totRow[17] = $grandExen;
+            $totRow[18] = $grandSub;
+            $totRow[19] = $grandIsv;
+            $totRow[20] = $grandFact;
+            $totRow[21] = $grandOtro;
+        } else {
+            $totRow[7]  = $grandCobrado;
+            $totRow[12] = $grandExon;
+            $totRow[13] = $grandGrav;
+            $totRow[14] = $grandExen;
+            $totRow[15] = $grandSub;
+            $totRow[16] = $grandIsv;
+            $totRow[17] = $grandFact;
+        }
         $out[]      = $totRow;
 
         return $out;
@@ -215,6 +272,16 @@ class LibroCobrosSheet implements FromArray, WithStyles, WithEvents, WithStrictN
 
     public function columnWidths(): array
     {
+        if ($this->promerica) {
+            return [
+                'A' => 12, 'B' => 12, 'C' => 12, 'D' => 32, 'E' => 20,
+                'F' => 20, 'G' => 20, 'H' => 14, 'I' => 16, 'J' => 18,
+                'K' => 14, 'L' => 10, 'M' => 20, 'N' => 18, 'O' => 28,
+                'P' => 13, 'Q' => 13, 'R' => 13, 'S' => 13, 'T' => 12,
+                'U' => 14, 'V' => 14,
+            ];
+        }
+
         return [
             'A' => 12, 'B' => 12, 'C' => 12, 'D' => 32, 'E' => 20,
             'F' => 20, 'G' => 20, 'H' => 14, 'I' => 10, 'J' => 20,
@@ -225,7 +292,7 @@ class LibroCobrosSheet implements FromArray, WithStyles, WithEvents, WithStrictN
 
     public function styles(Worksheet $sheet): ?array
     {
-        $lc = self::LAST_COL;
+        $lc = $this->promerica ? 'V' : 'R';
         $sheet->mergeCells("A1:{$lc}1");
         $sheet->mergeCells("A2:{$lc}2");
         $sheet->mergeCells("A3:{$lc}3");
@@ -261,7 +328,14 @@ class LibroCobrosSheet implements FromArray, WithStyles, WithEvents, WithStrictN
             AfterSheet::class => function (AfterSheet $event) {
                 $sheet   = $event->sheet->getDelegate();
                 $lastRow = $sheet->getHighestRow();
-                $lc      = self::LAST_COL;
+                $lc = $this->promerica ? 'V' : 'R';
+                $moneyColumns = $this->promerica
+                    ? ['H', 'I', 'J', 'K', 'P', 'Q', 'R', 'S', 'T', 'U', 'V']
+                    : ['H', 'M', 'N', 'O', 'P', 'Q', 'R'];
+                $textColumns = $this->promerica
+                    ? ['D', 'E', 'F', 'G', 'M', 'N', 'O']
+                    : ['D', 'E', 'F', 'G', 'J', 'K', 'L'];
+                $stateColumn = $this->promerica ? 'L' : 'I';
 
                 if ($lastRow < 5) return;
 
@@ -304,7 +378,7 @@ class LibroCobrosSheet implements FromArray, WithStyles, WithEvents, WithStrictN
                             ->setBorderStyle(Border::BORDER_MEDIUM)->getColor()->setRGB('e07000');
                         $sheet->getStyle("A{$row}:{$lc}{$row}")->getBorders()->getBottom()
                             ->setBorderStyle(Border::BORDER_MEDIUM)->getColor()->setRGB('e07000');
-                        foreach (['H', 'M', 'N', 'O', 'P', 'Q', 'R'] as $c) {
+                        foreach ($moneyColumns as $c) {
                             $sheet->getStyle("{$c}{$row}")->getNumberFormat()->setFormatCode($currency);
                             $sheet->getStyle("{$c}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
                         }
@@ -322,7 +396,7 @@ class LibroCobrosSheet implements FromArray, WithStyles, WithEvents, WithStrictN
                             ->setHorizontal(Alignment::HORIZONTAL_CENTER);
                         $sheet->getStyle("A{$row}:{$lc}{$row}")->getBorders()->getTop()
                             ->setBorderStyle(Border::BORDER_MEDIUM)->getColor()->setRGB('e07000');
-                        foreach (['H', 'M', 'N', 'O', 'P', 'Q', 'R'] as $c) {
+                        foreach ($moneyColumns as $c) {
                             $sheet->getStyle("{$c}{$row}")->getNumberFormat()->setFormatCode($currency);
                             $sheet->getStyle("{$c}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
                         }
@@ -334,37 +408,38 @@ class LibroCobrosSheet implements FromArray, WithStyles, WithEvents, WithStrictN
                     $sheet->getStyle("A{$row}:{$lc}{$row}")->getAlignment()
                         ->setHorizontal(Alignment::HORIZONTAL_CENTER)
                         ->setVertical(Alignment::VERTICAL_CENTER);
-                    foreach (['D', 'E', 'F', 'G', 'J', 'K', 'L'] as $c) {
+                    foreach ($textColumns as $c) {
                         $sheet->getStyle("{$c}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
                     }
-                    foreach (['H', 'M', 'N', 'O', 'P', 'Q', 'R'] as $c) {
+                    foreach ($moneyColumns as $c) {
                         $sheet->getStyle("{$c}{$row}")->getNumberFormat()->setFormatCode($currency);
                         $sheet->getStyle("{$c}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
                     }
 
-                    $estado = (string)($sheet->getCell("I{$row}")->getValue() ?? '');
+                    $estado = (string)($sheet->getCell("{$stateColumn}{$row}")->getValue() ?? '');
                     if (in_array(strtoupper($estado), ['PAGADA', 'COMPLETO'], true)) {
-                        $sheet->getStyle("A{$row}:L{$row}")->getFill()
+                        $sheet->getStyle("A{$row}:" . ($this->promerica ? 'O' : 'L') . "{$row}")->getFill()
                             ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('F0FDF4');
-                        $sheet->getStyle("M{$row}:{$lc}{$row}")->getFill()
+                        $sheet->getStyle(($this->promerica ? 'P' : 'M') . "{$row}:{$lc}{$row}")->getFill()
                             ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('DCFCE7');
-                        $sheet->getStyle("H{$row}")->getFont()->setBold(true)->getColor()->setRGB('1a7a4e');
-                        $sheet->getStyle("I{$row}")->getFill()
+                        $sheet->getStyle(($this->promerica ? 'K' : 'H') . "{$row}")->getFont()->setBold(true)->getColor()->setRGB('1a7a4e');
+                        $sheet->getStyle("{$stateColumn}{$row}")->getFill()
                             ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('bbf7d0');
-                        $sheet->getStyle("I{$row}")->getFont()->setBold(true)->getColor()->setRGB('065f46');
+                        $sheet->getStyle("{$stateColumn}{$row}")->getFont()->setBold(true)->getColor()->setRGB('065f46');
                     } else {
                         $sheet->getStyle("A{$row}:{$lc}{$row}")->getFill()
                             ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFFBEB');
-                        $sheet->getStyle("H{$row}")->getFont()->setBold(true)->getColor()->setRGB('92400e');
-                        $sheet->getStyle("I{$row}")->getFill()
+                        $sheet->getStyle(($this->promerica ? 'K' : 'H') . "{$row}")->getFont()->setBold(true)->getColor()->setRGB('92400e');
+                        $sheet->getStyle("{$stateColumn}{$row}")->getFill()
                             ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('fef3c7');
-                        $sheet->getStyle("I{$row}")->getFont()->setBold(true)->getColor()->setRGB('92400e');
+                        $sheet->getStyle("{$stateColumn}{$row}")->getFont()->setBold(true)->getColor()->setRGB('92400e');
                     }
                     $sheet->getRowDimension($row)->setRowHeight(14);
                 }
 
                 // Separador visual columna M (primera columna de datos fiscales)
-                $sheet->getStyle("M4:M{$lastRow}")->getBorders()->getLeft()
+                $separatorColumn = $this->promerica ? 'P' : 'M';
+                $sheet->getStyle("{$separatorColumn}4:{$separatorColumn}{$lastRow}")->getBorders()->getLeft()
                     ->setBorderStyle(Border::BORDER_MEDIUM)->getColor()->setRGB('f2a630');
 
                 // Bordes globales

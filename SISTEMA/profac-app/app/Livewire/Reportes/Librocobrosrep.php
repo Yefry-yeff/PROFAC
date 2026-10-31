@@ -17,7 +17,7 @@ class Librocobrosrep extends Component
     {
         $clientes   = DB::table('cliente')->orderBy('nombre')->get(['id','nombre']);
         $vendedores = DB::table('users')->orderBy('name')->get(['id','name']);
-        $bancos     = DB::table('banco')->orderBy('nombre')->whereNotIn('id', [12, 13])->get(['id','nombre']);
+        $bancos     = DB::table('banco')->orderBy('nombre')->get(['id','nombre']);
 
         return view('livewire.reportes.librocobrosrep', compact('clientes','vendedores','bancos'));
     }
@@ -223,7 +223,6 @@ class Librocobrosrep extends Component
                                                                 GROUP BY factura_id
                                                         ) nc ON nc.factura_id = f.id
                             WHERE ac.estado_abono = 1
-                              AND ac.banco_id NOT IN (12, 13)
                 ";
 
                 $bindings = [];
@@ -452,7 +451,6 @@ class Librocobrosrep extends Component
                 FROM abonos_creditos ac
                 INNER JOIN banco b ON b.id = ac.banco_id
                 WHERE ac.estado_abono = 1
-                  AND ac.banco_id NOT IN (12, 13)
                                     AND DATE(ac.fecha_pago) <= ?
 
                 UNION ALL
@@ -610,6 +608,58 @@ class Librocobrosrep extends Component
                 COALESCE(tele.name, '') AS teleasesor,
                 COALESCE(NULLIF(TRIM(c.cai), ''), c.numero_secuencia_cai) AS factura,
                 c.monto_cobrado,
+                CASE
+                    WHEN ac_reporte.id IS NULL THEN 0
+                    WHEN ac_reporte.monto_recibido IS NOT NULL THEN ac_reporte.monto_recibido
+                    WHEN pni.id IS NOT NULL AND ROW_NUMBER() OVER (PARTITION BY pni.id ORDER BY pnia.id) = 1
+                        THEN pni.monto_original
+                    WHEN c.banco = 'PROMERICA' AND c.cuenta_banco = '80000000578176'
+                        THEN ROUND(ac_reporte.monto_abonado / 0.97, 2)
+                    ELSE COALESCE(ac_reporte.monto_abonado, 0)
+                END AS monto_recibido,
+                CASE
+                    WHEN ac_reporte.id IS NULL THEN 0
+                    WHEN c.banco = 'PROMERICA' AND c.cuenta_banco = '80000000578176'
+                        THEN COALESCE(
+                            NULLIF(ac_reporte.comision_cobrada, 0),
+                            CASE
+                                WHEN pni.id IS NOT NULL AND ROW_NUMBER() OVER (PARTITION BY pni.id ORDER BY pnia.id) = 1
+                                    THEN COALESCE(NULLIF(pni.comision_cobrada, 0), ROUND(pni.monto_original * 0.03, 2))
+                                WHEN ac_reporte.monto_recibido IS NOT NULL
+                                    THEN ROUND(ac_reporte.monto_recibido * 0.03, 2)
+                                ELSE ROUND(ROUND(ac_reporte.monto_abonado / 0.97, 2) * 0.03, 2)
+                            END
+                        )
+                    WHEN ac_reporte.comision_cobrada IS NOT NULL THEN ac_reporte.comision_cobrada
+                    WHEN pni.id IS NOT NULL AND ROW_NUMBER() OVER (PARTITION BY pni.id ORDER BY pnia.id) = 1
+                        THEN COALESCE(pni.comision_cobrada, 0)
+                    ELSE 0
+                END AS comision_cobrada,
+                CASE
+                    WHEN pni.id IS NULL THEN GREATEST(
+                        CASE
+                            WHEN ac_reporte.monto_recibido IS NOT NULL THEN ac_reporte.monto_recibido
+                            WHEN c.banco = 'PROMERICA' AND c.cuenta_banco = '80000000578176'
+                                THEN ROUND(ac_reporte.monto_abonado / 0.97, 2)
+                            ELSE COALESCE(ac_reporte.monto_abonado, 0)
+                        END
+                        - CASE
+                            WHEN c.banco = 'PROMERICA' AND c.cuenta_banco = '80000000578176'
+                                THEN COALESCE(
+                                    NULLIF(ac_reporte.comision_cobrada, 0),
+                                    CASE
+                                        WHEN ac_reporte.monto_recibido IS NOT NULL
+                                            THEN ROUND(ac_reporte.monto_recibido * 0.03, 2)
+                                        ELSE ROUND(ROUND(ac_reporte.monto_abonado / 0.97, 2) * 0.03, 2)
+                                    END
+                                )
+                            ELSE COALESCE(ac_reporte.comision_cobrada, 0)
+                        END
+                        - c.monto_cobrado,
+                        0
+                    )
+                    ELSE 0
+                END AS otro,
                 c.impacta_kpi,
                 c.saldo_pendiente,
                 CASE WHEN c.saldo_pendiente <= 0.01 THEN 'PAGADA' ELSE 'PARCIAL' END AS estado_factura,
@@ -633,6 +683,9 @@ class Librocobrosrep extends Component
                 c.orden_tipo AS _orden_tipo,
                 c.movimiento_id AS _movimiento_id
             FROM calculados c
+            LEFT JOIN abonos_creditos ac_reporte ON ac_reporte.id = c.movimiento_id AND c.orden_tipo = 1
+            LEFT JOIN pni_aplicaciones pnia ON pnia.abono_id = ac_reporte.id
+            LEFT JOIN pagos_no_identificados pni ON pni.id = pnia.pago_id
             LEFT JOIN users u ON u.id = c.vendedor
             LEFT JOIN users tele ON tele.id = c.users_id
             WHERE c.fecha_pago BETWEEN ? AND ?
@@ -670,7 +723,6 @@ class Librocobrosrep extends Component
             ->join('banco as b', 'b.id', '=', 'p.banco_id')
             ->leftJoin('cliente as cliente', 'cliente.id', '=', 'p.cliente_id')
             ->where('p.saldo_disponible', '>', 0)
-            ->whereNotIn('p.banco_id', [12, 13])
             ->whereBetween('p.fecha_pago', [$fechaInicio, $fechaFinal])
             ->when($cliente, fn ($q) => $q->where('p.cliente_id', $cliente))
             ->when($banco, fn ($q) => $q->where('p.banco_id', $banco))
@@ -679,7 +731,12 @@ class Librocobrosrep extends Component
                 NULL AS fecha_venta, NULL AS fecha_vencimiento,
                 p.fecha_pago, COALESCE(cliente.nombre, '') AS cliente,
                 '' AS asesor_comercial, '' AS teleasesor, '' AS factura,
-                p.saldo_disponible AS monto_cobrado, 1 AS impacta_kpi,
+                p.saldo_disponible AS monto_cobrado,
+                CASE WHEN EXISTS (SELECT 1 FROM pni_aplicaciones pa WHERE pa.pago_id = p.id)
+                    THEN 0 ELSE p.monto_original END AS monto_recibido,
+                CASE WHEN EXISTS (SELECT 1 FROM pni_aplicaciones pa WHERE pa.pago_id = p.id)
+                    THEN 0 ELSE p.comision_cobrada END AS comision_cobrada,
+                p.saldo_disponible AS otro, 1 AS impacta_kpi,
                 NULL AS saldo_pendiente, '' AS estado_factura,
                 b.nombre AS banco, p.cuenta_bancaria AS cuenta_banco,
                 p.observaciones, NULL AS exonerado, NULL AS gravado,
@@ -857,7 +914,6 @@ class Librocobrosrep extends Component
                                                 GROUP BY factura_id
                                         ) nc ON nc.factura_id = f.id
                     WHERE ac.estado_abono = 1
-                      AND ac.banco_id NOT IN (12, 13)
                       AND ac.factura_id IN (
                         SELECT DISTINCT factura_id
                         FROM abonos_creditos

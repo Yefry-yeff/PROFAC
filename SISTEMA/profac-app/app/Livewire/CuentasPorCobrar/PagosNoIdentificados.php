@@ -4,6 +4,7 @@ namespace App\Livewire\CuentasPorCobrar;
 
 use App\Livewire\Ventas\FacturacionCorporativa;
 use App\Services\PagosNoIdentificadosService as PagosService;
+use App\Services\ComisionDepositoPromerica;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -152,7 +153,7 @@ class PagosNoIdentificados extends Component
 
     public function updatedNuevoBancoId(): void
     {
-        $this->nuevo['cuenta_bancaria'] = (string) (DB::table('banco')->whereNotIn('id', [12, 13])
+        $this->nuevo['cuenta_bancaria'] = (string) (DB::table('banco')
             ->where('id', $this->nuevo['banco_id'] ?: 0)->value('cuenta') ?? '');
     }
 
@@ -300,7 +301,21 @@ class PagosNoIdentificados extends Component
             ->orWhere('id', (int) $clienteFiltro))
             ->orderByRaw('CASE WHEN id = ? THEN 0 ELSE 1 END', [(int) $clienteFiltro])
             ->orderBy('nombre')->limit(50)->get(['id', 'nombre']);
-        $bancos = DB::table('banco')->whereNotIn('id', [12, 13])->orderBy('nombre')->get();
+        $bancos = DB::table('banco')->orderBy('nombre')->get();
+        $comisionRegistro = 0;
+        $montoNetoRegistro = 0;
+        if ($this->modal === 'nuevo' && preg_match('/^\d{1,10}(?:\.\d{1,2})?$/D', $this->nuevo['monto'])) {
+            $bancoRegistro = $bancos->firstWhere('id', (int) $this->nuevo['banco_id']);
+            if ($bancoRegistro) {
+                $montoRegistro = PagosService::centavos($this->nuevo['monto']);
+                $desgloseRegistro = ComisionDepositoPromerica::desgloseCentavos(
+                    $montoRegistro,
+                    ComisionDepositoPromerica::esPromerica($bancoRegistro->nombre)
+                );
+                $comisionRegistro = $desgloseRegistro['comision_cobrada'];
+                $montoNetoRegistro = $desgloseRegistro['monto_aplicado'];
+            }
+        }
         $clientes = in_array($this->modal, ['nuevo', 'aplicar'], true)
             ? DB::table('cliente')->orderBy('nombre')->get(['id', 'nombre'])
             : collect();
@@ -349,7 +364,8 @@ class PagosNoIdentificados extends Component
             )->orderBy('a.id')->get() : collect();
         return view('livewire.cuentasporcobrar.pagosnoidentificados', compact(
             'pagos', 'bancos', 'clientes', 'clientesFiltro', 'facturas', 'total', 'distribucion', 'maximoAplicable',
-            'traslados', 'detalle', 'historial', 'totalSeleccionado', 'identificador', 'operacionDetalle', 'resumen', 'saldoDespues'
+            'traslados', 'detalle', 'historial', 'totalSeleccionado', 'identificador', 'operacionDetalle', 'resumen', 'saldoDespues',
+            'comisionRegistro', 'montoNetoRegistro'
         ));
     }
 }

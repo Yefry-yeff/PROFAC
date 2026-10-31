@@ -171,7 +171,7 @@
                 <div class="pni-selection"><button class="btn btn-outline-secondary btn-sm" wire:click="seleccionarPagina">Seleccionar disponibles de esta página</button> <button class="btn btn-default btn-sm" wire:click="$set('seleccionados', [])">Quitar selección</button> <strong>{{ count($seleccionados) }} seleccionados · Disponible L {{ number_format($totalSeleccionado, 2) }}</strong></div>
                 <div class="table-responsive">
                     <table id="pni-table" class="table table-striped table-bordered">
-                        <thead><tr><th>Seleccionar</th><th><button class="btn btn-link btn-sm p-0" wire:click="ordenar('p.id')">ID ↕</button></th><th>Cliente</th><th><button class="btn btn-link btn-sm p-0" wire:click="ordenar('p.fecha_pago')">Fecha de pago ↕</button></th><th>Banco / cuenta</th><th><button class="btn btn-link btn-sm p-0" wire:click="ordenar('p.monto_original')">Depósito ↕</button></th><th>Aplicado</th><th><button class="btn btn-link btn-sm p-0" wire:click="ordenar('p.saldo_disponible')">Disponible ↕</button></th><th>Estado</th><th><button class="btn btn-link btn-sm p-0" wire:click="ordenar('p.created_at')">Creación ↕</button></th><th>Registrado por</th><th>Acciones</th></tr></thead>
+                        <thead><tr><th>Seleccionar</th><th><button class="btn btn-link btn-sm p-0" wire:click="ordenar('p.id')">ID ↕</button></th><th>Cliente</th><th><button class="btn btn-link btn-sm p-0" wire:click="ordenar('p.fecha_pago')">Fecha de pago ↕</button></th><th>Banco / cuenta</th><th><button class="btn btn-link btn-sm p-0" wire:click="ordenar('p.monto_original')">Depósito ↕</button></th><th>Comisión (3%)</th><th>Aplicado</th><th><button class="btn btn-link btn-sm p-0" wire:click="ordenar('p.saldo_disponible')">Disponible ↕</button></th><th>Estado</th><th><button class="btn btn-link btn-sm p-0" wire:click="ordenar('p.created_at')">Creación ↕</button></th><th>Registrado por</th><th>Acciones</th></tr></thead>
                         <tbody>
                             @forelse($pagos as $pago)
                                 <tr wire:key="pni-{{ $pago->id }}">
@@ -180,7 +180,8 @@
                                     <td>{{ $pago->cliente ?: 'Sin identificar' }}</td><td class="text-nowrap">{{ \Carbon\Carbon::parse($pago->fecha_pago)->format('d/m/Y') }}<small class="d-block text-muted">{{ $pago->hora_pago ? substr($pago->hora_pago, 0, 5) : 'Hora no registrada' }}</small></td>
                                     <td>{{ $pago->banco }}<br><small>{{ $pago->cuenta_bancaria }}</small>@if($pago->referencia_bancaria)<small class="d-block text-muted">Ref. {{ $pago->referencia_bancaria }}</small>@endif</td>
                                     <td class="text-nowrap">L {{ number_format($pago->monto_original, 2) }}</td>
-                                    <td class="text-nowrap">L {{ number_format($pago->monto_original - $pago->saldo_disponible, 2) }}</td>
+                                    <td class="text-nowrap">L {{ number_format($pago->comision_cobrada, 2) }}</td>
+                                    <td class="text-nowrap">L {{ number_format($pago->monto_original - $pago->comision_cobrada - $pago->saldo_disponible, 2) }}</td>
                                     <td class="text-nowrap">L {{ number_format($pago->saldo_disponible, 2) }}</td>
                                     <td><span class="badge {{ $pago->estado === 'aplicado' ? 'badge-success' : 'badge-warning' }}">{{ \App\Services\PagosNoIdentificadosService::ESTADOS[$pago->estado] }}</span></td>
                                     <td>{{ $pago->created_at }}</td><td>{{ $pago->creador }}</td>
@@ -243,7 +244,11 @@
                                         <small>Todos los clientes disponibles. Escriba el nombre o código para buscar.</small>
                                     </div>
                                 <div class="row">
-                                    <div class="col-md-5 form-group"><label for="pni-monto">Total depósito *</label><div class="pni-money" x-data="pniMoney($wire.entangle('nuevo.monto'))"><span aria-hidden="true">L</span><input id="pni-monto" type="text" inputmode="decimal" required class="form-control" aria-label="Total depósito en lempiras" placeholder="0.00" x-ref="amount" x-on:input="input()" x-on:blur="format()"></div><small>Lempiras (HNL) · Ejemplo: L 12,500.00</small></div>
+                                    <div class="col-md-5 form-group"><label for="pni-monto">Total depósito *</label><div class="pni-money" x-data="pniMoney($wire.entangle('nuevo.monto').live)"><span aria-hidden="true">L</span><input id="pni-monto" type="text" inputmode="decimal" required class="form-control" aria-label="Total depósito en lempiras" placeholder="0.00" x-ref="amount" x-on:input="input()" x-on:blur="format()"></div><small>Lempiras (HNL) · Ejemplo: L 12,500.00</small>
+                                        @if($montoNetoRegistro > 0)
+                                            <small class="form-text text-info">Recibido: L {{ number_format(\App\Services\ComisionDepositoPromerica::centavos($nuevo['monto']) / 100, 2) }} · Comisión: L {{ number_format($comisionRegistro / 100, 2) }} · Disponible para aplicar: L {{ number_format($montoNetoRegistro / 100, 2) }}</small>
+                                        @endif
+                                    </div>
                                     <div class="col-md-4 form-group"><label for="pni-fecha">Fecha de pago *</label><input id="pni-fecha" type="date" max="{{ now()->toDateString() }}" required class="form-control" wire:model="nuevo.fecha_pago"></div>
                                     <div class="col-md-3 form-group"><label for="pni-hora">Hora de pago <span class="text-muted font-weight-normal">(opcional)</span></label><input id="pni-hora" type="time" class="form-control" wire:model="nuevo.hora_pago"><small>Hora local del depósito, si se conoce.</small></div>
                                 </div></div>
@@ -266,8 +271,8 @@
                             </div>
                             <div class="pni-panel">
                             <p class="pni-section"><i class="fa fa-bank mr-1" aria-hidden="true"></i>1. Depósitos que utilizará</p>
-                            <div class="table-responsive"><table class="table table-sm pni-application-table"><thead><tr><th>Depósito</th><th>Fecha del pago</th><th>Cuenta receptora</th><th class="pni-numeric">Monto original</th><th class="pni-numeric">Ya aplicado</th><th class="pni-numeric">Disponible</th></tr></thead><tbody>
-                                @foreach($origenes as $origen)<tr><td><strong>#{{ $origen['id'] }}</strong></td><td>{{ \Carbon\Carbon::parse($origen['fecha_pago'])->format('d/m/Y') }}<small>{{ $origen['hora_pago'] ? substr($origen['hora_pago'], 0, 5) : 'Hora no registrada' }}</small></td><td>{{ $origen['cuenta_bancaria'] }}</td><td class="pni-numeric">L {{ number_format($origen['monto_original'], 2) }}</td><td class="pni-numeric">L {{ number_format($origen['monto_original'] - $origen['saldo_disponible'], 2) }}</td><td class="pni-numeric"><strong>L {{ number_format($origen['saldo_disponible'], 2) }}</strong></td></tr>@endforeach
+                            <div class="table-responsive"><table class="table table-sm pni-application-table"><thead><tr><th>Depósito</th><th>Fecha del pago</th><th>Cuenta receptora</th><th class="pni-numeric">Monto recibido</th><th class="pni-numeric">Comisión (3%)</th><th class="pni-numeric">Ya aplicado</th><th class="pni-numeric">Disponible</th></tr></thead><tbody>
+                                @foreach($origenes as $origen)<tr><td><strong>#{{ $origen['id'] }}</strong></td><td>{{ \Carbon\Carbon::parse($origen['fecha_pago'])->format('d/m/Y') }}<small>{{ $origen['hora_pago'] ? substr($origen['hora_pago'], 0, 5) : 'Hora no registrada' }}</small></td><td>{{ $origen['cuenta_bancaria'] }}</td><td class="pni-numeric">L {{ number_format($origen['monto_original'], 2) }}</td><td class="pni-numeric">L {{ number_format($origen['comision_cobrada'], 2) }}</td><td class="pni-numeric">L {{ number_format($origen['monto_original'] - $origen['comision_cobrada'] - $origen['saldo_disponible'], 2) }}</td><td class="pni-numeric"><strong>L {{ number_format($origen['saldo_disponible'], 2) }}</strong></td></tr>@endforeach
                             </tbody></table></div>
                             </div>
                             <div class="pni-application-grid">
@@ -338,7 +343,8 @@
                             </div>
                             <div class="pni-amounts">
                                 <div class="pni-amount-card"><span>Total del depósito</span><strong>L {{ number_format($detalle->monto_original, 2) }}</strong></div>
-                                <div class="pni-amount-card"><span>Aplicado a facturas</span><strong>L {{ number_format($detalle->monto_original - $detalle->saldo_disponible, 2) }}</strong></div>
+                                <div class="pni-amount-card"><span>Comisión cobrada (3%)</span><strong>L {{ number_format($detalle->comision_cobrada, 2) }}</strong></div>
+                                <div class="pni-amount-card"><span>Aplicado a facturas</span><strong>L {{ number_format($detalle->monto_original - $detalle->comision_cobrada - $detalle->saldo_disponible, 2) }}</strong></div>
                                 <div class="pni-amount-card available"><span>Saldo disponible para aplicar</span><strong>L {{ number_format($detalle->saldo_disponible, 2) }}</strong></div>
                             </div>
                             <div class="pni-panel">

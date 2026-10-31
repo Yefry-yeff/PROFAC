@@ -12,7 +12,6 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class PagosNoIdentificadosService
@@ -53,7 +52,7 @@ class PagosNoIdentificadosService
             'monto' => ['required', 'regex:/^\d{1,10}(?:\.\d{1,2})?$/D'],
             'fecha_pago' => ['required', 'date_format:Y-m-d', 'before_or_equal:today'],
             'hora_pago' => ['nullable', 'date_format:H:i'],
-            'banco_id' => ['required', 'integer', Rule::exists('banco', 'id')->whereNotIn('id', [12, 13])],
+            'banco_id' => ['required', 'integer', 'exists:banco,id'],
             'cuenta_bancaria' => ['required', 'string', 'max:45'],
             'referencia_bancaria' => ['nullable', 'string', 'max:500'],
             'observaciones' => ['nullable', 'string', 'max:2000'],
@@ -88,6 +87,10 @@ class PagosNoIdentificadosService
             if (!$banco || $banco->cuenta !== $datos['cuenta_bancaria']) {
                 throw ValidationException::withMessages(['cuenta_bancaria' => 'La cuenta no corresponde al banco seleccionado.']);
             }
+            $desglose = ComisionDepositoPromerica::desgloseCentavos(
+                $monto,
+                ComisionDepositoPromerica::esPromerica($banco->nombre)
+            );
             return DB::table('pagos_no_identificados')->insertGetId([
                 'cliente_id' => ($datos['cliente_id'] ?? null) ?: null,
                 'cliente_original_conocido' => !empty($datos['cliente_id']),
@@ -95,7 +98,8 @@ class PagosNoIdentificadosService
                 'cuenta_bancaria' => $banco->cuenta,
                 'referencia_bancaria' => $datos['referencia_bancaria'],
                 'monto_original' => self::decimal($monto),
-                'saldo_disponible' => self::decimal($monto),
+                'comision_cobrada' => self::decimal($desglose['comision_cobrada']),
+                'saldo_disponible' => self::decimal($desglose['monto_aplicado']),
                 'fecha_pago' => $datos['fecha_pago'],
                 'hora_pago' => empty($datos['hora_pago']) ? null : $datos['hora_pago'] . ':00',
                 'observaciones' => $datos['observaciones'] ?? null,

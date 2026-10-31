@@ -679,6 +679,12 @@ function listarAbonos() {
                         data: 'correlativo'
                     },
                     {
+                        data: 'monto_recibido'
+                    },
+                    {
+                        data: 'comision_cobrada'
+                    },
+                    {
                         data: 'monto'
                     },
                     {
@@ -1098,7 +1104,7 @@ $(document).on('submit', '#formabonos', function(event) {
         axios.get('/pagos/preview-comisiones', {
             params: {
                 factura_id:          facturaId,
-                monto_abono:         montoAbono,
+                monto_abono:         montoNetoAplicable(),
                 aplicacion_pagos_id: aplicacionPagoId,
                 fecha_pago:          fechaPago
             }
@@ -1417,6 +1423,39 @@ $(document).on('click', '#btn-cancel-preview-comision', function() {
     $('#modalPreviewComisiones').modal('hide');
 });
 
+function montoNetoAplicable() {
+    var monto = Number($('#montoAbono').val());
+    if (!Number.isFinite(monto) || monto <= 0) return monto;
+    if (!esCuentaPromericaAplicable()) return monto;
+    var recibidoCentavos = Math.round(monto * 100);
+    var comisionCentavos = Math.floor((recibidoCentavos * 3 + 50) / 100);
+    return (recibidoCentavos - comisionCentavos) / 100;
+}
+
+function esCuentaPromericaAplicable() {
+    return $('#selectMetodoPago').val() !== '1'
+        && $('#selectBanco option:selected').text().toLowerCase().indexOf('promerica') !== -1;
+}
+
+function actualizarResumenComisionAbono() {
+    var monto = Number($('#montoAbono').val());
+    var $resumen = $('#resumenComisionAbono');
+    if (!Number.isFinite(monto) || monto <= 0) {
+        $resumen.text('');
+        return;
+    }
+    var recibidoCentavos = Math.round(monto * 100);
+    var comisionCentavos = esCuentaPromericaAplicable()
+        ? Math.floor((recibidoCentavos * 3 + 50) / 100)
+        : 0;
+    var moneda = function(centavos) { return 'L ' + (centavos / 100).toFixed(2); };
+    $resumen.text('Recibido: ' + moneda(recibidoCentavos)
+        + ' · Comisión: ' + moneda(comisionCentavos)
+        + ' · Aplicado a la deuda: ' + moneda(recibidoCentavos - comisionCentavos));
+}
+
+$(document).on('input change', '#montoAbono, #selectBanco, #selectMetodoPago', actualizarResumenComisionAbono);
+
 function guardarCreditos(){
     // Usar los datos capturados antes del cierre del modal (para no perder
     // selectBanco que es limpiado por el evento hidden.bs.modal)
@@ -1445,10 +1484,15 @@ function guardarCreditos(){
             $('#btn_notaabono').css('display','block');
             $('#btn_notaabono').show();
 
+            var detalle = res.comision_cobrada && Number(res.comision_cobrada) > 0
+                ? 'Recibido: L ' + Number(res.monto_recibido).toFixed(2)
+                    + ' · Comisión: L ' + Number(res.comision_cobrada).toFixed(2)
+                    + ' · Aplicado a la deuda: L ' + Number(res.monto_aplicado).toFixed(2)
+                : (res.text || 'El pago fue registrado correctamente.');
             Swal.fire({
                 icon:  res.icon  || 'success',
                 title: res.title || '¡Éxito!',
-                text:  res.text  || 'El pago fue registrado correctamente.'
+                text:  detalle
             });
 
     })
@@ -1616,6 +1660,7 @@ function datosBanco(){
 
         let datos = response.data.result;
         datos.forEach((element) => document.getElementById("selectBanco").innerHTML += '<option  class="form-control" value="'+element.idBanco+'">'+element.banco+'</option>');
+        actualizarResumenComisionAbono();
     })
     .catch(err => {
         let data = err.response.data;

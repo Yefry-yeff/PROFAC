@@ -88,11 +88,17 @@ class PagosNoIdentificadosTest extends TestCase
         (require database_path('migrations\2026_10_15_000001_create_pagos_no_identificados_tables.php'))->up();
         (require database_path('migrations\2026_10_15_000002_add_hora_pago_to_pagos_no_identificados.php'))->up();
         (require database_path('migrations\2026_10_17_000001_add_referencia_bancaria_to_pagos_no_identificados.php'))->up();
+        (require database_path('migrations\2026_10_30_000001_add_promerica_commission_to_payment_tables.php'))->up();
         DB::table('users')->insert(['id' => 1, 'name' => 'Operador', 'rol_id' => 1]);
         DB::table('rol')->insert(['id' => 1]);
         DB::table('sub_menu')->insert(['id' => 1, 'url' => Pagos::URL, 'estado_id' => 1]);
         DB::table('rol_submenu')->insert(['rol_id' => 1, 'sub_menu_id' => 1]);
-        DB::table('banco')->insert([['id' => 1, 'nombre' => 'Banco A', 'cuenta' => '123'], ['id' => 2, 'nombre' => 'Banco B', 'cuenta' => '456']]);
+        DB::table('banco')->insert([
+            ['id' => 1, 'nombre' => 'Banco A', 'cuenta' => '123'],
+            ['id' => 2, 'nombre' => 'Banco B', 'cuenta' => '456'],
+            ['id' => 12, 'nombre' => 'PROMERICA PAPERLAND', 'cuenta' => '10000001211337'],
+            ['id' => 13, 'nombre' => 'PROMERICA', 'cuenta' => '80000000578176'],
+        ]);
         DB::table('cliente')->insert([['id' => 1, 'nombre' => 'Cliente A'], ['id' => 2, 'nombre' => 'Cliente B']]);
         DB::table('factura')->insert([
             ['id' => 1, 'cliente_id' => 1, 'cai' => 'F-001', 'numero_secuencia_cai' => 1],
@@ -111,9 +117,66 @@ class PagosNoIdentificadosTest extends TestCase
     {
         return app(Pagos::class)->registrar([
             'monto' => $monto, 'cliente_id' => $cliente, 'fecha_pago' => $fecha,
-            'banco_id' => $banco, 'cuenta_bancaria' => $banco === 1 ? '123' : '456',
+            'banco_id' => $banco, 'cuenta_bancaria' => DB::table('banco')->where('id', $banco)->value('cuenta'),
             'referencia_bancaria' => null, 'observaciones' => 'Prueba',
         ], (string) Str::uuid());
+    }
+
+    public function test_promerica_deposit_separates_commission_from_available_amount_and_debt_application(): void
+    {
+        $this->prepararLibroCobros();
+        $pago = $this->registrar('300.00', 1, '2026-01-01', 13);
+
+        $registro = DB::table('pagos_no_identificados')->find($pago);
+        $this->assertSame('300.00', number_format((float) $registro->monto_original, 2, '.', ''));
+        $this->assertSame('9.00', number_format((float) $registro->comision_cobrada, 2, '.', ''));
+        $this->assertSame('291.00', number_format((float) $registro->saldo_disponible, 2, '.', ''));
+
+        app(Pagos::class)->aplicar($this->solicitud([$pago], '291.00'));
+
+        $this->assertSame('509.00', number_format((float) DB::table('aplicacion_pagos')->where('id', 1)->value('saldo'), 2, '.', ''));
+        $this->assertDatabaseHas('abonos_creditos', [
+            'banco_id' => 13,
+            'monto_abonado' => '291.00',
+        ]);
+
+        $movimientos = $this->libroCobros()['data'];
+        $this->assertCount(1, $movimientos);
+        $this->assertEquals(300, $movimientos[0]['monto_recibido']);
+        $this->assertEquals(9, $movimientos[0]['comision_cobrada']);
+        $this->assertEquals(291, $movimientos[0]['monto_cobrado']);
+        $this->assertEquals(0, $movimientos[0]['otro']);
+        $filtradosPorBanco = $this->libroCobros(['banco' => '13'])['data'];
+        $this->assertCount(1, $filtradosPorBanco);
+        Livewire::test(\App\Livewire\Reportes\Librocobrosrep::class)
+            ->assertSee('PROMERICA')
+            ->assertSee('PROMERICA PAPERLAND');
+    }
+
+    public function test_historical_promerica_abonos_reconstruct_missing_gross_movement_and_three_percent(): void
+    {
+        $this->prepararLibroCobros();
+        DB::table('abonos_creditos')->insert([
+            'aplicacion_pagos_id' => 1,
+            'factura_id' => 1,
+            'banco_id' => 13,
+            'estado_abono' => 1,
+            'id_tipo_pago_cobro' => 2,
+            'monto_abonado' => '970.00',
+            'usr_registro' => 1,
+            'comentario' => 'Abono histórico Promerica',
+            'fecha_pago' => '2026-01-15',
+            'numero_recibo' => 'HIST-001',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $movimientos = $this->libroCobros()['data'];
+
+        $this->assertCount(1, $movimientos);
+        $this->assertEquals(1000, $movimientos[0]['monto_recibido']);
+        $this->assertEquals(30, $movimientos[0]['comision_cobrada']);
+        $this->assertEquals(0, $movimientos[0]['otro']);
     }
 
     private function solicitud(array $ids, string $monto, int $factura = 1, int $cliente = 1): array
@@ -269,6 +332,31 @@ class PagosNoIdentificadosTest extends TestCase
                 }
             }
         }
+    }
+
+    public function test_promerica_pdf_includes_both_commissions_net_movement_and_other_balance(): void
+    {
+        $this->prepararLibroCobros();
+        $this->registrar('300.00', 1, '2026-01-01', 13);
+        $data = $this->libroCobros()['data'];
+        $html = view('pdf.librocobrosrep', [
+            'data' => $data, 'tipo' => 3, 'fechaInicio' => '2026-01-01', 'fechaFinal' => '2026-01-31',
+            'grouped' => [[
+                'banco' => 'Promerica',
+                'cuenta' => '789',
+                'rows' => $data,
+            ]],
+        ])->render();
+
+        $this->assertStringContainsString('COMISIÓN COBRADA (3%)', $html);
+        $this->assertStringContainsString('COMISIÓN DEL BANCO (2.6%)', $html);
+        $this->assertStringContainsString('MONTO MOVIMIENTO', $html);
+        $this->assertStringContainsString('OTRO', $html);
+        $this->assertStringContainsString('L 300.00', $html);
+        $this->assertStringContainsString('L 9.00', $html);
+        $this->assertStringContainsString('L 7.80', $html);
+        $this->assertStringContainsString('L 292.20', $html);
+        $this->assertStringContainsString('L 291.00', $html);
     }
 
     public function test_registers_without_client_and_does_not_create_an_invoice_payment(): void

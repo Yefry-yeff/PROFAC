@@ -1068,8 +1068,9 @@
                         </div>
                         <div class="col-md-6">
                             <div class="ap-form-group">
-                                <label><i class="fa fa-dollar mr-1"></i> Monto a Abonar <span id="abono-saldo-label" style="color:#1a7a4a;font-weight:600;font-size:.82rem;"></span></label>
-                                <input required type="number" min="0" step="any" class="form-control" id="montoAbono" name="montoAbono" placeholder="0.00">
+                                <label><i class="fa fa-dollar mr-1"></i> Monto recibido <span id="abono-saldo-label" style="color:#1a7a4a;font-weight:600;font-size:.82rem;"></span></label>
+                                <input required type="number" min="0.01" step="0.01" class="form-control" id="montoAbono" name="montoAbono" placeholder="0.00">
+                                <small id="resumenComisionAbono" class="form-text text-muted"></small>
                             </div>
                         </div>
                         <div class="col-md-6">
@@ -1323,7 +1324,9 @@
                                 <th>#Mov</th>
                                 <th>#Pago</th>
                                 <th>Factura</th>
-                                <th>Monto</th>
+                                <th>Recibido</th>
+                                <th>Comisión (3%)</th>
+                                <th>Aplicado</th>
                                 <th>Tipo</th>
                                 <th>Comentario</th>
                                 <th>Estado</th>
@@ -1339,7 +1342,9 @@
                                 <th>#Mov</th>
                                 <th>#Pago</th>
                                 <th>Factura</th>
-                                <th>Monto</th>
+                                <th>Recibido</th>
+                                <th>Comisión (3%)</th>
+                                <th>Aplicado</th>
                                 <th>Tipo</th>
                                 <th>Comentario</th>
                                 <th>Estado</th>

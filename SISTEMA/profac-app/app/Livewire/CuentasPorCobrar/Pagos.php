@@ -32,6 +32,7 @@ use App\Services\Comisiones\ProcesadorComisiones;
 use App\Services\Comisiones\GeneradorFacturasComision;
 use App\Services\Comisiones\AplicadorRetencionesMora;
 use App\Services\NotaCredito\GestorCreditoNota;
+use App\Services\ComisionDepositoPromerica;
 
 
 
@@ -466,6 +467,8 @@ class Pagos extends Component
             (select cai from factura where id = ac.factura_id) as correlativo,
             FORMAT(ac.monto_abonado, 2) as monto,
             ac.monto_abonado as monto_real,
+            FORMAT(COALESCE(ac.monto_recibido, ac.monto_abonado), 2) as monto_recibido,
+            FORMAT(COALESCE(ac.comision_cobrada, 0), 2) as comision_cobrada,
             CASE
                 WHEN ac.estado_abono = 0 AND cr.motivo IS NOT NULL THEN
                     CONCAT(ac.comentario, ' | Se anula Abono #', ac.id, ': ', cr.motivo)
@@ -1541,16 +1544,49 @@ class Pagos extends Component
 
 
 
-            $saldoActual = DB::selectone('select saldo from aplicacion_pagos where id = '.$request->codAplicPagoAbono);
-
-            if($request->montoAbono > $saldoActual->saldo){
+            $montoRecibido = (string) $request->input('montoAbono', '');
+            if (!preg_match('/^\d{1,10}(?:\.\d{1,2})?$/D', $montoRecibido)) {
                 return response()->json([
-                    "icon" => "warning",
-                    "text"=>"No se puede registrar un monto mayor al saldo actual.",
-                    "title"=>"Advertencia!"
+                    'icon' => 'warning',
+                    'text' => 'Ingrese un monto válido con máximo dos decimales.',
+                    'title' => 'Advertencia!',
+                ], 422);
+            }
+            $montoRecibidoCentavos = ComisionDepositoPromerica::centavos($montoRecibido);
+            if ($montoRecibidoCentavos <= 0) {
+                return response()->json([
+                    'icon' => 'warning',
+                    'text' => 'El monto recibido debe ser mayor que cero.',
+                    'title' => 'Advertencia!',
+                ], 422);
+            }
+            $banco = DB::table('banco')->where('id', (int) $request->selectBanco)->first();
+            $metodoPago = (int) $request->selectMetodoPago;
+            if (!$banco && $metodoPago !== 1) {
+                return response()->json([
+                    'icon' => 'warning',
+                    'text' => 'Seleccione una cuenta bancaria válida.',
+                    'title' => 'Advertencia!',
+                ], 422);
+            }
+            $desglose = ComisionDepositoPromerica::desgloseCentavos(
+                $montoRecibidoCentavos,
+                $metodoPago !== 1 && $banco !== null
+                    && ComisionDepositoPromerica::esPromerica($banco->nombre)
+            );
+            $montoAplicado = ComisionDepositoPromerica::decimal($desglose['monto_aplicado']);
+            $saldoActual = DB::table('aplicacion_pagos')
+                ->where('id', (int) $request->codAplicPagoAbono)
+                ->where('factura_id', (int) $request->idFacturaAbono)
+                ->value('saldo');
 
+            if ($saldoActual === null
+                || $desglose['monto_aplicado'] > ComisionDepositoPromerica::centavos((string) $saldoActual)) {
+                return response()->json([
+                    'icon' => 'warning',
+                    'text' => 'El monto aplicado no puede ser mayor al saldo actual.',
+                    'title' => 'Advertencia!',
                 ],400);
-
             }
 
                         $file = $request->file('doc_pago');
@@ -1569,7 +1605,9 @@ class Pagos extends Component
                         $abonos->banco_id = $request->selectBanco;
                         $abonos->estado_abono= 1;
                         $abonos->id_tipo_pago_cobro= $request->selectMetodoPago;
-                        $abonos->monto_abonado = $request->montoAbono;
+                        $abonos->monto_abonado = $montoAplicado;
+                        $abonos->monto_recibido = ComisionDepositoPromerica::decimal($montoRecibidoCentavos);
+                        $abonos->comision_cobrada = ComisionDepositoPromerica::decimal($desglose['comision_cobrada']);
                         $abonos->usr_registro = Auth::user()->id;
                         $abonos->comentario = $request->comentarioAbono;
                         $abonos->url_documento = $path;
@@ -1595,7 +1633,7 @@ class Pagos extends Component
                            '".$comentarioAbono."',
                            '".$request->codAplicPagoAbono."',
                            '0',
-                           '".$request->montoAbono."',
+                           '".$montoAplicado."',
                            @estado, @msjResultado);");
 
 
@@ -1606,10 +1644,16 @@ class Pagos extends Component
                        $creditoCli = DB::SELECTONE("select credito_inicial, credito, cliente_categoria_escala_id from cliente where id=".$cliente->cliente_id);
 
                        if ($creditoCli->credito_inicial !=0) {
-                        $homologoCredito = $creditoCli->credito + $request->montoAbono;
+                        $creditoActual = (string) ($creditoCli->credito ?? '0');
+                        $creditoActualCentavos = $creditoActual !== ''
+                            ? ComisionDepositoPromerica::centavos($creditoActual)
+                            : 0;
+                        $homologoCredito = ComisionDepositoPromerica::decimal(
+                            $creditoActualCentavos + $desglose['monto_aplicado']
+                        );
 
                         $clienteCredito =  ModelCliente::find($cliente->cliente_id);
-                        $clienteCredito->credito = trim($homologoCredito);
+                        $clienteCredito->credito = $homologoCredito;
                         $clienteCredito->save();
                        }
 
@@ -1719,6 +1763,9 @@ class Pagos extends Component
                            'icon'  => 'success',
                            'title' => '¡Éxito!',
                            'text'  => 'El pago fue registrado correctamente.',
+                           'monto_recibido' => ComisionDepositoPromerica::decimal($montoRecibidoCentavos),
+                           'comision_cobrada' => ComisionDepositoPromerica::decimal($desglose['comision_cobrada']),
+                           'monto_aplicado' => $montoAplicado,
                        ]);
 
            }catch (QueryException $e) {

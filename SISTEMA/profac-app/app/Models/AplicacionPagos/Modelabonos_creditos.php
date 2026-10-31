@@ -17,6 +17,8 @@ class Modelabonos_creditos extends Model
         'id_tipo_pago_cobro',
         'estado_abono',
         'monto_abonado',
+        'monto_recibido',
+        'comision_cobrada',
         'usr_registro',
         'comentario',
         'url_documento',
