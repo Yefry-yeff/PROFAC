@@ -1,6 +1,6 @@
 document.addEventListener('alpine:init', () => {
-    Alpine.data('analisisNegocio', (modulos) => ({
-        modulos, seleccion: '', cargando: false, error: '', temporizador: null, receptor: null,
+    Alpine.data('analisisNegocio', (modulos, moduloInicial = '') => ({
+        modulos, seleccion: moduloInicial, cargando: false, error: '', temporizador: null, receptor: null,
         get modulo() { return this.modulos.find(modulo => modulo.id === this.seleccion); },
         init() {
             this.receptor = (evento) => {
@@ -10,6 +10,7 @@ document.addEventListener('alpine:init', () => {
                 this.terminar(evento.data.error || '');
             };
             window.addEventListener('message', this.receptor);
+            if (this.seleccion) this.$nextTick(() => this.seleccionar());
         },
         seleccionar() {
             clearTimeout(this.temporizador);

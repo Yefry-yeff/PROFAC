@@ -1,4 +1,4 @@
-<div class="an-hub" x-data="analisisNegocio(@js($modulos))">
+<div class="an-hub" x-data="analisisNegocio(@js($modulos), @js($moduloInicial))">
     <style>
         .an-hub .an-heading { background:linear-gradient(120deg,#f39c12,#e67e22); color:white; padding:22px; border-radius:12px; margin-bottom:16px; }
         .an-hub .an-selector { background:white; padding:20px; border:1px solid #e1e7ef; border-radius:12px; margin-bottom:16px; }

@@ -215,59 +215,7 @@
 
 </div>
 
-{{-- ── Cartera & Cobros ── --}}
-<div class="dash-card" style="margin-top:20px;">
-    <div class="dash-card-header red">
-        <h5><i class="fa fa-bank"></i> Cartera &amp; Cobros — Estado Actual</h5>
-    </div>
-    <div class="dash-card-body">
-        <div class="dash-kpi-grid" style="margin-bottom:20px;">
-            <div class="dash-kpi red">
-                <div class="dash-kpi-icon"><i class="fa fa-money"></i></div>
-                <div class="dash-kpi-label">Cartera activa</div>
-                <div class="dash-kpi-value">L. {{ number_format($kpisCobros['saldo_pendiente'] ?? 0, 2) }}</div>
-                <div class="dash-kpi-sub">{{ number_format($kpisCobros['facturas_pendientes'] ?? 0) }} facturas pendientes</div>
-            </div>
-            <div class="dash-kpi red">
-                <div class="dash-kpi-icon"><i class="fa fa-exclamation-triangle"></i></div>
-                <div class="dash-kpi-label">Facturas vencidas</div>
-                <div class="dash-kpi-value">{{ number_format($kpisCobros['facturas_vencidas'] ?? 0) }}</div>
-                <div class="dash-kpi-sub">{{ number_format($kpisCobros['clientes_morosos'] ?? 0) }} clientes morosos</div>
-            </div>
-            <div class="dash-kpi green">
-                <div class="dash-kpi-icon"><i class="fa fa-check-circle"></i></div>
-                <div class="dash-kpi-label">Recuperado</div>
-                <div class="dash-kpi-value">L. {{ number_format($kpisCobros['total_recuperado'] ?? 0, 2) }}</div>
-                <div class="dash-kpi-sub">
-                    @if(isset($kpisCobros['var_recuperado']) && $kpisCobros['var_recuperado'] !== null)
-                        @if($kpisCobros['var_recuperado'] >= 0)
-                            <span class="dash-up">↑ +{{ $kpisCobros['var_recuperado'] }}%</span>
-                        @else
-                            <span class="dash-down">↓ {{ $kpisCobros['var_recuperado'] }}%</span>
-                        @endif
-                        vs mes anterior
-                    @else
-                        cobrado en el período
-                    @endif
-                </div>
-            </div>
-        </div>
-        <div class="dash-grid-2">
-            <div>
-                <div style="font-size:12px;font-weight:700;color:var(--dash-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px;">
-                    <i class="fa fa-line-chart"></i> Tendencia Abonos 6 meses
-                </div>
-                <div id="chart-ger-tendencia-cobros" style="min-height:200px;"></div>
-            </div>
-            <div>
-                <div style="font-size:12px;font-weight:700;color:var(--dash-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px;">
-                    <i class="fa fa-pie-chart"></i> Antigüedad de Saldos
-                </div>
-                <div id="chart-ger-antiguedad" style="min-height:200px;"></div>
-            </div>
-        </div>
-    </div>
-</div>
+@include('dashboard.cartera-resumen')
 
 {{-- ── Sección Inventario (solo administrador ve todo) ── --}}
 @if(!empty($kpisInventario))
@@ -288,8 +236,6 @@ function initGerenciaCharts() {
     var tendencia     = JSON.parse(span.dataset.tendencia     || '{}');
     var productividad = JSON.parse(span.dataset.productividad || '[]');
     var participacion = JSON.parse(span.dataset.participacion || '{}');
-    var kc            = JSON.parse(span.dataset.cobros        || '{}');
-    if (Array.isArray(kc))           kc = {};
     if (Array.isArray(tendencia))    tendencia = {};
     if (!Array.isArray(productividad)) productividad = [];
     var dark = window.DASH_DARK;
@@ -347,35 +293,6 @@ function initGerenciaCharts() {
         })).render();
     }
 
-    // ── Tendencia cobros ──
-    const elTC = document.querySelector('#chart-ger-tendencia-cobros');
-    if (elTC && kc && kc.tendencia_cobros) {
-        elTC.innerHTML = '';
-        new ApexCharts(elTC, Object.assign({}, base, {
-            chart: Object.assign({}, (base.chart||{}), { type:'area', height:200, toolbar:{show:false} }),
-            series: [{ name:'Abonos (L.)', data: kc.tendencia_cobros.montos || [] }],
-            xaxis:  { categories: kc.tendencia_cobros.labels || [] },
-            yaxis:  { labels: { formatter: v => lpsK(v) } },
-            colors: ['#27ae60'],
-            stroke: { curve:'smooth', width:2 },
-            fill:   { type:'gradient', gradient:{ opacityFrom:.3, opacityTo:.02 } },
-            dataLabels: { enabled: false },
-        })).render();
-    }
-
-    // ── Antigüedad ──
-    const elAnt = document.querySelector('#chart-ger-antiguedad');
-    if (elAnt && kc && kc.antiguedad) {
-        elAnt.innerHTML = '';
-        new ApexCharts(elAnt, Object.assign({}, base, {
-            chart: Object.assign({}, (base.chart||{}), { type:'donut', height:200, toolbar:{show:false} }),
-            series: [ kc.antiguedad['0_30']||0, kc.antiguedad['31_60']||0, kc.antiguedad['61_90']||0, kc.antiguedad['90_mas']||0 ],
-            labels: ['0-30 d','31-60 d','61-90 d','> 90 d'],
-            colors: ['#27ae60','#f39c12','#e67e22','#e74c3c'],
-            legend: { position:'bottom', fontSize:'11px' },
-            dataLabels: { enabled: false },
-        })).render();
-    }
 }
 (function() {
     function run() { if (typeof ApexCharts !== 'undefined') initGerenciaCharts(); }

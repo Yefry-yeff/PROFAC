@@ -9,6 +9,7 @@ use App\Http\Controllers\MenuHelper;
 class AnalisisDeNegocio extends Component
 {
     public string $titulo = 'Analisis de Negocio';
+    public string $moduloInicial = '';
 
     public const MODULOS = [
         'logistica' => ['nombre' => 'Logistica', 'titulo' => 'Análisis de Logistica', 'ruta' => 'logistica/reporte_logistica'],
@@ -22,6 +23,15 @@ class AnalisisDeNegocio extends Component
     public function boot(): void
     {
         abort_unless(auth()->check() && MenuHelper::tieneAcceso('reportes/analisis_de_negocio'), 403);
+    }
+
+    public function mount(): void
+    {
+        $modulo = request()->query('modulo');
+        if (is_string($modulo) && isset(self::MODULOS[$modulo])
+            && MenuHelper::tieneAcceso(self::MODULOS[$modulo]['ruta'])) {
+            $this->moduloInicial = $modulo;
+        }
     }
 
     public static function esModuloIntegrado(): bool

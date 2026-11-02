@@ -63,6 +63,49 @@ class AnalisisDeNegocioTest extends TestCase
         Livewire::test(AnalisisDeNegocio::class)->assertForbidden();
     }
 
+    public function test_dashboard_link_preselects_cartera_and_preserves_module_permissions(): void
+    {
+        Livewire::withQueryParams(['modulo' => 'cartera'])->test(AnalisisDeNegocio::class)
+            ->assertSet('moduloInicial', 'cartera');
+        DB::table('usuario_submenu')->where('sub_menu_id', 3)->update(['permitido' => false]);
+        Livewire::withQueryParams(['modulo' => 'cartera'])->test(AnalisisDeNegocio::class)
+            ->assertSet('moduloInicial', '');
+    }
+
+    public function test_unknown_or_malformed_initial_module_is_not_loaded(): void
+    {
+        foreach (['desconocido', '<script>', ['cartera']] as $modulo) {
+            Livewire::withQueryParams(['modulo' => $modulo])->test(AnalisisDeNegocio::class)
+                ->assertSet('moduloInicial', '');
+        }
+    }
+
+    public function test_cartera_summary_displays_amounts_rates_and_authorized_link(): void
+    {
+        $datos = [
+            'periodoLabel' => 'Noviembre 2026',
+            'kpisCobros' => [
+                'saldo_pendiente' => 1000, 'total_recuperado' => 250,
+                'facturas_pendientes' => 4, 'facturas_vencidas' => 2, 'clientes_morosos' => 1,
+                'antiguedad' => ['al_dia' => 100, '0_30' => 200, '31_60' => 100, '61_90' => 100, '90_mas' => 400],
+            ],
+        ];
+        $this->view('dashboard.cartera-resumen', $datos)
+            ->assertSee('L. 1,000.00')->assertSee('L. 800.00')
+            ->assertSee('80.00%')->assertSee('20.00%')
+            ->assertSee('Sin clasificar')->assertSee('L. 100.00')
+            ->assertSee('modulo=cartera')->assertSee('Noviembre 2026');
+        DB::table('usuario_submenu')->where('sub_menu_id', 3)->update(['permitido' => false]);
+        $this->view('dashboard.cartera-resumen', $datos)->assertDontSee('modulo=cartera');
+    }
+
+    public function test_empty_cartera_summary_does_not_divide_by_zero_or_claim_a_recovery_rate(): void
+    {
+        $this->view('dashboard.cartera-resumen', ['periodoLabel' => 'Noviembre 2026', 'kpisCobros' => []])
+            ->assertSee('Sin base')->assertSee('No hay saldo pendiente por cobrar.')
+            ->assertDontSee('chart-ger-antiguedad');
+    }
+
     public function test_embedded_presentation_is_restricted_to_catalog_routes(): void
     {
         foreach (AnalisisDeNegocio::MODULOS as $modulo) {
