@@ -28,7 +28,17 @@
         .cartera-bi .cb-chart { width:100%; height:240px; }
         .cartera-bi .cb-chart text { font-size:12px; fill:#26354b; }
         .cartera-bi .cb-chart [wire\:click] { cursor:pointer; }
-        .cartera-bi .cb-loading { position:fixed; bottom:25px; right:25px; z-index:2100; padding:14px 22px; border-radius:10px; background:#172e50; color:white; }
+        .cartera-bi .cb-segment { transition:stroke-width .18s ease,opacity .18s ease; }
+        .cartera-bi .cb-chart-center { pointer-events:none; }
+        .cartera-bi .cb-chart .cb-center-name { font-size:10px; }
+        .cartera-bi .cb-chart-wrap { position:relative; }
+        .cartera-bi .cb-chart-tooltip { position:absolute; bottom:4px; left:50%; transform:translateX(-50%); max-width:100%; width:max-content; padding:8px 14px; border-radius:8px; background:#26354b; color:white; box-shadow:0 3px 12px #172e5026; pointer-events:none; z-index:3; text-align:center; font-size:12px; }
+        .cartera-bi .cb-chart-tooltip strong { display:block; }
+        .cb-loading { position:fixed; inset:0; z-index:2100; align-items:center; justify-content:center; background:#ffffffb8; cursor:wait; }
+        .cb-loading .cb-loading-card { display:flex; flex-direction:column; align-items:center; gap:14px; max-width:calc(100vw - 32px); padding:28px 36px; border-radius:12px; background:white; color:#26354b; box-shadow:0 6px 30px #172e5026; text-align:center; }
+        .cb-loading .cb-spinner { width:48px; height:48px; border:5px solid #fce5c5; border-top-color:#e67e22; border-radius:50%; animation:cb-spin .8s linear infinite; }
+        .cb-loading .cb-muted { color:#65758a; font-size:12px; }
+        @keyframes cb-spin { to { transform:rotate(360deg); } }
         .cartera-bi [x-cloak] { display:none !important; }
         .cartera-bi .cb-tabs { gap:8px; border-bottom:2px solid #f39c12; padding-bottom:8px; }
         .cartera-bi .cb-tab { border:1px solid #e1e7ef; background:white; border-radius:8px; padding:12px 20px; color:inherit; }
@@ -140,20 +150,49 @@
             <div class="cb-panel">
                 <h4 class="font-weight-bold">Antigüedad de saldos</h4>
                 <button class="btn btn-sm btn-outline-secondary" wire:click="descargar('antiguedad')">Excel</button>
-                <p class="cb-muted">Días transcurridos desde el vencimiento. Clic para filtrar.</p>
+                <p class="cb-muted">Días transcurridos desde el vencimiento. Pasa el cursor para ver monto y porcentaje; clic para filtrar.</p>
                 @php $acumulado = 0; $colores = ['#1ab394', '#f8c471', '#f39c12', '#e67e22', '#d35400', '#b03a2e', '#95a5a6']; @endphp
-                <svg class="cb-chart" viewBox="0 0 300 240" role="img" aria-label="Distribución de cartera por antigüedad">
+                @if($tramo !== '')
+                    <button type="button" class="cb-chip mb-2" wire:click="seleccionar('tramo', '')">
+                        {{ \App\Livewire\Reportes\CarteraDeCobros::TRAMOS[$tramo] }} · Quitar selección ×
+                    </button>
+                @endif
+                <div class="cb-chart-wrap" wire:key="antiguedad-{{ md5($tramos->toJson()) }}-{{ $tramo }}"
+                    x-data="{ detalle: null }" @mouseleave="detalle = null" @keydown.escape="detalle = null">
+                <svg class="cb-chart" viewBox="0 0 300 240" role="group" aria-label="Distribución de cartera por antigüedad">
                     <circle cx="150" cy="110" r="75" fill="none" stroke="#edf1f7" stroke-width="32"/>
                     @foreach($tramos->values() as $indice => $grupo)
                         @php $parte = $metricas['total'] ? $grupo['saldo'] / $metricas['total'] * 100 : 0; @endphp
-                        <circle cx="150" cy="110" r="75" fill="none" stroke="{{ $colores[$indice] }}" stroke-width="32" pathLength="100"
+                        <circle class="cb-segment" cx="150" cy="110" r="75" fill="none" stroke="{{ $colores[$indice] }}" stroke-width="32" pathLength="100"
+                            :stroke-width="detalle?.tramo === @js($grupo['id']) ? 42 : 32"
+                            :opacity="detalle && detalle.tramo !== @js($grupo['id']) ? 0.35 : 1"
+                            style="{{ $parte > 0 ? '' : 'pointer-events:none;' }}"
                             stroke-dasharray="{{ $parte }} {{ 100 - $parte }}" stroke-dashoffset="{{ -$acumulado }}" transform="rotate(-90 150 110)"
-                            wire:click="seleccionar('tramo', '{{ $grupo['id'] }}')"><title>{{ $grupo['nombre'] }}: {{ $dinero($grupo['saldo']) }} ({{ round($parte, 2) }}%)</title></circle>
+                            data-nombre="{{ $grupo['nombre'] }}" data-monto="{{ $dinero($grupo['saldo']) }}" data-porcentaje="{{ number_format($parte, 2) }}%"
+                            data-facturas="{{ $grupo['facturas'] }}" data-tramo="{{ $grupo['id'] }}"
+                            @mouseenter="detalle = $el.dataset" @mouseleave="detalle = null"
+                            @focus="detalle = $el.dataset" @blur="detalle = null" @click="detalle = null"
+                            @keydown.enter.prevent="$el.dispatchEvent(new MouseEvent('click', { bubbles: true }))"
+                            @keydown.space.prevent="$el.dispatchEvent(new MouseEvent('click', { bubbles: true }))"
+                            tabindex="{{ $parte > 0 ? '0' : '-1' }}" role="button"
+                            aria-pressed="{{ $tramo === $grupo['id'] ? 'true' : 'false' }}"
+                            aria-label="{{ $grupo['nombre'] }}: {{ $dinero($grupo['saldo']) }} ({{ number_format($parte, 2) }}%). {{ $grupo['facturas'] }} facturas. Filtrar."
+                            aria-describedby="cb-antiguedad-tooltip"
+                            wire:click="seleccionar('tramo', '{{ $grupo['id'] }}')"></circle>
                         @php $acumulado += $parte; @endphp
                     @endforeach
-                    <text x="150" y="106" text-anchor="middle">Cartera actual</text>
-                    <text x="150" y="128" text-anchor="middle">{{ $dinero($metricas['total']) }}</text>
+                    <g class="cb-chart-center">
+                        <text class="cb-center-name" x="150" y="93" text-anchor="middle" x-text="detalle ? detalle.nombre : 'Cartera actual'">Cartera actual</text>
+                        <text x="150" y="113" text-anchor="middle" font-weight="bold" x-text="detalle ? detalle.monto : @js($dinero($metricas['total']))">{{ $dinero($metricas['total']) }}</text>
+                        <text class="cb-center-name" x="150" y="133" text-anchor="middle" x-text="detalle ? detalle.porcentaje + ' · ' + detalle.facturas + ' facturas' : 'Clic en un tramo para filtrar'"></text>
+                    </g>
                 </svg>
+                <div id="cb-antiguedad-tooltip" class="cb-chart-tooltip" role="tooltip" x-show="detalle" x-cloak>
+                    <strong x-text="detalle?.nombre"></strong>
+                    <span x-text="detalle ? detalle.monto + ' · ' + detalle.porcentaje : ''"></span>
+                    <span class="d-block" x-text="detalle ? detalle.facturas + ' facturas' : ''"></span>
+                </div>
+                </div>
                 @foreach($tramos as $grupo)
                     <button type="button" class="cb-bar {{ $tramo === $grupo['id'] ? 'cb-active' : '' }}" wire:click="seleccionar('tramo', '{{ $grupo['id'] }}')">
                         <div class="d-flex justify-content-between"><span>{{ $grupo['nombre'] }}</span><strong>{{ $dinero($grupo['saldo']) }}</strong></div>
@@ -277,5 +316,13 @@
         Este es un corte actual, no una reconstrucción histórica. Mora ponderada = suma(saldo vencido × días de mora) / saldo vencido.
     </div>
     </div>
-    <div wire:loading.delay class="cb-loading" role="status"><i class="fa fa-spinner fa-spin"></i> Actualizando toda la cartera…</div>
+    @teleport('body')
+    <div wire:loading.flex class="cb-loading" role="status" aria-live="polite" aria-label="Cargando información">
+        <div class="cb-loading-card">
+            <span class="cb-spinner" aria-hidden="true"></span>
+            <strong>Cargando información…</strong>
+            <span class="cb-muted">Aplicando filtros y actualizando el tablero.</span>
+        </div>
+        @endteleport
+    </div>
 </div>
