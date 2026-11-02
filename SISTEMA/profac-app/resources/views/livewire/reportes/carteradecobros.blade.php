@@ -1,4 +1,4 @@
-<div class="container-fluid py-3 cartera-bi" x-data="{ pestana: 'cartera' }">
+<div class="container-fluid py-3 cartera-bi" x-data="{ pestana: $wire.entangle('pestana').live }">
     @php
         $dinero = fn ($centavos) => 'L ' . number_format($centavos / 100, 2);
         $porcentaje = fn ($centavos) => $metricas['total'] > 0 ? round($centavos * 100 / $metricas['total'], 1) : 0;
@@ -21,6 +21,14 @@
         .cartera-bi .cb-table-scroll table { border-collapse:separate; border-spacing:0; margin-bottom:0; }
         .cartera-bi .cb-table-scroll thead th { position:sticky; top:0; z-index:2; box-shadow:0 2px 0 #e1e7ef; }
         .cartera-bi .cb-detail td { vertical-align:middle; }
+        .cartera-bi .cb-risk { display:inline-block; padding:4px 8px; border-radius:5px; font-weight:600; }
+        .cartera-bi .cb-risk-current { background:#e1f3eb; color:#176344; }
+        .cartera-bi .cb-risk-warning { background:#fff3cd; color:#795b00; }
+        .cartera-bi .cb-risk-overdue { background:#ffead6; color:#934400; }
+        .cartera-bi .cb-risk-critical { background:#fbe2e4; color:#a12530; }
+        .cartera-bi .cb-risk-unknown { background:#e9ecef; color:#495057; }
+        .cartera-bi button.cb-risk { border:0; cursor:pointer; }
+        .cartera-bi button.cb-risk:hover { text-decoration:underline; }
         .cartera-bi .cb-muted { color:#65758a; font-size:12px; }
         .cartera-bi .cb-scroll { max-height:360px; overflow-y:auto; }
         .cartera-bi button:focus-visible { outline:3px solid #f39c12; }
@@ -77,17 +85,17 @@
             </div>
             @foreach(['cliente' => 'Cliente', 'asesor' => 'Asesor comercial', 'teleasesor' => 'Teleasesor', 'gestor' => 'Gestor de entrega'] as $campo => $nombre)
                 <div class="col-lg-2 col-md-6 mb-2">
-                    @include('livewire.reportes.cartera-filtro', ['opciones' => $catalogos[$campo]])
+                    @include('livewire.reportes.cartera-filtro', ['opciones' => $catalogos[$campo], 'seleccionNombre' => $etiquetas[$campo][$this->$campo] ?? null])
                 </div>
             @endforeach
         </div>
-        <div class="cb-muted">Busca por nombre o ID en los filtros. Se combinan y se conservan al cambiar de pestaña. Usa × para quitar uno o “Limpiar filtros” para restaurar toda la cartera.</div>
+        <div class="cb-muted">Busca por nombre o ID. Las opciones muestran solo clientes y responsables de la selección actual; en recuperación también incluyen facturas pagadas con abonos en A o B. Los filtros se combinan y se conservan al cambiar de pestaña. Usa × para quitar uno o “Limpiar filtros” para restaurar toda la cartera.</div>
         <div class="mt-2">
             @foreach(['cliente' => 'Cliente', 'asesor' => 'Asesor', 'teleasesor' => 'Teleasesor', 'gestor' => 'Gestor', 'tramo' => 'Antigüedad de mora', 'estado' => 'Estado', 'mes' => 'Vencimiento', 'usuario' => 'Usuario registrador'] as $campo => $nombre)
                 @if($this->$campo !== '')
                     <button class="cb-chip" type="button" wire:click="seleccionar('{{ $campo }}', '')">
                         {{ $nombre }}:
-                        {{ isset($catalogos[$campo]) ? ($catalogos[$campo][$this->$campo] ?? $this->$campo) : ($campo === 'tramo' ? (\App\Livewire\Reportes\CarteraDeCobros::TRAMOS[$this->$campo] ?? $this->$campo) : ($campo === 'usuario' ? ($recuperacion['usuarios'][$this->$campo] ?? $this->$campo) : $this->$campo)) }} ×
+                        {{ isset($etiquetas[$campo]) ? ($etiquetas[$campo][$this->$campo] ?? $this->$campo) : ($campo === 'tramo' ? (\App\Livewire\Reportes\CarteraDeCobros::TRAMOS[$this->$campo] ?? $this->$campo) : ($campo === 'usuario' ? ($recuperacion['usuarios'][$this->$campo] ?? $this->$campo) : $this->$campo)) }} ×
                     </button>
                 @endif
             @endforeach
@@ -136,18 +144,20 @@
                 <small>{{ $antigua ? $antigua->cliente . ' · ' . ($antigua->cai ?: $antigua->numero_secuencia_cai) : 'No hay facturas con fecha de emisión' }}</small>
             </button>
         </div>
-        <div class="col-xl-3 col-md-6 mb-3"><div class="cb-kpi">
-            <span class="small font-weight-bold text-uppercase">Mora ponderada por saldo</span>
-            <strong>{{ number_format($metricas['mora'], 1) }} días</strong>
-            <small>Promedio de días de mora ponderado por saldo vencido</small>
-        </div></div>
-        <div class="col-xl-3 col-md-6 mb-3">
-            <button type="button" class="cb-kpi {{ $estado === 'sin-fecha' ? 'cb-active' : '' }}" wire:click="seleccionar('estado', 'sin-fecha')">
-                <span class="small font-weight-bold text-uppercase">Sin fecha de vencimiento</span>
-                <strong>{{ $dinero($metricas['sinFecha']) }}</strong>
-                <small>Revisar datos · No se clasifica como corriente ni vencida</small>
-            </button>
-        </div>
+        @foreach(['asesor' => 'Asesor con mayor deuda', 'cliente' => 'Cliente con mayor deuda'] as $campo => $nombre)
+            @php $destacado = $destacados[$campo]; @endphp
+            <div class="col-xl-3 col-md-6 mb-3">
+                <button type="button" id="cb-kpi-{{ $campo }}" class="cb-kpi {{ $destacado && $this->$campo === $destacado['id'] ? 'cb-active' : '' }}"
+                    @if($destacado) wire:click="seleccionar('{{ $campo }}', '{{ $destacado['id'] }}')" @else disabled @endif>
+                    <span class="small font-weight-bold text-uppercase">{{ $nombre }}</span>
+                    <strong>{{ $destacado ? $dinero($destacado['saldo']) : 'Sin datos' }}</strong>
+                    <span class="d-block font-weight-bold">{{ $destacado['nombre'] ?? ($campo === 'asesor' ? 'Sin asesores asignados' : 'Sin clientes con deuda') }}</span>
+                    @if($destacado)
+                        <small>{{ $porcentaje($destacado['saldo']) }}% de la selección · {{ $destacado['facturas'] }} facturas · Clic para filtrar</small>
+                    @endif
+                </button>
+            </div>
+        @endforeach
     </div>
 
     <div class="row mb-3">
@@ -277,43 +287,7 @@
         </div>
     </div>
 
-    <div class="cb-panel mb-3">
-        <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
-            <div><h4 class="font-weight-bold mb-1">Detalle de cartera pendiente</h4><small>{{ $detalle->total() }} facturas · Las mismas selecciones de los gráficos</small></div>
-            <button class="btn btn-sm btn-outline-secondary" wire:click="descargar('detalle')">Excel · todas las páginas</button>
-            <div>
-                <label for="cb-orden" class="small">Ordenar por</label>
-                <select id="cb-orden" class="form-control form-control-sm" wire:model.live="orden">
-                    <option value="saldo">Mayor saldo</option><option value="mora">Mayor mora</option><option value="antiguedad">Emisión más antigua</option>
-                </select>
-            </div>
-        </div>
-        <div class="table-responsive cb-table-scroll">
-            <table class="table table-hover table-sm cb-detail">
-                <thead><tr><th>Cliente</th><th>Factura / CAI</th><th>Emisión</th><th>Vencimiento</th><th class="text-right">Saldo</th><th>Mora</th><th>Antigüedad</th><th>Asesor</th><th>Teleasesor</th><th>Gestor de entrega</th></tr></thead>
-                <tbody>
-                    @forelse($detalle as $fila)
-                        <tr wire:key="cartera-factura-{{ $fila->id }}">
-                            <td><button class="cb-link" wire:click="seleccionar('cliente', '{{ $fila->cliente_id }}')">{{ $fila->cliente }}</button><small class="d-block text-muted">#{{ $fila->cliente_id }}</small></td>
-                            <td>{{ $fila->cai ?: $fila->numero_secuencia_cai }}<small class="d-block text-muted">ID {{ $fila->id }}</small></td>
-                            <td>{{ $fila->fecha_emision ?: 'Sin fecha' }}</td>
-                            <td>{{ $fila->fecha_vencimiento ?: 'Sin fecha' }}</td>
-                            <td class="text-right font-weight-bold text-nowrap">{{ $dinero($fila->centavos) }}</td>
-                            <td><button class="cb-link" wire:click="seleccionar('tramo', '{{ $fila->tramo }}')">{{ $fila->dias === null ? 'Sin vencimiento' : ($fila->dias > 0 ? $fila->dias . ' días' : 'Por vencer') }}</button></td>
-                            <td>{{ $fila->antiguedad !== null ? $fila->antiguedad . ' días' : 'Sin fecha' }}</td>
-                            @foreach(['asesor', 'teleasesor', 'gestor'] as $campo)
-                                <td><button class="cb-link" wire:click="seleccionar('{{ $campo }}', '{{ $fila->{$campo . '_id'} }}')">{{ $fila->$campo }}</button></td>
-                            @endforeach
-                        </tr>
-                    @empty
-                        <tr><td colspan="10" class="text-center py-4">No hay deuda pendiente con los filtros seleccionados. Limpia los filtros para consultar toda la cartera.</td></tr>
-                    @endforelse
-                </tbody>
-                <tfoot><tr><th colspan="4">Total de la selección (todas las páginas)</th><th class="text-right text-nowrap">{{ $dinero($metricas['total']) }}</th><th colspan="5"></th></tr></tfoot>
-            </table>
-        </div>
-        {{ $detalle->links() }}
-    </div>
+    @include('livewire.reportes.cartera-detalle')
     <div class="cb-muted mb-3">
         <strong>Reglas de lectura:</strong> facturas activas y cuentas abiertas con saldo positivo; no incluye anuladas, cerradas ni saldos a favor.
         Se conserva el saldo neto registrado (abonos, notas y movimientos); las comisiones bancarias no se suman a la deuda.
@@ -322,12 +296,14 @@
     </div>
     </div>
     @teleport('body')
-    <div wire:loading.flex class="cb-loading" role="status" aria-live="polite" aria-label="Cargando información">
+    <div wire:loading.flex
+        wire:target="seleccionar,limpiar,descargar,$refresh,buscar,cliente,asesor,teleasesor,gestor,tramo,estado,mes,usuario,inicio,fin,compararInicio,compararFin,modoPeriodo,mesA,mesB"
+        class="cb-loading" role="status" aria-live="polite" aria-label="Cargando información">
         <div class="cb-loading-card">
             <span class="cb-spinner" aria-hidden="true"></span>
             <strong>Cargando información…</strong>
             <span class="cb-muted">Aplicando filtros y actualizando el tablero.</span>
         </div>
-        @endteleport
     </div>
+    @endteleport
 </div>

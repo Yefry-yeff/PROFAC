@@ -56,7 +56,7 @@ class CarteraDeCobrosTest extends TestCase
             $t->decimal('monto_abonado', 12, 2); $t->dateTime('fecha_pago');
             $t->integer('usr_registro')->nullable();
         });
-        DB::table('users')->insert([['id' => 1, 'name' => 'Ana'], ['id' => 2, 'name' => 'Luis'], ['id' => 3, 'name' => 'Maria']]);
+        DB::table('users')->insert([['id' => 1, 'name' => 'Ana', 'rol_id' => 2], ['id' => 2, 'name' => 'Luis', 'rol_id' => 2], ['id' => 3, 'name' => 'Maria', 'rol_id' => 2]]);
         DB::table('cliente')->insert([['id' => 1, 'nombre' => 'Cliente A'], ['id' => 2, 'nombre' => 'Cliente B']]);
         DB::table('usuario_submenu')->insert(['usuario_id' => 1, 'sub_menu_id' => 1, 'permitido' => true]);
         DB::table('sub_menu')->insert(['id' => 1, 'url' => 'reportes/cartera_de_cobros']);
@@ -118,6 +118,21 @@ class CarteraDeCobrosTest extends TestCase
             ->assertViewHas('metricas', fn ($m) => $m['facturas'] === 1);
     }
 
+    public function test_balance_and_mora_colors_follow_exact_aging_boundaries(): void
+    {
+        $casos = [0 => 'current', 1 => 'warning', 30 => 'warning', 31 => 'overdue', 90 => 'overdue', 91 => 'critical'];
+        foreach (array_keys($casos) as $dias) {
+            $this->factura($dias + 1, ['fecha_vencimiento' => CarbonImmutable::today()->subDays($dias)->toDateString()]);
+        }
+        $this->factura(200, ['fecha_vencimiento' => null]);
+        $componente = Livewire::test(CarteraDeCobros::class);
+        foreach ($casos + [199 => 'unknown'] as $dias => $color) {
+            $componente->assertViewHas('detalleCompleto', fn ($filas) => collect($filas)->firstWhere('id', $dias + 1)['riesgo'] === $color);
+        }
+        $componente->call('seleccionar', 'tramo', '1-30')
+            ->assertViewHas('metricas', fn ($m) => $m['facturas'] === 2);
+    }
+
     public function test_clicks_cross_filter_all_panels_and_reset_restores_portfolio(): void
     {
         $this->factura(1, [], '300');
@@ -133,10 +148,78 @@ class CarteraDeCobrosTest extends TestCase
             ->call('limpiar')
             ->assertViewHas('metricas', fn ($m) => $m['total'] === 55000)
             ->set('buscar', 'F-2')
-            ->assertViewHas('detalle', fn ($d) => $d->total() === 1)
+            ->assertViewHas('detalleCompleto', fn ($d) => count($d) === 1)
             ->set('buscar', 'No existe')
             ->assertViewHas('metricas', fn ($m) => $m['total'] === 0 && $m['mora'] === 0)
             ->assertSee('No hay deuda pendiente');
+    }
+
+    public function test_filter_options_only_include_clients_and_responsibles_in_current_selection(): void
+    {
+        $this->factura(1, ['fecha_vencimiento' => '2026-01-01']);
+        $this->factura(2, ['cliente_id' => 2, 'vendedor' => 2, 'users_id' => 3, 'gestor_entrega' => 1,
+            'fecha_vencimiento' => '2026-12-01']);
+        Livewire::test(CarteraDeCobros::class)
+            ->assertViewHas('catalogos', fn ($c) => $c['cliente']->count() === 2)
+            ->call('seleccionar', 'tramo', '181+')
+            ->assertViewHas('catalogos', fn ($c) => $c['cliente']->keys()->all() === [1]
+                && $c['asesor']->keys()->all() === [1] && $c['teleasesor']->keys()->all() === [2]
+                && $c['gestor']->keys()->all() === [3])
+            ->call('seleccionar', 'cliente', '2')
+            ->assertViewHas('catalogos', fn ($c) => collect($c)->every(fn ($opciones) => $opciones->isEmpty()))
+            ->assertViewHas('etiquetas', fn ($e) => $e['cliente'][2] === 'Cliente B')
+            ->call('seleccionar', 'cliente', '')
+            ->call('seleccionar', 'tramo', '')
+            ->assertViewHas('catalogos', fn ($c) => $c['cliente']->count() === 2)
+            ->set('buscar', 'F-2')
+            ->assertViewHas('catalogos', fn ($c) => $c['cliente']->keys()->all() === [2]
+                && $c['asesor']->keys()->all() === [2])
+            ->call('limpiar')->call('seleccionar', 'gestor', '3')
+            ->assertViewHas('catalogos', fn ($c) => $c['cliente']->keys()->all() === [1])
+            ->call('limpiar')
+            ->assertViewHas('catalogos', fn ($c) => $c['cliente']->count() === 2);
+    }
+
+    public function test_recovery_filter_options_preserve_paid_invoices_only_with_payments_in_selected_periods(): void
+    {
+        $this->factura(1);
+        $this->factura(2, ['cliente_id' => 2, 'vendedor' => 2], '0', ['estado_cerrado' => 2]);
+        DB::table('abonos_creditos')->insert([
+            'factura_id' => 2, 'monto_abonado' => 100, 'fecha_pago' => '2026-10-10', 'usr_registro' => 2,
+        ]);
+        Livewire::test(CarteraDeCobros::class)
+            ->assertViewHas('catalogos', fn ($c) => $c['cliente']->keys()->all() === [1])
+            ->set('pestana', 'recuperacion')
+            ->assertViewHas('catalogos', fn ($c) => $c['cliente']->count() === 2 && $c['asesor']->count() === 2)
+            ->call('seleccionar', 'usuario', '2')
+            ->assertViewHas('catalogos', fn ($c) => $c['cliente']->keys()->all() === [2])
+            ->call('limpiar')->set('mesB', '2026-09')
+            ->assertViewHas('catalogos', fn ($c) => $c['cliente']->keys()->all() === [1])
+            ->set('mesB', '2026-10')->set('pestana', 'cartera')
+            ->assertViewHas('catalogos', fn ($c) => $c['cliente']->keys()->all() === [1]);
+    }
+
+    public function test_debt_leader_kpis_aggregate_filtered_balances_and_handle_empty_or_unassigned_portfolios(): void
+    {
+        $this->factura(1, [], '150');
+        $this->factura(2, ['cliente_id' => 2], '200');
+        $this->factura(3, ['cliente_id' => 2, 'vendedor' => 2], '300');
+        $this->factura(4, ['vendedor' => null], '900');
+        Livewire::test(CarteraDeCobros::class)
+            ->assertSee('Asesor con mayor deuda')->assertSee('Cliente con mayor deuda')
+            ->assertDontSee('Mora ponderada por saldo')->assertDontSee('Sin fecha de vencimiento')
+            ->assertViewHas('destacados', fn ($d) => $d['asesor']['id'] === '1' && $d['asesor']['saldo'] === 35000
+                && $d['cliente']['id'] === '1' && $d['cliente']['saldo'] === 105000)
+            ->call('seleccionar', 'cliente', '2')
+            ->assertViewHas('destacados', fn ($d) => $d['asesor']['id'] === '2' && $d['cliente']['saldo'] === 50000)
+            ->call('seleccionar', 'asesor', '2')
+            ->assertViewHas('metricas', fn ($m) => $m['total'] === 30000)
+            ->call('limpiar')->call('seleccionar', 'asesor', '0')
+            ->assertViewHas('destacados', fn ($d) => $d['asesor'] === null && $d['cliente']['saldo'] === 90000)
+            ->assertSee('Sin asesores asignados')
+            ->set('buscar', 'inexistente')
+            ->assertViewHas('destacados', fn ($d) => $d['asesor'] === null && $d['cliente'] === null)
+            ->assertSee('Sin clientes con deuda');
     }
 
     public function test_oldest_debt_and_pagination_use_all_filtered_invoices(): void
@@ -146,11 +229,11 @@ class CarteraDeCobrosTest extends TestCase
         }
         Livewire::test(CarteraDeCobros::class)
             ->assertViewHas('antigua', fn ($f) => $f->id === 25)
-            ->assertViewHas('detalle', fn ($d) => $d->total() === 25 && $d->count() === 20)
-            ->call('setPage', 2)
-            ->assertViewHas('detalle', fn ($d) => $d->count() === 5)
+            ->assertViewHas('detalleCompleto', fn ($d) => count($d) === 25)
+            ->assertDontSeeHtml('scrollIntoView()')
+            ->assertDontSeeHtml('wire:click="gotoPage')
             ->set('orden', 'antiguedad')
-            ->assertViewHas('detalle', fn ($d) => $d->currentPage() === 1 && $d->first()->id === 25);
+            ->assertViewHas('detalleCompleto', fn ($d) => $d[0]['id'] === 25);
     }
 
     public function test_responsible_and_month_selections_update_every_aggregate(): void
@@ -167,7 +250,7 @@ class CarteraDeCobrosTest extends TestCase
             ->assertViewHas('metricas', fn ($m) => $m['total'] === 7500 && $m['facturas'] === 1)
             ->assertViewHas('clientes', fn ($c) => $c->sum('saldo') === 7500)
             ->assertViewHas('tramos', fn ($t) => $t->sum('saldo') === 7500)
-            ->assertViewHas('detalle', fn ($d) => $d->first()->id === 3)
+            ->assertViewHas('detalleCompleto', fn ($d) => $d[0]['id'] === 3)
             ->call('seleccionar', 'mes', '2026-09')
             ->assertViewHas('metricas', fn ($m) => $m['total'] === 32500);
     }
@@ -192,6 +275,18 @@ class CarteraDeCobrosTest extends TestCase
     {
         DB::table('usuario_submenu')->update(['permitido' => false]);
         Livewire::test(CarteraDeCobros::class)->assertForbidden();
+    }
+
+    public function test_administrator_can_load_and_refresh_portfolio_without_individual_permission(): void
+    {
+        DB::table('users')->where('id', 1)->update(['rol_id' => 1]);
+        $this->actingAs(User::findOrFail(1));
+        DB::table('usuario_submenu')->update(['permitido' => false]);
+        $this->factura(1);
+        Livewire::test(CarteraDeCobros::class)
+            ->assertViewHas('metricas', fn ($m) => $m['total'] === 10000)
+            ->call('seleccionar', 'cliente', '1')
+            ->assertViewHas('metricas', fn ($m) => $m['total'] === 10000);
     }
 
     public function test_recovery_includes_paid_invoices_and_uses_independent_ranges_and_net_abonos(): void

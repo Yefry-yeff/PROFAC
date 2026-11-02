@@ -73,6 +73,13 @@ class MenuHelper
         $usuario = Auth::user();
         $rolIds  = $usuario->rolesIds();
 
+        // El administrador dispone de todo el catalogo de Analisis de Negocio.
+        if (in_array(1, $rolIds, true)
+            && ($url === 'reportes/analisis_de_negocio'
+                || in_array($url, array_column(\App\Livewire\Reportes\AnalisisDeNegocio::MODULOS, 'ruta'), true))) {
+            return true;
+        }
+
         if (empty($rolIds)) {
             return false;
         }

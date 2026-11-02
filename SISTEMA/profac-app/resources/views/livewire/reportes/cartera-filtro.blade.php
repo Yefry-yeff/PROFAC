@@ -6,7 +6,7 @@
             aria-controls="cb-options-{{ $campo }}"
             @click="abierto = !abierto; if (abierto) { buscar = ''; $nextTick(() => $refs.busqueda.focus()); }"
             @keydown.arrow-down.prevent="abierto = true; $nextTick(() => $refs.busqueda.focus())">
-            <span class="text-truncate">{{ $opciones[$this->$campo] ?? ($this->$campo === '' ? 'Todos' : '#' . $this->$campo) }}</span>
+            <span class="text-truncate">{{ $opciones[$this->$campo] ?? ($this->$campo === '' ? 'Todos' : ($seleccionNombre ?? '#' . $this->$campo)) }}</span>
             <i class="fa fa-angle-down ml-2" aria-hidden="true"></i>
         </button>
         @if($this->$campo !== '')

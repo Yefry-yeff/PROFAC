@@ -3,11 +3,9 @@
 namespace App\Livewire\Reportes;
 
 use Livewire\Component;
-use Livewire\WithPagination;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
 use Illuminate\Database\Query\Builder;
-use Illuminate\Pagination\LengthAwarePaginator;
 use Carbon\CarbonImmutable;
 use App\Http\Controllers\MenuHelper;
 use App\Exports\CarteraCobrosExport;
@@ -15,8 +13,6 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class CarteraDeCobros extends Component
 {
-    use WithPagination;
-
     public string $titulo = 'Cartera de Cobros';
     public string $buscar = '';
     public string $cliente = '';
@@ -35,7 +31,7 @@ class CarteraDeCobros extends Component
     public string $modoPeriodo = 'mensual';
     public string $mesA = '';
     public string $mesB = '';
-    protected $paginationTheme = 'bootstrap';
+    public string $pestana = 'cartera';
 
     public const TRAMOS = [
         'corriente' => 'Por vencer',
@@ -68,7 +64,6 @@ class CarteraDeCobros extends Component
         if (in_array($propiedad, ['modoPeriodo', 'mesA', 'mesB'], true)) {
             $this->fechasValidas();
         }
-        $this->resetPage();
     }
 
     public function seleccionar(string $dimension, string $valor): void
@@ -78,13 +73,11 @@ class CarteraDeCobros extends Component
         abort_if($dimension === 'tramo' && !array_key_exists($valor, self::TRAMOS) && $valor !== '', 422);
         abort_if($dimension === 'estado' && !in_array($valor, ['', 'vencida', 'corriente', 'critica', 'sin-fecha'], true), 422);
         $this->$dimension = $this->$dimension === $valor ? '' : $valor;
-        $this->resetPage();
     }
 
     public function limpiar(): void
     {
         $this->reset('buscar', 'cliente', 'asesor', 'teleasesor', 'gestor', 'tramo', 'estado', 'mes', 'orden', 'usuario');
-        $this->resetPage();
     }
 
     private function cartera(bool $soloPendiente = true): Collection
@@ -214,13 +207,26 @@ class CarteraDeCobros extends Component
         ]);
         $responsables = collect(['asesor' => 'Asesor comercial', 'teleasesor' => 'Teleasesor', 'gestor' => 'Gestor de entrega'])
             ->map(fn ($nombre, $campo) => ['nombre' => $nombre, 'filas' => $this->ranking($filas, $campo)]);
+        $destacados = [
+            'asesor' => $responsables['asesor']['filas']->first(fn ($grupo) => $grupo['id'] !== '0'),
+            'cliente' => $clientes->first(),
+        ];
         $meses = $filas->groupBy('mes')->sortKeys()->map(fn ($grupo, $mes) => [
             'id' => $mes, 'saldo' => $grupo->sum('centavos'), 'facturas' => $grupo->count(),
         ]);
         $catalogos = [];
+        $etiquetas = [];
         $universo = $this->cartera(false);
+        $recuperacion = $this->recuperacion($universo, $filas);
+        $disponibles = $filas;
+        if ($this->pestana === 'recuperacion') {
+            $idsRecuperados = $recuperacion['actual']->merge($recuperacion['anterior'])->pluck('factura_id')->unique();
+            $disponibles = $filas->merge($this->filtrar($universo)->whereIn('id', $idsRecuperados))->unique('id');
+        }
         foreach (['cliente', 'asesor', 'teleasesor', 'gestor'] as $campo) {
-            $catalogos[$campo] = $universo->unique($campo . '_id')->sortBy($campo)
+            $catalogos[$campo] = $disponibles->unique($campo . '_id')->sortBy($campo)
+                ->mapWithKeys(fn ($f) => [(string) $f->{$campo . '_id'} => $f->$campo]);
+            $etiquetas[$campo] = $universo->unique($campo . '_id')
                 ->mapWithKeys(fn ($f) => [(string) $f->{$campo . '_id'} => $f->$campo]);
         }
         $ordenadas = match ($this->orden) {
@@ -228,14 +234,18 @@ class CarteraDeCobros extends Component
             'antiguedad' => $filas->sortByDesc(fn ($f) => $f->antiguedad ?? -1),
             default => $filas->sortByDesc('centavos'),
         };
-        $detalle = new LengthAwarePaginator(
-            $ordenadas->values()->forPage($this->getPage(), 20)->values(),
-            $filas->count(), 20, $this->getPage(), ['path' => request()->url()]
-        );
+        $detalleCompleto = $ordenadas->values()->map(fn ($f) => (array) $f + [
+            'riesgo' => match (true) {
+                $f->dias === null => 'unknown',
+                $f->dias <= 0 => 'current',
+                $f->dias <= 30 => 'warning',
+                $f->dias <= 90 => 'overdue',
+                default => 'critical',
+            },
+        ])->all();
 
-        $recuperacion = $this->recuperacion($universo, $filas);
         return view('livewire.reportes.carteradecobros', compact(
-            'metricas', 'antigua', 'tramos', 'responsables', 'clientes', 'meses', 'catalogos', 'detalle', 'recuperacion'
+            'metricas', 'antigua', 'tramos', 'responsables', 'clientes', 'meses', 'catalogos', 'recuperacion', 'destacados', 'etiquetas', 'detalleCompleto'
         ))->layout('layouts.app', ['title' => $this->titulo]);
     }
 

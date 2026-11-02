@@ -2,6 +2,14 @@
 <html lang="es" >
 
 <head>
+    @php $analisisIntegrado = \App\Livewire\Reportes\AnalisisDeNegocio::esModuloIntegrado(); @endphp
+    @if($analisisIntegrado)
+        @include('layouts.partials.analisis-modulo')
+        <style>
+            #wrapper,#page-wrapper { margin:0 !important; padding:0 !important; }
+            #page-wrapper > .wrapper { padding:8px !important; animation:none !important; transform:none !important; }
+        </style>
+    @endif
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
@@ -59,7 +67,9 @@
     <!--Menu lateral-->
     
    
-        @livewire('navigation-menu')
+        @unless($analisisIntegrado)
+            @livewire('navigation-menu')
+        @endunless
   
   
 
@@ -186,4 +196,3 @@
 </body>
 
 </html>
-
