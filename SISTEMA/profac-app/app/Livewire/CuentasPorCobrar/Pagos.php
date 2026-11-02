@@ -1544,19 +1544,19 @@ class Pagos extends Component
 
 
 
-            $montoRecibido = (string) $request->input('montoAbono', '');
-            if (!preg_match('/^\d{1,10}(?:\.\d{1,2})?$/D', $montoRecibido)) {
+            $montoSolicitado = (string) $request->input('montoAbono', '');
+            if (!preg_match('/^\d{1,10}(?:\.\d{1,2})?$/D', $montoSolicitado)) {
                 return response()->json([
                     'icon' => 'warning',
                     'text' => 'Ingrese un monto válido con máximo dos decimales.',
                     'title' => 'Advertencia!',
                 ], 422);
             }
-            $montoRecibidoCentavos = ComisionDepositoPromerica::centavos($montoRecibido);
-            if ($montoRecibidoCentavos <= 0) {
+            $montoAplicarCentavos = ComisionDepositoPromerica::centavos($montoSolicitado);
+            if ($montoAplicarCentavos <= 0) {
                 return response()->json([
                     'icon' => 'warning',
-                    'text' => 'El monto recibido debe ser mayor que cero.',
+                    'text' => 'El monto a aplicar debe ser mayor que cero.',
                     'title' => 'Advertencia!',
                 ], 422);
             }
@@ -1569,10 +1569,9 @@ class Pagos extends Component
                     'title' => 'Advertencia!',
                 ], 422);
             }
-            $desglose = ComisionDepositoPromerica::desgloseCentavos(
-                $montoRecibidoCentavos,
-                $metodoPago !== 1 && $banco !== null
-                    && ComisionDepositoPromerica::esPromerica($banco->nombre)
+            $desglose = ComisionDepositoPromerica::desgloseMontoAplicadoCentavos(
+                $montoAplicarCentavos,
+                $banco !== null && ComisionDepositoPromerica::esPromerica($banco->nombre)
             );
             $montoAplicado = ComisionDepositoPromerica::decimal($desglose['monto_aplicado']);
             $saldoActual = DB::table('aplicacion_pagos')
@@ -1606,7 +1605,7 @@ class Pagos extends Component
                         $abonos->estado_abono= 1;
                         $abonos->id_tipo_pago_cobro= $request->selectMetodoPago;
                         $abonos->monto_abonado = $montoAplicado;
-                        $abonos->monto_recibido = ComisionDepositoPromerica::decimal($montoRecibidoCentavos);
+                        $abonos->monto_recibido = ComisionDepositoPromerica::decimal($desglose['monto_recibido']);
                         $abonos->comision_cobrada = ComisionDepositoPromerica::decimal($desglose['comision_cobrada']);
                         $abonos->usr_registro = Auth::user()->id;
                         $abonos->comentario = $request->comentarioAbono;
@@ -1763,7 +1762,7 @@ class Pagos extends Component
                            'icon'  => 'success',
                            'title' => '¡Éxito!',
                            'text'  => 'El pago fue registrado correctamente.',
-                           'monto_recibido' => ComisionDepositoPromerica::decimal($montoRecibidoCentavos),
+                           'monto_recibido' => ComisionDepositoPromerica::decimal($desglose['monto_recibido']),
                            'comision_cobrada' => ComisionDepositoPromerica::decimal($desglose['comision_cobrada']),
                            'monto_aplicado' => $montoAplicado,
                        ]);

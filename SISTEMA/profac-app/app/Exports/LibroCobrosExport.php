@@ -11,8 +11,12 @@ use Maatwebsite\Excel\Concerns\WithStrictNullComparison;
 use Maatwebsite\Excel\Concerns\WithColumnWidths;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 use Maatwebsite\Excel\Concerns\WithTitle;
+use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
 use Maatwebsite\Excel\Events\AfterSheet;
+use PhpOffice\PhpSpreadsheet\Cell\Cell;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
+use PhpOffice\PhpSpreadsheet\Cell\DefaultValueBinder;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
@@ -97,7 +101,7 @@ class LibroCobrosExport implements Export, WithMultipleSheets
     }
 }
 
-class LibroCobrosSheet implements FromArray, WithStyles, WithEvents, WithStrictNullComparison, WithColumnWidths, WithTitle
+class LibroCobrosSheet extends DefaultValueBinder implements FromArray, WithStyles, WithEvents, WithStrictNullComparison, WithColumnWidths, WithTitle, WithCustomValueBinder
 {
     protected array $data;
     protected string $fechaInicio;
@@ -128,12 +132,24 @@ class LibroCobrosSheet implements FromArray, WithStyles, WithEvents, WithStrictN
         return $this->sheetTitle;
     }
 
+    public function bindValue(Cell $cell, mixed $value): bool
+    {
+        $accountColumn = $this->promerica ? 'N' : 'K';
+        if ($cell->getRow() >= 5 && $cell->getColumn() === $accountColumn && $value !== null) {
+            $cell->setValueExplicit((string) $value, DataType::TYPE_STRING);
+
+            return true;
+        }
+
+        return parent::bindValue($cell, $value);
+    }
+
     public function array(): array
     {
         $out = [];
 
         /* ── Fila 1 — empresa ── */
-        $columnCount = $this->promerica ? 22 : 18;
+        $columnCount = $this->promerica ? 22 : 19;
         $r1 = array_fill(0, $columnCount, '');
         $r1[0] = 'DISTRIBUCIONES VALENCIA   |   RTN: 08011986138652';
         $out[] = $r1;
@@ -165,7 +181,7 @@ class LibroCobrosSheet implements FromArray, WithStyles, WithEvents, WithStrictN
                 array_slice($headers, 7),
                 ['OTRO']
             )
-            : $headers;
+            : array_merge($headers, ['OTRO']);
 
         $grandCobrado = $grandExon = $grandGrav = $grandExen = $grandSub = $grandIsv = $grandFact = 0.0;
         $grandRecibido = $grandComision = $grandBanco = $grandNeto = $grandOtro = 0.0;
@@ -173,6 +189,7 @@ class LibroCobrosSheet implements FromArray, WithStyles, WithEvents, WithStrictN
         foreach ($this->data as $item) {
             $r = (array) $item;
             $cobrado = (float)($r['monto_cobrado'] ?? 0);
+            $montoMovimiento = (float) ($r['monto_movimiento'] ?? $cobrado);
             $exon    = (float)($r['exonerado']     ?? 0);
             $grav    = (float)($r['gravado']       ?? 0);
             $exen    = (float)($r['excento']       ?? 0);
@@ -180,13 +197,17 @@ class LibroCobrosSheet implements FromArray, WithStyles, WithEvents, WithStrictN
             $isv     = (float)($r['isv']           ?? 0);
             $fact    = (float)($r['total_factura'] ?? 0);
 
-            $grandCobrado += $cobrado;
+            $grandCobrado += $montoMovimiento;
             $grandExon    += $exon;
             $grandGrav    += $grav;
             $grandExen    += $exen;
             $grandSub     += $sub;
             $grandIsv     += $isv;
             $grandFact    += $fact;
+            $otroCentavos = ComisionDepositoPromerica::centavos(
+                number_format((float) ($r['otro'] ?? 0), 2, '.', '')
+            );
+            $grandOtro += $otroCentavos / 100;
 
             $row = [
                 $r['fecha_venta']       ?? '',
@@ -196,7 +217,7 @@ class LibroCobrosSheet implements FromArray, WithStyles, WithEvents, WithStrictN
                 $r['asesor_comercial']  ?? '',
                 $r['teleasesor']        ?? '',
                 $r['factura']           ?? '',
-                $cobrado,
+                $montoMovimiento,
                 ($r['estado_factura'] ?? '') === 'PAGADA' ? 'COMPLETO' : ($r['estado_factura'] ?? ''),
                 $r['banco']             ?? '',
                 $r['cuenta_banco']      ?? '',
@@ -208,6 +229,9 @@ class LibroCobrosSheet implements FromArray, WithStyles, WithEvents, WithStrictN
                 isset($r['isv']) ? $isv : null,
                 isset($r['total_factura']) ? $fact : null,
             ];
+            if (!$this->promerica) {
+                $row[] = $otroCentavos / 100;
+            }
             if ($this->promerica) {
                 $recibidoCentavos = ComisionDepositoPromerica::centavos(
                     number_format((float) ($r['monto_recibido'] ?? 0), 2, '.', '')
@@ -216,9 +240,8 @@ class LibroCobrosSheet implements FromArray, WithStyles, WithEvents, WithStrictN
                     number_format((float) ($r['comision_cobrada'] ?? 0), 2, '.', '')
                 );
                 $bancoCentavos = ComisionDepositoPromerica::comisionBancoCentavos($recibidoCentavos);
-                $netoCentavos = $recibidoCentavos - $bancoCentavos;
-                $otroCentavos = ComisionDepositoPromerica::centavos(
-                    number_format((float) ($r['otro'] ?? 0), 2, '.', '')
+                $netoCentavos = ComisionDepositoPromerica::centavos(
+                    number_format((float) ($r['monto_movimiento'] ?? ($r['monto_recibido'] ?? 0)), 2, '.', '')
                 );
                 $grandRecibido += $recibidoCentavos / 100;
                 $grandComision += $comisionCentavos / 100;
@@ -264,6 +287,7 @@ class LibroCobrosSheet implements FromArray, WithStyles, WithEvents, WithStrictN
             $totRow[15] = $grandSub;
             $totRow[16] = $grandIsv;
             $totRow[17] = $grandFact;
+            $totRow[18] = $grandOtro;
         }
         $out[]      = $totRow;
 
@@ -286,13 +310,13 @@ class LibroCobrosSheet implements FromArray, WithStyles, WithEvents, WithStrictN
             'A' => 12, 'B' => 12, 'C' => 12, 'D' => 32, 'E' => 20,
             'F' => 20, 'G' => 20, 'H' => 14, 'I' => 10, 'J' => 20,
             'K' => 18, 'L' => 28, 'M' => 13, 'N' => 13, 'O' => 13,
-            'P' => 13, 'Q' => 12, 'R' => 14,
+            'P' => 13, 'Q' => 12, 'R' => 14, 'S' => 14,
         ];
     }
 
     public function styles(Worksheet $sheet): ?array
     {
-        $lc = $this->promerica ? 'V' : 'R';
+        $lc = $this->promerica ? 'V' : 'S';
         $sheet->mergeCells("A1:{$lc}1");
         $sheet->mergeCells("A2:{$lc}2");
         $sheet->mergeCells("A3:{$lc}3");
@@ -328,10 +352,10 @@ class LibroCobrosSheet implements FromArray, WithStyles, WithEvents, WithStrictN
             AfterSheet::class => function (AfterSheet $event) {
                 $sheet   = $event->sheet->getDelegate();
                 $lastRow = $sheet->getHighestRow();
-                $lc = $this->promerica ? 'V' : 'R';
+                $lc = $this->promerica ? 'V' : 'S';
                 $moneyColumns = $this->promerica
                     ? ['H', 'I', 'J', 'K', 'P', 'Q', 'R', 'S', 'T', 'U', 'V']
-                    : ['H', 'M', 'N', 'O', 'P', 'Q', 'R'];
+                    : ['H', 'M', 'N', 'O', 'P', 'Q', 'R', 'S'];
                 $textColumns = $this->promerica
                     ? ['D', 'E', 'F', 'G', 'M', 'N', 'O']
                     : ['D', 'E', 'F', 'G', 'J', 'K', 'L'];
@@ -411,6 +435,8 @@ class LibroCobrosSheet implements FromArray, WithStyles, WithEvents, WithStrictN
                     foreach ($textColumns as $c) {
                         $sheet->getStyle("{$c}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
                     }
+                    $accountColumn = $this->promerica ? 'N' : 'K';
+                    $sheet->getStyle("{$accountColumn}{$row}")->getNumberFormat()->setFormatCode('@');
                     foreach ($moneyColumns as $c) {
                         $sheet->getStyle("{$c}{$row}")->getNumberFormat()->setFormatCode($currency);
                         $sheet->getStyle("{$c}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);

@@ -145,7 +145,8 @@ class PagosNoIdentificadosTest extends TestCase
         $this->assertEquals(300, $movimientos[0]['monto_recibido']);
         $this->assertEquals(9, $movimientos[0]['comision_cobrada']);
         $this->assertEquals(291, $movimientos[0]['monto_cobrado']);
-        $this->assertEquals(0, $movimientos[0]['otro']);
+        $this->assertEquals(292.2, $movimientos[0]['monto_movimiento']);
+        $this->assertEquals(1.2, $movimientos[0]['otro']);
         $filtradosPorBanco = $this->libroCobros(['banco' => '13'])['data'];
         $this->assertCount(1, $filtradosPorBanco);
         Livewire::test(\App\Livewire\Reportes\Librocobrosrep::class)
@@ -174,9 +175,13 @@ class PagosNoIdentificadosTest extends TestCase
         $movimientos = $this->libroCobros()['data'];
 
         $this->assertCount(1, $movimientos);
-        $this->assertEquals(1000, $movimientos[0]['monto_recibido']);
+        $this->assertEquals(970, $movimientos[0]['monto_recibido']);
         $this->assertEquals(30, $movimientos[0]['comision_cobrada']);
-        $this->assertEquals(0, $movimientos[0]['otro']);
+        $this->assertEquals(974.78, $movimientos[0]['monto_movimiento']);
+        $this->assertEquals(4.78, $movimientos[0]['otro']);
+        $excel = new \App\Exports\LibroCobrosExport($movimientos, '2026-01-01', '2026-01-31');
+        $this->assertEquals(974.78, $excel->sheets()[0]->array()[4][7]);
+        $this->assertEquals(974.78, $excel->sheets()[1]->array()[4][10]);
     }
 
     private function solicitud(array $ids, string $monto, int $factura = 1, int $cliente = 1): array

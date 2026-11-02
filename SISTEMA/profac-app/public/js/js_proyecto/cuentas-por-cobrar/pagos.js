@@ -1104,7 +1104,7 @@ $(document).on('submit', '#formabonos', function(event) {
         axios.get('/pagos/preview-comisiones', {
             params: {
                 factura_id:          facturaId,
-                monto_abono:         montoNetoAplicable(),
+                monto_abono:         montoAplicarDeuda(),
                 aplicacion_pagos_id: aplicacionPagoId,
                 fecha_pago:          fechaPago
             }
@@ -1423,18 +1423,12 @@ $(document).on('click', '#btn-cancel-preview-comision', function() {
     $('#modalPreviewComisiones').modal('hide');
 });
 
-function montoNetoAplicable() {
-    var monto = Number($('#montoAbono').val());
-    if (!Number.isFinite(monto) || monto <= 0) return monto;
-    if (!esCuentaPromericaAplicable()) return monto;
-    var recibidoCentavos = Math.round(monto * 100);
-    var comisionCentavos = Math.floor((recibidoCentavos * 3 + 50) / 100);
-    return (recibidoCentavos - comisionCentavos) / 100;
+function montoAplicarDeuda() {
+    return Number($('#montoAbono').val());
 }
 
 function esCuentaPromericaAplicable() {
-    return $('#selectMetodoPago').val() !== '1'
-        && $('#selectBanco option:selected').text().toLowerCase().indexOf('promerica') !== -1;
+    return $('#selectBanco option:selected').text().toLowerCase().indexOf('promerica') !== -1;
 }
 
 function actualizarResumenComisionAbono() {
@@ -1444,14 +1438,14 @@ function actualizarResumenComisionAbono() {
         $resumen.text('');
         return;
     }
-    var recibidoCentavos = Math.round(monto * 100);
+    var aplicadoCentavos = Math.round(monto * 100);
     var comisionCentavos = esCuentaPromericaAplicable()
-        ? Math.floor((recibidoCentavos * 3 + 50) / 100)
+        ? Math.floor((aplicadoCentavos * 3 + 50) / 100)
         : 0;
     var moneda = function(centavos) { return 'L ' + (centavos / 100).toFixed(2); };
-    $resumen.text('Recibido: ' + moneda(recibidoCentavos)
+    $resumen.text('Aplicado a la deuda: ' + moneda(aplicadoCentavos)
         + ' · Comisión: ' + moneda(comisionCentavos)
-        + ' · Aplicado a la deuda: ' + moneda(recibidoCentavos - comisionCentavos));
+        + ' · Total recibido: ' + moneda(aplicadoCentavos + comisionCentavos));
 }
 
 $(document).on('input change', '#montoAbono, #selectBanco, #selectMetodoPago', actualizarResumenComisionAbono);
@@ -1466,8 +1460,12 @@ function guardarCreditos(){
         .then(response => {
             var res = response.data || {};
 
-            $('#tbl_cuentas_facturas_cliente').DataTable().ajax.reload();
-            $('#tbl_abonos_cliente').DataTable().ajax.reload();
+            if ($.fn.DataTable.isDataTable('#tbl_cuentas_facturas_cliente')) {
+                $('#tbl_cuentas_facturas_cliente').DataTable().ajax.reload();
+            }
+            if ($.fn.DataTable.isDataTable('#tbl_abonos_cliente')) {
+                $('#tbl_abonos_cliente').DataTable().ajax.reload();
+            }
             if ($.fn.DataTable.isDataTable('#tbl_historico_retenciones_cliente')) {
                 $('#tbl_historico_retenciones_cliente').DataTable().ajax.reload();
             }

@@ -610,6 +610,8 @@ class Librocobrosrep extends Component
                 c.monto_cobrado,
                 CASE
                     WHEN ac_reporte.id IS NULL THEN 0
+                    WHEN c.banco = 'PROMERICA' AND c.cuenta_banco = '80000000578176'
+                        AND pni.id IS NULL THEN c.monto_cobrado
                     WHEN ac_reporte.monto_recibido IS NOT NULL THEN ac_reporte.monto_recibido
                     WHEN pni.id IS NOT NULL AND ROW_NUMBER() OVER (PARTITION BY pni.id ORDER BY pnia.id) = 1
                         THEN pni.monto_original
@@ -619,6 +621,16 @@ class Librocobrosrep extends Component
                 END AS monto_recibido,
                 CASE
                     WHEN ac_reporte.id IS NULL THEN 0
+                    WHEN c.banco = 'PROMERICA' AND c.cuenta_banco = '80000000578176'
+                        AND pni.id IS NULL
+                        THEN COALESCE(
+                            NULLIF(ac_reporte.comision_cobrada, 0),
+                            CASE
+                                WHEN ac_reporte.monto_recibido IS NOT NULL
+                                    THEN ROUND(ac_reporte.monto_recibido * 0.03, 2)
+                                ELSE ROUND(ROUND(ac_reporte.monto_abonado / 0.97, 2) * 0.03, 2)
+                            END
+                        )
                     WHEN c.banco = 'PROMERICA' AND c.cuenta_banco = '80000000578176'
                         THEN COALESCE(
                             NULLIF(ac_reporte.comision_cobrada, 0),
@@ -636,16 +648,48 @@ class Librocobrosrep extends Component
                     ELSE 0
                 END AS comision_cobrada,
                 CASE
-                    WHEN pni.id IS NULL THEN GREATEST(
-                        CASE
-                            WHEN ac_reporte.monto_recibido IS NOT NULL THEN ac_reporte.monto_recibido
-                            WHEN c.banco = 'PROMERICA' AND c.cuenta_banco = '80000000578176'
-                                THEN ROUND(ac_reporte.monto_abonado / 0.97, 2)
-                            ELSE COALESCE(ac_reporte.monto_abonado, 0)
-                        END
-                        - CASE
-                            WHEN c.banco = 'PROMERICA' AND c.cuenta_banco = '80000000578176'
-                                THEN COALESCE(
+                    WHEN c.banco = 'PROMERICA' AND c.cuenta_banco = '80000000578176'
+                        AND pni.id IS NULL
+                        THEN ROUND(
+                            c.monto_cobrado
+                            + COALESCE(
+                                NULLIF(ac_reporte.comision_cobrada, 0),
+                                CASE
+                                    WHEN ac_reporte.monto_recibido IS NOT NULL
+                                        THEN ROUND(ac_reporte.monto_recibido * 0.03, 2)
+                                    ELSE ROUND(ROUND(ac_reporte.monto_abonado / 0.97, 2) * 0.03, 2)
+                                END
+                            )
+                            - ROUND(c.monto_cobrado * 0.026, 2),
+                            2
+                        )
+                    WHEN c.banco = 'PROMERICA' AND c.cuenta_banco = '80000000578176'
+                        THEN ROUND(
+                            CASE
+                                WHEN ac_reporte.monto_recibido IS NOT NULL THEN ac_reporte.monto_recibido
+                                WHEN pni.id IS NOT NULL AND ROW_NUMBER() OVER (PARTITION BY pni.id ORDER BY pnia.id) = 1
+                                    THEN pni.monto_original
+                                ELSE ROUND(ac_reporte.monto_abonado / 0.97, 2)
+                            END
+                            - ROUND((
+                                CASE
+                                    WHEN ac_reporte.monto_recibido IS NOT NULL THEN ac_reporte.monto_recibido
+                                    WHEN pni.id IS NOT NULL AND ROW_NUMBER() OVER (PARTITION BY pni.id ORDER BY pnia.id) = 1
+                                        THEN pni.monto_original
+                                    ELSE ROUND(ac_reporte.monto_abonado / 0.97, 2)
+                                END
+                            ) * 0.026, 2),
+                            2
+                        )
+                    ELSE c.monto_cobrado
+                END AS monto_movimiento,
+                CASE
+                    WHEN c.banco = 'PROMERICA' AND c.cuenta_banco = '80000000578176'
+                        AND pni.id IS NULL
+                        THEN GREATEST(
+                            ROUND(
+                                c.monto_cobrado
+                                + COALESCE(
                                     NULLIF(ac_reporte.comision_cobrada, 0),
                                     CASE
                                         WHEN ac_reporte.monto_recibido IS NOT NULL
@@ -653,10 +697,36 @@ class Librocobrosrep extends Component
                                         ELSE ROUND(ROUND(ac_reporte.monto_abonado / 0.97, 2) * 0.03, 2)
                                     END
                                 )
-                            ELSE COALESCE(ac_reporte.comision_cobrada, 0)
-                        END
-                        - c.monto_cobrado,
-                        0
+                                - ROUND(c.monto_cobrado * 0.026, 2)
+                                - c.monto_cobrado,
+                                2
+                            ),
+                            0
+                        )
+                    WHEN c.banco = 'PROMERICA' AND c.cuenta_banco = '80000000578176'
+                        AND pni.id IS NOT NULL
+                        AND ROW_NUMBER() OVER (PARTITION BY pni.id ORDER BY pnia.id) = 1
+                        THEN GREATEST(
+                            ROUND(
+                                CASE
+                                    WHEN ac_reporte.monto_recibido IS NOT NULL THEN ac_reporte.monto_recibido
+                                    ELSE pni.monto_original
+                                END
+                                - ROUND((
+                                    CASE
+                                        WHEN ac_reporte.monto_recibido IS NOT NULL THEN ac_reporte.monto_recibido
+                                        ELSE pni.monto_original
+                                    END
+                                ) * 0.026, 2)
+                                - (SELECT COALESCE(SUM(pa.monto), 0) FROM pni_aplicaciones pa WHERE pa.pago_id = pni.id)
+                                - pni.saldo_disponible,
+                                2
+                            ),
+                            0
+                        )
+                    WHEN pni.id IS NULL THEN GREATEST(
+                        COALESCE(ac_reporte.monto_recibido, ac_reporte.monto_abonado, 0)
+                        - COALESCE(ac_reporte.comision_cobrada, 0) - c.monto_cobrado, 0
                     )
                     ELSE 0
                 END AS otro,
@@ -736,6 +806,11 @@ class Librocobrosrep extends Component
                     THEN 0 ELSE p.monto_original END AS monto_recibido,
                 CASE WHEN EXISTS (SELECT 1 FROM pni_aplicaciones pa WHERE pa.pago_id = p.id)
                     THEN 0 ELSE p.comision_cobrada END AS comision_cobrada,
+                CASE
+                    WHEN b.nombre = 'PROMERICA' AND p.cuenta_bancaria = '80000000578176'
+                        THEN ROUND(p.monto_original - ROUND(p.monto_original * 0.026, 2), 2)
+                    ELSE p.saldo_disponible
+                END AS monto_movimiento,
                 p.saldo_disponible AS otro, 1 AS impacta_kpi,
                 NULL AS saldo_pendiente, '' AS estado_factura,
                 b.nombre AS banco, p.cuenta_bancaria AS cuenta_banco,

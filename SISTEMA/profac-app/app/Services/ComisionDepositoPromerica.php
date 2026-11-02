@@ -25,6 +25,19 @@ class ComisionDepositoPromerica
         ];
     }
 
+    public static function desgloseMontoAplicadoCentavos(int $montoAplicado, bool $esPromerica): array
+    {
+        $comision = $esPromerica
+            ? intdiv($montoAplicado * self::PORCENTAJE_COMISION_COBRADA + 50, 100)
+            : 0;
+
+        return [
+            'monto_recibido' => $montoAplicado + $comision,
+            'comision_cobrada' => $comision,
+            'monto_aplicado' => $montoAplicado,
+        ];
+    }
+
     public static function comisionBancoCentavos(int $montoRecibido): int
     {
         return intdiv($montoRecibido * 26 + 500, 1000);

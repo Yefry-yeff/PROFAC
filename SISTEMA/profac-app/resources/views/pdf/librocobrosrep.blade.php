@@ -162,7 +162,7 @@
                         $recibidoCentavos = ComisionDepositoPromerica::centavos(number_format((float)($row['monto_recibido'] ?? 0), 2, '.', ''));
                         $comisionCentavos = ComisionDepositoPromerica::centavos(number_format((float)($row['comision_cobrada'] ?? 0), 2, '.', ''));
                         $bancoCentavos = ComisionDepositoPromerica::comisionBancoCentavos($recibidoCentavos);
-                        $netoCentavos = $recibidoCentavos - $bancoCentavos;
+                        $netoCentavos = ComisionDepositoPromerica::centavos(number_format((float)($row['monto_movimiento'] ?? $row['monto_recibido'] ?? 0), 2, '.', ''));
                         $otroCentavos = ComisionDepositoPromerica::centavos(number_format((float)($row['otro'] ?? 0), 2, '.', ''));
                         $gRecibido += $recibidoCentavos / 100;
                         $gComision += $comisionCentavos / 100;
@@ -184,7 +184,7 @@
                             <td style="text-align:right;">{{ $fmtL($bancoCentavos / 100) }}</td>
                             <td style="text-align:right;">{{ $fmtL($netoCentavos / 100) }}</td>
                         @else
-                            <td style="text-align:right;">{{ $fmtL($row['monto_cobrado'] ?? 0) }}</td>
+                            <td style="text-align:right;">{{ $fmtL($row['monto_movimiento'] ?? $row['monto_cobrado'] ?? 0) }}</td>
                         @endif
                         <td>{{ ($row['estado_factura'] ?? '') === 'PAGADA' ? 'COMPLETO' : ($row['estado_factura'] ?? '') }}</td>
                         <td style="text-align:left;">{{ $row['observaciones'] ?? '' }}</td>

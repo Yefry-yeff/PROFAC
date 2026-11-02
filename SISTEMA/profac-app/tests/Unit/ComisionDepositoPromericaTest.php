@@ -18,16 +18,34 @@ class ComisionDepositoPromericaTest extends TestCase
         $this->assertSame(780, ComisionDepositoPromerica::comisionBancoCentavos(30000));
     }
 
-    public function test_excel_adds_promerica_sheet_without_changing_all_sheet_shape(): void
+    public function test_direct_promerica_payment_adds_commission_to_the_amount_applied_to_debt(): void
+    {
+        $promerica = ComisionDepositoPromerica::desgloseMontoAplicadoCentavos(117299, true);
+        $otraCuenta = ComisionDepositoPromerica::desgloseMontoAplicadoCentavos(117299, false);
+
+        $this->assertSame([
+            'monto_recibido' => 120818,
+            'comision_cobrada' => 3519,
+            'monto_aplicado' => 117299,
+        ], $promerica);
+        $this->assertSame([
+            'monto_recibido' => 117299,
+            'comision_cobrada' => 0,
+            'monto_aplicado' => 117299,
+        ], $otraCuenta);
+    }
+
+    public function test_excel_adds_promerica_sheet_and_other_column_to_all_sheet(): void
     {
         $export = new LibroCobrosExport([
             [
                 'banco' => 'Promerica',
                 'cuenta_banco' => '80000000578176',
-                'monto_recibido' => '300.00',
-                'comision_cobrada' => '9.00',
-                'monto_cobrado' => '291.00',
-                'otro' => '0.00',
+                'monto_recibido' => '1172.99',
+                'comision_cobrada' => '35.19',
+                'monto_cobrado' => '1172.99',
+                'monto_movimiento' => '1177.68',
+                'otro' => '4.69',
             ],
             [
                 'banco' => 'PROMERICA PAPERLAND',
@@ -41,7 +59,11 @@ class ComisionDepositoPromericaTest extends TestCase
         $sheets = $export->sheets();
 
         $this->assertSame('Todos', $sheets[0]->title());
-        $this->assertCount(18, $sheets[0]->array()[3]);
+        $todosRows = $sheets[0]->array();
+        $this->assertCount(19, $todosRows[3]);
+        $this->assertSame('OTRO', $todosRows[3][18]);
+        $this->assertEquals(4.69, $todosRows[4][18]);
+        $this->assertEquals(4.69, $todosRows[count($todosRows) - 1][18]);
         $this->assertCount(3, $sheets);
         $this->assertSame('Promerica - 80000000578176', $sheets[1]->title());
         $this->assertSame('PROMERICA PAPERLAND - 100000012', $sheets[2]->title());
@@ -52,11 +74,32 @@ class ComisionDepositoPromericaTest extends TestCase
         $this->assertSame('COMISIÓN COBRADA (3%)', $promericaRows[3][8]);
         $this->assertSame('COMISIÓN DEL BANCO (2.6%)', $promericaRows[3][9]);
         $this->assertSame('MONTO MOVIMIENTO', $promericaRows[3][10]);
-        $this->assertEquals(300.0, $promericaRows[4][7]);
-        $this->assertEquals(9.0, $promericaRows[4][8]);
-        $this->assertEquals(7.8, $promericaRows[4][9]);
-        $this->assertEquals(292.2, $promericaRows[4][10]);
-        $this->assertEquals(0.0, $promericaRows[4][21]);
-        $this->assertSame(18, count($sheets[2]->array()[3]));
+        $this->assertEquals(1172.99, $promericaRows[4][7]);
+        $this->assertEquals(35.19, $promericaRows[4][8]);
+        $this->assertEquals(30.5, $promericaRows[4][9]);
+        $this->assertEquals(1177.68, $promericaRows[4][10]);
+        $this->assertEquals(4.69, $promericaRows[4][21]);
+        $this->assertEquals(1177.68, $sheets[0]->array()[4][7]);
+        $this->assertSame(19, count($sheets[2]->array()[3]));
+
+        $worksheet = new \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet();
+        $accountCell = $worksheet->getCell('N5');
+        $sheets[1]->bindValue($accountCell, '80000000578176');
+        $this->assertSame(\PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING, $accountCell->getDataType());
+        $this->assertSame('80000000578176', $accountCell->getValue());
+        $todosAccountCell = $worksheet->getCell('K5');
+        $sheets[0]->bindValue($todosAccountCell, '80000000578176');
+        $this->assertSame(\PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING, $todosAccountCell->getDataType());
+        $this->assertSame('80000000578176', $todosAccountCell->getValue());
+    }
+
+    public function test_promerica_net_movement_uses_principal_plus_three_percent_less_bank_fee(): void
+    {
+        $principal = ComisionDepositoPromerica::centavos('1172.99');
+        $commission = ComisionDepositoPromerica::centavos('35.19');
+        $bankFee = ComisionDepositoPromerica::comisionBancoCentavos($principal);
+
+        $this->assertSame(3050, $bankFee);
+        $this->assertSame(117768, $principal + $commission - $bankFee);
     }
 }
