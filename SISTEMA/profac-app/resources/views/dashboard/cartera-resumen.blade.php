@@ -108,15 +108,15 @@
         <article class="cr-panel">
             <h4>¿Cómo evoluciona la recaudación?</h4>
             <p>Abonos por mes en los últimos 6 meses. Pasa el cursor para ver el monto y su participación.</p>
-            <div id="chart-ger-tendencia-cobros" x-ref="mensual" wire:ignore style="min-height:275px;"></div>
-            <div class="cr-period">El mes actual está en curso · No representa un mes completo</div>
+            <div id="chart-ger-tendencia-cobros" wire:ignore x-ref="mensual" style="min-height:275px;"></div>
+            <div class="cr-period">Últimos 6 meses hasta {{ \Carbon\Carbon::parse($fechaFin ?? now())->format('d/m/Y') }} · El último mes puede ser parcial</div>
         </article>
         <article class="cr-panel">
             <h4>¿Dónde se concentra la deuda?</h4>
             <p>Distribución del saldo actual por días de atraso, no por fecha de emisión.</p>
             @if($saldoCentavos > 0)
                 <div class="cr-aging">
-                    <div id="chart-ger-antiguedad" x-ref="antiguedad" wire:ignore style="min-height:230px;"></div>
+                    <div id="chart-ger-antiguedad" wire:ignore x-ref="antiguedad" style="min-height:230px;"></div>
                     <div class="cr-bands">
                         @foreach($tramosCartera as $tramoCartera)
                             @if($tramoCartera['clave'] !== 'sin_clasificar' || $tramoCartera['centavos'] > 0)
@@ -137,6 +137,3 @@
     </div>
     <div class="cr-footnote"><i class="fa fa-info-circle" aria-hidden="true"></i> <strong>Cómo leer este resumen:</strong> el saldo y la mora corresponden al estado actual de la cartera; el recuperado corresponde a {{ $periodoLabel }}. Para consultar clientes, responsables, facturas y descargar Excel, abre Cartera de Cobros en Análisis de negocio.</div>
 </section>
-@push('scripts')
-    <script src="{{ asset('js/js_proyecto/reportes/cartera-resumen.js') }}"></script>
-@endpush

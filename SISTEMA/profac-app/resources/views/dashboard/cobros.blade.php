@@ -1,16 +1,11 @@
-﻿{{-- ═══════════════════════════════════════════════════════════════
+{{-- ═══════════════════════════════════════════════════════════════
      DASHBOARD — COBROS & CARTERA
      Rol: 4 (Gestor de Cobros)
 ═══════════════════════════════════════════════════════════════ --}}
 
 {{-- ── KPIs Cartera & Cobros ── --}}
 <div class="dash-kpi-grid">
-    <div class="dash-kpi red">
-        <div class="dash-kpi-icon"><i class="fa fa-money"></i></div>
-        <div class="dash-kpi-label">Cartera activa</div>
-        <div class="dash-kpi-value">L. {{ number_format($kpisCobros['saldo_pendiente'] ?? 0, 2) }}</div>
-        <div class="dash-kpi-sub">total por cobrar</div>
-    </div>
+    @include('dashboard.kpi-saldo')
     <div class="dash-kpi red">
         <div class="dash-kpi-icon"><i class="fa fa-exclamation-triangle"></i></div>
         <div class="dash-kpi-label">Facturas vencidas</div>
@@ -40,6 +35,7 @@
         <div class="dash-kpi-value">{{ number_format($kpisCobros['clientes_morosos'] ?? 0) }}</div>
         <div class="dash-kpi-sub">con saldo vencido</div>
     </div>
+    @include('dashboard.kpi-poco-movimiento')
 </div>
 
 {{-- ── Alertas: proximas a vencer ── --}}
@@ -82,7 +78,7 @@
             <h5><i class="fa fa-bar-chart"></i> Abonos Diarios — {{ $periodoLabel }}</h5>
         </div>
         <div class="dash-card-body">
-            <div id="chart-cobros-diarios" style="min-height:240px;"></div>
+            <div id="chart-cobros-diarios" wire:ignore style="min-height:240px;"></div>
         </div>
     </div>
     <div class="dash-card">
@@ -90,7 +86,7 @@
             <h5><i class="fa fa-line-chart"></i> Tendencia de Abonos — 6 meses</h5>
         </div>
         <div class="dash-card-body">
-            <div id="chart-cobros-tendencia" style="min-height:240px;"></div>
+            <div id="chart-cobros-tendencia" wire:ignore style="min-height:240px;"></div>
         </div>
     </div>
 </div>
@@ -102,7 +98,7 @@
             <h5><i class="fa fa-pie-chart"></i> Antiguedad de Saldos (L.)</h5>
         </div>
         <div class="dash-card-body">
-            <div id="chart-cobros-antiguedad" style="min-height:260px;"></div>
+            <div id="chart-cobros-antiguedad" wire:ignore style="min-height:260px;"></div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;">
                 @php $ant = $kpisCobros['antiguedad'] ?? []; @endphp
                 @foreach([
@@ -236,74 +232,3 @@
         </div>
     </div>
 </div>
-
-<script>
-function initCobrosCharts() {
-    var span = document.getElementById('dash-data');
-    if (!span || typeof ApexCharts === 'undefined') return;
-    var kc   = JSON.parse(span.dataset.cobros || '{}');
-    if (Array.isArray(kc)) kc = {};
-    var dark = window.DASH_DARK;
-    var base = typeof dashBaseOpts !== 'undefined' ? dashBaseOpts(dark) : {};
-
-    // Abonos diarios (barras)
-    const elD = document.querySelector('#chart-cobros-diarios');
-    if (elD) {
-        elD.innerHTML = '';
-        new ApexCharts(elD, Object.assign({}, base, {
-            chart:  Object.assign({}, (base.chart||{}), { type:'bar', height:240 }),
-            series: [{ name:'Abonado (L.)', data: (kc.cobros_diarios && kc.cobros_diarios.montos) ? kc.cobros_diarios.montos : [] }],
-            xaxis:  { categories: (kc.cobros_diarios && kc.cobros_diarios.fechas) ? kc.cobros_diarios.fechas : [], labels:{ rotate:-45, style:{fontSize:'10px'} } },
-            yaxis:  { labels: { formatter: v => lpsK(v) } },
-            tooltip: { y: { formatter: v => lps(v) } },
-            colors: ['#27ae60'],
-            plotOptions: { bar: { borderRadius:3 } },
-            dataLabels: { enabled: false },
-        })).render();
-    }
-
-    // Tendencia 6 meses (area)
-    const elT = document.querySelector('#chart-cobros-tendencia');
-    if (elT) {
-        elT.innerHTML = '';
-        new ApexCharts(elT, Object.assign({}, base, {
-            chart:  Object.assign({}, (base.chart||{}), { type:'area', height:240 }),
-            series: [{ name:'Abonos (L.)', data: (kc.tendencia_cobros && kc.tendencia_cobros.montos) ? kc.tendencia_cobros.montos : [] }],
-            xaxis:  { categories: (kc.tendencia_cobros && kc.tendencia_cobros.labels) ? kc.tendencia_cobros.labels : [] },
-            yaxis:  { labels: { formatter: v => lpsK(v) } },
-            tooltip: { y: { formatter: v => lps(v) } },
-            colors: ['#2980b9'],
-            stroke: { curve:'smooth', width:2.5 },
-            fill:   { type:'gradient', gradient:{ opacityFrom:.35, opacityTo:.05 } },
-            dataLabels: { enabled: false },
-        })).render();
-    }
-
-    // Antiguedad (donut)
-    const elA = document.querySelector('#chart-cobros-antiguedad');
-    if (elA && kc.antiguedad) {
-        elA.innerHTML = '';
-        new ApexCharts(elA, Object.assign({}, base, {
-            chart:  Object.assign({}, (base.chart||{}), { type:'donut', height:260 }),
-            series: [
-                kc.antiguedad['al_dia']  || 0,
-                kc.antiguedad['0_30']   || 0,
-                kc.antiguedad['31_60']  || 0,
-                kc.antiguedad['61_90']  || 0,
-                kc.antiguedad['90_mas'] || 0,
-            ],
-            labels: ['Al dia','0-30 dias','31-60 dias','61-90 dias','> 90 dias'],
-            colors: ['#27ae60','#2ecc71','#f39c12','#e67e22','#e74c3c'],
-            legend: { position:'bottom' },
-            tooltip: { y: { formatter: v => lps(v) } },
-            dataLabels: { enabled: true, formatter: v => v.toFixed(1)+'%' },
-            plotOptions: { pie: { donut: { size:'65%' } } },
-        })).render();
-    }
-}
-(function() {
-    function run() { if (typeof ApexCharts !== 'undefined') initCobrosCharts(); }
-    if (window.DASH_LOADED) { run(); } else { document.addEventListener('livewire:init', run); }
-    if (!window._cobrosBound) { window._cobrosBound = true; document.addEventListener('livewire:update', run); }
-})();
-</script>

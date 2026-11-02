@@ -6,18 +6,16 @@
 
 {{-- ── KPIs Inventario ── --}}
 <div class="dash-kpi-grid">
+    @if($this->getRolView() === 'dashboard.mercadeo')
+        @include('dashboard.kpi-poco-movimiento')
+    @endif
     <div class="dash-kpi blue">
         <div class="dash-kpi-icon"><i class="fa fa-cubes"></i></div>
         <div class="dash-kpi-label">Productos activos</div>
         <div class="dash-kpi-value">{{ number_format($kpisInventario['total_productos'] ?? 0) }}</div>
         <div class="dash-kpi-sub">en catálogo</div>
     </div>
-    <div class="dash-kpi red">
-        <div class="dash-kpi-icon"><i class="fa fa-exclamation-triangle"></i></div>
-        <div class="dash-kpi-label">Bajos en stock</div>
-        <div class="dash-kpi-value">{{ number_format($kpisInventario['bajos_stock'] ?? 0) }}</div>
-        <div class="dash-kpi-sub">menos de 10 unidades</div>
-    </div>
+    @include('dashboard.kpi', ['etiqueta' => 'Productos bajos de inventario', 'icono' => 'fa-exclamation-triangle', 'valor' => number_format($kpisInventario['bajos_stock'] ?? 0), 'ayuda' => 'Existencia actual: 0 a menos de 10 unidades', 'accion' => 'inventario', 'color' => 'red', 'enlace' => null])
     <div class="dash-kpi orange">
         <div class="dash-kpi-icon"><i class="fa fa-picture-o"></i></div>
         <div class="dash-kpi-label">Sin imagen</div>

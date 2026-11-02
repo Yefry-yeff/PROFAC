@@ -104,7 +104,7 @@
 /* ── KPI Grid ── */
 .dash-kpi-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
     gap: 14px; margin-bottom: 24px;
 }
 .dash-kpi {
@@ -141,6 +141,23 @@
 .dash-kpi-label { font-size: 11px; color: var(--dash-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .4px; margin-bottom: 4px; }
 .dash-kpi-value { font-size: 22px; font-weight: 800; color: var(--dash-text); line-height: 1.1; }
 .dash-kpi-sub   { font-size: 12px; color: var(--dash-muted); margin-top: 4px; }
+.dash-kpi .dash-kpi-label,.dash-kpi .dash-kpi-value,.dash-kpi .dash-kpi-sub { display:block; }
+.dash-kpi-action { display:block; width:100%; text-align:left; font:inherit; cursor:pointer; color:var(--dash-text); text-decoration:none !important; }
+.dash-kpi-action:focus-visible { outline:3px solid var(--dash-orange); outline-offset:3px; }
+.dash-kpi-action:disabled { opacity:.65; cursor:wait; }
+.dash-kpi-hint { display:block; color:var(--dash-accent2); font-size:11px; font-weight:700; margin-top:10px; }
+.dash-modal-backdrop { position:fixed; inset:0; z-index:5000; display:flex; align-items:center; justify-content:center; padding:20px; background:#14223599; }
+.dash-modal { display:flex; flex-direction:column; width:1100px; max-width:100%; max-height:90vh; border-radius:15px; background:var(--dash-card-bg); color:var(--dash-text); box-shadow:0 20px 70px #0004; overflow:hidden; }
+.dash-modal-header,.dash-modal-footer { display:flex; justify-content:space-between; align-items:center; gap:16px; padding:18px 22px; border-bottom:1px solid var(--dash-border); }
+.dash-modal-header h3 { margin:0 0 6px; font-size:20px; font-weight:700; }
+.dash-modal-header p { margin:0; color:var(--dash-muted); font-size:12px; }
+.dash-modal-toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:15px 22px; }
+.dash-modal-toolbar input { width:280px; max-width:100%; background:var(--dash-bg); color:var(--dash-text); }
+.dash-modal-table { overflow:auto; min-height:100px; }
+.dash-modal-table thead th { position:sticky; top:0; z-index:1; background:var(--dash-bg); }
+.dash-modal-footer { border-top:1px solid var(--dash-border); border-bottom:0; flex-wrap:wrap; }
+.dash-modal-footer nav { flex:1; }
+.dash-modal-footer .pagination { margin:0; }
 .dash-up   { color: var(--dash-green); font-weight: 600; }
 .dash-down { color: var(--dash-red);   font-weight: 600; }
 
@@ -351,6 +368,12 @@
     </div>
     @endif
 
+    @if(!$periodoValido)
+        <div class="alert alert-warning" role="alert">Selecciona fechas válidas. La fecha final debe ser igual o posterior a la fecha inicial.</div>
+    @else
+    <div data-dashboard-region wire:key="dashboard-vista-{{ md5(json_encode([$rolView, $fechaInicio, $fechaFin, $filtroVendedorId, $filtroClienteId, $topLimit, $darkMode, $kpisCobros, $kpisInventario, $tendencia, $productividad, $participacion])) }}"
+        x-data="dashboardGraficos(@js($rolView), @js($darkMode), @js($periodoLabel))">
+    <p x-show="error" x-text="error" class="alert alert-danger" role="alert" style="display:none;"></p>
     {{-- ══ CARGAR VISTA SEGÚN ROL ══ --}}
     @include($rolView, [
         'kpis'           => $kpis,
@@ -373,7 +396,10 @@
     data-productividad='@json($productividad)'
     data-participacion='@json($participacion)'
     style="display:none;"></span>
-
+    </div>
+    @include('dashboard.detalle-kpi')
+    @endif
+    <div wire:loading.delay wire:target="abrirDetalle" class="alert alert-info" role="status"><i class="fa fa-spinner fa-spin" aria-hidden="true"></i> Cargando detalle...</div>
 </div>
 
 @push('scripts')
@@ -409,12 +435,8 @@ function lps(v) {
     return 'L. ' + Number(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 }
 
-// Se llamará desde cada vista parcial
-window.DASH_DARK   = {{ $darkMode ? 'true' : 'false' }};
-window.DASH_LABEL  = @json($periodoLabel);
-// Señal para que los scripts de vistas parciales sepan si Livewire ya cargó
-window.DASH_LOADED = false;
-document.addEventListener('livewire:init', function() { window.DASH_LOADED = true; });
 </script>
+<script src="{{ asset('js/js_proyecto/reportes/dashboard-graficos.js') }}"></script>
+<script src="{{ asset('js/js_proyecto/reportes/cartera-resumen.js') }}"></script>
 @endpush
 </div>

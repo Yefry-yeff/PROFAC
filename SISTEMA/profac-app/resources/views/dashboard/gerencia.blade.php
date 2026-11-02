@@ -5,7 +5,11 @@
 
 {{-- ── KPIs ── --}}
 <div class="dash-kpi-grid">
+    @if($this->enlaceAnalisis('ventas'))
+    <a class="dash-kpi orange dash-kpi-action" href="{{ $this->enlaceAnalisis('ventas') }}">
+    @else
     <div class="dash-kpi orange">
+    @endif
         <div class="dash-kpi-icon"><i class="fa fa-dollar"></i></div>
         <div class="dash-kpi-label">Venta total</div>
         <div class="dash-kpi-value">L. {{ number_format($kpis['venta_total'] ?? 0, 2) }}</div>
@@ -19,37 +23,27 @@
                 vs período anterior
             @endif
         </div>
+    @if($this->enlaceAnalisis('ventas'))
+        <span class="dash-kpi-hint">Ver Dashboard BI Ventas <i class="fa fa-arrow-right" aria-hidden="true"></i></span>
+    </a>
+    @else
     </div>
-    <div class="dash-kpi">
-        <div class="dash-kpi-icon"><i class="fa fa-file-text-o"></i></div>
-        <div class="dash-kpi-label">Facturas</div>
-        <div class="dash-kpi-value">{{ number_format($kpis['num_facturas'] ?? 0) }}</div>
-        <div class="dash-kpi-sub">emitidas en el período</div>
-    </div>
-    <div class="dash-kpi green">
-        <div class="dash-kpi-icon"><i class="fa fa-users"></i></div>
-        <div class="dash-kpi-label">Clientes activos</div>
-        <div class="dash-kpi-value">{{ number_format($kpis['clientes_act'] ?? 0) }}</div>
-        <div class="dash-kpi-sub">compraron en el período</div>
-    </div>
-    <div class="dash-kpi blue">
-        <div class="dash-kpi-icon"><i class="fa fa-user-plus"></i></div>
-        <div class="dash-kpi-label">Clientes nuevos</div>
-        <div class="dash-kpi-value">{{ number_format($kpis['clientes_nuevos'] ?? 0) }}</div>
-        <div class="dash-kpi-sub">primera compra</div>
-    </div>
-    <div class="dash-kpi">
-        <div class="dash-kpi-icon"><i class="fa fa-line-chart"></i></div>
-        <div class="dash-kpi-label">Ticket promedio</div>
-        <div class="dash-kpi-value">L. {{ number_format($kpis['ticket_prom'] ?? 0, 2) }}</div>
-        <div class="dash-kpi-sub">por factura</div>
-    </div>
+    @endif
+    @include('dashboard.kpi-saldo')
+    @if($this->puedeVerArea('inventario'))
+    @include('dashboard.kpi', ['etiqueta' => 'Productos bajos de inventario', 'icono' => 'fa-cubes', 'valor' => number_format($kpisInventario['bajos_stock'] ?? 0), 'ayuda' => 'Existencia actual: 0 a menos de 10 unidades', 'accion' => 'inventario', 'color' => 'orange', 'enlace' => null])
+    @endif
+    @include('dashboard.kpi', ['etiqueta' => 'Facturas emitidas', 'icono' => 'fa-file-invoice', 'valor' => number_format($kpis['num_facturas'] ?? 0), 'ayuda' => 'Emitidas en el período', 'accion' => 'facturas', 'color' => '', 'enlace' => null])
+    @include('dashboard.kpi', ['etiqueta' => 'Clientes activos', 'icono' => 'fa-users', 'valor' => number_format($kpis['clientes_act'] ?? 0), 'ayuda' => 'Compraron desde el inicio del sistema hasta hoy', 'accion' => 'clientes', 'color' => 'green', 'enlace' => null])
+    @include('dashboard.kpi', ['etiqueta' => 'Clientes creados', 'icono' => 'fa-user-plus', 'valor' => number_format($kpis['clientes_nuevos'] ?? 0), 'ayuda' => 'Creados desde el inicio del sistema hasta hoy', 'accion' => 'clientes_nuevos', 'color' => 'blue', 'enlace' => null])
+
     <div class="dash-kpi red">
         <div class="dash-kpi-icon"><i class="fa fa-warning"></i></div>
         <div class="dash-kpi-label">Requieren atención</div>
-        <div class="dash-kpi-value">{{ count(array_filter($topClientes, fn($c) => $c['requiere_atencion'])) }}</div>
-        <div class="dash-kpi-sub">clientes en riesgo</div>
+        <div class="dash-kpi-value">{{ number_format($kpisGenerales['requieren_atencion']) }}</div>
+        <div class="dash-kpi-sub">Historial hasta hoy: sin compra por más de 90 días o caída mensual de al menos 20%. Sin límite de clientes.</div>
     </div>
+    @include('dashboard.kpi-poco-movimiento')
 </div>
 
 {{-- ── Grid principal: Tendencia 12 m + Productividad vendedores ── --}}
@@ -61,7 +55,7 @@
             <h5><i class="fa fa-area-chart"></i> Tendencia — Últimos 12 meses</h5>
         </div>
         <div class="dash-card-body">
-            <div id="chart-ger-tendencia" style="min-height:270px;"></div>
+            <div id="chart-ger-tendencia" wire:ignore style="min-height:270px;"></div>
         </div>
     </div>
 
@@ -71,7 +65,7 @@
             <h5><i class="fa fa-pie-chart"></i> Participación por Vendedor</h5>
         </div>
         <div class="dash-card-body">
-            <div id="chart-ger-participacion" style="min-height:270px;"></div>
+            <div id="chart-ger-participacion" wire:ignore style="min-height:270px;"></div>
         </div>
     </div>
 
@@ -83,7 +77,7 @@
         <h5><i class="fa fa-bar-chart"></i> Productividad por Vendedor — {{ $periodoLabel }}</h5>
     </div>
     <div class="dash-card-body">
-        <div id="chart-ger-productividad" style="min-height:260px; margin-bottom:16px;"></div>
+        <div id="chart-ger-productividad" wire:ignore style="min-height:260px; margin-bottom:16px;"></div>
         <div style="overflow-x:auto;">
             <table class="dash-table">
                 <thead>
@@ -228,75 +222,3 @@
 
 @include('dashboard.inventario-kpis', ['kpisInventario' => $kpisInventario])
 @endif
-
-<script>
-function initGerenciaCharts() {
-    var span = document.getElementById('dash-data');
-    if (!span || typeof ApexCharts === 'undefined') return;
-    var tendencia     = JSON.parse(span.dataset.tendencia     || '{}');
-    var productividad = JSON.parse(span.dataset.productividad || '[]');
-    var participacion = JSON.parse(span.dataset.participacion || '{}');
-    if (Array.isArray(tendencia))    tendencia = {};
-    if (!Array.isArray(productividad)) productividad = [];
-    var dark = window.DASH_DARK;
-    var base = typeof dashBaseOpts !== 'undefined' ? dashBaseOpts(dark) : {};
-
-    // ── Tendencia 12 meses ──
-    const elTend = document.querySelector('#chart-ger-tendencia');
-    if (elTend) {
-        elTend.innerHTML = '';
-        new ApexCharts(elTend, Object.assign({}, base, {
-            chart: Object.assign({}, (base.chart||{}), { type:'area', height:270 }),
-            series: [
-                { name:'Ventas (L.)', data: tendencia.montos || [] },
-                { name:'Facturas',    data: tendencia.facturas || [] },
-            ],
-            xaxis:  { categories: tendencia.labels || [] },
-            yaxis:  [
-                { title: { text: 'L.' }, labels: { formatter: v => lpsK(v) } },
-                { opposite: true, title: { text: 'Facturas' } },
-            ],
-            colors: ['#1ab394', '#f39c12'],
-            stroke: { curve:'smooth', width:[2.5,2] },
-            fill:   { type:['gradient','solid'], gradient:{ opacityFrom:.35, opacityTo:.05 }, opacity:[1,0] },
-            dataLabels: { enabled: false },
-        })).render();
-    }
-
-    // ── Productividad barras ──
-    const elProd = document.querySelector('#chart-ger-productividad');
-    if (elProd && productividad.length) {
-        elProd.innerHTML = '';
-        new ApexCharts(elProd, Object.assign({}, base, {
-            chart: Object.assign({}, (base.chart||{}), { type:'bar', height:260 }),
-            series: [{ name:'Ventas (L.)', data: productividad.map(p => p.venta_total) }],
-            xaxis:  { categories: productividad.map(p => p.vendedor) },
-            yaxis:  { labels: { formatter: v => lpsK(v) } },
-            colors: ['#1ab394'],
-            plotOptions: { bar: { borderRadius:6, horizontal:false } },
-            dataLabels: { enabled: false },
-        })).render();
-    }
-
-    // ── Participación pie ──
-    const elPart = document.querySelector('#chart-ger-participacion');
-    if (elPart && participacion.series && participacion.series.length) {
-        elPart.innerHTML = '';
-        new ApexCharts(elPart, Object.assign({}, base, {
-            chart: Object.assign({}, (base.chart||{}), { type:'donut', height:270 }),
-            series: participacion.series || [],
-            labels: participacion.labels || [],
-            colors: ['#1ab394','#f39c12','#e74c3c','#2980b9','#8e44ad','#27ae60','#e67e22','#c0392b'],
-            legend: { position:'bottom' },
-            tooltip: { y: { formatter: v => lps(v) } },
-            dataLabels: { enabled: true, formatter: (v) => v.toFixed(1) + '%' },
-        })).render();
-    }
-
-}
-(function() {
-    function run() { if (typeof ApexCharts !== 'undefined') initGerenciaCharts(); }
-    if (window.DASH_LOADED) { run(); } else { document.addEventListener('livewire:init', run); }
-    if (!window._gerenciaBound) { window._gerenciaBound = true; document.addEventListener('livewire:update', run); }
-})();
-</script>

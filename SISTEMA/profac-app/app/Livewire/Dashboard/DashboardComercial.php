@@ -7,9 +7,202 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use Carbon\Carbon;
+use App\Http\Controllers\MenuHelper;
+use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Facades\Validator;
+use Livewire\Attributes\Locked;
+use Livewire\WithPagination;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class DashboardComercial extends Component
 {
+    use WithPagination;
+
+    #[Locked]
+    public string $detalleKpi = '';
+
+    public string $buscarDetalle = '';
+    protected $paginationTheme = 'bootstrap';
+
+    public function puedeVerArea(string $area): bool
+    {
+        $roles = match ($area) {
+            'cobros' => [1, 4, 5, 6, 18, 19],
+            'inventario' => [1, 5, 9, 18],
+            'comercial' => [1, 2, 3, 6, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17, 19],
+            default => [],
+        };
+        return auth()->check() && count(array_intersect(auth()->user()->rolesIds(), $roles)) > 0;
+    }
+
+    public function enlaceAnalisis(string $modulo): ?string
+    {
+        $ruta = \App\Livewire\Reportes\AnalisisDeNegocio::MODULOS[$modulo]['ruta'] ?? null;
+        return $ruta && MenuHelper::tieneAcceso('reportes/analisis_de_negocio') && MenuHelper::tieneAcceso($ruta)
+            ? url('reportes/analisis_de_negocio') . '?modulo=' . $modulo : null;
+    }
+
+    public function abrirDetalle(string $tipo): void
+    {
+        abort_unless(in_array($tipo, ['facturas', 'clientes', 'clientes_nuevos', 'inventario', 'poco_movimiento'], true), 422);
+        abort_unless($this->puedeVerArea(in_array($tipo, ['inventario', 'poco_movimiento'], true) ? 'inventario' : 'comercial'), 403);
+        $this->validate([
+            'fechaInicio' => 'required|date_format:Y-m-d',
+            'fechaFin' => 'required|date_format:Y-m-d|after_or_equal:fechaInicio',
+        ]);
+        $this->detalleKpi = $tipo;
+        $this->buscarDetalle = '';
+        $this->resetPage('detallePage');
+    }
+
+    public function cerrarDetalle(): void
+    {
+        $this->detalleKpi = '';
+        $this->buscarDetalle = '';
+    }
+
+    public function updatedBuscarDetalle(): void
+    {
+        $this->resetPage('detallePage');
+    }
+
+    public function updated(string $propiedad): void
+    {
+        if (in_array($propiedad, ['filtroMes', 'filtroAnio', 'fechaInicio', 'fechaFin', 'filtroVendedorId', 'filtroClienteId', 'vistaAdmin'], true)) {
+            $this->cerrarDetalle();
+        }
+    }
+
+    protected function facturasPeriodo(): Builder
+    {
+        $vendedor = in_array((int) auth()->user()->rol_id, [2, 3, 14, 15], true)
+            ? auth()->id() : $this->filtroVendedorId;
+        return DB::table('factura as f')
+            ->where('f.estado_venta_id', 1)
+            ->where('f.fecha_emision', '>=', $this->fechaInicio)
+            ->where('f.fecha_emision', '<', Carbon::parse($this->fechaFin)->addDay()->toDateString())
+            ->when($vendedor, fn ($q) => $q->where('f.vendedor', $vendedor))
+            ->when($this->filtroClienteId, fn ($q) => $q->where('f.cliente_id', $this->filtroClienteId));
+    }
+
+    protected function clientesHistoricos(): Builder
+    {
+        $vendedor = in_array((int) auth()->user()->rol_id, [2, 3, 14, 15], true)
+            ? auth()->id() : $this->filtroVendedorId;
+        return DB::table('cliente as c')
+            ->where('c.created_at', '<', now()->startOfDay()->addDay()->toDateString())
+            ->when($vendedor, fn ($q) => $q->where('c.vendedor', $vendedor))
+            ->when($this->filtroClienteId, fn ($q) => $q->where('c.id', $this->filtroClienteId));
+    }
+
+    protected function ventasHistoricas(): Builder
+    {
+        $vendedor = in_array((int) auth()->user()->rol_id, [2, 3, 14, 15], true)
+            ? auth()->id() : $this->filtroVendedorId;
+        return DB::table('factura as f')
+            ->where('f.estado_venta_id', 1)
+            ->where('f.fecha_emision', '<', now()->startOfDay()->addDay()->toDateString())
+            ->when($vendedor, fn ($q) => $q->where('f.vendedor', $vendedor))
+            ->when($this->filtroClienteId, fn ($q) => $q->where('f.cliente_id', $this->filtroClienteId));
+    }
+
+    public function getKpisGenerales(): array
+    {
+        $clave = 'dashboard_generales_' . auth()->id() . '_' . now()->toDateString()
+            . "_{$this->filtroVendedorId}_{$this->filtroClienteId}";
+        return Cache::remember($clave, 120, function () {
+            $inicioMes = now()->startOfMonth();
+            $inicioAnterior = $inicioMes->copy()->subMonth();
+            $clientesConVentas = $this->ventasHistoricas()
+                ->select('f.cliente_id')->selectRaw('MAX(f.fecha_emision) as ultima_venta')
+                ->selectRaw('SUM(CASE WHEN f.fecha_emision >= ? THEN f.total ELSE 0 END) as actual', [$inicioMes->toDateString()])
+                ->selectRaw('SUM(CASE WHEN f.fecha_emision >= ? AND f.fecha_emision < ? THEN f.total ELSE 0 END) as anterior', [$inicioAnterior->toDateString(), $inicioMes->toDateString()])
+                ->groupBy('f.cliente_id');
+            $atencion = DB::query()->fromSub($clientesConVentas, 'historial')
+                ->where(fn ($q) => $q->where('ultima_venta', '<', now()->startOfDay()->subDays(90)->toDateString())
+                    ->orWhere(fn ($q) => $q->where('anterior', '>', 0)->whereRaw('actual <= anterior * 0.8')))
+                ->count();
+            return [
+                'clientes_act' => $this->ventasHistoricas()->distinct()->count('f.cliente_id'),
+                'clientes_nuevos' => $this->clientesHistoricos()->count(),
+                'requieren_atencion' => $atencion,
+                'poco_movimiento' => $this->puedeVerArea('inventario') ? $this->productosSinVentas()->count() : 0,
+            ];
+        });
+    }
+
+    protected function productosSinVentas(): Builder
+    {
+        return DB::table('producto as p')->where('p.estado_producto_id', 1)
+            ->whereNotExists(function ($q) {
+                $q->selectRaw('1')->from('venta_has_producto as v')
+                    ->join('factura as f', 'f.id', '=', 'v.factura_id')
+                    ->whereColumn('v.producto_id', 'p.id')
+                    ->where('f.estado_venta_id', 1)
+                    ->where('f.fecha_emision', '>=', now()->startOfDay()->subDays(90)->toDateString())
+                    ->where('f.fecha_emision', '<', now()->startOfDay()->addDay()->toDateString());
+            });
+    }
+
+    protected function detalleProductosSinVentas(): Builder
+    {
+        $compras = DB::table('compra_has_producto as cp')->join('compra as co', 'co.id', '=', 'cp.compra_id')
+            ->where('co.estado_compra_id', 1)
+            ->where('co.fecha_emision', '<', now()->startOfDay()->addDay()->toDateString())
+            ->select('cp.producto_id')->selectRaw('MAX(co.fecha_emision) as ultima_compra')->groupBy('cp.producto_id');
+        $existencias = DB::table('recibido_bodega')->select('producto_id')
+            ->selectRaw('SUM(cantidad_disponible) as existencia')->groupBy('producto_id');
+        $ventas = DB::table('venta_has_producto as vp')->join('factura as f', 'f.id', '=', 'vp.factura_id')
+            ->where('f.estado_venta_id', 1)
+            ->where('f.fecha_emision', '<', now()->startOfDay()->addDay()->toDateString())
+            ->select('vp.producto_id')->selectRaw('MAX(f.fecha_emision) as ultima_venta')->groupBy('vp.producto_id');
+        return $this->productosSinVentas()
+            ->leftJoinSub($compras, 'compras', 'compras.producto_id', '=', 'p.id')
+            ->leftJoinSub($existencias, 'existencias', 'existencias.producto_id', '=', 'p.id')
+            ->leftJoinSub($ventas, 'ventas', 'ventas.producto_id', '=', 'p.id')
+            ->select('p.id', 'p.nombre', 'p.codigo_barra', 'compras.ultima_compra', 'ventas.ultima_venta')
+            ->selectRaw('COALESCE(existencias.existencia, 0) as existencia');
+    }
+
+    protected function productosBajoInventario(): Builder
+    {
+        return DB::table('producto as p')->leftJoin('cardex as c', 'c.id_producto', '=', 'p.id')
+            ->where('p.estado_producto_id', 1)
+            ->select('p.id', 'p.nombre', 'p.codigo_barra')
+            ->selectRaw('COALESCE(SUM(c.cantidad), 0) as stock')
+            ->groupBy('p.id', 'p.nombre', 'p.codigo_barra')
+            ->havingRaw('COALESCE(SUM(c.cantidad), 0) >= 0 AND COALESCE(SUM(c.cantidad), 0) < 10');
+    }
+
+    public function consultarDetalle(): LengthAwarePaginator
+    {
+        abort_unless($this->puedeVerArea(in_array($this->detalleKpi, ['inventario', 'poco_movimiento'], true) ? 'inventario' : 'comercial'), 403);
+        $busqueda = trim($this->buscarDetalle);
+        $query = match ($this->detalleKpi) {
+            'facturas' => $this->facturasPeriodo()
+                ->leftJoin('cliente as c', 'c.id', '=', 'f.cliente_id')
+                ->leftJoin('users as u', 'u.id', '=', 'f.vendedor')
+                ->select('f.id', 'f.cai', 'f.fecha_emision', 'f.total', 'c.nombre as cliente', 'u.name as vendedor')
+                ->when($busqueda !== '', fn ($q) => $q->where(fn ($q) => $q->where('f.cai', 'like', "%{$busqueda}%")->orWhere('c.nombre', 'like', "%{$busqueda}%")->orWhere('f.id', 'like', "%{$busqueda}%")))
+                ->orderByDesc('f.fecha_emision')->orderByDesc('f.id'),
+            'clientes', 'clientes_nuevos' => ($this->detalleKpi === 'clientes_nuevos'
+                ? $this->clientesHistoricos()
+                : DB::table('cliente as c')->whereIn('c.id', $this->ventasHistoricas()->select('f.cliente_id')))
+                ->leftJoin('users as u', 'u.id', '=', 'c.vendedor')
+                ->select('c.id', 'c.nombre', 'c.created_at', 'u.name as vendedor')
+                ->when($busqueda !== '', fn ($q) => $q->where(fn ($q) => $q->where('c.nombre', 'like', "%{$busqueda}%")->orWhere('c.id', 'like', "%{$busqueda}%")))
+                ->orderByDesc('c.created_at')->orderByDesc('c.id'),
+            'inventario' => $this->productosBajoInventario()
+                ->when($busqueda !== '', fn ($q) => $q->where(fn ($q) => $q->where('p.nombre', 'like', "%{$busqueda}%")->orWhere('p.codigo_barra', 'like', "%{$busqueda}%")->orWhere('p.id', 'like', "%{$busqueda}%")))
+                ->orderBy('stock')->orderBy('p.id'),
+            'poco_movimiento' => $this->detalleProductosSinVentas()
+                ->when($busqueda !== '', fn ($q) => $q->where(fn ($q) => $q->where('p.nombre', 'like', "%{$busqueda}%")->orWhere('p.codigo_barra', 'like', "%{$busqueda}%")->orWhere('p.id', 'like', "%{$busqueda}%")))
+                ->orderBy('ultima_venta')->orderBy('p.id'),
+            default => abort(422),
+        };
+        return $query->paginate(20, ['*'], 'detallePage');
+    }
+
     // ─── Filtros ────────────────────────────────────────────────────────────
     public int    $filtroMes;
     public int    $filtroAnio;
@@ -35,6 +228,7 @@ class DashboardComercial extends Component
     public bool $darkMode = false;
 
     // Rol del usuario (cacheado en mount)
+    #[Locked]
     public int    $rolId   = 0;
     public string $rolNombre = '';
 
@@ -152,23 +346,35 @@ class DashboardComercial extends Component
     public function render()
     {
         $rolView   = $this->getRolView();
+        $periodoValido = Validator::make([
+            'fechaInicio' => $this->fechaInicio, 'fechaFin' => $this->fechaFin,
+        ], ['fechaInicio' => 'required|date_format:Y-m-d', 'fechaFin' => 'required|date_format:Y-m-d|after_or_equal:fechaInicio'])->passes();
+        if (!$periodoValido) {
+            return view('livewire.dashboard.dashboard-comercial', [
+                'rolView' => $rolView, 'vendedores' => $this->getVendedores(), 'periodoValido' => false,
+            ])->layout('layouts.app', ['title' => 'Dashboard Comercial']);
+        }
+        $this->periodoLabel = Carbon::parse($this->fechaInicio)->format('d/m/Y') . ' al ' . Carbon::parse($this->fechaFin)->format('d/m/Y');
         $vendedores = $this->getVendedores();
 
         // Datos según rol
         $kpis              = $this->getKpis();
+        $kpisGenerales     = $this->getKpisGenerales();
         $topClientes       = $this->getTopClientes();
         $tendencia         = $this->getTendenciaMensual();
         $productividad     = $this->getProductividadVendedores();
         $participacion     = $this->getParticipacionMercado();
         $comparativa       = $this->getComparativaMesAnterior();
-        $kpisCobros        = in_array($this->rolId, [1, 4, 5, 6, 18, 19]) ? $this->getKpisCobros() : [];
-        $kpisInventario    = in_array($this->rolId, [1, 5, 9, 18]) ? $this->getKpisInventario() : [];
+        $kpisCobros        = $this->puedeVerArea('cobros') ? $this->getKpisCobros() : [];
+        $kpisInventario    = $this->puedeVerArea('inventario') ? $this->getKpisInventario() : [];
         $evolucion         = $this->getEvolucionHistorica();
+        $detalleFilas = $this->detalleKpi !== '' ? $this->consultarDetalle() : null;
 
         return view('livewire.dashboard.dashboard-comercial', compact(
             'rolView',
             'vendedores',
             'kpis',
+            'kpisGenerales',
             'topClientes',
             'tendencia',
             'productividad',
@@ -177,6 +383,8 @@ class DashboardComercial extends Component
             'kpisCobros',
             'kpisInventario',
             'evolucion',
+            'periodoValido',
+            'detalleFilas',
         ))->layout('layouts.app', ['title' => 'Dashboard Comercial']);
     }
 
@@ -203,33 +411,18 @@ class DashboardComercial extends Component
         $fi = $this->fechaInicio;
         $ff = $this->fechaFin;
 
-        $cacheKey = "dashboard_kpis_{$fi}_{$ff}_{$this->filtroVendedorId}_{$this->filtroClienteId}";
+        $cacheKey = "dashboard_kpis_v3_" . auth()->id() . "_" . now()->toDateString() . "_{$fi}_{$ff}_{$this->filtroVendedorId}_{$this->filtroClienteId}";
 
         return Cache::remember($cacheKey, 120, function () use ($fi, $ff) {
-            $q = DB::table('factura as f')
-                ->whereBetween('f.fecha_emision', [$fi, $ff])
-                ->where('f.estado_venta_id', 1);
-
-            if ($this->filtroVendedorId) $q->where('f.vendedor', $this->filtroVendedorId);
-            if ($this->filtroClienteId)  $q->where('f.cliente_id', $this->filtroClienteId);
+            $q = $this->facturasPeriodo();
 
             $ventaTotal  = (float) (clone $q)->sum('f.total');
             $numFacturas = (int)   (clone $q)->count();
-            $clientesAct = (int)   (clone $q)->distinct()->count('f.cliente_id');
+            $generales = $this->getKpisGenerales();
+            $clientesAct = $generales['clientes_act'];
             $ticketProm  = $numFacturas > 0 ? round($ventaTotal / $numFacturas, 2) : 0;
 
-            // Clientes nuevos: primer factura en el período
-            $clientesNuevos = (int) DB::table('factura as f')
-                ->where('f.estado_venta_id', 1)
-                ->whereBetween('f.fecha_emision', [$fi, $ff])
-                ->whereNotIn('f.cliente_id', function ($sub) use ($fi) {
-                    $sub->select('cliente_id')
-                        ->from('factura')
-                        ->where('estado_venta_id', 1)
-                        ->where('fecha_emision', '<', $fi);
-                })
-                ->distinct()
-                ->count('f.cliente_id');
+            $clientesNuevos = $generales['clientes_nuevos'];
 
             // Período anterior para variación
             $diasPeriodo = max(1, Carbon::parse($fi)->diffInDays(Carbon::parse($ff)) + 1);
@@ -373,9 +566,11 @@ class DashboardComercial extends Component
         $vendWhere = $this->filtroVendedorId
             ? "AND f.vendedor = {$this->filtroVendedorId}" : '';
 
-        $cacheKey = "dash_tendencia_12m_{$this->filtroVendedorId}";
+        $inicio = Carbon::parse($this->fechaFin)->startOfMonth()->subMonths(11)->toDateString();
+        $fin = Carbon::parse($this->fechaFin)->addDay()->toDateString();
+        $cacheKey = "dash_tendencia_12m_{$this->filtroVendedorId}_{$inicio}_{$fin}";
 
-        return Cache::remember($cacheKey, 300, function () use ($vendWhere) {
+        return Cache::remember($cacheKey, 300, function () use ($vendWhere, $inicio, $fin) {
             $rows = DB::SELECT("
                 SELECT
                     DATE_FORMAT(f.fecha_emision,'%Y-%m') AS periodo,
@@ -387,7 +582,7 @@ class DashboardComercial extends Component
                     COUNT(DISTINCT f.cliente_id)          AS clientes
                 FROM factura f
                 WHERE f.estado_venta_id = 1
-                  AND f.fecha_emision >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
+                  AND f.fecha_emision >= '{$inicio}' AND f.fecha_emision < '{$fin}'
                   {$vendWhere}
                 GROUP BY periodo, mes_nombre, mes_num, anio
                 ORDER BY periodo ASC
@@ -540,7 +735,7 @@ class DashboardComercial extends Component
         $fi  = $this->fechaInicio;
         $ff  = $this->fechaFin;
         $vid = $this->filtroVendedorId;
-        $cacheKey = "dash_cobros_kpis_{$fi}_{$ff}_{$vid}";
+        $cacheKey = "dash_cobros_kpis_v2_{$fi}_{$ff}_{$vid}";
 
         return Cache::remember($cacheKey, 120, function () use ($fi, $ff, $vid) {
 
@@ -571,7 +766,8 @@ class DashboardComercial extends Component
             // ── Total recuperado en el período (abonos_creditos) ──
             $totalRecuperado = (float) DB::table('abonos_creditos')
                 ->where('estado_abono', 1)
-                ->whereBetween('fecha_pago', [$fi, $ff])
+                ->where('fecha_pago', '>=', $fi)
+                ->where('fecha_pago', '<', Carbon::parse($ff)->addDay()->toDateString())
                 ->sum('monto_abonado');
 
             // ── Variación recuperado vs período anterior ──
@@ -579,7 +775,8 @@ class DashboardComercial extends Component
             $ffAnt = Carbon::parse($ff)->subMonth()->toDateString();
             $recuperadoAnt = (float) DB::table('abonos_creditos')
                 ->where('estado_abono', 1)
-                ->whereBetween('fecha_pago', [$fiAnt, $ffAnt])
+                ->where('fecha_pago', '>=', $fiAnt)
+                ->where('fecha_pago', '<', Carbon::parse($ffAnt)->addDay()->toDateString())
                 ->sum('monto_abonado');
             $varRecuperado = $recuperadoAnt > 0
                 ? round((($totalRecuperado - $recuperadoAnt) / $recuperadoAnt) * 100, 1)
@@ -599,7 +796,8 @@ class DashboardComercial extends Component
             $cobrosDiariosRaw = DB::table('abonos_creditos')
                 ->selectRaw('fecha_pago as dia, ROUND(SUM(monto_abonado),2) as monto, COUNT(*) as cantidad')
                 ->where('estado_abono', 1)
-                ->whereBetween('fecha_pago', [$fi, $ff])
+                ->where('fecha_pago', '>=', $fi)
+                ->where('fecha_pago', '<', Carbon::parse($ff)->addDay()->toDateString())
                 ->groupBy('fecha_pago')
                 ->orderBy('fecha_pago')
                 ->get();
@@ -613,12 +811,13 @@ class DashboardComercial extends Component
             $tendLabels = [];
             $tendMontos = [];
             for ($i = 5; $i >= 0; $i--) {
-                $dt = now()->subMonths($i);
+                $dt = Carbon::parse($ff)->startOfMonth()->subMonths($i);
                 $tendLabels[] = $dt->format('M y');
                 $tendMontos[] = (float) DB::table('abonos_creditos')
                     ->where('estado_abono', 1)
                     ->whereYear('fecha_pago', $dt->year)
                     ->whereMonth('fecha_pago', $dt->month)
+                    ->where('fecha_pago', '<', Carbon::parse($ff)->addDay()->toDateString())
                     ->sum('monto_abonado');
             }
             $tendenciaCobros = ['labels' => $tendLabels, 'montos' => $tendMontos];
@@ -762,7 +961,7 @@ class DashboardComercial extends Component
     // ─── KPIs de Inventario ──────────────────────────────────────────────────
     public function getKpisInventario(): array
     {
-        return Cache::remember('dash_inventario_kpis', 300, function () {
+        return Cache::remember('dash_inventario_kpis_v2', 300, function () {
             $totalProductos = (int) DB::table('producto')->where('estado_producto_id', 1)->count();
 
             $sinImagen = (int) DB::table('producto as p')
@@ -771,14 +970,7 @@ class DashboardComercial extends Component
                 ->where('p.estado_producto_id', 1)
                 ->count();
 
-            $bajosStock = (int) DB::select("
-                SELECT COUNT(*) as cnt FROM (
-                    SELECT p.id, COALESCE(SUM(c.cantidad),0) as stock
-                    FROM producto p LEFT JOIN cardex c ON c.id_producto = p.id
-                    WHERE p.estado_producto_id = 1
-                    GROUP BY p.id HAVING stock >= 0 AND stock < 10
-                ) sub
-            ")[0]->cnt;
+            $bajosStock = DB::query()->fromSub($this->productosBajoInventario(), 'bajos')->count();
 
             $sinMovimiento = (int) DB::select("
                 SELECT COUNT(*) as cnt FROM producto p

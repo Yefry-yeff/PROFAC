@@ -5,7 +5,11 @@
 
 {{-- ── KPIs ── --}}
 <div class="dash-kpi-grid">
+    @if($this->enlaceAnalisis('ventas'))
+    <a class="dash-kpi orange dash-kpi-action" href="{{ $this->enlaceAnalisis('ventas') }}">
+    @else
     <div class="dash-kpi orange">
+    @endif
         <div class="dash-kpi-icon"><i class="fa fa-dollar"></i></div>
         <div class="dash-kpi-label">Venta del mes</div>
         <div class="dash-kpi-value">L. {{ number_format($kpis['venta_total'] ?? 0, 2) }}</div>
@@ -19,31 +23,17 @@
                 vs período anterior
             @endif
         </div>
+    @if($this->enlaceAnalisis('ventas'))
+        <span class="dash-kpi-hint">Ver Dashboard BI Ventas <i class="fa fa-arrow-right" aria-hidden="true"></i></span>
+    </a>
+    @else
     </div>
-    <div class="dash-kpi">
-        <div class="dash-kpi-icon"><i class="fa fa-file-text-o"></i></div>
-        <div class="dash-kpi-label">Facturas emitidas</div>
-        <div class="dash-kpi-value">{{ number_format($kpis['num_facturas'] ?? 0) }}</div>
-        <div class="dash-kpi-sub">documentos en el período</div>
-    </div>
-    <div class="dash-kpi green">
-        <div class="dash-kpi-icon"><i class="fa fa-users"></i></div>
-        <div class="dash-kpi-label">Clientes activos</div>
-        <div class="dash-kpi-value">{{ number_format($kpis['clientes_act'] ?? 0) }}</div>
-        <div class="dash-kpi-sub">compraron en el período</div>
-    </div>
-    <div class="dash-kpi blue">
-        <div class="dash-kpi-icon"><i class="fa fa-user-plus"></i></div>
-        <div class="dash-kpi-label">Clientes nuevos</div>
-        <div class="dash-kpi-value">{{ number_format($kpis['clientes_nuevos'] ?? 0) }}</div>
-        <div class="dash-kpi-sub">primera compra este período</div>
-    </div>
-    <div class="dash-kpi">
-        <div class="dash-kpi-icon"><i class="fa fa-line-chart"></i></div>
-        <div class="dash-kpi-label">Ticket promedio</div>
-        <div class="dash-kpi-value">L. {{ number_format($kpis['ticket_prom'] ?? 0, 2) }}</div>
-        <div class="dash-kpi-sub">por factura</div>
-    </div>
+    @endif
+    @include('dashboard.kpi', ['etiqueta' => 'Facturas emitidas', 'icono' => 'fa-file-invoice', 'valor' => number_format($kpis['num_facturas'] ?? 0), 'ayuda' => 'Emitidas en el período', 'accion' => 'facturas', 'color' => '', 'enlace' => null])
+    @include('dashboard.kpi', ['etiqueta' => 'Clientes activos', 'icono' => 'fa-users', 'valor' => number_format($kpis['clientes_act'] ?? 0), 'ayuda' => 'Compraron desde el inicio del sistema hasta hoy', 'accion' => 'clientes', 'color' => 'green', 'enlace' => null])
+    @include('dashboard.kpi', ['etiqueta' => 'Clientes creados', 'icono' => 'fa-user-plus', 'valor' => number_format($kpis['clientes_nuevos'] ?? 0), 'ayuda' => 'Creados desde el inicio del sistema hasta hoy', 'accion' => 'clientes_nuevos', 'color' => 'blue', 'enlace' => null])
+
+    @include('dashboard.kpi-poco-movimiento')
 </div>
 
 {{-- ── Alertas: clientes que requieren atención ── --}}
@@ -79,7 +69,7 @@
             <h5><i class="fa fa-line-chart"></i> Tendencia de Ventas — Últimos 12 meses</h5>
         </div>
         <div class="dash-card-body">
-            <div id="chart-tendencia-vendedor" style="min-height:260px;"></div>
+            <div id="chart-tendencia-vendedor" wire:ignore style="min-height:260px;"></div>
         </div>
     </div>
 
@@ -187,35 +177,3 @@
         </div>
     </div>
 </div>
-
-<script>
-function initVendedorCharts() {
-    var span = document.getElementById('dash-data');
-    if (!span || typeof ApexCharts === 'undefined') return;
-    var tendencia = JSON.parse(span.dataset.tendencia || '{}');
-    if (Array.isArray(tendencia)) tendencia = {};
-    var dark = window.DASH_DARK;
-    var base = typeof dashBaseOpts !== 'undefined' ? dashBaseOpts(dark) : {};
-
-    // Tendencia líneas
-    const elT = document.querySelector('#chart-tendencia-vendedor');
-    if (elT) {
-        elT.innerHTML = '';
-        new ApexCharts(elT, Object.assign({}, baseOpts, {
-            chart: Object.assign({}, (baseOpts.chart||{}), { type:'area', height:260 }),
-            series: [{ name:'Ventas (L.)', data: tendencia.montos || [] }],
-            xaxis:  { categories: tendencia.labels || [] },
-            yaxis:  { labels: { formatter: v => lpsK(v) } },
-            colors: ['#1ab394'],
-            fill:   { type:'gradient', gradient:{ shadeIntensity:1, opacityFrom:.4, opacityTo:.05 } },
-            stroke: { curve:'smooth', width:2.5 },
-            dataLabels: { enabled: false },
-        })).render();
-    }
-}
-(function() {
-    function run() { if (typeof ApexCharts !== 'undefined') initVendedorCharts(); }
-    if (window.DASH_LOADED) { run(); } else { document.addEventListener('livewire:init', run); }
-    if (!window._vendedorBound) { window._vendedorBound = true; document.addEventListener('livewire:update', run); }
-})();
-</script>

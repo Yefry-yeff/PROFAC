@@ -1,4 +1,4 @@
-﻿{{-- ═══════════════════════════════════════════════════════════════
+{{-- ═══════════════════════════════════════════════════════════════
      DASHBOARD — AUXILIAR ADMINISTRATIVO
      Rol: 5 — Inventario + Cartera de cobros (sin ventas totales)
 ═══════════════════════════════════════════════════════════════ --}}
@@ -15,12 +15,7 @@
 
 {{-- ── KPIs Cobros ── --}}
 <div class="dash-kpi-grid" style="margin-bottom:20px;">
-    <div class="dash-kpi red">
-        <div class="dash-kpi-icon"><i class="fa fa-clock-o"></i></div>
-        <div class="dash-kpi-label">Cartera activa</div>
-        <div class="dash-kpi-value">L. {{ number_format($kpisCobros['saldo_pendiente'] ?? 0, 2) }}</div>
-        <div class="dash-kpi-sub">saldo pendiente</div>
-    </div>
+    @include('dashboard.kpi-saldo')
     <div class="dash-kpi orange">
         <div class="dash-kpi-icon"><i class="fa fa-exclamation-triangle"></i></div>
         <div class="dash-kpi-label">Facturas vencidas</div>
@@ -39,6 +34,7 @@
         <div class="dash-kpi-value">{{ number_format($kpisCobros['clientes_morosos'] ?? 0) }}</div>
         <div class="dash-kpi-sub">con saldo vencido</div>
     </div>
+    @include('dashboard.kpi-poco-movimiento')
 </div>
 
 {{-- ── Grid: Tendencia cobros + Antigüedad ── --}}
@@ -49,7 +45,7 @@
             <h5><i class="fa fa-area-chart"></i> Tendencia de Cobros — 6 meses</h5>
         </div>
         <div class="dash-card-body">
-            <div id="chart-auxadm-tendencia-cobros" style="min-height:260px;"></div>
+            <div id="chart-auxadm-tendencia-cobros" wire:ignore style="min-height:260px;"></div>
         </div>
     </div>
 
@@ -58,7 +54,7 @@
             <h5><i class="fa fa-pie-chart"></i> Antigüedad de Cartera</h5>
         </div>
         <div class="dash-card-body">
-            <div id="chart-auxadm-antiguedad" style="min-height:260px;"></div>
+            <div id="chart-auxadm-antiguedad" wire:ignore style="min-height:260px;"></div>
         </div>
     </div>
 
@@ -91,51 +87,3 @@
         </div>
     </div>
 </div>
-
-<script>
-function initAuxAdmCharts() {
-    var span = document.getElementById('dash-data');
-    if (!span || typeof ApexCharts === 'undefined') return;
-    var cobros = JSON.parse(span.dataset.cobros || '{}');
-    if (Array.isArray(cobros)) cobros = {};
-    var dark   = window.DASH_DARK;
-    var base   = typeof dashBaseOpts !== 'undefined' ? dashBaseOpts(dark) : {};
-
-    // Tendencia cobros
-    const elT = document.querySelector('#chart-auxadm-tendencia-cobros');
-    if (elT && cobros.tendencia_cobros) {
-        elT.innerHTML = '';
-        new ApexCharts(elT, Object.assign({}, base, {
-            chart:  Object.assign({}, (base.chart||{}), { type:'area', height:260 }),
-            series: [{ name:'Cobrado (L.)', data: cobros.tendencia_cobros.montos || [] }],
-            xaxis:  { categories: cobros.tendencia_cobros.labels || [] },
-            yaxis:  { labels: { formatter: v => lpsK(v) } },
-            colors: ['#1ab394'],
-            stroke: { curve:'smooth', width:2.5 },
-            fill:   { type:'gradient', gradient:{ opacityFrom:.35, opacityTo:.05 } },
-            dataLabels: { enabled: false },
-        })).render();
-    }
-
-    // Antigüedad donut
-    const elA = document.querySelector('#chart-auxadm-antiguedad');
-    if (elA && cobros.antiguedad) {
-        elA.innerHTML = '';
-        const ag = cobros.antiguedad;
-        new ApexCharts(elA, Object.assign({}, base, {
-            chart:  Object.assign({}, (base.chart||{}), { type:'donut', height:260 }),
-            series: [ag.al_dia||0, ag['0_30']||0, ag['31_60']||0, ag['61_90']||0, ag['90_mas']||0],
-            labels: ['Al día','0-30 días','31-60 días','61-90 días','+90 días'],
-            colors: ['#1ab394','#f39c12','#e67e22','#e74c3c','#8e44ad'],
-            legend: { position:'bottom' },
-            tooltip: { y: { formatter: v => lps(v) } },
-            dataLabels: { enabled: true, formatter: v => v.toFixed(1)+'%' },
-        })).render();
-    }
-}
-(function() {
-    function run() { if (typeof ApexCharts !== 'undefined') initAuxAdmCharts(); }
-    if (window.DASH_LOADED) { run(); } else { document.addEventListener('livewire:init', run); }
-    if (!window._auxAdmBound) { window._auxAdmBound = true; document.addEventListener('livewire:update', run); }
-})();
-</script>
