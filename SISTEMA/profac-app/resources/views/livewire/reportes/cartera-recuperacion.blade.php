@@ -93,6 +93,56 @@
                 </div>
             </div>
         </div>
+        <div class="row mt-4">
+            @foreach(['gestor' => 'Gestores de entrega', 'teleasesor' => 'Teleasesores', 'usuario' => 'Usuarios que registran abonos'] as $dimension => $tituloGrafico)
+                @php
+                    $gruposGrafico = $recuperacion['grupos'][$dimension];
+                    $escalaGrafico = max(1, $gruposGrafico->max('actual'), $gruposGrafico->max('anterior'));
+                @endphp
+                <div class="col-xl-4 mb-3">
+                    <div class="cb-panel cb-recovery-chart" id="cb-grafico-{{ $dimension }}">
+                        <h4 class="font-weight-bold">Recaudación por {{ mb_strtolower($tituloGrafico) }}</h4>
+                        <p class="cb-muted">Todos los registros. Clic en una persona para filtrar; clic nuevamente para quitar la selección.</p>
+                        <div class="small mb-2">
+                            <span class="cb-series-key" style="background:#f39c12"></span> A · {{ $a['inicio'] }} a {{ $a['fin'] }}<br>
+                            <span class="cb-series-key" style="background:#1ab394"></span> B · {{ $b['inicio'] }} a {{ $b['fin'] }}
+                        </div>
+                        <p class="cb-muted">Porcentajes de participación sobre la recaudación total de cada período, no tasas de recuperación.</p>
+                        <button type="button" class="btn btn-sm btn-outline-secondary mb-2" wire:click="descargar('recuperacion-{{ $dimension }}')">Excel · datos del gráfico</button>
+                        <div class="cb-scroll">
+                            @forelse($gruposGrafico as $g)
+                                @php
+                                    $participacionA = $a['cobrado'] > 0 ? number_format($g['actual'] * 100 / $a['cobrado'], 2) . '%' : 'Sin base';
+                                    $participacionB = $b['cobrado'] > 0 ? number_format($g['anterior'] * 100 / $b['cobrado'], 2) . '%' : 'Sin base';
+                                @endphp
+                                <button type="button" class="cb-bar cb-recovery-person {{ $this->$dimension === $g['id'] ? 'cb-active' : '' }}"
+                                    wire:key="grafico-{{ $dimension }}-{{ $g['id'] }}"
+                                    wire:click="seleccionar('{{ $dimension }}', '{{ $g['id'] }}')"
+                                    aria-pressed="{{ $this->$dimension === $g['id'] ? 'true' : 'false' }}">
+                                    <strong class="d-block">{{ $g['nombre'] }}</strong>
+                                    <svg class="cb-recovery-bars" viewBox="0 0 300 44" preserveAspectRatio="none" aria-hidden="true">
+                                        <rect x="0" y="3" width="300" height="14" rx="3" fill="#edf1f7"/>
+                                        <rect x="0" y="3" width="{{ $g['actual'] * 300 / $escalaGrafico }}" height="14" rx="3" fill="#f39c12"/>
+                                        <rect x="0" y="25" width="300" height="14" rx="3" fill="#edf1f7"/>
+                                        <rect x="0" y="25" width="{{ $g['anterior'] * 300 / $escalaGrafico }}" height="14" rx="3" fill="#1ab394"/>
+                                    </svg>
+                                    <span class="small d-block">A: {{ $dinero($g['actual']) }} · {{ $participacionA }}</span>
+                                    <span class="small d-block">B: {{ $dinero($g['anterior']) }} · {{ $participacionB }}</span>
+                                    <span class="cb-person-tooltip" role="tooltip">
+                                        <strong>{{ $g['nombre'] }}</strong><br>
+                                        A: {{ $dinero($g['actual']) }} · {{ $participacionA }}<br>
+                                        B: {{ $dinero($g['anterior']) }} · {{ $participacionB }}<br>
+                                        Diferencia A − B: {{ $dinero($g['diferencia']) }}
+                                    </span>
+                                </button>
+                            @empty
+                                <p class="cb-muted">Sin registros para los períodos y filtros seleccionados.</p>
+                            @endforelse
+                        </div>
+                    </div>
+                </div>
+            @endforeach
+        </div>
         @foreach(['cliente' => 'Clientes', 'asesor' => 'Asesores comerciales', 'teleasesor' => 'Teleasesores', 'gestor' => 'Gestores de entrega', 'usuario' => 'Usuarios que registraron abonos'] as $campo => $nombre)
             <div class="mt-4">
                 <div class="d-flex justify-content-between flex-wrap">

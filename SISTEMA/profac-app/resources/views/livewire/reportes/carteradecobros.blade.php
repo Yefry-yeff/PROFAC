@@ -49,6 +49,11 @@
         .cartera-bi .cb-filter-options { max-height:240px; overflow:auto; }
         .cartera-bi .cb-filter-option { display:block; width:100%; text-align:left; background:white; border:0; border-radius:4px; padding:8px; color:inherit; }
         .cartera-bi .cb-filter-option:hover,.cartera-bi .cb-selected { background:#fff3e0; }
+        .cartera-bi .cb-series-key { display:inline-block; width:12px; height:12px; border-radius:3px; margin-right:4px; }
+        .cartera-bi .cb-recovery-bars { display:block; width:100%; height:44px; margin:5px 0; }
+        .cartera-bi .cb-recovery-person { position:relative; border-bottom:1px solid #edf1f7; }
+        .cartera-bi .cb-person-tooltip { display:none; position:absolute; top:0; right:0; max-width:100%; padding:10px; border-radius:8px; background:#26354b; color:white; pointer-events:none; z-index:4; font-size:12px; box-shadow:0 3px 12px #172e5026; }
+        .cartera-bi .cb-recovery-person:hover .cb-person-tooltip,.cartera-bi .cb-recovery-person:focus-visible .cb-person-tooltip { display:block; }
     </style>
 
     <div class="cb-hero mb-3 d-flex flex-wrap justify-content-between align-items-center">

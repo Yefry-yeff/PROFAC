@@ -321,6 +321,31 @@ class CarteraDeCobrosTest extends TestCase
         }
     }
 
+    public function test_responsible_comparison_charts_show_both_periods_and_cross_filter(): void
+    {
+        $this->factura(1, [], '60');
+        $this->factura(2, ['cliente_id' => 2, 'users_id' => 1, 'gestor_entrega' => 2], '80');
+        DB::table('abonos_creditos')->insert([
+            ['factura_id' => 1, 'monto_abonado' => 40, 'fecha_pago' => '2026-11-01', 'usr_registro' => 1],
+            ['factura_id' => 2, 'monto_abonado' => 20, 'fecha_pago' => '2026-11-01', 'usr_registro' => 2],
+            ['factura_id' => 1, 'monto_abonado' => 10, 'fecha_pago' => '2026-10-01', 'usr_registro' => 1],
+        ]);
+        Livewire::test(CarteraDeCobros::class)
+            ->assertSeeHtml('id="cb-grafico-gestor"')
+            ->assertSeeHtml('id="cb-grafico-teleasesor"')
+            ->assertSeeHtml('id="cb-grafico-usuario"')
+            ->assertSee('66.67%')->assertSee('33.33%')->assertSee('100.00%')
+            ->call('seleccionar', 'gestor', '3')
+            ->assertViewHas('recuperacion', fn ($r) => $r['comparacion'][0]['cobrado'] === 4000
+                && $r['grupos']['usuario']->count() === 1 && $r['grupos']['teleasesor']->count() === 1)
+            ->call('seleccionar', 'gestor', '3')
+            ->assertViewHas('recuperacion', fn ($r) => $r['comparacion'][0]['cobrado'] === 6000)
+            ->call('seleccionar', 'usuario', '2')
+            ->assertViewHas('recuperacion', fn ($r) => $r['comparacion'][0]['cobrado'] === 2000
+                && $r['comparacion'][1]['cobrado'] === 0)
+            ->assertSee('Sin base');
+    }
+
     public function test_invalid_or_future_months_block_recovery_and_exports(): void
     {
         Livewire::test(CarteraDeCobros::class)
