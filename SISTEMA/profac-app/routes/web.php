@@ -1728,5 +1728,13 @@ Route::post('/reporte/ventas-cobros/actualizar-f01/{facturaId}',                
     // Ruta auto-generada para: CuentasPorCobrar\PagosNoIdentificados
     Route::get('/cuentas_por_cobrar/pagos_no_identificados', \App\Livewire\CuentasPorCobrar\PagosNoIdentificados::class);
 
+
+    // Ruta auto-generada para: Reportes\CarteraDeCobros
+    Route::get('/reportes/cartera_de_cobros', \App\Livewire\Reportes\CarteraDeCobros::class);
+
+
+    // Ruta auto-generada para: Reportes\AnalisisDeNegocio
+    Route::get('/reportes/analisis_de_negocio', \App\Livewire\Reportes\AnalisisDeNegocio::class);
+
     // [auto-routes-anchor]
 });
