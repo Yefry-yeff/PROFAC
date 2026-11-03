@@ -62,8 +62,10 @@ class LitsadoFacturasEstatalVendedor extends Component
         order by factura.created_at desc
             ");
 
+            $saldosCorreo = app(\App\Services\SaldoCobro::class)->pendientes()
+                ->whereIn('f.id', collect($listaFacturas)->pluck('id'))->pluck('saldo', 'f.id');
             return Datatables::of($listaFacturas)
-            ->addColumn('opciones', function ($listaFacturas) {
+            ->addColumn('opciones', function ($listaFacturas) use ($saldosCorreo) {
 
                 if($listaFacturas->estado_venta_id==2){
                     return
@@ -104,8 +106,7 @@ class LitsadoFacturasEstatalVendedor extends Component
                             <a class="dropdown-item" target="_blank"  href="/factura/cooporativo/'.$listaFacturas->id.'"> <i class="fa-solid fa-print text-info"></i> Imprimir Factura </a>
                             </li>
 
-
-
+                            '.app(\App\Services\SaldoCobro::class)->opcionFactura((int) $listaFacturas->id, $saldosCorreo->has($listaFacturas->id)).'
                         </ul>
                     </div>';
                 }

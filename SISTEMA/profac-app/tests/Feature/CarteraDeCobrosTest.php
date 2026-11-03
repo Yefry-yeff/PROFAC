@@ -16,6 +16,9 @@ use App\Livewire\Ventas\FacturacionCorporativa;
 use Illuminate\Support\Facades\Mail;
 use Mockery\MockInterface;
 use Symfony\Component\Mailer\Exception\TransportException;
+use App\Livewire\CuentasPorCobrar\CorreoCobro;
+use App\Livewire\CuentasPorCobrar\EstadoCuentaVendedor;
+use App\Services\SaldoCobro;
 
 class CarteraDeCobrosTest extends TestCase
 {
@@ -45,6 +48,8 @@ class CarteraDeCobrosTest extends TestCase
         Schema::create('rol_submenu', function (Blueprint $t) { $t->integer('rol_id'); $t->integer('sub_menu_id'); });
         Schema::create('cliente', function (Blueprint $t) { $t->id(); $t->string('nombre'); $t->string('correo')->nullable(); });
         Schema::create('banco', function (Blueprint $t) { $t->id(); $t->string('nombre'); $t->string('cuenta')->nullable(); });
+        Schema::create('cliente_usuario', function (Blueprint $t) { $t->integer('cliente_id'); $t->integer('usuario_id'); $t->integer('rol_id'); });
+        Schema::create('pago_venta', function (Blueprint $t) { $t->id(); $t->integer('factura_id'); $t->integer('estado_venta_id'); $t->decimal('monto', 12, 2); });
         Schema::create('factura', function (Blueprint $t) {
             $t->id(); $t->integer('cliente_id'); $t->string('cai'); $t->integer('numero_secuencia_cai');
             $t->date('fecha_emision')->nullable(); $t->date('fecha_vencimiento')->nullable();
@@ -285,11 +290,107 @@ class CarteraDeCobrosTest extends TestCase
         Mail::assertSentCount(1);
     }
 
+    private function autorizarNuevosCorreos(): void
+    {
+        foreach (['facturas/todos', 'estado_cuenta/vendedor'] as $i => $ruta) {
+            DB::table('sub_menu')->insert(['id' => $i + 2, 'url' => $ruta]);
+            DB::table('usuario_submenu')->insert(['usuario_id' => 1, 'sub_menu_id' => $i + 2, 'permitido' => true]);
+        }
+        DB::table('cliente_usuario')->insert(['cliente_id' => 1, 'usuario_id' => 1, 'rol_id' => 2]);
+    }
+
+    public function test_invoice_list_mail_reuses_confirmation_and_rechecks_pending_balance_before_sending(): void
+    {
+        $this->prepararPruebaCorreo();
+        $this->autorizarNuevosCorreos();
+        $componente = Livewire::test(CorreoFacturaTesting::class)->call('abrir', 'factura', 1)
+            ->assertSee('Enviar factura por correo')->assertSet('correoFactura', 'cliente@example.test')
+            ->set('correoFactura', 'nuevo@example.test')->set('correoCorrecto', true)->call('solicitarEnvioFactura')
+            ->assertSet('etapaCorreo', 'actualizar')->call('enviarCorreoFactura', false)->assertSet('correoEnviado', true);
+        Mail::assertSent(FacturaCobro::class, fn ($mail) => !$mail->estadoCuenta && $mail->saldoCentavos === 11000);
+        $componente->call('cerrar')->assertSet('facturaDetalleId', null);
+        DB::table('aplicacion_pagos')->update(['estado_cerrado' => 2]);
+        Livewire::test(CorreoFacturaTesting::class)->call('abrir', 'factura', 1)->assertStatus(422);
+        Mail::assertSentCount(1);
+    }
+
+    public function test_statement_mail_attaches_existing_complete_pdf_and_uses_customer_total(): void
+    {
+        $this->prepararPruebaCorreo();
+        $this->autorizarNuevosCorreos();
+        $this->factura(2, [], '40');
+        $this->mock(EstadoCuentaVendedor::class, function (MockInterface $mock) {
+            $mock->shouldReceive('imprimirEstadoCuenta')->with(1)->once()->andReturn(response('%PDF-1.7 estado completo'));
+        });
+        Livewire::test(CorreoEstadoTesting::class)->call('abrir', 'estado', 1)
+            ->assertSee('Enviar estado de cuenta por correo')
+            ->set('correoFactura', 'estado@example.test')->set('correoCorrecto', true)->call('solicitarEnvioFactura')
+            ->call('enviarCorreoFactura', true)->assertSet('correoEnviado', true)
+            ->assertSee('Estado de cuenta enviado a estado@example.test.');
+        Mail::assertSent(FacturaCobro::class, function ($mail) {
+            $html = $mail->render();
+            $this->assertSame('%PDF-1.7 estado completo', $mail->rawAttachments[0]['data']);
+            $this->assertStringContainsString('estado de cuenta completo', $html);
+            $this->assertStringContainsString('L 150.00', $html);
+            return $mail->estadoCuenta && $mail->hasTo('estado@example.test') && $mail->saldoCentavos === 15000;
+        });
+        $this->assertSame('estado@example.test', DB::table('cliente')->where('id', 1)->value('correo'));
+    }
+
+    public function test_new_document_email_respects_page_permission_and_salesperson_customer_scope(): void
+    {
+        $this->prepararPruebaCorreo();
+        $this->autorizarNuevosCorreos();
+        $this->factura(2, ['cliente_id' => 2, 'vendedor' => 2, 'users_id' => 2, 'gestor_entrega' => 2]);
+        Livewire::test(CorreoFacturaTesting::class)->call('abrir', 'factura', 2)->assertForbidden();
+        Livewire::test(CorreoEstadoTesting::class)->call('abrir', 'estado', 2)->assertForbidden();
+        $componente = Livewire::test(CorreoEstadoTesting::class)->call('abrir', 'estado', 1)->set('correoCorrecto', true);
+        DB::table('usuario_submenu')->where('usuario_id', 1)->where('sub_menu_id', 3)->update(['permitido' => false]);
+        $componente->call('solicitarEnvioFactura')->assertForbidden();
+        Mail::assertNothingSent();
+    }
+
+    public function test_pending_email_option_uses_latest_balance_excludes_paid_closed_and_inactive_invoices(): void
+    {
+        $this->factura(1, [], null);
+        $this->factura(2, [], null);
+        DB::table('pago_venta')->insert(['factura_id' => 2, 'estado_venta_id' => 1, 'monto' => 100]);
+        $this->factura(3, [], '80');
+        DB::table('aplicacion_pagos')->insert(['factura_id' => 3, 'saldo' => 0, 'total_factura_cargo' => 100, 'estado' => 1]);
+        $this->factura(4, [], '30', ['estado_cerrado' => 2]);
+        $this->factura(5, ['estado_venta_id' => 2]);
+        $this->factura(6, ['tipo_venta_id' => 3, 'sub_total' => 80, 'total' => 92], null);
+        $servicio = app(SaldoCobro::class);
+        $saldos = $servicio->pendientes()->pluck('saldo', 'f.id');
+        $this->assertSame([1, 6], $saldos->keys()->all());
+        $this->assertEquals(80, $saldos[6]);
+        $this->assertStringContainsString('Enviar factura por correo', $servicio->opcionFactura(1, true));
+        $this->assertSame('', $servicio->opcionFactura(2, false));
+    }
+
+    public function test_all_invoice_page_alias_preserves_catalog_permissions_and_pending_invoice_is_rechecked(): void
+    {
+        $this->prepararPruebaCorreo();
+        DB::table('sub_menu')->insert(['id' => 2, 'url' => 'facturas/estatal']);
+        DB::table('usuario_submenu')->insert(['usuario_id' => 1, 'sub_menu_id' => 2, 'permitido' => true]);
+        $componente = Livewire::test(CorreoFacturaTesting::class)->call('abrir', 'factura', 1)
+            ->set('correoFactura', 'nuevo@example.test')->set('correoCorrecto', true)
+            ->call('solicitarEnvioFactura');
+        DB::table('aplicacion_pagos')->update(['estado_cerrado' => 2]);
+        $componente->call('enviarCorreoFactura', true)->assertNotFound();
+        Mail::assertNothingSent();
+        $this->assertSame('cliente@example.test', DB::table('cliente')->where('id', 1)->value('correo'));
+        DB::table('aplicacion_pagos')->update(['estado_cerrado' => null]);
+        DB::table('usuario_submenu')->where('sub_menu_id', 2)->update(['permitido' => false]);
+        Livewire::test(CorreoFacturaTesting::class)->call('abrir', 'factura', 1)->assertForbidden();
+    }
+
     public function test_aging_boundaries_missing_dates_and_weighted_mora_are_exact(): void
     {
         foreach ([0, 1, 30, 31, 60, 61, 90, 91, 180, 181] as $i => $dias) {
             $this->factura($i + 1, ['fecha_vencimiento' => CarbonImmutable::today()->subDays($dias)->toDateString()]);
         }
+
         $this->factura(11, ['fecha_vencimiento' => null, 'vendedor' => null]);
         Livewire::test(CarteraDeCobros::class)
             ->assertViewHas('metricas', fn ($m) => $m['total'] === 110000 && $m['vencido'] === 90000
@@ -637,5 +738,23 @@ class CarteraDeCobrosTest extends TestCase
             ->set('mesA', '2026-10')->assertHasNoErrors()
             ->set('mesB', '2026-12')->assertHasErrors('mesB')
             ->call('descargar')->assertNoFileDownloaded();
+    }
+}
+
+class CorreoFacturaTesting extends CorreoCobro
+{
+    public function mount(): void
+    {
+        $this->origen = 'facturas/todos';
+        $this->tipoDocumento = 'factura';
+    }
+}
+
+class CorreoEstadoTesting extends CorreoCobro
+{
+    public function mount(): void
+    {
+        $this->origen = 'estado_cuenta/vendedor';
+        $this->tipoDocumento = 'estado';
     }
 }

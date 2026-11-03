@@ -420,6 +420,7 @@
         </div>
     </div>
 
+    @livewire('cuentas-por-cobrar.correo-cobro')
     @push('scripts')
         <script>
             // ── Configuración por tipo ───────────────────────────────────────

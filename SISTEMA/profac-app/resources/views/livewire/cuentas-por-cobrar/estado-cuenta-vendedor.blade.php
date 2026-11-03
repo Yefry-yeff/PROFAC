@@ -335,6 +335,9 @@
                 <button type="button" class="ec-btn-pdf-main d-none" id="ecBtnPdf" onclick="ecVerPdf()">
                     <i class="fa fa-file-pdf-o"></i> Estado de Cuenta PDF
                 </button>
+                <button type="button" class="ec-btn-pdf-main d-none" id="ecBtnCorreo" onclick="Livewire.dispatch('abrirCorreoCobro', {tipo: 'estado', id: Number($('#ecCliente').val())})">
+                    <i class="fa fa-envelope"></i> Enviar estado de cuenta por correo
+                </button>
             </div>
         </div>
     </div>
@@ -476,6 +479,7 @@
         <p>Seleccione un cliente para ver su estado de cuenta.</p>
     </div>
 
+    @livewire('cuentas-por-cobrar.correo-cobro')
 </div>
 
 @push('scripts')
@@ -584,7 +588,7 @@ function ecCargarDatos() {
     $('#ecEmptyState').hide();
     $('#ecTabsContainer').show();
     $('#ecStats').removeClass('d-none');
-    $('#ecBtnPdf').removeClass('d-none');
+    $('#ecBtnPdf, #ecBtnCorreo').removeClass('d-none');
     $('#ecClienteNombre, #ecMovClienteNombre, #ecAbonosClienteNombre').text(clienteTxt);
     window._ecClienteId = clienteId;
 

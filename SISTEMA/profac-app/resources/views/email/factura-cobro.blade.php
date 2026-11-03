@@ -6,7 +6,11 @@
         <h2 style="color:#a65a0e;">Recordatorio de pago</h2>
         <p>Estimado(a) {{ $cliente }}:</p>
         <p>Reciba un cordial saludo de Distribuciones Valencia. Como parte del seguimiento de su cuenta,
-            se adjunta en PDF la factura número <strong>{{ $numeroFactura }}</strong>,
+            @if($estadoCuenta)
+                se adjunta en PDF su estado de cuenta completo,
+            @else
+                se adjunta en PDF la factura número <strong>{{ $numeroFactura }}</strong>,
+            @endif
             con un saldo pendiente de <strong>L {{ number_format($saldoCentavos / 100, 2) }}</strong>
             al {{ now()->format('d/m/Y') }}.</p>
         <p>Agradeceremos su apoyo para programar el pago de este saldo. Si ya realizó el pago,

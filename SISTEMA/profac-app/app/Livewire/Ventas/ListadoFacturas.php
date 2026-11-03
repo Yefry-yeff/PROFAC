@@ -134,9 +134,11 @@ class ListadoFacturas extends Component
 
 
             $puedeAnular = in_array((int) Auth::user()->rol_id, self::ADMIN_ROLES, true);
+            $saldosCorreo = app(\App\Services\SaldoCobro::class)->pendientes()
+                ->whereIn('f.id', collect($listaFacturas)->pluck('id'))->pluck('saldo', 'f.id');
 
             return Datatables::of($listaFacturas)
-            ->addColumn('opciones', function ($listaFacturas) use ($puedeAnular) {
+            ->addColumn('opciones', function ($listaFacturas) use ($puedeAnular, $saldosCorreo) {
 
                 $opcionAnular = $puedeAnular
                     ? '<li><a class="dropdown-item" onclick="anularVentaConfirmar('.$listaFacturas->id.')" > <i class="fa-solid fa-ban text-danger"></i> Anular Factura </a></li>'
@@ -172,6 +174,7 @@ class ListadoFacturas extends Component
                                 <a class="dropdown-item" href="/crear/vale/'.$listaFacturas->id.'" > <i class="fa-solid fa-calendar-days text-success"></i> Agendar Entrega </a>
                             </li>
 
+                            '.app(\App\Services\SaldoCobro::class)->opcionFactura((int) $listaFacturas->id, $saldosCorreo->has($listaFacturas->id)).'
                             '.$opcionAnular.'
 
 
@@ -352,6 +355,8 @@ class ListadoFacturas extends Component
                     'f.estado_venta_id',
                     DB::raw('f.created_at                                                            AS fecha_registro'),
                 ])
+                ->addSelect(['pendiente_correo' => DB::query()->fromSub(app(\App\Services\SaldoCobro::class)->pendientes(), 'correo_pendiente')
+                    ->selectRaw('1')->whereColumn('correo_pendiente.id', 'f.id')->limit(1)])
                 ->where('f.fecha_emision', '>=', DB::raw("DATE_SUB(CURDATE(), INTERVAL 2 YEAR)"))
                 ->where('f.estado_venta_id',  '<>', 2)
                 ->whereIn('f.tipo_venta_id', [1, 2, 3]);
@@ -389,6 +394,7 @@ class ListadoFacturas extends Component
                     $q->where('u.name', 'LIKE', "%{$keyword}%");
                 })
                 ->addColumn('opciones', function ($row) use ($esAdmin) {
+                    $pendienteCorreo = (int) $row->pendiente_correo === 1;
                     $opcionAnular = $esAdmin
                         ? '<li><a class="dropdown-item" onclick="anularVentaConfirmar('.$row->id.')"><i class="fa-solid fa-ban text-danger"></i> Anular Factura</a></li>'
                         : '';
@@ -401,6 +407,7 @@ class ListadoFacturas extends Component
                             <li><a class="dropdown-item" target="_blank" href="/factura/cooporativoCopia/'.$row->id.'"><i class="fa-solid fa-print text-info"></i> Imprimir Factura Copia</a></li>
                             <li><a class="dropdown-item" target="_blank" href="/facturaCoor/actaRec/'.$row->id.'"><i class="fa-solid fa-print text-info"></i> Imprimir Acta de Recepción</a></li>
                             <li><a class="dropdown-item" href="/crear/vale/'.$row->id.'"><i class="fa-solid fa-calendar-days text-success"></i> Agendar Entrega</a></li>
+                            '.app(\App\Services\SaldoCobro::class)->opcionFactura((int) $row->id, $pendienteCorreo).'
                             '.$opcionAnular.'
                         </ul>
                     </div>';

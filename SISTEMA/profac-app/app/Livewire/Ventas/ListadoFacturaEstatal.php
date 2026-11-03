@@ -128,9 +128,11 @@ class ListadoFacturaEstatal extends Component
             }
 
             $puedeAnular = in_array((int) Auth::user()->rol_id, self::ADMIN_ROLES, true);
+            $saldosCorreo = app(\App\Services\SaldoCobro::class)->pendientes()
+                ->whereIn('f.id', collect($listaFacturas)->pluck('id'))->pluck('saldo', 'f.id');
 
             return Datatables::of($listaFacturas)
-            ->addColumn('opciones', function ($listaFacturas) use ($puedeAnular) {
+            ->addColumn('opciones', function ($listaFacturas) use ($puedeAnular, $saldosCorreo) {
                 $opcionAnular = $puedeAnular
                     ? '<li><a class="dropdown-item" onclick="anularVentaConfirmar('.$listaFacturas->id.')" > <i class="fa-solid fa-ban text-danger"></i> Anular Factura </a></li>'
                     : '';
@@ -186,6 +188,7 @@ class ListadoFacturaEstatal extends Component
                              <a class="dropdown-item" href="/crear/vale/'.$listaFacturas->id.'" > <i class="fa-solid fa-calendar-days text-success"></i> Agendar Entrega </a>
                              </li>
 
+                             '.app(\App\Services\SaldoCobro::class)->opcionFactura((int) $listaFacturas->id, $saldosCorreo->has($listaFacturas->id)).'
                              '.$opcionAnular.'
 
 

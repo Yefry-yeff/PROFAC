@@ -15,6 +15,7 @@ class FacturaCobro extends Mailable
         public int $saldoCentavos,
         public Collection $bancos,
         private string $pdf,
+        public bool $estadoCuenta = false,
     ) {}
 
     public function build(): self
@@ -23,8 +24,8 @@ class FacturaCobro extends Mailable
 
         return $this->from(self::REMITENTE, 'Cobros - Distribuciones Valencia')
             ->replyTo(self::REMITENTE, 'Cobros - Distribuciones Valencia')
-            ->subject('Recordatorio de pago - Factura ' . $this->numeroFactura)
+            ->subject($this->estadoCuenta ? 'Estado de cuenta - ' . $this->cliente : 'Recordatorio de pago - Factura ' . $this->numeroFactura)
             ->view('email.factura-cobro')
-            ->attachData($this->pdf, 'Factura-' . $archivo . '.pdf', ['mime' => 'application/pdf']);
+            ->attachData($this->pdf, ($this->estadoCuenta ? 'Estado-Cuenta-' : 'Factura-') . $archivo . '.pdf', ['mime' => 'application/pdf']);
     }
 }
