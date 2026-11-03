@@ -14,6 +14,8 @@ class ClienteDocumento extends Model
     ];
 
     public static $tipos = [
+        'solicitud_credito'       => 'Solicitud de Crédito',
+        'condiciones_credito'     => 'Condiciones de Crédito',
         'escritura_empresa'       => 'Escritura de la Empresa',
         'dni_representante'       => 'DNI del Representante Legal',
         'rtn'                     => 'RTN',

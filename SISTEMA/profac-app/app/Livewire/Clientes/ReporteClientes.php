@@ -45,15 +45,14 @@ class ReporteClientes extends Component
             c.id                                                   AS codigo,
 
             /* SOLICITUD DE CREDITO */
-            CASE WHEN cc.id IS NOT NULL AND cc.credito_activo=1 THEN 'X' ELSE 'SOLICITAR' END
-                                                                   AS solicitud_credito,
+            CASE WHEN d_solicitud.id IS NOT NULL THEN 'X'
+                 WHEN f_solicitud.tipo_documento IS NOT NULL THEN 'FISICO'
+                 ELSE 'SOLICITAR' END                              AS solicitud_credito,
 
             /* CONDICIONES DE CREDITO */
-            CASE
-                WHEN cc.id IS NOT NULL AND cc.credito_activo=1 THEN 'X'
-                WHEN cc.id IS NOT NULL AND cc.credito_activo=0 THEN 'SOLICITAR'
-                ELSE 'N/A'
-            END                                                    AS condiciones_credito,
+            CASE WHEN d_condiciones.id IS NOT NULL THEN 'X'
+                 WHEN f_condiciones.tipo_documento IS NOT NULL THEN 'FISICO'
+                 ELSE 'SOLICITAR' END                              AS condiciones_credito,
 
             /* DOCUMENTOS */
             CASE WHEN d_escritura.id IS NOT NULL THEN 'X'
@@ -138,6 +137,10 @@ class ReporteClientes extends Component
         LEFT JOIN cliente_credito cc  ON cc.cliente_id    = c.id AND cc.activo = 1
         LEFT JOIN users u_cred        ON u_cred.id        = cc.users_id
         LEFT JOIN estado_cliente ec   ON ec.id            = c.estado_cliente_id
+        LEFT JOIN cliente_documentos d_solicitud ON d_solicitud.cliente_id = c.id AND d_solicitud.tipo_documento = 'solicitud_credito'
+        LEFT JOIN cliente_documentos d_condiciones ON d_condiciones.cliente_id = c.id AND d_condiciones.tipo_documento = 'condiciones_credito'
+        LEFT JOIN cliente_doc_fisico f_solicitud ON f_solicitud.cliente_id = c.id AND f_solicitud.tipo_documento = 'solicitud_credito'
+        LEFT JOIN cliente_doc_fisico f_condiciones ON f_condiciones.cliente_id = c.id AND f_condiciones.tipo_documento = 'condiciones_credito'
         LEFT JOIN cliente_documentos d_escritura ON d_escritura.cliente_id = c.id AND d_escritura.tipo_documento = 'escritura_empresa'
         LEFT JOIN cliente_documentos d_dni       ON d_dni.cliente_id       = c.id AND d_dni.tipo_documento       = 'dni_representante'
         LEFT JOIN cliente_documentos d_rtn       ON d_rtn.cliente_id       = c.id AND d_rtn.tipo_documento       = 'rtn'

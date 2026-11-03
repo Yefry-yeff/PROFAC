@@ -1107,11 +1107,9 @@ function cargarRepositorioDocumentos(id) {
 }
 
 function renderDocFisico(tipos) {
-    var slugs = ['escritura_empresa','dni_representante','rtn','permiso_operacion','croquis','contrato_arrendamiento','foto_establecimiento'];
-    slugs.forEach(function (slug) {
-        var chk = document.getElementById('chk_fisico_' + slug);
+    document.querySelectorAll('[id^="chk_fisico_"]').forEach(function (chk) {
+        var slug = chk.id.slice('chk_fisico_'.length);
         var lbl = document.getElementById('lbl_fisico_' + slug);
-        if (!chk) return;
         var activo = tipos.indexOf(slug) !== -1;
         chk.checked = activo;
         if (lbl) {
@@ -1152,10 +1150,8 @@ function renderDocumentos(rows) {
     });
 
     // Limpiar todos los contenedores de documentos
-    var slugs = ['escritura_empresa','dni_representante','rtn','permiso_operacion','croquis','contrato_arrendamiento','foto_establecimiento'];
-    slugs.forEach(function (slug) {
-        var cont = document.getElementById('docs_list_' + slug);
-        if (!cont) return;
+    document.querySelectorAll('[id^="docs_list_"]').forEach(function (cont) {
+        var slug = cont.id.slice('docs_list_'.length);
         var docs = grupos[slug] || [];
         if (docs.length === 0) {
             cont.innerHTML = '<span class="text-muted" style="font-size:0.78rem">Sin documento cargado</span>';

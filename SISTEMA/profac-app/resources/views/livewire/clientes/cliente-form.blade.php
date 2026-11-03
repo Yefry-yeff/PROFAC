@@ -554,8 +554,11 @@
                     </div>
                 </div>
                 <div class="ibox-content">
+                    <p class="text-muted small">La solicitud y las condiciones de crédito se reflejan en el reporte de clientes según el archivo cargado o la marca «Tiene físico».</p>
                     @php
                     $tiposDoc = [
+                        'solicitud_credito'      => ['label' => 'Solicitud de Crédito',         'icon' => 'fa-file-text-o'],
+                        'condiciones_credito'    => ['label' => 'Condiciones de Crédito',       'icon' => 'fa-list-alt'],
                         'escritura_empresa'      => ['label' => 'Escritura de la Empresa',      'icon' => 'fa-building'],
                         'dni_representante'      => ['label' => 'DNI del Representante Legal',  'icon' => 'fa-id-card'],
                         'rtn'                    => ['label' => 'RTN',                          'icon' => 'fa-file-text-o'],
