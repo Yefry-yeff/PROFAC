@@ -78,7 +78,7 @@
                     <div class="rvc-card-header">
                         <h5><i class="fa fa-book"></i> Detalle de Ventas por Periodo</h5>
                         <div class="d-flex" style="gap:8px">
-                            <button type="button" class="btn-rvc-action" onclick="exportarExcelLV()">
+                            <button type="button" class="btn-rvc-action" onclick="exportarExcelLV()" title="Descargar Excel ordenado por número de factura, de menor a mayor">
                                 <i class="fa fa-file-excel-o mr-1"></i>Excel
                             </button>
                             <button type="button" class="btn-rvc-action" onclick="exportarPdfLV()">

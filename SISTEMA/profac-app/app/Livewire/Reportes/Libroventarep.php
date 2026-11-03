@@ -112,8 +112,8 @@ class Libroventarep extends Component
             $fechaFinal  = $this->normalizarFecha($request->input('fecha_hasta', $fechaFinal), date('Y-m-d'));
 
             $data = $this->buildLibroVentaQuery($request, $fechaInicio, $fechaFinal)
-                ->orderBy('factura.fecha_emision', 'ASC')
                 ->orderBy('factura.numero_secuencia_cai', 'ASC')
+                ->orderBy('factura.id', 'ASC')
                 ->get()
                 ->map(function ($row) {
                     return (array) $row;
