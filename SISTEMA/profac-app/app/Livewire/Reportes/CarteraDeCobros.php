@@ -10,6 +10,14 @@ use Carbon\CarbonImmutable;
 use App\Http\Controllers\MenuHelper;
 use App\Exports\CarteraCobrosExport;
 use Maatwebsite\Excel\Facades\Excel;
+use Livewire\Attributes\Locked;
+use App\Mail\FacturaCobro;
+use App\Livewire\Ventas\FacturacionCorporativa;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Database\QueryException;
+use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
+use RuntimeException;
 
 class CarteraDeCobros extends Component
 {
@@ -32,6 +40,27 @@ class CarteraDeCobros extends Component
     public string $mesA = '';
     public string $mesB = '';
     public string $pestana = 'cartera';
+
+    #[Locked]
+    public ?int $facturaDetalleId = null;
+
+    public string $correoFactura = '';
+    public bool $correoCorrecto = false;
+
+    #[Locked]
+    public string $etapaCorreo = '';
+
+    #[Locked]
+    public string $correoOriginal = '';
+
+    #[Locked]
+    public string $correoDestino = '';
+
+    #[Locked]
+    public bool $correoEnviado = false;
+
+    #[Locked]
+    public string $mensajeCorreo = '';
 
     public const TRAMOS = [
         'corriente' => 'Por vencer',
@@ -78,6 +107,145 @@ class CarteraDeCobros extends Component
     public function limpiar(): void
     {
         $this->reset('buscar', 'cliente', 'asesor', 'teleasesor', 'gestor', 'tramo', 'estado', 'mes', 'orden', 'usuario');
+    }
+
+    public function abrirFactura(int $id): void
+    {
+        abort_unless($this->filtrar($this->cartera())->contains('id', $id), 404, 'La factura ya no está disponible en esta cartera.');
+        $this->facturaDetalleId = $id;
+        $this->resetCorreoFactura();
+    }
+
+    public function cerrarFactura(): void
+    {
+        $this->facturaDetalleId = null;
+        $this->resetCorreoFactura();
+    }
+
+    private function resetCorreoFactura(): void
+    {
+        $this->reset('correoFactura', 'correoCorrecto', 'etapaCorreo', 'correoOriginal', 'correoDestino', 'correoEnviado', 'mensajeCorreo');
+        $this->resetValidation(['correoFactura', 'correoCorrecto', 'envioCorreo']);
+    }
+
+    public function prepararCorreoFactura(): void
+    {
+        abort_unless($this->facturaDetalleId !== null && !$this->correoEnviado, 422);
+        $saldo = $this->cartera()->firstWhere('id', $this->facturaDetalleId);
+        abort_unless($saldo, 404, 'La factura ya no está disponible en esta cartera.');
+        $this->resetCorreoFactura();
+        $this->correoOriginal = trim((string) DB::table('cliente')->where('id', $saldo->cliente_id)->value('correo'));
+        $this->correoFactura = $this->correoOriginal;
+        $this->etapaCorreo = 'direccion';
+    }
+
+    public function cancelarCorreoFactura(): void
+    {
+        abort_if($this->correoEnviado, 422);
+        $this->resetCorreoFactura();
+    }
+
+    public function solicitarEnvioFactura(): void
+    {
+        abort_unless($this->etapaCorreo === 'direccion' && !$this->correoEnviado, 422);
+        $this->correoFactura = trim($this->correoFactura);
+        $this->validate([
+            'correoFactura' => 'required|email:rfc|max:254',
+            'correoCorrecto' => 'accepted',
+        ], [
+            'correoFactura.required' => 'Indica el correo del destinatario.',
+            'correoFactura.email' => 'Indica un correo válido.',
+            'correoCorrecto.accepted' => 'Confirma que el correo del cliente es correcto antes de enviar.',
+        ]);
+        $this->correoDestino = $this->correoFactura;
+        $this->etapaCorreo = $this->correoDestino !== $this->correoOriginal ? 'actualizar' : 'enviar';
+        if ($this->etapaCorreo === 'enviar') {
+            $this->enviarCorreoFactura(false);
+        }
+    }
+
+    public function enviarCorreoFactura(bool $actualizarCliente): void
+    {
+        abort_unless(in_array($this->etapaCorreo, ['actualizar', 'enviar'], true) && !$this->correoEnviado && $this->facturaDetalleId !== null, 422);
+        abort_if($actualizarCliente && $this->etapaCorreo !== 'actualizar', 422);
+        $this->resetValidation('envioCorreo');
+        $this->mensajeCorreo = '';
+        $saldo = $this->cartera()->firstWhere('id', $this->facturaDetalleId);
+        abort_unless($saldo, 404, 'La factura ya no está disponible en esta cartera.');
+        $bancos = DB::table('banco')->whereRaw('LOWER(nombre) NOT LIKE ?', ['%promerica%'])
+            ->whereNotNull('cuenta')->where('cuenta', '<>', '')->orderBy('nombre')->get(['nombre', 'cuenta']);
+        if ($bancos->isEmpty()) {
+            $this->addError('envioCorreo', 'No hay cuentas de pago disponibles en el catálogo Bancos (sin Promerica). No se envió el correo.');
+            return;
+        }
+        $mailer = config('mail.default');
+        if (config("mail.mailers.{$mailer}.transport") !== 'smtp') {
+            $this->addError('envioCorreo', 'El envío requiere un servicio SMTP configurado. No se envió el correo.');
+            return;
+        }
+        try {
+            $respuestaPdf = app(FacturacionCorporativa::class)->imprimirFacturaCoorporativaCopia($this->facturaDetalleId);
+            $pdf = $respuestaPdf->getContent();
+            if (!is_string($pdf) || !str_starts_with($pdf, '%PDF-')) {
+                throw new RuntimeException('La copia generada no es un PDF válido.');
+            }
+            $nombre = DB::table('factura')->where('id', $this->facturaDetalleId)->value('nombre_cliente') ?: $saldo->cliente;
+            Mail::to($this->correoDestino)->send(new FacturaCobro(
+                $nombre, (string) ($saldo->cai ?: $saldo->numero_secuencia_cai), $saldo->centavos, $bancos, $pdf,
+            ));
+        } catch (TransportExceptionInterface | RuntimeException | QueryException $e) {
+            Log::error('No se pudo enviar la factura de cobro.', ['factura_id' => $this->facturaDetalleId, 'usuario_id' => auth()->id(), 'excepcion' => get_class($e)]);
+            $this->addError('envioCorreo', 'No se pudo completar el envío. El correo del cliente no se modificó. Verifica la configuración del correo antes de reintentar.');
+            return;
+        }
+        $this->correoEnviado = true;
+        $this->etapaCorreo = 'enviado';
+        $this->mensajeCorreo = 'Factura enviada a ' . $this->correoDestino . '.';
+        if ($actualizarCliente) {
+            try {
+                $actualizados = DB::table('cliente')->where('id', $saldo->cliente_id)
+                    ->where(fn ($q) => $this->correoOriginal === ''
+                        ? $q->whereNull('correo')->orWhereRaw("TRIM(correo) = ''")
+                        : $q->whereRaw('TRIM(correo) = ?', [$this->correoOriginal]))
+                    ->update(['correo' => $this->correoDestino]);
+                if ($actualizados !== 1) {
+                    Log::warning('Correo del cliente cambió durante el envío de factura.', ['factura_id' => $this->facturaDetalleId, 'cliente_id' => $saldo->cliente_id]);
+                    $this->addError('envioCorreo', 'La factura se envió, pero el correo del cliente cambió durante la operación y no se sobrescribió. No es necesario reenviar.');
+                } else {
+                    $this->mensajeCorreo .= ' El correo del cliente fue actualizado.';
+                }
+            } catch (QueryException $e) {
+                Log::error('Factura enviada, no se pudo actualizar el correo del cliente.', ['factura_id' => $this->facturaDetalleId, 'cliente_id' => $saldo->cliente_id, 'excepcion' => get_class($e)]);
+                $this->addError('envioCorreo', 'La factura se envió, pero no se pudo actualizar el correo del cliente. No es necesario reenviar.');
+            }
+        }
+    }
+
+    private function detalleFactura(Collection $cartera): ?array
+    {
+        if ($this->facturaDetalleId === null) {
+            return null;
+        }
+        $saldo = $cartera->firstWhere('id', $this->facturaDetalleId);
+        abort_unless($saldo, 404, 'La factura ya no está disponible en esta cartera.');
+        $factura = DB::table('factura')->where('id', $this->facturaDetalleId)
+            ->first(['id', 'nombre_cliente', 'rtn', 'tipo_venta_id', 'sub_total', 'isv', 'total']);
+        $productos = DB::table('venta_has_producto as v')
+            ->leftJoin('producto as p', 'p.id', '=', 'v.producto_id')
+            ->leftJoin('unidad_medida_venta as uv', 'uv.id', '=', 'v.unidad_medida_venta_id')
+            ->leftJoin('unidad_medida as um', 'um.id', '=', 'uv.unidad_medida_id')
+            ->where('v.factura_id', $this->facturaDetalleId)
+            ->select('v.indice', 'v.producto_id', 'p.nombre', 'um.nombre as unidad', 'v.precio_unidad')
+            ->selectRaw('SUM(v.cantidad_s) as cantidad, SUM(v.sub_total_s) as subtotal, SUM(v.isv_s) as isv, SUM(v.total_s) as total')
+            ->groupBy('v.indice', 'v.producto_id', 'p.nombre', 'um.nombre', 'v.precio_unidad')
+            ->orderBy('v.indice')->get();
+
+        return [
+            'factura' => $factura,
+            'saldo' => $saldo,
+            'productos' => $productos,
+            'copia' => url(((int) $factura->tipo_venta_id === 3 ? 'exonerado/facturaCopia/' : 'factura/cooporativoCopia/') . $factura->id),
+        ];
     }
 
     private function cartera(bool $soloPendiente = true): Collection
@@ -243,17 +411,19 @@ class CarteraDeCobros extends Component
                 default => 'critical',
             },
         ])->all();
+        $detalleFactura = $this->detalleFactura($base);
 
         return view('livewire.reportes.carteradecobros', compact(
-            'metricas', 'antigua', 'tramos', 'responsables', 'clientes', 'meses', 'catalogos', 'recuperacion', 'destacados', 'etiquetas', 'detalleCompleto'
+            'metricas', 'antigua', 'tramos', 'responsables', 'clientes', 'meses', 'catalogos', 'recuperacion', 'destacados', 'etiquetas', 'detalleCompleto', 'detalleFactura'
         ))->layout('layouts.app', ['title' => $this->titulo]);
     }
 
     private function fechasValidas(): bool
     {
+        $this->resetValidation(['modoPeriodo', 'mesA', 'mesB', 'inicio', 'fin', 'compararInicio', 'compararFin']);
         $modo = validator(['modoPeriodo' => $this->modoPeriodo], ['modoPeriodo' => 'required|in:mensual,detalle']);
         if ($modo->fails()) {
-            $this->setErrorBag($modo->errors());
+            $this->setErrorBag($this->getErrorBag()->merge($modo->errors()));
             return false;
         }
         if ($this->modoPeriodo === 'mensual') {
@@ -268,7 +438,7 @@ class CarteraDeCobros extends Component
                 }
             }
             if ($meses->errors()->isNotEmpty()) {
-                $this->setErrorBag($meses->errors());
+                $this->setErrorBag($this->getErrorBag()->merge($meses->errors()));
                 return false;
             }
             foreach (['mesA' => ['inicio', 'fin'], 'mesB' => ['compararInicio', 'compararFin']] as $campo => [$desde, $hasta]) {
@@ -287,10 +457,9 @@ class CarteraDeCobros extends Component
             'compararFin' => 'required|date_format:Y-m-d|after_or_equal:compararInicio|before_or_equal:today',
         ]);
         if ($validador->fails()) {
-            $this->setErrorBag($validador->errors());
+            $this->setErrorBag($this->getErrorBag()->merge($validador->errors()));
             return false;
         }
-        $this->resetErrorBag();
         return true;
     }
 

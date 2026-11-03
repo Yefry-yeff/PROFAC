@@ -16,12 +16,7 @@
         <div class="dash-kpi-sub">en catálogo</div>
     </div>
     @include('dashboard.kpi', ['etiqueta' => 'Productos bajos de inventario', 'icono' => 'fa-exclamation-triangle', 'valor' => number_format($kpisInventario['bajos_stock'] ?? 0), 'ayuda' => 'Existencia actual: 0 a menos de 10 unidades', 'accion' => 'inventario', 'color' => 'red', 'enlace' => null])
-    <div class="dash-kpi orange">
-        <div class="dash-kpi-icon"><i class="fa fa-picture-o"></i></div>
-        <div class="dash-kpi-label">Sin imagen</div>
-        <div class="dash-kpi-value">{{ number_format($kpisInventario['sin_imagen'] ?? 0) }}</div>
-        <div class="dash-kpi-sub">productos sin foto</div>
-    </div>
+    @include('dashboard.kpi', ['etiqueta' => 'Sin imagen', 'icono' => 'fa-picture-o', 'valor' => number_format($kpisInventario['sin_imagen'] ?? 0), 'ayuda' => 'Productos activos sin foto', 'accion' => 'sin_imagen', 'color' => 'orange', 'enlace' => null])
     <div class="dash-kpi">
         <div class="dash-kpi-icon"><i class="fa fa-pause-circle-o"></i></div>
         <div class="dash-kpi-label">Sin movimiento</div>

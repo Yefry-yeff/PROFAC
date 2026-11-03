@@ -219,8 +219,8 @@
 .dash-btn-outline:hover  { background: var(--dash-bg); }
 .dash-btn-dark { background: #374151; color: #fff; }
 .dash-btn-dark:hover { background: #1f2937; color:#fff; }
-.dash-btn-export { background: #16a34a; color: #fff; }
-.dash-btn-export:hover { background: #15803d; color:#fff; }
+.dash-btn.dash-btn-export { background: #16a34a; color: #fff; }
+.dash-btn.dash-btn-export:hover { background: #15803d; color:#fff; }
 
 /* ── Alert ── */
 .dash-alert {

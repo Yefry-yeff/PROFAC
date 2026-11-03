@@ -38,6 +38,8 @@
     @include('dashboard.kpi-poco-movimiento')
 </div>
 
+@include('dashboard.cartera-resumen')
+
 {{-- ── Alertas: proximas a vencer ── --}}
 @if(!empty($kpisCobros['proximas_vencer']) && count($kpisCobros['proximas_vencer']))
 <div class="dash-card" style="margin-bottom:20px;">

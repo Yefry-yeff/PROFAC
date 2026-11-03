@@ -62,6 +62,13 @@
         .cartera-bi .cb-recovery-person { position:relative; border-bottom:1px solid #edf1f7; }
         .cartera-bi .cb-person-tooltip { display:none; position:absolute; top:0; right:0; max-width:100%; padding:10px; border-radius:8px; background:#26354b; color:white; pointer-events:none; z-index:4; font-size:12px; box-shadow:0 3px 12px #172e5026; }
         .cartera-bi .cb-recovery-person:hover .cb-person-tooltip,.cartera-bi .cb-recovery-person:focus-visible .cb-person-tooltip { display:block; }
+        .cb-invoice-backdrop { position:fixed; inset:0; z-index:5000; display:flex; align-items:center; justify-content:center; padding:20px; background:#14223599; }
+        .cb-invoice { display:flex; flex-direction:column; width:1150px; max-width:100%; max-height:92vh; background:white; color:#26354b; border-radius:14px; box-shadow:0 20px 70px #0004; overflow:hidden; }
+        .cb-invoice header,.cb-invoice footer { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; padding:16px 20px; border-bottom:1px solid #e1e7ef; }
+        .cb-invoice footer { border-top:1px solid #e1e7ef; border-bottom:0; }
+        .cb-invoice-content { overflow:auto; overscroll-behavior:contain; padding:20px; }
+        .cb-invoice iframe { width:100%; height:65vh; border:1px solid #e1e7ef; }
+        .cb-invoice [x-cloak] { display:none !important; }
     </style>
 
     <div class="cb-hero mb-3 d-flex flex-wrap justify-content-between align-items-center">
@@ -295,9 +302,10 @@
         Este es un corte actual, no una reconstrucción histórica. Mora ponderada = suma(saldo vencido × días de mora) / saldo vencido.
     </div>
     </div>
+    @include('livewire.reportes.cartera-factura')
     @teleport('body')
     <div wire:loading.flex
-        wire:target="seleccionar,limpiar,descargar,$refresh,buscar,cliente,asesor,teleasesor,gestor,tramo,estado,mes,usuario,inicio,fin,compararInicio,compararFin,modoPeriodo,mesA,mesB"
+        wire:target="abrirFactura,seleccionar,limpiar,descargar,$refresh,buscar,cliente,asesor,teleasesor,gestor,tramo,estado,mes,usuario,inicio,fin,compararInicio,compararFin,modoPeriodo,mesA,mesB"
         class="cb-loading" role="status" aria-live="polite" aria-label="Cargando información">
         <div class="cb-loading-card">
             <span class="cb-spinner" aria-hidden="true"></span>

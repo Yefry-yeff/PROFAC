@@ -37,17 +37,21 @@ class DashboardComercialTest extends TestCase
         Schema::create('usuario_submenu', function (Blueprint $t) { $t->integer('usuario_id'); $t->integer('sub_menu_id'); $t->boolean('permitido'); });
         Schema::create('sub_menu', function (Blueprint $t) { $t->id(); $t->string('url'); $t->integer('estado_id')->default(1); $t->integer('orden')->default(1); });
         Schema::create('rol_submenu', function (Blueprint $t) { $t->integer('rol_id'); $t->integer('sub_menu_id'); });
-        Schema::create('cliente', function (Blueprint $t) { $t->id(); $t->string('nombre'); $t->integer('vendedor'); $t->dateTime('created_at'); });
+        Schema::create('cliente', function (Blueprint $t) { $t->id(); $t->string('nombre'); $t->integer('vendedor'); $t->dateTime('created_at'); $t->integer('estado_cliente_id')->default(1); });
         Schema::create('factura', function (Blueprint $t) {
             $t->id(); $t->string('cai')->nullable(); $t->integer('cliente_id'); $t->integer('vendedor');
             $t->integer('estado_venta_id'); $t->dateTime('fecha_emision'); $t->decimal('total', 14, 2);
         });
         Schema::create('producto', function (Blueprint $t) { $t->id(); $t->string('nombre'); $t->string('codigo_barra'); $t->integer('estado_producto_id'); });
+        Schema::create('img_producto', function (Blueprint $t) { $t->id(); $t->integer('producto_id'); });
         Schema::create('cardex', function (Blueprint $t) { $t->id(); $t->integer('id_producto'); $t->decimal('cantidad', 14, 2); });
         Schema::create('venta_has_producto', function (Blueprint $t) { $t->id(); $t->integer('producto_id'); $t->integer('factura_id'); });
         Schema::create('compra', function (Blueprint $t) { $t->id(); $t->dateTime('fecha_emision'); $t->integer('estado_compra_id'); });
         Schema::create('compra_has_producto', function (Blueprint $t) { $t->id(); $t->integer('producto_id'); $t->integer('compra_id'); });
-        Schema::create('recibido_bodega', function (Blueprint $t) { $t->id(); $t->integer('producto_id'); $t->decimal('cantidad_disponible', 14, 2); });
+        Schema::create('recibido_bodega', function (Blueprint $t) {
+            $t->id(); $t->integer('producto_id'); $t->integer('compra_id')->nullable();
+            $t->date('fecha_recibido')->nullable(); $t->decimal('cantidad_disponible', 14, 2);
+        });
         foreach ([1, 2, 4, 5, 6, 8, 9, 18, 19] as $rol) {
             DB::table('rol')->insert(['id' => $rol, 'nombre' => "Rol {$rol}"]);
         }
@@ -97,6 +101,63 @@ class DashboardComercialTest extends TestCase
             ->assertSee('Creado sin compra')
             ->call('abrirDetalle', 'clientes')
             ->assertViewHas('detalleFilas', fn ($p) => $p->total() === 1);
+    }
+
+    public function test_inactive_customers_and_products_are_excluded_from_kpis_details_search_and_excel(): void
+    {
+        DB::table('cliente')->insert([
+            ['id' => 4, 'nombre' => 'Cliente inactivo antiguo', 'vendedor' => 1, 'created_at' => '2020-01-01', 'estado_cliente_id' => 2],
+            ['id' => 5, 'nombre' => 'Cliente activo antiguo', 'vendedor' => 1, 'created_at' => '2020-01-01', 'estado_cliente_id' => 1],
+            ['id' => 6, 'nombre' => 'Cliente inactivo reciente', 'vendedor' => 1, 'created_at' => '2020-01-01', 'estado_cliente_id' => 2],
+        ]);
+        foreach ([4, 5, 6] as $id) {
+            DB::table('factura')->insert(['id' => $id + 10, 'cliente_id' => $id, 'vendedor' => 1,
+                'estado_venta_id' => 1, 'fecha_emision' => $id === 6 ? '2026-11-01' : '2020-01-02', 'total' => 50]);
+        }
+        $componente = Livewire::test(DashboardComercialFixture::class)
+            ->assertViewHas('kpisGenerales', fn ($k) => $k['clientes_act'] === 2
+                && $k['clientes_nuevos'] === 3 && $k['requieren_atencion'] === 1 && $k['poco_movimiento'] === 26);
+        foreach (['clientes' => 2, 'clientes_nuevos' => 3, 'atencion' => 1, 'inventario' => 25, 'poco_movimiento' => 26] as $tipo => $total) {
+            $componente->call('abrirDetalle', $tipo)
+                ->assertViewHas('detalleFilas', fn ($p) => $p->total() === $total)
+                ->call('descargarDetalle');
+            $hoja = $this->leerExcel($componente)->getSheet(0);
+            $this->assertSame($total + 1, $hoja->getHighestRow());
+            $contenido = json_encode($hoja->toArray());
+            $this->assertStringNotContainsString('Cliente inactivo', $contenido);
+            $this->assertStringNotContainsString('Producto 27', $contenido);
+            $componente->set('buscarDetalle', in_array($tipo, ['inventario', 'poco_movimiento'], true) ? 'P-27' : 'Cliente inactivo')
+                ->assertViewHas('detalleFilas', fn ($p) => $p->total() === 0)
+                ->call('descargarDetalle');
+            $filas = $this->leerExcel($componente)->getSheet(0)->toArray();
+            $this->assertCount(0, array_filter(array_slice($filas, 1), fn ($fila) => count(array_filter($fila, fn ($valor) => $valor !== null)) > 0));
+        }
+    }
+
+    public function test_products_without_images_detail_and_excel_match_kpi_and_exclude_inactive_products(): void
+    {
+        DB::table('img_producto')->insert([['producto_id' => 1], ['producto_id' => 1]]);
+        $componente = Livewire::test(DashboardComercialFixture::class)
+            ->assertViewHas('kpisInventario', fn ($k) => $k['sin_imagen'] === 25)
+            ->call('abrirDetalle', 'sin_imagen')
+            ->assertViewHas('detalleFilas', fn ($p) => $p->total() === 25 && $p->count() === 20 && $p->first()->id === 2)
+            ->call('gotoPage', 2, 'detallePage')
+            ->assertViewHas('detalleFilas', fn ($p) => $p->count() === 5)
+            ->assertDontSee('Producto 27')
+            ->call('descargarDetalle')->assertFileDownloaded('Dashboard-sin_imagen-2026-11-02.xlsx');
+        $hoja = $this->leerExcel($componente)->getSheetByName('Productos sin imagen');
+        $this->assertSame(26, $hoja->getHighestRow());
+        $this->assertSame('P-2', $hoja->getCell('B2')->getValue());
+        $componente->set('buscarDetalle', 'P-26')
+            ->assertViewHas('detalleFilas', fn ($p) => $p->total() === 1 && $p->currentPage() === 1)
+            ->call('descargarDetalle');
+        $this->assertSame(2, $this->leerExcel($componente)->getSheet(0)->getHighestRow());
+        foreach (['P-1', 'P-27'] as $busqueda) {
+            $componente->set('buscarDetalle', $busqueda)
+                ->assertViewHas('detalleFilas', fn ($p) => !$p->getCollection()->contains(fn ($r) => in_array($r->id, [1, 27], true)));
+        }
+        $this->actingAs(User::findOrFail(2));
+        Livewire::test(DashboardComercialFixture::class)->call('abrirDetalle', 'sin_imagen')->assertForbidden();
     }
 
     public function test_low_stock_modal_includes_all_matching_products_with_pagination_and_search(): void
@@ -172,6 +233,88 @@ class DashboardComercialTest extends TestCase
             ->assertViewHas('periodoValido', false)->assertSee('Selecciona fechas válidas');
     }
 
+    public function test_warehouse_receipts_without_purchase_are_identified_and_purchase_receipts_also_resolve_dates(): void
+    {
+        DB::table('recibido_bodega')->insert([
+            ['producto_id' => 1, 'compra_id' => null, 'fecha_recibido' => '2026-04-09', 'cantidad_disponible' => 35],
+            ['producto_id' => 2, 'compra_id' => 1, 'fecha_recibido' => '2026-07-02', 'cantidad_disponible' => 12],
+            ['producto_id' => 1, 'compra_id' => null, 'fecha_recibido' => '2026-05-01', 'cantidad_disponible' => 0],
+        ]);
+        DB::table('compra')->insert(['id' => 1, 'fecha_emision' => '2026-07-01', 'estado_compra_id' => 1]);
+        Livewire::test(DashboardComercialFixture::class)
+            ->call('abrirDetalle', 'poco_movimiento')
+            ->assertViewHas('detalleFilas', fn ($p) => $p->getCollection()->contains(fn ($r) => $r->id === 1
+                && $r->ultima_compra === null && (float) $r->existencia_sin_compra === 35.0 && $r->ultimo_ingreso_sin_compra === '2026-04-09'))
+            ->assertViewHas('detalleFilas', fn ($p) => $p->getCollection()->contains(fn ($r) => $r->id === 2
+                && $r->ultima_compra === '2026-07-01' && (float) $r->existencia === 12.0 && (float) $r->existencia_sin_compra === 0.0))
+            ->assertSee('Sin compra vinculada')->assertSee('09/04/2026');
+    }
+
+    public function test_attention_modal_and_excel_match_kpi_without_top_limit_and_preserve_monthly_rule(): void
+    {
+        for ($i = 4; $i <= 27; $i++) {
+            DB::table('cliente')->insert(['id' => $i, 'nombre' => "Cliente atención {$i}", 'vendedor' => 1, 'created_at' => '2020-01-01']);
+            DB::table('factura')->insert(['id' => $i + 1, 'cai' => "A-{$i}", 'cliente_id' => $i, 'vendedor' => 1,
+                'estado_venta_id' => 1, 'fecha_emision' => '2020-01-02', 'total' => 50]);
+        }
+        DB::table('factura')->insert(['id' => 50, 'cai' => 'OCT', 'cliente_id' => 1, 'vendedor' => 1,
+            'estado_venta_id' => 1, 'fecha_emision' => '2026-10-10', 'total' => 300]);
+        $componente = Livewire::test(DashboardComercialFixture::class)
+            ->assertSee('Clientes que requieren atención')
+            ->assertViewHas('kpisGenerales', fn ($k) => $k['requieren_atencion'] === 25)
+            ->call('abrirDetalle', 'atencion')
+            ->assertViewHas('detalleFilas', fn ($p) => $p->total() === 25 && $p->count() === 20)
+            ->assertSee('Sin compra por más de 90 días')
+            ->call('gotoPage', 2, 'detallePage')
+            ->assertSee('Caída mensual de al menos 20%')
+            ->call('descargarDetalle')->assertFileDownloaded('Dashboard-atencion-2026-11-02.xlsx');
+        $libro = $this->leerExcel($componente);
+        $hoja = $libro->getSheetByName('Clientes requieren atencion');
+        $this->assertSame(26, $hoja->getHighestRow());
+        $this->assertSame('Caída mensual de al menos 20%', $hoja->getCell('H26')->getValue());
+        $this->assertEqualsWithDelta(-33.33, $hoja->getCell('G26')->getValue(), 0.01);
+        $this->assertNotNull($libro->getSheetByName('Criterios'));
+        $componente->set('buscarDetalle', 'Cliente atención 27')
+            ->assertViewHas('detalleFilas', fn ($p) => $p->total() === 1)
+            ->call('descargarDetalle');
+        $this->assertSame(2, $this->leerExcel($componente)->getSheet(0)->getHighestRow());
+    }
+
+    public function test_every_detail_exports_all_filtered_rows_and_keeps_excel_text_safe(): void
+    {
+        DB::table('producto')->where('id', 1)->update(['nombre' => '=NO_ES_FORMULA', 'codigo_barra' => '000001']);
+        $componente = Livewire::test(DashboardComercialFixture::class);
+        foreach ([
+            'facturas' => ['Facturas emitidas', 2],
+            'clientes' => ['Clientes activos', 1],
+            'clientes_nuevos' => ['Clientes creados', 2],
+            'inventario' => ['Inventario bajo', 25],
+            'poco_movimiento' => ['Productos poco movimiento', 26],
+        ] as $tipo => [$hoja, $total]) {
+            $componente->call('abrirDetalle', $tipo)->call('descargarDetalle')
+                ->assertFileDownloaded("Dashboard-{$tipo}-2026-11-02.xlsx");
+            $libro = $this->leerExcel($componente);
+            $this->assertSame($total + 1, $libro->getSheetByName($hoja)->getHighestRow());
+            if ($tipo === 'inventario') {
+                $this->assertSame('000001', $libro->getSheet(0)->getCell('B2')->getValue());
+                $this->assertSame('=NO_ES_FORMULA', $libro->getSheet(0)->getCell('C2')->getValue());
+                $this->assertSame('s', $libro->getSheet(0)->getCell('C2')->getDataType());
+                $this->assertEquals(9.5, $libro->getSheet(0)->getCell('D2')->getValue());
+            }
+        }
+    }
+
+    private function leerExcel($componente): \PhpOffice\PhpSpreadsheet\Spreadsheet
+    {
+        $archivo = tempnam(sys_get_temp_dir(), 'dashboard-test-');
+        try {
+            file_put_contents($archivo, base64_decode($componente->effects['download']['content']));
+            return \PhpOffice\PhpSpreadsheet\IOFactory::load($archivo);
+        } finally {
+            unlink($archivo);
+        }
+    }
+
     public function test_stock_threshold_includes_zero_and_missing_movements_but_not_negative_or_ten_units(): void
     {
         DB::table('cardex')->where('id_producto', 1)->update(['cantidad' => 0]);
@@ -213,6 +356,35 @@ class DashboardComercialTest extends TestCase
             ->assertSee('Saldo pendiente de pago')->assertDontSee('Productos bajos de inventario')
             ->call('abrirDetalle', 'facturas')->assertForbidden();
     }
+
+    public function test_cobros_profile_shows_portfolio_summary_and_link_only_with_report_permissions(): void
+    {
+        DB::table('users')->where('id', 2)->update(['rol_id' => 4]);
+        $this->actingAs(User::findOrFail(2));
+        Livewire::test(DashboardComercialFixture::class)
+            ->assertSee('Control de cartera')
+            ->assertSee('Recuperación de cartera')
+            ->assertSee(url('reportes/analisis_de_negocio') . '?modulo=cartera', false);
+        DB::table('usuario_submenu')->where('usuario_id', 2)->where('sub_menu_id', 2)->update(['permitido' => false]);
+        Livewire::test(DashboardComercialFixture::class)
+            ->assertSee('Control de cartera')
+            ->assertDontSee(url('reportes/analisis_de_negocio') . '?modulo=cartera', false);
+    }
+
+    public function test_download_rechecks_permissions_and_salesperson_exports_only_their_invoices(): void
+    {
+        $this->actingAs(User::findOrFail(2));
+        $componente = Livewire::test(DashboardComercialFixture::class)
+            ->set('filtroVendedorId', 1)->call('abrirDetalle', 'facturas')->call('descargarDetalle');
+        $hoja = $this->leerExcel($componente)->getSheet(0);
+        $this->assertSame(2, $hoja->getHighestRow());
+        $this->assertSame('CAI-002', $hoja->getCell('B2')->getValue());
+        $this->actingAs(User::findOrFail(1));
+        $componente = Livewire::test(DashboardComercialFixture::class)->call('abrirDetalle', 'poco_movimiento');
+        DB::table('users')->where('id', 1)->update(['rol_id' => 4]);
+        $this->actingAs(User::findOrFail(1));
+        $componente->call('descargarDetalle')->assertForbidden();
+    }
 }
 
 class DashboardComercialFixture extends DashboardComercial
@@ -226,6 +398,9 @@ class DashboardComercialFixture extends DashboardComercial
     public function getKpisCobros(): array { return ['saldo_pendiente' => 1000]; }
     public function getKpisInventario(): array
     {
-        return ['bajos_stock' => DB::query()->fromSub($this->productosBajoInventario(), 'bajos')->count()];
+        return [
+            'bajos_stock' => DB::query()->fromSub($this->productosBajoInventario(), 'bajos')->count(),
+            'sin_imagen' => $this->productosSinImagen()->count(),
+        ];
     }
 }

@@ -11,6 +11,11 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Livewire\Livewire;
 use Tests\TestCase;
+use App\Mail\FacturaCobro;
+use App\Livewire\Ventas\FacturacionCorporativa;
+use Illuminate\Support\Facades\Mail;
+use Mockery\MockInterface;
+use Symfony\Component\Mailer\Exception\TransportException;
 
 class CarteraDeCobrosTest extends TestCase
 {
@@ -38,13 +43,23 @@ class CarteraDeCobrosTest extends TestCase
         Schema::create('usuario_submenu', function (Blueprint $t) { $t->integer('usuario_id'); $t->integer('sub_menu_id'); $t->boolean('permitido'); });
         Schema::create('sub_menu', function (Blueprint $t) { $t->id(); $t->string('url'); $t->integer('estado_id')->default(1); $t->integer('orden')->default(1); });
         Schema::create('rol_submenu', function (Blueprint $t) { $t->integer('rol_id'); $t->integer('sub_menu_id'); });
-        Schema::create('cliente', function (Blueprint $t) { $t->id(); $t->string('nombre'); });
+        Schema::create('cliente', function (Blueprint $t) { $t->id(); $t->string('nombre'); $t->string('correo')->nullable(); });
+        Schema::create('banco', function (Blueprint $t) { $t->id(); $t->string('nombre'); $t->string('cuenta')->nullable(); });
         Schema::create('factura', function (Blueprint $t) {
             $t->id(); $t->integer('cliente_id'); $t->string('cai'); $t->integer('numero_secuencia_cai');
             $t->date('fecha_emision')->nullable(); $t->date('fecha_vencimiento')->nullable();
             $t->integer('vendedor')->nullable(); $t->integer('users_id')->nullable(); $t->integer('gestor_entrega')->nullable();
             $t->integer('estado_venta_id')->default(1); $t->integer('tipo_venta_id')->default(1);
             $t->decimal('total', 12, 2)->default(100); $t->decimal('sub_total', 12, 2)->default(100);
+            $t->string('nombre_cliente')->nullable(); $t->string('rtn')->nullable(); $t->decimal('isv', 12, 2)->default(0);
+        });
+        Schema::create('producto', function (Blueprint $t) { $t->id(); $t->string('nombre'); });
+        Schema::create('unidad_medida', function (Blueprint $t) { $t->id(); $t->string('nombre'); });
+        Schema::create('unidad_medida_venta', function (Blueprint $t) { $t->id(); $t->integer('unidad_medida_id'); });
+        Schema::create('venta_has_producto', function (Blueprint $t) {
+            $t->id(); $t->integer('factura_id'); $t->integer('producto_id'); $t->integer('unidad_medida_venta_id')->nullable(); $t->integer('indice');
+            $t->decimal('precio_unidad', 12, 2); $t->decimal('cantidad_s', 12, 2); $t->decimal('sub_total_s', 12, 2);
+            $t->decimal('isv_s', 12, 2); $t->decimal('total_s', 12, 2);
         });
         Schema::create('aplicacion_pagos', function (Blueprint $t) {
             $t->id(); $t->integer('factura_id'); $t->integer('estado')->default(1);
@@ -98,6 +113,176 @@ class CarteraDeCobrosTest extends TestCase
             ->assertSee('L 240.00');
         $this->assertSame(6, DB::table('aplicacion_pagos')->count());
         $this->assertEquals(60, DB::table('aplicacion_pagos')->where('factura_id', 1)->value('saldo'));
+    }
+
+    public function test_invoice_modal_groups_warehouse_lots_and_preserves_original_totals_and_current_balance(): void
+    {
+        $this->factura(1, ['nombre_cliente' => 'Cliente al facturar', 'rtn' => '000123', 'sub_total' => 100, 'isv' => 15, 'total' => 115], '60');
+        DB::table('producto')->insert(['id' => 1, 'nombre' => 'Producto de factura']);
+        DB::table('unidad_medida')->insert(['id' => 1, 'nombre' => 'Unidad']);
+        DB::table('unidad_medida_venta')->insert(['id' => 1, 'unidad_medida_id' => 1]);
+        foreach ([1, 3] as $cantidad) {
+            DB::table('venta_has_producto')->insert([
+                'factura_id' => 1, 'producto_id' => 1, 'unidad_medida_venta_id' => 1, 'indice' => 1,
+                'precio_unidad' => 25, 'cantidad_s' => $cantidad, 'sub_total_s' => 25 * $cantidad,
+                'isv_s' => 3.75 * $cantidad, 'total_s' => 28.75 * $cantidad,
+            ]);
+        }
+        Livewire::test(CarteraDeCobros::class)
+            ->assertViewHas('detalleFactura', null)
+            ->call('abrirFactura', 1)->assertSet('facturaDetalleId', 1)
+            ->assertSee('Cliente al facturar')->assertSee('000123')->assertSee('Producto de factura')
+            ->assertSee('Imprimir copia')->assertSee('L 75.00')
+            ->assertViewHas('detalleFactura', fn ($d) => $d['productos']->count() === 1
+                && (float) $d['productos']->first()->cantidad === 4.0
+                && (float) $d['productos']->first()->total === 115.0
+                && (float) $d['factura']->total === 115.0 && (float) $d['saldo']->saldo === 75.0
+                && $d['copia'] === url('factura/cooporativoCopia/1'))
+            ->call('cerrarFactura')->assertSet('facturaDetalleId', null)->assertViewHas('detalleFactura', null);
+        $this->assertSame(1, DB::table('aplicacion_pagos')->count());
+        $this->assertEquals(60, DB::table('aplicacion_pagos')->value('saldo'));
+    }
+
+    public function test_exempt_invoice_modal_uses_exempt_copy_and_handles_no_products(): void
+    {
+        $this->factura(1, ['tipo_venta_id' => 3, 'sub_total' => 80, 'total' => 92], '50');
+        Livewire::test(CarteraDeCobros::class)->call('abrirFactura', 1)
+            ->assertSee('Esta factura no tiene productos registrados.')
+            ->assertViewHas('detalleFactura', fn ($d) => $d['copia'] === url('exonerado/facturaCopia/1')
+                && (float) $d['saldo']->saldo === 30.0);
+    }
+
+    public function test_invoice_modal_rejects_unavailable_or_filtered_out_invoices(): void
+    {
+        $this->factura(1, ['estado_venta_id' => 0]);
+        $this->factura(2, [], '0');
+        $this->factura(3, [], '100', ['estado_cerrado' => 2]);
+        $this->factura(4, ['cliente_id' => 2]);
+        foreach ([1, 2, 3, 999] as $id) {
+            Livewire::test(CarteraDeCobros::class)->call('abrirFactura', $id)->assertNotFound();
+        }
+        Livewire::test(CarteraDeCobros::class)->set('cliente', '1')->call('abrirFactura', 4)->assertNotFound();
+        $componente = Livewire::test(CarteraDeCobros::class);
+        DB::table('usuario_submenu')->where('usuario_id', 1)->update(['permitido' => false]);
+        $componente->call('abrirFactura', 4)->assertForbidden();
+    }
+
+    private function prepararPruebaCorreo(): void
+    {
+        $this->factura(1, ['nombre_cliente' => 'Cliente de factura', 'total' => 150], '60');
+        DB::table('cliente')->where('id', 1)->update(['correo' => 'cliente@example.test']);
+        DB::table('banco')->insert([
+            ['nombre' => 'Banco autorizado', 'cuenta' => '000123'],
+            ['nombre' => 'PROmerica - Cuenta depósitos', 'cuenta' => '999999'],
+        ]);
+        config(['mail.default' => 'smtp']);
+        Mail::fake();
+        $this->mock(FacturacionCorporativa::class, function (MockInterface $mock) {
+            $mock->shouldReceive('imprimirFacturaCoorporativaCopia')->with(1)->andReturn(response('%PDF-1.7 copia de prueba'));
+        });
+    }
+
+    public function test_invoice_email_confirms_address_and_attaches_pdf_with_current_balance_and_company_payment_details(): void
+    {
+        $this->prepararPruebaCorreo();
+        $componente = Livewire::test(CarteraDeCobros::class)->call('abrirFactura', 1)
+            ->call('prepararCorreoFactura')->assertSet('correoFactura', 'cliente@example.test')
+            ->call('solicitarEnvioFactura')->assertHasErrors('correoCorrecto');
+        Mail::assertNothingSent();
+        $componente->set('correoCorrecto', true)->call('solicitarEnvioFactura')
+            ->assertSet('correoEnviado', true)->assertSee('Factura enviada a cliente@example.test.');
+        Mail::assertSent(FacturaCobro::class, function ($mail) {
+            $html = $mail->render();
+            $this->assertTrue($mail->hasTo('cliente@example.test'));
+            $this->assertTrue($mail->hasFrom(FacturaCobro::REMITENTE));
+            $this->assertTrue($mail->hasReplyTo(FacturaCobro::REMITENTE));
+            $this->assertSame(11000, $mail->saldoCentavos);
+            $this->assertSame('F-1', $mail->numeroFactura);
+            $this->assertCount(1, $mail->rawAttachments);
+            $this->assertStringStartsWith('%PDF-', $mail->rawAttachments[0]['data']);
+            $this->assertSame('application/pdf', $mail->rawAttachments[0]['options']['mime']);
+            foreach (['Cliente de factura', 'L 110.00', '000123', '2234-9877', 'Col. Godoy'] as $texto) {
+                $this->assertStringContainsString($texto, $html);
+            }
+            $this->assertStringNotContainsString('999999', $html);
+            return true;
+        });
+        Mail::assertSentCount(1);
+        $this->assertSame('cliente@example.test', DB::table('cliente')->where('id', 1)->value('correo'));
+        $componente->call('enviarCorreoFactura', false)->assertStatus(422);
+        Mail::assertSentCount(1);
+    }
+
+    public function test_changed_invoice_email_is_not_sent_until_optional_customer_update_is_decided(): void
+    {
+        $this->prepararPruebaCorreo();
+        $componente = Livewire::test(CarteraDeCobros::class)->call('abrirFactura', 1)->call('prepararCorreoFactura')
+            ->set('correoFactura', 'nuevo@example.test')->set('correoCorrecto', true)
+            ->call('solicitarEnvioFactura')->assertSet('etapaCorreo', 'actualizar')
+            ->assertSee('¿Desea actualizar el correo del cliente con esta dirección?');
+        Mail::assertNothingSent();
+        $componente->call('enviarCorreoFactura', false)->assertSet('correoEnviado', true);
+        $this->assertSame('cliente@example.test', DB::table('cliente')->where('id', 1)->value('correo'));
+        Mail::assertSent(FacturaCobro::class, fn ($mail) => $mail->hasTo('nuevo@example.test'));
+        Livewire::test(CarteraDeCobros::class)->call('abrirFactura', 1)->call('prepararCorreoFactura')
+            ->set('correoFactura', 'actualizado@example.test')->set('correoCorrecto', true)
+            ->call('solicitarEnvioFactura')->call('enviarCorreoFactura', true)
+            ->assertSet('correoEnviado', true)->assertSee('El correo del cliente fue actualizado.');
+        $this->assertSame('actualizado@example.test', DB::table('cliente')->where('id', 1)->value('correo'));
+        $this->assertEquals(60, DB::table('aplicacion_pagos')->value('saldo'));
+    }
+
+    public function test_invoice_email_missing_or_invalid_address_requires_confirmation_and_does_not_send(): void
+    {
+        $this->prepararPruebaCorreo();
+        DB::table('cliente')->where('id', 1)->update(['correo' => null]);
+        Livewire::test(CarteraDeCobros::class)->call('abrirFactura', 1)->call('prepararCorreoFactura')
+            ->assertSet('correoFactura', '')
+            ->set('correoCorrecto', true)->call('solicitarEnvioFactura')->assertHasErrors('correoFactura')
+            ->set('correoFactura', 'incorrecto')->set('correoCorrecto', true)
+            ->call('solicitarEnvioFactura')->assertHasErrors('correoFactura');
+        Mail::assertNothingSent();
+        Livewire::test(CarteraDeCobros::class)->call('abrirFactura', 1)->call('enviarCorreoFactura', true)->assertStatus(422);
+    }
+
+    public function test_invoice_email_failure_is_visible_and_does_not_update_customer_address(): void
+    {
+        $this->prepararPruebaCorreo();
+        Mail::shouldReceive('to')->with('nuevo@example.test')->andReturnSelf();
+        Mail::shouldReceive('send')->once()->andThrow(new TransportException('SMTP de prueba no disponible.'));
+        Livewire::test(CarteraDeCobros::class)->call('abrirFactura', 1)->call('prepararCorreoFactura')
+            ->set('correoFactura', 'nuevo@example.test')->set('correoCorrecto', true)
+            ->call('solicitarEnvioFactura')->call('enviarCorreoFactura', true)
+            ->assertHasErrors('envioCorreo')->assertSet('correoEnviado', false)
+            ->assertSee('No se pudo completar el envío.');
+        $this->assertSame('cliente@example.test', DB::table('cliente')->where('id', 1)->value('correo'));
+    }
+
+    public function test_invoice_email_blocks_non_delivery_mailers_and_empty_payment_catalog(): void
+    {
+        $this->prepararPruebaCorreo();
+        config(['mail.default' => 'log']);
+        Livewire::test(CarteraDeCobros::class)->call('abrirFactura', 1)->call('prepararCorreoFactura')
+            ->set('correoCorrecto', true)->call('solicitarEnvioFactura')->assertHasErrors('envioCorreo')
+            ->assertSee('El envío requiere un servicio SMTP configurado.');
+        config(['mail.default' => 'smtp']);
+        DB::table('banco')->where('nombre', 'Banco autorizado')->delete();
+        Livewire::test(CarteraDeCobros::class)->call('abrirFactura', 1)->call('prepararCorreoFactura')
+            ->set('correoCorrecto', true)->call('solicitarEnvioFactura')->assertHasErrors('envioCorreo')
+            ->assertSee('No hay cuentas de pago disponibles');
+        Mail::assertNothingSent();
+    }
+
+    public function test_invoice_email_does_not_overwrite_a_customer_address_changed_during_confirmation(): void
+    {
+        $this->prepararPruebaCorreo();
+        $componente = Livewire::test(CarteraDeCobros::class)->call('abrirFactura', 1)->call('prepararCorreoFactura')
+            ->set('correoFactura', 'nuevo@example.test')->set('correoCorrecto', true)->call('solicitarEnvioFactura');
+        DB::table('cliente')->where('id', 1)->update(['correo' => 'otro@example.test']);
+        $componente->call('enviarCorreoFactura', true)->assertSet('correoEnviado', true)
+            ->assertHasErrors('envioCorreo')->assertSee('No es necesario reenviar.');
+        $this->assertSame('otro@example.test', DB::table('cliente')->where('id', 1)->value('correo'));
+        Mail::assertSentCount(1);
     }
 
     public function test_aging_boundaries_missing_dates_and_weighted_mora_are_exact(): void

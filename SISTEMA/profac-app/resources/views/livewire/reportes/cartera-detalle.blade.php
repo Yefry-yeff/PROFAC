@@ -19,7 +19,7 @@
         mora(fila) { return fila.dias === null ? 'Sin vencimiento' : (fila.dias > 0 ? fila.dias + ' días' : 'Por vencer'); }
     }">
     <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
-        <div><h4 class="font-weight-bold mb-1">Detalle de cartera pendiente</h4><small>{{ count($detalleCompleto) }} facturas · Las mismas selecciones de los gráficos</small><small class="d-block text-muted">Paginación y ordenamiento sobre los datos cargados. Usa Actualizar para consultar cambios recientes.</small></div>
+        <div><h4 class="font-weight-bold mb-1">Detalle de cartera pendiente</h4><small>{{ count($detalleCompleto) }} facturas · Las mismas selecciones de los gráficos</small><small class="d-block text-muted">Paginación y ordenamiento sobre los datos cargados. Usa Actualizar para consultar cambios recientes.</small><small class="d-block text-muted">Haz clic en la factura para ver sus productos e imprimir una copia.</small></div>
         <button class="btn btn-sm btn-outline-secondary" wire:click="descargar('detalle')">Excel · todas las páginas</button>
         <div>
             <label for="cb-orden" class="small">Ordenar por</label>
@@ -42,7 +42,7 @@
                 <template x-for="fila in visibles" :key="fila.id">
                     <tr :data-factura="fila.id">
                         <td><button class="cb-link" @click="$wire.seleccionar('cliente', String(fila.cliente_id))" x-text="fila.cliente"></button><small class="d-block text-muted" x-text="'#' + fila.cliente_id"></small></td>
-                        <td><span x-text="fila.cai || fila.numero_secuencia_cai"></span><small class="d-block text-muted" x-text="'ID ' + fila.id"></small></td>
+                        <td><button type="button" class="cb-link" @click="$wire.abrirFactura(fila.id)" :aria-label="'Ver detalle de factura ' + (fila.cai || fila.numero_secuencia_cai)" x-text="fila.cai || fila.numero_secuencia_cai"></button><small class="d-block text-muted" x-text="'ID ' + fila.id"></small></td>
                         <td x-text="fila.fecha_emision || 'Sin fecha'"></td>
                         <td x-text="fila.fecha_vencimiento || 'Sin fecha'"></td>
                         <td class="text-right font-weight-bold text-nowrap"><span class="cb-risk" :class="'cb-risk-' + fila.riesgo" :title="'Riesgo por vencimiento: ' + mora(fila)" x-text="dinero(fila.centavos)"></span></td>

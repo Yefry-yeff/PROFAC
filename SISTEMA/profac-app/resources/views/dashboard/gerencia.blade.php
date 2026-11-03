@@ -37,12 +37,7 @@
     @include('dashboard.kpi', ['etiqueta' => 'Clientes activos', 'icono' => 'fa-users', 'valor' => number_format($kpis['clientes_act'] ?? 0), 'ayuda' => 'Compraron desde el inicio del sistema hasta hoy', 'accion' => 'clientes', 'color' => 'green', 'enlace' => null])
     @include('dashboard.kpi', ['etiqueta' => 'Clientes creados', 'icono' => 'fa-user-plus', 'valor' => number_format($kpis['clientes_nuevos'] ?? 0), 'ayuda' => 'Creados desde el inicio del sistema hasta hoy', 'accion' => 'clientes_nuevos', 'color' => 'blue', 'enlace' => null])
 
-    <div class="dash-kpi red">
-        <div class="dash-kpi-icon"><i class="fa fa-warning"></i></div>
-        <div class="dash-kpi-label">Requieren atención</div>
-        <div class="dash-kpi-value">{{ number_format($kpisGenerales['requieren_atencion']) }}</div>
-        <div class="dash-kpi-sub">Historial hasta hoy: sin compra por más de 90 días o caída mensual de al menos 20%. Sin límite de clientes.</div>
-    </div>
+    @include('dashboard.kpi-atencion')
     @include('dashboard.kpi-poco-movimiento')
 </div>
 

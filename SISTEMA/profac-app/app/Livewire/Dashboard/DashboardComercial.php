@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\Validator;
 use Livewire\Attributes\Locked;
 use Livewire\WithPagination;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use App\Exports\CarteraCobrosExport;
+use Maatwebsite\Excel\Facades\Excel;
 
 class DashboardComercial extends Component
 {
@@ -44,8 +46,8 @@ class DashboardComercial extends Component
 
     public function abrirDetalle(string $tipo): void
     {
-        abort_unless(in_array($tipo, ['facturas', 'clientes', 'clientes_nuevos', 'inventario', 'poco_movimiento'], true), 422);
-        abort_unless($this->puedeVerArea(in_array($tipo, ['inventario', 'poco_movimiento'], true) ? 'inventario' : 'comercial'), 403);
+        abort_unless(in_array($tipo, ['facturas', 'clientes', 'clientes_nuevos', 'inventario', 'poco_movimiento', 'sin_imagen', 'atencion'], true), 422);
+        abort_unless($this->puedeVerArea(in_array($tipo, ['inventario', 'poco_movimiento', 'sin_imagen'], true) ? 'inventario' : 'comercial'), 403);
         $this->validate([
             'fechaInicio' => 'required|date_format:Y-m-d',
             'fechaFin' => 'required|date_format:Y-m-d|after_or_equal:fechaInicio',
@@ -90,6 +92,7 @@ class DashboardComercial extends Component
         $vendedor = in_array((int) auth()->user()->rol_id, [2, 3, 14, 15], true)
             ? auth()->id() : $this->filtroVendedorId;
         return DB::table('cliente as c')
+            ->where('c.estado_cliente_id', 1)
             ->where('c.created_at', '<', now()->startOfDay()->addDay()->toDateString())
             ->when($vendedor, fn ($q) => $q->where('c.vendedor', $vendedor))
             ->when($this->filtroClienteId, fn ($q) => $q->where('c.id', $this->filtroClienteId));
@@ -101,6 +104,8 @@ class DashboardComercial extends Component
             ? auth()->id() : $this->filtroVendedorId;
         return DB::table('factura as f')
             ->where('f.estado_venta_id', 1)
+            ->whereExists(fn ($q) => $q->selectRaw('1')->from('cliente as cliente_activo')
+                ->whereColumn('cliente_activo.id', 'f.cliente_id')->where('cliente_activo.estado_cliente_id', 1))
             ->where('f.fecha_emision', '<', now()->startOfDay()->addDay()->toDateString())
             ->when($vendedor, fn ($q) => $q->where('f.vendedor', $vendedor))
             ->when($this->filtroClienteId, fn ($q) => $q->where('f.cliente_id', $this->filtroClienteId));
@@ -108,27 +113,29 @@ class DashboardComercial extends Component
 
     public function getKpisGenerales(): array
     {
-        $clave = 'dashboard_generales_' . auth()->id() . '_' . now()->toDateString()
+        $clave = 'dashboard_generales_v2_' . auth()->id() . '_' . now()->toDateString()
             . "_{$this->filtroVendedorId}_{$this->filtroClienteId}";
         return Cache::remember($clave, 120, function () {
-            $inicioMes = now()->startOfMonth();
-            $inicioAnterior = $inicioMes->copy()->subMonth();
-            $clientesConVentas = $this->ventasHistoricas()
-                ->select('f.cliente_id')->selectRaw('MAX(f.fecha_emision) as ultima_venta')
-                ->selectRaw('SUM(CASE WHEN f.fecha_emision >= ? THEN f.total ELSE 0 END) as actual', [$inicioMes->toDateString()])
-                ->selectRaw('SUM(CASE WHEN f.fecha_emision >= ? AND f.fecha_emision < ? THEN f.total ELSE 0 END) as anterior', [$inicioAnterior->toDateString(), $inicioMes->toDateString()])
-                ->groupBy('f.cliente_id');
-            $atencion = DB::query()->fromSub($clientesConVentas, 'historial')
-                ->where(fn ($q) => $q->where('ultima_venta', '<', now()->startOfDay()->subDays(90)->toDateString())
-                    ->orWhere(fn ($q) => $q->where('anterior', '>', 0)->whereRaw('actual <= anterior * 0.8')))
-                ->count();
             return [
                 'clientes_act' => $this->ventasHistoricas()->distinct()->count('f.cliente_id'),
                 'clientes_nuevos' => $this->clientesHistoricos()->count(),
-                'requieren_atencion' => $atencion,
+                'requieren_atencion' => $this->clientesRequierenAtencion()->count(),
                 'poco_movimiento' => $this->puedeVerArea('inventario') ? $this->productosSinVentas()->count() : 0,
             ];
         });
+    }
+
+    protected function clientesRequierenAtencion(): Builder
+    {
+        $inicioMes = now()->startOfMonth();
+        $clientesConVentas = $this->ventasHistoricas()
+            ->select('f.cliente_id')->selectRaw('MAX(f.fecha_emision) as ultima_venta')
+            ->selectRaw('SUM(CASE WHEN f.fecha_emision >= ? THEN f.total ELSE 0 END) as actual', [$inicioMes->toDateString()])
+            ->selectRaw('SUM(CASE WHEN f.fecha_emision >= ? AND f.fecha_emision < ? THEN f.total ELSE 0 END) as anterior', [$inicioMes->copy()->subMonth()->toDateString(), $inicioMes->toDateString()])
+            ->groupBy('f.cliente_id');
+        return DB::query()->fromSub($clientesConVentas, 'historial')
+            ->where(fn ($q) => $q->where('ultima_venta', '<', now()->startOfDay()->subDays(90)->toDateString())
+                ->orWhere(fn ($q) => $q->where('anterior', '>', 0)->whereRaw('actual <= anterior * 0.8')));
     }
 
     protected function productosSinVentas(): Builder
@@ -146,12 +153,17 @@ class DashboardComercial extends Component
 
     protected function detalleProductosSinVentas(): Builder
     {
-        $compras = DB::table('compra_has_producto as cp')->join('compra as co', 'co.id', '=', 'cp.compra_id')
+        $vinculosCompra = DB::table('compra_has_producto')->select('producto_id', 'compra_id')
+            ->union(DB::table('recibido_bodega')->whereNotNull('compra_id')->select('producto_id', 'compra_id'));
+        $compras = DB::query()->fromSub($vinculosCompra, 'cp')->join('compra as co', 'co.id', '=', 'cp.compra_id')
             ->where('co.estado_compra_id', 1)
             ->where('co.fecha_emision', '<', now()->startOfDay()->addDay()->toDateString())
             ->select('cp.producto_id')->selectRaw('MAX(co.fecha_emision) as ultima_compra')->groupBy('cp.producto_id');
         $existencias = DB::table('recibido_bodega')->select('producto_id')
-            ->selectRaw('SUM(cantidad_disponible) as existencia')->groupBy('producto_id');
+            ->selectRaw('SUM(cantidad_disponible) as existencia')
+            ->selectRaw('SUM(CASE WHEN compra_id IS NULL THEN cantidad_disponible ELSE 0 END) as existencia_sin_compra')
+            ->selectRaw('MAX(CASE WHEN compra_id IS NULL AND cantidad_disponible > 0 THEN fecha_recibido ELSE NULL END) as ultimo_ingreso_sin_compra')
+            ->groupBy('producto_id');
         $ventas = DB::table('venta_has_producto as vp')->join('factura as f', 'f.id', '=', 'vp.factura_id')
             ->where('f.estado_venta_id', 1)
             ->where('f.fecha_emision', '<', now()->startOfDay()->addDay()->toDateString())
@@ -160,8 +172,8 @@ class DashboardComercial extends Component
             ->leftJoinSub($compras, 'compras', 'compras.producto_id', '=', 'p.id')
             ->leftJoinSub($existencias, 'existencias', 'existencias.producto_id', '=', 'p.id')
             ->leftJoinSub($ventas, 'ventas', 'ventas.producto_id', '=', 'p.id')
-            ->select('p.id', 'p.nombre', 'p.codigo_barra', 'compras.ultima_compra', 'ventas.ultima_venta')
-            ->selectRaw('COALESCE(existencias.existencia, 0) as existencia');
+            ->select('p.id', 'p.nombre', 'p.codigo_barra', 'compras.ultima_compra', 'ventas.ultima_venta', 'existencias.ultimo_ingreso_sin_compra')
+            ->selectRaw('COALESCE(existencias.existencia, 0) as existencia, COALESCE(existencias.existencia_sin_compra, 0) as existencia_sin_compra');
     }
 
     protected function productosBajoInventario(): Builder
@@ -174,11 +186,23 @@ class DashboardComercial extends Component
             ->havingRaw('COALESCE(SUM(c.cantidad), 0) >= 0 AND COALESCE(SUM(c.cantidad), 0) < 10');
     }
 
+    protected function productosSinImagen(): Builder
+    {
+        return DB::table('producto as p')->where('p.estado_producto_id', 1)
+            ->whereNotExists(fn ($q) => $q->selectRaw('1')->from('img_producto as ip')
+                ->whereColumn('ip.producto_id', 'p.id'));
+    }
+
     public function consultarDetalle(): LengthAwarePaginator
     {
-        abort_unless($this->puedeVerArea(in_array($this->detalleKpi, ['inventario', 'poco_movimiento'], true) ? 'inventario' : 'comercial'), 403);
+        return $this->consultaDetalle()->paginate(20, ['*'], 'detallePage');
+    }
+
+    protected function consultaDetalle(): Builder
+    {
+        abort_unless($this->puedeVerArea(in_array($this->detalleKpi, ['inventario', 'poco_movimiento', 'sin_imagen'], true) ? 'inventario' : 'comercial'), 403);
         $busqueda = trim($this->buscarDetalle);
-        $query = match ($this->detalleKpi) {
+        return match ($this->detalleKpi) {
             'facturas' => $this->facturasPeriodo()
                 ->leftJoin('cliente as c', 'c.id', '=', 'f.cliente_id')
                 ->leftJoin('users as u', 'u.id', '=', 'f.vendedor')
@@ -187,7 +211,7 @@ class DashboardComercial extends Component
                 ->orderByDesc('f.fecha_emision')->orderByDesc('f.id'),
             'clientes', 'clientes_nuevos' => ($this->detalleKpi === 'clientes_nuevos'
                 ? $this->clientesHistoricos()
-                : DB::table('cliente as c')->whereIn('c.id', $this->ventasHistoricas()->select('f.cliente_id')))
+                : DB::table('cliente as c')->where('c.estado_cliente_id', 1)->whereIn('c.id', $this->ventasHistoricas()->select('f.cliente_id')))
                 ->leftJoin('users as u', 'u.id', '=', 'c.vendedor')
                 ->select('c.id', 'c.nombre', 'c.created_at', 'u.name as vendedor')
                 ->when($busqueda !== '', fn ($q) => $q->where(fn ($q) => $q->where('c.nombre', 'like', "%{$busqueda}%")->orWhere('c.id', 'like', "%{$busqueda}%")))
@@ -198,9 +222,82 @@ class DashboardComercial extends Component
             'poco_movimiento' => $this->detalleProductosSinVentas()
                 ->when($busqueda !== '', fn ($q) => $q->where(fn ($q) => $q->where('p.nombre', 'like', "%{$busqueda}%")->orWhere('p.codigo_barra', 'like', "%{$busqueda}%")->orWhere('p.id', 'like', "%{$busqueda}%")))
                 ->orderBy('ultima_venta')->orderBy('p.id'),
+            'sin_imagen' => $this->productosSinImagen()->select('p.id', 'p.codigo_barra', 'p.nombre')
+                ->when($busqueda !== '', fn ($q) => $q->where(fn ($q) => $q->where('p.nombre', 'like', "%{$busqueda}%")->orWhere('p.codigo_barra', 'like', "%{$busqueda}%")->orWhere('p.id', 'like', "%{$busqueda}%")))
+                ->orderBy('p.id'),
+            'atencion' => $this->clientesRequierenAtencion()
+                ->join('cliente as c', 'c.id', '=', 'historial.cliente_id')
+                ->leftJoin('users as u', 'u.id', '=', 'c.vendedor')
+                ->select('c.id', 'c.nombre', 'u.name as vendedor', 'historial.ultima_venta', 'historial.actual', 'historial.anterior')
+                ->when($busqueda !== '', fn ($q) => $q->where(fn ($q) => $q->where('c.nombre', 'like', "%{$busqueda}%")->orWhere('c.id', 'like', "%{$busqueda}%")->orWhere('u.name', 'like', "%{$busqueda}%")))
+                ->orderBy('historial.ultima_venta')->orderBy('c.id'),
             default => abort(422),
         };
-        return $query->paginate(20, ['*'], 'detallePage');
+    }
+
+    public function descargarDetalle()
+    {
+        $this->validate([
+            'fechaInicio' => 'required|date_format:Y-m-d',
+            'fechaFin' => 'required|date_format:Y-m-d|after_or_equal:fechaInicio',
+        ]);
+        $registros = $this->consultaDetalle()->get();
+        [$titulo, $encabezados] = match ($this->detalleKpi) {
+            'facturas' => ['Facturas emitidas', ['ID', 'Secuencia CAI', 'Fecha de emisión', 'Cliente', 'Asesor', 'Total (L)']],
+            'clientes', 'clientes_nuevos' => [$this->detalleKpi === 'clientes' ? 'Clientes activos' : 'Clientes creados', ['ID', 'Cliente', 'Fecha de creación', 'Asesor asignado']],
+            'inventario' => ['Inventario bajo', ['ID', 'Código', 'Producto', 'Existencia actual']],
+            'sin_imagen' => ['Productos sin imagen', ['ID', 'Código', 'Producto']],
+            'poco_movimiento' => ['Productos poco movimiento', ['ID', 'Nombre', 'Fecha de última compra', 'Existencia', 'Fecha de última venta', 'Existencia sin compra vinculada', 'Último ingreso sin compra']],
+            'atencion' => ['Clientes requieren atencion', ['ID', 'Cliente', 'Asesor', 'Última compra del cliente', 'Comprado mes actual (L)', 'Comprado mes anterior (L)', 'Variación (%)', 'Motivo']],
+            default => abort(422),
+        };
+        $filas = $registros->map(fn ($r) => match ($this->detalleKpi) {
+            'facturas' => [$r->id, $r->cai ?: 'Sin secuencia CAI', $r->fecha_emision, $r->cliente ?? 'Sin cliente', $r->vendedor ?? 'Sin asignar', (float) $r->total],
+            'clientes', 'clientes_nuevos' => [$r->id, $r->nombre, $r->created_at, $r->vendedor ?? 'Sin asignar'],
+            'inventario' => [$r->id, $r->codigo_barra ?: 'Sin código', $r->nombre, (float) $r->stock],
+            'sin_imagen' => [$r->id, $r->codigo_barra ?: 'Sin código', $r->nombre],
+            'poco_movimiento' => [$r->id, $r->nombre, $r->ultima_compra ?: 'Sin compra vinculada', (float) $r->existencia, $r->ultima_venta ?: 'Sin ventas registradas', (float) $r->existencia_sin_compra, $r->ultimo_ingreso_sin_compra ?: 'Sin ingreso registrado'],
+            'atencion' => [$r->id, $r->nombre, $r->vendedor ?? 'Sin asignar', $r->ultima_venta, (float) $r->actual, (float) $r->anterior, $r->anterior > 0 ? round(($r->actual - $r->anterior) / $r->anterior * 100, 2) : null, $this->motivoAtencion($r->ultima_venta, (float) $r->actual, (float) $r->anterior)],
+        })->all();
+        $criterios = [
+            ['Detalle', $titulo],
+            ['Fecha de consulta', now()->format('Y-m-d H:i:s')],
+            ['Período', $this->detalleKpi === 'facturas' ? "{$this->fechaInicio} al {$this->fechaFin}" : 'Historial hasta hoy / existencia actual'],
+            ['Asesor seleccionado', (string) $this->filtroVendedorId],
+            ['Cliente seleccionado', (string) $this->filtroClienteId],
+            ['Búsqueda', $this->buscarDetalle],
+            ['Registros exportados', count($filas)],
+            ['Alcance', 'Todos los registros que coinciden con los filtros, no solo la página visible. Se conservan las restricciones del rol.'],
+        ];
+        if ($this->detalleKpi === 'poco_movimiento') {
+            $criterios[] = ['Regla', 'Sin ventas activas desde ' . now()->startOfDay()->subDays(90)->toDateString() . ' hasta hoy. Incluye productos nunca vendidos.'];
+            $criterios[] = ['Origen de existencia', 'Los ingresos sin compra vinculada se muestran por separado; no se consideran compras.'];
+        }
+        if ($this->detalleKpi === 'atencion') {
+            $criterios[] = ['Regla', 'Sin compra por más de 90 días o caída de al menos 20% del mes actual (en curso) frente al mes anterior completo.'];
+        }
+        if (in_array($this->detalleKpi, ['clientes', 'clientes_nuevos', 'atencion', 'inventario', 'poco_movimiento', 'sin_imagen'], true)) {
+            $criterios[] = ['Estado', 'Solo registros activos.'];
+        }
+        if ($this->detalleKpi === 'sin_imagen') {
+            $criterios[] = ['Regla', 'Productos activos sin imagen registrada. No depende del período seleccionado.'];
+        }
+        return Excel::download(new CarteraCobrosExport([
+            [$titulo, $encabezados, $filas],
+            ['Criterios', ['Criterio', 'Valor'], $criterios],
+        ]), 'Dashboard-' . $this->detalleKpi . '-' . now()->toDateString() . '.xlsx');
+    }
+
+    public function motivoAtencion(string $ultimaVenta, float $actual, float $anterior): string
+    {
+        $motivos = [];
+        if (Carbon::parse($ultimaVenta)->lt(now()->startOfDay()->subDays(90))) {
+            $motivos[] = 'Sin compra por más de 90 días';
+        }
+        if ($anterior > 0 && $actual <= $anterior * 0.8) {
+            $motivos[] = 'Caída mensual de al menos 20%';
+        }
+        return implode(' · ', $motivos);
     }
 
     // ─── Filtros ────────────────────────────────────────────────────────────
@@ -411,7 +508,7 @@ class DashboardComercial extends Component
         $fi = $this->fechaInicio;
         $ff = $this->fechaFin;
 
-        $cacheKey = "dashboard_kpis_v3_" . auth()->id() . "_" . now()->toDateString() . "_{$fi}_{$ff}_{$this->filtroVendedorId}_{$this->filtroClienteId}";
+        $cacheKey = "dashboard_kpis_v4_" . auth()->id() . "_" . now()->toDateString() . "_{$fi}_{$ff}_{$this->filtroVendedorId}_{$this->filtroClienteId}";
 
         return Cache::remember($cacheKey, 120, function () use ($fi, $ff) {
             $q = $this->facturasPeriodo();
@@ -961,14 +1058,10 @@ class DashboardComercial extends Component
     // ─── KPIs de Inventario ──────────────────────────────────────────────────
     public function getKpisInventario(): array
     {
-        return Cache::remember('dash_inventario_kpis_v2', 300, function () {
+        return Cache::remember('dash_inventario_kpis_v3', 300, function () {
             $totalProductos = (int) DB::table('producto')->where('estado_producto_id', 1)->count();
 
-            $sinImagen = (int) DB::table('producto as p')
-                ->leftJoin('img_producto as ip', 'ip.producto_id', '=', 'p.id')
-                ->whereNull('ip.id')
-                ->where('p.estado_producto_id', 1)
-                ->count();
+            $sinImagen = $this->productosSinImagen()->count();
 
             $bajosStock = DB::query()->fromSub($this->productosBajoInventario(), 'bajos')->count();
 
