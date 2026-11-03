@@ -15,15 +15,22 @@ use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\File;
 use DataTables;
 use Auth;
+use App\Http\Controllers\MenuHelper;
+use Livewire\Attributes\Locked;
 
 
 class DetalleProducto extends Component
 {
 
     public $idProducto;
-    public function mount($id)
+    #[Locked]
+    public bool $soloLectura = false;
+
+    public function mount($id, $soloLectura = false)
     {
         $this->idProducto = $id;
+        $this->soloLectura = (bool) $soloLectura
+            || (!MenuHelper::tieneAcceso('producto/registro') && MenuHelper::tieneAcceso('producto/apoyo/registro'));
     }
 
     public function render()
@@ -253,7 +260,8 @@ class DetalleProducto extends Component
 
         $esAdmin = Auth::user()->rol_id == 1;
 
-        return view('livewire.inventario.detalle-producto',  compact('producto', 'precios', 'imagenes', 'lotes', 'categorias', 'unidades', 'marcas', 'esAdmin'));
+        $soloLectura = $this->soloLectura;
+        return view('livewire.inventario.detalle-producto',  compact('producto', 'precios', 'imagenes', 'lotes', 'categorias', 'unidades', 'marcas', 'esAdmin', 'soloLectura'));
     }
 
     private function prefacturaTieneReservaCompleta(int $prefacturaId, array &$cache): bool
@@ -286,7 +294,7 @@ class DetalleProducto extends Component
         return true;
     }
 
-    public function unidadesVenta($id){
+    public function unidadesVenta($id, $soloLectura = false){
        try {
 
 
@@ -313,10 +321,11 @@ class DetalleProducto extends Component
         //         '<div class="text-center">  <button class="btn btn-danger  btn-dim" type="button"><i class="fa-solid fa-trash-can"></i></button></div>';
 
         // })
-        ->addColumn('editar', function ($unidad) {
+        ->addColumn('editar', function ($unidad) use ($soloLectura) {
 
             $cadena = "";
-            if(Auth::user()->rol_id == '1' || Auth::user()->rol_id == '5'){
+            if (!$soloLectura && !$this->soloLectura && MenuHelper::tieneAcceso('producto/registro')
+                && (Auth::user()->rol_id == '1' || Auth::user()->rol_id == '5')) {
                 $cadena =   '<div class="text-center">  <button onclick="modalEditarUnidades('.$unidad->id.','.$unidad->unidad_venta.','.$unidad->unidad_medida_id.')" class="btn btn-warning  btn-dim" type="button"><i class="fa-solid fa-pencil"></i></button></div>';
             }
 
@@ -357,6 +366,7 @@ class DetalleProducto extends Component
     }
 
     public function editarUnidadesVenta(Request $request){
+       abort_unless(MenuHelper::tieneAcceso('producto/registro'), 403, 'No tiene acceso para editar productos desde el catálogo de apoyo.');
        try {
 
         //dd($request->idUniadVenta);

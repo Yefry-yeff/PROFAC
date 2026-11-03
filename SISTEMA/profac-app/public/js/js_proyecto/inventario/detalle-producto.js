@@ -1,10 +1,12 @@
 ﻿$(document).ready(function() {
 
-var idProducto_edit = document.getElementById('id_producto_edit').value;
-obtenerDatosProductoEditar(idProducto_edit);
+var formularioEditar = document.getElementById('editarProductoForm');
+if (formularioEditar) {
+    obtenerDatosProductoEditar(document.getElementById('id_producto_edit').value);
+}
 
 var tablaLotes = document.getElementById('tbl_lotes_listar');
-var codigoProducto = tablaLotes.dataset.productoCodigo || idProducto_edit;
+var codigoProducto = tablaLotes.dataset.productoCodigo;
 var nombreProducto = tablaLotes.dataset.productoNombre || 'Producto';
 var usuarioDescarga = tablaLotes.dataset.usuarioDescarga || 'Sistema';
 
@@ -74,6 +76,11 @@ $('#tbl_lotes_listar').DataTable({
 
 });
 
+var tablaUnidades = document.getElementById('tbl_unidades_listar');
+var columnasUnidades = [{ data: 'contador' }, { data: 'nombre' }, { data: 'unidad_venta' }];
+if (tablaUnidades.dataset.soloLectura !== '1') {
+    columnasUnidades.push({ data: 'editar' });
+}
 $('#tbl_unidades_listar').DataTable({
 
     "language": {
@@ -82,23 +89,8 @@ $('#tbl_unidades_listar').DataTable({
 
     pageLength: 10,
     responsive: true,
-    "ajax": "/detalle/producto/unidad/" + idProducto_edit,
-    "columns": [{
-            data: 'contador'
-        },
-        {
-            data: 'nombre'
-        },
-        {
-            data: 'unidad_venta'
-        },
-        // {
-        //     data: 'eliminar'
-        // },
-        {
-            data: 'editar'
-        },
-    ]
+    "ajax": tablaUnidades.dataset.url,
+    "columns": columnasUnidades
 
 
 });

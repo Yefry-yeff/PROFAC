@@ -225,30 +225,6 @@ function limpiarFormCrearApoyo() {
     $('a[href="#tap-ap-general"]').tab('show');
 }
 
-/* ── Inactivar / Activar ── */
-function cambiarEstado(id, estado) {
-    var accion = estado === 1 ? 'activar' : 'inactivar';
-    Swal.fire({
-        title: '¿Confirmar?',
-        text: 'Va a ' + accion + ' este producto.',
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonText: 'Sí, ' + accion,
-        cancelButtonText: 'Cancelar'
-    }).then(function (result) {
-        if (!result.isConfirmed) return;
-        axios.post('/producto/inactivar', { id: id, estado: estado })
-            .then(function (r) {
-                Swal.fire('Listo', r.data.message, 'success').then(function () {
-                    if (tblApoyo) tblApoyo.ajax.reload(null, false);
-                });
-            })
-            .catch(function () {
-                Swal.fire('Error', 'No se pudo cambiar el estado.', 'error');
-            });
-    });
-}
-
 /* reset al cerrar modal */
 $('#modal_apoyo_crear').on('hidden.bs.modal', function () {
     limpiarFormCrearApoyo();

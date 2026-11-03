@@ -27,7 +27,7 @@ class ProductoApoyo extends Component
 
     /**
      * Listar productos para DataTable — igual que Producto::listarProductos
-     * pero la columna de acciones solo tiene Editar (ir al detalle) e Inactivar.
+     * pero la columna de acciones solo permite consultar el detalle.
      * Sin precios ni costos en la respuesta.
      */
     public function listarProductos(Request $request)
@@ -66,18 +66,13 @@ class ProductoApoyo extends Component
                         : '<span class="badge-inactivo">Inactivo</span>';
                 })
                 ->addColumn('acciones', function ($p) {
-                    $detalle = '<a class="dropdown-item" href="/producto/detalle/' . $p->codigo . '"><i class="fa fa-search mr-1"></i> Ver detalle</a>';
-                    if ($p->estado_producto_id == 1) {
-                        $toggle = '<a class="dropdown-item text-danger" href="#" onclick="cambiarEstado(' . $p->codigo . ', 2)"><i class="fa fa-ban mr-1"></i> Inactivar</a>';
-                    } else {
-                        $toggle = '<a class="dropdown-item text-success" href="#" onclick="cambiarEstado(' . $p->codigo . ', 1)"><i class="fa fa-check-circle mr-1"></i> Activar</a>';
-                    }
+                    $detalle = '<a class="dropdown-item" href="/producto/apoyo/detalle/' . $p->codigo . '"><i class="fa fa-search mr-1"></i> Ver detalle</a>';
                     return '
                     <div class="prod-dropdown dropdown">
                         <button class="btn-prod-menu" data-toggle="dropdown">
                             <i class="fa fa-ellipsis-v"></i>
                         </button>
-                        <div class="dropdown-menu dropdown-menu-right">' . $detalle . $toggle . '</div>
+                        <div class="dropdown-menu dropdown-menu-right">' . $detalle . '</div>
                     </div>';
                 })
                 ->filter(function ($query) use ($request) {
@@ -197,20 +192,10 @@ class ProductoApoyo extends Component
     }
 
     /**
-     * Cambiar estado activo/inactivo
+     * El catalogo de apoyo no permite cambiar el estado de productos.
      */
     public function inactivarProducto(Request $request)
     {
-        try {
-            $id     = (int) $request->id;
-            $estado = (int) $request->estado;
-            if (!$id || !in_array($estado, [1, 2])) {
-                return response()->json(['message' => 'Parámetros inválidos.'], 422);
-            }
-            DB::table('producto')->where('id', $id)->update(['estado_producto_id' => $estado]);
-            return response()->json(['message' => $estado === 1 ? 'Producto activado.' : 'Producto inactivado.'], 200);
-        } catch (QueryException $e) {
-            return response()->json(['message' => 'Error al cambiar estado.'], 500);
-        }
+        return response()->json(['message' => 'El catálogo de apoyo solo permite consultar productos existentes.'], 403);
     }
 }

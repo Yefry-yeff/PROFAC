@@ -700,6 +700,8 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
 
     // Catálogo Apoyo (vendedores — sin precios)
     Route::get('/producto/apoyo/registro', ProductoApoyo::class);
+    Route::get('/producto/apoyo/detalle/{id}', DetalleProducto::class)->defaults('soloLectura', true);
+    Route::get('/producto/apoyo/detalle/{id}/unidades', [DetalleProducto::class, 'unidadesVenta'])->defaults('soloLectura', true);
     Route::post('/producto/apoyo/registrar', [ProductoApoyo::class, 'crearProducto']);
     Route::get('/apoyo/listar/productos', [ProductoApoyo::class, 'listarProductos']);
     Route::post('/apoyo/inactivar', [ProductoApoyo::class, 'inactivarProducto']);

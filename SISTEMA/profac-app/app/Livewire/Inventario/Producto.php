@@ -32,6 +32,7 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
+use App\Http\Controllers\MenuHelper;
 
 class Producto extends Component
 {
@@ -628,6 +629,7 @@ class Producto extends Component
 
     public function inactivarProducto(Request $request)
     {
+        abort_unless(MenuHelper::tieneAcceso('producto/registro'), 403, 'No tiene acceso para cambiar el estado de productos desde el catálogo de apoyo.');
         try {
             $id     = (int) $request->id;
             $estado = (int) $request->estado; // 1 = Activo, 2 = Inactivo
@@ -765,6 +767,7 @@ class Producto extends Component
     }
 
     public function editarProducto(Request $request){
+        abort_unless(MenuHelper::tieneAcceso('producto/registro'), 403, 'No tiene acceso para editar productos desde el catálogo de apoyo.');
         try {
 
             $codBarra = trim($request['cod_barra_producto_edit']);

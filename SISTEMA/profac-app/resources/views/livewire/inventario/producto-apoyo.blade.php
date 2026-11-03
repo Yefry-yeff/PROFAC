@@ -123,7 +123,7 @@
             <i class="fa fa-plus mr-1"></i> Nuevo Producto
         </button>
         <span style="margin-left:auto; font-size:.78rem; color:#888;">
-            <i class="fa fa-info-circle mr-1"></i> Haga clic en <b>Ver detalle</b> para editar un producto
+            <i class="fa fa-info-circle mr-1"></i> Haga clic en <b>Ver detalle</b> para consultar un producto sin editarlo
         </span>
     </div>
 

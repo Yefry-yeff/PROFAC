@@ -345,7 +345,7 @@
     <div class="det-page-header">
         <ol class="breadcrumb">
             <li class="breadcrumb-item"><i class="fa fa-home mr-1"></i> Inventario</li>
-            <li class="breadcrumb-item"><a href="/producto/registro" style="color:rgba(255,255,255,.6);">Catálogo</a></li>
+            <li class="breadcrumb-item"><a href="{{ $soloLectura ? '/producto/apoyo/registro' : '/producto/registro' }}" style="color:rgba(255,255,255,.6);">Catálogo</a></li>
             <li class="breadcrumb-item active">Detalle</li>
         </ol>
         <div style="display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:14px;">
@@ -357,12 +357,16 @@
                 </p>
             </div>
             <div class="det-header-actions">
+                @if ($soloLectura)
+                <span class="badge badge-light">Solo lectura · Catálogo de apoyo</span>
+                @else
                 <button class="btn-det-edit" data-toggle="modal" data-target="#modal_producto_editar">
                     <i class="fa fa-pencil mr-1"></i> Editar Producto
                 </button>
                 <button class="btn-det-foto" data-toggle="modal" data-target="#modal_foto_producto">
                     <i class="fa fa-camera mr-1"></i> Subir Fotografía
                 </button>
+                @endif
             </div>
         </div>
     </div>
@@ -390,7 +394,7 @@
                             <div class="carousel-inner">
                                 @php
                                     $comillas = '"';
-                                    $puedeEliminarImagen = count(array_intersect(
+                                    $puedeEliminarImagen = !$soloLectura && count(array_intersect(
                                         Auth::user()->rolesIds(),
                                         [1, 5, 7, 9, 10]
                                     )) > 0;
@@ -428,7 +432,7 @@
                         <div class="no-photos-placeholder">
                             <i class="fa fa-picture-o"></i>
                             <p style="color:#aaa; font-size:.9rem; margin:0;">Sin fotografías registradas</p>
-                            @if (Auth::user()->rol_id == '1' || Auth::user()->rol_id == '10' || Auth::user()->rol_id == '9')
+                            @if (!$soloLectura && (Auth::user()->rol_id == '1' || Auth::user()->rol_id == '10' || Auth::user()->rol_id == '9'))
                             <button class="btn-det-foto mt-3" data-toggle="modal" data-target="#modal_foto_producto">
                                 <i class="fa fa-plus mr-1"></i> Agregar fotografía
                             </button>
@@ -626,13 +630,17 @@
             </div>
             <div class="table-wrap">
                 <div class="table-responsive">
-                    <table id="tbl_unidades_listar" class="table table-hover" style="width:100%">
+                    <table id="tbl_unidades_listar" class="table table-hover" style="width:100%"
+                        data-solo-lectura="{{ $soloLectura ? '1' : '0' }}"
+                        data-url="{{ $soloLectura ? '/producto/apoyo/detalle/' . $producto->id . '/unidades' : '/detalle/producto/unidad/' . $producto->id }}">
                         <thead>
                             <tr>
                                 <th>#</th>
                                 <th>Unidad de medición</th>
                                 <th>Cantidad de unidades</th>
+                                @unless ($soloLectura)
                                 <th>Editar</th>
+                                @endunless
                             </tr>
                         </thead>
                         <tbody></tbody>
@@ -643,6 +651,7 @@
     </div>
 
     {{-- ══ MODAL: EDITAR PRODUCTO ════════════════════════════════════ --}}
+    @unless ($soloLectura)
     <div class="modal fade modal-modern" id="modal_producto_editar" tabindex="-1" role="dialog" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
             <div class="modal-content">
@@ -899,6 +908,7 @@
     </div>
 
     {{-- ══ MODAL: RESERVAS DE PRODUCTO POR SECCIÓN ════════════════════ --}}
+    @endunless
     <div class="modal fade modal-modern" id="modal_reservas_producto" tabindex="-1" role="dialog" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
             <div class="modal-content">
@@ -954,7 +964,9 @@
 
     @push('scripts')
     <script src="//cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
+    @unless ($soloLectura)
     <script src="{{ asset('js/js_proyecto/inventario/modal-foto-producto.js') }}?v={{ filemtime(public_path('js/js_proyecto/inventario/modal-foto-producto.js')) }}"></script>
+    @endunless
     <script src="{{ asset('js/js_proyecto/inventario/detalle-producto.js') }}?v={{ filemtime(public_path('js/js_proyecto/inventario/detalle-producto.js')) }}"></script>
     <script>
     function abrirModalReservas(btn) {
