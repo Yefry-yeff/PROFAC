@@ -485,22 +485,27 @@ var reporteExpo = (function () {
             if (dtProductos) { dtProductos.destroy(); $('#tabla-expo-productos tbody').empty(); }
             var tbody = $('#tabla-expo-productos tbody').empty();
             rows.forEach(function (r) {
+                var cantidad = esFactura ? r.cantidad_facturada : r.cantidad_ofertada;
                 tbody.append('<tr class="bi-row-selectable" data-producto-id="' + r.producto_id + '" title="Abrir analítica del producto">' +
                     '<td>' + esc(r.codigo) + '</td>' +
                     '<td>' + esc(r.producto) + '</td>' +
                     '<td>' + esc(r.marca) + '</td>' +
                     '<td>' + esc(r.categoria) + '</td>' +
-                    '<td class="text-right">' + fmtN(r.numero_ofertas) + '</td>' +
-                    '<td class="text-right">' + fmtQ(esFactura ? r.cantidad_facturada : r.cantidad_ofertada) + '</td>' +
-                    '<td class="text-right">' + fmt(r.total_base) + '</td>' +
-                    '<td class="text-right">' + fmt(r.descuento) + '</td>' +
-                    '<td class="text-right">' + fmt(r.total_costo) + '</td>' +
-                    '<td class="text-right ' + (r.utilidad >= 0 ? 'bi-profit' : 'bi-loss') + '">' + (r.utilidad >= 0 ? '+' : '-') + ' ' + fmt(Math.abs(r.utilidad)) + '</td>' +
-                    '<td class="text-right">' + (r.margen_pct !== null ? r.margen_pct + '%' : 'N/D') + '</td>' +
+                    '<td class="text-right" data-order="' + r.numero_ofertas + '">' + fmtN(r.numero_ofertas) + '</td>' +
+                    '<td class="text-right" data-order="' + cantidad + '">' + fmtQ(cantidad) + '</td>' +
+                    '<td class="text-right" data-order="' + r.total_base + '">' + fmt(r.total_base) + '</td>' +
+                    '<td class="text-right" data-order="' + r.descuento + '">' + fmt(r.descuento) + '</td>' +
+                    '<td class="text-right" data-order="' + r.total_costo + '">' + fmt(r.total_costo) + '</td>' +
+                    '<td class="text-right ' + (r.utilidad >= 0 ? 'bi-profit' : 'bi-loss') + '" data-order="' + r.utilidad + '">' + (r.utilidad >= 0 ? '+' : '-') + ' ' + fmt(Math.abs(r.utilidad)) + '</td>' +
+                    '<td class="text-right" data-order="' + (r.margen_pct !== null ? r.margen_pct : '') + '">' + (r.margen_pct !== null ? r.margen_pct + '%' : 'N/D') + '</td>' +
                     '</tr>');
             });
+            // El idioma español define la coma como decimal; se fuerza el tipo
+            // numérico para que ordene por el valor crudo de data-order.
             dtProductos = $('#tabla-expo-productos').DataTable({
-                pageLength: 10, lengthChange: true, order: [], language: { url: '/js/plugins/dataTables/i18n/Spanish.json' }
+                pageLength: 10, lengthChange: true, order: [],
+                columnDefs: [{ targets: [4, 5, 6, 7, 8, 9, 10], type: 'num' }],
+                language: { url: '/js/plugins/dataTables/i18n/Spanish.json' }
             });
             $('#tabla-expo-productos tbody').off('click', 'tr').on('click', 'tr', function () {
                 var id = $(this).data('producto-id');
@@ -622,10 +627,10 @@ var reporteExpo = (function () {
                 tbody.append('<tr class="bi-row-selectable bi-fila-cliente" data-cliente="' + esc(clave) + '" title="Ver ofertas de este cliente">' +
                     '<td class="text-center bi-toggle"><i class="fas fa-chevron-right"></i></td>' +
                     '<td data-search="' + esc(busqueda) + '">' + esc(c.cliente || 'Sin nombre') + '</td>' +
-                    '<td class="text-right font-weight-bold">' + fmtN(c.num_ofertas) + '</td>' +
-                    '<td class="text-right">' + fmtN(c.ganadoras) + '</td>' +
-                    '<td class="text-right">' + fmtN(c.no_ganadoras) + '</td>' +
-                    '<td class="text-right">' + fmtN(c.num_secciones) + '</td>' +
+                    '<td class="text-right font-weight-bold" data-order="' + c.num_ofertas + '">' + fmtN(c.num_ofertas) + '</td>' +
+                    '<td class="text-right" data-order="' + c.ganadoras + '">' + fmtN(c.ganadoras) + '</td>' +
+                    '<td class="text-right" data-order="' + c.no_ganadoras + '">' + fmtN(c.no_ganadoras) + '</td>' +
+                    '<td class="text-right" data-order="' + c.num_secciones + '">' + fmtN(c.num_secciones) + '</td>' +
                     '<td class="text-right" data-order="' + c.total_ofertado + '">' + fmt(c.total_ofertado) + '</td>' +
                     '<td class="text-right" data-order="' + c.total_facturado + '">' + fmt(c.total_facturado) + '</td>' +
                     '<td class="text-right" data-order="' + c.facturabilidad_pct + '">' + c.facturabilidad_pct + '%</td>' +
@@ -636,7 +641,10 @@ var reporteExpo = (function () {
             });
             dtClientesOfertas = $('#tabla-expo-clientes-ofertas').DataTable({
                 pageLength: 10, lengthChange: true, order: [],
-                columnDefs: [{ targets: 0, orderable: false, searchable: false }],
+                columnDefs: [
+                    { targets: 0, orderable: false, searchable: false },
+                    { targets: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11], type: 'num' }
+                ],
                 language: { url: '/js/plugins/dataTables/i18n/Spanish.json' }
             });
 
