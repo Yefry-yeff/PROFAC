@@ -471,4 +471,78 @@ class ReporteExpoOfertasTest extends TestCase
         $this->assertSame(['cliente_id' => 2, 'num_ofertas' => 1, 'ganadoras' => 0, 'no_ganadoras' => 1],
             array_intersect_key($resumen['clientes'][1], array_flip(['cliente_id', 'num_ofertas', 'ganadoras', 'no_ganadoras'])));
     }
+
+    private function leerExcel($respuesta): \PhpOffice\PhpSpreadsheet\Spreadsheet
+    {
+        return \PhpOffice\PhpSpreadsheet\IOFactory::load($respuesta->getFile()->getPathname());
+    }
+
+    private function filaConValor(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $s, string $valor): array
+    {
+        foreach ($s->toArray(null, false, false) as $i => $fila) {
+            if (($fila[0] ?? null) === $valor) {
+                return [$i + 1, $fila];
+            }
+        }
+        $this->fail("No se encontró la fila {$valor} en {$s->getTitle()}");
+    }
+
+    public function test_excel_de_ofertas_tiene_resumen_clientes_ofertas_y_secciones_con_contexto(): void
+    {
+        Schema::create('expo', function (Blueprint $t) {
+            $t->id(); $t->string('nombre'); $t->date('fecha_inicio')->nullable(); $t->date('fecha_fin')->nullable();
+        });
+        DB::table('expo')->insert(['id' => 7, 'nombre' => 'Expo Prueba', 'fecha_inicio' => '2026-08-29', 'fecha_fin' => '2026-11-04']);
+
+        $respuesta = (new ReporteExpo)->exportarOfertas(new Request(['expo_id' => 7, 'tipo_oferta' => 'GANADORA']));
+        $this->assertStringContainsString('filename=reporte_expo_ofertas_expo_prueba_', $respuesta->headers->get('content-disposition'));
+        $libro = $this->leerExcel($respuesta);
+
+        $this->assertSame(['Resumen', 'Clientes', 'Ofertas', 'Secciones'], $libro->getSheetNames());
+        $resumen = $libro->getSheetByName('Resumen');
+        $this->assertSame('Expo: Expo Prueba (29/08/2026 al 04/11/2026)', $resumen->getCell('A2')->getValue());
+        $this->assertSame('Filtros: Tipo: ganadoras', $resumen->getCell('A4')->getValue());
+
+        $ofertas = $libro->getSheetByName('Ofertas');
+        [$encabezado, $titulos] = $this->filaConValor($ofertas, 'Oferta #');
+        $this->assertSame('Tipo', $titulos[1]);
+        $this->assertNotContains('Estado', $titulos);
+        $this->assertNotEmpty($ofertas->getAutoFilter()->getRange());
+        $primera = $ofertas->rangeToArray('A' . ($encabezado + 1) . ':N' . ($encabezado + 1), null, false, false)[0];
+        $this->assertEquals(10, $primera[0]);
+        $this->assertSame('Ganadora', $primera[1]);
+        $this->assertEquals(100, $primera[10]);
+        $this->assertEquals(40, $primera[11]);
+        $this->assertEqualsWithDelta(0.4, $primera[12], 0.0001);
+        [$filaTotal] = $this->filaConValor($ofertas, 'TOTAL');
+        $this->assertStringStartsWith('=SUBTOTAL(109,', $ofertas->getCell('K' . $filaTotal)->getValue());
+        $this->assertSame('"L "#,##0.00;[Red]-"L "#,##0.00', $ofertas->getStyle('K' . ($encabezado + 1))->getNumberFormat()->getFormatCode());
+
+        $secciones = $libro->getSheetByName('Secciones');
+        [$encSec] = $this->filaConValor($secciones, 'Oferta #');
+        $nombres = array_column($secciones->rangeToArray('E' . ($encSec + 1) . ':E' . $secciones->getHighestRow(), null, false, false), 0);
+        $this->assertContains('Productos sin sección', $nombres);
+        [$totalSec, $filaTotalSec] = $this->filaConValor($secciones, 'TOTAL');
+        $this->assertNull($filaTotalSec[9], 'El ofertado de secciones no se totaliza porque son partes de la oferta principal.');
+        $this->assertNotNull($filaTotalSec[10]);
+    }
+
+    public function test_excel_de_productos_incluye_resumen_y_detalle_por_oferta_con_tipo(): void
+    {
+        Schema::create('expo', function (Blueprint $t) {
+            $t->id(); $t->string('nombre'); $t->date('fecha_inicio')->nullable(); $t->date('fecha_fin')->nullable();
+        });
+
+        $libro = $this->leerExcel((new ReporteExpo)->exportarProductos(new Request(['expo_id' => 7])));
+
+        $this->assertSame(['Productos', 'Detalle por oferta'], $libro->getSheetNames());
+        $this->assertSame('Expo: #7', $libro->getSheetByName('Productos')->getCell('A2')->getValue());
+        $this->assertSame('Filtros: ninguno (toda la Expo)', $libro->getSheetByName('Productos')->getCell('A4')->getValue());
+
+        $detalle = $libro->getSheetByName('Detalle por oferta');
+        [$encabezado, $titulos] = $this->filaConValor($detalle, 'Oferta #');
+        $this->assertSame(['Oferta #', 'Tipo', 'Cliente', 'Flujo', 'Código'], array_slice($titulos, 0, 5));
+        $tipos = array_column($detalle->rangeToArray('B' . ($encabezado + 1) . ':B' . $detalle->getHighestRow(), null, false, false), 0);
+        $this->assertContains('Ganadora', $tipos);
+    }
 }

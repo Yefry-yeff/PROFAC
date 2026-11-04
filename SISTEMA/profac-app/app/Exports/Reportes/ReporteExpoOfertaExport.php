@@ -2,115 +2,186 @@
 
 namespace App\Exports\Reportes;
 
+use App\Exports\Reportes\Expo\EstiloExpo;
+use App\Exports\Reportes\Expo\EtiquetasExpo;
 use Maatwebsite\Excel\Concerns\FromArray;
-use Maatwebsite\Excel\Concerns\ShouldAutoSize;
-use Maatwebsite\Excel\Concerns\WithStyles;
+use Maatwebsite\Excel\Concerns\WithEvents;
+use Maatwebsite\Excel\Concerns\WithTitle;
+use Maatwebsite\Excel\Events\AfterSheet;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class ReporteExpoOfertaExport implements FromArray, ShouldAutoSize, WithStyles
+/**
+ * Excel del detalle de una oferta de Expo: datos generales, resumen,
+ * productos ofertados, facturas relacionadas y productos facturados.
+ */
+class ReporteExpoOfertaExport implements FromArray, WithTitle, WithEvents
 {
-    private array $sectionRows = [];
+    use EstiloExpo;
 
-    public function __construct(private array $detalle)
+    private const COLUMNAS_PRODUCTOS = 17;
+
+    public function __construct(private array $detalle, private array $info = [])
     {
     }
 
     public function array(): array
     {
-        $oferta = $this->detalle['oferta'];
-        $resumen = $this->detalle['resumen'];
-        $rows = [
-            ['REPORTE BI DE EXPO - OFERTA #' . $oferta['id']],
-            ['Oferta', $oferta['id'], 'Flujo', $oferta['flujo_id'], 'Expo', $oferta['expo']],
-            ['Cliente', $oferta['cliente'], 'RTN', $oferta['rtn']],
-            ['Asesor', $oferta['asesor'], 'Teleasesor', $oferta['teleasesor']],
-            ['Fecha', $oferta['fecha'], 'Hora', $oferta['hora'], 'Estado', $oferta['estado']],
-            ['Tipo de venta', $oferta['tipo_venta'], 'Condicion de pago', $oferta['condicion_pago'],
-                'Seccion', $oferta['nombre_seccion'] ?: 'Oferta principal', 'Oferta origen', $oferta['oferta_origen_id']],
-            [],
-            ['PRODUCTOS'],
-            ['Codigo', 'Producto', 'Marca', 'Categoria', 'Cantidad', 'Escala', 'Precio base',
-                'Precio antes descuento', 'Descuento', 'Descuento %', 'Precio final',
-                'Subtotal final', 'ISV', 'Total', 'Costo', 'Utilidad', 'Margen %'],
-        ];
-
-        foreach ($this->detalle['productos'] as $producto) {
-            $rows[] = [
-                $producto['codigo'], $producto['producto'], $producto['marca'], $producto['categoria'],
-                $producto['cantidad'], $producto['escala'], $producto['precio_base'],
-                $producto['precio_antes_descuento'], $producto['descuento'], $producto['descuento_pct'],
-                $producto['precio_final'], $producto['subtotal_final'], $producto['isv'],
-                $producto['total'], $producto['costo_total'], $producto['utilidad'], $producto['margen_pct'],
-            ];
-        }
-
-        $rows[] = [];
-        $rows[] = ['RESUMEN'];
-        $rows[] = ['Subtotal original', $resumen['subtotal_original']];
-        $rows[] = ['Descuento', $resumen['descuento']];
-        $rows[] = ['Subtotal final', $resumen['subtotal_final']];
-        $rows[] = ['ISV', $resumen['isv']];
-        $rows[] = ['Total', $resumen['total']];
-        $rows[] = ['Costo', $resumen['costo']];
-        $rows[] = ['Utilidad', $resumen['utilidad']];
-        $rows[] = ['Margen %', $resumen['margen_pct']];
-
-        $filaFacturas = count($rows) + 2;
-        $rows[] = [];
-        $rows[] = ['FACTURAS'];
-        $rows[] = ['Factura #', 'Fecha', 'Cliente', 'Asesor', 'Teleasesor', 'Estado',
-            'Subtotal relacionado', 'Costo', 'Utilidad', 'Cantidad aplicada', 'Productos'];
-        foreach ($this->detalle['facturas'] as $factura) {
-            $rows[] = [
-                $factura['numero'], $factura['fecha'], $factura['cliente'], $factura['asesor'],
-                $factura['teleasesor'], $factura['estado'], $factura['subtotal_relacionado'],
-                $factura['costo'], $factura['utilidad'], $factura['cantidad_aplicada'],
-                count($factura['productos']),
-            ];
-        }
-
-        $this->sectionRows = [1, 8, 9, count($this->detalle['productos']) + 11, $filaFacturas, $filaFacturas + 1];
-
-        return $rows;
+        return [];
     }
 
-    public function styles(Worksheet $sheet): array
+    public function title(): string
     {
-        $this->array();
-        $cantidadProductos = count($this->detalle['productos']);
-        $ultimaFilaProducto = 9 + $cantidadProductos;
-        $filaResumen = $cantidadProductos + 11;
-        foreach ($this->sectionRows as $row) {
-            $sheet->getStyle("A{$row}:Q{$row}")->applyFromArray([
-                'font' => ['bold' => true, 'color' => ['argb' => 'FFFFFFFF']],
-                'fill' => ['fillType' => 'solid', 'startColor' => ['argb' => 'FF1A2035']],
-            ]);
-        }
-        if ($cantidadProductos > 0) {
-            $sheet->getStyle("E10:E{$ultimaFilaProducto}")->getNumberFormat()->setFormatCode('#,##0.00');
-            foreach (['G', 'H', 'I', 'K', 'L', 'M', 'N', 'O', 'P'] as $columna) {
-                $sheet->getStyle("{$columna}10:{$columna}{$ultimaFilaProducto}")
-                    ->getNumberFormat()->setFormatCode('#,##0.00');
-            }
-            foreach (['J', 'Q'] as $columna) {
-                $sheet->getStyle("{$columna}10:{$columna}{$ultimaFilaProducto}")
-                    ->getNumberFormat()->setFormatCode('#,##0.00');
-            }
-        }
-        $sheet->getStyle('B2')->getNumberFormat()->setFormatCode('#,##0');
-        $sheet->getStyle('D2')->getNumberFormat()->setFormatCode('#,##0');
-        $sheet->getStyle('B' . ($filaResumen + 1) . ':B' . ($filaResumen + 8))
-            ->getNumberFormat()->setFormatCode('#,##0.00');
-        $filaFacturas = $filaResumen + 10;
-        $ultimaFilaFactura = $filaFacturas + count($this->detalle['facturas']) + 1;
-        if ($ultimaFilaFactura > $filaFacturas + 1) {
-            $sheet->getStyle("G" . ($filaFacturas + 2) . ":I{$ultimaFilaFactura}")
-                ->getNumberFormat()->setFormatCode('#,##0.00');
-            $sheet->getStyle("J" . ($filaFacturas + 2) . ":K{$ultimaFilaFactura}")
-                ->getNumberFormat()->setFormatCode('#,##0.0000');
-        }
-        $sheet->freezePane('A10');
+        return 'Oferta ' . $this->detalle['oferta']['id'];
+    }
 
-        return [];
+    public function registerEvents(): array
+    {
+        return [
+            AfterSheet::class => fn (AfterSheet $event) => $this->dibujar($event->sheet->getDelegate()),
+        ];
+    }
+
+    private function dibujar(Worksheet $s): void
+    {
+        $o = $this->detalle['oferta'];
+        $r = $this->detalle['resumen'];
+        $n = self::COLUMNAS_PRODUCTOS;
+        $titulo = 'Reporte Expo · Oferta #' . $o['id'] . ' · ' . $o['cliente'];
+        $fila = $this->escribirTitulo($s, $titulo, $this->info, $n);
+
+        $this->escribirBarra($s, $fila++, 'DATOS DE LA OFERTA', 8);
+        $fila = $this->cuadricula($s, $fila, [
+            ['Oferta #', $o['id'], 'id'], ['Flujo', $o['flujo_id'], 'id'], ['Expo', $o['expo']], ['Estado', EtiquetasExpo::estado($o['estado'])],
+            ['Cliente', $o['cliente']], ['RTN', $o['rtn']], ['Asesor', $o['asesor']], ['Teleasesor', $o['teleasesor']],
+            ['Fecha', $o['fecha'], 'fecha'], ['Hora', $o['hora']], ['Tipo de venta', $o['tipo_venta']], ['Condición de pago', $o['condicion_pago']],
+            ['Sección', $o['nombre_seccion'] ? trim(($o['numero_seccion'] ? 'Sección ' . $o['numero_seccion'] . ' · ' : '') . $o['nombre_seccion']) : 'Oferta principal'],
+            ['Oferta origen', $o['oferta_origen_id'], 'id'], ['Facturación', EtiquetasExpo::estado($r['estado_facturacion'] ?? null)], ['Creado por', $o['creado_por'] ?? null],
+        ]);
+        if (!empty($o['nota'])) {
+            $this->escribirNota($s, $fila++, 'Nota: ' . $o['nota'], 8);
+        }
+
+        $fila++;
+        $this->escribirBarra($s, $fila++, 'RESUMEN (lempiras)', 8);
+        $fila = $this->cuadricula($s, $fila, [
+            ['Subtotal original', $r['subtotal_original'], 'moneda'], ['Descuento', $r['descuento'], 'moneda'],
+            ['Subtotal final', $r['subtotal_final'], 'moneda'], ['ISV', $r['isv'], 'moneda'],
+            ['Total', $r['total'], 'moneda'], ['Costo', $r['costo'], 'moneda'],
+            ['Utilidad', $r['utilidad'], 'moneda'], ['Margen %', $r['margen_pct'], 'pct'],
+            ['Facturado sin ISV', $r['total_facturado'] ?? 0, 'moneda'], ['Pendiente por facturar', $r['diferencia_pendiente'] ?? 0, 'moneda'],
+            ['% Avance', ($r['subtotal_final'] ?? 0) > 0 ? ($r['total_facturado'] ?? 0) * 100 / $r['subtotal_final'] : 0, 'pct'],
+        ]);
+
+        $fila++;
+        $this->escribirBarra($s, $fila++, 'PRODUCTOS OFERTADOS', $n);
+        $encabezadoProductos = $fila;
+        $fila = $this->escribirTabla($s, $fila, [
+            ['titulo' => 'Código', 'ancho' => 16],
+            ['titulo' => 'Producto', 'ancho' => 42],
+            ['titulo' => 'Marca'],
+            ['titulo' => 'Categoría'],
+            ['titulo' => 'Escala', 'ancho' => 14],
+            ['titulo' => 'Cantidad', 'formato' => 'cantidad', 'total' => 'suma'],
+            ['titulo' => 'Precio base', 'formato' => 'moneda'],
+            ['titulo' => 'Precio antes de descuento', 'formato' => 'moneda'],
+            ['titulo' => 'Descuento', 'formato' => 'moneda', 'total' => 'suma'],
+            ['titulo' => 'Descuento %', 'formato' => 'pct', 'ancho' => 12],
+            ['titulo' => 'Precio final', 'formato' => 'moneda'],
+            ['titulo' => 'Subtotal', 'clave' => 'subtotal', 'formato' => 'moneda', 'total' => 'suma'],
+            ['titulo' => 'ISV', 'formato' => 'moneda', 'total' => 'suma'],
+            ['titulo' => 'Total', 'formato' => 'moneda', 'total' => 'suma'],
+            ['titulo' => 'Costo', 'formato' => 'moneda', 'total' => 'suma'],
+            ['titulo' => 'Utilidad', 'clave' => 'utilidad', 'formato' => 'moneda', 'total' => 'suma'],
+            ['titulo' => 'Margen %', 'formato' => 'pct', 'total' => ['ratio', 'utilidad', 'subtotal'], 'ancho' => 12],
+        ], array_map(fn ($p) => [
+            $p['codigo'], $p['producto'], $p['marca'], $p['categoria'], $p['escala'], $p['cantidad'],
+            $p['precio_base'], $p['precio_antes_descuento'], $p['descuento'], $p['descuento_pct'], $p['precio_final'],
+            $p['subtotal_final'], $p['isv'], $p['total'], $p['costo_total'], $p['utilidad'], $p['margen_pct'],
+        ], $this->detalle['productos']));
+
+        $facturas = $this->detalle['facturas'];
+        $fila += 2;
+        $this->escribirBarra($s, $fila++, 'FACTURAS RELACIONADAS (' . count($facturas) . ')', 14);
+        $fila = $this->escribirTabla($s, $fila, [
+            ['titulo' => 'Factura'],
+            ['titulo' => 'Fecha', 'formato' => 'fecha'],
+            ['titulo' => 'Estado'],
+            ['titulo' => 'Asesor'],
+            ['titulo' => 'Teleasesor'],
+            ['titulo' => 'Subtotal factura', 'formato' => 'moneda', 'total' => 'suma'],
+            ['titulo' => 'ISV factura', 'formato' => 'moneda', 'total' => 'suma'],
+            ['titulo' => 'Total factura', 'formato' => 'moneda', 'total' => 'suma'],
+            ['titulo' => 'Subtotal de esta oferta', 'clave' => 'subtotal', 'formato' => 'moneda', 'total' => 'suma'],
+            ['titulo' => 'Costo', 'formato' => 'moneda', 'total' => 'suma'],
+            ['titulo' => 'Utilidad', 'clave' => 'utilidad', 'formato' => 'moneda', 'total' => 'suma'],
+            ['titulo' => 'Margen %', 'formato' => 'pct', 'total' => ['ratio', 'utilidad', 'subtotal']],
+            ['titulo' => 'Cantidad aplicada', 'formato' => 'cantidad', 'total' => 'suma'],
+            ['titulo' => 'Productos', 'formato' => 'entero', 'total' => 'suma'],
+        ], array_map(fn ($f) => [
+            $f['numero'], $f['fecha'], EtiquetasExpo::estado($f['estado']), $f['asesor'], $f['teleasesor'],
+            $f['subtotal'], $f['isv'], $f['total'], $f['subtotal_relacionado'], $f['costo'], $f['utilidad'],
+            $f['margen_pct'], $f['cantidad_aplicada'], count($f['productos']),
+        ], $facturas), ['vacio' => 'Esta oferta no tiene facturas directas. Si tiene secciones, sus facturas están en el Excel de cada sección.']);
+
+        $lineas = [];
+        foreach ($facturas as $f) {
+            foreach ($f['productos'] as $p) {
+                $lineas[] = [
+                    $f['numero'], $p['codigo'], $p['producto'], $p['marca'], $p['cantidad'], $p['precio'],
+                    $p['descuento'], $p['subtotal'], $p['isv'], $p['total'], $p['costo'], $p['utilidad'], $p['margen_pct'],
+                ];
+            }
+        }
+        if ($lineas) {
+            $fila += 2;
+            $this->escribirBarra($s, $fila++, 'PRODUCTOS FACTURADOS', 13);
+            $this->escribirTabla($s, $fila, [
+                ['titulo' => 'Factura'],
+                ['titulo' => 'Código'],
+                ['titulo' => 'Producto'],
+                ['titulo' => 'Marca'],
+                ['titulo' => 'Cantidad', 'formato' => 'cantidad', 'total' => 'suma'],
+                ['titulo' => 'Precio', 'formato' => 'moneda'],
+                ['titulo' => 'Descuento', 'formato' => 'moneda', 'total' => 'suma'],
+                ['titulo' => 'Subtotal', 'clave' => 'subtotal', 'formato' => 'moneda', 'total' => 'suma'],
+                ['titulo' => 'ISV', 'formato' => 'moneda', 'total' => 'suma'],
+                ['titulo' => 'Total', 'formato' => 'moneda', 'total' => 'suma'],
+                ['titulo' => 'Costo', 'formato' => 'moneda', 'total' => 'suma'],
+                ['titulo' => 'Utilidad', 'clave' => 'utilidad', 'formato' => 'moneda', 'total' => 'suma'],
+                ['titulo' => 'Margen %', 'formato' => 'pct', 'total' => ['ratio', 'utilidad', 'subtotal']],
+            ], $lineas);
+        }
+
+        $this->configurarImpresion($s, $encabezadoProductos);
+        $s->setSelectedCell('A1');
+    }
+
+    /** Pares etiqueta/valor en filas de 4 pares (columnas A-H). Devuelve la siguiente fila libre. */
+    private function cuadricula(Worksheet $s, int $fila, array $pares): int
+    {
+        $inicio = $fila;
+        foreach (array_chunk($pares, 4) as $grupo) {
+            foreach ($grupo as $i => $par) {
+                $colEtiqueta = $i * 2 + 1;
+                $etiqueta = Coordinate::stringFromColumnIndex($colEtiqueta) . $fila;
+                $s->setCellValue($etiqueta, $par[0]);
+                $s->getStyle($etiqueta)->applyFromArray([
+                    'font' => ['bold' => true, 'color' => ['rgb' => '334155']],
+                    'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'E2E8F0']],
+                ]);
+                $formato = $par[2] ?? 'texto';
+                $this->escribirValor($s, $colEtiqueta + 1, $fila, $par[1], $formato);
+                $s->getStyle(Coordinate::stringFromColumnIndex($colEtiqueta + 1) . $fila)->getAlignment()
+                    ->setWrapText(true)->setVertical(Alignment::VERTICAL_TOP)
+                    ->setHorizontal($formato === 'texto' ? Alignment::HORIZONTAL_LEFT : Alignment::HORIZONTAL_RIGHT);
+            }
+            $fila++;
+        }
+        $this->bordes($s, "A{$inicio}:H" . ($fila - 1));
+
+        return $fila;
     }
 }

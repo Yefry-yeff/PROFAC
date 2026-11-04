@@ -74,6 +74,19 @@ cambian. Con un tipo seleccionado solo se muestra su seccion de indicadores.
 Las tablas de clientes y ofertas incluyen utilidad a ganar, pagado y utilidad
 ganada.
 
+Los Excel del Reporte Expo (`app/Exports/Reportes/Expo`, formato comun en el
+trait `EstiloExpo`) llevan titulo, Expo, fecha/usuario y los filtros aplicados
+con nombre; encabezados fijos, autofiltro, filas alternas, montos `L #,##0.00`,
+porcentajes reales, fechas de Excel y totales con `SUBTOTAL` (respetan el
+filtro de Excel). Los colores por tipo y facturacion usan formato condicional.
+- "Ofertas por cliente": hojas Resumen (indicadores ganadoras / no ganadoras /
+  conjunto y distribucion), Clientes, Ofertas y Secciones. En Secciones el
+  ofertado no se totaliza: "Productos sin sección" ya es el total de la oferta.
+- "Analitica de productos": hojas Productos (agregado, ofertado y facturado,
+  rentabilidad segun "Ver resultados por") y Detalle por oferta (con tipo).
+- Oferta individual: datos, resumen con avance, productos, facturas y
+  productos facturados.
+
 ### Busqueda de notas de credito por factura
 
 En Clientes A y B, el filtro "Secuencia CAI de la factura" busca por la

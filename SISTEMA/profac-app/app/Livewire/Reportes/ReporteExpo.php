@@ -2,7 +2,10 @@
 
 namespace App\Livewire\Reportes;
 
-use App\Exports\Reportes\AnaliticaProductosExport;
+use App\Exports\Reportes\Expo\EtiquetasExpo;
+use App\Exports\Reportes\Expo\HojaTablaExpo;
+use App\Exports\Reportes\Expo\LibroExpoExport;
+use App\Exports\Reportes\Expo\ResumenExpoSheet;
 use App\Exports\Reportes\ReporteExpoOfertaExport;
 use App\Services\Reportes\ReporteExpoDetalleService;
 use App\Support\ExpoConfig;
@@ -937,24 +940,132 @@ class ReporteExpo extends Component
 
     public function exportarProductos(Request $r)
     {
-        $data = $this->datosProductosDetalle($r);
         $baseFacturas = $r->input('rentabilidad_base') === 'facturas';
-        $entidad = $baseFacturas ? 'Factura' : 'Oferta';
-
-        $headings = [
-            'Codigo', 'Cliente', 'Flujo', 'Codigo Producto (ID)', 'Unidad de Medida',
-            'Producto', 'Marca', 'Categoria', 'Cant. ' . ($baseFacturas ? 'Facturada' : 'Ofertada'),
-            'Venta ' . $entidad . ' (L)', 'Descuento (L)', 'Costo ' . $entidad . ' (L)',
-            'Utilidad ' . $entidad . ' (L)', 'Margen ' . $entidad . ' %',
+        $entidad = $baseFacturas ? 'factura' : 'oferta';
+        $info = $this->infoExcel($r);
+        $claveVenta = $baseFacturas ? 'facturado' : 'ofertado';
+        $columnasRentabilidad = [
+            ['titulo' => 'Descuento ' . $entidad, 'formato' => 'moneda', 'total' => 'suma'],
+            ['titulo' => 'Costo ' . $entidad, 'formato' => 'moneda', 'total' => 'suma'],
+            ['titulo' => 'Utilidad ' . $entidad, 'clave' => 'utilidad', 'formato' => 'moneda', 'total' => 'suma'],
+            ['titulo' => 'Margen ' . $entidad . ' %', 'formato' => 'pct', 'total' => ['ratio', 'utilidad', $claveVenta], 'ancho' => 12],
         ];
-        $rows = array_map(fn ($p) => [
-            $p['codigo'], $p['cliente'], $p['flujo_id'], $p['producto_id'], $p['unidad_medida'],
-            $p['producto'], $p['marca'], $p['categoria'],
-            $baseFacturas ? $p['cantidad_facturada'] : $p['cantidad_ofertada'], $p['total_base'],
-            $p['descuento'], $p['total_costo'], $p['utilidad'], $p['margen_pct'],
-        ], $data);
 
-        return Excel::download(new AnaliticaProductosExport($headings, $rows), 'reporte_expo_productos.xlsx');
+        $productos = new HojaTablaExpo('Productos', 'Reporte Expo · Analítica de productos por ' . $entidad . 's', $info, array_merge([
+            ['titulo' => 'Código', 'ancho' => 16],
+            ['titulo' => 'Producto', 'ancho' => 42],
+            ['titulo' => 'Marca'],
+            ['titulo' => 'Categoría'],
+            ['titulo' => 'Ofertas', 'formato' => 'entero', 'ancho' => 10],
+            ['titulo' => 'Cant. ofertada', 'formato' => 'cantidad', 'total' => 'suma'],
+            ['titulo' => 'Cant. facturada', 'formato' => 'cantidad', 'total' => 'suma'],
+            ['titulo' => 'Ofertado', 'clave' => 'ofertado', 'formato' => 'moneda', 'total' => 'suma', 'ancho' => 17],
+            ['titulo' => 'Facturado', 'clave' => 'facturado', 'formato' => 'moneda', 'total' => 'suma', 'ancho' => 17],
+            ['titulo' => '% Avance', 'formato' => 'pct', 'total' => ['ratio', 'facturado', 'ofertado'], 'ancho' => 11],
+        ], $columnasRentabilidad), array_map(fn ($p) => [
+            $p['codigo'], $p['producto'], $p['marca'], $p['categoria'], $p['numero_ofertas'],
+            $p['cantidad_ofertada'], $p['cantidad_facturada'], $p['total_ofertado'], $p['total_facturado'],
+            $p['total_ofertado'] > 0 ? $p['total_facturado'] * 100 / $p['total_ofertado'] : 0,
+            $p['descuento'], $p['total_costo'], $p['utilidad'], $p['margen_pct'],
+        ], $this->datosProductos($r)), [
+            'Una fila por producto. Descuento, costo, utilidad y margen se calculan sobre lo ' . ($baseFacturas ? 'facturado' : 'ofertado') . ' (opción "Ver resultados por" del reporte).',
+        ], 2);
+
+        $tipos = $this->tiposOfertaExpo($this->expoIdDesdeRequest($r));
+        $detalle = new HojaTablaExpo('Detalle por oferta', 'Reporte Expo · Productos por oferta', $info, array_merge([
+            ['titulo' => 'Oferta #', 'formato' => 'id', 'ancho' => 10],
+            ['titulo' => 'Tipo', 'ancho' => 22, 'colores' => EtiquetasExpo::COLORES_TIPO],
+            ['titulo' => 'Cliente', 'ancho' => 32],
+            ['titulo' => 'Flujo', 'formato' => 'id', 'ancho' => 9],
+            ['titulo' => 'Código', 'ancho' => 16],
+            ['titulo' => 'ID producto', 'formato' => 'id', 'ancho' => 11],
+            ['titulo' => 'Producto', 'ancho' => 42],
+            ['titulo' => 'Marca'],
+            ['titulo' => 'Categoría'],
+            ['titulo' => 'Unidad', 'ancho' => 12],
+            ['titulo' => 'Cant. ofertada', 'formato' => 'cantidad', 'total' => 'suma'],
+            ['titulo' => 'Cant. facturada', 'formato' => 'cantidad', 'total' => 'suma'],
+            ['titulo' => 'Ofertado', 'clave' => 'ofertado', 'formato' => 'moneda', 'total' => 'suma', 'ancho' => 17],
+            ['titulo' => 'Facturado', 'clave' => 'facturado', 'formato' => 'moneda', 'total' => 'suma', 'ancho' => 17],
+        ], $columnasRentabilidad), array_map(fn ($p) => [
+            $p['oferta_id'], EtiquetasExpo::estado($tipos[$p['oferta_id']]['tipo'] ?? null), $p['cliente'], $p['flujo_id'],
+            $p['codigo'], $p['producto_id'], $p['producto'], $p['marca'], $p['categoria'], $p['unidad_medida'],
+            $p['cantidad_ofertada'], $p['cantidad_facturada'], $p['total_ofertado'], $p['total_facturado'],
+            $p['descuento'], $p['total_costo'], $p['utilidad'], $p['margen_pct'],
+        ], $this->datosProductosDetalle($r)), [], 1);
+
+        return Excel::download(new LibroExpoExport([$productos, $detalle]), $this->nombreExcel($r, 'productos'));
+    }
+
+    /** Líneas de contexto de los Excel: Expo, fecha de generación y filtros aplicados. */
+    private function infoExcel(Request $r): array
+    {
+        $expoId = $this->expoIdDesdeRequest($r);
+        $expo = DB::table('expo')->where('id', $expoId)->first(['nombre', 'fecha_inicio', 'fecha_fin']);
+        $fecha = fn ($valor) => $valor ? date('d/m/Y', strtotime((string) $valor)) : null;
+        $periodo = $expo && $expo->fecha_inicio
+            ? ' (' . $fecha($expo->fecha_inicio) . ($expo->fecha_fin ? ' al ' . $fecha($expo->fecha_fin) : '') . ')'
+            : '';
+        $usuario = optional(auth()->user())->name;
+
+        return [
+            'Expo: ' . ($expo->nombre ?? '#' . $expoId) . $periodo,
+            'Generado el ' . now()->format('d/m/Y H:i') . ($usuario ? ' por ' . $usuario : '') . ' · Montos en lempiras sin ISV',
+            'Filtros: ' . $this->descripcionFiltros($r),
+        ];
+    }
+
+    private function descripcionFiltros(Request $r): string
+    {
+        $partes = [];
+        $nombres = function (string $tabla, string $columna, array $ids): string {
+            return DB::table($tabla)->whereIn('id', $ids)->orderBy($columna)->pluck($columna)->implode(', ');
+        };
+
+        $tipo = strtoupper((string) $r->input('tipo_oferta', ''));
+        if ($tipo === self::TIPO_GANADORA) {
+            $partes[] = 'Tipo: ganadoras';
+        } elseif (in_array($tipo, [self::TIPO_NO_GANADORA, self::TIPO_NO_GANADORA_CON_SECCIONES], true)) {
+            $partes[] = 'Tipo: no ganadoras';
+        }
+        if ($r->estado && in_array($r->estado, self::ESTADOS_VALIDOS, true)) {
+            $partes[] = 'Estado: ' . EtiquetasExpo::estado($r->estado);
+        }
+        foreach ([
+            ['marca_ids', 'marca_id', 'marca', 'nombre', 'Marca'],
+            ['escala_ids', 'escala_id', 'categoria_precios', 'nombre', 'Escala'],
+            ['vendedor_ids', 'vendedor_id', 'users', 'name', 'Asesor'],
+            ['teleasesor_ids', 'teleasesor_id', 'users', 'name', 'Teleasesor'],
+        ] as [$plural, $singular, $tabla, $columna, $etiqueta]) {
+            $ids = $this->idsDesdeRequest($r, $plural, $singular);
+            if ($ids) {
+                $partes[] = $etiqueta . ': ' . ($nombres($tabla, $columna, $ids) ?: implode(', ', $ids));
+            }
+        }
+        if ($r->filled('cliente_id')) {
+            $partes[] = 'Cliente: ' . (DB::table('cotizacion')->where('cliente_id', (int) $r->cliente_id)->value('nombre_cliente') ?? '#' . (int) $r->cliente_id);
+        }
+        if ($r->filled('producto_id')) {
+            $partes[] = 'Producto: ' . (DB::table('producto')->where('id', (int) $r->producto_id)->value('nombre') ?? '#' . (int) $r->producto_id);
+        }
+        $desde = preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $r->fecha_desde) ? date('d/m/Y', strtotime($r->fecha_desde)) : null;
+        $hasta = preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $r->fecha_hasta) ? date('d/m/Y', strtotime($r->fecha_hasta)) : null;
+        if ($desde || $hasta) {
+            $partes[] = 'Fecha de oferta: ' . ($desde ? 'desde ' . $desde : '') . ($desde && $hasta ? ' ' : '') . ($hasta ? 'hasta ' . $hasta : '');
+        }
+        if ($r->input('rentabilidad_base') === 'facturas') {
+            $partes[] = 'Rentabilidad por facturas';
+        }
+
+        return $partes ? implode(' · ', $partes) : 'ninguno (toda la Expo)';
+    }
+
+    private function nombreExcel(Request $r, string $tipo): string
+    {
+        $expo = DB::table('expo')->where('id', $this->expoIdDesdeRequest($r))->value('nombre') ?? 'expo';
+        $slug = trim(preg_replace('/[^a-z0-9]+/', '_', mb_strtolower(\Illuminate\Support\Str::ascii($expo))), '_') ?: 'expo';
+
+        return "reporte_expo_{$tipo}_{$slug}_" . now()->format('Ymd_His') . '.xlsx';
     }
 
     public const TIPO_GANADORA = 'GANADORA';
@@ -1452,23 +1563,106 @@ class ReporteExpo extends Component
 
     public function exportarOfertas(Request $r)
     {
-        $data = $this->datosOfertas($r);
-        $tipos = [
-            self::TIPO_GANADORA => 'Ganadora',
-            self::TIPO_NO_GANADORA => 'No ganadora',
-            self::TIPO_NO_GANADORA_CON_SECCIONES => 'No ganadora con secciones',
+        $ofertas = $this->datosOfertas($r);
+        $resumen = $this->resumenDesdeOfertas($ofertas);
+        $info = $this->infoExcel($r);
+        $f = $resumen['facturabilidad'];
+        $otras = $f['no_ganadoras_con_secciones'];
+        $notaSecciones = $otras['num_ofertas']
+            ? 'No ganadoras incluye ' . $otras['num_ofertas'] . ' ofertas que dejaron de ser ganadoras pero conservan '
+                . $otras['num_secciones'] . ' secciones (L ' . number_format($otras['total_facturado'], 2) . ' facturado de L '
+                . number_format($otras['total_ofertado'], 2) . ' ofertado).'
+            : null;
+        $definiciones = [
+            'Ganadoras: ofertas marcadas como ganadoras en su flujo, con sus secciones y facturas. No ganadoras: el resto; se omiten las alternativas sin secciones de un flujo que ya tiene ganadora.',
+            'Montos sin ISV. Utilidad a ganar = ofertado − costo. Pagado = abonos aplicados a las facturas, prorrateados sin ISV. Utilidad ganada = parte cobrada de la utilidad facturada.',
         ];
 
-        $headings = ['Oferta #', 'Tipo', 'Flujo', '# Secciones', 'Cliente', 'Asesor', 'Teleasesor', 'Fecha', 'Estado', 'Estado Facturacion', 'Facturas', 'Total Ofertado sin ISV (L)', 'Total Facturado sin ISV (L)', 'Avance %', 'Utilidad a Ganar (L)', 'Margen Oferta %', 'Pagado sin ISV (L)', 'Utilidad Ganada (L)', 'Descuento (L)'];
-        $rows = array_map(fn ($o) => [
-            $o['oferta_id'], $tipos[$o['tipo']], $o['flujo_id'], $o['num_secciones'],
-            $o['cliente'], $o['asesor'], $o['teleasesor'],
-            $o['fecha_emision'], $o['estado'], $o['estado_facturacion'], $o['num_facturas'],
-            $o['total_ofertado'], $o['total_facturado'], $o['avance_pct'], $o['utilidad'], $o['margen_pct'],
-            $o['total_pagado'], $o['utilidad_pagada'], $o['descuento'],
-        ], $data);
+        $columnasMontos = [
+            ['titulo' => 'Ofertado', 'clave' => 'ofertado', 'formato' => 'moneda', 'total' => 'suma', 'ancho' => 17],
+            ['titulo' => 'Facturado', 'clave' => 'facturado', 'formato' => 'moneda', 'total' => 'suma', 'ancho' => 17],
+            ['titulo' => '% Facturabilidad', 'formato' => 'pct', 'total' => ['ratio', 'facturado', 'ofertado'], 'ancho' => 13],
+            ['titulo' => 'Utilidad a ganar', 'clave' => 'utilidad', 'formato' => 'moneda', 'total' => 'suma', 'ancho' => 17],
+        ];
+        $columnasPagos = [
+            ['titulo' => 'Pagado', 'formato' => 'moneda', 'total' => 'suma', 'ancho' => 16],
+            ['titulo' => 'Utilidad ganada', 'formato' => 'moneda', 'total' => 'suma', 'ancho' => 16],
+        ];
 
-        return Excel::download(new AnaliticaProductosExport($headings, $rows), 'reporte_expo_ofertas.xlsx');
+        $clientes = new HojaTablaExpo('Clientes', 'Reporte Expo · Ofertas por cliente', $info, array_merge([
+            ['titulo' => 'Cliente', 'ancho' => 40],
+            ['titulo' => 'Total ofertas', 'formato' => 'entero', 'total' => 'suma', 'ancho' => 11],
+            ['titulo' => 'Ganadoras', 'formato' => 'entero', 'total' => 'suma', 'ancho' => 11],
+            ['titulo' => 'No ganadoras', 'formato' => 'entero', 'total' => 'suma', 'ancho' => 11],
+            ['titulo' => 'Secciones', 'formato' => 'entero', 'total' => 'suma', 'ancho' => 11],
+        ], $columnasMontos, $columnasPagos), array_map(fn ($c) => [
+            $c['cliente'] ?: 'Sin nombre', $c['num_ofertas'], $c['ganadoras'], $c['no_ganadoras'], $c['num_secciones'],
+            $c['total_ofertado'], $c['total_facturado'], $c['facturabilidad_pct'], $c['utilidad_a_ganar'],
+            $c['total_pagado'], $c['utilidad_pagada'],
+        ], $resumen['clientes']), array_filter([$notaSecciones]));
+
+        $columnasMontos[2]['titulo'] = '% Avance';
+        $hojaOfertas = new HojaTablaExpo('Ofertas', 'Reporte Expo · Ofertas', $info, array_merge([
+            ['titulo' => 'Oferta #', 'formato' => 'id', 'ancho' => 10],
+            ['titulo' => 'Tipo', 'ancho' => 22, 'colores' => EtiquetasExpo::COLORES_TIPO],
+            ['titulo' => 'Cliente', 'ancho' => 34],
+            ['titulo' => 'Flujo', 'formato' => 'id', 'ancho' => 9],
+            ['titulo' => 'Secciones', 'formato' => 'entero', 'total' => 'suma', 'ancho' => 10],
+            ['titulo' => 'Asesor', 'ancho' => 22],
+            ['titulo' => 'Teleasesor', 'ancho' => 22],
+            ['titulo' => 'Fecha', 'formato' => 'fecha', 'ancho' => 11],
+            ['titulo' => 'Facturación', 'ancho' => 20, 'colores' => EtiquetasExpo::COLORES_FACTURACION],
+            ['titulo' => 'Facturas', 'formato' => 'entero', 'total' => 'suma', 'ancho' => 10],
+        ], $columnasMontos, [
+            ['titulo' => 'Margen %', 'formato' => 'pct', 'total' => ['ratio', 'utilidad', 'ofertado'], 'ancho' => 11],
+            ['titulo' => 'Descuento', 'formato' => 'moneda', 'total' => 'suma', 'ancho' => 15],
+            ['titulo' => 'Utilidad facturada', 'formato' => 'moneda', 'total' => 'suma', 'ancho' => 16],
+        ], $columnasPagos), array_map(fn ($o) => [
+            $o['oferta_id'], EtiquetasExpo::estado($o['tipo']), $o['cliente'], $o['flujo_id'], $o['num_secciones'],
+            $o['asesor'], $o['teleasesor'], $o['fecha_emision'],
+            EtiquetasExpo::estado($o['estado_facturacion']), $o['num_facturas'],
+            $o['total_ofertado'], $o['total_facturado'], $o['avance_pct'], $o['utilidad'], $o['margen_pct'],
+            $o['descuento'], $o['utilidad_facturada'], $o['total_pagado'], $o['utilidad_pagada'],
+        ], $ofertas), array_filter([$notaSecciones]));
+
+        $filasSecciones = [];
+        foreach ($ofertas as $o) {
+            foreach ($o['secciones'] as $sec) {
+                $nombre = !empty($sec['es_raiz']) || !empty($sec['es_pendiente'])
+                    ? $sec['nombre_seccion']
+                    : trim(($sec['numero_seccion'] ? 'Sección ' . $sec['numero_seccion'] . ' · ' : '') . ($sec['nombre_seccion'] ?? ''));
+                $filasSecciones[] = [
+                    $o['oferta_id'], EtiquetasExpo::estado($o['tipo']), $o['cliente'], $o['flujo_id'], $nombre,
+                    empty($sec['es_raiz']) ? $sec['oferta_id'] : null, EtiquetasExpo::estado($sec['estado']),
+                    EtiquetasExpo::estado($sec['estado_facturacion']), $sec['num_facturas'],
+                    $sec['total_ofertado'], $sec['total_facturado'], $sec['total_pagado'], $sec['utilidad_pagada'],
+                ];
+            }
+        }
+        $secciones = new HojaTablaExpo('Secciones', 'Reporte Expo · Secciones por oferta', $info, [
+            ['titulo' => 'Oferta #', 'formato' => 'id', 'ancho' => 10],
+            ['titulo' => 'Tipo', 'ancho' => 22, 'colores' => EtiquetasExpo::COLORES_TIPO],
+            ['titulo' => 'Cliente', 'ancho' => 34],
+            ['titulo' => 'Flujo', 'formato' => 'id', 'ancho' => 9],
+            ['titulo' => 'Sección', 'ancho' => 30],
+            ['titulo' => 'Oferta de la sección', 'formato' => 'id', 'ancho' => 12],
+            ['titulo' => 'Estado sección', 'ancho' => 20],
+            ['titulo' => 'Facturación', 'ancho' => 20, 'colores' => EtiquetasExpo::COLORES_FACTURACION],
+            ['titulo' => 'Facturas', 'formato' => 'entero', 'ancho' => 10],
+            ['titulo' => 'Ofertado', 'formato' => 'moneda', 'ancho' => 17],
+            ['titulo' => 'Facturado', 'formato' => 'moneda', 'total' => 'suma', 'ancho' => 17],
+            ['titulo' => 'Pagado', 'formato' => 'moneda', 'total' => 'suma', 'ancho' => 16],
+            ['titulo' => 'Utilidad ganada', 'formato' => 'moneda', 'total' => 'suma', 'ancho' => 16],
+        ], $filasSecciones, [
+            '"Productos sin sección" muestra el total ofertado de la oferta principal; las secciones son partes de ese monto, por eso el ofertado no se totaliza. "Productos sin factura" es lo que falta por facturar.',
+        ]);
+
+        return Excel::download(new LibroExpoExport([
+            new ResumenExpoSheet($f, $info, array_merge(array_filter([$notaSecciones]), $definiciones)),
+            $clientes,
+            $hojaOfertas,
+            $secciones,
+        ]), $this->nombreExcel($r, 'ofertas'));
     }
 
     // ═══════════════════════════════ Catálogos de filtro ═════════════════
@@ -1672,10 +1866,16 @@ class ReporteExpo extends Component
     {
         $data = $detalle->oferta((int) $r->oferta_id);
         abort_unless($data, 404);
+        $o = $data['oferta'];
+        $usuario = optional(auth()->user())->name;
+        $info = [
+            'Expo: ' . ($o['expo'] ?: '#' . $o['expo_id']) . ($o['flujo_id'] ? ' · Flujo ' . $o['flujo_id'] : ''),
+            'Generado el ' . now()->format('d/m/Y H:i') . ($usuario ? ' por ' . $usuario : '') . ' · Montos en lempiras',
+        ];
 
         return Excel::download(
-            new ReporteExpoOfertaExport($data),
-            'reporte_expo_oferta_' . $data['oferta']['id'] . '.xlsx'
+            new ReporteExpoOfertaExport($data, $info),
+            'reporte_expo_oferta_' . $o['id'] . '_' . now()->format('Ymd_His') . '.xlsx'
         );
     }
 
