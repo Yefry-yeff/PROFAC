@@ -1,5 +1,20 @@
 //*****comandos utiles****
 
+### Rendimiento del Reporte Expo
+
+La tabla de ofertas y el detalle de productos para Excel resuelven el
+ultimo historico de oferta en una consulta agrupada por `tramite_id`,
+limitada a la Expo seleccionada. No consultar el historico con una
+subconsulta correlacionada `ORDER BY id DESC LIMIT 1` por cada linea:
+MySQL puede elegir un recorrido inverso que bloquea la carga del modulo.
+Se conserva la prioridad de `expo_cotizacion.flujo_id`; el historico solo
+se usa cuando ese campo es nulo. No requiere migraciones ni cambia totales.
+Los enlaces de facturas via prefactura se limitan a las ofertas de la Expo
+antes de materializarlos, sin recorrer las prefacturas de otras Expos.
+
+Pruebas: `php artisan test tests\Feature\ReporteExpoOfertasTest.php`.
+Usan SQLite en memoria sin modificar datos de la aplicacion.
+
 ### Busqueda de notas de credito por factura
 
 En Clientes A y B, el filtro "Secuencia CAI de la factura" busca por la

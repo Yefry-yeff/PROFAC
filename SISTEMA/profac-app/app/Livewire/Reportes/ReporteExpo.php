@@ -155,7 +155,7 @@ class ReporteExpo extends Component
      * índices) que es exactamente equivalente: misma multiplicidad de filas y
      * mismas condiciones de validación (incluida pf_fact.cotizacion_id = c.id).
      */
-    private function joinsFacturado(): string
+    private function joinsFacturado(int $expoId): string
     {
         return "
             INNER JOIN (
@@ -174,6 +174,7 @@ class ReporteExpo extends Component
                    AND php_fact.producto_id = v.producto_id
                    AND php_fact.indice = v.indice
                 WHERE v.cotizacion_has_producto_id IS NULL
+                  AND pf_fact.cotizacion_id IN ({$this->inExpo($expoId)})
             ) vhp ON vhp.chp_id_resuelta = chp.id
                  AND (vhp.cotizacion_id_prefactura IS NULL OR vhp.cotizacion_id_prefactura = c.id)
             INNER JOIN factura f ON f.id = vhp.factura_id AND f.estado_venta_id = 1
@@ -184,6 +185,20 @@ class ReporteExpo extends Component
     private function joinExpoCotizacion(int $expoId): string
     {
         return "LEFT JOIN expo_cotizacion ec ON ec.cotizacion_id = c.id AND ec.expo_id = {$expoId}";
+    }
+
+    private function joinUltimoHistoricoOferta(int $expoId): string
+    {
+        return "
+            LEFT JOIN (
+                SELECT tramite_id, MAX(id) AS ultimo_id
+                FROM historico_flujo
+                WHERE tipo_tramite_id = 2
+                  AND tramite_id IN ({$this->inExpo($expoId)})
+                GROUP BY tramite_id
+            ) ultimo_hf ON ultimo_hf.tramite_id = c.id
+            LEFT JOIN historico_flujo hf_oferta ON hf_oferta.id = ultimo_hf.ultimo_id
+        ";
     }
 
     private function whereExpo(int $expoId): string
@@ -267,7 +282,7 @@ class ReporteExpo extends Component
                 COALESCE(SUM(GREATEST((vhp.precio_unidad * vhp.cantidad_s) - vhp.sub_total_s, 0)), 0) AS total_descuento,
                 COALESCE(SUM(($costoExpr) * vhp.cantidad_s), 0) AS total_costo
             {$this->joinsOfertado()}
-            {$this->joinsFacturado()}
+            {$this->joinsFacturado($expoId)}
             {$this->joinExpoCotizacion($expoId)}
             {$this->whereExpo($expoId)}
             $extra
@@ -321,7 +336,7 @@ class ReporteExpo extends Component
             SELECT COALESCE(ec.estado,'SIN_REGISTRO') AS estado,
                    COALESCE(SUM(vhp.sub_total_s),0) AS facturado
             {$this->joinsOfertado()}
-            {$this->joinsFacturado()}
+            {$this->joinsFacturado($expoId)}
             {$this->joinExpoCotizacion($expoId)}
             {$this->whereExpo($expoId)}
             $extra
@@ -358,7 +373,7 @@ class ReporteExpo extends Component
         $facturado = DB::select("
             SELECT p.marca_id, SUM(vhp.sub_total_s) AS facturado
             {$this->joinsOfertado()}
-            {$this->joinsFacturado()}
+            {$this->joinsFacturado($expoId)}
             {$this->joinExpoCotizacion($expoId)}
             {$this->whereExpo($expoId)}
             $extra
@@ -398,7 +413,7 @@ class ReporteExpo extends Component
         $facturado = DB::select("
             SELECT c.vendedor AS vendedor_id, SUM(vhp.sub_total_s) AS facturado
             {$this->joinsOfertado()}
-            {$this->joinsFacturado()}
+            {$this->joinsFacturado($expoId)}
             {$this->joinExpoCotizacion($expoId)}
             {$this->whereExpo($expoId)}
             $extra
@@ -443,7 +458,7 @@ class ReporteExpo extends Component
                    SUM(vhp.sub_total_s) AS facturado,
                    SUM(($costoExpr) * vhp.cantidad_s) AS costo
             {$this->joinsOfertado()}
-            {$this->joinsFacturado()}
+            {$this->joinsFacturado($expoId)}
             {$this->joinExpoCotizacion($expoId)}
             {$this->whereExpo($expoId)}
             $extra
@@ -499,7 +514,7 @@ class ReporteExpo extends Component
             SELECT COALESCE(c.cliente_id, 0) AS cliente_id,
                    SUM(vhp.sub_total_s) AS facturado
             {$this->joinsOfertado()}
-            {$this->joinsFacturado()}
+            {$this->joinsFacturado($expoId)}
             {$this->joinExpoCotizacion($expoId)}
             {$this->whereExpo($expoId)}
             $extra
@@ -560,7 +575,7 @@ class ReporteExpo extends Component
         $facturado = DB::select("
             SELECT DATE(f.fecha_emision) AS fecha, SUM(vhp.sub_total_s) AS facturado
             {$this->joinsOfertado()}
-            {$this->joinsFacturado()}
+            {$this->joinsFacturado($expoId)}
             {$this->joinExpoCotizacion($expoId)}
             {$this->whereExpo($expoId)}
             $extra
@@ -621,7 +636,7 @@ class ReporteExpo extends Component
                      SUM(GREATEST((vhp.precio_unidad * vhp.cantidad_s) - vhp.sub_total_s, 0)) AS descuento_facturado,
                      SUM(($costoExpr) * vhp.cantidad_s) AS total_costo
             {$this->joinsOfertado()}
-            {$this->joinsFacturado()}
+            {$this->joinsFacturado($expoId)}
             {$this->joinExpoCotizacion($expoId)}
             {$this->whereExpo($expoId)}
             $extra
@@ -688,7 +703,7 @@ class ReporteExpo extends Component
                  COALESCE(m.nombre,'Sin marca') AS marca,
                  COALESCE(cat.descripcion,'Sin categoria') AS categoria,
                  c.id AS oferta_id, COALESCE(c.nombre_cliente, 'Sin cliente') AS cliente,
-                 COALESCE(ec.flujo_id, (SELECT hf.flujo_id FROM historico_flujo hf WHERE hf.tipo_tramite_id = 2 AND hf.tramite_id = c.id ORDER BY hf.id DESC LIMIT 1)) AS flujo_id,
+                 COALESCE(ec.flujo_id, hf_oferta.flujo_id) AS flujo_id,
                  COALESCE(um.nombre, 'N/A') AS unidad_medida,
                  chp.cantidad AS cantidad_ofertada,
                  $netoOfertaExpr AS total_ofertado,
@@ -697,6 +712,7 @@ class ReporteExpo extends Component
             {$this->joinsOfertado()}
             LEFT JOIN unidad_medida um ON um.id = uv.unidad_medida_id
             {$this->joinExpoCotizacion($expoId)}
+            {$this->joinUltimoHistoricoOferta($expoId)}
             {$this->whereExpo($expoId)}
             $extra
             ORDER BY c.id, chp.indice
@@ -710,7 +726,7 @@ class ReporteExpo extends Component
                      SUM(GREATEST((vhp.precio_unidad * vhp.cantidad_s) - vhp.sub_total_s, 0)) AS descuento_facturado,
                      SUM(($costoExpr) * vhp.cantidad_s) AS total_costo
             {$this->joinsOfertado()}
-            {$this->joinsFacturado()}
+            {$this->joinsFacturado($expoId)}
             {$this->joinExpoCotizacion($expoId)}
             {$this->whereExpo($expoId)}
             $extra
@@ -973,7 +989,7 @@ class ReporteExpo extends Component
                 COALESCE(ut.name, 'Sin asignar') AS teleasesor,
                 c.fecha_emision,
                 COALESCE(ec.estado, 'SIN_REGISTRO') AS estado,
-                COALESCE(ec.flujo_id, (SELECT hf.flujo_id FROM historico_flujo hf WHERE hf.tipo_tramite_id = 2 AND hf.tramite_id = c.id ORDER BY hf.id DESC LIMIT 1)) AS flujo_id,
+                COALESCE(ec.flujo_id, hf_oferta.flujo_id) AS flujo_id,
                 eos.cotizacion_origen_id AS oferta_origen_id,
                 eos.numero AS numero_seccion,
                 eos.nombre AS nombre_seccion,
@@ -991,6 +1007,7 @@ class ReporteExpo extends Component
             LEFT JOIN users ut ON ut.id = c.users_id
             LEFT JOIN expo_oferta_seccion eos ON eos.cotizacion_id = c.id
             {$this->joinExpoCotizacion($expoId)}
+            {$this->joinUltimoHistoricoOferta($expoId)}
             LEFT JOIN (
                 SELECT chp2.cotizacion_id,
                        SUM(vhp2.sub_total_s) AS total_facturado,
@@ -1014,6 +1031,7 @@ class ReporteExpo extends Component
                        AND php_fact2.producto_id = v2.producto_id
                        AND php_fact2.indice = v2.indice
                     WHERE v2.cotizacion_has_producto_id IS NULL
+                      AND pf_fact2.cotizacion_id IN ({$this->inExpo($expoId)})
                 ) vhp2 ON vhp2.chp_id_resuelta = chp2.id
                       AND (vhp2.cotizacion_id_prefactura IS NULL OR vhp2.cotizacion_id_prefactura = chp2.cotizacion_id)
                 INNER JOIN factura f2 ON f2.id = vhp2.factura_id AND f2.estado_venta_id = 1
@@ -1027,7 +1045,7 @@ class ReporteExpo extends Component
             $extra
             GROUP BY c.id, c.nombre_cliente, u.name, ut.name, c.fecha_emision, ec.estado,
                      eos.cotizacion_origen_id, eos.numero, eos.nombre, eos.estado,
-                     ec.flujo_id, fact.total_facturado, fact.total_costo,
+                     ec.flujo_id, hf_oferta.flujo_id, fact.total_facturado, fact.total_costo,
                      fact.cantidad_facturada, fact.num_facturas
             ORDER BY total_ofertado DESC
         ");
