@@ -1,3 +1,8 @@
+@php
+    if (!empty($accion) && !$this->puedeVerArea(in_array($accion, ['inventario', 'poco_movimiento', 'sin_imagen'], true) ? 'inventario' : 'comercial')) {
+        $accion = null;
+    }
+@endphp
 @if(!empty($enlace))
 <a href="{{ $enlace }}" class="dash-kpi {{ $color ?? '' }} dash-kpi-action">
 @elseif(!empty($accion))

@@ -1,5 +1,12 @@
 //*****comandos utiles****
 
+### Detalles del dashboard para Reporteria
+
+El rol Reporteria (20) puede abrir y exportar los detalles comerciales del
+dashboard (facturas y clientes), sin otorgarle acceso a cobros ni inventario.
+Las tarjetas solo muestran la accion de detalle cuando el usuario tiene acceso
+al area correspondiente; la apertura y la exportacion verifican ese mismo acceso.
+
 ### Ver todos los flujos en Ventas por usuario
 
 En Usuarios > Editar > Permisos, grupo "Flujo de Venta", la opcion "Permite ver

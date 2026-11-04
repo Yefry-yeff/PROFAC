@@ -357,6 +357,45 @@ class DashboardComercialTest extends TestCase
             ->call('abrirDetalle', 'facturas')->assertForbidden();
     }
 
+    public function test_reporting_role_can_open_and_export_commercial_dashboard_details(): void
+    {
+        DB::table('rol')->insert(['id' => 20, 'nombre' => 'Reporteria']);
+        DB::table('users')->where('id', 2)->update(['rol_id' => 20]);
+        $this->actingAs(User::findOrFail(2));
+
+        $componente = Livewire::test(DashboardComercialFixture::class)
+            ->assertSee("abrirDetalle('facturas')", false)
+            ->assertSee("abrirDetalle('clientes')", false)
+            ->call('abrirDetalle', 'facturas')
+            ->assertViewHas('detalleFilas', fn ($p) => $p->total() === 2)
+            ->call('descargarDetalle');
+        $this->assertSame(3, $this->leerExcel($componente)->getSheet(0)->getHighestRow());
+
+        $componente->call('cerrarDetalle')
+            ->call('abrirDetalle', 'clientes')
+            ->assertViewHas('detalleFilas', fn ($p) => $p->total() === 1)
+            ->call('descargarDetalle');
+        $this->assertSame(2, $this->leerExcel($componente)->getSheet(0)->getHighestRow());
+
+        $this->assertFalse((new DashboardComercial)->puedeVerArea('cobros'));
+        Livewire::test(DashboardComercialFixture::class)
+            ->call('abrirDetalle', 'inventario')->assertForbidden();
+    }
+
+    public function test_default_dashboard_does_not_offer_details_to_unauthorized_roles(): void
+    {
+        DB::table('rol')->insert(['id' => 21, 'nombre' => 'Sin acceso comercial']);
+        DB::table('users')->where('id', 2)->update(['rol_id' => 21]);
+        $this->actingAs(User::findOrFail(2));
+
+        Livewire::test(DashboardComercialFixture::class)
+            ->assertSee('Facturas emitidas')
+            ->assertSee('Clientes activos')
+            ->assertDontSee("abrirDetalle('facturas')", false)
+            ->assertDontSee("abrirDetalle('clientes')", false)
+            ->call('abrirDetalle', 'facturas')->assertForbidden();
+    }
+
     public function test_cobros_profile_shows_portfolio_summary_and_link_only_with_report_permissions(): void
     {
         DB::table('users')->where('id', 2)->update(['rol_id' => 4]);

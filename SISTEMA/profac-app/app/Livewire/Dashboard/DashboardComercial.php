@@ -31,7 +31,7 @@ class DashboardComercial extends Component
         $roles = match ($area) {
             'cobros' => [1, 4, 5, 6, 18, 19],
             'inventario' => [1, 5, 9, 18],
-            'comercial' => [1, 2, 3, 6, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17, 19],
+            'comercial' => [1, 2, 3, 6, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17, 19, 20],
             default => [],
         };
         return auth()->check() && count(array_intersect(auth()->user()->rolesIds(), $roles)) > 0;
