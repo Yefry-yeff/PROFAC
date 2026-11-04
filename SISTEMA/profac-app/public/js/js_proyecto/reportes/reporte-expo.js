@@ -197,54 +197,70 @@ var reporteExpo = (function () {
         });
     }
 
-    /* ─────────────────────────── Gráfica: Estado de ofertas (donut) ──── */
-    function cargarEstadoOfertas() {
-        return $.get('/reporte/expo/estado-ofertas', paramsActuales()).then(function (rows) {
-            destroyChart('chart-estado');
-            if (!get('chart-estado')) return;
-            var labelsMap = {
-                PENDIENTE_FACTURACION: 'Sin facturar',
-                FACTURACION_PARCIAL: 'Factura parcial',
-                PENDIENTE_LIQUIDACION: 'Pendiente liquidar',
-                LIQUIDADA: 'Liquidada',
-                SIN_REGISTRO: 'Sin registro',
-            };
-            var labels = rows.map(function (r) { return labelsMap[r.estado] || r.estado; });
-
-            charts['chart-estado'] = new ApexCharts(get('chart-estado'), {
-                chart: {
-                    type: 'bar', height: 320,
-                    events: {
-                        dataPointSelection: function (event, ctx, config) {
-                            var estado = rows[config.dataPointIndex].estado;
-                            filtro.estado = (filtro.estado === estado) ? '' : estado;
-                            $('#expo-f-estado').val(filtro.estado);
-                            recargarTodo();
-                        }
+    /* ──────────────── Gráfica: ofertas ganadoras vs no ganadoras (pie) ──── */
+    // Se pinta con los segmentos de resumen-ofertas. "No ganadoras" ya incluye
+    // las que perdieron la marca pero conservan secciones.
+    function pintarGraficaTipos(f) {
+        destroyChart('chart-estado');
+        if (!get('chart-estado')) return;
+        $('#chart-estado').empty();
+        var conSecciones = f.no_ganadoras_con_secciones || { num_ofertas: 0, num_secciones: 0 };
+        var nota = conSecciones.num_ofertas
+            ? 'Incluye ' + fmtN(conSecciones.num_ofertas) + ' ofertas con ' + fmtN(conSecciones.num_secciones) + ' secciones'
+            : '';
+        var datos = [
+            { tipo: 'GANADORA', nombre: 'Ofertas ganadoras', ofertas: f.ganadoras.num_ofertas,
+              ofertado: f.ganadoras.total_ofertado, facturado: f.ganadoras.total_facturado, nota: '' },
+            { tipo: 'NO_GANADORA', nombre: 'Ofertas no ganadoras', ofertas: f.no_ganadoras.num_ofertas,
+              ofertado: f.no_ganadoras.total_ofertado, facturado: f.no_ganadoras.total_facturado, nota: nota },
+        ];
+        setText('chart-estado-nota', nota ? 'Ofertas no ganadoras: ' + nota.charAt(0).toLowerCase() + nota.slice(1) +
+            ' (dejaron de ser ganadoras pero conservan secciones).' : '');
+        var total = datos[0].ofertas + datos[1].ofertas;
+        if (!total) {
+            $('#chart-estado').html('<div class="text-center text-muted py-5">Sin ofertas para los filtros seleccionados.</div>');
+            return;
+        }
+        charts['chart-estado'] = new ApexCharts(get('chart-estado'), {
+            chart: {
+                type: 'pie', height: 320,
+                events: {
+                    dataPointSelection: function (event, ctx, config) {
+                        var tipo = datos[config.dataPointIndex].tipo;
+                        filtro.tipo_oferta = filtro.tipo_oferta === tipo ? '' : tipo;
+                        $('#expo-f-tipo-oferta').val(filtro.tipo_oferta);
+                        recargarTodo();
                     }
-                },
-                series: [
-                    { name: 'Ofertado sin ISV', data: rows.map(function (r) { return r.ofertado; }) },
-                    { name: 'Facturado', data: rows.map(function (r) { return r.facturado; }) },
-                ],
-                xaxis: { categories: labels },
-                yaxis: { labels: { formatter: function (v) { return 'L.' + fmtN(v); } } },
-                tooltip: {
-                    shared: true,
-                    intersect: false,
-                    custom: function (ctx) {
-                        var row = rows[ctx.dataPointIndex];
-                        return '<div class="p-2"><strong>' + esc(labels[ctx.dataPointIndex]) + '</strong><br>' +
-                            'Ofertas: ' + fmtN(row.total) + '<br>Ofertado: ' + fmt(row.ofertado) +
-                            '<br>Facturado: ' + fmt(row.facturado) + '</div>';
-                    }
-                },
-                colors: ['#2878a9', '#15906b'],
-                legend: { position: 'top' },
-                plotOptions: { bar: { columnWidth: '58%' } },
-            });
-            charts['chart-estado'].render();
+                }
+            },
+            series: datos.map(function (d) { return d.ofertas; }),
+            labels: datos.map(function (d) { return d.nombre; }),
+            colors: ['#15906b', '#94a3b8'],
+            legend: {
+                position: 'bottom',
+                formatter: function (nombre, opts) {
+                    var d = datos[opts.seriesIndex];
+                    return nombre + ': ' + fmtN(d.ofertas) + ' (' + (d.ofertas * 100 / total).toFixed(1) + '%)';
+                }
+            },
+            dataLabels: {
+                enabled: true,
+                formatter: function (pct) { return pct.toFixed(1) + '%'; },
+                style: { fontSize: '14px', fontWeight: 600 },
+                dropShadow: { enabled: false }
+            },
+            tooltip: {
+                custom: function (ctx) {
+                    var d = datos[ctx.seriesIndex];
+                    return '<div style="background:#fff;color:#1f2937;padding:8px 10px;font-size:12px;line-height:1.5;border-left:4px solid ' +
+                        (ctx.seriesIndex === 0 ? '#15906b' : '#94a3b8') + ';"><strong>' + esc(d.nombre) + '</strong><br>' +
+                        'Ofertas: ' + fmtN(d.ofertas) + ' (' + (d.ofertas * 100 / total).toFixed(1) + '%)' +
+                        '<br>Ofertado: ' + fmt(d.ofertado) + '<br>Facturado: ' + fmt(d.facturado) +
+                        (d.nota ? '<br><small style="color:#6b7280;">' + esc(d.nota) + '</small>' : '') + '</div>';
+                }
+            },
         });
+        charts['chart-estado'].render();
     }
 
     /* ─────────────────────────── Gráfica: Ventas por marca (bar) ──────── */
@@ -528,11 +544,11 @@ var reporteExpo = (function () {
         SEGMENTOS_EXPO.forEach(function (clave) { pintarSegmento(clave, f[clave]); });
         // Con un tipo seleccionado solo se muestra su segmento (el resto
         // quedaría en cero o repetiría los mismos números).
-        var visible = { GANADORA: 'ganadoras', NO_GANADORA: 'no_ganadoras', NO_GANADORA_CON_SECCIONES: 'conjunto' }[filtro.tipo_oferta];
+        var visible = { GANADORA: 'ganadoras', NO_GANADORA: 'no_ganadoras', NO_GANADORA_CON_SECCIONES: 'no_ganadoras' }[filtro.tipo_oferta];
         SEGMENTOS_EXPO.forEach(function (clave) { $('#seg-' + clave).toggle(!visible || visible === clave); });
         var otras = f.no_ganadoras_con_secciones;
         setText('kpi-fact-otras', otras.num_ofertas
-            ? 'El conjunto incluye ' + fmtN(otras.num_ofertas) + ' ofertas que dejaron de ser ganadoras pero conservan ' +
+            ? 'Incluye ' + fmtN(otras.num_ofertas) + ' ofertas que dejaron de ser ganadoras pero conservan ' +
                 fmtN(otras.num_secciones) + ' secciones (' + fmtN(otras.num_facturas) + ' facturas, ' +
                 fmt(otras.total_facturado) + ' facturado de ' + fmt(otras.total_ofertado) + ').'
             : '');
@@ -584,6 +600,7 @@ var reporteExpo = (function () {
         return $.get('/reporte/expo/resumen-ofertas', paramsActuales()).then(function (d) {
             var rows = d.ofertas || [];
             pintarSegmentos(d.facturabilidad);
+            pintarGraficaTipos(d.facturabilidad);
 
             ofertasPorClave = {};
             ofertasPorCliente = {};
@@ -661,7 +678,7 @@ var reporteExpo = (function () {
 
         var tbody = $('#tabla-secciones-flujo tbody').empty();
         if (!oferta.secciones || !oferta.secciones.length) {
-            tbody.append('<tr><td colspan="6" class="text-center text-muted py-3">No hay secciones registradas para esta oferta.</td></tr>');
+            tbody.append('<tr><td colspan="7" class="text-center text-muted py-3">No hay secciones registradas para esta oferta.</td></tr>');
         } else {
             oferta.secciones.forEach(function (s) {
                 var esPendiente = !!s.es_pendiente;
@@ -678,16 +695,17 @@ var reporteExpo = (function () {
                     if (esRaiz) fila.addClass('bi-seccion-raiz');
                 }
                 var etiquetaSeccion = esRaiz
-                    ? '<i class="fas fa-box mr-1"></i>Productos sin ofertar'
+                    ? '<i class="fas fa-box mr-1"></i>Productos sin sección'
                     : (esPendiente ? '<i class="fas fa-exclamation-circle mr-1"></i>Productos sin factura'
                         : 'Sección ' + s.numero_seccion);
                 fila.html(
                     '<td>' + etiquetaSeccion + '</td>' +
                     '<td>' + (s.estado ? esc(etiquetaEstadoSeccion(s.estado)) : '<span class="text-muted">—</span>') + '</td>' +
                     '<td><span class="badge ' + (s.estado_facturacion === 'FACTURADA' ? 'badge-success' : (s.estado_facturacion === 'PARCIALMENTE_FACTURADA' ? 'badge-warning' : 'badge-secondary')) + '">' + esc(estadoTxt) + '</span></td>' +
-                    '<td class="text-right">' + (esPendiente ? '—' : fmtN(s.num_facturas)) + '</td>' +
                     '<td class="text-right">' + fmt(s.total_ofertado) + '</td>' +
-                    '<td class="text-right">' + fmt(s.total_facturado) + '</td>'
+                    '<td class="text-right">' + fmt(s.total_facturado) + '</td>' +
+                    '<td class="text-right">' + (esPendiente ? '—' : fmt(s.total_pagado)) + '</td>' +
+                    '<td class="text-right ' + ((s.utilidad_pagada || 0) < 0 ? 'bi-loss' : 'bi-profit') + '">' + (esPendiente ? '—' : fmt(s.utilidad_pagada)) + '</td>'
                 );
                 tbody.append(fila);
             });
@@ -950,7 +968,6 @@ var reporteExpo = (function () {
         actualizarUrl();
         mostrarSpinnerCarga();
         var promesas = [
-            cargarEstadoOfertas(),
             cargarVentasPorMarca(),
             cargarVentasPorAsesor(),
             cargarVentasPorTeleasesor(),
@@ -977,6 +994,7 @@ var reporteExpo = (function () {
         if (filtro.cliente_id) filtroNombres.cliente_id = 'Cliente #' + filtro.cliente_id;
         filtro.estado = query.get('estado') || '';
         filtro.tipo_oferta = ETIQUETAS_TIPO_OFERTA[query.get('tipo_oferta')] ? query.get('tipo_oferta') : '';
+        if (filtro.tipo_oferta === 'NO_GANADORA_CON_SECCIONES') filtro.tipo_oferta = 'NO_GANADORA';
         filtro.fecha_desde = query.get('fecha_desde') || '';
         filtro.fecha_hasta = query.get('fecha_hasta') || '';
         filtro.rentabilidad_base = query.get('rentabilidad_base') === 'facturas' ? 'facturas' : 'ofertas';

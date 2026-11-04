@@ -377,12 +377,18 @@ class ReporteExpo extends Component
         return array_keys(array_filter($this->tiposOfertaExpo($expoId), fn ($info) => $info['descartada']));
     }
 
-    /** Ids (ofertas principales + sus secciones) de un tipo de oferta. */
+    /**
+     * Ids (ofertas principales + sus secciones) de un tipo de oferta.
+     * NO_GANADORA incluye también las no ganadoras que conservan secciones.
+     */
     private function idsPorTipoOferta(int $expoId, string $tipo): array
     {
+        $tipos = $tipo === self::TIPO_NO_GANADORA
+            ? [self::TIPO_NO_GANADORA, self::TIPO_NO_GANADORA_CON_SECCIONES]
+            : [$tipo];
         $ids = [];
         foreach ($this->tiposOfertaExpo($expoId) as $id => $info) {
-            if ($info['tipo'] === $tipo && !$info['descartada']) {
+            if (in_array($info['tipo'], $tipos, true) && !$info['descartada']) {
                 $ids[] = $id;
                 array_push($ids, ...$info['secciones']);
             }
@@ -1084,6 +1090,8 @@ class ReporteExpo extends Component
                 'total_ofertado' => $s['total_ofertado'],
                 'total_facturado' => $s['total_facturado'],
                 'num_facturas' => $s['num_facturas'],
+                'total_pagado' => round((float) $s['total_pagado'], 2),
+                'utilidad_pagada' => round((float) $s['utilidad_pagada'], 2),
             ], $secciones);
 
             // Acceso directo a las líneas propias de la oferta principal: si no
@@ -1093,12 +1101,14 @@ class ReporteExpo extends Component
                 array_unshift($seccionesSalida, [
                     'oferta_id' => $raiz['oferta_id'],
                     'numero_seccion' => null,
-                    'nombre_seccion' => 'Productos sin ofertar',
+                    'nombre_seccion' => 'Productos sin sección',
                     'estado' => null,
                     'estado_facturacion' => $raiz['estado_facturacion'],
                     'total_ofertado' => $raiz['total_ofertado'],
                     'total_facturado' => $raiz['total_facturado'],
                     'num_facturas' => $raiz['num_facturas'],
+                    'total_pagado' => round((float) $raiz['total_pagado'], 2),
+                    'utilidad_pagada' => round((float) $raiz['utilidad_pagada'], 2),
                     'es_raiz' => true,
                 ]);
             }
@@ -1113,6 +1123,8 @@ class ReporteExpo extends Component
                     'total_ofertado' => round(max($totalOfertado - $totalFacturado, 0), 2),
                     'total_facturado' => 0,
                     'num_facturas' => 0,
+                    'total_pagado' => 0,
+                    'utilidad_pagada' => 0,
                     'es_pendiente' => true,
                 ];
             }
@@ -1178,15 +1190,17 @@ class ReporteExpo extends Component
             'no_ganadoras_con_secciones' => $vacio(),
             'conjunto' => $vacio(),
         ];
+        // "no_ganadoras" incluye a las que conservan secciones; además se
+        // detallan aparte en "no_ganadoras_con_secciones".
         $claveGrupo = [
-            self::TIPO_GANADORA => 'ganadoras',
-            self::TIPO_NO_GANADORA => 'no_ganadoras',
-            self::TIPO_NO_GANADORA_CON_SECCIONES => 'no_ganadoras_con_secciones',
+            self::TIPO_GANADORA => ['ganadoras'],
+            self::TIPO_NO_GANADORA => ['no_ganadoras'],
+            self::TIPO_NO_GANADORA_CON_SECCIONES => ['no_ganadoras', 'no_ganadoras_con_secciones'],
         ];
 
         $clientes = [];
         foreach ($ofertas as $o) {
-            foreach ([$claveGrupo[$o['tipo']], 'conjunto'] as $clave) {
+            foreach ([...$claveGrupo[$o['tipo']], 'conjunto'] as $clave) {
                 $grupos[$clave]['num_ofertas']++;
                 $grupos[$clave]['num_secciones'] += $o['num_secciones'];
                 $grupos[$clave]['total_ofertado'] += $o['total_ofertado'];

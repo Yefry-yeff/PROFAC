@@ -125,7 +125,6 @@
                     <option value="">Conjunto (todas)</option>
                     <option value="GANADORA">Ganadoras</option>
                     <option value="NO_GANADORA">No ganadoras</option>
-                    <option value="NO_GANADORA_CON_SECCIONES">No ganadoras con secciones</option>
                 </select>
             </div>
             <div class="col-md-2">
@@ -154,7 +153,7 @@
     @php
         $segmentosExpo = [
             ['clave' => 'ganadoras', 'titulo' => 'Ofertas ganadoras', 'color' => 'success', 'nota' => 'Ganadoras vigentes con sus secciones y facturas.'],
-            ['clave' => 'no_ganadoras', 'titulo' => 'Ofertas no ganadoras', 'color' => 'secondary', 'nota' => 'Ofertas que no son ganadoras y no tienen secciones.'],
+            ['clave' => 'no_ganadoras', 'titulo' => 'Ofertas no ganadoras', 'color' => 'secondary', 'nota' => 'No ganadoras, incluidas las que conservan secciones.'],
             ['clave' => 'conjunto', 'titulo' => 'Conjunto (ganadoras + no ganadoras)', 'color' => 'primary', 'nota' => 'Total de la Expo con los filtros aplicados.'],
         ];
         $kpisSegmento = [
@@ -185,7 +184,7 @@
                         </div>
                     @endforeach
                 </div>
-                @if ($segmento['clave'] === 'conjunto')
+                @if ($segmento['clave'] === 'no_ganadoras')
                     <small class="text-muted" id="kpi-fact-otras"></small>
                 @endif
             </div>
@@ -196,8 +195,9 @@
     <div class="row">
         <div class="mb-3 col-lg-6">
             <div class="card card-body h-100">
-                <h6 class="font-weight-bold">Ofertado vs facturado por estado <small class="text-muted">(clic para filtrar)</small></h6>
+                <h6 class="font-weight-bold">Ofertas ganadoras vs no ganadoras <small class="text-muted">% de ofertas (clic para filtrar)</small></h6>
                 <div id="chart-estado"></div>
+                <small class="text-muted text-center d-block" id="chart-estado-nota"></small>
             </div>
         </div>
         <div class="mb-3 col-lg-6">
@@ -316,7 +316,8 @@
                         <table class="table table-sm table-bordered table-hover" id="tabla-secciones-flujo">
                             <thead class="thead-light"><tr>
                                 <th>Sección</th><th>Estado</th>
-                                <th>Facturación</th><th class="text-right">Facturas</th><th class="text-right">Ofertado</th><th class="text-right">Facturado</th>
+                                <th>Facturación</th><th class="text-right">Ofertado</th><th class="text-right">Facturado</th>
+                                <th class="text-right">Pagado</th><th class="text-right">Utilidad ganada</th>
                             </tr></thead><tbody></tbody>
                         </table>
                     </div>

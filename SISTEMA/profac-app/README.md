@@ -23,6 +23,14 @@ el modal con sus secciones y facturas. `/reporte/expo/resumen-ofertas` incluye
 `ofertas` para armarla en una sola peticion, y el buscador tambien encuentra al
 cliente por numero de oferta, flujo, asesor o teleasesor.
 
+La grafica circular "Ofertas ganadoras vs no ganadoras" muestra el % de
+ofertas de cada tipo y al hacer clic aplica el filtro de tipo. Las ofertas que
+dejaron de ser ganadoras pero conservan secciones cuentan como no ganadoras en
+la grafica, la tarjeta de no ganadoras y el filtro "No ganadoras"; una leyenda
+bajo la grafica indica cuantas son. En el modal de secciones, la fila
+"Productos sin seccion" son las lineas propias de la oferta principal; cada
+fila muestra ofertado, facturado, pagado y utilidad ganada.
+
 Cada oferta del detalle es una oferta principal con la jerarquia
 Flujo -> Oferta -> Secciones -> Facturas. Una oferta es ganadora si su
 ultimo registro en `cotizacion_estado` tiene `ganadora = 1` (2 = quitada,

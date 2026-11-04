@@ -265,6 +265,10 @@ class ReporteExpoOfertasTest extends TestCase
         $this->assertSame(1, $ofertas[10]['num_secciones']);
         $this->assertSame(11, $ofertas[10]['secciones'][1]['oferta_id']);
         $this->assertSame(1, $ofertas[10]['secciones'][1]['num_facturas']);
+        $this->assertSame('Productos sin sección', $ofertas[10]['secciones'][0]['nombre_seccion']);
+        // Sección 11: factura 1 (40 sin ISV) cobrada al 50%; costo base 4 x 4 = 16.
+        $this->assertEquals(20, $ofertas[10]['secciones'][1]['total_pagado']);
+        $this->assertEquals(12, $ofertas[10]['secciones'][1]['utilidad_pagada']);
         $this->assertSame([10, 12], array_slice(array_column($this->ofertas(), 'oferta_id'), 0, 2));
     }
 
@@ -302,9 +306,12 @@ class ReporteExpoOfertasTest extends TestCase
         $this->assertEquals(170, array_sum(array_column($reporte->tablaProductos($request)->getData(true), 'total_ofertado')));
         $f = $reporte->resumenOfertas($request)->getData(true)['facturabilidad'];
         $this->assertEquals(170, $f['conjunto']['total_ofertado']);
-        $this->assertSame(3, $f['no_ganadoras']['num_ofertas']);
+        // No ganadoras incluye a la 16, que conserva secciones.
+        $this->assertSame(4, $f['no_ganadoras']['num_ofertas']);
+        $this->assertSame(1, $f['no_ganadoras_con_secciones']['num_ofertas']);
         $noGanadoras = array_column($reporte->tablaOfertas(new Request(['expo_id' => 7, 'tipo_oferta' => 'NO_GANADORA']))->getData(true), 'oferta_id');
         $this->assertNotContains(15, $noGanadoras);
+        $this->assertContains(16, $noGanadoras);
     }
 
     public function test_ganadora_revocada_que_conserva_secciones_se_separa(): void
