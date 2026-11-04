@@ -202,6 +202,14 @@
                                     </select>
                                 </div>
                             </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="nd_fil_secuencia_cai_factura">Secuencia CAI de la factura</label>
+                                    <input type="text" id="nd_fil_secuencia_cai_factura" class="form-control form-control-sm"
+                                        autocomplete="off" placeholder="Buscar secuencia o CAI de factura">
+                                    <small class="text-muted">Al buscar por factura se ignora el rango de fechas.</small>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -229,7 +237,8 @@
         fecha_hasta: '{{ date("Y-m-t") }}',
         cliente_id:  '',
         motivo_id:   '',
-        user_id:     ''
+        user_id:     '',
+        numero_secuencia_cai_factura: ''
     };
 
     $(document).ready(function() {
@@ -256,6 +265,7 @@
                     d.cliente_id  = ndFiltros.cliente_id;
                     d.motivo_id   = ndFiltros.motivo_id;
                     d.user_id     = ndFiltros.user_id;
+                    d.numero_secuencia_cai_factura = ndFiltros.numero_secuencia_cai_factura;
                 }
             },
             columns: [
@@ -283,6 +293,7 @@
         ndFiltros.cliente_id  = $('#nd_fil_cliente').val()  || '';
         ndFiltros.motivo_id   = $('#nd_fil_motivo').val()   || '';
         ndFiltros.user_id     = $('#nd_fil_usuario').val()  || '';
+        ndFiltros.numero_secuencia_cai_factura = $('#nd_fil_secuencia_cai_factura').val().trim();
         $('#modalFiltrosND').modal('hide');
         ndCargarTabla();
         ndActualizarBadges();
@@ -294,7 +305,9 @@
         $('#nd_fil_cliente').val(null).trigger('change');
         $('#nd_fil_motivo').val('');
         $('#nd_fil_usuario').val(null).trigger('change');
-        ndFiltros = { fecha_desde: '{{ $fechaInicio }}', fecha_hasta: '{{ date("Y-m-t") }}', cliente_id: '', motivo_id: '', user_id: '' };
+        $('#nd_fil_secuencia_cai_factura').val('');
+        ndFiltros = { fecha_desde: '{{ $fechaInicio }}', fecha_hasta: '{{ date("Y-m-t") }}', cliente_id: '', motivo_id: '', user_id: '', numero_secuencia_cai_factura: '' };
+        ndCargarTabla();
         ndActualizarBadges();
     }
 
@@ -308,6 +321,7 @@
                 cliente_id:  ndFiltros.cliente_id,
                 motivo_id:   ndFiltros.motivo_id,
                 user_id:     ndFiltros.user_id,
+                numero_secuencia_cai_factura: ndFiltros.numero_secuencia_cai_factura,
                 tipo_venta:  1
             },
             success: function(r) {
@@ -324,14 +338,17 @@
         var bar = $('#nd_filtros_bar');
         bar.empty();
         var badges = [];
-        if (ndFiltros.fecha_desde) badges.push({ lbl:'Desde', val:ndFiltros.fecha_desde });
-        if (ndFiltros.fecha_hasta) badges.push({ lbl:'Hasta', val:ndFiltros.fecha_hasta });
+        if (!ndFiltros.numero_secuencia_cai_factura && ndFiltros.fecha_desde) badges.push({ lbl:'Desde', val:ndFiltros.fecha_desde });
+        if (!ndFiltros.numero_secuencia_cai_factura && ndFiltros.fecha_hasta) badges.push({ lbl:'Hasta', val:ndFiltros.fecha_hasta });
         if (ndFiltros.cliente_id)  badges.push({ lbl:'Cliente', val:$('#nd_fil_cliente option:selected').text() });
         if (ndFiltros.motivo_id)   badges.push({ lbl:'Motivo',  val:$('#nd_fil_motivo option:selected').text() });
         if (ndFiltros.user_id)     badges.push({ lbl:'Usuario', val:$('#nd_fil_usuario option:selected').text() });
+        if (ndFiltros.numero_secuencia_cai_factura) badges.push({ lbl:'CAI factura (sin fechas)', val:ndFiltros.numero_secuencia_cai_factura });
         if (badges.length) {
             bar.show();
-            badges.forEach(function(b) { bar.append('<span class="filtro-badge-nd"><strong>' + b.lbl + ':</strong> ' + b.val + '</span> '); });
+            badges.forEach(function(b) {
+                bar.append($('<span class="filtro-badge-nd">').append($('<strong>').text(b.lbl + ':')).append(document.createTextNode(' ' + b.val)), ' ');
+            });
         } else { bar.hide(); }
     }
 
@@ -339,7 +356,8 @@
         var tok  = $('meta[name="csrf-token"]').attr('content');
         var form = $('<form method="POST" action="/nota/credito/gobierno/exportar-excel"></form>');
         var f = { _token: tok, fechaInicio: ndFiltros.fecha_desde, fechaFinal: ndFiltros.fecha_hasta,
-                  cliente_id: ndFiltros.cliente_id, motivo_id: ndFiltros.motivo_id, user_id: ndFiltros.user_id };
+                  cliente_id: ndFiltros.cliente_id, motivo_id: ndFiltros.motivo_id, user_id: ndFiltros.user_id,
+                  numero_secuencia_cai_factura: ndFiltros.numero_secuencia_cai_factura };
         $.each(f, function(k,v){ form.append($('<input type="hidden">').attr('name',k).val(v)); });
         $('body').append(form); form.submit(); form.remove();
     }

@@ -206,9 +206,17 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label>Número de secuencia CAI</label>
+                                    <label>Número de secuencia CAI de la nota</label>
                                     <input type="text" id="nc_fil_secuencia_cai" class="form-control form-control-sm"
                                         autocomplete="off" placeholder="Buscar secuencia CAI">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="nc_fil_secuencia_cai_factura">Secuencia CAI de la factura</label>
+                                    <input type="text" id="nc_fil_secuencia_cai_factura" class="form-control form-control-sm"
+                                        autocomplete="off" placeholder="Buscar secuencia o CAI de factura">
+                                    <small class="text-muted">Al buscar por factura se ignora el rango de fechas.</small>
                                 </div>
                             </div>
                         </div>
@@ -241,7 +249,8 @@
         cliente_id:  '',
         motivo_id:   '',
         user_id:     '',
-        numero_secuencia_cai: ''
+        numero_secuencia_cai: '',
+        numero_secuencia_cai_factura: ''
     };
 
     $(document).ready(function() {
@@ -269,6 +278,7 @@
                     d.motivo_id   = ncFiltros.motivo_id;
                     d.user_id     = ncFiltros.user_id;
                     d.numero_secuencia_cai = ncFiltros.numero_secuencia_cai;
+                    d.numero_secuencia_cai_factura = ncFiltros.numero_secuencia_cai_factura;
                 }
             },
             columns: [
@@ -299,6 +309,7 @@
         ncFiltros.motivo_id   = $('#nc_fil_motivo').val()   || '';
         ncFiltros.user_id     = $('#nc_fil_usuario').val()  || '';
         ncFiltros.numero_secuencia_cai = $('#nc_fil_secuencia_cai').val().trim();
+        ncFiltros.numero_secuencia_cai_factura = $('#nc_fil_secuencia_cai_factura').val().trim();
         $('#modalFiltrosNC').modal('hide');
         ncCargarTabla();
         ncActualizarBadges();
@@ -311,7 +322,8 @@
         $('#nc_fil_motivo').val('');
         $('#nc_fil_usuario').val(null).trigger('change');
         $('#nc_fil_secuencia_cai').val('');
-        ncFiltros = { fecha_desde: '{{ $fechaInicio }}', fecha_hasta: '{{ date("Y-m-t") }}', cliente_id: '', motivo_id: '', user_id: '', numero_secuencia_cai: '' };
+        $('#nc_fil_secuencia_cai_factura').val('');
+        ncFiltros = { fecha_desde: '{{ $fechaInicio }}', fecha_hasta: '{{ date("Y-m-t") }}', cliente_id: '', motivo_id: '', user_id: '', numero_secuencia_cai: '', numero_secuencia_cai_factura: '' };
         ncCargarTabla();
         ncActualizarBadges();
     }
@@ -327,6 +339,7 @@
                 motivo_id:   ncFiltros.motivo_id,
                 user_id:     ncFiltros.user_id,
                 numero_secuencia_cai: ncFiltros.numero_secuencia_cai,
+                numero_secuencia_cai_factura: ncFiltros.numero_secuencia_cai_factura,
                 tipo_venta:  2
             },
             success: function(r) {
@@ -343,15 +356,18 @@
         var bar = $('#nc_filtros_bar');
         bar.empty();
         var badges = [];
-        if (ncFiltros.fecha_desde) badges.push({ lbl:'Desde', val:ncFiltros.fecha_desde });
-        if (ncFiltros.fecha_hasta) badges.push({ lbl:'Hasta', val:ncFiltros.fecha_hasta });
+        if (!ncFiltros.numero_secuencia_cai_factura && ncFiltros.fecha_desde) badges.push({ lbl:'Desde', val:ncFiltros.fecha_desde });
+        if (!ncFiltros.numero_secuencia_cai_factura && ncFiltros.fecha_hasta) badges.push({ lbl:'Hasta', val:ncFiltros.fecha_hasta });
         if (ncFiltros.cliente_id)  badges.push({ lbl:'Cliente', val:$('#nc_fil_cliente option:selected').text() });
         if (ncFiltros.motivo_id)   badges.push({ lbl:'Motivo',  val:$('#nc_fil_motivo option:selected').text() });
         if (ncFiltros.user_id)     badges.push({ lbl:'Usuario', val:$('#nc_fil_usuario option:selected').text() });
-        if (ncFiltros.numero_secuencia_cai) badges.push({ lbl:'Secuencia CAI', val:ncFiltros.numero_secuencia_cai });
+        if (ncFiltros.numero_secuencia_cai) badges.push({ lbl:'Secuencia CAI nota', val:ncFiltros.numero_secuencia_cai });
+        if (ncFiltros.numero_secuencia_cai_factura) badges.push({ lbl:'CAI factura (sin fechas)', val:ncFiltros.numero_secuencia_cai_factura });
         if (badges.length) {
             bar.show();
-            badges.forEach(function(b) { bar.append('<span class="filtro-badge-nc"><strong>' + b.lbl + ':</strong> ' + b.val + '</span> '); });
+            badges.forEach(function(b) {
+                bar.append($('<span class="filtro-badge-nc">').append($('<strong>').text(b.lbl + ':')).append(document.createTextNode(' ' + b.val)), ' ');
+            });
         } else { bar.hide(); }
     }
 
@@ -360,7 +376,8 @@
         var form = $('<form method="POST" action="/nota/credito/exportar-excel"></form>');
         var f = { _token: tok, fechaInicio: ncFiltros.fecha_desde, fechaFinal: ncFiltros.fecha_hasta,
                   cliente_id: ncFiltros.cliente_id, motivo_id: ncFiltros.motivo_id, user_id: ncFiltros.user_id,
-                  numero_secuencia_cai: ncFiltros.numero_secuencia_cai };
+                  numero_secuencia_cai: ncFiltros.numero_secuencia_cai,
+                  numero_secuencia_cai_factura: ncFiltros.numero_secuencia_cai_factura };
         $.each(f, function(k,v){ form.append($('<input type="hidden">').attr('name',k).val(v)); });
         $('body').append(form); form.submit(); form.remove();
     }
