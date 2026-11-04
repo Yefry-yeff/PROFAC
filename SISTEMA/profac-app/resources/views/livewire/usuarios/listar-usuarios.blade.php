@@ -526,7 +526,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-    <script src="{{ asset('js/js_proyecto/usuarios/usuarios.js') }}"></script>
+    <script src="{{ asset('js/js_proyecto/usuarios/usuarios.js') }}?v={{ filemtime(public_path('js/js_proyecto/usuarios/usuarios.js')) }}"></script>
     <script>
         // Mostrar/ocultar contraseña
         function togglePwd(fieldId, btn) {

@@ -1,5 +1,14 @@
 //*****comandos utiles****
 
+### Ver todos los flujos en Ventas por usuario
+
+En Usuarios > Editar > Permisos, grupo "Flujo de Venta", la opcion "Permite ver
+todos los flujos" se guarda en `users.ver_todos_flujos` (migracion
+`2026_11_04_000001`). Es individual: no se hereda ni se asigna por rol. Con ella
+marcada, el listado de Ventas (`Flujo\ListarVentas`) muestra todos los flujos
+igual que a los roles 1 y 16 (`User::puedeVerTodosLosFlujos()`); sin ella, el
+usuario solo ve los flujos donde participa.
+
 ### Rendimiento del Reporte Expo
 
 La tabla de ofertas y el detalle de productos para Excel resuelven el

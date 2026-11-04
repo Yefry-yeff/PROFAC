@@ -48,6 +48,7 @@ class User extends Authenticatable
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
+    'ver_todos_flujos' => 'boolean',
     ];
 
     /**
@@ -119,5 +120,15 @@ class User extends Authenticatable
     public function esAdministrador(): bool
     {
         return $this->tieneRol(1);
+    }
+
+    /**
+     * Ver todos los flujos en Ventas: roles Administrador (1) y 16, o el
+     * permiso individual users.ver_todos_flujos (no depende del rol).
+     */
+    public function puedeVerTodosLosFlujos(): bool
+    {
+        return (bool) $this->ver_todos_flujos
+            || count(array_intersect($this->rolesIds(), [1, 16])) > 0;
     }
 }

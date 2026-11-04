@@ -221,7 +221,9 @@ class ListarUsuarios extends Component
             $usuario->email            = $request->correo_usuario;
             $usuario->fecha_nacimiento = $request->fenacimiento_usuario;
             $usuario->telefono         = $request->telefono_usuario ?? null;
-            
+            if ($request->has('ver_todos_flujos')) {
+                $usuario->ver_todos_flujos = $request->boolean('ver_todos_flujos');
+            }
             // Actualizar contraseña solo si se proporciona una nueva
             if (!empty($request->nueva_contrasena)) {
                 $usuario->password             = Hash::make($request->nueva_contrasena);
@@ -331,6 +333,7 @@ class ListarUsuarios extends Component
             'otorgados' => $otorgados,
             'revocados' => $revocados,
             'efectivos' => $efectivos,
+            'ver_todos_flujos' => (bool) $usuario->ver_todos_flujos,
         ]);
     }
 

@@ -63,7 +63,7 @@ class ListarVentas extends Component
     {
         $roles = Auth::user()->rolesIds();
         $this->esAdmin = in_array(1, $roles, true);
-        $this->puedeVerTodoHistorial = count(array_intersect($roles, [1, 16])) > 0;
+        $this->puedeVerTodoHistorial = Auth::user()->puedeVerTodosLosFlujos();
         $this->tiposVenta = DB::table('tipo_venta')
             ->where('id', '!=', 5)
             ->orderBy('descripcion')

@@ -237,6 +237,9 @@ function actualizarUsuario() {
 
     otorgados.forEach(function (id) { data.append('permisos_otorgados[]', id); });
     revocados.forEach(function (id) { data.append('permisos_revocados[]', id); });
+    if (usrPermisos.cargado) {
+        data.append('ver_todos_flujos', usrPermisos.verTodosFlujos ? 1 : 0);
+    }
 
     axios.post("/usuario/actualizar", data)
         .then(response => {
@@ -254,7 +257,7 @@ function actualizarUsuario() {
 }
 
 function usrCargarPermisos(idUsuario, rolId) {
-    usrPermisos = { permisos: [], heredados: [], efectivos: [] };
+    usrPermisos = { permisos: [], heredados: [], efectivos: [], verTodosFlujos: false };
     $('#usr_permisos_lista').html('<div class="text-center text-muted py-3"><i class="fa fa-spinner fa-spin mr-1"></i>Cargando permisos...</div>');
 
     axios.get('/usuario/' + idUsuario + '/permisos', { params: { rol_id: rolId || '' } })
@@ -262,7 +265,9 @@ function usrCargarPermisos(idUsuario, rolId) {
             usrPermisos = {
                 permisos: response.data.permisos || [],
                 heredados: (response.data.heredados || []).map(Number),
-                efectivos: (response.data.efectivos || []).map(Number)
+                efectivos: (response.data.efectivos || []).map(Number),
+                verTodosFlujos: !!response.data.ver_todos_flujos,
+                cargado: true
             };
             usrRenderPermisos();
         })
@@ -283,6 +288,8 @@ function usrEscapeHtml(value) {
 function usrRenderPermisos() {
     var termino = ($('#usr_permisos_buscar').val() || '').trim().toLowerCase();
     var grupos = {};
+    var GRUPO_FLUJO = 'Flujo de Venta';
+    var etiquetaVerFlujos = 'Permite ver todos los flujos';
 
     usrPermisos.permisos.forEach(function (permiso) {
         var texto = ((permiso.menu_nombre || '') + ' ' + (permiso.nombre || '') + ' ' + (permiso.ruta || '')).toLowerCase();
@@ -291,6 +298,15 @@ function usrRenderPermisos() {
         if (!grupos[grupo]) grupos[grupo] = [];
         grupos[grupo].push(permiso);
     });
+
+    // Opción individual del usuario (no del rol): se muestra dentro de "Flujo de Venta".
+    var grupoFlujo = Object.keys(grupos).find(function (g) { return g.trim().toLowerCase() === GRUPO_FLUJO.toLowerCase(); })
+        || (usrPermisos.permisos.find(function (p) { return (p.menu_nombre || '').trim().toLowerCase() === GRUPO_FLUJO.toLowerCase(); }) || {}).menu_nombre
+        || GRUPO_FLUJO;
+    if (usrPermisos.cargado && (!termino || (grupoFlujo + ' ' + etiquetaVerFlujos + ' usuario').toLowerCase().indexOf(termino) !== -1)) {
+        if (!grupos[grupoFlujo]) grupos[grupoFlujo] = [];
+        grupos[grupoFlujo].push({ especial: 'ver_todos_flujos' });
+    }
 
     $('#usr_permisos_resumen').text(usrPermisos.efectivos.length + ' seleccionados');
     if (!Object.keys(grupos).length) {
@@ -302,6 +318,13 @@ function usrRenderPermisos() {
     Object.keys(grupos).sort().forEach(function (nombreGrupo, index) {
         html += '<section class="usr-permiso-grupo"><div class="usr-permiso-grupo-titulo">' + usrEscapeHtml(nombreGrupo) + '</div><div class="usr-permiso-grupo-items">';
         grupos[nombreGrupo].forEach(function (permiso) {
+            if (permiso.especial === 'ver_todos_flujos') {
+                html += '<div class="usr-permiso-item custom-control custom-checkbox">' +
+                    '<input type="checkbox" class="custom-control-input usr-ver-todos-flujos" id="usr-ver-todos-flujos" ' + (usrPermisos.verTodosFlujos ? 'checked' : '') + '>' +
+                    '<label class="custom-control-label" for="usr-ver-todos-flujos" title="En Ventas, este usuario ve los flujos de todos los usuarios (aplica solo a este usuario, no al rol)."><strong>' + etiquetaVerFlujos + '</strong> <span class="usr-permiso-origen">Usuario</span></label>' +
+                    '</div>';
+                return;
+            }
             var id = Number(permiso.id);
             var inputId = 'usr-permiso-' + id;
             var heredado = usrPermisos.heredados.includes(id);
@@ -319,6 +342,9 @@ function usrRenderPermisos() {
 }
 
 $(document).on('input', '#usr_permisos_buscar', usrRenderPermisos);
+$(document).on('change', '.usr-ver-todos-flujos', function () {
+    usrPermisos.verTodosFlujos = this.checked;
+});
 $(document).on('change', '.usr-permiso-toggle', function () {
     var id = Number($(this).data('id'));
     if (this.checked && !usrPermisos.efectivos.includes(id)) {
