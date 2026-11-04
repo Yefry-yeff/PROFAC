@@ -141,7 +141,7 @@ class ReporteExpoDetalleService
                     ->orWhereNotNull('pfl.cotizacion_has_producto_id');
             })
             ->groupByRaw('COALESCE(vhp.cotizacion_has_producto_id, pfl.cotizacion_has_producto_id)')
-            ->selectRaw('COALESCE(vhp.cotizacion_has_producto_id, pfl.cotizacion_has_producto_id) as cotizacion_has_producto_id, SUM(COALESCE(NULLIF(vhp.cantidad_oferta_aplicada, 0), vhp.cantidad_s)) as cantidad_facturada, SUM(vhp.sub_total_s) as total_facturado, SUM(GREATEST((vhp.precio_unidad * vhp.cantidad_s) - vhp.sub_total_s, 0)) as descuento_facturado, SUM(vhp.isv_s) as isv_facturado, SUM(vhp.total_s) as total_con_impuesto_facturado, SUM(COALESCE(ppc_fact.costoproducto, ppc_oferta.costoproducto, p_fact.costo_promedio, 0) * vhp.cantidad_s) as costo_facturado');
+            ->selectRaw('COALESCE(vhp.cotizacion_has_producto_id, pfl.cotizacion_has_producto_id) as cotizacion_has_producto_id, SUM(COALESCE(NULLIF(vhp.cantidad_oferta_aplicada, 0), vhp.cantidad_s)) as cantidad_facturada, SUM(vhp.sub_total_s) as total_facturado, SUM(GREATEST((vhp.precio_unidad * vhp.cantidad_s) - vhp.sub_total_s, 0)) as descuento_facturado, SUM(vhp.isv_s) as isv_facturado, SUM(vhp.total_s) as total_con_impuesto_facturado, SUM(COALESCE(ppc_oferta.precio_base_venta, ppc_fact.precio_base_venta, 0) * vhp.cantidad_s) as costo_facturado');
 
         $rows = DB::table('cotizacion_has_producto as chp')
             ->join('cotizacion as c', 'c.id', '=', 'chp.cotizacion_id')
@@ -321,7 +321,7 @@ class ReporteExpoDetalleService
                 DB::raw('SUM(vhp.sub_total_s) as subtotal'),
                 DB::raw('SUM(vhp.isv_s) as isv'),
                 DB::raw('SUM(vhp.total_s) as total'),
-                DB::raw('SUM(COALESCE(ppc.costoproducto, ppc_oferta.costoproducto, p.costo_promedio, 0) * vhp.cantidad_s) as costo'),
+                DB::raw('SUM(COALESCE(ppc_oferta.precio_base_venta, ppc.precio_base_venta, 0) * vhp.cantidad_s) as costo'),
             ])->groupBy('factura_id');
 
         return $facturas->map(function ($factura) use ($lineas) {

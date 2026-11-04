@@ -15,6 +15,46 @@ antes de materializarlos, sin recorrer las prefacturas de otras Expos.
 Pruebas: `php artisan test tests\Feature\ReporteExpoOfertasTest.php`.
 Usan SQLite en memoria sin modificar datos de la aplicacion.
 
+### Ofertas ganadoras y facturabilidad en el Reporte Expo
+
+La tabla de ofertas muestra una fila por oferta principal con la jerarquia
+Flujo -> Oferta -> Secciones -> Facturas. Una oferta es ganadora si su
+ultimo registro en `cotizacion_estado` tiene `ganadora = 1` (2 = quitada,
+3 = anulada, 4 = devuelta); se evalua por oferta, no por flujo. Tipos:
+`GANADORA` (con sus secciones), `NO_GANADORA` (sin secciones) y
+`NO_GANADORA_CON_SECCIONES` (perdio la marca pero conserva secciones).
+
+`/reporte/expo/resumen-ofertas` devuelve el % de facturabilidad
+(facturado / ofertado, sin ISV) de ganadoras, no ganadoras y el conjunto
+(los tres tipos), mas el conteo de ofertas por cliente. Lo ofertado sale de
+la oferta principal; lo facturado suma la oferta principal y sus secciones.
+
+Las graficas y las tablas usan la misma regla: las
+lineas de las secciones no se suman a lo ofertado (duplicarian la oferta) y lo
+facturado en secciones se atribuye a cliente, teleasesor, estado y fecha de la
+oferta principal, por lo que los filtros tambien se evaluan sobre ella. En la
+grafica de teleasesores, "Ganadas" cuenta las ganadoras vigentes. El Excel de
+detalle por producto sigue listando las lineas de cada cotizacion.
+
+El reporte ya no tiene KPIs generales; arriba hay tres secciones: ofertas
+ganadoras, no ganadoras y el conjunto. Cada una muestra, sin ISV: ofertas, secciones,
+facturas (distintas), total ofertado, total facturado, % de avance, utilidad a
+ganar (ofertado - costo base de la oferta), pagado y utilidad ganada de pagos.
+Lo pagado sale de `aplicacion_pagos.credito_abonos` y se prorratea por linea
+como abonos / total de la factura (con ISV) sobre el subtotal sin ISV; la
+utilidad ganada aplica esa misma proporcion a la utilidad facturada, calculada
+con el mismo `precio_base_venta` de la oferta (`costoproducto` viene por
+empaque y no sirve como costo unitario). Ese mismo costo base se usa en las
+graficas, la tabla de productos y los modales de detalle.
+
+El filtro "Tipo de oferta" (`tipo_oferta`: `GANADORA`, `NO_GANADORA`,
+`NO_GANADORA_CON_SECCIONES`; vacio = conjunto) aplica a todos los endpoints,
+graficas, tablas y Excel. Filtra por las ofertas principales del tipo y sus
+secciones; el tipo se calcula sobre toda la Expo, asi que otros filtros no lo
+cambian. Con un tipo seleccionado solo se muestra su seccion de indicadores.
+Las tablas de ofertas y clientes incluyen utilidad a ganar, pagado y utilidad
+ganada.
+
 ### Busqueda de notas de credito por factura
 
 En Clientes A y B, el filtro "Secuencia CAI de la factura" busca por la

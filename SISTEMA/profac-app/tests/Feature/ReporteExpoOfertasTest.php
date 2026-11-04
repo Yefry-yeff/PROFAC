@@ -27,6 +27,7 @@ class ReporteExpoOfertasTest extends TestCase
     {
         parent::setUp();
         DB::connection()->getPdo()->sqliteCreateFunction('GREATEST', fn (...$values) => max($values));
+        DB::connection()->getPdo()->sqliteCreateFunction('LEAST', fn (...$values) => in_array(null, $values, true) ? null : min($values));
         Schema::create('cotizacion', function (Blueprint $t) {
             $t->id(); $t->string('nombre_cliente'); $t->integer('cliente_id')->default(1);
             $t->integer('vendedor')->default(1); $t->integer('users_id')->default(1); $t->date('fecha_emision');
@@ -39,6 +40,7 @@ class ReporteExpoOfertasTest extends TestCase
             $t->integer('precios_producto_carga_id')->default(1); $t->integer('unidad_medida_venta_id')->default(1);
             $t->integer('indice')->default(1); $t->decimal('precio_unidad')->default(10);
             $t->decimal('cantidad'); $t->decimal('sub_total');
+            $t->decimal('isv_producto')->default(15); $t->decimal('monto_descProducto')->default(0);
         });
         Schema::create('producto', function (Blueprint $t) {
             $t->id(); $t->integer('marca_id'); $t->decimal('costo_promedio'); $t->string('codigo_barra'); $t->string('nombre');
@@ -81,7 +83,11 @@ class ReporteExpoOfertasTest extends TestCase
             $t->decimal('sub_total_s'); $t->decimal('precio_unidad')->default(10);
         });
         Schema::create('factura', function (Blueprint $t) {
-            $t->id(); $t->integer('estado_venta_id');
+            $t->id(); $t->integer('estado_venta_id'); $t->date('fecha_emision')->default('2026-11-05');
+            $t->decimal('total')->default(0);
+        });
+        Schema::create('aplicacion_pagos', function (Blueprint $t) {
+            $t->id(); $t->integer('factura_id'); $t->decimal('credito_abonos'); $t->integer('estado')->default(1);
         });
         Schema::create('prefactura_auditoria', function (Blueprint $t) {
             $t->integer('factura_id'); $t->integer('prefactura_id');
@@ -124,7 +130,12 @@ class ReporteExpoOfertasTest extends TestCase
             ['id' => 4, 'tramite_id' => 30, 'tipo_tramite_id' => 9, 'flujo_id' => 999],
         ]);
         DB::table('cotizacion_estado')->insert(['flujo_id' => 100, 'cotizacion_id' => 10, 'ganadora' => 1]);
-        DB::table('factura')->insert([['id' => 1, 'estado_venta_id' => 1], ['id' => 2, 'estado_venta_id' => 2]]);
+        DB::table('factura')->insert([['id' => 1, 'estado_venta_id' => 1, 'total' => 46], ['id' => 2, 'estado_venta_id' => 2, 'total' => 11.5]]);
+        // Factura 1 cobrada a la mitad (23 de 46 con ISV).
+        DB::table('aplicacion_pagos')->insert([
+            ['factura_id' => 1, 'credito_abonos' => 23, 'estado' => 1],
+            ['factura_id' => 2, 'credito_abonos' => 11.5, 'estado' => 2],
+        ]);
         DB::table('venta_has_producto')->insert([
             ['factura_id' => 1, 'cotizacion_has_producto_id' => 11, 'cantidad_s' => 4, 'sub_total_s' => 40],
             ['factura_id' => 2, 'cotizacion_has_producto_id' => 11, 'cantidad_s' => 1, 'sub_total_s' => 10],
@@ -225,5 +236,188 @@ class ReporteExpoOfertasTest extends TestCase
         $this->assertCount(3, $queries);
         $this->assertStringNotContainsString('ORDER BY hf.id DESC LIMIT 1', $queries[1]['query']);
         $this->assertStringContainsString('MAX(id) AS ultimo_id', $queries[1]['query']);
+    }
+
+    private function resumen(array $filtros = []): array
+    {
+        return (new ReporteExpo)->resumenOfertas(new Request(array_merge(['expo_id' => 7], $filtros)))->getData(true);
+    }
+
+    public function test_clasifica_ganadoras_por_ultimo_estado_de_cada_oferta(): void
+    {
+        DB::table('cotizacion')->insert(['id' => 12, 'nombre_cliente' => 'Cliente 12', 'fecha_emision' => '2026-11-02']);
+        DB::table('expo_cotizacion')->insert(['expo_id' => 7, 'cotizacion_id' => 12, 'flujo_id' => 100, 'estado' => 'PENDIENTE_FACTURACION']);
+        DB::table('cotizacion_has_producto')->insert(['id' => 12, 'cotizacion_id' => 12, 'cantidad' => 2, 'sub_total' => 20]);
+        DB::table('cotizacion_estado')->insert([
+            ['flujo_id' => 100, 'cotizacion_id' => 12, 'ganadora' => 1],
+            ['flujo_id' => 200, 'cotizacion_id' => 20, 'ganadora' => 1],
+            ['flujo_id' => 200, 'cotizacion_id' => 20, 'ganadora' => 2],
+        ]);
+
+        $ofertas = collect($this->ofertas())->keyBy('oferta_id');
+
+        $this->assertSame('GANADORA', $ofertas[10]['tipo']);
+        $this->assertSame('GANADORA', $ofertas[12]['tipo']);
+        $this->assertSame('NO_GANADORA', $ofertas[20]['tipo']);
+        $this->assertSame('NO_GANADORA', $ofertas[40]['tipo']);
+        $this->assertSame(1, $ofertas[10]['num_secciones']);
+        $this->assertSame(11, $ofertas[10]['secciones'][1]['oferta_id']);
+        $this->assertSame(1, $ofertas[10]['secciones'][1]['num_facturas']);
+        $this->assertSame([10, 12], array_slice(array_column($this->ofertas(), 'oferta_id'), 0, 2));
+    }
+
+    public function test_ganadora_revocada_que_conserva_secciones_se_separa(): void
+    {
+        DB::table('cotizacion_estado')->insert(['flujo_id' => 100, 'cotizacion_id' => 10, 'ganadora' => 2]);
+
+        $raiz = collect($this->ofertas())->firstWhere('oferta_id', 10);
+
+        $this->assertSame('NO_GANADORA_CON_SECCIONES', $raiz['tipo']);
+        $this->assertFalse($raiz['es_ganadora']);
+        $this->assertEquals(40, $raiz['total_facturado']);
+    }
+
+    public function test_filtros_se_aplican_a_la_oferta_principal_y_arrastran_sus_secciones(): void
+    {
+        // La sección tiene fecha y teleasesor propios; manda la oferta principal.
+        DB::table('cotizacion')->where('id', 11)->update(['fecha_emision' => '2026-10-01', 'users_id' => 2]);
+
+        $ofertas = collect($this->ofertas(['fecha_desde' => '2026-10-15', 'teleasesor_ids' => [1]]))->keyBy('oferta_id');
+        $this->assertSame(1, $ofertas[10]['num_secciones']);
+        $this->assertEquals(40, $ofertas[10]['total_facturado']);
+
+        DB::table('cotizacion')->where('id', 10)->update(['fecha_emision' => '2026-10-01']);
+        $ofertas = collect($this->ofertas(['fecha_desde' => '2026-10-15']))->keyBy('oferta_id');
+        $this->assertArrayNotHasKey(10, $ofertas);
+        $this->assertArrayNotHasKey(11, $ofertas);
+    }
+
+    public function test_kpis_y_graficas_no_duplican_secciones_y_cuadran_con_la_tabla(): void
+    {
+        DB::table('cotizacion')->where('id', 11)->update(['users_id' => 2, 'fecha_emision' => '2026-10-01']);
+        $request = new Request(['expo_id' => 7]);
+        $reporte = new ReporteExpo;
+
+        $kpis = $reporte->kpis($request)->getData(true);
+        $this->assertSame(4, $kpis['num_ofertas']);
+        $this->assertSame(1, $kpis['num_ganadoras']);
+        $this->assertSame(3, $kpis['num_no_ganadoras']);
+        $this->assertEquals(160, $kpis['total_oferta_sin_isv']);
+        $this->assertEquals(40, $kpis['total_facturado']);
+        $this->assertEquals(25, $kpis['avance_pct']);
+
+        $tele = $reporte->ventasPorTeleasesor($request)->getData(true);
+        $this->assertCount(1, $tele);
+        $this->assertSame(4, $tele[0]['ofertas']);
+        $this->assertSame(1, $tele[0]['ofertas_ganadas']);
+        $this->assertEquals(160, $tele[0]['ofertado']);
+        $this->assertEquals(40, $tele[0]['facturado']);
+
+        $evolucion = collect($reporte->evolucionDiaria($request)->getData(true));
+        $this->assertEquals(160, $evolucion->sum('ofertado'));
+        $this->assertNull($evolucion->firstWhere('fecha', '2026-10-01'));
+
+        $estado = $reporte->estadoOfertas($request)->getData(true);
+        $this->assertSame(4, array_sum(array_column($estado, 'total')));
+        $this->assertEquals(40, array_sum(array_column($estado, 'facturado')));
+
+        $productos = $reporte->tablaProductos($request)->getData(true);
+        $this->assertEquals(160, array_sum(array_column($productos, 'total_ofertado')));
+        $this->assertEquals(40, array_sum(array_column($productos, 'total_facturado')));
+
+        $conjunto = $reporte->resumenOfertas($request)->getData(true)['facturabilidad']['conjunto'];
+        $this->assertEquals($kpis['total_oferta_sin_isv'], $conjunto['total_ofertado']);
+        $this->assertEquals($kpis['total_facturado'], $conjunto['total_facturado']);
+    }
+
+    public function test_filtro_por_tipo_aplica_a_graficas_tablas_y_segmentos(): void
+    {
+        $reporte = new ReporteExpo;
+        $ganadoras = new Request(['expo_id' => 7, 'tipo_oferta' => 'GANADORA']);
+
+        $ofertas = $reporte->tablaOfertas($ganadoras)->getData(true);
+        $this->assertSame([10], array_column($ofertas, 'oferta_id'));
+        $this->assertSame(1, $ofertas[0]['num_secciones']);
+
+        $f = $reporte->resumenOfertas($ganadoras)->getData(true)['facturabilidad'];
+        $this->assertSame(0, $f['no_ganadoras']['num_ofertas']);
+        $this->assertEquals(100, $f['conjunto']['total_ofertado']);
+        $this->assertEquals(40, $f['conjunto']['total_facturado']);
+
+        $marcas = $reporte->ventasPorMarca($ganadoras)->getData(true);
+        $this->assertEquals(100, $marcas[0]['ofertado']);
+        $this->assertEquals(40, $marcas[0]['facturado']);
+        $productos = $reporte->tablaProductos($ganadoras)->getData(true);
+        $this->assertEquals(100, array_sum(array_column($productos, 'total_ofertado')));
+
+        $noGanadoras = new Request(['expo_id' => 7, 'tipo_oferta' => 'NO_GANADORA']);
+        $this->assertEqualsCanonicalizing([20, 30, 40], array_column($reporte->tablaOfertas($noGanadoras)->getData(true), 'oferta_id'));
+        $marcas = $reporte->ventasPorMarca($noGanadoras)->getData(true);
+        $this->assertEquals(60, $marcas[0]['ofertado']);
+        $this->assertEquals(0, $marcas[0]['facturado']);
+
+        $this->assertSame([], $reporte->tablaOfertas(new Request(['expo_id' => 7, 'tipo_oferta' => 'NO_GANADORA_CON_SECCIONES']))->getData(true));
+        $this->assertCount(4, $reporte->tablaOfertas(new Request(['expo_id' => 7, 'tipo_oferta' => 'otro']))->getData(true));
+    }
+
+    public function test_kpis_por_segmento_incluyen_facturas_utilidad_y_pagos_sin_isv(): void
+    {
+        $f = (new ReporteExpo)->resumenOfertas(new Request(['expo_id' => 7]))->getData(true)['facturabilidad'];
+
+        $g = $f['ganadoras'];
+        $this->assertSame([1, 1, 1], [$g['num_ofertas'], $g['num_secciones'], $g['num_facturas']]);
+        $this->assertEquals(100, $g['total_ofertado']);
+        $this->assertEquals(40, $g['total_facturado']);
+        $this->assertEquals(40, $g['avance_pct']);
+        $this->assertEquals(60, $g['utilidad_a_ganar']);
+        $this->assertEquals(24, $g['utilidad_facturada']);
+        $this->assertEquals(20, $g['total_pagado']);
+        $this->assertEquals(50, $g['pagado_pct']);
+        $this->assertEquals(12, $g['utilidad_pagada']);
+        $this->assertEquals(20, $g['utilidad_ganada_pct']);
+
+        $n = $f['no_ganadoras'];
+        $this->assertSame([3, 0, 0], [$n['num_ofertas'], $n['num_secciones'], $n['num_facturas']]);
+        $this->assertEquals(60, $n['total_ofertado']);
+        $this->assertEquals(36, $n['utilidad_a_ganar']);
+        $this->assertEquals(0, $n['total_pagado']);
+
+        $c = $f['conjunto'];
+        $this->assertSame([4, 1, 1], [$c['num_ofertas'], $c['num_secciones'], $c['num_facturas']]);
+        $this->assertEquals(160, $c['total_ofertado']);
+        $this->assertEquals(96, $c['utilidad_a_ganar']);
+        $this->assertEquals(20, $c['total_pagado']);
+        $this->assertEquals(12, $c['utilidad_pagada']);
+    }
+
+    public function test_resumen_calcula_facturabilidad_por_tipo_y_ofertas_por_cliente(): void
+    {
+        DB::table('cotizacion')->where('id', 20)->update(['cliente_id' => 2]);
+
+        $resumen = $this->resumen();
+        $f = $resumen['facturabilidad'];
+
+        $this->assertSame(['num_ofertas' => 1, 'num_secciones' => 1, 'total_ofertado' => 100, 'total_facturado' => 40, 'facturabilidad_pct' => 40],
+            array_intersect_key($f['ganadoras'], array_flip(['num_ofertas', 'num_secciones', 'total_ofertado', 'total_facturado', 'facturabilidad_pct'])));
+        $this->assertSame(3, $f['no_ganadoras']['num_ofertas']);
+        $this->assertEquals(60, $f['no_ganadoras']['total_ofertado']);
+        $this->assertEquals(0, $f['no_ganadoras']['facturabilidad_pct']);
+        $this->assertSame(0, $f['no_ganadoras_con_secciones']['num_ofertas']);
+        $this->assertSame(4, $f['conjunto']['num_ofertas']);
+        $this->assertEquals(160, $f['conjunto']['total_ofertado']);
+        $this->assertEquals(40, $f['conjunto']['total_facturado']);
+        $this->assertEquals(25, $f['conjunto']['facturabilidad_pct']);
+
+        $this->assertCount(2, $resumen['clientes']);
+        $cliente = $resumen['clientes'][0];
+        $this->assertSame(1, $cliente['cliente_id']);
+        $this->assertSame(3, $cliente['num_ofertas']);
+        $this->assertSame(1, $cliente['ganadoras']);
+        $this->assertSame(2, $cliente['no_ganadoras']);
+        $this->assertSame(1, $cliente['num_secciones']);
+        $this->assertEquals(130, $cliente['total_ofertado']);
+        $this->assertEquals(30.77, $cliente['facturabilidad_pct']);
+        $this->assertSame(['cliente_id' => 2, 'num_ofertas' => 1, 'ganadoras' => 0, 'no_ganadoras' => 1],
+            array_intersect_key($resumen['clientes'][1], array_flip(['cliente_id', 'num_ofertas', 'ganadoras', 'no_ganadoras'])));
     }
 }

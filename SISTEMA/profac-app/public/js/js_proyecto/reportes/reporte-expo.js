@@ -8,6 +8,12 @@ var reporteExpo = (function () {
     var charts = {};
     var dtProductos = null;
     var dtOfertas = null;
+    var dtClientesOfertas = null;
+    var ETIQUETAS_TIPO_OFERTA = {
+        GANADORA: { texto: 'Ganadora', clase: 'badge-success' },
+        NO_GANADORA: { texto: 'No ganadora', clase: 'badge-secondary' },
+        NO_GANADORA_CON_SECCIONES: { texto: 'No ganadora con secciones', clase: 'badge-warning' }
+    };
     var ofertaSeleccionada = null;
     var productoSeleccionado = null;
     var volverAProducto = false;
@@ -27,6 +33,7 @@ var reporteExpo = (function () {
         teleasesor_ids: [],
         cliente_id: '',
         estado: '',
+        tipo_oferta: '',
         fecha_desde: '',
         fecha_hasta: '',
         rentabilidad_base: 'ofertas',
@@ -118,10 +125,11 @@ var reporteExpo = (function () {
             teleasesor_ids: 'Teleasesor',
             cliente_id: 'Cliente',
             estado: 'Estado',
+            tipo_oferta: 'Tipo',
         };
         var campos = {
             marca_id: '#expo-f-marca', escala_id: '#expo-f-escala', vendedor_id: '#expo-f-vendedor',
-            teleasesor_ids: '#expo-f-teleasesor', estado: '#expo-f-estado'
+            teleasesor_ids: '#expo-f-teleasesor', estado: '#expo-f-estado', tipo_oferta: '#expo-f-tipo-oferta'
         };
         var html = '';
         Object.keys(etiquetas).forEach(function (key) {
@@ -141,7 +149,7 @@ var reporteExpo = (function () {
     function limpiarFiltro(key) {
         filtro[key] = key === 'teleasesor_ids' ? [] : '';
         delete filtroNombres[key];
-        var mapId = { marca_id: 'expo-f-marca', escala_id: 'expo-f-escala', vendedor_id: 'expo-f-vendedor', teleasesor_ids: 'expo-f-teleasesor', estado: 'expo-f-estado' };
+        var mapId = { marca_id: 'expo-f-marca', escala_id: 'expo-f-escala', vendedor_id: 'expo-f-vendedor', teleasesor_ids: 'expo-f-teleasesor', estado: 'expo-f-estado', tipo_oferta: 'expo-f-tipo-oferta' };
         if (mapId[key]) $('#' + mapId[key]).val(key === 'teleasesor_ids' ? [] : '').trigger('change.select2');
         recargarTodo();
     }
@@ -153,6 +161,7 @@ var reporteExpo = (function () {
         filtro.vendedor_id = $('#expo-f-vendedor').val() || '';
         filtro.teleasesor_ids = $('#expo-f-teleasesor').val() || [];
         filtro.estado = $('#expo-f-estado').val() || '';
+        filtro.tipo_oferta = $('#expo-f-tipo-oferta').val() || '';
         filtro.fecha_desde = $('#expo-f-desde').val() || '';
         filtro.fecha_hasta = $('#expo-f-hasta').val() || '';
         filtro.rentabilidad_base = $('input[name="expo-f-rentabilidad-base"]:checked').val() || 'ofertas';
@@ -186,26 +195,6 @@ var reporteExpo = (function () {
             $('#expo-f-escala').val(filtro.escala_id);
             $('#expo-f-vendedor').val(filtro.vendedor_id);
             $tele.val(filtro.teleasesor_ids).trigger('change.select2');
-        });
-    }
-
-    /* ─────────────────────────── KPIs ─────────────────────────────────── */
-    function cargarKpis() {
-        ['kpi-ofertado', 'kpi-avance', 'kpi-ofertas', 'kpi-clientes', 'kpi-utilidad', 'kpi-margen', 'kpi-facturas', 'kpi-descuento', 'kpi-oferta-sin-isv', 'kpi-oferta-con-isv', 'kpi-costo']
-            .forEach(function (id) { setText(id, '…'); });
-
-        return $.get('/reporte/expo/kpis', paramsActuales()).then(function (d) {
-            setText('kpi-ofertado', fmt(d.total_ofertado));
-            setText('kpi-avance', (d.avance_pct !== null ? d.avance_pct : 0) + '%');
-            setText('kpi-ofertas', fmtN(d.num_ofertas));
-            setText('kpi-clientes', fmtN(d.clientes_unicos));
-            setText('kpi-facturas', fmtN(d.num_facturas));
-            setText('kpi-utilidad', fmt(d.total_utilidad));
-            setText('kpi-descuento', fmt(d.total_descuento));
-            setText('kpi-oferta-sin-isv', fmt(d.total_oferta_sin_isv));
-            setText('kpi-oferta-con-isv', fmt(d.total_oferta_con_isv));
-            setText('kpi-costo', fmt(d.total_costo));
-            setText('kpi-margen', (d.margen_pct !== null ? d.margen_pct : 'N/D') + (d.margen_pct !== null ? '%' : ''));
         });
     }
 
@@ -505,21 +494,23 @@ var reporteExpo = (function () {
         });
     }
 
-    /* ─────────────────────────── Tabla: ofertas (1 fila por flujo) ────── */
-    var ofertasPorFlujo = {};
+    /* ─────────────────────────── Tabla: ofertas (1 fila por oferta principal) ── */
+    var ofertasPorClave = {};
 
     function cargarTablaOfertas() {
         return $.get('/reporte/expo/tabla-ofertas', paramsActuales()).then(function (rows) {
             if (dtOfertas) { dtOfertas.destroy(); $('#tabla-expo-ofertas tbody').empty(); }
             var tbody = $('#tabla-expo-ofertas tbody').empty();
-            ofertasPorFlujo = {};
+            ofertasPorClave = {};
             rows.forEach(function (r) {
-                var claveFlujo = r.flujo_id || ('oferta-' + r.oferta_id);
-                ofertasPorFlujo[claveFlujo] = r;
+                var clave = 'oferta-' + r.oferta_id;
+                ofertasPorClave[clave] = r;
                 var estado = etiquetaEstadoFacturacion(r.estado_facturacion);
                 var utilidadClase = r.utilidad >= 0 ? 'bi-profit' : 'bi-loss';
-                tbody.append('<tr class="bi-row-selectable" data-flujo="' + claveFlujo + '" title="Ver secciones de este flujo">' +
+                var tipo = ETIQUETAS_TIPO_OFERTA[r.tipo] || { texto: r.tipo, clase: 'badge-light' };
+                tbody.append('<tr class="bi-row-selectable" data-clave="' + clave + '" title="Ver secciones de esta oferta">' +
                     '<td>' + r.oferta_id + '</td>' +
+                    '<td data-search="' + esc(r.tipo) + '"><span class="badge ' + tipo.clase + '">' + esc(tipo.texto) + '</span></td>' +
                     '<td class="text-right">' + fmtN(r.num_secciones) + '</td>' +
                     '<td>' + (r.flujo_id || '—') + '</td>' +
                     '<td>' + esc(r.cliente) + '</td>' +
@@ -530,17 +521,87 @@ var reporteExpo = (function () {
                     '<td class="text-right">' + fmtN(r.num_facturas) + '</td>' +
                     '<td class="text-right">' + fmt(r.total_ofertado) + '</td>' +
                     '<td class="text-right">' + fmt(r.total_facturado) + '</td>' +
-                    '<td class="text-right font-weight-bold ' + utilidadClase + '">' + (r.margen_pct !== null ? r.margen_pct + '%' : 'N/D') + '</td>' +
-                    '<td class="text-right font-weight-bold ' + utilidadClase + '">' + fmt(r.utilidad) + '</td>' +
                     '<td class="text-right">' + r.avance_pct + '%</td>' +
+                    '<td class="text-right font-weight-bold ' + utilidadClase + '" data-order="' + r.utilidad + '">' + fmt(r.utilidad) + '</td>' +
+                    '<td class="text-right ' + utilidadClase + '">' + (r.margen_pct !== null ? r.margen_pct + '%' : 'N/D') + '</td>' +
+                    '<td class="text-right" data-order="' + r.total_pagado + '">' + fmt(r.total_pagado) + '</td>' +
+                    '<td class="text-right" data-order="' + r.utilidad_pagada + '">' + fmt(r.utilidad_pagada) + '</td>' +
                     '</tr>');
             });
             dtOfertas = $('#tabla-expo-ofertas').DataTable({
                 pageLength: 10, lengthChange: true, order: [], language: { url: '/js/plugins/dataTables/i18n/Spanish.json' }
             });
             $('#tabla-expo-ofertas tbody').off('click', 'tr').on('click', 'tr', function () {
-                var clave = $(this).data('flujo');
-                if (clave !== undefined && ofertasPorFlujo[clave]) abrirSecciones(ofertasPorFlujo[clave]);
+                var clave = $(this).data('clave');
+                if (clave !== undefined && ofertasPorClave[clave]) abrirSecciones(ofertasPorClave[clave]);
+            });
+        });
+    }
+
+    /* ─────────────────── Facturabilidad por tipo + ofertas por cliente ─── */
+    var SEGMENTOS_EXPO = ['ganadoras', 'no_ganadoras', 'conjunto'];
+    var KPIS_SEGMENTO = ['num_ofertas', 'num_secciones', 'num_facturas', 'total_ofertado', 'total_facturado',
+        'avance_pct', 'utilidad_a_ganar', 'total_pagado', 'utilidad_pagada'];
+
+    function pintarSegmento(clave, g) {
+        var id = function (campo) { return 'seg-' + clave + '-' + campo; };
+        setText(id('num_ofertas'), fmtN(g.num_ofertas));
+        setText(id('num_secciones'), fmtN(g.num_secciones));
+        setText(id('num_facturas'), fmtN(g.num_facturas));
+        setText(id('total_ofertado'), fmt(g.total_ofertado));
+        setText(id('total_facturado'), fmt(g.total_facturado));
+        setText(id('avance_pct'), g.avance_pct + '%');
+        setText(id('avance_pct-det'), 'facturado ÷ ofertado');
+        setText(id('utilidad_a_ganar'), fmt(g.utilidad_a_ganar));
+        setText(id('utilidad_a_ganar-det'), 'Facturada: ' + fmt(g.utilidad_facturada));
+        setText(id('total_pagado'), fmt(g.total_pagado));
+        setText(id('total_pagado-det'), g.pagado_pct + '% de lo facturado');
+        setText(id('utilidad_pagada'), fmt(g.utilidad_pagada));
+        setText(id('utilidad_pagada-det'), g.utilidad_ganada_pct + '% de la utilidad a ganar');
+    }
+
+    function cargarResumenOfertas() {
+        SEGMENTOS_EXPO.forEach(function (clave) {
+            KPIS_SEGMENTO.forEach(function (campo) {
+                setText('seg-' + clave + '-' + campo, '…');
+                setText('seg-' + clave + '-' + campo + '-det', '');
+            });
+        });
+        setText('kpi-fact-otras', '');
+
+        return $.get('/reporte/expo/resumen-ofertas', paramsActuales()).then(function (d) {
+            var f = d.facturabilidad;
+            SEGMENTOS_EXPO.forEach(function (clave) { pintarSegmento(clave, f[clave]); });
+            // Con un tipo seleccionado solo se muestra su segmento (el resto
+            // quedaría en cero o repetiría los mismos números).
+            var visible = { GANADORA: 'ganadoras', NO_GANADORA: 'no_ganadoras', NO_GANADORA_CON_SECCIONES: 'conjunto' }[filtro.tipo_oferta];
+            SEGMENTOS_EXPO.forEach(function (clave) { $('#seg-' + clave).toggle(!visible || visible === clave); });
+            var otras = f.no_ganadoras_con_secciones;
+            setText('kpi-fact-otras', otras.num_ofertas
+                ? 'El conjunto incluye ' + fmtN(otras.num_ofertas) + ' ofertas que dejaron de ser ganadoras pero conservan ' +
+                    fmtN(otras.num_secciones) + ' secciones (' + fmtN(otras.num_facturas) + ' facturas, ' +
+                    fmt(otras.total_facturado) + ' facturado de ' + fmt(otras.total_ofertado) + ').'
+                : '');
+
+            if (dtClientesOfertas) { dtClientesOfertas.destroy(); }
+            var tbody = $('#tabla-expo-clientes-ofertas tbody').empty();
+            d.clientes.forEach(function (c) {
+                tbody.append('<tr>' +
+                    '<td>' + esc(c.cliente || 'Sin nombre') + '</td>' +
+                    '<td class="text-right font-weight-bold">' + fmtN(c.num_ofertas) + '</td>' +
+                    '<td class="text-right">' + fmtN(c.ganadoras) + '</td>' +
+                    '<td class="text-right">' + fmtN(c.no_ganadoras) + '</td>' +
+                    '<td class="text-right">' + fmtN(c.num_secciones) + '</td>' +
+                    '<td class="text-right" data-order="' + c.total_ofertado + '">' + fmt(c.total_ofertado) + '</td>' +
+                    '<td class="text-right" data-order="' + c.total_facturado + '">' + fmt(c.total_facturado) + '</td>' +
+                    '<td class="text-right" data-order="' + c.facturabilidad_pct + '">' + c.facturabilidad_pct + '%</td>' +
+                    '<td class="text-right" data-order="' + c.utilidad_a_ganar + '">' + fmt(c.utilidad_a_ganar) + '</td>' +
+                    '<td class="text-right" data-order="' + c.total_pagado + '">' + fmt(c.total_pagado) + '</td>' +
+                    '<td class="text-right" data-order="' + c.utilidad_pagada + '">' + fmt(c.utilidad_pagada) + '</td>' +
+                    '</tr>');
+            });
+            dtClientesOfertas = $('#tabla-expo-clientes-ofertas').DataTable({
+                pageLength: 10, lengthChange: true, order: [], language: { url: '/js/plugins/dataTables/i18n/Spanish.json' }
             });
         });
     }
@@ -550,8 +611,12 @@ var reporteExpo = (function () {
         flujoSeleccionado = oferta;
         setText('modal-secciones-titulo', 'Flujo ' + (oferta.flujo_id || '—') + ' · ' + oferta.cliente);
         var estadoClase = oferta.estado_facturacion === 'FACTURADA' ? 'bi-profit' : (oferta.estado_facturacion === 'PARCIALMENTE_FACTURADA' ? 'text-warning' : '');
+        var tipoOferta = ETIQUETAS_TIPO_OFERTA[oferta.tipo] || { texto: oferta.tipo || '—' };
         $('#modal-secciones-resumen').html(
-            resumenItem('Oferta representativa', '#' + oferta.oferta_id) +
+            resumenItem('Oferta', '#' + oferta.oferta_id) +
+            resumenItem('Tipo', esc(tipoOferta.texto)) +
+            resumenItem('Secciones', fmtN(oferta.num_secciones)) +
+            resumenItem('Facturas', fmtN(oferta.num_facturas)) +
             resumenItem('Total ofertado', fmt(oferta.total_ofertado)) +
             resumenItem('Total facturado', fmt(oferta.total_facturado)) +
             resumenItem('Facturación', etiquetaEstadoFacturacion(oferta.estado_facturacion), estadoClase)
@@ -559,7 +624,7 @@ var reporteExpo = (function () {
 
         var tbody = $('#tabla-secciones-flujo tbody').empty();
         if (!oferta.secciones || !oferta.secciones.length) {
-            tbody.append('<tr><td colspan="5" class="text-center text-muted py-3">No hay secciones registradas para esta oferta.</td></tr>');
+            tbody.append('<tr><td colspan="6" class="text-center text-muted py-3">No hay secciones registradas para esta oferta.</td></tr>');
         } else {
             oferta.secciones.forEach(function (s) {
                 var esPendiente = !!s.es_pendiente;
@@ -583,6 +648,7 @@ var reporteExpo = (function () {
                     '<td>' + etiquetaSeccion + '</td>' +
                     '<td>' + (s.estado ? esc(etiquetaEstadoSeccion(s.estado)) : '<span class="text-muted">—</span>') + '</td>' +
                     '<td><span class="badge ' + (s.estado_facturacion === 'FACTURADA' ? 'badge-success' : (s.estado_facturacion === 'PARCIALMENTE_FACTURADA' ? 'badge-warning' : 'badge-secondary')) + '">' + esc(estadoTxt) + '</span></td>' +
+                    '<td class="text-right">' + (esPendiente ? '—' : fmtN(s.num_facturas)) + '</td>' +
                     '<td class="text-right">' + fmt(s.total_ofertado) + '</td>' +
                     '<td class="text-right">' + fmt(s.total_facturado) + '</td>'
                 );
@@ -847,7 +913,6 @@ var reporteExpo = (function () {
         actualizarUrl();
         mostrarSpinnerCarga();
         var promesas = [
-            cargarKpis(),
             cargarEstadoOfertas(),
             cargarVentasPorMarca(),
             cargarVentasPorAsesor(),
@@ -857,6 +922,7 @@ var reporteExpo = (function () {
             cargarEvolucionDiaria(),
             cargarTablaProductos(),
             cargarTablaOfertas(),
+            cargarResumenOfertas(),
         ];
         $.when.apply($, promesas).always(ocultarSpinnerCarga);
     }
@@ -874,12 +940,14 @@ var reporteExpo = (function () {
         filtro.cliente_id = query.get('cliente_id') || '';
         if (filtro.cliente_id) filtroNombres.cliente_id = 'Cliente #' + filtro.cliente_id;
         filtro.estado = query.get('estado') || '';
+        filtro.tipo_oferta = ETIQUETAS_TIPO_OFERTA[query.get('tipo_oferta')] ? query.get('tipo_oferta') : '';
         filtro.fecha_desde = query.get('fecha_desde') || '';
         filtro.fecha_hasta = query.get('fecha_hasta') || '';
         filtro.rentabilidad_base = query.get('rentabilidad_base') === 'facturas' ? 'facturas' : 'ofertas';
 
         $('#expo-selector').val(filtro.expo_id);
         $('#expo-f-estado').val(filtro.estado);
+        $('#expo-f-tipo-oferta').val(filtro.tipo_oferta);
         $('#expo-f-desde').val(filtro.fecha_desde);
         $('#expo-f-hasta').val(filtro.fecha_hasta);
         $('input[name="expo-f-rentabilidad-base"][value="' + filtro.rentabilidad_base + '"]').prop('checked', true).closest('label').addClass('active').siblings().removeClass('active');

@@ -25,10 +25,9 @@ use Maatwebsite\Excel\Facades\Excel;
  *    Se evita usar prefactura_has_producto para totales porque una misma
  *    línea ofertada puede facturarse parcialmente en varias facturas; usar
  *    directamente venta_has_producto es lo único que no duplica montos.
- *  - Costo real de línea facturada => precios_producto_carga.costoproducto,
- *    tomando primero el "price load" usado al facturar (vhp.precios_producto_carga_id)
- *    y si no existe, el de la oferta (chp.precios_producto_carga_id), y como
- *    último recurso producto.costo_promedio.
+ *  - Costo de línea facturada => precio_base_venta de la línea de la oferta
+ *    (mismo costo que la utilidad ofertada); si no existe, el del price load
+ *    usado al facturar.
  */
 class ReporteExpo extends Component
 {
@@ -43,6 +42,8 @@ class ReporteExpo extends Component
 
     /** Caché en memoria (por request) de cotizacion_id vigentes por expo. */
     private array $cacheVigentes = [];
+    private array $cachePrincipales = [];
+    private array $cacheTipos = [];
 
     public function mount()
     {
@@ -105,9 +106,14 @@ class ReporteExpo extends Component
         return implode(',', $this->cotizacionIdsExpo($expoId));
     }
 
+    /**
+     * Costo unitario de una línea facturada: el precio base de la línea de la
+     * oferta (el mismo que usa la utilidad ofertada). costoproducto viene por
+     * empaque y no sirve como costo por unidad vendida.
+     */
     private function costoUnitarioExpr(): string
     {
-        return 'COALESCE(ppc_vhp.costoproducto, ppc.costoproducto, p.costo_promedio, 0)';
+        return 'COALESCE(ppc.precio_base_venta, ppc_vhp.precio_base_venta, 0)';
     }
     private function netoOfertaExpr(string $alias = 'chp'): string
     {
@@ -127,12 +133,44 @@ class ReporteExpo extends Component
         return collect($valores)->map(fn ($id) => (int) $id)->filter()->unique()->values()->all();
     }
 
-    /** FROM + JOINs comunes al lado "ofertado" (sin facturación). 1 fila = 1 línea ofertada. */
-    private function joinsOfertado(): string
+    /**
+     * Ids de las ofertas principales de la Expo (las que no son sección de
+     * otra). Lo ofertado se mide solo sobre ellas: sus líneas ya contienen
+     * todo el pedido y las secciones son particiones que lo duplicarían.
+     */
+    private function ofertasPrincipalesExpo(int $expoId): array
     {
+        if (isset($this->cachePrincipales[$expoId])) {
+            return $this->cachePrincipales[$expoId];
+        }
+
+        $ids = $this->cotizacionIdsExpo($expoId);
+        $secciones = DB::table('expo_oferta_seccion')
+            ->whereIn('cotizacion_id', $ids)
+            ->pluck('cotizacion_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+        $principales = array_values(array_diff($ids, $secciones));
+
+        return $this->cachePrincipales[$expoId] = $principales ?: [0];
+    }
+
+    /**
+     * FROM + JOINs comunes al lado "ofertado" (sin facturación). 1 fila = 1 línea ofertada.
+     * Con $principal = true el alias "c" (y por ende ec y los filtros) apunta a la
+     * oferta principal aunque la línea pertenezca a una sección; así lo facturado
+     * en secciones se atribuye al cliente, asesor, estado y fecha de su oferta.
+     */
+    private function joinsOfertado(bool $principal = false): string
+    {
+        $joinCotizacion = $principal
+            ? "LEFT JOIN expo_oferta_seccion eos_principal ON eos_principal.cotizacion_id = chp.cotizacion_id
+            INNER JOIN cotizacion c ON c.id = COALESCE(eos_principal.cotizacion_origen_id, chp.cotizacion_id)"
+            : 'INNER JOIN cotizacion c ON c.id = chp.cotizacion_id';
+
         return "
             FROM cotizacion_has_producto chp
-            INNER JOIN cotizacion c ON c.id = chp.cotizacion_id
+            $joinCotizacion
             INNER JOIN producto p ON p.id = chp.producto_id
             LEFT JOIN marca m ON m.id = p.marca_id
             LEFT JOIN precios_producto_carga ppc ON ppc.id = chp.precios_producto_carga_id
@@ -176,7 +214,7 @@ class ReporteExpo extends Component
                 WHERE v.cotizacion_has_producto_id IS NULL
                   AND pf_fact.cotizacion_id IN ({$this->inExpo($expoId)})
             ) vhp ON vhp.chp_id_resuelta = chp.id
-                 AND (vhp.cotizacion_id_prefactura IS NULL OR vhp.cotizacion_id_prefactura = c.id)
+                 AND (vhp.cotizacion_id_prefactura IS NULL OR vhp.cotizacion_id_prefactura = chp.cotizacion_id)
             INNER JOIN factura f ON f.id = vhp.factura_id AND f.estado_venta_id = 1
             LEFT JOIN precios_producto_carga ppc_vhp ON ppc_vhp.id = vhp.precios_producto_carga_id
         ";
@@ -204,6 +242,23 @@ class ReporteExpo extends Component
     private function whereExpo(int $expoId): string
     {
         return "WHERE chp.cotizacion_id IN ({$this->inExpo($expoId)})";
+    }
+
+    private function whereOfertaPrincipal(int $expoId): string
+    {
+        return 'WHERE chp.cotizacion_id IN (' . implode(',', $this->ofertasPrincipalesExpo($expoId)) . ')';
+    }
+
+    /** Ofertas principales que cumplen los filtros, con su teleasesor. */
+    private function principalesFiltradas(int $expoId, string $extra): array
+    {
+        return DB::select("
+            SELECT DISTINCT c.id, c.users_id
+            {$this->joinsOfertado(true)}
+            {$this->joinExpoCotizacion($expoId)}
+            {$this->whereOfertaPrincipal($expoId)}
+            $extra
+        ");
     }
 
     /**
@@ -246,8 +301,60 @@ class ReporteExpo extends Component
         if ($r->fecha_hasta && preg_match('/^\d{4}-\d{2}-\d{2}$/', $r->fecha_hasta)) {
             $sql .= ' AND c.fecha_emision <= ' . DB::getPdo()->quote($r->fecha_hasta);
         }
+        $tipo = strtoupper((string) $r->input('tipo_oferta', ''));
+        if (in_array($tipo, [self::TIPO_GANADORA, self::TIPO_NO_GANADORA, self::TIPO_NO_GANADORA_CON_SECCIONES], true)) {
+            $sql .= ' AND c.id IN (' . implode(',', $this->idsPorTipoOferta($this->expoIdDesdeRequest($r), $tipo)) . ')';
+        }
 
         return $sql;
+    }
+
+    /**
+     * Tipo de cada oferta principal de la Expo (GANADORA, NO_GANADORA o
+     * NO_GANADORA_CON_SECCIONES) junto con los ids de sus secciones.
+     */
+    private function tiposOfertaExpo(int $expoId): array
+    {
+        if (isset($this->cacheTipos[$expoId])) {
+            return $this->cacheTipos[$expoId];
+        }
+
+        $principales = array_values(array_filter($this->ofertasPrincipalesExpo($expoId)));
+        $seccionesPorOrigen = [];
+        DB::table('expo_oferta_seccion')
+            ->whereIn('cotizacion_id', $this->cotizacionIdsExpo($expoId))
+            ->get(['cotizacion_id', 'cotizacion_origen_id'])
+            ->each(function ($s) use (&$seccionesPorOrigen) {
+                $seccionesPorOrigen[(int) $s->cotizacion_origen_id][] = (int) $s->cotizacion_id;
+            });
+        $ganadoras = $this->ofertasGanadorasVigentes($principales);
+
+        $tipos = [];
+        foreach ($principales as $id) {
+            $secciones = $seccionesPorOrigen[$id] ?? [];
+            $tipos[$id] = [
+                'tipo' => isset($ganadoras[$id])
+                    ? self::TIPO_GANADORA
+                    : ($secciones ? self::TIPO_NO_GANADORA_CON_SECCIONES : self::TIPO_NO_GANADORA),
+                'secciones' => $secciones,
+            ];
+        }
+
+        return $this->cacheTipos[$expoId] = $tipos;
+    }
+
+    /** Ids (ofertas principales + sus secciones) de un tipo de oferta. */
+    private function idsPorTipoOferta(int $expoId, string $tipo): array
+    {
+        $ids = [];
+        foreach ($this->tiposOfertaExpo($expoId) as $id => $info) {
+            if ($info['tipo'] === $tipo) {
+                $ids[] = $id;
+                array_push($ids, ...$info['secciones']);
+            }
+        }
+
+        return $ids ?: [0];
     }
 
     // ═══════════════════════════════ KPIs ════════════════════════════════
@@ -268,9 +375,9 @@ class ReporteExpo extends Component
                 COALESCE(SUM(GREATEST(($brutoOfertaExpr) - ($netoOfertaExpr), 0)), 0) AS total_descuento,
                 COALESCE(SUM(ROUND(($netoOfertaExpr) * chp.isv_producto / 100, 2)), 0) AS total_isv,
                 COALESCE(SUM(COALESCE(ppc.precio_base_venta, 0) * chp.cantidad), 0) AS total_costo
-            {$this->joinsOfertado()}
+            {$this->joinsOfertado(true)}
             {$this->joinExpoCotizacion($expoId)}
-            {$this->whereExpo($expoId)}
+            {$this->whereOfertaPrincipal($expoId)}
             $extra
         ");
 
@@ -281,7 +388,7 @@ class ReporteExpo extends Component
                 COALESCE(SUM(vhp.sub_total_s), 0) AS total_facturado,
                 COALESCE(SUM(GREATEST((vhp.precio_unidad * vhp.cantidad_s) - vhp.sub_total_s, 0)), 0) AS total_descuento,
                 COALESCE(SUM(($costoExpr) * vhp.cantidad_s), 0) AS total_costo
-            {$this->joinsOfertado()}
+            {$this->joinsOfertado(true)}
             {$this->joinsFacturado($expoId)}
             {$this->joinExpoCotizacion($expoId)}
             {$this->whereExpo($expoId)}
@@ -294,10 +401,14 @@ class ReporteExpo extends Component
         $totalFacturado = (float) $rowFacturado->total_facturado;
         $totalCosto = (float) $rowOfertado->total_costo;
         $utilidad = $totalNeto - $totalCosto;
+        $principales = array_map(fn ($row) => (int) $row->id, $this->principalesFiltradas($expoId, $extra));
+        $numGanadoras = count(array_intersect_key($this->ofertasGanadorasVigentes($principales), array_flip($principales)));
 
         return response()->json([
             'expo_id' => $expoId,
             'num_ofertas' => (int) $rowOfertado->num_ofertas,
+            'num_ganadoras' => $numGanadoras,
+            'num_no_ganadoras' => (int) $rowOfertado->num_ofertas - $numGanadoras,
             'clientes_unicos' => (int) $rowOfertado->clientes_unicos,
             'num_facturas' => (int) $rowFacturado->num_facturas,
             'total_ofertado' => round($totalOfertado, 2),
@@ -324,9 +435,9 @@ class ReporteExpo extends Component
             SELECT COALESCE(ec.estado,'SIN_REGISTRO') AS estado,
                    COUNT(DISTINCT c.id) AS total,
                                      COALESCE(SUM($netoOfertaExpr),0) AS ofertado
-            {$this->joinsOfertado()}
+            {$this->joinsOfertado(true)}
             {$this->joinExpoCotizacion($expoId)}
-            {$this->whereExpo($expoId)}
+            {$this->whereOfertaPrincipal($expoId)}
             $extra
             GROUP BY COALESCE(ec.estado,'SIN_REGISTRO')
             ORDER BY total DESC
@@ -335,7 +446,7 @@ class ReporteExpo extends Component
         $facturado = DB::select("
             SELECT COALESCE(ec.estado,'SIN_REGISTRO') AS estado,
                    COALESCE(SUM(vhp.sub_total_s),0) AS facturado
-            {$this->joinsOfertado()}
+            {$this->joinsOfertado(true)}
             {$this->joinsFacturado($expoId)}
             {$this->joinExpoCotizacion($expoId)}
             {$this->whereExpo($expoId)}
@@ -363,16 +474,16 @@ class ReporteExpo extends Component
 
         $ofertado = DB::select("
             SELECT p.marca_id, COALESCE(m.nombre,'Sin marca') AS marca, SUM($netoOfertaExpr) AS ofertado
-            {$this->joinsOfertado()}
+            {$this->joinsOfertado(true)}
             {$this->joinExpoCotizacion($expoId)}
-            {$this->whereExpo($expoId)}
+            {$this->whereOfertaPrincipal($expoId)}
             $extra
             GROUP BY p.marca_id, m.nombre
         ");
 
         $facturado = DB::select("
             SELECT p.marca_id, SUM(vhp.sub_total_s) AS facturado
-            {$this->joinsOfertado()}
+            {$this->joinsOfertado(true)}
             {$this->joinsFacturado($expoId)}
             {$this->joinExpoCotizacion($expoId)}
             {$this->whereExpo($expoId)}
@@ -402,17 +513,17 @@ class ReporteExpo extends Component
 
         $ofertado = DB::select("
             SELECT c.vendedor AS vendedor_id, COALESCE(u.name,'Sin asesor') AS asesor, SUM($netoOfertaExpr) AS ofertado
-            {$this->joinsOfertado()}
+            {$this->joinsOfertado(true)}
             LEFT JOIN users u ON u.id = c.vendedor
             {$this->joinExpoCotizacion($expoId)}
-            {$this->whereExpo($expoId)}
+            {$this->whereOfertaPrincipal($expoId)}
             $extra
             GROUP BY c.vendedor, u.name
         ");
 
         $facturado = DB::select("
             SELECT c.vendedor AS vendedor_id, SUM(vhp.sub_total_s) AS facturado
-            {$this->joinsOfertado()}
+            {$this->joinsOfertado(true)}
             {$this->joinsFacturado($expoId)}
             {$this->joinExpoCotizacion($expoId)}
             {$this->whereExpo($expoId)}
@@ -444,20 +555,20 @@ class ReporteExpo extends Component
             SELECT c.users_id AS teleasesor_id, COALESCE(ut.name,'Sin teleasesor') AS teleasesor,
                    COUNT(DISTINCT c.id) AS ofertas, SUM($netoOfertaExpr) AS ofertado,
                    SUM(chp.monto_descProducto) AS descuento
-            {$this->joinsOfertado()}
+            {$this->joinsOfertado(true)}
             LEFT JOIN users ut ON ut.id = c.users_id
             {$this->joinExpoCotizacion($expoId)}
-            {$this->whereExpo($expoId)}
+            {$this->whereOfertaPrincipal($expoId)}
             $extra
             GROUP BY c.users_id, ut.name
         ");
 
         $costoExpr = $this->costoUnitarioExpr();
         $facturado = DB::select("
-            SELECT c.users_id AS teleasesor_id, COUNT(DISTINCT c.id) AS ofertas_ganadas,
+            SELECT c.users_id AS teleasesor_id,
                    SUM(vhp.sub_total_s) AS facturado,
                    SUM(($costoExpr) * vhp.cantidad_s) AS costo
-            {$this->joinsOfertado()}
+            {$this->joinsOfertado(true)}
             {$this->joinsFacturado($expoId)}
             {$this->joinExpoCotizacion($expoId)}
             {$this->whereExpo($expoId)}
@@ -466,13 +577,24 @@ class ReporteExpo extends Component
         ");
         $facturadoPorTeleasesor = collect($facturado)->keyBy('teleasesor_id');
 
-        $rows = collect($ofertado)->map(function ($row) use ($facturadoPorTeleasesor) {
+        // "Ganadas" = ofertas principales que son ganadoras vigentes.
+        $principales = $this->principalesFiltradas($expoId, $extra);
+        $ganadoras = $this->ofertasGanadorasVigentes(array_map(fn ($row) => (int) $row->id, $principales));
+        $ganadasPorTeleasesor = [];
+        foreach ($principales as $row) {
+            if (isset($ganadoras[(int) $row->id])) {
+                $clave = (string) ($row->users_id ?? '');
+                $ganadasPorTeleasesor[$clave] = ($ganadasPorTeleasesor[$clave] ?? 0) + 1;
+            }
+        }
+
+        $rows = collect($ofertado)->map(function ($row) use ($facturadoPorTeleasesor, $ganadasPorTeleasesor) {
             $factura = $facturadoPorTeleasesor->get($row->teleasesor_id);
             $facturado = (float) ($factura->facturado ?? 0);
             $costo = (float) ($factura->costo ?? 0);
             $utilidad = $facturado - $costo;
             $ofertas = (int) $row->ofertas;
-            $ganadas = (int) ($factura->ofertas_ganadas ?? 0);
+            $ganadas = $ganadasPorTeleasesor[(string) ($row->teleasesor_id ?? '')] ?? 0;
 
             return [
                 'teleasesor_id' => $row->teleasesor_id ? (int) $row->teleasesor_id : null,
@@ -503,9 +625,9 @@ class ReporteExpo extends Component
                    COALESCE(NULLIF(c.nombre_cliente, ''), 'Sin cliente') AS cliente,
                    COUNT(DISTINCT c.id) AS ofertas,
                    SUM($netoOfertaExpr) AS ofertado
-            {$this->joinsOfertado()}
+            {$this->joinsOfertado(true)}
             {$this->joinExpoCotizacion($expoId)}
-            {$this->whereExpo($expoId)}
+            {$this->whereOfertaPrincipal($expoId)}
             $extra
             GROUP BY COALESCE(c.cliente_id, 0), COALESCE(NULLIF(c.nombre_cliente, ''), 'Sin cliente')
         ");
@@ -513,7 +635,7 @@ class ReporteExpo extends Component
         $facturado = DB::select("
             SELECT COALESCE(c.cliente_id, 0) AS cliente_id,
                    SUM(vhp.sub_total_s) AS facturado
-            {$this->joinsOfertado()}
+            {$this->joinsOfertado(true)}
             {$this->joinsFacturado($expoId)}
             {$this->joinExpoCotizacion($expoId)}
             {$this->whereExpo($expoId)}
@@ -565,16 +687,16 @@ class ReporteExpo extends Component
 
         $ofertado = DB::select("
             SELECT DATE(c.fecha_emision) AS fecha, SUM($netoOfertaExpr) AS ofertado
-            {$this->joinsOfertado()}
+            {$this->joinsOfertado(true)}
             {$this->joinExpoCotizacion($expoId)}
-            {$this->whereExpo($expoId)}
+            {$this->whereOfertaPrincipal($expoId)}
             $extra
             GROUP BY DATE(c.fecha_emision)
         ");
 
         $facturado = DB::select("
             SELECT DATE(f.fecha_emision) AS fecha, SUM(vhp.sub_total_s) AS facturado
-            {$this->joinsOfertado()}
+            {$this->joinsOfertado(true)}
             {$this->joinsFacturado($expoId)}
             {$this->joinExpoCotizacion($expoId)}
             {$this->whereExpo($expoId)}
@@ -621,9 +743,9 @@ class ReporteExpo extends Component
                  SUM($netoOfertaExpr) AS total_ofertado,
                  SUM(GREATEST(($brutoOfertaExpr) - ($netoOfertaExpr), 0)) AS descuento,
                   SUM(COALESCE(ppc.precio_base_venta, 0) * chp.cantidad) AS costo_ofertado
-            {$this->joinsOfertado()}
+            {$this->joinsOfertado(true)}
             {$this->joinExpoCotizacion($expoId)}
-            {$this->whereExpo($expoId)}
+            {$this->whereOfertaPrincipal($expoId)}
             $extra
             GROUP BY p.id, p.codigo_barra, p.nombre, m.nombre, cat.descripcion
         ");
@@ -635,7 +757,7 @@ class ReporteExpo extends Component
                      SUM(vhp.sub_total_s) AS total_facturado,
                      SUM(GREATEST((vhp.precio_unidad * vhp.cantidad_s) - vhp.sub_total_s, 0)) AS descuento_facturado,
                      SUM(($costoExpr) * vhp.cantidad_s) AS total_costo
-            {$this->joinsOfertado()}
+            {$this->joinsOfertado(true)}
             {$this->joinsFacturado($expoId)}
             {$this->joinExpoCotizacion($expoId)}
             {$this->whereExpo($expoId)}
@@ -795,109 +917,126 @@ class ReporteExpo extends Component
         return Excel::download(new AnaliticaProductosExport($headings, $rows), 'reporte_expo_productos.xlsx');
     }
 
+    public const TIPO_GANADORA = 'GANADORA';
+    public const TIPO_NO_GANADORA = 'NO_GANADORA';
+    public const TIPO_NO_GANADORA_CON_SECCIONES = 'NO_GANADORA_CON_SECCIONES';
+
     /**
-     * Para cada flujo_id dado devuelve el id de la cotización actualmente
-     * marcada como "ganadora" (según el último movimiento registrado en
-     * cotizacion_estado). Si el último movimiento de un flujo fue "quitar
-     * ganadora", ese flujo simplemente no aparece en el mapa devuelto.
+     * Devuelve los ids de las ofertas cuyo ÚLTIMO movimiento en
+     * cotizacion_estado es ganadora = 1 (1 = ganadora, 2 = quitada,
+     * 3 = anulada, 4 = devuelta desde revisión). Se evalúa por oferta y no
+     * por flujo: un flujo puede tener varias ganadoras vigentes y marcar otra
+     * oferta del mismo flujo no revoca a la ganadora anterior.
      */
-    private function ofertasGanadorasPorFlujo(array $flujoIds): array
+    private function ofertasGanadorasVigentes(array $cotizacionIds): array
     {
-        $flujoIds = array_values(array_unique(array_filter(array_map('intval', $flujoIds))));
-        if (empty($flujoIds)) {
+        $cotizacionIds = array_values(array_unique(array_filter(array_map('intval', $cotizacionIds))));
+        if (empty($cotizacionIds)) {
             return [];
         }
 
-        $rows = DB::select("
-            SELECT ce.flujo_id, ce.cotizacion_id
-            FROM cotizacion_estado ce
-            INNER JOIN (
-                SELECT flujo_id, MAX(id) AS ultimo_id
-                FROM cotizacion_estado
-                WHERE flujo_id IN (" . implode(',', $flujoIds) . ")
-                GROUP BY flujo_id
-            ) ult ON ult.flujo_id = ce.flujo_id AND ult.ultimo_id = ce.id
-            WHERE ce.ganadora = 1
-        ");
+        $ids = DB::table('cotizacion_estado as ce')
+            ->joinSub(
+                DB::table('cotizacion_estado')
+                    ->selectRaw('cotizacion_id, MAX(id) AS ultimo_id')
+                    ->whereIn('cotizacion_id', $cotizacionIds)
+                    ->groupBy('cotizacion_id'),
+                'ult',
+                'ult.ultimo_id',
+                '=',
+                'ce.id'
+            )
+            ->where('ce.ganadora', 1)
+            ->pluck('ce.cotizacion_id');
 
-        $mapa = [];
-        foreach ($rows as $row) {
-            $mapa[(int) $row->flujo_id] = (int) $row->cotizacion_id;
-        }
-
-        return $mapa;
+        return array_fill_keys($ids->map(fn ($id) => (int) $id)->all(), true);
     }
 
     /**
-     * Agrupa las filas planas (oferta principal + secciones) por flujo y
-     * elige UNA oferta representativa por flujo: primero la marcada como
-     * "ganadora" (cotizacion_estado.ganadora vigente); si no hay ganadora
-     * vigente, la última oferta generada (mayor fecha_emision / id).
+     * Arma una fila por oferta principal siguiendo la jerarquía
+     * Flujo → Oferta → Secciones → Facturas y la clasifica como:
+     *  - GANADORA: ganadora vigente, con sus secciones (si las tiene).
+     *  - NO_GANADORA: no ganadora y sin secciones.
+     *  - NO_GANADORA_CON_SECCIONES: dejó de ser ganadora pero conserva secciones.
      *
-     * El total ofertado se toma únicamente de la oferta representativa
-     * (sus propias líneas en cotizacion_has_producto, que ya incluyen la
-     * totalidad del pedido), mientras que lo facturado se agrega sumando
-     * la oferta representativa + todas sus secciones (ya que facturar una
-     * sección no duplica montos: cada factura referencia líneas propias
-     * de esa sección, distintas de las líneas de la oferta origen).
+     * El total ofertado se toma de la oferta principal (sus líneas ya incluyen
+     * todo el pedido; las secciones son particiones de ella) y lo facturado
+     * suma la oferta principal + sus secciones, porque cada factura referencia
+     * líneas propias de la cotización facturada.
      */
-    private function agruparPorFlujo(array $filas): array
+    private function agruparOfertas(array $filas, array $tiposCanonicos = []): array
     {
-        $grupos = [];
+        $raices = [];
+        $seccionesPorOrigen = [];
         foreach ($filas as $fila) {
-            $clave = $fila['flujo_id'] !== null ? 'flujo_' . $fila['flujo_id'] : 'oferta_' . $fila['oferta_id'];
-            $grupos[$clave][] = $fila;
+            if ($fila['oferta_origen_id'] === null) {
+                $raices[$fila['oferta_id']] = $fila;
+            } else {
+                $seccionesPorOrigen[$fila['oferta_origen_id']][] = $fila;
+            }
         }
 
-        $flujoIds = array_values(array_unique(array_filter(array_column($filas, 'flujo_id'))));
-        $ganadoras = $this->ofertasGanadorasPorFlujo($flujoIds);
+        // Secciones cuya oferta principal quedó fuera por los filtros: se
+        // agrupan bajo una fila sintética de su origen para no perderlas.
+        foreach ($seccionesPorOrigen as $origenId => $secciones) {
+            if (isset($raices[$origenId])) {
+                continue;
+            }
+            $base = $secciones[0];
+            $raices[$origenId] = array_merge($base, [
+                'oferta_id' => (int) $origenId,
+                'oferta_origen_id' => null,
+                'numero_seccion' => null,
+                'nombre_seccion' => null,
+                'estado_seccion' => null,
+                'num_facturas' => 0,
+                'total_ofertado' => round(array_sum(array_column($secciones, 'total_ofertado')), 2),
+                'total_facturado' => 0,
+                'descuento' => round(array_sum(array_column($secciones, 'descuento')), 2),
+                'cantidad_ofertada' => array_sum(array_column($secciones, 'cantidad_ofertada')),
+                'cantidad_facturada' => 0,
+                'total_costo_oferta' => array_sum(array_column($secciones, 'total_costo_oferta')),
+                'total_costo_facturado' => 0,
+                'total_pagado' => 0,
+                'utilidad_pagada' => 0,
+                'factura_ids' => [],
+                'estado_facturacion' => 'NO_FACTURADA',
+                'origen_filtrado' => true,
+            ]);
+        }
+
+        $ganadoras = $this->ofertasGanadorasVigentes(array_keys($raices));
 
         $resultado = [];
-        foreach ($grupos as $grupo) {
-            $raices = array_values(array_filter($grupo, fn ($f) => $f['oferta_origen_id'] === null));
-            if (empty($raices)) {
-                // No debería ocurrir (toda sección tiene un origen), pero por
-                // seguridad se trata el grupo completo como si fueran raíces.
-                $raices = $grupo;
-            }
+        foreach ($raices as $ofertaId => $raiz) {
+            $secciones = $seccionesPorOrigen[$ofertaId] ?? [];
+            usort($secciones, fn ($a, $b) => ($a['numero_seccion'] ?? 0) <=> ($b['numero_seccion'] ?? 0));
 
-            $flujoId = $grupo[0]['flujo_id'];
-            $ganadoraId = $flujoId !== null ? ($ganadoras[$flujoId] ?? null) : null;
+            $esGanadora = isset($ganadoras[$ofertaId]);
+            // El tipo se toma de la Expo completa para que coincida con el filtro
+            // por tipo aunque marca/producto oculten alguna sección.
+            $tipo = $tiposCanonicos[$ofertaId]['tipo'] ?? ($esGanadora
+                ? self::TIPO_GANADORA
+                : (empty($secciones) ? self::TIPO_NO_GANADORA : self::TIPO_NO_GANADORA_CON_SECCIONES));
 
-            $representativa = null;
-            if ($ganadoraId !== null) {
-                foreach ($raices as $raiz) {
-                    if ($raiz['oferta_id'] === $ganadoraId) {
-                        $representativa = $raiz;
-                        break;
-                    }
-                }
-            }
-            if ($representativa === null) {
-                usort($raices, function ($a, $b) {
-                    $fechaA = $a['fecha_emision'] ?? '';
-                    $fechaB = $b['fecha_emision'] ?? '';
-                    return $fechaB <=> $fechaA ?: $b['oferta_id'] <=> $a['oferta_id'];
-                });
-                $representativa = $raices[0];
-            }
-
-            $secciones = array_values(array_filter(
-                $grupo,
-                fn ($f) => $f['oferta_origen_id'] === $representativa['oferta_id']
-            ));
-
-            $totalFacturado = (float) $representativa['total_facturado'];
-            $cantidadFacturada = (float) $representativa['cantidad_facturada'];
-            $numFacturas = (int) $representativa['num_facturas'];
+            $totalFacturado = (float) $raiz['total_facturado'];
+            $cantidadFacturada = (float) $raiz['cantidad_facturada'];
+            $costoFacturado = (float) $raiz['total_costo_facturado'];
+            $totalPagado = (float) $raiz['total_pagado'];
+            $utilidadPagada = (float) $raiz['utilidad_pagada'];
+            $facturaIds = $raiz['factura_ids'];
             foreach ($secciones as $seccion) {
                 $totalFacturado += (float) $seccion['total_facturado'];
                 $cantidadFacturada += (float) $seccion['cantidad_facturada'];
-                $numFacturas += (int) $seccion['num_facturas'];
+                $costoFacturado += (float) $seccion['total_costo_facturado'];
+                $totalPagado += (float) $seccion['total_pagado'];
+                $utilidadPagada += (float) $seccion['utilidad_pagada'];
+                $facturaIds = array_merge($facturaIds, $seccion['factura_ids']);
             }
+            $facturaIds = array_values(array_unique($facturaIds));
 
-            $totalOfertado = (float) $representativa['total_ofertado'];
-            $cantidadOfertada = (float) $representativa['cantidad_ofertada'];
+            $totalOfertado = (float) $raiz['total_ofertado'];
+            $cantidadOfertada = (float) $raiz['cantidad_ofertada'];
             $estadoFacturacion = $cantidadFacturada <= 0.0001
                 ? 'NO_FACTURADA'
                 : ($cantidadFacturada + 0.0001 >= $cantidadOfertada ? 'FACTURADA' : 'PARCIALMENTE_FACTURADA');
@@ -905,6 +1044,7 @@ class ReporteExpo extends Component
             $seccionesSalida = array_map(fn ($s) => [
                 'oferta_id' => $s['oferta_id'],
                 'numero_seccion' => $s['numero_seccion'],
+                'nombre_seccion' => $s['nombre_seccion'],
                 'estado' => $s['estado_seccion'],
                 'estado_facturacion' => $s['estado_facturacion'],
                 'total_ofertado' => $s['total_ofertado'],
@@ -912,22 +1052,22 @@ class ReporteExpo extends Component
                 'num_facturas' => $s['num_facturas'],
             ], $secciones);
 
-            // Acceso directo a las líneas propias de la oferta raíz (sus
-            // cotizacion_has_producto). Siempre se muestra: si no hay
-            // secciones es la única forma de ver el detalle de productos; si
-            // ya hay secciones, permite revisar lo que aún no se ha
-            // repartido/trabajado en ninguna sección.
-            array_unshift($seccionesSalida, [
-                'oferta_id' => $representativa['oferta_id'],
-                'numero_seccion' => null,
-                'nombre_seccion' => 'Productos sin ofertar',
-                'estado' => null,
-                'estado_facturacion' => $representativa['estado_facturacion'],
-                'total_ofertado' => $representativa['total_ofertado'],
-                'total_facturado' => $representativa['total_facturado'],
-                'num_facturas' => $representativa['num_facturas'],
-                'es_raiz' => true,
-            ]);
+            // Acceso directo a las líneas propias de la oferta principal: si no
+            // hay secciones es la única forma de ver sus productos; si las hay,
+            // permite revisar lo que aún no se repartió en ninguna sección.
+            if (empty($raiz['origen_filtrado'])) {
+                array_unshift($seccionesSalida, [
+                    'oferta_id' => $raiz['oferta_id'],
+                    'numero_seccion' => null,
+                    'nombre_seccion' => 'Productos sin ofertar',
+                    'estado' => null,
+                    'estado_facturacion' => $raiz['estado_facturacion'],
+                    'total_ofertado' => $raiz['total_ofertado'],
+                    'total_facturado' => $raiz['total_facturado'],
+                    'num_facturas' => $raiz['num_facturas'],
+                    'es_raiz' => true,
+                ]);
+            }
 
             if ($estadoFacturacion === 'PARCIALMENTE_FACTURADA') {
                 $seccionesSalida[] = [
@@ -943,24 +1083,33 @@ class ReporteExpo extends Component
                 ];
             }
 
-            $utilidad = $totalOfertado - (float) $representativa['total_costo_oferta'];
+            $utilidad = $totalOfertado - (float) $raiz['total_costo_oferta'];
 
             $resultado[] = [
-                'oferta_id' => $representativa['oferta_id'],
-                'flujo_id' => $flujoId,
-                'cliente' => $representativa['cliente'],
-                'asesor' => $representativa['asesor'],
-                'teleasesor' => $representativa['teleasesor'],
-                'fecha_emision' => $representativa['fecha_emision'],
-                'estado' => $representativa['estado'],
+                'oferta_id' => $raiz['oferta_id'],
+                'flujo_id' => $raiz['flujo_id'],
+                'tipo' => $tipo,
+                'es_ganadora' => $esGanadora,
+                'cliente_id' => $raiz['cliente_id'] ?? null,
+                'cliente' => $raiz['cliente'],
+                'asesor' => $raiz['asesor'],
+                'teleasesor' => $raiz['teleasesor'],
+                'fecha_emision' => $raiz['fecha_emision'],
+                'estado' => $raiz['estado'],
                 'oferta_origen_id' => null,
                 'numero_seccion' => null,
                 'nombre_seccion' => null,
                 'estado_facturacion' => $estadoFacturacion,
-                'num_facturas' => $numFacturas,
+                'num_facturas' => count($facturaIds),
+                'factura_ids' => $facturaIds,
                 'total_ofertado' => round($totalOfertado, 2),
                 'total_facturado' => round($totalFacturado, 2),
-                'descuento' => $representativa['descuento'],
+                'total_costo_oferta' => round((float) $raiz['total_costo_oferta'], 2),
+                'total_costo_facturado' => round($costoFacturado, 2),
+                'utilidad_facturada' => round($totalFacturado - $costoFacturado, 2),
+                'total_pagado' => round($totalPagado, 2),
+                'utilidad_pagada' => round($utilidadPagada, 2),
+                'descuento' => $raiz['descuento'],
                 'utilidad' => round($utilidad, 2),
                 'margen_pct' => $totalOfertado > 0 ? round(($utilidad / $totalOfertado) * 100, 2) : null,
                 'avance_pct' => $totalOfertado > 0 ? round(($totalFacturado / $totalOfertado) * 100, 2) : 0,
@@ -969,9 +1118,138 @@ class ReporteExpo extends Component
             ];
         }
 
-        usort($resultado, fn ($a, $b) => $b['total_ofertado'] <=> $a['total_ofertado']);
+        $orden = [self::TIPO_GANADORA => 0, self::TIPO_NO_GANADORA_CON_SECCIONES => 1, self::TIPO_NO_GANADORA => 2];
+        usort($resultado, fn ($a, $b) => $orden[$a['tipo']] <=> $orden[$b['tipo']]
+            ?: $b['total_ofertado'] <=> $a['total_ofertado']
+            ?: $b['oferta_id'] <=> $a['oferta_id']);
 
         return $resultado;
+    }
+
+    /**
+     * Métricas de facturabilidad (monto facturado ÷ monto ofertado, sin ISV)
+     * y conteo de ofertas por cliente a partir de las filas de agruparOfertas.
+     * La métrica "conjunto" incluye los tres tipos de oferta.
+     */
+    private function resumenDesdeOfertas(array $ofertas): array
+    {
+        $vacio = fn () => [
+            'num_ofertas' => 0, 'num_secciones' => 0, 'factura_ids' => [],
+            'total_ofertado' => 0.0, 'total_facturado' => 0.0, 'total_costo_oferta' => 0.0,
+            'utilidad_facturada' => 0.0, 'total_pagado' => 0.0, 'utilidad_pagada' => 0.0,
+        ];
+        $grupos = [
+            'ganadoras' => $vacio(),
+            'no_ganadoras' => $vacio(),
+            'no_ganadoras_con_secciones' => $vacio(),
+            'conjunto' => $vacio(),
+        ];
+        $claveGrupo = [
+            self::TIPO_GANADORA => 'ganadoras',
+            self::TIPO_NO_GANADORA => 'no_ganadoras',
+            self::TIPO_NO_GANADORA_CON_SECCIONES => 'no_ganadoras_con_secciones',
+        ];
+
+        $clientes = [];
+        foreach ($ofertas as $o) {
+            foreach ([$claveGrupo[$o['tipo']], 'conjunto'] as $clave) {
+                $grupos[$clave]['num_ofertas']++;
+                $grupos[$clave]['num_secciones'] += $o['num_secciones'];
+                $grupos[$clave]['total_ofertado'] += $o['total_ofertado'];
+                $grupos[$clave]['total_facturado'] += $o['total_facturado'];
+                $grupos[$clave]['total_costo_oferta'] += $o['total_costo_oferta'];
+                $grupos[$clave]['utilidad_facturada'] += $o['utilidad_facturada'];
+                $grupos[$clave]['total_pagado'] += $o['total_pagado'];
+                $grupos[$clave]['utilidad_pagada'] += $o['utilidad_pagada'];
+                foreach ($o['factura_ids'] as $facturaId) {
+                    $grupos[$clave]['factura_ids'][$facturaId] = true;
+                }
+            }
+
+            $claveCliente = $o['cliente_id'] !== null ? 'id_' . $o['cliente_id'] : 'nombre_' . mb_strtoupper(trim((string) $o['cliente']));
+            $clientes[$claveCliente] ??= [
+                'cliente_id' => $o['cliente_id'],
+                'cliente' => $o['cliente'],
+                'num_ofertas' => 0,
+                'ganadoras' => 0,
+                'no_ganadoras' => 0,
+                'num_secciones' => 0,
+                'total_ofertado' => 0.0,
+                'total_facturado' => 0.0,
+                'utilidad_a_ganar' => 0.0,
+                'total_pagado' => 0.0,
+                'utilidad_pagada' => 0.0,
+            ];
+            $clientes[$claveCliente]['num_ofertas']++;
+            $clientes[$claveCliente][$o['tipo'] === self::TIPO_GANADORA ? 'ganadoras' : 'no_ganadoras']++;
+            $clientes[$claveCliente]['num_secciones'] += $o['num_secciones'];
+            $clientes[$claveCliente]['total_ofertado'] += $o['total_ofertado'];
+            $clientes[$claveCliente]['total_facturado'] += $o['total_facturado'];
+            $clientes[$claveCliente]['utilidad_a_ganar'] += $o['utilidad'];
+            $clientes[$claveCliente]['total_pagado'] += $o['total_pagado'];
+            $clientes[$claveCliente]['utilidad_pagada'] += $o['utilidad_pagada'];
+        }
+
+        $cerrar = function (array $g): array {
+            $g['total_ofertado'] = round($g['total_ofertado'], 2);
+            $g['total_facturado'] = round($g['total_facturado'], 2);
+            foreach (['utilidad_a_ganar', 'total_pagado', 'utilidad_pagada'] as $campo) {
+                if (isset($g[$campo])) {
+                    $g[$campo] = round($g[$campo], 2);
+                }
+            }
+            $g['facturabilidad_pct'] = $g['total_ofertado'] > 0
+                ? round(($g['total_facturado'] / $g['total_ofertado']) * 100, 2)
+                : 0;
+            return $g;
+        };
+
+        $clientes = array_map($cerrar, array_values($clientes));
+        usort($clientes, fn ($a, $b) => $b['num_ofertas'] <=> $a['num_ofertas']
+            ?: $b['total_ofertado'] <=> $a['total_ofertado']
+            ?: strcmp((string) $a['cliente'], (string) $b['cliente']));
+
+        // KPIs de cada segmento, todos sin ISV. La utilidad a ganar es la de la
+        // oferta (ofertado - costo ofertado); la utilidad ganada es la parte
+        // cobrada de la utilidad real facturada.
+        $cerrarGrupo = function (array $g) use ($cerrar): array {
+            $g = $cerrar($g);
+            $g['num_facturas'] = count($g['factura_ids']);
+            unset($g['factura_ids']);
+            $g['avance_pct'] = $g['facturabilidad_pct'];
+            $g['utilidad_a_ganar'] = round($g['total_ofertado'] - $g['total_costo_oferta'], 2);
+            unset($g['total_costo_oferta']);
+            foreach (['utilidad_facturada', 'total_pagado', 'utilidad_pagada'] as $campo) {
+                $g[$campo] = round($g[$campo], 2);
+            }
+            $g['pagado_pct'] = $g['total_facturado'] > 0 ? round(($g['total_pagado'] / $g['total_facturado']) * 100, 2) : 0;
+            $g['utilidad_ganada_pct'] = $g['utilidad_a_ganar'] > 0 ? round(($g['utilidad_pagada'] / $g['utilidad_a_ganar']) * 100, 2) : 0;
+            return $g;
+        };
+
+        return [
+            'facturabilidad' => array_map($cerrarGrupo, $grupos),
+            'clientes' => $clientes,
+        ];
+    }
+
+    /** Filtros de producto (marca, escala, producto) para la subconsulta de facturado de datosOfertas. */
+    private function filtrosProductoFacturado(Request $r): string
+    {
+        $sql = '';
+        $marcas = $this->idsDesdeRequest($r, 'marca_ids', 'marca_id');
+        if ($marcas) {
+            $sql .= ' AND p2.marca_id IN (' . implode(',', $marcas) . ')';
+        }
+        $escalas = $this->idsDesdeRequest($r, 'escala_ids', 'escala_id');
+        if ($escalas) {
+            $sql .= ' AND ppc_chp2.categoria_precios_id IN (' . implode(',', $escalas) . ')';
+        }
+        if ($r->producto_id !== null && $r->producto_id !== '') {
+            $sql .= ' AND p2.id = ' . (int) $r->producto_id;
+        }
+
+        return $sql;
     }
 
     private function datosOfertas(Request $r): array
@@ -980,10 +1258,17 @@ class ReporteExpo extends Component
         $extra = $this->filtrosExtra($r);
         $netoOfertaExpr = $this->netoOfertaExpr();
         $brutoOfertaExpr = $this->brutoOfertaExpr();
+        // Porción cobrada de cada factura (abonos ÷ total con ISV). Se aplica a
+        // los montos sin ISV de la línea para obtener lo pagado sin ISV.
+        $ratioPagadoExpr = 'LEAST(COALESCE(ap2.credito_abonos, 0) * 1.0 / NULLIF(f2.total, 0), 1)';
+        // Mismo costo unitario que la utilidad ofertada (precio base de la línea
+        // de la oferta); costoproducto viene por empaque y no por unidad vendida.
+        $costoBaseExpr = 'COALESCE(ppc_chp2.precio_base_venta, ppc_vhp2.precio_base_venta, 0)';
 
         $rows = DB::select("
             SELECT
-                c.id AS oferta_id,
+                chp.cotizacion_id AS oferta_id,
+                c.cliente_id,
                 c.nombre_cliente,
                 COALESCE(u.name, 'N/A') AS asesor,
                 COALESCE(ut.name, 'Sin asignar') AS teleasesor,
@@ -1001,19 +1286,25 @@ class ReporteExpo extends Component
                 COALESCE(fact.total_facturado, 0) AS total_facturado,
                 COALESCE(fact.total_costo, 0) AS total_costo,
                 COALESCE(fact.cantidad_facturada, 0) AS cantidad_facturada,
-                COALESCE(fact.num_facturas, 0) AS num_facturas
-            {$this->joinsOfertado()}
+                COALESCE(fact.num_facturas, 0) AS num_facturas,
+                fact.factura_ids,
+                COALESCE(fact.total_pagado, 0) AS total_pagado,
+                COALESCE(fact.utilidad_pagada, 0) AS utilidad_pagada
+            {$this->joinsOfertado(true)}
             LEFT JOIN users u ON u.id = c.vendedor
             LEFT JOIN users ut ON ut.id = c.users_id
-            LEFT JOIN expo_oferta_seccion eos ON eos.cotizacion_id = c.id
+            LEFT JOIN expo_oferta_seccion eos ON eos.cotizacion_id = chp.cotizacion_id
             {$this->joinExpoCotizacion($expoId)}
             {$this->joinUltimoHistoricoOferta($expoId)}
             LEFT JOIN (
                 SELECT chp2.cotizacion_id,
                        SUM(vhp2.sub_total_s) AS total_facturado,
-                       SUM(COALESCE(ppc_vhp2.costoproducto, ppc_chp2.costoproducto, p2.costo_promedio, 0) * vhp2.cantidad_s) AS total_costo,
+                       SUM($costoBaseExpr * vhp2.cantidad_s) AS total_costo,
                        SUM(COALESCE(NULLIF(vhp2.cantidad_oferta_aplicada, 0), vhp2.cantidad_s)) AS cantidad_facturada,
-                       COUNT(DISTINCT f2.id) AS num_facturas
+                       COUNT(DISTINCT f2.id) AS num_facturas,
+                       GROUP_CONCAT(DISTINCT f2.id) AS factura_ids,
+                       SUM(vhp2.sub_total_s * $ratioPagadoExpr) AS total_pagado,
+                       SUM((vhp2.sub_total_s - $costoBaseExpr * vhp2.cantidad_s) * $ratioPagadoExpr) AS utilidad_pagada
                 FROM cotizacion_has_producto chp2
                 INNER JOIN (
                     SELECT v2.*, v2.cotizacion_has_producto_id AS chp_id_resuelta, NULL AS cotizacion_id_prefactura
@@ -1035,18 +1326,21 @@ class ReporteExpo extends Component
                 ) vhp2 ON vhp2.chp_id_resuelta = chp2.id
                       AND (vhp2.cotizacion_id_prefactura IS NULL OR vhp2.cotizacion_id_prefactura = chp2.cotizacion_id)
                 INNER JOIN factura f2 ON f2.id = vhp2.factura_id AND f2.estado_venta_id = 1
+                LEFT JOIN aplicacion_pagos ap2 ON ap2.factura_id = f2.id AND ap2.estado = 1
                 INNER JOIN producto p2 ON p2.id = chp2.producto_id
                 LEFT JOIN precios_producto_carga ppc_vhp2 ON ppc_vhp2.id = vhp2.precios_producto_carga_id
                 LEFT JOIN precios_producto_carga ppc_chp2 ON ppc_chp2.id = chp2.precios_producto_carga_id
                 WHERE chp2.cotizacion_id IN ({$this->inExpo($expoId)})
+                {$this->filtrosProductoFacturado($r)}
                 GROUP BY chp2.cotizacion_id
-            ) fact ON fact.cotizacion_id = c.id
+            ) fact ON fact.cotizacion_id = chp.cotizacion_id
             {$this->whereExpo($expoId)}
             $extra
-            GROUP BY c.id, c.nombre_cliente, u.name, ut.name, c.fecha_emision, ec.estado,
+            GROUP BY chp.cotizacion_id, c.id, c.cliente_id, c.nombre_cliente, u.name, ut.name, c.fecha_emision, ec.estado,
                      eos.cotizacion_origen_id, eos.numero, eos.nombre, eos.estado,
                      ec.flujo_id, hf_oferta.flujo_id, fact.total_facturado, fact.total_costo,
-                     fact.cantidad_facturada, fact.num_facturas
+                     fact.cantidad_facturada, fact.num_facturas, fact.factura_ids,
+                     fact.total_pagado, fact.utilidad_pagada
             ORDER BY total_ofertado DESC
         ");
 
@@ -1064,6 +1358,7 @@ class ReporteExpo extends Component
             return [
                 'oferta_id' => (int) $row->oferta_id,
                 'flujo_id' => $row->flujo_id ? (int) $row->flujo_id : null,
+                'cliente_id' => $row->cliente_id ? (int) $row->cliente_id : null,
                 'cliente' => $row->nombre_cliente,
                 'asesor' => $row->asesor,
                 'teleasesor' => $row->teleasesor,
@@ -1085,10 +1380,14 @@ class ReporteExpo extends Component
                 'cantidad_ofertada' => $cantidadOfertada,
                 'cantidad_facturada' => $cantidadFacturada,
                 'total_costo_oferta' => $totalCostoOferta,
+                'total_costo_facturado' => (float) $row->total_costo,
+                'total_pagado' => (float) $row->total_pagado,
+                'utilidad_pagada' => (float) $row->utilidad_pagada,
+                'factura_ids' => $row->factura_ids ? array_map('intval', explode(',', $row->factura_ids)) : [],
             ];
         }, $rows);
 
-        return $this->agruparPorFlujo($filas);
+        return $this->agruparOfertas($filas, $this->tiposOfertaExpo($expoId));
     }
 
     public function tablaOfertas(Request $r)
@@ -1096,17 +1395,27 @@ class ReporteExpo extends Component
         return response()->json($this->datosOfertas($r));
     }
 
+    public function resumenOfertas(Request $r)
+    {
+        return response()->json($this->resumenDesdeOfertas($this->datosOfertas($r)));
+    }
+
     public function exportarOfertas(Request $r)
     {
         $data = $this->datosOfertas($r);
+        $tipos = [
+            self::TIPO_GANADORA => 'Ganadora',
+            self::TIPO_NO_GANADORA => 'No ganadora',
+            self::TIPO_NO_GANADORA_CON_SECCIONES => 'No ganadora con secciones',
+        ];
 
-        $headings = ['Oferta #', 'Flujo', '# Secciones', 'Cliente', 'Asesor', 'Teleasesor', 'Fecha', 'Estado', 'Estado Facturacion', 'Facturas', 'Total Ofertado (L)', 'Total Facturado (L)', 'Margen Oferta %', 'Ganancia Oferta (L)', 'Descuento (L)', 'Avance %'];
+        $headings = ['Oferta #', 'Tipo', 'Flujo', '# Secciones', 'Cliente', 'Asesor', 'Teleasesor', 'Fecha', 'Estado', 'Estado Facturacion', 'Facturas', 'Total Ofertado sin ISV (L)', 'Total Facturado sin ISV (L)', 'Avance %', 'Utilidad a Ganar (L)', 'Margen Oferta %', 'Pagado sin ISV (L)', 'Utilidad Ganada (L)', 'Descuento (L)'];
         $rows = array_map(fn ($o) => [
-            $o['oferta_id'], $o['flujo_id'], $o['num_secciones'],
+            $o['oferta_id'], $tipos[$o['tipo']], $o['flujo_id'], $o['num_secciones'],
             $o['cliente'], $o['asesor'], $o['teleasesor'],
             $o['fecha_emision'], $o['estado'], $o['estado_facturacion'], $o['num_facturas'],
-            $o['total_ofertado'], $o['total_facturado'], $o['margen_pct'], $o['utilidad'],
-            $o['descuento'], $o['avance_pct'],
+            $o['total_ofertado'], $o['total_facturado'], $o['avance_pct'], $o['utilidad'], $o['margen_pct'],
+            $o['total_pagado'], $o['utilidad_pagada'], $o['descuento'],
         ], $data);
 
         return Excel::download(new AnaliticaProductosExport($headings, $rows), 'reporte_expo_ofertas.xlsx');

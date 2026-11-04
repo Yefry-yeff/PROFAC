@@ -114,12 +114,21 @@
                 <label class="small font-weight-bold">Hasta</label>
                 <input type="date" class="form-control form-control-sm" id="expo-f-hasta">
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
+                <label class="small font-weight-bold">Tipo de oferta</label>
+                <select class="form-control form-control-sm" id="expo-f-tipo-oferta" onchange="reporteExpo.aplicarFiltroDesdeForm()">
+                    <option value="">Conjunto (todas)</option>
+                    <option value="GANADORA">Ganadoras</option>
+                    <option value="NO_GANADORA">No ganadoras</option>
+                    <option value="NO_GANADORA_CON_SECCIONES">No ganadoras con secciones</option>
+                </select>
+            </div>
+            <div class="col-md-2">
                 <button class="btn btn-primary btn-sm" onclick="reporteExpo.aplicarFiltroDesdeForm()">
                     <i class="fas fa-search"></i> Consultar
                 </button>
             </div>
-            <div class="col-md-5 text-right" id="expo-filtros-activos"></div>
+            <div class="col-md-4 text-right" id="expo-filtros-activos"></div>
         </div>
         <div class="row g-2 align-items-end mt-2">
             <div class="col-md-2">
@@ -136,97 +145,47 @@
         </div>
     </div>
 
-    {{-- KPI CARDS --}}
-    <div class="mb-3 row">
-        <div class="mb-2 col-6 col-md-3">
-            <div class="card h-100 border-left-secondary">
-                <div class="px-3 py-2 card-body">
-                    <div class="mb-1 text-xs font-weight-bold text-secondary text-uppercase">Clientes Únicos</div>
-                    <div class="mb-0 h5 font-weight-bold" id="kpi-clientes">—</div>
+    {{-- KPIs POR SEGMENTO: GANADORAS, NO GANADORAS Y CONJUNTO (montos sin ISV) --}}
+    @php
+        $segmentosExpo = [
+            ['clave' => 'ganadoras', 'titulo' => 'Ofertas ganadoras', 'color' => 'success', 'nota' => 'Ganadoras vigentes con sus secciones y facturas.'],
+            ['clave' => 'no_ganadoras', 'titulo' => 'Ofertas no ganadoras', 'color' => 'secondary', 'nota' => 'Ofertas que no son ganadoras y no tienen secciones.'],
+            ['clave' => 'conjunto', 'titulo' => 'Conjunto (ganadoras + no ganadoras)', 'color' => 'primary', 'nota' => 'Total de la Expo con los filtros aplicados.'],
+        ];
+        $kpisSegmento = [
+            ['campo' => 'num_ofertas', 'titulo' => 'Ofertas'],
+            ['campo' => 'num_secciones', 'titulo' => 'Secciones'],
+            ['campo' => 'num_facturas', 'titulo' => 'Facturas'],
+            ['campo' => 'total_ofertado', 'titulo' => 'Total ofertado'],
+            ['campo' => 'total_facturado', 'titulo' => 'Total facturado'],
+            ['campo' => 'avance_pct', 'titulo' => '% Avance facturación'],
+            ['campo' => 'utilidad_a_ganar', 'titulo' => 'Utilidad a ganar'],
+            ['campo' => 'total_pagado', 'titulo' => 'Pagado'],
+            ['campo' => 'utilidad_pagada', 'titulo' => 'Utilidad ganada de pagos'],
+        ];
+    @endphp
+    @foreach ($segmentosExpo as $segmento)
+        <div class="mb-3 card border-left-{{ $segmento['color'] }}" id="seg-{{ $segmento['clave'] }}">
+            <div class="py-2 card-header bg-white d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 font-weight-bold text-{{ $segmento['color'] }} text-uppercase">{{ $segmento['titulo'] }}</h6>
+                <small class="text-muted">{{ $segmento['nota'] }} Montos sin ISV.</small>
+            </div>
+            <div class="pb-1 card-body">
+                <div class="row">
+                    @foreach ($kpisSegmento as $kpi)
+                        <div class="mb-2 col-6 col-md-4 col-xl">
+                            <div class="mb-1 text-xs font-weight-bold text-muted text-uppercase">{{ $kpi['titulo'] }}</div>
+                            <div class="mb-0 h6 font-weight-bold" id="seg-{{ $segmento['clave'] }}-{{ $kpi['campo'] }}">—</div>
+                            <small class="text-muted d-block" id="seg-{{ $segmento['clave'] }}-{{ $kpi['campo'] }}-det"></small>
+                        </div>
+                    @endforeach
                 </div>
+                @if ($segmento['clave'] === 'conjunto')
+                    <small class="text-muted" id="kpi-fact-otras"></small>
+                @endif
             </div>
         </div>
-        <div class="mb-2 col-6 col-md-3">
-            <div class="card h-100 border-left-warning">
-                <div class="px-3 py-2 card-body">
-                    <div class="mb-1 text-xs font-weight-bold text-warning text-uppercase">Ofertas Validadas</div>
-                    <div class="mb-0 h5 font-weight-bold" id="kpi-ofertas">—</div>
-                </div>
-            </div>
-        </div>
-        <div class="mb-2 col-6 col-md-3">
-            <div class="card h-100 border-left-secondary">
-                <div class="px-3 py-2 card-body">
-                    <div class="mb-1 text-xs font-weight-bold text-secondary text-uppercase">Facturas</div>
-                    <div class="mb-0 h5 font-weight-bold" id="kpi-facturas">—</div>
-                </div>
-            </div>
-        </div>
-        <div class="mb-2 col-6 col-md-3">
-            <div class="card h-100 border-left-primary">
-                <div class="px-3 py-2 card-body">
-                    <div class="mb-1 text-xs font-weight-bold text-primary text-uppercase">Total Ofertado</div>
-                    <div class="mb-0 h5 font-weight-bold" id="kpi-ofertado">—</div>
-                </div>
-            </div>
-        </div>
-        <div class="mb-2 col-6 col-md-3">
-            <div class="card h-100 border-left-warning">
-                <div class="px-3 py-2 card-body">
-                    <div class="mb-1 text-xs font-weight-bold text-warning text-uppercase">Descuento Oferta</div>
-                    <div class="mb-0 h5 font-weight-bold" id="kpi-descuento">—</div>
-                </div>
-            </div>
-        </div>
-        <div class="mb-2 col-6 col-md-3">
-            <div class="card h-100 border-left-primary">
-                <div class="px-3 py-2 card-body">
-                    <div class="mb-1 text-xs font-weight-bold text-primary text-uppercase">Total Oferta sin ISV</div>
-                    <div class="mb-0 h5 font-weight-bold" id="kpi-oferta-sin-isv">—</div>
-                </div>
-            </div>
-        </div>
-        <div class="mb-2 col-6 col-md-3">
-            <div class="card h-100 border-left-success">
-                <div class="px-3 py-2 card-body">
-                    <div class="mb-1 text-xs font-weight-bold text-success text-uppercase">Total Oferta con ISV</div>
-                    <div class="mb-0 h5 font-weight-bold" id="kpi-oferta-con-isv">—</div>
-                </div>
-            </div>
-        </div>
-        <div class="mb-2 col-6 col-md-3">
-            <div class="card h-100 border-left-dark">
-                <div class="px-3 py-2 card-body">
-                    <div class="mb-1 text-xs font-weight-bold text-dark text-uppercase">Costo Oferta</div>
-                    <div class="mb-0 h5 font-weight-bold" id="kpi-costo">—</div>
-                </div>
-            </div>
-        </div>
-        <div class="mb-2 col-6 col-md-3">
-            <div class="card h-100 border-left-danger">
-                <div class="px-3 py-2 card-body">
-                    <div class="mb-1 text-xs font-weight-bold text-danger text-uppercase">Utilidad</div>
-                    <div class="mb-0 h5 font-weight-bold" id="kpi-utilidad">—</div>
-                </div>
-            </div>
-        </div>
-        <div class="mb-2 col-6 col-md-3">
-            <div class="card h-100 border-left-danger">
-                <div class="px-3 py-2 card-body">
-                    <div class="mb-1 text-xs font-weight-bold text-danger text-uppercase">Margen</div>
-                    <div class="mb-0 h5 font-weight-bold" id="kpi-margen">—</div>
-                </div>
-            </div>
-        </div>
-        <div class="mb-2 col-6 col-md-3">
-            <div class="card h-100 border-left-info">
-                <div class="px-3 py-2 card-body">
-                    <div class="mb-1 text-xs font-weight-bold text-info text-uppercase">% Avance Facturación</div>
-                    <div class="mb-0 h5 font-weight-bold" id="kpi-avance">—</div>
-                </div>
-            </div>
-        </div>
-    </div>
+    @endforeach
 
     {{-- GRÁFICAS --}}
     <div class="row">
@@ -277,7 +236,7 @@
     {{-- TABLA: OFERTAS --}}
     <div class="mb-3 card card-body">
         <div class="d-flex align-items-center mb-2">
-            <h6 class="mb-0 font-weight-bold">Todas las ofertas de la Expo</h6>
+            <h6 class="mb-0 font-weight-bold">Ofertas de la Expo <small class="text-muted">Flujo → Oferta ganadora → Secciones → Facturas (clic para ver secciones). Montos sin ISV.</small></h6>
             <button class="ml-auto btn btn-sm btn-success" onclick="reporteExpo.exportarOfertas()">
                 <i class="fas fa-file-excel"></i> Excel
             </button>
@@ -287,6 +246,7 @@
                 <thead>
                     <tr>
                         <th>Oferta #</th>
+                        <th>Tipo</th>
                         <th class="text-right"># Secciones</th>
                         <th>Flujo</th>
                         <th>Cliente</th>
@@ -297,9 +257,36 @@
                         <th class="text-right">Facturas</th>
                         <th class="text-right">Ofertado</th>
                         <th class="text-right">Facturado</th>
-                        <th class="text-right">Margen Oferta %</th>
-                        <th class="text-right">Ganancia</th>
                         <th class="text-right">Avance %</th>
+                        <th class="text-right">Utilidad a ganar</th>
+                        <th class="text-right">Margen %</th>
+                        <th class="text-right">Pagado</th>
+                        <th class="text-right">Utilidad ganada</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    {{-- TABLA: OFERTAS POR CLIENTE --}}
+    <div class="mb-3 card card-body">
+        <h6 class="mb-2 font-weight-bold">Ofertas por cliente <small class="text-muted">Montos sin ISV.</small></h6>
+        <div class="table-responsive">
+            <table class="table table-sm table-striped table-bordered" id="tabla-expo-clientes-ofertas" style="width:100%">
+                <thead>
+                    <tr>
+                        <th>Cliente</th>
+                        <th class="text-right">Total ofertas</th>
+                        <th class="text-right">Ganadoras</th>
+                        <th class="text-right">No ganadoras</th>
+                        <th class="text-right">Secciones</th>
+                        <th class="text-right">Ofertado</th>
+                        <th class="text-right">Facturado</th>
+                        <th class="text-right">% Facturabilidad</th>
+                        <th class="text-right">Utilidad a ganar</th>
+                        <th class="text-right">Pagado</th>
+                        <th class="text-right">Utilidad ganada</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
@@ -354,7 +341,7 @@
                         <table class="table table-sm table-bordered table-hover" id="tabla-secciones-flujo">
                             <thead class="thead-light"><tr>
                                 <th>Sección</th><th>Estado</th>
-                                <th>Facturación</th><th class="text-right">Ofertado</th><th class="text-right">Facturado</th>
+                                <th>Facturación</th><th class="text-right">Facturas</th><th class="text-right">Ofertado</th><th class="text-right">Facturado</th>
                             </tr></thead><tbody></tbody>
                         </table>
                     </div>
@@ -450,7 +437,7 @@
     :use-top-preview="false"
 />
 
-<script src="{{ asset('js/js_proyecto/reportes/reporte-expo.js') }}"></script>
+<script src="{{ asset('js/js_proyecto/reportes/reporte-expo.js') }}?v={{ filemtime(public_path('js/js_proyecto/reportes/reporte-expo.js')) }}"></script>
 <script>
     window.parametrosBuscadorProductoReporteExpo = function () {
         return reporteExpo.parametrosBuscadorProductos();
