@@ -1,5 +1,30 @@
 //*****comandos utiles****
 
+### Busqueda de notas de credito por factura
+
+En Clientes A y B, el filtro "Secuencia CAI de la factura" busca por la
+secuencia o el CAI de la factura vinculada, aunque la nota este fuera del
+rango de fechas. Con ese campo vacio se aplica nuevamente el rango.
+Los demas filtros se conservan; el listado, los indicadores y el Excel
+usan el mismo criterio. El filtro de secuencia de la nota sigue siendo
+independiente del de la factura.
+
+### Anulacion de facturas y prefacturas Expo
+
+Al anular una factura o prefactura vinculada a una seccion Expo, solo esa
+seccion pasa a `DEVUELTA_SECCION`, libera su prefactura y cancela sus
+revisiones posteriores. El flujo vuelve a Secciones de Ofertas para editar
+y reenviar la seccion a Credito, sin quitar la oferta ganadora ni modificar
+las otras secciones. Aplica al modal del flujo y a los listados de facturas
+corporativas, estatales y exoneradas. Las facturas se vinculan mediante la
+auditoria de facturacion directa o sus lineas de oferta, no por el ultimo
+documento del flujo.
+
+Pruebas: `php artisan test tests\Feature\DevolverSeccionAnuladaTest.php`.
+Usan SQLite en memoria; los casos de listados requieren una base MySQL
+vacia y aislada en `ANULACION_TEST_MYSQL_DATABASE`, con nombre
+`profac_anulacion_<hex>_testing`. Con esa variable se recrean sus tablas.
+
 ### Correo de codigos de autorizacion
 
 `POST /ventas/solicitud/codigo` envia el correo antes de confirmar el registro

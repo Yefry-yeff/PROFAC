@@ -27,20 +27,10 @@ use App\Models\User;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\NotasCreditoExport;
 use App\Services\NotaCredito\AnuladorNotaCredito;
+use App\Support\FiltrosNotasCredito;
 
 class ListadoNotaCredito extends Component
 {
-    private function filtroNumeroSecuenciaCai(Request $request, array &$bindings): string
-    {
-        $numeroSecuencia = trim((string) $request->input('numero_secuencia_cai', ''));
-        if ($numeroSecuencia === '') {
-            return '';
-        }
-
-        $bindings[] = '%' . $numeroSecuencia . '%';
-        return ' AND CAST(A.numero_secuencia_cai AS CHAR) LIKE ?';
-    }
-
     public function render()
     {
         $fechaActual = date('n');
@@ -125,12 +115,11 @@ class ListadoNotaCredito extends Component
             left join nota_credito_reversiones reversion_nota on reversion_nota.id = ultima_anulacion.ultima_reversion_id
             where
 
-            fa.tipo_venta_id = 2
-            and A.fecha BETWEEN '".$request->fechaInicio."' and '".$request->fechaFinal."'"
+            fa.tipo_venta_id = 2"
             . ($request->cliente_id ? " and cli.id = " . intval($request->cliente_id) : "")
             . ($request->motivo_id  ? " and A.motivo_nota_credito_id = " . intval($request->motivo_id) : "")
             . ($request->user_id    ? " and A.users_id = " . intval($request->user_id) : "")
-            . $this->filtroNumeroSecuenciaCai($request, $bindings);
+            . FiltrosNotasCredito::fechasYSecuencias($request, $bindings);
             $listado = DB::select($sql, $bindings);
             //dd($listado);
             /* A.estado_nota_dec = 1 */
@@ -199,13 +188,12 @@ class ListadoNotaCredito extends Component
                 FROM nota_credito A
                 INNER JOIN factura fa ON fa.id = A.factura_id
                 INNER JOIN cliente cli ON cli.id = fa.cliente_id
-                WHERE fa.tipo_venta_id = {$tipoVenta}
-                AND A.fecha BETWEEN '".$request->fechaInicio."' AND '".$request->fechaFinal."'"
+                WHERE fa.tipo_venta_id = {$tipoVenta}"
                 . ($request->cliente_id ? " AND cli.id = " . intval($request->cliente_id) : "")
                 . ($request->motivo_id  ? " AND A.motivo_nota_credito_id = " . intval($request->motivo_id) : "")
                 . ($request->user_id    ? " AND A.users_id = " . intval($request->user_id) : "");
             $bindings = [];
-            $sql .= $this->filtroNumeroSecuenciaCai($request, $bindings);
+            $sql .= FiltrosNotasCredito::fechasYSecuencias($request, $bindings);
             $row = DB::selectOne($sql, $bindings);
             return response()->json([
                 'success'     => true,
@@ -366,12 +354,11 @@ class ListadoNotaCredito extends Component
                     GROUP BY nota_credito_id
                 ) ultima_anulacion ON ultima_anulacion.nota_credito_id = A.id
                 LEFT JOIN nota_credito_reversiones reversion_nota ON reversion_nota.id = ultima_anulacion.ultima_reversion_id
-                WHERE fa.tipo_venta_id = 2
-                AND A.fecha BETWEEN '".$request->fechaInicio."' AND '".$request->fechaFinal."'"
+                WHERE fa.tipo_venta_id = 2"
                 . ($request->cliente_id ? " AND cli.id = " . intval($request->cliente_id) : "")
                 . ($request->motivo_id  ? " AND A.motivo_nota_credito_id = " . intval($request->motivo_id) : "")
                 . ($request->user_id    ? " AND A.users_id = " . intval($request->user_id) : "")
-                . $this->filtroNumeroSecuenciaCai($request, $bindings)
+                . FiltrosNotasCredito::fechasYSecuencias($request, $bindings)
                 . " ORDER BY A.fecha DESC";
             $listado = DB::select($sql, $bindings);
             $usuario = Auth::check() ? Auth::user()->name : 'Sistema';

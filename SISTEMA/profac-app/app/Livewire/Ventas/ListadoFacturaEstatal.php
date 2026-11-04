@@ -493,6 +493,8 @@ class ListadoFacturaEstatal extends Component
 
 
 
+         app(\App\Services\Expo\DevolverSeccionAnulada::class)->porFactura((int) $request->idFactura);
+
          DB::commit();
         return response()->json([
             "text" =>"Factura anulada con exito",

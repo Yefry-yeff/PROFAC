@@ -72,6 +72,16 @@ class MotivoAnulacionFacturaTest extends TestCase
         Schema::create('venta_has_producto', function (Blueprint $t) {
             $t->integer('factura_id'); $t->integer('lote'); $t->decimal('cantidad_s');
             $t->decimal('numero_unidades_resta_inventario'); $t->integer('unidad_medida_venta_id');
+            $t->integer('cotizacion_has_producto_id')->nullable();
+        });
+        Schema::create('cotizacion_has_producto', function (Blueprint $t) {
+            $t->id(); $t->integer('cotizacion_id');
+        });
+        Schema::create('expo_oferta_seccion', function (Blueprint $t) {
+            $t->id(); $t->integer('cotizacion_id'); $t->integer('prefactura_id')->nullable(); $t->string('estado');
+        });
+        Schema::create('prefactura_auditoria', function (Blueprint $t) {
+            $t->id(); $t->integer('prefactura_id'); $t->integer('factura_id'); $t->string('tipo_accion');
         });
         Schema::create('facturas_comision', function (Blueprint $t) {
             $t->id(); $t->integer('factura_id'); $t->integer('estado_id');

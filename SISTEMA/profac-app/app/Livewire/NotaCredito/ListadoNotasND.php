@@ -9,6 +9,7 @@ use DataTables;
 use Illuminate\Support\Facades\Auth;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\NotasCreditoExport;
+use App\Support\FiltrosNotasCredito;
 use Livewire\Component;
 
 class ListadoNotasND extends Component
@@ -41,7 +42,8 @@ class ListadoNotasND extends Component
 
     public function listadoNotaCreditoND(Request $request){
         try{
-            $listado = DB::SELECT("
+            $bindings = [];
+            $sql = "
             select
             fa.id as idFactura,
             A.id as codigo,
@@ -92,12 +94,12 @@ class ListadoNotasND extends Component
             left join nota_credito_reversiones reversion_nota on reversion_nota.id = ultima_anulacion.ultima_reversion_id
             where
             fa.tipo_venta_id = 1
-            and fa.estado_venta_id <> 2
-            and A.fecha BETWEEN '".$request->fechaInicio."' and '".$request->fechaFinal."'"
+            and fa.estado_venta_id <> 2"
             . ($request->cliente_id ? " and cli.id = " . intval($request->cliente_id) : "")
             . ($request->motivo_id  ? " and A.motivo_nota_credito_id = " . intval($request->motivo_id) : "")
             . ($request->user_id    ? " and A.users_id = " . intval($request->user_id) : "")
-            );
+            . FiltrosNotasCredito::fechasYSecuencias($request, $bindings);
+            $listado = DB::select($sql, $bindings);
 
             return Datatables::of($listado)
             ->addColumn('opciones', function ($nota) {
@@ -139,7 +141,8 @@ class ListadoNotasND extends Component
     public function exportarExcel(Request $request)
     {
         try {
-            $listado = DB::SELECT("
+            $bindings = [];
+            $sql = "
                 SELECT A.id as codigo, A.cai, cli.nombre as cliente, fa.cai as factura,
                     B.descripcion as motivo,
                     CASE
@@ -175,13 +178,13 @@ class ListadoNotasND extends Component
                 ) ultima_anulacion ON ultima_anulacion.nota_credito_id = A.id
                 LEFT JOIN nota_credito_reversiones reversion_nota ON reversion_nota.id = ultima_anulacion.ultima_reversion_id
                 WHERE fa.tipo_venta_id = 1
-                AND fa.estado_venta_id <> 2
-                AND A.fecha BETWEEN '".$request->fechaInicio."' AND '".$request->fechaFinal."'"
+                AND fa.estado_venta_id <> 2"
                 . ($request->cliente_id ? " AND cli.id = " . intval($request->cliente_id) : "")
                 . ($request->motivo_id  ? " AND A.motivo_nota_credito_id = " . intval($request->motivo_id) : "")
                 . ($request->user_id    ? " AND A.users_id = " . intval($request->user_id) : "")
-                . " ORDER BY A.fecha DESC"
-            );
+                . FiltrosNotasCredito::fechasYSecuencias($request, $bindings)
+                . " ORDER BY A.fecha DESC";
+            $listado = DB::select($sql, $bindings);
             $usuario = Auth::check() ? Auth::user()->name : 'Sistema';
             return Excel::download(
                 new NotasCreditoExport($listado, $usuario, 'Notas de Crédito — Clientes B'),
