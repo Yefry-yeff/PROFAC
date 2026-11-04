@@ -233,9 +233,11 @@ class ReporteExpoOfertasTest extends TestCase
         $this->assertSame(301, $detalle[30]['flujo_id']);
         $this->assertNull($detalle[40]['flujo_id']);
         $this->assertCount(5, $detalle);
-        $this->assertCount(3, $queries);
-        $this->assertStringNotContainsString('ORDER BY hf.id DESC LIMIT 1', $queries[1]['query']);
-        $this->assertStringContainsString('MAX(id) AS ultimo_id', $queries[1]['query']);
+        // Número fijo de consultas (clasificación de tipos + detalle), no una por oferta.
+        $this->assertLessThanOrEqual(7, count($queries));
+        $sqls = array_column($queries, 'query');
+        $this->assertEmpty(array_filter($sqls, fn ($q) => str_contains($q, 'ORDER BY hf.id DESC LIMIT 1')));
+        $this->assertNotEmpty(array_filter($sqls, fn ($q) => str_contains($q, 'MAX(id) AS ultimo_id')));
     }
 
     private function resumen(array $filtros = []): array
@@ -264,6 +266,45 @@ class ReporteExpoOfertasTest extends TestCase
         $this->assertSame(11, $ofertas[10]['secciones'][1]['oferta_id']);
         $this->assertSame(1, $ofertas[10]['secciones'][1]['num_facturas']);
         $this->assertSame([10, 12], array_slice(array_column($this->ofertas(), 'oferta_id'), 0, 2));
+    }
+
+    public function test_no_ganadora_sin_secciones_de_un_flujo_con_ganadora_se_oculta_en_todo_el_reporte(): void
+    {
+        // Oferta 15: alternativa que perdió en el flujo 100 (la ganadora es la 10).
+        DB::table('cotizacion')->insert(['id' => 15, 'nombre_cliente' => 'Cliente 10', 'fecha_emision' => '2026-11-01']);
+        DB::table('expo_cotizacion')->insert(['expo_id' => 7, 'cotizacion_id' => 15, 'flujo_id' => 100, 'estado' => 'PENDIENTE_FACTURACION']);
+        DB::table('cotizacion_has_producto')->insert(['id' => 15, 'cotizacion_id' => 15, 'cantidad' => 8, 'sub_total' => 80]);
+        // Oferta 16: perdió en el flujo 100 pero conserva una sección, se mantiene.
+        DB::table('cotizacion')->insert([
+            ['id' => 16, 'nombre_cliente' => 'Cliente 10', 'fecha_emision' => '2026-11-01'],
+            ['id' => 17, 'nombre_cliente' => 'Cliente 10', 'fecha_emision' => '2026-11-01'],
+        ]);
+        DB::table('expo_cotizacion')->insert([
+            ['expo_id' => 7, 'cotizacion_id' => 16, 'flujo_id' => 100, 'estado' => 'PENDIENTE_FACTURACION'],
+            ['expo_id' => 7, 'cotizacion_id' => 17, 'flujo_id' => 100, 'estado' => 'PENDIENTE_FACTURACION'],
+        ]);
+        DB::table('cotizacion_has_producto')->insert([
+            ['id' => 16, 'cotizacion_id' => 16, 'cantidad' => 1, 'sub_total' => 10],
+            ['id' => 17, 'cotizacion_id' => 17, 'cantidad' => 1, 'sub_total' => 10],
+        ]);
+        DB::table('expo_oferta_seccion')->insert([
+            'cotizacion_id' => 17, 'cotizacion_origen_id' => 16, 'numero' => 1, 'nombre' => 'Seccion 1', 'estado' => 'PENDIENTE',
+        ]);
+
+        $reporte = new ReporteExpo;
+        $request = new Request(['expo_id' => 7]);
+        $ids = array_column($reporte->tablaOfertas($request)->getData(true), 'oferta_id');
+        $this->assertNotContains(15, $ids);
+        $this->assertContains(16, $ids);
+
+        // Sin la 15: 100 (10) + 10 (16) + 30 + 20 + 10 = 170.
+        $this->assertEquals(170, $reporte->ventasPorMarca($request)->getData(true)[0]['ofertado']);
+        $this->assertEquals(170, array_sum(array_column($reporte->tablaProductos($request)->getData(true), 'total_ofertado')));
+        $f = $reporte->resumenOfertas($request)->getData(true)['facturabilidad'];
+        $this->assertEquals(170, $f['conjunto']['total_ofertado']);
+        $this->assertSame(3, $f['no_ganadoras']['num_ofertas']);
+        $noGanadoras = array_column($reporte->tablaOfertas(new Request(['expo_id' => 7, 'tipo_oferta' => 'NO_GANADORA']))->getData(true), 'oferta_id');
+        $this->assertNotContains(15, $noGanadoras);
     }
 
     public function test_ganadora_revocada_que_conserva_secciones_se_separa(): void
@@ -339,7 +380,10 @@ class ReporteExpoOfertasTest extends TestCase
         $this->assertSame([10], array_column($ofertas, 'oferta_id'));
         $this->assertSame(1, $ofertas[0]['num_secciones']);
 
-        $f = $reporte->resumenOfertas($ganadoras)->getData(true)['facturabilidad'];
+        $resumen = $reporte->resumenOfertas($ganadoras)->getData(true);
+        $f = $resumen['facturabilidad'];
+        $this->assertSame([10], array_column($resumen['ofertas'], 'oferta_id'));
+        $this->assertSame($resumen['clientes'][0]['cliente_id'], $resumen['ofertas'][0]['cliente_id']);
         $this->assertSame(0, $f['no_ganadoras']['num_ofertas']);
         $this->assertEquals(100, $f['conjunto']['total_ofertado']);
         $this->assertEquals(40, $f['conjunto']['total_facturado']);

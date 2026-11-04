@@ -305,6 +305,10 @@ class ReporteExpo extends Component
         if (in_array($tipo, [self::TIPO_GANADORA, self::TIPO_NO_GANADORA, self::TIPO_NO_GANADORA_CON_SECCIONES], true)) {
             $sql .= ' AND c.id IN (' . implode(',', $this->idsPorTipoOferta($this->expoIdDesdeRequest($r), $tipo)) . ')';
         }
+        $descartadas = $this->idsDescartados($this->expoIdDesdeRequest($r));
+        if ($descartadas) {
+            $sql .= ' AND c.id NOT IN (' . implode(',', $descartadas) . ')';
+        }
 
         return $sql;
     }
@@ -312,6 +316,9 @@ class ReporteExpo extends Component
     /**
      * Tipo de cada oferta principal de la Expo (GANADORA, NO_GANADORA o
      * NO_GANADORA_CON_SECCIONES) junto con los ids de sus secciones.
+     * Una NO_GANADORA sin secciones cuyo flujo ya tiene una ganadora queda
+     * "descartada": fue una alternativa que perdió y no se muestra en el
+     * reporte (ni tablas, ni gráficas, ni métricas).
      */
     private function tiposOfertaExpo(int $expoId): array
     {
@@ -329,18 +336,45 @@ class ReporteExpo extends Component
             });
         $ganadoras = $this->ofertasGanadorasVigentes($principales);
 
+        $flujos = [];
+        if ($principales) {
+            foreach (DB::select("
+                SELECT c.id, COALESCE(ec.flujo_id, hf_oferta.flujo_id) AS flujo_id
+                FROM cotizacion c
+                {$this->joinExpoCotizacion($expoId)}
+                {$this->joinUltimoHistoricoOferta($expoId)}
+                WHERE c.id IN (" . implode(',', $principales) . ')
+            ') as $row) {
+                $flujos[(int) $row->id] = $row->flujo_id ? (int) $row->flujo_id : null;
+            }
+        }
+
         $tipos = [];
+        $flujosConGanadora = [];
         foreach ($principales as $id) {
             $secciones = $seccionesPorOrigen[$id] ?? [];
-            $tipos[$id] = [
-                'tipo' => isset($ganadoras[$id])
-                    ? self::TIPO_GANADORA
-                    : ($secciones ? self::TIPO_NO_GANADORA_CON_SECCIONES : self::TIPO_NO_GANADORA),
-                'secciones' => $secciones,
-            ];
+            $tipo = isset($ganadoras[$id])
+                ? self::TIPO_GANADORA
+                : ($secciones ? self::TIPO_NO_GANADORA_CON_SECCIONES : self::TIPO_NO_GANADORA);
+            $flujo = $flujos[$id] ?? null;
+            if ($tipo === self::TIPO_GANADORA && $flujo !== null) {
+                $flujosConGanadora[$flujo] = true;
+            }
+            $tipos[$id] = ['tipo' => $tipo, 'secciones' => $secciones, 'flujo_id' => $flujo, 'descartada' => false];
+        }
+        foreach ($tipos as $id => $info) {
+            if ($info['tipo'] === self::TIPO_NO_GANADORA && $info['flujo_id'] !== null && isset($flujosConGanadora[$info['flujo_id']])) {
+                $tipos[$id]['descartada'] = true;
+            }
         }
 
         return $this->cacheTipos[$expoId] = $tipos;
+    }
+
+    /** Ofertas no ganadoras sin secciones de un flujo que ya tiene ganadora. */
+    private function idsDescartados(int $expoId): array
+    {
+        return array_keys(array_filter($this->tiposOfertaExpo($expoId), fn ($info) => $info['descartada']));
     }
 
     /** Ids (ofertas principales + sus secciones) de un tipo de oferta. */
@@ -348,7 +382,7 @@ class ReporteExpo extends Component
     {
         $ids = [];
         foreach ($this->tiposOfertaExpo($expoId) as $id => $info) {
-            if ($info['tipo'] === $tipo) {
+            if ($info['tipo'] === $tipo && !$info['descartada']) {
                 $ids[] = $id;
                 array_push($ids, ...$info['secciones']);
             }
@@ -1397,7 +1431,9 @@ class ReporteExpo extends Component
 
     public function resumenOfertas(Request $r)
     {
-        return response()->json($this->resumenDesdeOfertas($this->datosOfertas($r)));
+        $ofertas = $this->datosOfertas($r);
+
+        return response()->json($this->resumenDesdeOfertas($ofertas) + ['ofertas' => $ofertas]);
     }
 
     public function exportarOfertas(Request $r)

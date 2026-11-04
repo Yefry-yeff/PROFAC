@@ -7,7 +7,6 @@
 var reporteExpo = (function () {
     var charts = {};
     var dtProductos = null;
-    var dtOfertas = null;
     var dtClientesOfertas = null;
     var ETIQUETAS_TIPO_OFERTA = {
         GANADORA: { texto: 'Ganadora', clase: 'badge-success' },
@@ -494,54 +493,19 @@ var reporteExpo = (function () {
         });
     }
 
-    /* ─────────────────────────── Tabla: ofertas (1 fila por oferta principal) ── */
+    /* ──────────── Tabla unificada: cliente → ofertas → secciones (modal) ──── */
     var ofertasPorClave = {};
-
-    function cargarTablaOfertas() {
-        return $.get('/reporte/expo/tabla-ofertas', paramsActuales()).then(function (rows) {
-            if (dtOfertas) { dtOfertas.destroy(); $('#tabla-expo-ofertas tbody').empty(); }
-            var tbody = $('#tabla-expo-ofertas tbody').empty();
-            ofertasPorClave = {};
-            rows.forEach(function (r) {
-                var clave = 'oferta-' + r.oferta_id;
-                ofertasPorClave[clave] = r;
-                var estado = etiquetaEstadoFacturacion(r.estado_facturacion);
-                var utilidadClase = r.utilidad >= 0 ? 'bi-profit' : 'bi-loss';
-                var tipo = ETIQUETAS_TIPO_OFERTA[r.tipo] || { texto: r.tipo, clase: 'badge-light' };
-                tbody.append('<tr class="bi-row-selectable" data-clave="' + clave + '" title="Ver secciones de esta oferta">' +
-                    '<td>' + r.oferta_id + '</td>' +
-                    '<td data-search="' + esc(r.tipo) + '"><span class="badge ' + tipo.clase + '">' + esc(tipo.texto) + '</span></td>' +
-                    '<td class="text-right">' + fmtN(r.num_secciones) + '</td>' +
-                    '<td>' + (r.flujo_id || '—') + '</td>' +
-                    '<td>' + esc(r.cliente) + '</td>' +
-                    '<td>' + esc(r.asesor) + '</td>' +
-                    '<td>' + esc(r.teleasesor) + '</td>' +
-                    '<td>' + esc(r.fecha_emision || '') + '</td>' +
-                    '<td><span class="badge ' + (r.estado_facturacion === 'FACTURADA' ? 'badge-success' : (r.estado_facturacion === 'PARCIALMENTE_FACTURADA' ? 'badge-warning' : 'badge-secondary')) + '">' + esc(estado) + '</span></td>' +
-                    '<td class="text-right">' + fmtN(r.num_facturas) + '</td>' +
-                    '<td class="text-right">' + fmt(r.total_ofertado) + '</td>' +
-                    '<td class="text-right">' + fmt(r.total_facturado) + '</td>' +
-                    '<td class="text-right">' + r.avance_pct + '%</td>' +
-                    '<td class="text-right font-weight-bold ' + utilidadClase + '" data-order="' + r.utilidad + '">' + fmt(r.utilidad) + '</td>' +
-                    '<td class="text-right ' + utilidadClase + '">' + (r.margen_pct !== null ? r.margen_pct + '%' : 'N/D') + '</td>' +
-                    '<td class="text-right" data-order="' + r.total_pagado + '">' + fmt(r.total_pagado) + '</td>' +
-                    '<td class="text-right" data-order="' + r.utilidad_pagada + '">' + fmt(r.utilidad_pagada) + '</td>' +
-                    '</tr>');
-            });
-            dtOfertas = $('#tabla-expo-ofertas').DataTable({
-                pageLength: 10, lengthChange: true, order: [], language: { url: '/js/plugins/dataTables/i18n/Spanish.json' }
-            });
-            $('#tabla-expo-ofertas tbody').off('click', 'tr').on('click', 'tr', function () {
-                var clave = $(this).data('clave');
-                if (clave !== undefined && ofertasPorClave[clave]) abrirSecciones(ofertasPorClave[clave]);
-            });
-        });
-    }
-
-    /* ─────────────────── Facturabilidad por tipo + ofertas por cliente ─── */
+    var ofertasPorCliente = {};
     var SEGMENTOS_EXPO = ['ganadoras', 'no_ganadoras', 'conjunto'];
     var KPIS_SEGMENTO = ['num_ofertas', 'num_secciones', 'num_facturas', 'total_ofertado', 'total_facturado',
         'avance_pct', 'utilidad_a_ganar', 'total_pagado', 'utilidad_pagada'];
+
+    // Misma llave que usa el backend para agrupar clientes en resumen-ofertas.
+    function claveCliente(clienteId, nombre) {
+        return clienteId !== null && clienteId !== undefined
+            ? 'id_' + clienteId
+            : 'nombre_' + String(nombre || '').trim().toUpperCase();
+    }
 
     function pintarSegmento(clave, g) {
         var id = function (campo) { return 'seg-' + clave + '-' + campo; };
@@ -560,7 +524,55 @@ var reporteExpo = (function () {
         setText(id('utilidad_pagada-det'), g.utilidad_ganada_pct + '% de la utilidad a ganar');
     }
 
-    function cargarResumenOfertas() {
+    function pintarSegmentos(f) {
+        SEGMENTOS_EXPO.forEach(function (clave) { pintarSegmento(clave, f[clave]); });
+        // Con un tipo seleccionado solo se muestra su segmento (el resto
+        // quedaría en cero o repetiría los mismos números).
+        var visible = { GANADORA: 'ganadoras', NO_GANADORA: 'no_ganadoras', NO_GANADORA_CON_SECCIONES: 'conjunto' }[filtro.tipo_oferta];
+        SEGMENTOS_EXPO.forEach(function (clave) { $('#seg-' + clave).toggle(!visible || visible === clave); });
+        var otras = f.no_ganadoras_con_secciones;
+        setText('kpi-fact-otras', otras.num_ofertas
+            ? 'El conjunto incluye ' + fmtN(otras.num_ofertas) + ' ofertas que dejaron de ser ganadoras pero conservan ' +
+                fmtN(otras.num_secciones) + ' secciones (' + fmtN(otras.num_facturas) + ' facturas, ' +
+                fmt(otras.total_facturado) + ' facturado de ' + fmt(otras.total_ofertado) + ').'
+            : '');
+    }
+
+    function htmlOfertasCliente(clave) {
+        var lista = ofertasPorCliente[clave] || [];
+        if (!lista.length) return '<div class="bi-ofertas-cliente text-muted">Sin ofertas para este cliente.</div>';
+        var filas = lista.map(function (r) {
+            var utilidadClase = r.utilidad >= 0 ? 'bi-profit' : 'bi-loss';
+            var tipo = ETIQUETAS_TIPO_OFERTA[r.tipo] || { texto: r.tipo, clase: 'badge-light' };
+            var claseFact = r.estado_facturacion === 'FACTURADA' ? 'badge-success' : (r.estado_facturacion === 'PARCIALMENTE_FACTURADA' ? 'badge-warning' : 'badge-secondary');
+            return '<tr class="bi-row-selectable bi-fila-oferta" data-clave="oferta-' + r.oferta_id + '" title="Ver secciones de esta oferta">' +
+                '<td>' + r.oferta_id + '</td>' +
+                '<td><span class="badge ' + tipo.clase + '">' + esc(tipo.texto) + '</span></td>' +
+                '<td class="text-right">' + fmtN(r.num_secciones) + '</td>' +
+                '<td>' + (r.flujo_id || '—') + '</td>' +
+                '<td>' + esc(r.asesor) + '</td>' +
+                '<td>' + esc(r.teleasesor) + '</td>' +
+                '<td>' + esc(r.fecha_emision || '') + '</td>' +
+                '<td><span class="badge ' + claseFact + '">' + esc(etiquetaEstadoFacturacion(r.estado_facturacion)) + '</span></td>' +
+                '<td class="text-right">' + fmtN(r.num_facturas) + '</td>' +
+                '<td class="text-right">' + fmt(r.total_ofertado) + '</td>' +
+                '<td class="text-right">' + fmt(r.total_facturado) + '</td>' +
+                '<td class="text-right">' + r.avance_pct + '%</td>' +
+                '<td class="text-right font-weight-bold ' + utilidadClase + '">' + fmt(r.utilidad) + '</td>' +
+                '<td class="text-right ' + utilidadClase + '">' + (r.margen_pct !== null ? r.margen_pct + '%' : 'N/D') + '</td>' +
+                '<td class="text-right">' + fmt(r.total_pagado) + '</td>' +
+                '<td class="text-right">' + fmt(r.utilidad_pagada) + '</td>' +
+                '</tr>';
+        }).join('');
+        return '<div class="bi-ofertas-cliente"><table class="table table-sm table-bordered table-hover tabla-ofertas-cliente">' +
+            '<thead class="thead-light"><tr><th>Oferta #</th><th>Tipo</th><th class="text-right"># Secciones</th><th>Flujo</th>' +
+            '<th>Asesor</th><th>Teleasesor</th><th>Fecha</th><th>Facturación</th><th class="text-right">Facturas</th>' +
+            '<th class="text-right">Ofertado</th><th class="text-right">Facturado</th><th class="text-right">Avance %</th>' +
+            '<th class="text-right">Utilidad a ganar</th><th class="text-right">Margen %</th><th class="text-right">Pagado</th>' +
+            '<th class="text-right">Utilidad ganada</th></tr></thead><tbody>' + filas + '</tbody></table></div>';
+    }
+
+    function cargarOfertasPorCliente() {
         SEGMENTOS_EXPO.forEach(function (clave) {
             KPIS_SEGMENTO.forEach(function (campo) {
                 setText('seg-' + clave + '-' + campo, '…');
@@ -570,24 +582,29 @@ var reporteExpo = (function () {
         setText('kpi-fact-otras', '');
 
         return $.get('/reporte/expo/resumen-ofertas', paramsActuales()).then(function (d) {
-            var f = d.facturabilidad;
-            SEGMENTOS_EXPO.forEach(function (clave) { pintarSegmento(clave, f[clave]); });
-            // Con un tipo seleccionado solo se muestra su segmento (el resto
-            // quedaría en cero o repetiría los mismos números).
-            var visible = { GANADORA: 'ganadoras', NO_GANADORA: 'no_ganadoras', NO_GANADORA_CON_SECCIONES: 'conjunto' }[filtro.tipo_oferta];
-            SEGMENTOS_EXPO.forEach(function (clave) { $('#seg-' + clave).toggle(!visible || visible === clave); });
-            var otras = f.no_ganadoras_con_secciones;
-            setText('kpi-fact-otras', otras.num_ofertas
-                ? 'El conjunto incluye ' + fmtN(otras.num_ofertas) + ' ofertas que dejaron de ser ganadoras pero conservan ' +
-                    fmtN(otras.num_secciones) + ' secciones (' + fmtN(otras.num_facturas) + ' facturas, ' +
-                    fmt(otras.total_facturado) + ' facturado de ' + fmt(otras.total_ofertado) + ').'
-                : '');
+            var rows = d.ofertas || [];
+            pintarSegmentos(d.facturabilidad);
+
+            ofertasPorClave = {};
+            ofertasPorCliente = {};
+            rows.forEach(function (r) {
+                ofertasPorClave['oferta-' + r.oferta_id] = r;
+                var clave = claveCliente(r.cliente_id, r.cliente);
+                (ofertasPorCliente[clave] = ofertasPorCliente[clave] || []).push(r);
+            });
 
             if (dtClientesOfertas) { dtClientesOfertas.destroy(); }
             var tbody = $('#tabla-expo-clientes-ofertas tbody').empty();
             d.clientes.forEach(function (c) {
-                tbody.append('<tr>' +
-                    '<td>' + esc(c.cliente || 'Sin nombre') + '</td>' +
+                var clave = claveCliente(c.cliente_id, c.cliente);
+                // Permite buscar el cliente por número de oferta, flujo, asesor o teleasesor.
+                var busqueda = [c.cliente || 'Sin nombre'].concat((ofertasPorCliente[clave] || []).map(function (r) {
+                    return [r.oferta_id, r.flujo_id || '', r.asesor || '', r.teleasesor || ''].join(' ');
+                })).join(' ');
+                var utilidadClase = c.utilidad_a_ganar >= 0 ? 'bi-profit' : 'bi-loss';
+                tbody.append('<tr class="bi-row-selectable bi-fila-cliente" data-cliente="' + esc(clave) + '" title="Ver ofertas de este cliente">' +
+                    '<td class="text-center bi-toggle"><i class="fas fa-chevron-right"></i></td>' +
+                    '<td data-search="' + esc(busqueda) + '">' + esc(c.cliente || 'Sin nombre') + '</td>' +
                     '<td class="text-right font-weight-bold">' + fmtN(c.num_ofertas) + '</td>' +
                     '<td class="text-right">' + fmtN(c.ganadoras) + '</td>' +
                     '<td class="text-right">' + fmtN(c.no_ganadoras) + '</td>' +
@@ -595,14 +612,34 @@ var reporteExpo = (function () {
                     '<td class="text-right" data-order="' + c.total_ofertado + '">' + fmt(c.total_ofertado) + '</td>' +
                     '<td class="text-right" data-order="' + c.total_facturado + '">' + fmt(c.total_facturado) + '</td>' +
                     '<td class="text-right" data-order="' + c.facturabilidad_pct + '">' + c.facturabilidad_pct + '%</td>' +
-                    '<td class="text-right" data-order="' + c.utilidad_a_ganar + '">' + fmt(c.utilidad_a_ganar) + '</td>' +
+                    '<td class="text-right font-weight-bold ' + utilidadClase + '" data-order="' + c.utilidad_a_ganar + '">' + fmt(c.utilidad_a_ganar) + '</td>' +
                     '<td class="text-right" data-order="' + c.total_pagado + '">' + fmt(c.total_pagado) + '</td>' +
                     '<td class="text-right" data-order="' + c.utilidad_pagada + '">' + fmt(c.utilidad_pagada) + '</td>' +
                     '</tr>');
             });
             dtClientesOfertas = $('#tabla-expo-clientes-ofertas').DataTable({
-                pageLength: 10, lengthChange: true, order: [], language: { url: '/js/plugins/dataTables/i18n/Spanish.json' }
+                pageLength: 10, lengthChange: true, order: [],
+                columnDefs: [{ targets: 0, orderable: false, searchable: false }],
+                language: { url: '/js/plugins/dataTables/i18n/Spanish.json' }
             });
+
+            $('#tabla-expo-clientes-ofertas tbody').off('click')
+                .on('click', 'tr.bi-fila-cliente', function () {
+                    var tr = $(this);
+                    var fila = dtClientesOfertas.row(tr);
+                    if (fila.child.isShown()) {
+                        fila.child.hide();
+                        tr.removeClass('bi-cliente-abierto');
+                    } else {
+                        fila.child(htmlOfertasCliente(tr.data('cliente'))).show();
+                        tr.addClass('bi-cliente-abierto');
+                    }
+                })
+                .on('click', 'tr.bi-fila-oferta', function (e) {
+                    e.stopPropagation();
+                    var oferta = ofertasPorClave[$(this).data('clave')];
+                    if (oferta) abrirSecciones(oferta);
+                });
         });
     }
 
@@ -921,8 +958,7 @@ var reporteExpo = (function () {
             cargarTopProductos(),
             cargarEvolucionDiaria(),
             cargarTablaProductos(),
-            cargarTablaOfertas(),
-            cargarResumenOfertas(),
+            cargarOfertasPorCliente(),
         ];
         $.when.apply($, promesas).always(ocultarSpinnerCarga);
     }

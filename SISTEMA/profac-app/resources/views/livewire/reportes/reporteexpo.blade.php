@@ -8,8 +8,13 @@
         #reporteExpoBI .bi-summary-item strong { display: block; margin-top: 3px; font-size: 16px; }
         #reporteExpoBI .bi-profit { color: #08783e; }
         #reporteExpoBI .bi-loss { color: #b42318; }
-        #reporteExpoBI #tabla-expo-ofertas td.bi-profit { color: #08783e !important; }
-        #reporteExpoBI #tabla-expo-ofertas td.bi-loss { color: #b42318 !important; }
+        #reporteExpoBI .tabla-ofertas-cliente td.bi-profit { color: #08783e !important; }
+        #reporteExpoBI .tabla-ofertas-cliente td.bi-loss { color: #b42318 !important; }
+        #reporteExpoBI #tabla-expo-clientes-ofertas tr.bi-cliente-abierto > td { background: #e8f2fb !important; font-weight: 600; }
+        #reporteExpoBI #tabla-expo-clientes-ofertas td.bi-toggle i { transition: transform .15s ease; color: #2878a9; }
+        #reporteExpoBI #tabla-expo-clientes-ofertas tr.bi-cliente-abierto td.bi-toggle i { transform: rotate(90deg); }
+        #reporteExpoBI .bi-ofertas-cliente { padding: 6px 6px 6px 28px; background: #f8fafc; }
+        #reporteExpoBI .tabla-ofertas-cliente { margin-bottom: 0; background: #fff; }
         #reporteExpoBI .modal { z-index: 4010 !important; }
         .modal-backdrop { z-index: 4005 !important; }
         #reporteExpoBI .modal-bi-wide { max-width: 96vw; }
@@ -233,49 +238,19 @@
         </div>
     </div>
 
-    {{-- TABLA: OFERTAS --}}
+    {{-- TABLA: OFERTAS POR CLIENTE (cliente → ofertas → secciones) --}}
     <div class="mb-3 card card-body">
         <div class="d-flex align-items-center mb-2">
-            <h6 class="mb-0 font-weight-bold">Ofertas de la Expo <small class="text-muted">Flujo → Oferta ganadora → Secciones → Facturas (clic para ver secciones). Montos sin ISV.</small></h6>
+            <h6 class="mb-0 font-weight-bold">Ofertas por cliente <small class="text-muted">Cliente → Ofertas → Secciones → Facturas. Clic en el cliente para ver sus ofertas y en la oferta para ver sus secciones. Montos sin ISV.</small></h6>
             <button class="ml-auto btn btn-sm btn-success" onclick="reporteExpo.exportarOfertas()">
                 <i class="fas fa-file-excel"></i> Excel
             </button>
         </div>
         <div class="table-responsive">
-            <table class="table table-sm table-striped table-bordered" id="tabla-expo-ofertas" style="width:100%">
-                <thead>
-                    <tr>
-                        <th>Oferta #</th>
-                        <th>Tipo</th>
-                        <th class="text-right"># Secciones</th>
-                        <th>Flujo</th>
-                        <th>Cliente</th>
-                        <th>Asesor</th>
-                        <th>Teleasesor</th>
-                        <th>Fecha</th>
-                        <th>Facturación</th>
-                        <th class="text-right">Facturas</th>
-                        <th class="text-right">Ofertado</th>
-                        <th class="text-right">Facturado</th>
-                        <th class="text-right">Avance %</th>
-                        <th class="text-right">Utilidad a ganar</th>
-                        <th class="text-right">Margen %</th>
-                        <th class="text-right">Pagado</th>
-                        <th class="text-right">Utilidad ganada</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
-        </div>
-    </div>
-
-    {{-- TABLA: OFERTAS POR CLIENTE --}}
-    <div class="mb-3 card card-body">
-        <h6 class="mb-2 font-weight-bold">Ofertas por cliente <small class="text-muted">Montos sin ISV.</small></h6>
-        <div class="table-responsive">
             <table class="table table-sm table-striped table-bordered" id="tabla-expo-clientes-ofertas" style="width:100%">
                 <thead>
                     <tr>
+                        <th style="width:24px"></th>
                         <th>Cliente</th>
                         <th class="text-right">Total ofertas</th>
                         <th class="text-right">Ganadoras</th>

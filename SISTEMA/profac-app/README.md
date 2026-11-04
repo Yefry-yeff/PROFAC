@@ -17,12 +17,23 @@ Usan SQLite en memoria sin modificar datos de la aplicacion.
 
 ### Ofertas ganadoras y facturabilidad en el Reporte Expo
 
-La tabla de ofertas muestra una fila por oferta principal con la jerarquia
+La tabla "Ofertas por cliente" unifica clientes y ofertas: una fila por
+cliente que al hacer clic despliega sus ofertas principales, y cada oferta abre
+el modal con sus secciones y facturas. `/reporte/expo/resumen-ofertas` incluye
+`ofertas` para armarla en una sola peticion, y el buscador tambien encuentra al
+cliente por numero de oferta, flujo, asesor o teleasesor.
+
+Cada oferta del detalle es una oferta principal con la jerarquia
 Flujo -> Oferta -> Secciones -> Facturas. Una oferta es ganadora si su
 ultimo registro en `cotizacion_estado` tiene `ganadora = 1` (2 = quitada,
 3 = anulada, 4 = devuelta); se evalua por oferta, no por flujo. Tipos:
 `GANADORA` (con sus secciones), `NO_GANADORA` (sin secciones) y
 `NO_GANADORA_CON_SECCIONES` (perdio la marca pero conserva secciones).
+
+Si el flujo ya tiene una oferta ganadora, sus ofertas `NO_GANADORA` sin
+secciones (alternativas que perdieron) se excluyen de todo el reporte:
+tablas, graficas, indicadores y Excel. Las no ganadoras con secciones y las
+de flujos sin ganadora se siguen mostrando.
 
 `/reporte/expo/resumen-ofertas` devuelve el % de facturabilidad
 (facturado / ofertado, sin ISV) de ganadoras, no ganadoras y el conjunto
@@ -52,7 +63,7 @@ El filtro "Tipo de oferta" (`tipo_oferta`: `GANADORA`, `NO_GANADORA`,
 graficas, tablas y Excel. Filtra por las ofertas principales del tipo y sus
 secciones; el tipo se calcula sobre toda la Expo, asi que otros filtros no lo
 cambian. Con un tipo seleccionado solo se muestra su seccion de indicadores.
-Las tablas de ofertas y clientes incluyen utilidad a ganar, pagado y utilidad
+Las tablas de clientes y ofertas incluyen utilidad a ganar, pagado y utilidad
 ganada.
 
 ### Busqueda de notas de credito por factura
