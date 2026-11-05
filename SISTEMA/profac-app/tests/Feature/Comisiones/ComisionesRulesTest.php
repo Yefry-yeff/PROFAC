@@ -151,6 +151,107 @@ class ComisionesRulesTest extends TestCase
         $this->assertEquals(2.0, (float) DB::table('producto_comision')->value('monto_comision'));
     }
 
+    public function test_generador_resolves_foreign_category_by_price_floor(): void
+    {
+        DB::table('users')->insert([
+            ['id' => 1, 'rol_id' => 3, 'name' => 'Facturador'],
+            ['id' => 13, 'rol_id' => 2, 'name' => 'Belinda'],
+        ]);
+
+        DB::table('cliente')->insert([
+            'id' => 642,
+            'nombre' => 'Distribuidora Global',
+            'cliente_categoria_escala_id' => 36,
+        ]);
+
+        DB::table('tipo_factura')->insert([
+            'id' => 1,
+            'codigo' => 'normal',
+            'nombre' => 'Normal',
+        ]);
+
+        DB::table('factura')->insert([
+            'id' => 29553,
+            'users_id' => 1,
+            'vendedor' => 13,
+            'cliente_id' => 642,
+            'tipo_factura_id' => 1,
+            'tipo_pago_id' => 2,
+            'fecha_emision' => '2026-09-01',
+            'fecha_vencimiento' => '2026-10-01',
+            'sub_total' => 1235.52,
+            'cai' => '000-001-01-00044469',
+            'total' => 1420.85,
+        ]);
+
+        DB::table('categoria_precios')->insert([
+            [
+                'id' => 7,
+                'cliente_categoria_escala_id' => 36,
+                'nombre' => 'F',
+                'estado_id' => 1,
+            ],
+            [
+                'id' => 26,
+                'cliente_categoria_escala_id' => 38,
+                'nombre' => 'C',
+                'estado_id' => 1,
+            ],
+        ]);
+
+        DB::table('precios_producto_carga')->insert([
+            [
+                'id' => 626498,
+                'categoria_precios_id' => 26,
+                'producto_id' => 1464,
+                'precio_base_venta' => 475.20,
+                'precio_a' => 617.76,
+                'estado_id' => 1,
+            ],
+            [
+                'id' => 626499,
+                'categoria_precios_id' => 7,
+                'producto_id' => 1464,
+                'precio_base_venta' => 475.20,
+                'precio_a' => 617.76,
+                'estado_id' => 1,
+            ],
+        ]);
+
+        DB::table('venta_has_producto')->insert([
+            'factura_id' => 29553,
+            'cantidad' => 2,
+            'cantidad_s' => 2,
+            'precio_unidad' => 617.76,
+            'idPrecioSeleccionado' => 'p1',
+            'precioSeleccionado' => 617.76,
+            'precios_producto_carga_id' => 626498,
+            'producto_id' => 1464,
+            'seccion_id' => 122,
+            'unidad_medida_venta_id' => 465,
+        ]);
+
+        DB::table('comision_escala')->insert([
+            'id' => 1,
+            'rol_id' => 2,
+            'cliente_categoria_escala_id' => 36,
+            'categoria_precios_id' => 7,
+            'porcentaje_comision' => 2.1,
+            'estado_id' => 1,
+        ]);
+
+        $resultado = app(GeneradorFacturasComision::class)->generar(29553, 36902, '2026-10-27');
+
+        $this->assertCount(1, $resultado);
+        $this->assertSame(2, $resultado[0]['rol_id']);
+        $this->assertEquals(25.9459, $resultado[0]['monto_rol']);
+        $this->assertDatabaseHas('producto_comision', [
+            'factura_id' => 29553,
+            'producto_id' => 1464,
+            'rol_id' => 2,
+        ]);
+    }
+
     public function test_nota_credito_reduces_pending_commission_in_original_period(): void
     {
         $this->seedCreditNoteCommissionScenario();
@@ -977,6 +1078,10 @@ class ComisionesRulesTest extends TestCase
             $table->integer('producto_id')->nullable();
             $table->decimal('precio_base_venta', 12, 4)->nullable();
             $table->decimal('precio_a', 12, 4)->nullable();
+            $table->decimal('precio_b', 12, 4)->nullable();
+            $table->decimal('precio_c', 12, 4)->nullable();
+            $table->decimal('precio_d', 12, 4)->nullable();
+            $table->integer('estado_id')->default(1);
         });
 
         Schema::create('producto', function (Blueprint $table) {

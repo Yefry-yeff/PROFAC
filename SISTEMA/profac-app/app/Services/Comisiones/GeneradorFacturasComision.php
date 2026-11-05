@@ -4,6 +4,7 @@ namespace App\Services\Comisiones;
 
 use Illuminate\Support\Facades\DB;
 use App\Models\Comisiones\Escalado\modelproducto_comision;
+use App\Support\Comisiones\CategoriaComisionPorPrecio;
 
 class GeneradorFacturasComision
 {
@@ -220,6 +221,7 @@ class GeneradorFacturasComision
         // Consolidar los lotes que pertenecen a una misma línea comercial.
         $productos = DB::table('venta_has_producto as vp')
             ->join('precios_producto_carga as ppc', 'ppc.id', '=', 'vp.precios_producto_carga_id')
+            ->join('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')
             ->where('vp.factura_id', $facturaId)
             ->groupBy(
                 'vp.factura_id',
@@ -229,7 +231,10 @@ class GeneradorFacturasComision
                 'vp.precios_producto_carga_id',
                 'vp.precio_unidad',
                 'vp.precioSeleccionado',
-                'ppc.categoria_precios_id'
+                'vp.idPrecioSeleccionado',
+                'ppc.categoria_precios_id',
+                'cp.cliente_categoria_escala_id',
+                'cp.nombre'
             )
             ->selectRaw(
                 'COALESCE(SUM(vp.cantidad_s), SUM(vp.cantidad)) as cantidad,
@@ -240,13 +245,21 @@ class GeneradorFacturasComision
                  vp.producto_id,
                  vp.seccion_id,
                  vp.unidad_medida_venta_id,
-                 ppc.categoria_precios_id'
+                 vp.idPrecioSeleccionado,
+                 ppc.categoria_precios_id,
+                 cp.cliente_categoria_escala_id as categoria_cliente_precio_id,
+                 cp.nombre as categoria_precio'
             )
             ->get();
 
         if ($productos->isEmpty()) {
             return [];
         }
+
+        $resolverCategoria = CategoriaComisionPorPrecio::cargar(
+            $productos->pluck('producto_id'),
+            [$clienteCategoriaEscalaId]
+        );
 
         $cantidadesDevueltasFactura = $this->cantidadesDevueltasPorLinea($facturaId);
 
@@ -281,19 +294,28 @@ class GeneradorFacturasComision
                     continue;
                 }
 
+                $precioVendido = (float) ($prod->precio_para_comision ?? $prod->precio_unidad ?? 0);
+                $categoriaAjustada = $resolverCategoria->resolver(
+                    $clienteCategoriaEscalaId,
+                    (int) $prod->producto_id,
+                    (int) $prod->categoria_precios_id,
+                    (int) $prod->categoria_cliente_precio_id,
+                    (string) $prod->categoria_precio,
+                    (string) $prod->idPrecioSeleccionado,
+                    $precioVendido
+                );
+                $categoriaPrecioParaComision = $categoriaAjustada['categoria_precios_id'];
+
                 // Regla SR: usar la categoría más baja SOLO si el precio vendido es
                 // estrictamente mayor al precio_a de esa categoría para este producto.
                 // Si es menor o igual, se comisiona por la categoría real de la línea.
                 if ($esFacturaSr && $categoriaPrecioForzadaId) {
-                    $precioVendido  = (float) ($prod->precio_para_comision ?? $prod->precio_unidad ?? 0);
                     $precioRefBaja  = $precioRefMasBajaMap[(int) $prod->producto_id] ?? null;
                     // Penalizar con categoría más baja SOLO si vendió por DEBAJO del precio de esa categoría.
                     // Si vendió igual o por encima, comisiona por la categoría real usada en la venta.
                     $categoriaPrecioParaComision = ($precioRefBaja !== null && $precioVendido < $precioRefBaja)
                         ? $categoriaPrecioForzadaId
-                        : (int) $prod->categoria_precios_id;
-                } else {
-                    $categoriaPrecioParaComision = (int) $prod->categoria_precios_id;
+                        : $categoriaPrecioParaComision;
                 }
 
                 $key = $rolId . '_' . $clienteCategoriaEscalaId . '_' . $categoriaPrecioParaComision;

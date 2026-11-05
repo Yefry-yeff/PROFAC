@@ -21,6 +21,7 @@ use App\Models\Comisiones\ModelComisionPeriodo;
 use App\Services\Comisiones\GeneradorFacturasComision;
 use App\Services\Comisiones\AplicadorRetencionesMora;
 use App\Services\Comisiones\ProcesadorComisiones;
+use App\Support\Comisiones\CategoriaComisionPorPrecio;
 use App\Support\Comisiones\ProyeccionEspecial15;
 
 class ReportesComisionesGenerales extends Component
@@ -1519,7 +1520,7 @@ class ReportesComisionesGenerales extends Component
             ->leftJoin('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')
             ->leftJoin('producto as p', 'p.id', '=', 'vhp.producto_id')
             ->whereIn('vhp.factura_id', $facturaIds)
-            ->groupBy('vhp.factura_id', 'vhp.producto_id', 'vhp.seccion_id', 'vhp.unidad_medida_venta_id', 'vhp.precios_producto_carga_id', 'vhp.precio_unidad', 'vhp.precioSeleccionado', 'ppc.categoria_precios_id', 'p.nombre', 'cp.nombre')
+            ->groupBy('vhp.factura_id', 'vhp.producto_id', 'vhp.seccion_id', 'vhp.unidad_medida_venta_id', 'vhp.precios_producto_carga_id', 'vhp.precio_unidad', 'vhp.precioSeleccionado', 'vhp.idPrecioSeleccionado', 'ppc.categoria_precios_id', 'p.nombre', 'cp.nombre', 'cp.cliente_categoria_escala_id')
             ->selectRaw("vhp.factura_id,
                          vhp.producto_id,
                          vhp.seccion_id,
@@ -1528,9 +1529,11 @@ class ReportesComisionesGenerales extends Component
                          COALESCE(SUM(vhp.cantidad_s), SUM(vhp.cantidad)) as cantidad,
                          vhp.precio_unidad,
                          vhp.precioSeleccionado,
+                         vhp.idPrecioSeleccionado,
                          vhp.precios_producto_carga_id,
                          ppc.categoria_precios_id,
-                         cp.nombre as categoria_precio")
+                         cp.nombre as categoria_precio,
+                         cp.cliente_categoria_escala_id as categoria_cliente_precio_id")
             ->get()
             ->groupBy('factura_id');
 
@@ -1568,6 +1571,14 @@ class ReportesComisionesGenerales extends Component
             ->unique()
             ->values()
             ->all();
+        $resolverCategoriaComision = CategoriaComisionPorPrecio::cargar(
+            $lineasFactura->flatten(1)->pluck('producto_id'),
+            $clienteEscalaIds
+        );
+        $categoriaIds = array_values(array_unique(array_merge(
+            $categoriaIds,
+            $resolverCategoriaComision->categoriaIds()
+        )));
 
         $escalaMap = [];
         if (!empty($clienteEscalaIds) && !empty($categoriaIds)) {
@@ -1924,7 +1935,17 @@ class ReportesComisionesGenerales extends Component
 
                     $baseUnitaria = round($cantidad * $precioUnitario, 4);
                     $baseComisionable = round($cantidad * $precioParaComision, 4);
-                    $categoriaPrecioId = (int) ($linea->categoria_precios_id ?? 0);
+                    $categoriaAjustada = $resolverCategoriaComision->resolver(
+                        (int) ($factura->cliente_categoria_escala_id ?? 0),
+                        (int) ($linea->producto_id ?? 0),
+                        (int) ($linea->categoria_precios_id ?? 0),
+                        (int) ($linea->categoria_cliente_precio_id ?? 0),
+                        (string) ($linea->categoria_precio ?? 'N/A'),
+                        (string) ($linea->idPrecioSeleccionado ?? ''),
+                        $precioParaComision
+                    );
+                    $categoriaPrecioId = $categoriaAjustada['categoria_precios_id'];
+                    $categoriaPrecioNombre = $categoriaAjustada['categoria_precio'];
                     $lineaKey = implode('|', [
                         $facturaId,
                         (int) ($linea->producto_id ?? 0),
@@ -1949,7 +1970,6 @@ class ReportesComisionesGenerales extends Component
                     }
                     // ────────────────────────────────────────────────────────────────────────────
 
-                    $categoriaPrecioNombre = (string) ($linea->categoria_precio ?? ('Categoria #' . $categoriaPrecioId));
                     $productoNombre = (string) ($linea->producto ?? ('Producto #' . (int) $linea->producto_id));
 
                     $motivos = [];
@@ -2935,9 +2955,11 @@ class ReportesComisionesGenerales extends Component
                          COALESCE(vhp.cantidad, 0) as cantidad,
                          COALESCE(vhp.precio_unidad, 0) as precio_unidad,
                          COALESCE(vhp.precioSeleccionado, 0) as precio_seleccionado,
+                         vhp.idPrecioSeleccionado,
                          vhp.precios_producto_carga_id,
                          ppc.categoria_precios_id,
-                         cp.nombre as categoria_precio")
+                         cp.nombre as categoria_precio,
+                         cp.cliente_categoria_escala_id as categoria_cliente_precio_id")
             ->get()
             ->groupBy('factura_id');
 
@@ -2957,6 +2979,14 @@ class ReportesComisionesGenerales extends Component
             ->unique()
             ->values()
             ->all();
+        $resolverCategoriaComision = CategoriaComisionPorPrecio::cargar(
+            $lineasFactura->flatten(1)->pluck('producto_id'),
+            $clienteEscalaIds
+        );
+        $categoriaIds = array_values(array_unique(array_merge(
+            $categoriaIds,
+            $resolverCategoriaComision->categoriaIds()
+        )));
 
         $escalaMap = [];
         if (!empty($clienteEscalaIds) && !empty($categoriaIds)) {
@@ -2987,7 +3017,16 @@ class ReportesComisionesGenerales extends Component
                 $baseUnitaria = round($cantidad * $precioUnidad, 4);
                 $basePrecioSeleccionado = round($cantidad * $precioParaBase, 4);
 
-                $categoriaPrecioId = (int) ($linea->categoria_precios_id ?? 0);
+                $categoriaAjustada = $resolverCategoriaComision->resolver(
+                    (int) $filaFactura['cliente_categoria_escala_id'],
+                    (int) ($linea->producto_id ?? 0),
+                    (int) ($linea->categoria_precios_id ?? 0),
+                    (int) ($linea->categoria_cliente_precio_id ?? 0),
+                    (string) ($linea->categoria_precio ?? 'N/A'),
+                    (string) ($linea->idPrecioSeleccionado ?? ''),
+                    $precioParaBase
+                );
+                $categoriaPrecioId = $categoriaAjustada['categoria_precios_id'];
                 $escalaKey = (int) $filaFactura['rol_id'] . '|' . (int) $filaFactura['cliente_categoria_escala_id'] . '|' . $categoriaPrecioId;
                 $porcentaje = isset($escalaMap[$escalaKey]) ? (float) $escalaMap[$escalaKey] : null;
                 $comisionProyectada = $porcentaje !== null
@@ -3011,7 +3050,7 @@ class ReportesComisionesGenerales extends Component
                     'cantidad' => round($cantidad, 4),
                     'precio_unidad' => round($precioUnidad, 4),
                     'precio_seleccionado' => round($precioSeleccionado, 4),
-                    'categoria_precio' => (string) ($linea->categoria_precio ?? 'N/A'),
+                    'categoria_precio' => $categoriaAjustada['categoria_precio'],
                     'base_unitaria' => $baseUnitaria,
                     'base_precio_seleccionado' => $basePrecioSeleccionado,
                     'porcentaje_comision' => $porcentaje,
@@ -4224,17 +4263,20 @@ class ReportesComisionesGenerales extends Component
             ->leftJoin('producto as p', 'p.id', '=', 'vhp.producto_id')
             ->whereIn('vhp.factura_id', $facturaIdsFiltrados)
             ->groupBy('vhp.factura_id', 'vhp.producto_id', 'vhp.precios_producto_carga_id',
-                      'vhp.precio_unidad', 'vhp.precioSeleccionado', 'ppc.categoria_precios_id',
-                      'p.nombre', 'cp.nombre')
+                      'vhp.precio_unidad', 'vhp.precioSeleccionado', 'vhp.idPrecioSeleccionado',
+                      'ppc.categoria_precios_id', 'p.nombre', 'cp.nombre',
+                      'cp.cliente_categoria_escala_id')
             ->selectRaw("vhp.factura_id,
                          vhp.producto_id,
                          p.nombre                                            AS producto,
                          COALESCE(SUM(vhp.cantidad_s), SUM(vhp.cantidad))   AS cantidad,
                          vhp.precio_unidad,
                          vhp.precioSeleccionado,
+                         vhp.idPrecioSeleccionado,
                          vhp.precios_producto_carga_id,
                          ppc.categoria_precios_id,
-                         cp.nombre                                           AS categoria_precio")
+                         cp.nombre                                           AS categoria_precio,
+                         cp.cliente_categoria_escala_id                     AS categoria_cliente_precio_id")
             ->get()
             ->groupBy('factura_id');
 
@@ -4243,6 +4285,14 @@ class ReportesComisionesGenerales extends Component
             ->filter(fn($v) => (int) $v > 0)->unique()->values()->all();
         $categoriaIds = $lineasFactura->flatten(1)->pluck('categoria_precios_id')
             ->filter(fn($v) => (int) $v > 0)->unique()->values()->all();
+        $resolverCategoriaComision = CategoriaComisionPorPrecio::cargar(
+            $lineasFactura->flatten(1)->pluck('producto_id'),
+            $clienteEscalaIds
+        );
+        $categoriaIds = array_values(array_unique(array_merge(
+            $categoriaIds,
+            $resolverCategoriaComision->categoriaIds()
+        )));
 
         $escalaMap = [];
         if (!empty($clienteEscalaIds) && !empty($categoriaIds)) {
@@ -4306,7 +4356,16 @@ class ReportesComisionesGenerales extends Component
                 $precioSeleccionado = (float) ($linea->precioSeleccionado ?? 0);
                 $precioUnitario     = (float) ($linea->precio_unidad ?? 0);
                 $precioParaComision = $precioSeleccionado > 0 ? $precioSeleccionado : $precioUnitario;
-                $catId              = (int) ($linea->categoria_precios_id ?? 0);
+                $categoriaAjustada  = $resolverCategoriaComision->resolver(
+                    $escalaClienteId,
+                    (int) ($linea->producto_id ?? 0),
+                    (int) ($linea->categoria_precios_id ?? 0),
+                    (int) ($linea->categoria_cliente_precio_id ?? 0),
+                    (string) ($linea->categoria_precio ?? ''),
+                    (string) ($linea->idPrecioSeleccionado ?? ''),
+                    $precioParaComision
+                );
+                $catId              = $categoriaAjustada['categoria_precios_id'];
 
                 $motivosLinea = [];
                 if (empty($linea->precios_producto_carga_id)) $motivosLinea[] = 'sin precios_producto_carga_id';
