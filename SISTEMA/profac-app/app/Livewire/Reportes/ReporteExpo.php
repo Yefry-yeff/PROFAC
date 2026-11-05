@@ -49,6 +49,7 @@ class ReporteExpo extends Component
     private array $cacheTipos = [];
     private array $cacheFacturasCotizacion = [];
     private array $estadosEntregaActuales = [];
+    private array $cacheEstadoEntregaFactura = [];
 
     public function mount()
     {
@@ -1197,8 +1198,36 @@ class ReporteExpo extends Component
         ";
     }
 
-    /** Ids (ofertas principales + secciones) de la Expo con un estado de entrega. */
-    private function idsPorEstadoEntrega(int $expoId, string $estado): array
+    /** Estado de entrega (ENTREGADA / PARCIALMENTE_DISTRIBUIDA / NO_ENTREGADA) de cada factura de la Expo. */
+    private function estadoEntregaPorFactura(int $expoId): array
+    {
+        if (isset($this->cacheEstadoEntregaFactura[$expoId])) {
+            return $this->cacheEstadoEntregaFactura[$expoId];
+        }
+        $facturas = $this->facturasPorCotizacion($expoId);
+        $estados = $this->estadosEntregaFacturas(array_merge(...array_values($facturas)));
+        $resultado = [];
+        foreach ($facturas as $ids) {
+            foreach ($ids as $id) {
+                $resultado[$id] = match ($estados[$id] ?? null) {
+                    'entregado' => self::ENTREGA_ENTREGADA,
+                    'parcial' => self::ENTREGA_PARCIAL,
+                    default => self::ENTREGA_NO_ENTREGADA,
+                };
+            }
+        }
+
+        return $this->cacheEstadoEntregaFactura[$expoId] = $resultado;
+    }
+
+    /** Ids de las facturas de la Expo que están en el estado de entrega indicado. */
+    private function facturasPorEstadoEntrega(int $expoId, string $estado): array
+    {
+        return array_keys(array_filter($this->estadoEntregaPorFactura($expoId), fn ($e) => $e === $estado)) ?: [0];
+    }
+
+    /** [cotizacion_id => [factura_id, ...]] con las facturas vigentes de la Expo. */
+    private function facturasPorCotizacion(int $expoId): array
     {
         if (!isset($this->cacheFacturasCotizacion[$expoId])) {
             $facturas = [];
@@ -1215,13 +1244,15 @@ class ReporteExpo extends Component
             }
             $this->cacheFacturasCotizacion[$expoId] = $facturas;
         }
-        $facturas = $this->cacheFacturasCotizacion[$expoId];
-        $estados = $this->estadosEntregaFacturas(array_merge(...array_values($facturas)));
-        $estadoFactura = fn (int $id) => match ($estados[$id] ?? null) {
-            'entregado' => self::ENTREGA_ENTREGADA,
-            'parcial' => self::ENTREGA_PARCIAL,
-            default => self::ENTREGA_NO_ENTREGADA,
-        };
+
+        return $this->cacheFacturasCotizacion[$expoId];
+    }
+
+    /** Ids (ofertas principales + secciones) de la Expo con un estado de entrega. */
+    private function idsPorEstadoEntrega(int $expoId, string $estado): array
+    {
+        $facturas = $this->facturasPorCotizacion($expoId);
+        $estadoFactura = $this->estadoEntregaPorFactura($expoId);
 
         // Oferta (con sus secciones) que tenga al menos una factura en ese estado.
         $ids = [];
@@ -1232,7 +1263,7 @@ class ReporteExpo extends Component
             $idsOferta = [$id, ...$info['secciones']];
             foreach ($idsOferta as $cotizacionId) {
                 foreach ($facturas[$cotizacionId] ?? [] as $facturaId) {
-                    if ($estadoFactura($facturaId) === $estado) {
+                    if (($estadoFactura[$facturaId] ?? null) === $estado) {
                         array_push($ids, ...$idsOferta);
                         continue 3;
                     }
@@ -1577,10 +1608,18 @@ class ReporteExpo extends Component
         ];
     }
 
-    /** Filtros de producto (marca, escala, producto) para la subconsulta de facturado de datosOfertas. */
+    /**
+     * Filtros de producto (marca, escala, producto) y de estado de entrega para
+     * la subconsulta de facturado de datosOfertas. Con estado de entrega solo
+     * se cuentan las facturas en ese estado.
+     */
     private function filtrosProductoFacturado(Request $r): string
     {
         $sql = '';
+        $estadoEntrega = strtoupper((string) $r->input('estado_entrega', ''));
+        if (in_array($estadoEntrega, self::ESTADOS_ENTREGA, true)) {
+            $sql .= ' AND f2.id IN (' . implode(',', $this->facturasPorEstadoEntrega($this->expoIdDesdeRequest($r), $estadoEntrega)) . ')';
+        }
         $marcas = $this->idsDesdeRequest($r, 'marca_ids', 'marca_id');
         if ($marcas) {
             $sql .= ' AND p2.marca_id IN (' . implode(',', $marcas) . ')';

@@ -400,11 +400,14 @@ class ReporteExpoOfertasTest extends TestCase
             ['id' => 3, 'estado_venta_id' => 1, 'total' => 10],
             ['id' => 4, 'estado_venta_id' => 1, 'total' => 10],
             ['id' => 5, 'estado_venta_id' => 1, 'total' => 10],
+            ['id' => 6, 'estado_venta_id' => 1, 'total' => 10],
         ]);
         DB::table('venta_has_producto')->insert([
             ['factura_id' => 3, 'cotizacion_has_producto_id' => 20, 'cantidad_s' => 1, 'sub_total_s' => 10],
             ['factura_id' => 4, 'cotizacion_has_producto_id' => 30, 'cantidad_s' => 1, 'sub_total_s' => 10],
             ['factura_id' => 5, 'cotizacion_has_producto_id' => 40, 'cantidad_s' => 1, 'sub_total_s' => 10],
+            // Factura 6 (oferta 20, sin envío): la oferta mezcla parcial y sin distribuir.
+            ['factura_id' => 6, 'cotizacion_has_producto_id' => 20, 'cantidad_s' => 1, 'sub_total_s' => 10],
         ]);
         DB::table('distribuciones_entrega')->insert([
             ['id' => 2, 'estado_id' => 2, 'equipo_entrega_id' => 1, 'fecha_programada' => '2026-11-07'],
@@ -427,17 +430,17 @@ class ReporteExpoOfertasTest extends TestCase
         $f = $resumen['facturabilidad'];
         $metricas = fn ($g) => [$g['num_entregadas'], $g['num_sin_entregar'], $g['num_parciales'], (float) $g['entrega_pct']];
         $this->assertSame([1, 0, 0, 100.0], $metricas($f['ganadoras']));
-        $this->assertSame([0, 2, 1, 0.0], $metricas($f['no_ganadoras']));
-        $this->assertSame([1, 2, 1, 25.0], $metricas($f['conjunto']));
+        $this->assertSame([0, 3, 1, 0.0], $metricas($f['no_ganadoras']));
+        $this->assertSame([1, 3, 1, 20.0], $metricas($f['conjunto']));
         foreach (['ganadoras', 'no_ganadoras', 'conjunto'] as $segmento) {
             $g = $f[$segmento];
             $this->assertSame($g['num_facturas'], $g['num_entregadas'] + $g['num_sin_entregar'] + $g['num_parciales'], $segmento);
         }
         $oferta20 = collect($resumen['ofertas'])->firstWhere('oferta_id', 20);
-        $this->assertSame([0, 0, 1, 0.0], $metricas($oferta20));
+        $this->assertSame([0, 1, 1, 0.0], $metricas($oferta20));
 
         $this->assertCount(1, $resumen['clientes']);
-        $this->assertSame([1, 2, 1, 25.0], $metricas($resumen['clientes'][0]));
+        $this->assertSame([1, 3, 1, 20.0], $metricas($resumen['clientes'][0]));
 
         $parciales = $reporte->tablaOfertas(new Request(['expo_id' => 7, 'estado_entrega' => 'PARCIALMENTE_DISTRIBUIDA']))->getData(true);
         $this->assertSame([20], array_column($parciales, 'oferta_id'));
@@ -445,6 +448,14 @@ class ReporteExpoOfertasTest extends TestCase
         $this->assertSame([10], array_column($entregadas, 'oferta_id'));
         $this->assertSame(1, $entregadas[0]['num_secciones']);
         $this->assertCount(4, $reporte->tablaOfertas(new Request(['expo_id' => 7, 'estado_entrega' => 'otro']))->getData(true));
+
+        // El filtro solo cuenta las facturas en ese estado, aunque la oferta tenga otras.
+        $sinDistribuir = $reporte->resumenOfertas(new Request(['expo_id' => 7, 'estado_entrega' => 'NO_ENTREGADA']))->getData(true);
+        $this->assertSame([0, 3, 0, 0.0], $metricas($sinDistribuir['facturabilidad']['conjunto']));
+        $this->assertSame(3, $sinDistribuir['facturabilidad']['conjunto']['num_facturas']);
+        $this->assertSame([0, 1, 0, 0.0], $metricas(collect($sinDistribuir['ofertas'])->firstWhere('oferta_id', 20)));
+        $soloParciales = $reporte->resumenOfertas(new Request(['expo_id' => 7, 'estado_entrega' => 'PARCIALMENTE_DISTRIBUIDA']))->getData(true);
+        $this->assertSame([0, 0, 1, 0.0], $metricas($soloParciales['facturabilidad']['conjunto']));
     }
 
     public function test_filtro_por_tipo_aplica_a_graficas_tablas_y_segmentos(): void
