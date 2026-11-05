@@ -47,6 +47,8 @@ class ReporteExpo extends Component
     private array $cacheVigentes = [];
     private array $cachePrincipales = [];
     private array $cacheTipos = [];
+    private array $cacheFacturasCotizacion = [];
+    private array $estadosEntregaActuales = [];
 
     public function mount()
     {
@@ -307,6 +309,10 @@ class ReporteExpo extends Component
         $tipo = strtoupper((string) $r->input('tipo_oferta', ''));
         if (in_array($tipo, [self::TIPO_GANADORA, self::TIPO_NO_GANADORA, self::TIPO_NO_GANADORA_CON_SECCIONES], true)) {
             $sql .= ' AND c.id IN (' . implode(',', $this->idsPorTipoOferta($this->expoIdDesdeRequest($r), $tipo)) . ')';
+        }
+        $estadoEntrega = strtoupper((string) $r->input('estado_entrega', ''));
+        if (in_array($estadoEntrega, self::ESTADOS_ENTREGA, true)) {
+            $sql .= ' AND c.id IN (' . implode(',', $this->idsPorEstadoEntrega($this->expoIdDesdeRequest($r), $estadoEntrega)) . ')';
         }
         $descartadas = $this->idsDescartados($this->expoIdDesdeRequest($r));
         if ($descartadas) {
@@ -1031,6 +1037,10 @@ class ReporteExpo extends Component
         if ($r->estado && in_array($r->estado, self::ESTADOS_VALIDOS, true)) {
             $partes[] = 'Estado: ' . EtiquetasExpo::estado($r->estado);
         }
+        $estadoEntrega = strtoupper((string) $r->input('estado_entrega', ''));
+        if (in_array($estadoEntrega, self::ESTADOS_ENTREGA, true)) {
+            $partes[] = 'Entrega: ' . mb_strtolower(EtiquetasExpo::estado($estadoEntrega));
+        }
         foreach ([
             ['marca_ids', 'marca_id', 'marca', 'nombre', 'Marca'],
             ['escala_ids', 'escala_id', 'categoria_precios', 'nombre', 'Escala'],
@@ -1071,6 +1081,167 @@ class ReporteExpo extends Component
     public const TIPO_GANADORA = 'GANADORA';
     public const TIPO_NO_GANADORA = 'NO_GANADORA';
     public const TIPO_NO_GANADORA_CON_SECCIONES = 'NO_GANADORA_CON_SECCIONES';
+
+    public const ENTREGA_ENTREGADA = 'ENTREGADA';
+    public const ENTREGA_PARCIAL = 'PARCIALMENTE_DISTRIBUIDA';
+    public const ENTREGA_NO_ENTREGADA = 'NO_ENTREGADA';
+    private const ESTADOS_ENTREGA = [self::ENTREGA_ENTREGADA, self::ENTREGA_PARCIAL, self::ENTREGA_NO_ENTREGADA];
+
+    /**
+     * Estado del último envío activo (no anulado ni cancelado) de cada
+     * factura: entregado, parcial o sin_entrega. Las facturas sin envío no
+     * aparecen y cuentan como no distribuidas.
+     */
+    private function estadosEntregaFacturas(array $facturaIds): array
+    {
+        $facturaIds = array_values(array_unique(array_filter(array_map('intval', $facturaIds))));
+        $estados = [];
+        foreach (array_chunk($facturaIds, 1000) as $lote) {
+            DB::table('distribuciones_entrega_facturas as def')
+                ->joinSub(
+                    DB::table('distribuciones_entrega_facturas as def2')
+                        ->join('distribuciones_entrega as d', 'd.id', '=', 'def2.distribucion_entrega_id')
+                        ->where('def2.estado_entrega', '<>', 'anulada')
+                        ->where('d.estado_id', '<>', 4)
+                        ->whereIn('def2.factura_id', $lote)
+                        ->groupBy('def2.factura_id')
+                        ->selectRaw('def2.factura_id, MAX(def2.id) AS ultimo_id'),
+                    'ult',
+                    'ult.ultimo_id',
+                    '=',
+                    'def.id'
+                )
+                ->get(['def.factura_id', 'def.estado_entrega'])
+                ->each(function ($row) use (&$estados) {
+                    $estados[(int) $row->factura_id] = $row->estado_entrega;
+                });
+        }
+
+        return $estados;
+    }
+
+    /**
+     * Conteo de facturas por estado de entrega (último envío activo):
+     * distribuidas (entregado), parciales (no se distribuyeron todos los
+     * productos) y sin distribuir (pendientes o sin envío). Las tres suman
+     * el total de facturas.
+     */
+    private function conteoEntregaFacturas(array $facturaIds): array
+    {
+        $conteo = ['num_entregadas' => 0, 'num_parciales' => 0, 'num_sin_entregar' => 0];
+        foreach (array_unique($facturaIds) as $id) {
+            $estado = $this->estadosEntregaActuales[$id] ?? null;
+            $conteo[$estado === 'entregado' ? 'num_entregadas' : ($estado === 'parcial' ? 'num_parciales' : 'num_sin_entregar')]++;
+        }
+        $total = array_sum($conteo);
+
+        return $conteo + [
+            'num_facturas_entrega' => $total,
+            'entrega_pct' => $total > 0 ? round(($conteo['num_entregadas'] / $total) * 100, 2) : 0,
+        ];
+    }
+
+    /**
+     * Estado de entrega de una oferta según sus facturas: ENTREGADA si todas
+     * se entregaron completas, NO_ENTREGADA si ninguna tiene productos
+     * distribuidos y PARCIALMENTE_DISTRIBUIDA si no se distribuyeron todos
+     * los productos facturados. Null cuando la oferta no tiene facturas.
+     */
+    private function estadoEntregaOferta(array $facturaIds, array $estados): ?string
+    {
+        $facturaIds = array_unique($facturaIds);
+        if (!$facturaIds) {
+            return null;
+        }
+        $entregadas = 0;
+        $parciales = 0;
+        foreach ($facturaIds as $id) {
+            $estado = $estados[$id] ?? null;
+            if ($estado === 'entregado') {
+                $entregadas++;
+            } elseif ($estado === 'parcial') {
+                $parciales++;
+            }
+        }
+
+        if ($entregadas === count($facturaIds)) {
+            return self::ENTREGA_ENTREGADA;
+        }
+
+        return $entregadas + $parciales === 0 ? self::ENTREGA_NO_ENTREGADA : self::ENTREGA_PARCIAL;
+    }
+
+    /**
+     * Líneas de factura resueltas a su línea de oferta: directas o a través
+     * de la prefactura (producto + índice) de una cotización de la Expo.
+     */
+    private function lineasFacturadasSql(int $expoId): string
+    {
+        return "
+            SELECT v2.*, v2.cotizacion_has_producto_id AS chp_id_resuelta, NULL AS cotizacion_id_prefactura
+            FROM venta_has_producto v2
+            WHERE v2.cotizacion_has_producto_id IS NOT NULL
+
+            UNION ALL
+
+            SELECT v2.*, php_fact2.cotizacion_has_producto_id AS chp_id_resuelta, pf_fact2.cotizacion_id AS cotizacion_id_prefactura
+            FROM venta_has_producto v2
+            INNER JOIN prefactura_auditoria pa_fact2 ON pa_fact2.factura_id = v2.factura_id
+            INNER JOIN prefactura pf_fact2 ON pf_fact2.id = pa_fact2.prefactura_id
+            INNER JOIN prefactura_has_producto php_fact2
+                ON php_fact2.prefactura_id = pf_fact2.id
+               AND php_fact2.producto_id = v2.producto_id
+               AND php_fact2.indice = v2.indice
+            WHERE v2.cotizacion_has_producto_id IS NULL
+              AND pf_fact2.cotizacion_id IN ({$this->inExpo($expoId)})
+        ";
+    }
+
+    /** Ids (ofertas principales + secciones) de la Expo con un estado de entrega. */
+    private function idsPorEstadoEntrega(int $expoId, string $estado): array
+    {
+        if (!isset($this->cacheFacturasCotizacion[$expoId])) {
+            $facturas = [];
+            foreach (DB::select("
+                SELECT DISTINCT chp2.cotizacion_id, f2.id AS factura_id
+                FROM cotizacion_has_producto chp2
+                INNER JOIN ({$this->lineasFacturadasSql($expoId)}) vhp2
+                    ON vhp2.chp_id_resuelta = chp2.id
+                   AND (vhp2.cotizacion_id_prefactura IS NULL OR vhp2.cotizacion_id_prefactura = chp2.cotizacion_id)
+                INNER JOIN factura f2 ON f2.id = vhp2.factura_id AND f2.estado_venta_id = 1
+                WHERE chp2.cotizacion_id IN ({$this->inExpo($expoId)})
+            ") as $row) {
+                $facturas[(int) $row->cotizacion_id][] = (int) $row->factura_id;
+            }
+            $this->cacheFacturasCotizacion[$expoId] = $facturas;
+        }
+        $facturas = $this->cacheFacturasCotizacion[$expoId];
+        $estados = $this->estadosEntregaFacturas(array_merge(...array_values($facturas)));
+        $estadoFactura = fn (int $id) => match ($estados[$id] ?? null) {
+            'entregado' => self::ENTREGA_ENTREGADA,
+            'parcial' => self::ENTREGA_PARCIAL,
+            default => self::ENTREGA_NO_ENTREGADA,
+        };
+
+        // Oferta (con sus secciones) que tenga al menos una factura en ese estado.
+        $ids = [];
+        foreach ($this->tiposOfertaExpo($expoId) as $id => $info) {
+            if ($info['descartada']) {
+                continue;
+            }
+            $idsOferta = [$id, ...$info['secciones']];
+            foreach ($idsOferta as $cotizacionId) {
+                foreach ($facturas[$cotizacionId] ?? [] as $facturaId) {
+                    if ($estadoFactura($facturaId) === $estado) {
+                        array_push($ids, ...$idsOferta);
+                        continue 3;
+                    }
+                }
+            }
+        }
+
+        return $ids ?: [0];
+    }
 
     /**
      * Devuelve los ids de las ofertas cuyo ÚLTIMO movimiento en
@@ -1115,7 +1286,7 @@ class ReporteExpo extends Component
      * suma la oferta principal + sus secciones, porque cada factura referencia
      * líneas propias de la cotización facturada.
      */
-    private function agruparOfertas(array $filas, array $tiposCanonicos = []): array
+    private function agruparOfertas(array $filas, array $tiposCanonicos = [], array $estadosEntrega = []): array
     {
         $raices = [];
         $seccionesPorOrigen = [];
@@ -1152,6 +1323,7 @@ class ReporteExpo extends Component
                 'utilidad_pagada' => 0,
                 'factura_ids' => [],
                 'estado_facturacion' => 'NO_FACTURADA',
+                'estado_entrega' => null,
                 'origen_filtrado' => true,
             ]);
         }
@@ -1198,6 +1370,7 @@ class ReporteExpo extends Component
                 'nombre_seccion' => $s['nombre_seccion'],
                 'estado' => $s['estado_seccion'],
                 'estado_facturacion' => $s['estado_facturacion'],
+                'estado_entrega' => $s['estado_entrega'] ?? null,
                 'total_ofertado' => $s['total_ofertado'],
                 'total_facturado' => $s['total_facturado'],
                 'num_facturas' => $s['num_facturas'],
@@ -1215,6 +1388,7 @@ class ReporteExpo extends Component
                     'nombre_seccion' => 'Productos sin sección',
                     'estado' => null,
                     'estado_facturacion' => $raiz['estado_facturacion'],
+                    'estado_entrega' => $raiz['estado_entrega'] ?? null,
                     'total_ofertado' => $raiz['total_ofertado'],
                     'total_facturado' => $raiz['total_facturado'],
                     'num_facturas' => $raiz['num_facturas'],
@@ -1231,6 +1405,7 @@ class ReporteExpo extends Component
                     'nombre_seccion' => 'Productos sin factura',
                     'estado' => null,
                     'estado_facturacion' => 'NO_FACTURADA',
+                    'estado_entrega' => null,
                     'total_ofertado' => round(max($totalOfertado - $totalFacturado, 0), 2),
                     'total_facturado' => 0,
                     'num_facturas' => 0,
@@ -1242,7 +1417,7 @@ class ReporteExpo extends Component
 
             $utilidad = $totalOfertado - (float) $raiz['total_costo_oferta'];
 
-            $resultado[] = [
+            $resultado[] = array_merge([
                 'oferta_id' => $raiz['oferta_id'],
                 'flujo_id' => $raiz['flujo_id'],
                 'tipo' => $tipo,
@@ -1257,6 +1432,7 @@ class ReporteExpo extends Component
                 'numero_seccion' => null,
                 'nombre_seccion' => null,
                 'estado_facturacion' => $estadoFacturacion,
+                'estado_entrega' => $this->estadoEntregaOferta($facturaIds, $estadosEntrega),
                 'num_facturas' => count($facturaIds),
                 'factura_ids' => $facturaIds,
                 'total_ofertado' => round($totalOfertado, 2),
@@ -1272,7 +1448,7 @@ class ReporteExpo extends Component
                 'avance_pct' => $totalOfertado > 0 ? round(($totalFacturado / $totalOfertado) * 100, 2) : 0,
                 'num_secciones' => count($secciones),
                 'secciones' => $seccionesSalida,
-            ];
+            ], $this->conteoEntregaFacturas($facturaIds));
         }
 
         $orden = [self::TIPO_GANADORA => 0, self::TIPO_NO_GANADORA_CON_SECCIONES => 1, self::TIPO_NO_GANADORA => 2];
@@ -1338,7 +1514,11 @@ class ReporteExpo extends Component
                 'utilidad_a_ganar' => 0.0,
                 'total_pagado' => 0.0,
                 'utilidad_pagada' => 0.0,
+                'factura_ids' => [],
             ];
+            foreach ($o['factura_ids'] as $facturaId) {
+                $clientes[$claveCliente]['factura_ids'][$facturaId] = true;
+            }
             $clientes[$claveCliente]['num_ofertas']++;
             $clientes[$claveCliente][$o['tipo'] === self::TIPO_GANADORA ? 'ganadoras' : 'no_ganadoras']++;
             $clientes[$claveCliente]['num_secciones'] += $o['num_secciones'];
@@ -1360,10 +1540,15 @@ class ReporteExpo extends Component
             $g['facturabilidad_pct'] = $g['total_ofertado'] > 0
                 ? round(($g['total_facturado'] / $g['total_ofertado']) * 100, 2)
                 : 0;
+            $g += $this->conteoEntregaFacturas(array_keys($g['factura_ids']));
             return $g;
         };
 
-        $clientes = array_map($cerrar, array_values($clientes));
+        $clientes = array_map(function ($c) use ($cerrar) {
+            $c = $cerrar($c);
+            unset($c['factura_ids']);
+            return $c;
+        }, array_values($clientes));
         usort($clientes, fn ($a, $b) => $b['num_ofertas'] <=> $a['num_ofertas']
             ?: $b['total_ofertado'] <=> $a['total_ofertado']
             ?: strcmp((string) $a['cliente'], (string) $b['cliente']));
@@ -1465,24 +1650,7 @@ class ReporteExpo extends Component
                        SUM(vhp2.sub_total_s * $ratioPagadoExpr) AS total_pagado,
                        SUM((vhp2.sub_total_s - $costoBaseExpr * vhp2.cantidad_s) * $ratioPagadoExpr) AS utilidad_pagada
                 FROM cotizacion_has_producto chp2
-                INNER JOIN (
-                    SELECT v2.*, v2.cotizacion_has_producto_id AS chp_id_resuelta, NULL AS cotizacion_id_prefactura
-                    FROM venta_has_producto v2
-                    WHERE v2.cotizacion_has_producto_id IS NOT NULL
-
-                    UNION ALL
-
-                    SELECT v2.*, php_fact2.cotizacion_has_producto_id AS chp_id_resuelta, pf_fact2.cotizacion_id AS cotizacion_id_prefactura
-                    FROM venta_has_producto v2
-                    INNER JOIN prefactura_auditoria pa_fact2 ON pa_fact2.factura_id = v2.factura_id
-                    INNER JOIN prefactura pf_fact2 ON pf_fact2.id = pa_fact2.prefactura_id
-                    INNER JOIN prefactura_has_producto php_fact2
-                        ON php_fact2.prefactura_id = pf_fact2.id
-                       AND php_fact2.producto_id = v2.producto_id
-                       AND php_fact2.indice = v2.indice
-                    WHERE v2.cotizacion_has_producto_id IS NULL
-                      AND pf_fact2.cotizacion_id IN ({$this->inExpo($expoId)})
-                ) vhp2 ON vhp2.chp_id_resuelta = chp2.id
+                INNER JOIN ({$this->lineasFacturadasSql($expoId)}) vhp2 ON vhp2.chp_id_resuelta = chp2.id
                       AND (vhp2.cotizacion_id_prefactura IS NULL OR vhp2.cotizacion_id_prefactura = chp2.cotizacion_id)
                 INNER JOIN factura f2 ON f2.id = vhp2.factura_id AND f2.estado_venta_id = 1
                 LEFT JOIN aplicacion_pagos ap2 ON ap2.factura_id = f2.id AND ap2.estado = 1
@@ -1546,7 +1714,14 @@ class ReporteExpo extends Component
             ];
         }, $rows);
 
-        return $this->agruparOfertas($filas, $this->tiposOfertaExpo($expoId));
+        $estadosEntrega = $this->estadosEntregaFacturas(array_merge(...array_column($filas, 'factura_ids')));
+        $this->estadosEntregaActuales = $estadosEntrega;
+        foreach ($filas as &$fila) {
+            $fila['estado_entrega'] = $this->estadoEntregaOferta($fila['factura_ids'], $estadosEntrega);
+        }
+        unset($fila);
+
+        return $this->agruparOfertas($filas, $this->tiposOfertaExpo($expoId), $estadosEntrega);
     }
 
     public function tablaOfertas(Request $r)
@@ -1576,6 +1751,7 @@ class ReporteExpo extends Component
         $definiciones = [
             'Ganadoras: ofertas marcadas como ganadoras en su flujo, con sus secciones y facturas. No ganadoras: el resto; se omiten las alternativas sin secciones de un flujo que ya tiene ganadora.',
             'Montos sin ISV. Utilidad a ganar = ofertado − costo. Pagado = abonos aplicados a las facturas, prorrateados sin ISV. Utilidad ganada = parte cobrada de la utilidad facturada.',
+            'Entrega (por factura, según su último envío activo): Distribuidas = facturas entregadas; Parciales = facturas a las que no se les distribuyeron todos los productos; Sin distribuir = facturas pendientes o sin envío. Las tres suman el total de facturas. % Entrega = distribuidas ÷ facturas. Estado de la oferta: Entregada = todas sus facturas distribuidas; Parcialmente distribuida = algunas; No entregada = ninguna.',
         ];
 
         $columnasMontos = [
@@ -1588,6 +1764,12 @@ class ReporteExpo extends Component
             ['titulo' => 'Pagado', 'formato' => 'moneda', 'total' => 'suma', 'ancho' => 16],
             ['titulo' => 'Utilidad ganada', 'formato' => 'moneda', 'total' => 'suma', 'ancho' => 16],
         ];
+        $columnasEntrega = [
+            ['titulo' => 'Distribuidas', 'clave' => 'distribuidas', 'formato' => 'entero', 'total' => 'suma', 'ancho' => 12],
+            ['titulo' => 'Sin distribuir', 'clave' => 'sin_distribuir', 'formato' => 'entero', 'total' => 'suma', 'ancho' => 12],
+            ['titulo' => 'Parciales', 'clave' => 'parciales', 'formato' => 'entero', 'total' => 'suma', 'ancho' => 12],
+            ['titulo' => '% Entrega', 'formato' => 'pct', 'total' => ['ratio', 'distribuidas', ['distribuidas', 'sin_distribuir', 'parciales']], 'ancho' => 11],
+        ];
 
         $clientes = new HojaTablaExpo('Clientes', 'Reporte Expo · Ofertas por cliente', $info, array_merge([
             ['titulo' => 'Cliente', 'ancho' => 40],
@@ -1595,11 +1777,12 @@ class ReporteExpo extends Component
             ['titulo' => 'Ganadoras', 'formato' => 'entero', 'total' => 'suma', 'ancho' => 11],
             ['titulo' => 'No ganadoras', 'formato' => 'entero', 'total' => 'suma', 'ancho' => 11],
             ['titulo' => 'Secciones', 'formato' => 'entero', 'total' => 'suma', 'ancho' => 11],
-        ], $columnasMontos, $columnasPagos), array_map(fn ($c) => [
+        ], $columnasMontos, $columnasPagos, $columnasEntrega), array_map(fn ($c) => [
             $c['cliente'] ?: 'Sin nombre', $c['num_ofertas'], $c['ganadoras'], $c['no_ganadoras'], $c['num_secciones'],
             $c['total_ofertado'], $c['total_facturado'], $c['facturabilidad_pct'], $c['utilidad_a_ganar'],
             $c['total_pagado'], $c['utilidad_pagada'],
-        ], $resumen['clientes']), array_filter([$notaSecciones]));
+            $c['num_entregadas'], $c['num_sin_entregar'], $c['num_parciales'], $c['entrega_pct'],
+        ], $resumen['clientes']), array_merge(array_filter([$notaSecciones]), [$definiciones[2]]));
 
         $columnasMontos[2]['titulo'] = '% Avance';
         $hojaOfertas = new HojaTablaExpo('Ofertas', 'Reporte Expo · Ofertas', $info, array_merge([
@@ -1617,13 +1800,17 @@ class ReporteExpo extends Component
             ['titulo' => 'Margen %', 'formato' => 'pct', 'total' => ['ratio', 'utilidad', 'ofertado'], 'ancho' => 11],
             ['titulo' => 'Descuento', 'formato' => 'moneda', 'total' => 'suma', 'ancho' => 15],
             ['titulo' => 'Utilidad facturada', 'formato' => 'moneda', 'total' => 'suma', 'ancho' => 16],
-        ], $columnasPagos), array_map(fn ($o) => [
+        ], $columnasPagos, $columnasEntrega, [
+            ['titulo' => 'Entrega', 'ancho' => 22, 'colores' => EtiquetasExpo::COLORES_ENTREGA],
+        ]), array_map(fn ($o) => [
             $o['oferta_id'], EtiquetasExpo::estado($o['tipo']), $o['cliente'], $o['flujo_id'], $o['num_secciones'],
             $o['asesor'], $o['teleasesor'], $o['fecha_emision'],
             EtiquetasExpo::estado($o['estado_facturacion']), $o['num_facturas'],
             $o['total_ofertado'], $o['total_facturado'], $o['avance_pct'], $o['utilidad'], $o['margen_pct'],
             $o['descuento'], $o['utilidad_facturada'], $o['total_pagado'], $o['utilidad_pagada'],
-        ], $ofertas), array_filter([$notaSecciones]));
+            $o['num_entregadas'], $o['num_sin_entregar'], $o['num_parciales'], $o['num_facturas'] ? $o['entrega_pct'] : null,
+            EtiquetasExpo::estado($o['estado_entrega']),
+        ], $ofertas), array_merge(array_filter([$notaSecciones]), [$definiciones[2]]));
 
         $filasSecciones = [];
         foreach ($ofertas as $o) {
@@ -1636,6 +1823,7 @@ class ReporteExpo extends Component
                     empty($sec['es_raiz']) ? $sec['oferta_id'] : null, EtiquetasExpo::estado($sec['estado']),
                     EtiquetasExpo::estado($sec['estado_facturacion']), $sec['num_facturas'],
                     $sec['total_ofertado'], $sec['total_facturado'], $sec['total_pagado'], $sec['utilidad_pagada'],
+                    EtiquetasExpo::estado($sec['estado_entrega'] ?? null),
                 ];
             }
         }
@@ -1653,6 +1841,7 @@ class ReporteExpo extends Component
             ['titulo' => 'Facturado', 'formato' => 'moneda', 'total' => 'suma', 'ancho' => 17],
             ['titulo' => 'Pagado', 'formato' => 'moneda', 'total' => 'suma', 'ancho' => 16],
             ['titulo' => 'Utilidad ganada', 'formato' => 'moneda', 'total' => 'suma', 'ancho' => 16],
+            ['titulo' => 'Entrega', 'ancho' => 22, 'colores' => EtiquetasExpo::COLORES_ENTREGA],
         ], $filasSecciones, [
             '"Productos sin sección" muestra el total ofertado de la oferta principal; las secciones son partes de ese monto, por eso el ofertado no se totaliza. "Productos sin factura" es lo que falta por facturar.',
         ]);

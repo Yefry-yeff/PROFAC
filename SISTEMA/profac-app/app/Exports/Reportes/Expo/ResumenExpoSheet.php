@@ -36,6 +36,10 @@ class ResumenExpoSheet implements FromArray, WithTitle, WithEvents
         ['% Pagado de lo facturado', 'pagado_pct', 'pct'],
         ['Utilidad ganada de pagos', 'utilidad_pagada', 'moneda'],
         ['% Utilidad ganada', 'utilidad_ganada_pct', 'pct'],
+        ['Facturas distribuidas', 'num_entregadas', 'entero'],
+        ['Facturas sin distribuir', 'num_sin_entregar', 'entero'],
+        ['Facturas parcialmente distribuidas', 'num_parciales', 'entero'],
+        ['% Entrega (facturas)', 'entrega_pct', 'pct'],
     ];
 
     public function __construct(private array $facturabilidad, private array $info, private array $notas = [])
@@ -92,7 +96,7 @@ class ResumenExpoSheet implements FromArray, WithTitle, WithEvents
                     }
                 }
                 $this->bordes($s, "A{$encabezado}:D{$fila}");
-                $s->getColumnDimension('A')->setWidth(30);
+                $s->getColumnDimension('A')->setWidth(34);
 
                 $fila += 2;
                 $this->escribirBarra($s, $fila, 'DISTRIBUCIÓN DE OFERTAS', 7);

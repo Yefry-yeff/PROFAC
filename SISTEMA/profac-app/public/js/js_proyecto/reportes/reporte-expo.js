@@ -33,6 +33,7 @@ var reporteExpo = (function () {
         cliente_id: '',
         estado: '',
         tipo_oferta: '',
+        estado_entrega: '',
         fecha_desde: '',
         fecha_hasta: '',
         rentabilidad_base: 'ofertas',
@@ -102,6 +103,70 @@ var reporteExpo = (function () {
         if (el) el.textContent = txt;
     }
 
+    var ESTADOS_ENTREGA = {
+        ENTREGADA: { texto: 'Entregada', grafica: 'Distribuidas', clase: 'badge-success', color: '#15906b', campo: 'num_entregadas' },
+        PARCIALMENTE_DISTRIBUIDA: { texto: 'Parcialmente distribuida', grafica: 'Parcialmente distribuidas', clase: 'badge-warning', color: '#f0ad4e', campo: 'num_parciales' },
+        NO_ENTREGADA: { texto: 'No entregada', grafica: 'Sin distribuir', clase: 'badge-danger', color: '#dc3545', campo: 'num_sin_entregar' },
+    };
+
+    function badgeEntrega(estado, r) {
+        var e = ESTADOS_ENTREGA[estado];
+        if (!e) return '<span class="text-muted" title="Sin facturas">—</span>';
+        var detalle = r && r.num_facturas_entrega
+            ? 'Facturas: ' + fmtN(r.num_entregadas) + ' distribuidas, ' + fmtN(r.num_parciales) + ' parciales, ' + fmtN(r.num_sin_entregar) + ' sin distribuir'
+            : '';
+        return '<span class="badge ' + e.clase + '" title="' + esc(detalle) + '">' + esc(e.texto) + '</span>' +
+            (detalle ? ' <small class="text-muted">' + fmtN(r.num_entregadas) + '/' + fmtN(r.num_facturas_entrega) + '</small>' : '');
+    }
+
+    /* ─────────── Gráfica: entrega de facturas (dona, clic para filtrar) ──── */
+    // Cuenta facturas; al hacer clic filtra las ofertas que tengan al menos
+    // una factura en ese estado.
+    function pintarGraficaEntregas(f) {
+        destroyChart('chart-entregas-expo');
+        var contenedor = get('chart-entregas-expo');
+        if (!contenedor) return;
+        $(contenedor).empty();
+        var g = f.conjunto;
+        var claves = Object.keys(ESTADOS_ENTREGA);
+        if (!g.num_facturas_entrega) {
+            $(contenedor).html('<div class="text-center text-muted py-5">Sin facturas para los filtros seleccionados.</div>');
+            return;
+        }
+
+        charts['chart-entregas-expo'] = new ApexCharts(contenedor, {
+            chart: {
+                type: 'donut', height: 320,
+                events: {
+                    dataPointSelection: function (event, ctx, config) {
+                        var estado = claves[config.dataPointIndex];
+                        filtro.estado_entrega = filtro.estado_entrega === estado ? '' : estado;
+                        if (filtro.estado_entrega) filtroNombres.estado_entrega = ESTADOS_ENTREGA[estado].grafica;
+                        else delete filtroNombres.estado_entrega;
+                        recargarTodo();
+                    }
+                }
+            },
+            series: claves.map(function (k) { return g[ESTADOS_ENTREGA[k].campo] || 0; }),
+            labels: claves.map(function (k) { return ESTADOS_ENTREGA[k].grafica; }),
+            colors: claves.map(function (k) { return ESTADOS_ENTREGA[k].color; }),
+            legend: {
+                position: 'bottom',
+                formatter: function (nombre, opts) {
+                    var valor = opts.w.globals.series[opts.seriesIndex];
+                    return nombre + ': ' + fmtN(valor) + ' (' + (valor * 100 / g.num_facturas_entrega).toFixed(1) + '%)';
+                }
+            },
+            dataLabels: { enabled: true, formatter: function (pct) { return pct.toFixed(1) + '%'; }, dropShadow: { enabled: false } },
+            tooltip: { y: { formatter: function (valor) { return fmtN(valor) + ' facturas'; } } },
+            plotOptions: { pie: { donut: { labels: { show: true, total: {
+                show: true, label: fmtN(g.num_facturas_entrega) + ' facturas',
+                formatter: function () { return g.entrega_pct + '% entregado'; }
+            } } } } }
+        });
+        charts['chart-entregas-expo'].render();
+    }
+
     function destroyChart(id) {
         if (charts[id]) {
             try { charts[id].destroy(); } catch (e) {}
@@ -125,6 +190,7 @@ var reporteExpo = (function () {
             cliente_id: 'Cliente',
             estado: 'Estado',
             tipo_oferta: 'Tipo',
+            estado_entrega: 'Entrega',
         };
         var campos = {
             marca_id: '#expo-f-marca', escala_id: '#expo-f-escala', vendedor_id: '#expo-f-vendedor',
@@ -519,7 +585,8 @@ var reporteExpo = (function () {
     var ofertasPorCliente = {};
     var SEGMENTOS_EXPO = ['ganadoras', 'no_ganadoras', 'conjunto'];
     var KPIS_SEGMENTO = ['num_ofertas', 'num_secciones', 'num_facturas', 'total_ofertado', 'total_facturado',
-        'avance_pct', 'utilidad_a_ganar', 'total_pagado', 'utilidad_pagada'];
+        'avance_pct', 'utilidad_a_ganar', 'total_pagado', 'utilidad_pagada',
+        'num_entregadas', 'num_sin_entregar', 'num_parciales', 'entrega_pct'];
 
     // Misma llave que usa el backend para agrupar clientes en resumen-ofertas.
     function claveCliente(clienteId, nombre) {
@@ -543,6 +610,15 @@ var reporteExpo = (function () {
         setText(id('total_pagado-det'), g.pagado_pct + '% de lo facturado');
         setText(id('utilidad_pagada'), fmt(g.utilidad_pagada));
         setText(id('utilidad_pagada-det'), g.utilidad_ganada_pct + '% de la utilidad a ganar');
+        var pctDe = function (n) { return g.num_facturas_entrega ? (n * 100 / g.num_facturas_entrega).toFixed(1) + '% de las facturas' : ''; };
+        setText(id('num_entregadas'), fmtN(g.num_entregadas));
+        setText(id('num_entregadas-det'), pctDe(g.num_entregadas));
+        setText(id('num_sin_entregar'), fmtN(g.num_sin_entregar));
+        setText(id('num_sin_entregar-det'), pctDe(g.num_sin_entregar));
+        setText(id('num_parciales'), fmtN(g.num_parciales));
+        setText(id('num_parciales-det'), pctDe(g.num_parciales));
+        setText(id('entrega_pct'), g.entrega_pct + '%');
+        setText(id('entrega_pct-det'), fmtN(g.num_entregadas) + ' de ' + fmtN(g.num_facturas_entrega) + ' facturas');
     }
 
     function pintarSegmentos(f) {
@@ -583,6 +659,7 @@ var reporteExpo = (function () {
                 '<td class="text-right ' + utilidadClase + '">' + (r.margen_pct !== null ? r.margen_pct + '%' : 'N/D') + '</td>' +
                 '<td class="text-right">' + fmt(r.total_pagado) + '</td>' +
                 '<td class="text-right">' + fmt(r.utilidad_pagada) + '</td>' +
+                '<td>' + badgeEntrega(r.estado_entrega, r) + '</td>' +
                 '</tr>';
         }).join('');
         return '<div class="bi-ofertas-cliente"><table class="table table-sm table-bordered table-hover tabla-ofertas-cliente">' +
@@ -590,7 +667,7 @@ var reporteExpo = (function () {
             '<th>Asesor</th><th>Teleasesor</th><th>Fecha</th><th>Facturación</th><th class="text-right">Facturas</th>' +
             '<th class="text-right">Ofertado</th><th class="text-right">Facturado</th><th class="text-right">Avance %</th>' +
             '<th class="text-right">Utilidad a ganar</th><th class="text-right">Margen %</th><th class="text-right">Pagado</th>' +
-            '<th class="text-right">Utilidad ganada</th></tr></thead><tbody>' + filas + '</tbody></table></div>';
+            '<th class="text-right">Utilidad ganada</th><th>Entrega</th></tr></thead><tbody>' + filas + '</tbody></table></div>';
     }
 
     function cargarOfertasPorCliente() {
@@ -606,6 +683,7 @@ var reporteExpo = (function () {
             var rows = d.ofertas || [];
             pintarSegmentos(d.facturabilidad);
             pintarGraficaTipos(d.facturabilidad);
+            pintarGraficaEntregas(d.facturabilidad);
 
             ofertasPorClave = {};
             ofertasPorCliente = {};
@@ -637,13 +715,18 @@ var reporteExpo = (function () {
                     '<td class="text-right font-weight-bold ' + utilidadClase + '" data-order="' + c.utilidad_a_ganar + '">' + fmt(c.utilidad_a_ganar) + '</td>' +
                     '<td class="text-right" data-order="' + c.total_pagado + '">' + fmt(c.total_pagado) + '</td>' +
                     '<td class="text-right" data-order="' + c.utilidad_pagada + '">' + fmt(c.utilidad_pagada) + '</td>' +
+                    '<td class="text-right text-success" data-order="' + c.num_entregadas + '">' + fmtN(c.num_entregadas) + '</td>' +
+                    '<td class="text-right text-danger" data-order="' + c.num_sin_entregar + '">' + fmtN(c.num_sin_entregar) + '</td>' +
+                    '<td class="text-right text-warning" data-order="' + c.num_parciales + '">' + fmtN(c.num_parciales) + '</td>' +
+                    '<td class="text-right font-weight-bold" data-order="' + (c.num_facturas_entrega ? c.entrega_pct : -1) + '">' +
+                        (c.num_facturas_entrega ? c.entrega_pct + '%' : '<span class="text-muted">—</span>') + '</td>' +
                     '</tr>');
             });
             dtClientesOfertas = $('#tabla-expo-clientes-ofertas').DataTable({
                 pageLength: 10, lengthChange: true, order: [],
                 columnDefs: [
                     { targets: 0, orderable: false, searchable: false },
-                    { targets: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11], type: 'num' }
+                    { targets: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], type: 'num' }
                 ],
                 language: { url: '/js/plugins/dataTables/i18n/Spanish.json' }
             });
@@ -681,12 +764,13 @@ var reporteExpo = (function () {
             resumenItem('Facturas', fmtN(oferta.num_facturas)) +
             resumenItem('Total ofertado', fmt(oferta.total_ofertado)) +
             resumenItem('Total facturado', fmt(oferta.total_facturado)) +
-            resumenItem('Facturación', etiquetaEstadoFacturacion(oferta.estado_facturacion), estadoClase)
+            resumenItem('Facturación', etiquetaEstadoFacturacion(oferta.estado_facturacion), estadoClase) +
+            resumenItem('Entrega', badgeEntrega(oferta.estado_entrega, oferta))
         );
 
         var tbody = $('#tabla-secciones-flujo tbody').empty();
         if (!oferta.secciones || !oferta.secciones.length) {
-            tbody.append('<tr><td colspan="7" class="text-center text-muted py-3">No hay secciones registradas para esta oferta.</td></tr>');
+            tbody.append('<tr><td colspan="8" class="text-center text-muted py-3">No hay secciones registradas para esta oferta.</td></tr>');
         } else {
             oferta.secciones.forEach(function (s) {
                 var esPendiente = !!s.es_pendiente;
@@ -713,7 +797,8 @@ var reporteExpo = (function () {
                     '<td class="text-right">' + fmt(s.total_ofertado) + '</td>' +
                     '<td class="text-right">' + fmt(s.total_facturado) + '</td>' +
                     '<td class="text-right">' + (esPendiente ? '—' : fmt(s.total_pagado)) + '</td>' +
-                    '<td class="text-right ' + ((s.utilidad_pagada || 0) < 0 ? 'bi-loss' : 'bi-profit') + '">' + (esPendiente ? '—' : fmt(s.utilidad_pagada)) + '</td>'
+                    '<td class="text-right ' + ((s.utilidad_pagada || 0) < 0 ? 'bi-loss' : 'bi-profit') + '">' + (esPendiente ? '—' : fmt(s.utilidad_pagada)) + '</td>' +
+                    '<td>' + (esPendiente ? '<span class="text-muted">—</span>' : badgeEntrega(s.estado_entrega)) + '</td>'
                 );
                 tbody.append(fila);
             });
@@ -807,6 +892,17 @@ var reporteExpo = (function () {
         }
 
         facturas.forEach(function (f, indice) {
+            var estadoEnvio = {
+                no_enviada: { texto: 'Sin envío', clase: 'badge-secondary' },
+                sin_entrega: { texto: 'Enviada · pendiente', clase: 'badge-primary' },
+                parcial: { texto: 'Entrega parcial', clase: 'badge-warning' },
+                entregado: { texto: 'Entregada', clase: 'badge-success' }
+            }[f.envio_estado] || { texto: 'Sin envío', clase: 'badge-secondary' };
+            var detalleEnvio = f.envio_estado === 'no_enviada'
+                ? 'Sin envío asignado'
+                : 'Envío: ' + esc(estadoEnvio.texto) +
+                    (f.envio_equipo ? ' · ' + esc(f.envio_equipo) : '') +
+                    (f.envio_fecha_programada ? ' · ' + esc(f.envio_fecha_programada) : '');
             var lineas = '';
             f.productos.forEach(function (p) {
                 lineas += '<tr><td>' + esc(p.codigo) + '</td><td>' + esc(p.producto) + '</td><td>' + esc(p.marca) + '</td>' +
@@ -820,8 +916,9 @@ var reporteExpo = (function () {
             cont.append('<div class="card mb-2"><div class="card-header p-2 d-flex align-items-center">' +
                 '<button class="btn btn-link text-left p-0 font-weight-bold" type="button" data-toggle="collapse" data-target="#' + collapseId + '">' +
                 '<i class="fas fa-receipt mr-1"></i> Factura ' + esc(f.numero) + ' · ' + esc(f.fecha) + '</button>' +
-                '<span class="ml-auto badge badge-success">' + esc(f.estado) + '</span></div>' +
+                '<span class="ml-auto badge ' + estadoEnvio.clase + '">' + esc(estadoEnvio.texto) + '</span></div>' +
                 '<div id="' + collapseId + '" class="collapse ' + (indice === 0 ? 'show' : '') + '"><div class="card-body p-2">' +
+                '<div class="small text-muted mb-2">' + detalleEnvio + '</div>' +
                 '<div class="row small mb-2">' + infoOferta('Cliente', f.cliente) + infoOferta('Asesor', f.asesor) +
                 infoOferta('Teleasesor', f.teleasesor) + infoOferta('Total factura', fmt(f.total)) + '</div>' +
                 '<div class="bi-modal-summary mb-2">' + resumenItem('Subtotal factura', fmt(f.subtotal)) +
@@ -1005,6 +1102,8 @@ var reporteExpo = (function () {
         if (filtro.tipo_oferta === 'NO_GANADORA_CON_SECCIONES') filtro.tipo_oferta = 'NO_GANADORA';
         filtro.fecha_desde = query.get('fecha_desde') || '';
         filtro.fecha_hasta = query.get('fecha_hasta') || '';
+        filtro.estado_entrega = ESTADOS_ENTREGA[query.get('estado_entrega')] ? query.get('estado_entrega') : '';
+        if (filtro.estado_entrega) filtroNombres.estado_entrega = ESTADOS_ENTREGA[filtro.estado_entrega].texto;
         filtro.rentabilidad_base = query.get('rentabilidad_base') === 'facturas' ? 'facturas' : 'ofertas';
 
         $('#expo-selector').val(filtro.expo_id);

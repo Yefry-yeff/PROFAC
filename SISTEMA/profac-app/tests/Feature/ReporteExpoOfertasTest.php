@@ -86,6 +86,15 @@ class ReporteExpoOfertasTest extends TestCase
             $t->id(); $t->integer('estado_venta_id'); $t->date('fecha_emision')->default('2026-11-05');
             $t->decimal('total')->default(0);
         });
+        Schema::create('distribuciones_entrega', function (Blueprint $t) {
+            $t->id(); $t->integer('estado_id'); $t->integer('equipo_entrega_id')->nullable(); $t->date('fecha_programada')->nullable();
+        });
+        Schema::create('distribuciones_entrega_facturas', function (Blueprint $t) {
+            $t->id(); $t->integer('distribucion_entrega_id'); $t->integer('factura_id'); $t->string('estado_entrega');
+        });
+        Schema::create('equipos_entrega', function (Blueprint $t) {
+            $t->id(); $t->string('nombre_equipo');
+        });
         Schema::create('aplicacion_pagos', function (Blueprint $t) {
             $t->id(); $t->integer('factura_id'); $t->decimal('credito_abonos'); $t->integer('estado')->default(1);
         });
@@ -139,6 +148,13 @@ class ReporteExpoOfertasTest extends TestCase
         DB::table('venta_has_producto')->insert([
             ['factura_id' => 1, 'cotizacion_has_producto_id' => 11, 'cantidad_s' => 4, 'sub_total_s' => 40],
             ['factura_id' => 2, 'cotizacion_has_producto_id' => 11, 'cantidad_s' => 1, 'sub_total_s' => 10],
+        ]);
+        DB::table('equipos_entrega')->insert(['id' => 1, 'nombre_equipo' => 'Equipo prueba']);
+        DB::table('distribuciones_entrega')->insert([
+            'id' => 1, 'estado_id' => 2, 'equipo_entrega_id' => 1, 'fecha_programada' => '2026-11-06',
+        ]);
+        DB::table('distribuciones_entrega_facturas')->insert([
+            'id' => 1, 'distribucion_entrega_id' => 1, 'factura_id' => 1, 'estado_entrega' => 'entregado',
         ]);
     }
 
@@ -378,6 +394,59 @@ class ReporteExpoOfertasTest extends TestCase
         $this->assertEquals($kpis['total_facturado'], $conjunto['total_facturado']);
     }
 
+    public function test_entregas_por_oferta_segmento_cliente_y_filtro(): void
+    {
+        DB::table('factura')->insert([
+            ['id' => 3, 'estado_venta_id' => 1, 'total' => 10],
+            ['id' => 4, 'estado_venta_id' => 1, 'total' => 10],
+            ['id' => 5, 'estado_venta_id' => 1, 'total' => 10],
+        ]);
+        DB::table('venta_has_producto')->insert([
+            ['factura_id' => 3, 'cotizacion_has_producto_id' => 20, 'cantidad_s' => 1, 'sub_total_s' => 10],
+            ['factura_id' => 4, 'cotizacion_has_producto_id' => 30, 'cantidad_s' => 1, 'sub_total_s' => 10],
+            ['factura_id' => 5, 'cotizacion_has_producto_id' => 40, 'cantidad_s' => 1, 'sub_total_s' => 10],
+        ]);
+        DB::table('distribuciones_entrega')->insert([
+            ['id' => 2, 'estado_id' => 2, 'equipo_entrega_id' => 1, 'fecha_programada' => '2026-11-07'],
+            ['id' => 3, 'estado_id' => 4, 'equipo_entrega_id' => 1, 'fecha_programada' => '2026-11-08'],
+            ['id' => 4, 'estado_id' => 1, 'equipo_entrega_id' => 1, 'fecha_programada' => '2026-11-09'],
+        ]);
+        DB::table('distribuciones_entrega_facturas')->insert([
+            // Factura 3: parcial. Factura 4: su único envío está cancelado. Factura 5: programada sin entregar.
+            ['id' => 2, 'distribucion_entrega_id' => 2, 'factura_id' => 3, 'estado_entrega' => 'parcial'],
+            ['id' => 3, 'distribucion_entrega_id' => 3, 'factura_id' => 4, 'estado_entrega' => 'entregado'],
+            ['id' => 4, 'distribucion_entrega_id' => 4, 'factura_id' => 5, 'estado_entrega' => 'sin_entrega'],
+        ]);
+
+        $reporte = new ReporteExpo;
+        $resumen = $reporte->resumenOfertas(new Request(['expo_id' => 7]))->getData(true);
+        $estados = array_column($resumen['ofertas'], 'estado_entrega', 'oferta_id');
+        ksort($estados);
+        $this->assertSame([10 => 'ENTREGADA', 20 => 'PARCIALMENTE_DISTRIBUIDA', 30 => 'NO_ENTREGADA', 40 => 'NO_ENTREGADA'], $estados);
+
+        $f = $resumen['facturabilidad'];
+        $metricas = fn ($g) => [$g['num_entregadas'], $g['num_sin_entregar'], $g['num_parciales'], (float) $g['entrega_pct']];
+        $this->assertSame([1, 0, 0, 100.0], $metricas($f['ganadoras']));
+        $this->assertSame([0, 2, 1, 0.0], $metricas($f['no_ganadoras']));
+        $this->assertSame([1, 2, 1, 25.0], $metricas($f['conjunto']));
+        foreach (['ganadoras', 'no_ganadoras', 'conjunto'] as $segmento) {
+            $g = $f[$segmento];
+            $this->assertSame($g['num_facturas'], $g['num_entregadas'] + $g['num_sin_entregar'] + $g['num_parciales'], $segmento);
+        }
+        $oferta20 = collect($resumen['ofertas'])->firstWhere('oferta_id', 20);
+        $this->assertSame([0, 0, 1, 0.0], $metricas($oferta20));
+
+        $this->assertCount(1, $resumen['clientes']);
+        $this->assertSame([1, 2, 1, 25.0], $metricas($resumen['clientes'][0]));
+
+        $parciales = $reporte->tablaOfertas(new Request(['expo_id' => 7, 'estado_entrega' => 'PARCIALMENTE_DISTRIBUIDA']))->getData(true);
+        $this->assertSame([20], array_column($parciales, 'oferta_id'));
+        $entregadas = $reporte->tablaOfertas(new Request(['expo_id' => 7, 'estado_entrega' => 'ENTREGADA']))->getData(true);
+        $this->assertSame([10], array_column($entregadas, 'oferta_id'));
+        $this->assertSame(1, $entregadas[0]['num_secciones']);
+        $this->assertCount(4, $reporte->tablaOfertas(new Request(['expo_id' => 7, 'estado_entrega' => 'otro']))->getData(true));
+    }
+
     public function test_filtro_por_tipo_aplica_a_graficas_tablas_y_segmentos(): void
     {
         $reporte = new ReporteExpo;
@@ -514,6 +583,15 @@ class ReporteExpoOfertasTest extends TestCase
         $this->assertEquals(100, $primera[10]);
         $this->assertEquals(40, $primera[11]);
         $this->assertEqualsWithDelta(0.4, $primera[12], 0.0001);
+        $this->assertSame('Entrega', end($titulos));
+        $this->assertSame('Entregada', $ofertas->getCell(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($titulos)) . ($encabezado + 1))->getValue());
+
+        $clientes = $libro->getSheetByName('Clientes');
+        [$encCli, $titulosCli] = $this->filaConValor($clientes, 'Cliente');
+        $this->assertSame(['Utilidad ganada', 'Distribuidas', 'Sin distribuir', 'Parciales', '% Entrega'], array_slice($titulosCli, 10, 5));
+        $this->assertSame([1, 0, 0], array_map('intval', $clientes->rangeToArray('L' . ($encCli + 1) . ':N' . ($encCli + 1), null, false, false)[0]));
+        [$totalCli] = $this->filaConValor($clientes, 'TOTAL');
+        $this->assertStringContainsString('/(SUBTOTAL(109,L', $clientes->getCell('O' . $totalCli)->getValue());
         [$filaTotal] = $this->filaConValor($ofertas, 'TOTAL');
         $this->assertStringStartsWith('=SUBTOTAL(109,', $ofertas->getCell('K' . $filaTotal)->getValue());
         $this->assertSame('"L "#,##0.00;[Red]-"L "#,##0.00', $ofertas->getStyle('K' . ($encabezado + 1))->getNumberFormat()->getFormatCode());

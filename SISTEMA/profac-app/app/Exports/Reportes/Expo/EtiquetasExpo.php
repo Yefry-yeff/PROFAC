@@ -18,6 +18,15 @@ class EtiquetasExpo
         'PARCIALMENTE_FACTURADA' => 'Parcialmente facturada',
         'NO_FACTURADA' => 'No facturada',
         'DEVUELTA_SECCION' => 'Devuelta a sección',
+        'ENTREGADA' => 'Entregada',
+        'PARCIALMENTE_DISTRIBUIDA' => 'Parcialmente distribuida',
+        'NO_ENTREGADA' => 'No entregada',
+    ];
+
+    public const COLORES_ENTREGA = [
+        'Entregada' => '15803D',
+        'Parcialmente distribuida' => 'B45309',
+        'No entregada' => 'B91C1C',
     ];
 
     public const COLORES_TIPO = [

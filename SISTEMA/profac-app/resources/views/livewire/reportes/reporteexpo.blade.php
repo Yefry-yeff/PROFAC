@@ -167,6 +167,12 @@
             ['campo' => 'total_pagado', 'titulo' => 'Pagado'],
             ['campo' => 'utilidad_pagada', 'titulo' => 'Utilidad ganada de pagos'],
         ];
+        $kpisEntrega = [
+            ['campo' => 'num_entregadas', 'titulo' => 'Distribuidas', 'color' => 'text-success'],
+            ['campo' => 'num_sin_entregar', 'titulo' => 'Sin distribuir', 'color' => 'text-danger'],
+            ['campo' => 'num_parciales', 'titulo' => 'Parcialmente distribuidas', 'color' => 'text-warning'],
+            ['campo' => 'entrega_pct', 'titulo' => '% Entrega', 'color' => 'text-info'],
+        ];
     @endphp
     @foreach ($segmentosExpo as $segmento)
         <div class="mb-3 card border-left-{{ $segmento['color'] }}" id="seg-{{ $segmento['clave'] }}">
@@ -184,6 +190,18 @@
                         </div>
                     @endforeach
                 </div>
+                <div class="pt-2 row border-top">
+                    <div class="mb-2 col-12 col-xl-2 d-flex align-items-center">
+                        <span class="text-xs font-weight-bold text-muted text-uppercase"><i class="mr-1 fas fa-truck"></i>Entregas de facturas</span>
+                    </div>
+                    @foreach ($kpisEntrega as $kpi)
+                        <div class="mb-2 col-6 col-md-3 col-xl">
+                            <div class="mb-1 text-xs font-weight-bold text-muted text-uppercase">{{ $kpi['titulo'] }}</div>
+                            <div class="mb-0 h6 font-weight-bold {{ $kpi['color'] }}" id="seg-{{ $segmento['clave'] }}-{{ $kpi['campo'] }}">—</div>
+                            <small class="text-muted d-block" id="seg-{{ $segmento['clave'] }}-{{ $kpi['campo'] }}-det"></small>
+                        </div>
+                    @endforeach
+                </div>
                 @if ($segmento['clave'] === 'no_ganadoras')
                     <small class="text-muted" id="kpi-fact-otras"></small>
                 @endif
@@ -195,12 +213,18 @@
     <div class="row">
         <div class="mb-3 col-lg-6">
             <div class="card card-body h-100">
+                <h6 class="font-weight-bold">Entrega de facturas <small class="text-muted">(clic para filtrar)</small></h6>
+                <div id="chart-entregas-expo"></div>
+            </div>
+        </div>
+        <div class="mb-3 col-lg-6">
+            <div class="card card-body h-100">
                 <h6 class="font-weight-bold">Ofertas ganadoras vs no ganadoras <small class="text-muted">% de ofertas (clic para filtrar)</small></h6>
                 <div id="chart-estado"></div>
                 <small class="text-muted text-center d-block" id="chart-estado-nota"></small>
             </div>
         </div>
-        <div class="mb-3 col-lg-6">
+        <div class="mb-3 col-lg-12">
             <div class="card card-body h-100">
                 <h6 class="font-weight-bold">Evolución acumulada diaria: Oferta sin ISV vs Facturado</h6>
                 <div id="chart-evolucion-expo"></div>
@@ -262,6 +286,10 @@
                         <th class="text-right">Utilidad a ganar</th>
                         <th class="text-right">Pagado</th>
                         <th class="text-right">Utilidad ganada</th>
+                        <th class="text-right" title="Facturas entregadas">Distribuidas</th>
+                        <th class="text-right" title="Facturas pendientes o sin envío">Sin distribuir</th>
+                        <th class="text-right" title="Facturas a las que no se les distribuyeron todos los productos">Parciales</th>
+                        <th class="text-right" title="Facturas distribuidas ÷ total de facturas">% Entrega</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
@@ -317,7 +345,7 @@
                             <thead class="thead-light"><tr>
                                 <th>Sección</th><th>Estado</th>
                                 <th>Facturación</th><th class="text-right">Ofertado</th><th class="text-right">Facturado</th>
-                                <th class="text-right">Pagado</th><th class="text-right">Utilidad ganada</th>
+                                <th class="text-right">Pagado</th><th class="text-right">Utilidad ganada</th><th>Entrega</th>
                             </tr></thead><tbody></tbody>
                         </table>
                     </div>

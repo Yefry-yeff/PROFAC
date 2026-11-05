@@ -17,7 +17,7 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
  *
  * Una tabla se define con columnas:
  *   ['titulo' => 'Ofertado', 'clave' => 'ofertado', 'formato' => 'moneda',
- *    'ancho' => 16, 'total' => 'suma' | ['ratio', claveNumerador, claveDenominador],
+ *    'ancho' => 16, 'total' => 'suma' | ['ratio', claveNumerador, claveDenominador | [claves sumadas]],
  *    'colores' => ['Ganadora' => '15803D']]
  * Formatos: texto, id, entero, cantidad, moneda, pct (llega en escala 0-100) y fecha.
  * Los totales usan SUBTOTAL para que respeten el autofiltro de Excel.
@@ -226,7 +226,8 @@ trait EstiloExpo
                 $letra = Coordinate::stringFromColumnIndex($i + 1);
                 $formula = $total === 'suma'
                     ? '=' . $suma($letra)
-                    : '=IFERROR(' . $suma($letras[$total[1]]) . '/' . $suma($letras[$total[2]]) . ',0)';
+                    : '=IFERROR(' . $suma($letras[$total[1]]) . '/('
+                        . implode('+', array_map(fn ($clave) => $suma($letras[$clave]), (array) $total[2])) . '),0)';
                 $s->setCellValue($letra . $ultima, $formula);
                 $s->getStyle($letra . $ultima)->getNumberFormat()
                     ->setFormatCode($this->formatoExcel($col['formato'] ?? 'cantidad') ?? '#,##0.00');

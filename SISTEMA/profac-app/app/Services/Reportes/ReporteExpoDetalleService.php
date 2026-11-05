@@ -66,7 +66,19 @@ class ReporteExpoDetalleService
                 return $this->normalizarLineaOferta($linea);
             })->values();
 
-        $facturas = $this->facturasOferta($cotizacionId);
+        $cotizacionIds = [$cotizacionId];
+        if (!$oferta->oferta_origen_id) {
+            $cotizacionIds = array_merge(
+                $cotizacionIds,
+                DB::table('expo_oferta_seccion')
+                    ->where('cotizacion_origen_id', $cotizacionId)
+                    ->pluck('cotizacion_id')
+                    ->map(fn ($id) => (int) $id)
+                    ->all()
+            );
+        }
+
+        $facturas = $this->facturasOferta(array_values(array_unique($cotizacionIds)));
         $resumen = $this->resumenLineas($lineas->all());
         $cantidadOfertada = (float) $lineas->sum('cantidad');
         $cantidadFacturada = (float) collect($facturas)->sum('cantidad_aplicada');
@@ -244,12 +256,12 @@ class ReporteExpoDetalleService
         ];
     }
 
-    private function facturasOferta(int $cotizacionId): array
+    private function facturasOferta(array $cotizacionIds): array
     {
         $lineasPrefactura = DB::table('prefactura_auditoria as pa')
             ->join('prefactura as pf', 'pf.id', '=', 'pa.prefactura_id')
             ->join('prefactura_has_producto as php', 'php.prefactura_id', '=', 'pf.id')
-            ->where('pf.cotizacion_id', $cotizacionId)
+            ->whereIn('pf.cotizacion_id', $cotizacionIds)
             ->whereNotNull('pa.factura_id')
             ->whereNotNull('php.cotizacion_has_producto_id')
             ->select('pa.factura_id', 'php.cotizacion_has_producto_id', 'php.producto_id', 'php.indice')
@@ -266,14 +278,30 @@ class ReporteExpoDetalleService
             ->leftJoin('users as asesor', 'asesor.id', '=', 'f.vendedor')
             ->leftJoin('users as teleasesor', 'teleasesor.id', '=', 'f.users_id')
             ->leftJoin('estado_venta as ev', 'ev.id', '=', 'f.estado_venta_id')
+            ->leftJoinSub(
+                DB::table('distribuciones_entrega_facturas as def')
+                    ->join('distribuciones_entrega as d', 'd.id', '=', 'def.distribucion_entrega_id')
+                    ->where('def.estado_entrega', '<>', 'anulada')
+                    ->where('d.estado_id', '<>', 4)
+                    ->groupBy('def.factura_id')
+                    ->selectRaw('def.factura_id, MAX(def.id) as distribucion_factura_id'),
+                'envio_ultimo',
+                'envio_ultimo.factura_id',
+                '=',
+                'f.id'
+            )
+            ->leftJoin('distribuciones_entrega_facturas as envio_def', 'envio_def.id', '=', 'envio_ultimo.distribucion_factura_id')
+            ->leftJoin('distribuciones_entrega as envio_dist', 'envio_dist.id', '=', 'envio_def.distribucion_entrega_id')
+            ->leftJoin('equipos_entrega as envio_equipo', 'envio_equipo.id', '=', 'envio_dist.equipo_entrega_id')
             ->where('f.estado_venta_id', 1)
-            ->where(function ($query) use ($cotizacionId) {
-                $query->where('chp_direct.cotizacion_id', $cotizacionId)
+            ->where(function ($query) use ($cotizacionIds) {
+                $query->whereIn('chp_direct.cotizacion_id', $cotizacionIds)
                     ->orWhereNotNull('pfl.cotizacion_has_producto_id');
             })
             ->groupBy('f.id', 'f.cai', 'f.numero_factura', 'f.fecha_emision', 'f.nombre_cliente',
                 'f.sub_total', 'f.monto_descuento', 'f.isv', 'f.total', 'asesor.name',
-                'teleasesor.name', 'ev.descripcion')
+                'teleasesor.name', 'ev.descripcion', 'envio_def.estado_entrega',
+                'envio_dist.fecha_programada', 'envio_equipo.nombre_equipo')
             ->orderBy('f.fecha_emision')
             ->get([
                 'f.id', 'f.cai', 'f.numero_factura', 'f.fecha_emision', 'f.nombre_cliente',
@@ -281,6 +309,9 @@ class ReporteExpoDetalleService
                 DB::raw("COALESCE(asesor.name, 'Sin asignar') as asesor"),
                 DB::raw("COALESCE(teleasesor.name, 'Sin asignar') as teleasesor"),
                 DB::raw("COALESCE(ev.descripcion, 'Activa') as estado_factura"),
+                'envio_def.estado_entrega as envio_estado',
+                'envio_dist.fecha_programada as envio_fecha_programada',
+                'envio_equipo.nombre_equipo as envio_equipo',
                 DB::raw('SUM(COALESCE(NULLIF(vhp.cantidad_oferta_aplicada, 0), vhp.cantidad_s)) as cantidad_aplicada'),
                 DB::raw('SUM(vhp.sub_total_s) as subtotal_relacionado'),
                 DB::raw('SUM(vhp.isv_s) as isv_relacionado'),
@@ -309,7 +340,7 @@ class ReporteExpoDetalleService
             ->leftJoin('precios_producto_carga as ppc', 'ppc.id', '=', 'vhp.precios_producto_carga_id')
             ->leftJoin('precios_producto_carga as ppc_oferta', 'ppc_oferta.id', '=', 'chp.precios_producto_carga_id')
             ->whereIn('vhp.factura_id', $facturas->pluck('id'))
-            ->where('chp.cotizacion_id', $cotizacionId)
+            ->whereIn('chp.cotizacion_id', $cotizacionIds)
             ->groupBy('vhp.factura_id', 'chp.id', 'p.id', 'p.codigo_barra', 'p.nombre',
                 'm.nombre', 'vhp.precio_unidad')
             ->get([
@@ -368,6 +399,9 @@ class ReporteExpoDetalleService
                 'utilidad' => round($utilidad, 2),
                 'margen_pct' => $subtotal > 0 ? round(($utilidad / $subtotal) * 100, 2) : null,
                 'estado' => $factura->estado_factura,
+                'envio_estado' => $factura->envio_estado ?: 'no_enviada',
+                'envio_fecha_programada' => $factura->envio_fecha_programada,
+                'envio_equipo' => $factura->envio_equipo,
                 'cantidad_aplicada' => round((float) $factura->cantidad_aplicada, 4),
                 'productos' => $detalles->all(),
             ];
