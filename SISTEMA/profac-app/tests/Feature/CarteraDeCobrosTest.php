@@ -103,6 +103,32 @@ class CarteraDeCobrosTest extends TestCase
         }
     }
 
+    public function test_issue_date_range_is_inclusive_optional_on_each_side_and_validated(): void
+    {
+        $this->factura(1, ['fecha_emision' => '2026-01-31']);
+        $this->factura(2, ['fecha_emision' => '2026-02-01']);
+        $this->factura(3, ['fecha_emision' => '2026-02-28 15:30:00']);
+        $this->factura(4, ['fecha_emision' => '2026-03-01']);
+        $this->factura(5, ['fecha_emision' => null]);
+        $ids = fn (array $esperados) => fn ($detalle) => collect($detalle)->pluck('id')->sort()->values()->all() === $esperados;
+
+        $componente = Livewire::test(CarteraDeCobros::class)
+            ->assertViewHas('detalleCompleto', $ids([1, 2, 3, 4, 5]))
+            ->set('emisionDesde', '2026-02-01')->set('emisionHasta', '2026-02-28')
+            ->assertHasNoErrors()
+            ->assertViewHas('metricas', fn ($m) => $m['facturas'] === 2)
+            ->assertViewHas('detalleCompleto', $ids([2, 3]))
+            ->set('emisionHasta', '')->assertViewHas('detalleCompleto', $ids([2, 3, 4]))
+            ->set('emisionDesde', '')->set('emisionHasta', '2026-01-31')->assertViewHas('detalleCompleto', $ids([1]))
+            ->set('emisionDesde', '2026-03-01')
+            ->assertHasErrors(['emisionHasta'])->assertViewHas('detalleCompleto', $ids([]));
+
+        $componente->set('emisionDesde', 'no-fecha')->set('emisionHasta', '')
+            ->assertHasErrors(['emisionDesde'])
+            ->call('limpiar')->assertSet('emisionDesde', '')->assertSet('emisionHasta', '')
+            ->assertHasNoErrors()->assertViewHas('detalleCompleto', $ids([1, 2, 3, 4, 5]));
+    }
+
     public function test_current_balance_rules_include_unsynchronized_invoices_without_writes(): void
     {
         $this->factura(1, ['total' => 150], '60.00');
@@ -613,7 +639,7 @@ class CarteraDeCobrosTest extends TestCase
         $componente = Livewire::test(CarteraDeCobros::class)
             ->assertViewHas('clientes', fn ($c) => $c->count() === 28)
             ->assertViewHas('recuperacion', fn ($r) => $r['grupos']['cliente']->count() === 28)
-            ->call('descargar', 'detalle')->assertFileDownloaded('Cartera-detalle-2026-11-02.xlsx');
+            ->call('descargar', 'detalle')->assertFileDownloaded('Cartera vencida-detalle-2026-11-02.xlsx');
 
         $export = new \App\Exports\CarteraCobrosExport([
             ['Detalle', ['Cliente', 'Factura', 'Saldo'], [['=NO_ES_FORMULA', '000-001', 12.34]]],
@@ -623,13 +649,24 @@ class CarteraDeCobrosTest extends TestCase
         try {
             file_put_contents($archivo, base64_decode($componente->effects['download']['content']));
             $completo = \PhpOffice\PhpSpreadsheet\IOFactory::load($archivo);
-            $this->assertSame(29, $completo->getSheetByName('Detalle cartera')->getHighestRow());
+            $detalle = $completo->getSheetByName('Detalle cartera');
+            $this->assertSame(30, $detalle->getHighestRow());
+            $this->assertEquals(['TOTAL', '28 facturas', 2800], [$detalle->getCell('A30')->getValue(), $detalle->getCell('B30')->getValue(), $detalle->getCell('F30')->getValue()]);
+            $this->assertTrue($detalle->getStyle('A30')->getFont()->getBold());
             $this->assertNotNull($completo->getSheetByName('Criterios'));
-            $componente->call('descargar')->assertFileDownloaded('Cartera-todas-2026-11-02.xlsx');
+            $componente->call('descargar')->assertFileDownloaded('Cartera vencida-todas-2026-11-02.xlsx');
+            $componente->call('seleccionar', 'estado', 'corriente')->call('descargar', 'detalle')->assertFileDownloaded('Cartera por vencer-detalle-2026-11-02.xlsx')
+                ->call('seleccionar', 'estado', '')->call('seleccionar', 'tramo', 'corriente')->call('descargar')->assertFileDownloaded('Cartera por vencer-todas-2026-11-02.xlsx')
+                ->call('limpiar')->call('descargar');
             file_put_contents($archivo, base64_decode($componente->effects['download']['content']));
             $completo = \PhpOffice\PhpSpreadsheet\IOFactory::load($archivo);
             $this->assertSame(16, $completo->getSheetCount());
-            $this->assertSame(29, $completo->getSheetByName('Recuperacion cliente')->getHighestRow());
+            $this->assertSame(30, $completo->getSheetByName('Recuperacion cliente')->getHighestRow());
+            foreach (['Clientes' => 'B', 'Antiguedad' => 'B', 'Vencimientos' => 'B', 'Recuperacion cliente' => 'E'] as $hoja => $columna) {
+                $h = $completo->getSheetByName($hoja);
+                $this->assertSame('TOTAL', $h->getCell('A' . $h->getHighestRow())->getValue());
+                $this->assertEquals(2800, $h->getCell($columna . $h->getHighestRow())->getValue());
+            }
             file_put_contents($archivo, $bytes);
             $libro = \PhpOffice\PhpSpreadsheet\IOFactory::load($archivo);
             $hoja = $libro->getActiveSheet();
@@ -677,16 +714,17 @@ class CarteraDeCobrosTest extends TestCase
             ->set('mesA', '2024-02')->set('mesB', '2024-03')
             ->assertSet('inicio', '2024-02-01')->assertSet('fin', '2024-02-29')
             ->assertSet('compararInicio', '2024-03-01')->assertSet('compararFin', '2024-03-31')
+            ->assertSee('Recaudación · Febrero 2024')->assertSee('Comparación · Marzo 2024')->assertSee('Diferencia Febrero 2024 − Marzo 2024')->assertDontSee('Mes A')
             ->assertViewHas('recuperacion', fn ($r) => $r['comparacion'][0]['cobrado'] === 3000
                 && $r['comparacion'][1]['cobrado'] === 4000)
-            ->set('modoPeriodo', 'detalle')->set('fin', '2024-02-10')
+            ->set('modoPeriodo', 'detalle')->set('fin', '2024-02-10')->assertSee('1 al 10 de febrero 2024')
             ->assertViewHas('recuperacion', fn ($r) => $r['comparacion'][0]['cobrado'] === 1000)
             ->set('modoPeriodo', 'mensual')
             ->assertSet('fin', '2024-02-29')
             ->call('seleccionar', 'asesor', '1')->call('limpiar')
             ->assertSet('mesA', '2024-02')->assertSet('mesB', '2024-03')
             ->assertViewHas('recuperacion', fn ($r) => $r['comparacion'][0]['cobrado'] === 3000)
-            ->call('descargar', 'comparacion')->assertFileDownloaded('Cartera-comparacion-2026-11-02.xlsx');
+            ->call('descargar', 'comparacion')->assertFileDownloaded('Cartera vencida-comparacion-2026-11-02.xlsx');
         $archivo = tempnam(sys_get_temp_dir(), 'cartera-meses-');
         try {
             file_put_contents($archivo, base64_decode($componente->effects['download']['content']));

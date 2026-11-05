@@ -27,7 +27,7 @@ class CarteraCobrosExport implements Export, WithMultipleSheets
 
 class CarteraCobrosSheet extends DefaultValueBinder implements FromArray, WithTitle, WithStyles, WithCustomValueBinder, WithStrictNullComparison, ShouldAutoSize
 {
-    public function __construct(private string $nombre, private array $encabezados, private array $filas) {}
+    public function __construct(private string $nombre, private array $encabezados, private array $filas, private ?array $total = null) {}
 
     public function title(): string
     {
@@ -36,7 +36,7 @@ class CarteraCobrosSheet extends DefaultValueBinder implements FromArray, WithTi
 
     public function array(): array
     {
-        return array_merge([$this->encabezados], $this->filas);
+        return array_merge([$this->encabezados], $this->filas, $this->total === null ? [] : [$this->total]);
     }
 
     public function bindValue(Cell $cell, mixed $value): bool
@@ -52,6 +52,13 @@ class CarteraCobrosSheet extends DefaultValueBinder implements FromArray, WithTi
     {
         $ultima = $sheet->getHighestColumn();
         $sheet->setAutoFilter("A1:{$ultima}1");
+        if ($this->total !== null) {
+            $fila = count($this->filas) + 2;
+            $estilo = $sheet->getStyle("A{$fila}:{$ultima}{$fila}");
+            $estilo->getFont()->setBold(true);
+            $estilo->getFill()->setFillType('solid')->getStartColor()->setRGB('FDEBD0');
+            $estilo->getBorders()->getTop()->setBorderStyle('thin');
+        }
         $sheet->freezePane('A2');
         $sheet->getStyle("A1:{$ultima}1")->getFont()->setBold(true)->getColor()->setRGB('FFFFFF');
         $sheet->getStyle("A1:{$ultima}1")->getFill()->setFillType('solid')->getStartColor()->setRGB('E67E22');

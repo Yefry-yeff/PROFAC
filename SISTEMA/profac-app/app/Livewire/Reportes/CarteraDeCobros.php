@@ -26,6 +26,8 @@ class CarteraDeCobros extends Component
     public string $tramo = '';
     public string $estado = '';
     public string $mes = '';
+    public string $emisionDesde = '';
+    public string $emisionHasta = '';
     public string $orden = 'saldo';
     public string $usuario = '';
     public string $inicio = '';
@@ -84,7 +86,8 @@ class CarteraDeCobros extends Component
 
     public function limpiar(): void
     {
-        $this->reset('buscar', 'cliente', 'asesor', 'teleasesor', 'gestor', 'tramo', 'estado', 'mes', 'orden', 'usuario');
+        $this->reset('buscar', 'cliente', 'asesor', 'teleasesor', 'gestor', 'tramo', 'estado', 'mes', 'orden', 'usuario', 'emisionDesde', 'emisionHasta');
+        $this->resetValidation(['emisionDesde', 'emisionHasta']);
     }
 
     public function abrirFactura(int $id): void
@@ -200,6 +203,7 @@ class CarteraDeCobros extends Component
 
     private function filtrar(Collection $filas): Collection
     {
+        if (!$this->rangoEmisionValido()) return collect();
         $cohorteUsuario = null;
         if ($this->usuario !== '') {
             if (!$this->fechasValidas()) return collect();
@@ -220,6 +224,12 @@ class CarteraDeCobros extends Component
             }
             if ($this->tramo !== '' && $f->tramo !== $this->tramo) return false;
             if ($this->mes !== '' && $f->mes !== $this->mes) return false;
+            if ($this->emisionDesde !== '' || $this->emisionHasta !== '') {
+                $emision = $f->fecha_emision && $f->fecha_emision !== '0000-00-00' ? substr($f->fecha_emision, 0, 10) : null;
+                if ($emision === null) return false;
+                if ($this->emisionDesde !== '' && $emision < $this->emisionDesde) return false;
+                if ($this->emisionHasta !== '' && $emision > $this->emisionHasta) return false;
+            }
             if ($this->estado === 'vencida' && ($f->dias === null || $f->dias <= 0)) return false;
             if ($this->estado === 'corriente' && ($f->dias === null || $f->dias > 0)) return false;
             if ($this->estado === 'critica' && ($f->dias === null || $f->dias <= 90)) return false;
@@ -311,6 +321,25 @@ class CarteraDeCobros extends Component
         ))->layout('layouts.app', ['title' => $this->titulo]);
     }
 
+    private function rangoEmisionValido(): bool
+    {
+        $this->resetValidation(['emisionDesde', 'emisionHasta']);
+        $validador = validator(['emisionDesde' => $this->emisionDesde, 'emisionHasta' => $this->emisionHasta], [
+            'emisionDesde' => 'nullable|date_format:Y-m-d',
+            'emisionHasta' => 'nullable|date_format:Y-m-d',
+        ]);
+        $validador->fails();
+        if ($validador->errors()->isEmpty() && $this->emisionDesde !== '' && $this->emisionHasta !== ''
+            && $this->emisionHasta < $this->emisionDesde) {
+            $validador->errors()->add('emisionHasta', 'La fecha hasta debe ser igual o posterior a la fecha desde.');
+        }
+        if ($validador->errors()->isNotEmpty()) {
+            $this->setErrorBag($this->getErrorBag()->merge($validador->errors()));
+            return false;
+        }
+        return true;
+    }
+
     private function fechasValidas(): bool
     {
         $this->resetValidation(['modoPeriodo', 'mesA', 'mesB', 'inicio', 'fin', 'compararInicio', 'compararFin']);
@@ -393,7 +422,8 @@ class CarteraDeCobros extends Component
         $comparacion = collect([
             ['periodo' => 'A', 'inicio' => $this->inicio, 'fin' => $this->fin, 'cobrado' => $actual->sum('centavos'), 'abonos' => $actual->count()],
             ['periodo' => 'B', 'inicio' => $this->compararInicio, 'fin' => $this->compararFin, 'cobrado' => $anterior->sum('centavos'), 'abonos' => $anterior->count()],
-        ])->map(fn ($p) => $p + ['saldo' => $saldo, 'porcentaje' => $valida ? $tasa($p['cobrado'], $saldo) : null]);
+        ])->map(fn ($p) => $p + ['saldo' => $saldo, 'porcentaje' => $valida ? $tasa($p['cobrado'], $saldo) : null,
+            'nombre' => $this->nombrePeriodo($p['inicio'], $p['fin'])]);
         $grupos = [];
         foreach (['cliente', 'asesor', 'teleasesor', 'gestor', 'usuario'] as $campo) {
             $ids = $pagos->map(fn ($p) => $campo === 'usuario' ? $p->usuario_id : (string) $p->factura->{$campo . '_id'})
@@ -437,44 +467,89 @@ class CarteraDeCobros extends Component
         $recuperacion = $this->recuperacion($this->cartera(false), $filas);
         $tablas = [];
         $tablas['detalle'] = ['Detalle cartera', ['ID factura', 'Cliente', 'Factura', 'Emision', 'Vencimiento', 'Saldo', 'Dias mora', 'Asesor', 'Teleasesor', 'Gestor'],
-            $filas->map(fn ($f) => [$f->id, $f->cliente, $f->cai ?: $f->numero_secuencia_cai, $f->fecha_emision, $f->fecha_vencimiento, $f->centavos / 100, $f->dias, $f->asesor, $f->teleasesor, $f->gestor])->all()];
+            $filas->map(fn ($f) => [$f->id, $f->cliente, $f->cai ?: $f->numero_secuencia_cai, $f->fecha_emision, $f->fecha_vencimiento, $f->centavos / 100, $f->dias, $f->asesor, $f->teleasesor, $f->gestor])->all(),
+            ['TOTAL', $filas->count() . ' facturas', null, null, null, $filas->sum('centavos') / 100, $filas->max('dias'), null, null, null]];
         foreach (['cliente' => 'clientes', 'asesor' => 'asesor', 'teleasesor' => 'teleasesor', 'gestor' => 'gestor'] as $campo => $clave) {
+            $ranking = $this->ranking($filas, $campo);
             $tablas[$clave] = [ucfirst($clave), ['Nombre', 'Saldo', 'Vencido', 'Facturas', 'Mora maxima', 'Antiguedad maxima'],
-                $this->ranking($filas, $campo)->map(fn ($g) => [$g['nombre'], $g['saldo'] / 100, $g['vencido'] / 100, $g['facturas'], $g['dias'], $g['antiguedad']])->all()];
+                $ranking->map(fn ($g) => [$g['nombre'], $g['saldo'] / 100, $g['vencido'] / 100, $g['facturas'], $g['dias'], $g['antiguedad']])->all(),
+                ['TOTAL', $ranking->sum('saldo') / 100, $ranking->sum('vencido') / 100, $ranking->sum('facturas'), $ranking->max('dias'), $ranking->max('antiguedad')]];
         }
-        $tablas['antiguedad'] = ['Antiguedad', ['Tramo', 'Saldo', 'Facturas'], collect(self::TRAMOS)->map(fn ($n, $id) => [$n, $filas->where('tramo', $id)->sum('centavos') / 100, $filas->where('tramo', $id)->count()])->values()->all()];
-        $tablas['meses'] = ['Vencimientos', ['Mes', 'Saldo', 'Facturas'], $filas->groupBy('mes')->sortKeys()->map(fn ($g, $m) => [$m, $g->sum('centavos') / 100, $g->count()])->values()->all()];
+        $tablas['antiguedad'] = ['Antiguedad', ['Tramo', 'Saldo', 'Facturas'], collect(self::TRAMOS)->map(fn ($n, $id) => [$n, $filas->where('tramo', $id)->sum('centavos') / 100, $filas->where('tramo', $id)->count()])->values()->all(),
+            ['TOTAL', $filas->sum('centavos') / 100, $filas->count()]];
+        $tablas['meses'] = ['Vencimientos', ['Mes', 'Saldo', 'Facturas'], $filas->groupBy('mes')->sortKeys()->map(fn ($g, $m) => [$m, $g->sum('centavos') / 100, $g->count()])->values()->all(),
+            ['TOTAL', $filas->sum('centavos') / 100, $filas->count()]];
+        [$periodoA, $periodoB] = [$recuperacion['comparacion'][0], $recuperacion['comparacion'][1]];
         $tablas['comparacion'] = ['Comparacion', ['Periodo', 'Inicio', 'Fin', 'Cobrado', 'Saldo actual', 'Recuperacion %', 'Abonos'],
-            $recuperacion['comparacion']->map(fn ($p) => [$p['periodo'], $p['inicio'], $p['fin'], $p['cobrado'] / 100, $p['saldo'] / 100, $p['porcentaje'], $p['abonos']])->all()];
+            $recuperacion['comparacion']->map(fn ($p) => [$p['nombre'], $p['inicio'], $p['fin'], $p['cobrado'] / 100, $p['saldo'] / 100, $p['porcentaje'], $p['abonos']])->all(),
+            ['DIFERENCIA ' . $periodoA['nombre'] . ' - ' . $periodoB['nombre'], null, null, ($periodoA['cobrado'] - $periodoB['cobrado']) / 100, $periodoA['saldo'] / 100,
+                $periodoA['porcentaje'] !== null && $periodoB['porcentaje'] !== null ? round($periodoA['porcentaje'] - $periodoB['porcentaje'], 2) : null,
+                $periodoA['abonos'] - $periodoB['abonos']]];
+        // Los totales de recuperacion salen del universo completo: los saldos por usuario pueden solaparse.
+        $totalRecuperacion = ['TOTAL', $periodoA['cobrado'] / 100, $periodoB['cobrado'] / 100, ($periodoA['cobrado'] - $periodoB['cobrado']) / 100,
+            $periodoA['saldo'] / 100, $periodoA['porcentaje'], $periodoB['porcentaje']];
         foreach ($recuperacion['grupos'] as $campo => $grupos) {
-            $tablas['recuperacion-' . $campo] = ['Recuperacion ' . $campo, ['Nombre', 'Cobrado A', 'Cobrado B', 'Diferencia', 'Saldo actual', 'Recuperacion A %', 'Recuperacion B %'],
-                $grupos->map(fn ($g) => [$g['nombre'], $g['actual'] / 100, $g['anterior'] / 100, $g['diferencia'] / 100, $g['saldo'] / 100, $g['porcentaje'], $g['porcentajeB']])->all()];
+            $tablas['recuperacion-' . $campo] = ['Recuperacion ' . $campo, ['Nombre', 'Cobrado ' . $periodoA['nombre'], 'Cobrado ' . $periodoB['nombre'], 'Diferencia', 'Saldo actual', 'Recuperacion ' . $periodoA['nombre'] . ' %', 'Recuperacion ' . $periodoB['nombre'] . ' %'],
+                $grupos->map(fn ($g) => [$g['nombre'], $g['actual'] / 100, $g['anterior'] / 100, $g['diferencia'] / 100, $g['saldo'] / 100, $g['porcentaje'], $g['porcentajeB']])->all(),
+                $totalRecuperacion];
         }
-        $tablas['evolucion'] = ['Evolucion', ['Mes', 'Cobrado A', 'Abonos'], $recuperacion['evolucion']->map(fn ($g) => [$g['mes'], $g['cobrado'] / 100, $g['abonos']])->all()];
+        $tablas['evolucion'] = ['Evolucion', ['Mes', 'Cobrado ' . $periodoA['nombre'], 'Abonos'], $recuperacion['evolucion']->map(fn ($g) => [$g['mes'], $g['cobrado'] / 100, $g['abonos']])->all(),
+            ['TOTAL', $recuperacion['evolucion']->sum('cobrado') / 100, $recuperacion['evolucion']->sum('abonos')]];
         $abonos = collect();
-        foreach (['A' => 'actual', 'B' => 'anterior'] as $periodo => $clave) {
+        $abonosCentavos = 0;
+        foreach ([[$periodoA['nombre'], 'actual'], [$periodoB['nombre'], 'anterior']] as [$periodo, $clave]) {
             foreach ($recuperacion[$clave] as $p) {
+                $abonosCentavos += $p->centavos;
                 $abonos->push([$periodo, $p->id, $p->fecha, $p->factura->cliente, $p->factura->cai, $p->centavos / 100,
                     $p->factura->asesor, $p->factura->teleasesor, $p->factura->gestor, $p->usuario]);
             }
         }
-        $tablas['abonos'] = ['Abonos recuperados', ['Periodo', 'ID abono', 'Fecha', 'Cliente', 'Factura', 'Aplicado a deuda', 'Asesor', 'Teleasesor', 'Gestor', 'Usuario registrador'], $abonos->all()];
+        $tablas['abonos'] = ['Abonos recuperados', ['Periodo', 'ID abono', 'Fecha', 'Cliente', 'Factura', 'Aplicado a deuda', 'Asesor', 'Teleasesor', 'Gestor', 'Usuario registrador'], $abonos->all(),
+            ['TOTAL', $abonos->count() . ' abonos', null, null, null, $abonosCentavos / 100, null, null, null, null]];
         $contexto = [
             ['Generado', CarbonImmutable::now()->toDateTimeString()],
             ['Modo de comparacion', $this->modoPeriodo === 'mensual' ? 'Mensual (mes actual hasta hoy)' : 'Rangos de fechas detallados'],
-            ['Periodo A', $this->inicio . ' a ' . $this->fin],
-            ['Periodo B', $this->compararInicio . ' a ' . $this->compararFin],
+            ['Periodo de recaudacion', $periodoA['nombre'] . ' (' . $this->inicio . ' a ' . $this->fin . ')'],
+            ['Periodo de comparacion', $periodoB['nombre'] . ' (' . $this->compararInicio . ' a ' . $this->compararFin . ')'],
             ['Recuperacion %', 'Cobrado del periodo / (cobrado del periodo + saldo pendiente actual) x 100. Sin base si ambos son cero.'],
             ['Atribucion', 'Responsables actuales de la factura; usuario registrador del abono. Los saldos por usuario pueden solaparse y no deben sumarse.'],
-            ['Periodos superpuestos', 'Un mismo abono puede aparecer en A y B. No sumar ambos periodos como cobros unicos.'],
+            ['Periodos superpuestos', 'Un mismo abono puede aparecer en ambos periodos. No sumarlos como cobros unicos.'],
             ['Fechas de cartera', 'Mora y vencimiento evaluados hoy, no al inicio de cada periodo.'],
         ];
         foreach (['buscar', 'cliente', 'asesor', 'teleasesor', 'gestor', 'tramo', 'estado', 'mes', 'usuario'] as $campo) {
             $contexto[] = ['Filtro ' . $campo, $this->$campo === '' ? 'Todos' : $this->$campo];
         }
+        $contexto[] = ['Filtro emision desde', $this->emisionDesde === '' ? 'Sin limite' : $this->emisionDesde];
+        $contexto[] = ['Filtro emision hasta', $this->emisionHasta === '' ? 'Sin limite' : $this->emisionHasta];
         $seleccion = $tabla === 'todas' ? array_values($tablas) : [$tablas[$tabla]];
         $seleccion[] = ['Criterios', ['Concepto', 'Valor'], $contexto];
         return Excel::download(new CarteraCobrosExport($seleccion),
-            'Cartera-' . $tabla . '-' . CarbonImmutable::today()->toDateString() . '.xlsx');
+            $this->nombreArchivoCartera() . '-' . $tabla . '-' . CarbonImmutable::today()->toDateString() . '.xlsx');
+    }
+
+    public const MESES = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+    private function nombrePeriodo(string $inicio, string $fin): string
+    {
+        try {
+            $desde = CarbonImmutable::createFromFormat('!Y-m-d', $inicio);
+            $hasta = CarbonImmutable::createFromFormat('!Y-m-d', $fin);
+        } catch (\Throwable) {
+            return $inicio . ' a ' . $fin;
+        }
+        if (!$desde || !$hasta) return $inicio . ' a ' . $fin;
+        $mes = fn ($d) => self::MESES[$d->month] . ' ' . $d->year;
+        // Un mes que empieza el día 1 y termina en su último día (o hoy, si es el mes en curso) se nombra por el mes.
+        $mesCompleto = $desde->day === 1 && $desde->isSameMonth($hasta)
+            && ($hasta->isSameDay($desde->endOfMonth()) || $hasta->isSameDay(CarbonImmutable::today()));
+        if ($mesCompleto) return $mes($desde);
+        if ($desde->isSameDay($hasta)) return $desde->day . ' ' . mb_strtolower($mes($desde));
+        if ($desde->isSameMonth($hasta)) return $desde->day . ' al ' . $hasta->day . ' de ' . mb_strtolower($mes($desde));
+        return $desde->day . ' ' . mb_strtolower($mes($desde)) . ' al ' . $hasta->day . ' ' . mb_strtolower($mes($hasta));
+    }
+
+    private function nombreArchivoCartera(): string
+    {
+        return $this->estado === 'corriente' || $this->tramo === 'corriente' ? 'Cartera por vencer' : 'Cartera vencida';
     }
 }

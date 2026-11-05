@@ -96,7 +96,21 @@
                 </div>
             @endforeach
         </div>
-        <div class="cb-muted">Busca por nombre o ID. Las opciones muestran solo clientes y responsables de la selección actual; en recuperación también incluyen facturas pagadas con abonos en A o B. Los filtros se combinan y se conservan al cambiar de pestaña. Usa × para quitar uno o “Limpiar filtros” para restaurar toda la cartera.</div>
+        <div class="row">
+            <div class="col-lg-2 col-md-6 mb-2">
+                <label for="cb-emisionDesde" class="small font-weight-bold">Emisión desde</label>
+                <input id="cb-emisionDesde" type="date" class="form-control" wire:model.live="emisionDesde"
+                    @if($emisionHasta !== '') max="{{ $emisionHasta }}" @endif>
+                @error('emisionDesde')<span class="text-danger small" role="alert">{{ $message }}</span>@enderror
+            </div>
+            <div class="col-lg-2 col-md-6 mb-2">
+                <label for="cb-emisionHasta" class="small font-weight-bold">Emisión hasta</label>
+                <input id="cb-emisionHasta" type="date" class="form-control" wire:model.live="emisionHasta"
+                    @if($emisionDesde !== '') min="{{ $emisionDesde }}" @endif>
+                @error('emisionHasta')<span class="text-danger small" role="alert">{{ $message }}</span>@enderror
+            </div>
+        </div>
+        <div class="cb-muted">Busca por nombre o ID. Las opciones muestran solo clientes y responsables de la selección actual; en recuperación también incluyen facturas pagadas con abonos en los períodos comparados. El rango de emisión limita las facturas por su fecha de emisión (ambos extremos incluidos; puedes usar solo uno). Los filtros se combinan y se conservan al cambiar de pestaña. Usa × para quitar uno o “Limpiar filtros” para restaurar toda la cartera.</div>
         <div class="mt-2">
             @foreach(['cliente' => 'Cliente', 'asesor' => 'Asesor', 'teleasesor' => 'Teleasesor', 'gestor' => 'Gestor', 'tramo' => 'Antigüedad de mora', 'estado' => 'Estado', 'mes' => 'Vencimiento', 'usuario' => 'Usuario registrador'] as $campo => $nombre)
                 @if($this->$campo !== '')
@@ -305,7 +319,7 @@
     @include('livewire.reportes.cartera-factura')
     @teleport('body')
     <div wire:loading.flex
-        wire:target="abrirFactura,seleccionar,limpiar,descargar,$refresh,buscar,cliente,asesor,teleasesor,gestor,tramo,estado,mes,usuario,inicio,fin,compararInicio,compararFin,modoPeriodo,mesA,mesB"
+        wire:target="abrirFactura,seleccionar,limpiar,descargar,$refresh,buscar,cliente,asesor,teleasesor,gestor,tramo,estado,mes,usuario,emisionDesde,emisionHasta,inicio,fin,compararInicio,compararFin,modoPeriodo,mesA,mesB"
         class="cb-loading" role="status" aria-live="polite" aria-label="Cargando información">
         <div class="cb-loading-card">
             <span class="cb-spinner" aria-hidden="true"></span>
