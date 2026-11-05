@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\File;
 use DataTables;
 use Auth;
 use App\Http\Controllers\MenuHelper;
+use App\Models\SubMenu;
 use Livewire\Attributes\Locked;
 
 
@@ -25,12 +26,26 @@ class DetalleProducto extends Component
     public $idProducto;
     #[Locked]
     public bool $soloLectura = false;
+    #[Locked]
+    public bool $puedeEditar = false;
+    #[Locked]
+    public bool $puedeSubirFoto = false;
+    #[Locked]
+    public bool $puedeEditarUnidades = false;
 
     public function mount($id, $soloLectura = false)
     {
         $this->idProducto = $id;
         $this->soloLectura = (bool) $soloLectura
             || (!MenuHelper::tieneAcceso('producto/registro') && MenuHelper::tieneAcceso('producto/apoyo/registro'));
+
+        // El catálogo de apoyo solo admite subir fotografías; el normal se segmenta por opción.
+        $usuario = Auth::user();
+        $this->puedeEditar = !$this->soloLectura && $usuario->tienePermiso(SubMenu::OPCION_PRODUCTOS_EDITAR);
+        $this->puedeEditarUnidades = !$this->soloLectura && $usuario->tienePermiso(SubMenu::OPCION_PRODUCTOS_UNIDADES_VENTA);
+        $this->puedeSubirFoto = $usuario->tienePermiso(
+            $this->soloLectura ? SubMenu::OPCION_APOYO_SUBIR_FOTO : SubMenu::OPCION_PRODUCTOS_SUBIR_FOTO
+        );
     }
 
     public function render()
@@ -261,7 +276,10 @@ class DetalleProducto extends Component
         $esAdmin = Auth::user()->rol_id == 1;
 
         $soloLectura = $this->soloLectura;
-        return view('livewire.inventario.detalle-producto',  compact('producto', 'precios', 'imagenes', 'lotes', 'categorias', 'unidades', 'marcas', 'esAdmin', 'soloLectura'));
+        $puedeEditar = $this->puedeEditar;
+        $puedeSubirFoto = $this->puedeSubirFoto;
+        $puedeEditarUnidades = $this->puedeEditarUnidades;
+        return view('livewire.inventario.detalle-producto',  compact('producto', 'precios', 'imagenes', 'lotes', 'categorias', 'unidades', 'marcas', 'esAdmin', 'soloLectura', 'puedeEditar', 'puedeSubirFoto', 'puedeEditarUnidades'));
     }
 
     private function prefacturaTieneReservaCompleta(int $prefacturaId, array &$cache): bool
@@ -314,6 +332,9 @@ class DetalleProducto extends Component
         );
 
 
+        $puedeEditarUnidades = !$soloLectura
+            && Auth::user()->tienePermiso(SubMenu::OPCION_PRODUCTOS_UNIDADES_VENTA);
+
         return Datatables::of($unidades)
         // ->addColumn('eliminar', function ($unidad) {
         //         return
@@ -321,11 +342,10 @@ class DetalleProducto extends Component
         //         '<div class="text-center">  <button class="btn btn-danger  btn-dim" type="button"><i class="fa-solid fa-trash-can"></i></button></div>';
 
         // })
-        ->addColumn('editar', function ($unidad) use ($soloLectura) {
+        ->addColumn('editar', function ($unidad) use ($puedeEditarUnidades) {
 
             $cadena = "";
-            if (!$soloLectura && !$this->soloLectura && MenuHelper::tieneAcceso('producto/registro')
-                && (Auth::user()->rol_id == '1' || Auth::user()->rol_id == '5')) {
+            if ($puedeEditarUnidades) {
                 $cadena =   '<div class="text-center">  <button onclick="modalEditarUnidades('.$unidad->id.','.$unidad->unidad_venta.','.$unidad->unidad_medida_id.')" class="btn btn-warning  btn-dim" type="button"><i class="fa-solid fa-pencil"></i></button></div>';
             }
 
@@ -366,7 +386,7 @@ class DetalleProducto extends Component
     }
 
     public function editarUnidadesVenta(Request $request){
-       abort_unless(MenuHelper::tieneAcceso('producto/registro'), 403, 'No tiene acceso para editar productos desde el catálogo de apoyo.');
+       abort_unless(Auth::user()->tienePermiso(SubMenu::OPCION_PRODUCTOS_UNIDADES_VENTA), 403, 'No tiene permiso para editar las unidades de medida para la venta.');
        try {
 
         //dd($request->idUniadVenta);

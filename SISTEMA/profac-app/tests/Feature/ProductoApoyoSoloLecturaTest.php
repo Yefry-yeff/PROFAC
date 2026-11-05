@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Livewire\Inventario\DetalleProducto;
 use App\Livewire\Inventario\Producto;
 use App\Livewire\Inventario\ProductoApoyo;
+use App\Models\SubMenu;
 use App\Models\User;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Database\Schema\Blueprint;
@@ -16,6 +17,27 @@ use Tests\TestCase;
 
 class ProductoApoyoSoloLecturaTest extends TestCase
 {
+    private const OPCIONES = [
+        10 => SubMenu::OPCION_PRODUCTOS_VER_DETALLE,
+        11 => SubMenu::OPCION_PRODUCTOS_EDITAR,
+        12 => SubMenu::OPCION_PRODUCTOS_SUBIR_FOTO,
+        13 => SubMenu::OPCION_PRODUCTOS_CREAR,
+        14 => SubMenu::OPCION_PRODUCTOS_CARGA_MASIVA,
+        15 => SubMenu::OPCION_PRODUCTOS_EXPORTAR,
+        16 => SubMenu::OPCION_PRODUCTOS_INACTIVAR,
+        17 => SubMenu::OPCION_PRODUCTOS_UNIDADES_VENTA,
+        18 => SubMenu::OPCION_APOYO_SUBIR_FOTO,
+    ];
+
+    private function otorgar(string ...$urls): void
+    {
+        foreach ($urls as $url) {
+            DB::table('usuario_submenu')->insert([
+                'usuario_id' => 1, 'sub_menu_id' => array_search($url, self::OPCIONES, true), 'permitido' => true,
+            ]);
+        }
+    }
+
     public function createApplication()
     {
         $app = require __DIR__ . '\..\..\bootstrap\app.php';
@@ -60,6 +82,9 @@ class ProductoApoyoSoloLecturaTest extends TestCase
             ['id' => 1, 'url' => 'producto/apoyo/registro'],
             ['id' => 2, 'url' => 'producto/registro'],
         ]);
+        foreach (self::OPCIONES as $id => $url) {
+            DB::table('sub_menu')->insert(['id' => $id, 'url' => $url]);
+        }
         DB::table('usuario_submenu')->insert([
             ['usuario_id' => 1, 'sub_menu_id' => 1, 'permitido' => true],
             ['usuario_id' => 1, 'sub_menu_id' => 2, 'permitido' => false],
@@ -138,6 +163,7 @@ class ProductoApoyoSoloLecturaTest extends TestCase
     public function test_normal_catalog_keeps_editing_and_changing_state_when_authorized(): void
     {
         DB::table('usuario_submenu')->where('sub_menu_id', 2)->update(['permitido' => true]);
+        $this->otorgar(SubMenu::OPCION_PRODUCTOS_EDITAR, SubMenu::OPCION_PRODUCTOS_INACTIVAR);
         $response = (new Producto())->editarProducto(Request::create('/producto/editar', 'POST', [
             'id_producto_edit' => 1, 'nombre_producto_edit' => 'Editado', 'descripcion_producto_edit' => 'Descripcion editada',
             'cod_barra_producto_edit' => '', 'cod_estatal_producto_edit' => '', 'sub_categoria_producto_edit' => 1,
@@ -148,5 +174,75 @@ class ProductoApoyoSoloLecturaTest extends TestCase
         $response = (new Producto())->inactivarProducto(Request::create('/producto/inactivar', 'POST', ['id' => 1, 'estado' => 2]));
         $this->assertSame(200, $response->getStatusCode());
         $this->assertSame(2, DB::table('producto')->where('id', 1)->value('estado_producto_id'));
+    }
+
+    public function test_catalog_access_alone_does_not_grant_any_option(): void
+    {
+        DB::table('usuario_submenu')->where('sub_menu_id', 2)->update(['permitido' => true]);
+        $producto = new Producto();
+        $acciones = [
+            fn () => $producto->editarProducto(Request::create('/producto/editar', 'POST', ['id_producto_edit' => 1])),
+            fn () => $producto->inactivarProducto(Request::create('/producto/inactivar', 'POST', ['id' => 1, 'estado' => 2])),
+            fn () => $producto->crearProducto(Request::create('/producto/registrar', 'POST')),
+            fn () => $producto->export(Request::create('/producto/excel')),
+            fn () => $producto->guardarFoto(Request::create('/ruta/imagen/edit', 'POST')),
+            fn () => $producto->descargarPlantillaCargaMasiva(app(\App\Services\Inventario\ProductoCargaMasivaService::class)),
+            fn () => (new DetalleProducto())->editarUnidadesVenta(Request::create('/detalle/unidades/editar', 'POST')),
+        ];
+        foreach ($acciones as $indice => $accion) {
+            try {
+                $accion();
+                $this->fail("La accion {$indice} debe denegarse sin su opcion.");
+            } catch (HttpException $e) {
+                $this->assertSame(403, $e->getStatusCode());
+            }
+        }
+
+        $detalle = new DetalleProducto();
+        $detalle->mount(1);
+        $this->assertFalse($detalle->soloLectura);
+        $this->assertFalse($detalle->puedeEditar);
+        $this->assertFalse($detalle->puedeSubirFoto);
+        $this->assertFalse($detalle->puedeEditarUnidades);
+    }
+
+    public function test_detail_flags_follow_each_option_independently(): void
+    {
+        DB::table('usuario_submenu')->where('sub_menu_id', 2)->update(['permitido' => true]);
+        $this->otorgar(SubMenu::OPCION_PRODUCTOS_SUBIR_FOTO, SubMenu::OPCION_PRODUCTOS_UNIDADES_VENTA);
+
+        $detalle = new DetalleProducto();
+        $detalle->mount(1);
+        $this->assertFalse($detalle->puedeEditar);
+        $this->assertTrue($detalle->puedeSubirFoto);
+        $this->assertTrue($detalle->puedeEditarUnidades);
+    }
+
+    public function test_options_are_inherited_from_roles_and_user_exceptions_revoke_them(): void
+    {
+        DB::table('usuario_submenu')->where('sub_menu_id', 2)->update(['permitido' => true]);
+        DB::table('rol_submenu')->insert(['rol_id' => 2, 'sub_menu_id' => 11]);
+        $this->assertTrue(User::find(1)->tienePermiso(SubMenu::OPCION_PRODUCTOS_EDITAR));
+
+        DB::table('usuario_submenu')->insert(['usuario_id' => 1, 'sub_menu_id' => 11, 'permitido' => false]);
+        $this->assertFalse(User::find(1)->tienePermiso(SubMenu::OPCION_PRODUCTOS_EDITAR));
+    }
+
+    public function test_support_catalog_only_allows_uploading_photos_with_its_option(): void
+    {
+        $detalle = new DetalleProducto();
+        $detalle->mount(1, true);
+        $this->assertFalse($detalle->puedeSubirFoto);
+
+        $this->otorgar(SubMenu::OPCION_APOYO_SUBIR_FOTO);
+        $detalle = new DetalleProducto();
+        $detalle->mount(1, true);
+        $this->assertTrue($detalle->soloLectura);
+        $this->assertTrue($detalle->puedeSubirFoto);
+        $this->assertFalse($detalle->puedeEditar);
+        $this->assertFalse($detalle->puedeEditarUnidades);
+
+        $response = (new Producto())->guardarFoto(Request::create('/ruta/imagen/edit', 'POST'));
+        $this->assertSame(200, $response->getStatusCode());
     }
 }

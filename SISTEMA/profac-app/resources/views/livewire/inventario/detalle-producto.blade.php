@@ -359,10 +359,13 @@
             <div class="det-header-actions">
                 @if ($soloLectura)
                 <span class="badge badge-light">Solo lectura · Catálogo de apoyo</span>
-                @else
+                @endif
+                @if ($puedeEditar)
                 <button class="btn-det-edit" data-toggle="modal" data-target="#modal_producto_editar">
                     <i class="fa fa-pencil mr-1"></i> Editar Producto
                 </button>
+                @endif
+                @if ($puedeSubirFoto)
                 <button class="btn-det-foto" data-toggle="modal" data-target="#modal_foto_producto">
                     <i class="fa fa-camera mr-1"></i> Subir Fotografía
                 </button>
@@ -432,7 +435,7 @@
                         <div class="no-photos-placeholder">
                             <i class="fa fa-picture-o"></i>
                             <p style="color:#aaa; font-size:.9rem; margin:0;">Sin fotografías registradas</p>
-                            @if (!$soloLectura && (Auth::user()->rol_id == '1' || Auth::user()->rol_id == '10' || Auth::user()->rol_id == '9'))
+                            @if ($puedeSubirFoto)
                             <button class="btn-det-foto mt-3" data-toggle="modal" data-target="#modal_foto_producto">
                                 <i class="fa fa-plus mr-1"></i> Agregar fotografía
                             </button>
@@ -631,16 +634,16 @@
             <div class="table-wrap">
                 <div class="table-responsive">
                     <table id="tbl_unidades_listar" class="table table-hover" style="width:100%"
-                        data-solo-lectura="{{ $soloLectura ? '1' : '0' }}"
+                        data-solo-lectura="{{ $puedeEditarUnidades ? '0' : '1' }}"
                         data-url="{{ $soloLectura ? '/producto/apoyo/detalle/' . $producto->id . '/unidades' : '/detalle/producto/unidad/' . $producto->id }}">
                         <thead>
                             <tr>
                                 <th>#</th>
                                 <th>Unidad de medición</th>
                                 <th>Cantidad de unidades</th>
-                                @unless ($soloLectura)
+                                @if ($puedeEditarUnidades)
                                 <th>Editar</th>
-                                @endunless
+                                @endif
                             </tr>
                         </thead>
                         <tbody></tbody>
@@ -651,7 +654,7 @@
     </div>
 
     {{-- ══ MODAL: EDITAR PRODUCTO ════════════════════════════════════ --}}
-    @unless ($soloLectura)
+    @if ($puedeEditar)
     <div class="modal fade modal-modern" id="modal_producto_editar" tabindex="-1" role="dialog" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
             <div class="modal-content">
@@ -850,6 +853,7 @@
             </div>
         </div>
     </div>
+    @endif
 
     {{-- ══ MODAL: SPINNER ══════════════════════════════════════════ --}}
     <div class="modal" id="modalSpinnerLoading" data-backdrop="static" tabindex="-1" role="dialog" aria-hidden="true">
@@ -867,9 +871,12 @@
     </div>
 
     {{-- ══ MODAL: SUBIR FOTO ════════════════════════════════════════ --}}
+    @if ($puedeSubirFoto)
     @include('components.producto.modal-subir-fotografia', ['productoId' => $producto->id])
+    @endif
 
     {{-- ══ MODAL: EDITAR UNIDADES ══════════════════════════════════ --}}
+    @if ($puedeEditarUnidades)
     <div class="modal fade modal-modern" id="modal_editar_unidades" tabindex="-1" role="dialog" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered" role="document">
             <div class="modal-content">
@@ -908,7 +915,7 @@
     </div>
 
     {{-- ══ MODAL: RESERVAS DE PRODUCTO POR SECCIÓN ════════════════════ --}}
-    @endunless
+    @endif
     <div class="modal fade modal-modern" id="modal_reservas_producto" tabindex="-1" role="dialog" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
             <div class="modal-content">
@@ -964,9 +971,9 @@
 
     @push('scripts')
     <script src="//cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
-    @unless ($soloLectura)
+    @if ($puedeSubirFoto)
     <script src="{{ asset('js/js_proyecto/inventario/modal-foto-producto.js') }}?v={{ filemtime(public_path('js/js_proyecto/inventario/modal-foto-producto.js')) }}"></script>
-    @endunless
+    @endif
     <script src="{{ asset('js/js_proyecto/inventario/detalle-producto.js') }}?v={{ filemtime(public_path('js/js_proyecto/inventario/detalle-producto.js')) }}"></script>
     <script>
     function abrirModalReservas(btn) {

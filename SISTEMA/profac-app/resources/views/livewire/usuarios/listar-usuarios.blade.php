@@ -163,6 +163,12 @@
 .usr-permiso-item .custom-control-label { display: block; color: #555; font-size: .75rem; overflow-wrap: anywhere; }
 .usr-permiso-item .custom-control-input:checked ~ .custom-control-label { color: #7d3f00; font-weight: 600; }
 .usr-permiso-origen { color: #9ca3af; font-size: .67rem; font-weight: 400; }
+.usr-permiso-nodo.abierto { grid-column: 1 / -1; }
+.usr-permiso-fila { display: flex; align-items: flex-start; gap: 4px; }
+.usr-permiso-fila .usr-permiso-item { flex: 1 1 auto; }
+.usr-permiso-expandir { background: #fdf4e7; border: 1px solid #e8d5bf; border-radius: 4px; color: #c04e00; cursor: pointer; font-size: .6rem; line-height: 1; padding: 3px 5px; }
+.usr-permiso-expandir:hover { background: #f8e3c6; }
+.usr-permiso-opciones { border-left: 2px solid #e8d5bf; margin: 3px 0 2px 8px; padding-left: 14px; }
 @media (max-width: 575px) { .usr-permiso-grupo-items { grid-template-columns: 1fr; } }
 
 /* -- Responsive -- */

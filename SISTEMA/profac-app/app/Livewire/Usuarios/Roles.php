@@ -678,6 +678,7 @@ class Roles extends Component
                     'sm.id',
                     'sm.nombre as submenu_nombre',
                     'sm.url as ruta',
+                    'sm.padre_id',
                     'm.nombre_menu as menu_nombre'
                 )
                 ->orderBy('m.nombre_menu')
@@ -710,6 +711,7 @@ class Roles extends Component
                     'sm.id',
                     'sm.nombre',
                     'sm.url as ruta',
+                    'sm.padre_id',
                     'm.nombre_menu as menu_nombre'
                 )
                 ->orderBy('m.nombre_menu')
@@ -853,15 +855,17 @@ class Roles extends Component
                     m.icon         AS menu_icon,
                     m.orden        AS menu_orden,
                     sm.id          AS submenu_id,
-                    sm.nombre      AS submenu_nombre,
+                    CASE WHEN smp.id IS NULL THEN sm.nombre
+                         ELSE CONCAT(smp.nombre, ' › ', sm.nombre) END AS submenu_nombre,
                     sm.url         AS submenu_url,
-                    sm.orden       AS submenu_orden
+                    COALESCE(smp.orden, sm.orden) AS submenu_orden
                 FROM rol r
                 LEFT JOIN rol_submenu rs ON rs.rol_id    = r.id
                 LEFT JOIN sub_menu    sm ON sm.id        = rs.sub_menu_id AND sm.estado_id = 1
+                LEFT JOIN sub_menu    smp ON smp.id      = sm.padre_id
                 LEFT JOIN menu        m  ON m.id         = sm.menu_id     AND m.estado_id  = 1
                 WHERE r.estado_id = 1
-                ORDER BY r.nombre, m.orden, m.nombre_menu, sm.orden, sm.nombre
+                ORDER BY r.nombre, m.orden, m.nombre_menu, submenu_orden, submenu_nombre
             ");
 
             return response()->json(['success' => true, 'data' => $rows], 200);

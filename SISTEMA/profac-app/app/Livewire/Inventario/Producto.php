@@ -33,6 +33,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 use App\Http\Controllers\MenuHelper;
+use App\Models\SubMenu;
 
 class Producto extends Component
 {
@@ -41,12 +42,18 @@ class Producto extends Component
         $categorias = ModelCategoriaProducto::all();
         $unidades = DB::SELECT("select id,nombre,simbolo from unidad_medida order by nombre asc");
        $marcas = DB::SELECT("select id,nombre from marca order by nombre asc");
-        return view('livewire.inventario.producto',  compact("categorias", "unidades","marcas"));
+        $usuario = Auth::user();
+        $permisos = [
+            'crear' => $usuario->tienePermiso(SubMenu::OPCION_PRODUCTOS_CREAR),
+            'cargaMasiva' => $usuario->tienePermiso(SubMenu::OPCION_PRODUCTOS_CARGA_MASIVA),
+            'exportar' => $usuario->tienePermiso(SubMenu::OPCION_PRODUCTOS_EXPORTAR),
+        ];
+        return view('livewire.inventario.producto',  compact("categorias", "unidades","marcas", "permisos"));
     }
 
     public function crearProducto(Request $request)
     {
-          //dd($request->all());
+        $this->autorizarOpcion(SubMenu::OPCION_PRODUCTOS_CREAR, 'No tiene permiso para crear productos.');
         $validator = Validator::make($request->all(), [
             'nombre_producto' => 'required',
             'descripcion_producto' => 'required',
@@ -365,7 +372,12 @@ class Producto extends Component
 
     private function autorizarCargaMasiva(): void
     {
-        abort_unless(Auth::check() && (int) Auth::user()->rol_id === 1, 403);
+        $this->autorizarOpcion(SubMenu::OPCION_PRODUCTOS_CARGA_MASIVA, 'No tiene permiso para la carga masiva de productos.');
+    }
+
+    private function autorizarOpcion(string $opcion, string $mensaje): void
+    {
+        abort_unless(Auth::check() && Auth::user()->tienePermiso($opcion), 403, $mensaje);
     }
 
     private function claveCargaMasiva(string $token): string
@@ -428,6 +440,10 @@ class Producto extends Component
 
     public function listarProductos(Request $request)
     {
+        $usuario = Auth::user();
+        $puedeVerDetalle = $usuario->tienePermiso(SubMenu::OPCION_PRODUCTOS_VER_DETALLE);
+        $puedeEditar = $usuario->tienePermiso(SubMenu::OPCION_PRODUCTOS_EDITAR);
+        $puedeInactivar = $usuario->tienePermiso(SubMenu::OPCION_PRODUCTOS_INACTIVAR);
         try {
             // IDs excluidos
             $excluidos = [
@@ -535,12 +551,21 @@ class Producto extends Component
                     }
                     return '<span class="badge-inactivo">Inactivo</span>';
                 })
-                ->addColumn('disponibilidad', function ($producto) {
-                    $editBtn = '<a class="dropdown-item" href="/producto/detalle/'.$producto->codigo.'"><i class="fa fa-edit mr-1"></i> Editar</a>';
-                    if ($producto->estado_producto_id == 1) {
+                ->addColumn('disponibilidad', function ($producto) use ($puedeVerDetalle, $puedeEditar, $puedeInactivar) {
+                    $editBtn = '';
+                    if ($puedeEditar) {
+                        $editBtn = '<a class="dropdown-item" href="/producto/detalle/'.$producto->codigo.'"><i class="fa fa-edit mr-1"></i> Editar</a>';
+                    } elseif ($puedeVerDetalle) {
+                        $editBtn = '<a class="dropdown-item" href="/producto/detalle/'.$producto->codigo.'"><i class="fa fa-eye mr-1"></i> Ver detalle</a>';
+                    }
+                    $toggleBtn = '';
+                    if ($puedeInactivar && $producto->estado_producto_id == 1) {
                         $toggleBtn = '<a class="dropdown-item text-danger" href="#" onclick="cambiarEstadoProducto('.$producto->codigo.', 2)"><i class="fa fa-ban mr-1"></i> Inactivar</a>';
-                    } else {
+                    } elseif ($puedeInactivar) {
                         $toggleBtn = '<a class="dropdown-item text-success" href="#" onclick="cambiarEstadoProducto('.$producto->codigo.', 1)"><i class="fa fa-check-circle mr-1"></i> Activar</a>';
+                    }
+                    if ($editBtn === '' && $toggleBtn === '') {
+                        return '<span class="text-muted">—</span>';
                     }
                     return '
                     <div class="prod-dropdown dropdown">
@@ -629,7 +654,7 @@ class Producto extends Component
 
     public function inactivarProducto(Request $request)
     {
-        abort_unless(MenuHelper::tieneAcceso('producto/registro'), 403, 'No tiene acceso para cambiar el estado de productos desde el catálogo de apoyo.');
+        $this->autorizarOpcion(SubMenu::OPCION_PRODUCTOS_INACTIVAR, 'No tiene permiso para cambiar el estado de productos.');
         try {
             $id     = (int) $request->id;
             $estado = (int) $request->estado; // 1 = Activo, 2 = Inactivo
@@ -645,8 +670,13 @@ class Producto extends Component
     }
 
     public function guardarFoto(Request $request){
+        $usuario = Auth::user();
+        abort_unless($usuario && (
+            $usuario->tienePermiso(SubMenu::OPCION_PRODUCTOS_SUBIR_FOTO)
+            || $usuario->tienePermiso(SubMenu::OPCION_APOYO_SUBIR_FOTO)
+            || MenuHelper::tieneAcceso('reportes/analitica_de_productos')
+        ), 403, 'No tiene permiso para subir fotografías de productos.');
 
-        //dd($request->all());
         $url = '';
         try{
                 if ($request->file('files') <> null) {
@@ -767,7 +797,7 @@ class Producto extends Component
     }
 
     public function editarProducto(Request $request){
-        abort_unless(MenuHelper::tieneAcceso('producto/registro'), 403, 'No tiene acceso para editar productos desde el catálogo de apoyo.');
+        $this->autorizarOpcion(SubMenu::OPCION_PRODUCTOS_EDITAR, 'No tiene permiso para editar productos.');
         try {
 
             $codBarra = trim($request['cod_barra_producto_edit']);
@@ -975,6 +1005,7 @@ class Producto extends Component
     }
 
     public function export(Request $request){
+        $this->autorizarOpcion(SubMenu::OPCION_PRODUCTOS_EXPORTAR, 'No tiene permiso para exportar productos.');
         try {
             $filtros = [
                 'q'            => trim($request->get('filtro_q', '')),

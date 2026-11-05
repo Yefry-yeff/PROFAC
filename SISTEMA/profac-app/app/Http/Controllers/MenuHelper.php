@@ -40,6 +40,7 @@ class MenuHelper
         if ($otorgados) {
             $extras = \App\Models\SubMenu::activos()
                 ->whereIn('id', $otorgados)
+                ->whereNull('padre_id')
                 ->whereHas('menu', fn ($query) => $query->where('estado_id', 1))
                 ->with('menu')
                 ->get();

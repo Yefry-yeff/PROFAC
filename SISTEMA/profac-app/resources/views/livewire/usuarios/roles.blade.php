@@ -254,6 +254,12 @@
 .permiso-grupo-actions { float: right; font-size: .68rem; font-weight: 600; }
 .permiso-grupo-actions button { background: none; border: 0; color: var(--pf-orange); cursor: pointer; padding: 0 3px; }
 .permiso-grupo-actions button:hover { color: #c04e00; text-decoration: underline; }
+.permiso-nodo.abierto { grid-column: 1 / -1; }
+.permiso-fila { display: flex; align-items: flex-start; gap: 4px; }
+.permiso-fila .permiso-item { flex: 1 1 auto; }
+.permiso-expandir { background: #fdf4e7; border: 1px solid #e8d5bf; border-radius: 4px; color: #c04e00; cursor: pointer; font-size: .6rem; line-height: 1; padding: 3px 5px; }
+.permiso-expandir:hover { background: #f8e3c6; }
+.permiso-opciones { border-left: 2px solid #e8d5bf; margin: 3px 0 2px 8px; padding-left: 14px; }
 @media (max-width: 575px) { .permiso-grupo-body { grid-template-columns: 1fr; } }
 #modalRol .modal-body { padding-top: 12px; }
 #modalRol .modal-section-label { margin-bottom: 8px; }

@@ -6,6 +6,7 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Laravel\Jetstream\HasProfilePhoto;
 use Laravel\Jetstream\HasTeams;
@@ -48,7 +49,6 @@ class User extends Authenticatable
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
-    'ver_todos_flujos' => 'boolean',
     ];
 
     /**
@@ -123,12 +123,38 @@ class User extends Authenticatable
     }
 
     /**
-     * Ver todos los flujos en Ventas: roles Administrador (1) y 16, o el
-     * permiso individual users.ver_todos_flujos (no depende del rol).
+     * Ver todos los flujos en Ventas: opción "Permite ver todos los flujos"
+     * de Ventas, asignada por rol o como excepción directa del usuario.
      */
     public function puedeVerTodosLosFlujos(): bool
     {
-        return (bool) $this->ver_todos_flujos
-            || count(array_intersect($this->rolesIds(), [1, 16])) > 0;
+        return $this->tienePermiso(SubMenu::OPCION_VER_TODOS_FLUJOS);
+    }
+
+    /**
+     * Permiso efectivo sobre un submenú u opción por URL: la excepción directa
+     * del usuario (otorga o revoca) manda sobre lo heredado de sus roles.
+     */
+    public function tienePermiso(string $url): bool
+    {
+        $submenuId = SubMenu::where('url', $url)->where('estado_id', 1)->value('id');
+        if (!$submenuId) {
+            return false;
+        }
+
+        $directo = DB::table('usuario_submenu')
+            ->where('usuario_id', $this->id)
+            ->where('sub_menu_id', $submenuId)
+            ->value('permitido');
+        if ($directo !== null) {
+            return (bool) $directo;
+        }
+
+        $rolIds = $this->rolesIds();
+
+        return $rolIds && DB::table('rol_submenu')
+            ->whereIn('rol_id', $rolIds)
+            ->where('sub_menu_id', $submenuId)
+            ->exists();
     }
 }

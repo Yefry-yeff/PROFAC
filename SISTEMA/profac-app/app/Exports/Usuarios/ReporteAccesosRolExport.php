@@ -38,20 +38,21 @@ class ReporteAccesosRolExport implements FromQuery, WithHeadings, WithMapping, W
             ->join('rol_submenu as rs',  'rs.rol_id',    '=', 'r.id')
             ->join('sub_menu as sm',     'sm.id',        '=', 'rs.sub_menu_id')
             ->join('menu as m',          'm.id',         '=', 'sm.menu_id')
+            ->leftJoin('sub_menu as smp', 'smp.id',      '=', 'sm.padre_id')
             ->where('r.estado_id',  1)
             ->where('sm.estado_id', 1)
             ->where('m.estado_id',  1)
             ->select([
                 'r.nombre  as rol_nombre',
                 'm.nombre_menu',
-                'sm.nombre as submenu_nombre',
+                DB::raw("CASE WHEN smp.id IS NULL THEN sm.nombre ELSE CONCAT(smp.nombre, ' › ', sm.nombre) END as submenu_nombre"),
                 'sm.url    as submenu_url',
             ])
             ->orderBy('r.nombre')
             ->orderBy('m.orden')
             ->orderBy('m.nombre_menu')
-            ->orderBy('sm.orden')
-            ->orderBy('sm.nombre');
+            ->orderByRaw('COALESCE(smp.orden, sm.orden)')
+            ->orderBy('submenu_nombre');
     }
 
     public function headings(): array

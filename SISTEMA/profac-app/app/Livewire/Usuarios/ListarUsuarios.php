@@ -221,9 +221,6 @@ class ListarUsuarios extends Component
             $usuario->email            = $request->correo_usuario;
             $usuario->fecha_nacimiento = $request->fenacimiento_usuario;
             $usuario->telefono         = $request->telefono_usuario ?? null;
-            if ($request->has('ver_todos_flujos')) {
-                $usuario->ver_todos_flujos = $request->boolean('ver_todos_flujos');
-            }
             // Actualizar contraseña solo si se proporciona una nueva
             if (!empty($request->nueva_contrasena)) {
                 $usuario->password             = Hash::make($request->nueva_contrasena);
@@ -322,7 +319,7 @@ class ListarUsuarios extends Component
                 $join->on('sm.menu_id', '=', 'm.id')->where('m.estado_id', 1);
             })
             ->where('sm.estado_id', 1)
-            ->select('sm.id', 'sm.nombre', 'sm.url as ruta', 'm.id as menu_id', 'm.nombre_menu as menu_nombre')
+            ->select('sm.id', 'sm.nombre', 'sm.url as ruta', 'sm.padre_id', 'm.id as menu_id', 'm.nombre_menu as menu_nombre')
             ->orderBy('m.nombre_menu')->orderBy('sm.orden')->orderBy('sm.nombre')
             ->get();
 
@@ -333,7 +330,6 @@ class ListarUsuarios extends Component
             'otorgados' => $otorgados,
             'revocados' => $revocados,
             'efectivos' => $efectivos,
-            'ver_todos_flujos' => (bool) $usuario->ver_todos_flujos,
         ]);
     }
 

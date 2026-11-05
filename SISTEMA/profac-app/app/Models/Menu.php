@@ -65,6 +65,7 @@ class Menu extends Model
                     $q->whereIn('rol_id', $rolIds);
                 })
                 ->where('estado_id', 1)
+                ->whereNull('padre_id')
                 ->orderBy('orden');
             }])
             ->get()

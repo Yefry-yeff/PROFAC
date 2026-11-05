@@ -658,16 +658,29 @@ function cambiarPermisosGrupo(ids, seleccionado) {
     ids.forEach(id => actualizarPermisoSeleccionado(id, seleccionado));
 }
 
+// Submenús cuyas opciones están desplegadas (se conserva entre renders).
+let opcionesAbiertas = {};
+
 function renderizarSelectorPermisos() {
     const termino = ($('#buscarPermisos').val() || '').trim().toLowerCase();
     const grupos = {};
+    const opciones = {};
+    const idsActivos = new Set(permisosDisponibles.map(permiso => Number(permiso.id)));
+    const coincide = permiso => !termino
+        || `${permiso.menu_nombre || ''} ${permiso.nombre || ''} ${permiso.ruta || ''}`.toLowerCase().includes(termino);
+    const esOpcion = permiso => Number(permiso.padre_id) > 0 && idsActivos.has(Number(permiso.padre_id));
 
+    permisosDisponibles.filter(esOpcion).forEach(permiso => {
+        (opciones[Number(permiso.padre_id)] = opciones[Number(permiso.padre_id)] || []).push(permiso);
+    });
     permisosDisponibles.forEach(permiso => {
-        const texto = `${permiso.menu_nombre || ''} ${permiso.nombre || ''} ${permiso.ruta || ''}`.toLowerCase();
-        if (termino && !texto.includes(termino)) return;
+        if (esOpcion(permiso)) return;
+        const hijos = opciones[Number(permiso.id)] || [];
+        const hijosVisibles = coincide(permiso) ? hijos : hijos.filter(coincide);
+        if (!coincide(permiso) && !hijosVisibles.length) return;
         const grupo = permiso.menu_nombre || 'Sin menú';
         if (!grupos[grupo]) grupos[grupo] = [];
-        grupos[grupo].push(permiso);
+        grupos[grupo].push({ permiso, opciones: hijosVisibles });
     });
 
     const total = permisosDisponibles.length;
@@ -683,9 +696,17 @@ function renderizarSelectorPermisos() {
     }
 
     let html = '';
+    const itemHtml = permiso => {
+        const id = Number(permiso.id);
+        const inputId = `permiso-${id}`;
+        return `<div class="permiso-item custom-control custom-checkbox">
+                <input type="checkbox" class="custom-control-input permiso-toggle" id="${inputId}" data-id="${id}" ${permisoEstaSeleccionado(id) ? 'checked' : ''}>
+                <label class="custom-control-label" for="${inputId}" title="${escapeHtml(permiso.ruta || '')}">${escapeHtml(permiso.nombre)}</label>
+            </div>`;
+    };
     Object.keys(grupos).sort().forEach((nombreGrupo, grupoIndex) => {
-        const permisos = grupos[nombreGrupo];
-        const ids = permisos.map(permiso => Number(permiso.id));
+        const nodos = grupos[nombreGrupo];
+        const ids = nodos.flatMap(nodo => [nodo.permiso, ...nodo.opciones]).map(permiso => Number(permiso.id));
         const seleccionados = ids.filter(id => permisoEstaSeleccionado(id)).length;
         const todos = seleccionados === ids.length;
         const grupoId = `permiso-grupo-${grupoIndex}`;
@@ -699,12 +720,18 @@ function renderizarSelectorPermisos() {
                 <span class="permiso-grupo-actions"><button type="button" class="permiso-grupo-todos" data-ids="${ids.join(',')}">Todos</button><button type="button" class="permiso-grupo-ninguno" data-ids="${ids.join(',')}">Ninguno</button></span>
             </div><div class="permiso-grupo-body">`;
 
-        permisos.forEach(permiso => {
-            const id = Number(permiso.id);
-            const inputId = `permiso-${id}`;
-            html += `<div class="permiso-item custom-control custom-checkbox">
-                <input type="checkbox" class="custom-control-input permiso-toggle" id="${inputId}" data-id="${id}" ${permisoEstaSeleccionado(id) ? 'checked' : ''}>
-                <label class="custom-control-label" for="${inputId}" title="${escapeHtml(permiso.ruta || '')}">${escapeHtml(permiso.nombre)}</label>
+        nodos.forEach(nodo => {
+            if (!nodo.opciones.length) {
+                html += itemHtml(nodo.permiso);
+                return;
+            }
+            const id = Number(nodo.permiso.id);
+            const abierto = !!termino || !!opcionesAbiertas[id];
+            html += `<div class="permiso-nodo${abierto ? ' abierto' : ''}">
+                <div class="permiso-fila">${itemHtml(nodo.permiso)}
+                    <button type="button" class="permiso-expandir" data-id="${id}" title="${abierto ? 'Ocultar' : 'Ver'} opciones de ${escapeHtml(nodo.permiso.nombre)}"><i class="fa ${abierto ? 'fa-minus' : 'fa-plus'}"></i></button>
+                </div>
+                <div class="permiso-opciones"${abierto ? '' : ' style="display:none"'}>${nodo.opciones.map(itemHtml).join('')}</div>
             </div>`;
         });
         html += '</div></section>';
@@ -723,6 +750,11 @@ function escapeHtml(texto) {
 }
 
 $(document).on('input', '#buscarPermisos', renderizarSelectorPermisos);
+$(document).on('click', '.permiso-expandir', function() {
+    const id = Number($(this).data('id'));
+    opcionesAbiertas[id] = !opcionesAbiertas[id];
+    renderizarSelectorPermisos();
+});
 $(document).on('change', '.permiso-toggle', function() {
     actualizarPermisoSeleccionado(Number($(this).data('id')), this.checked);
 });

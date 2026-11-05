@@ -237,9 +237,6 @@ function actualizarUsuario() {
 
     otorgados.forEach(function (id) { data.append('permisos_otorgados[]', id); });
     revocados.forEach(function (id) { data.append('permisos_revocados[]', id); });
-    if (usrPermisos.cargado) {
-        data.append('ver_todos_flujos', usrPermisos.verTodosFlujos ? 1 : 0);
-    }
 
     axios.post("/usuario/actualizar", data)
         .then(response => {
@@ -257,7 +254,7 @@ function actualizarUsuario() {
 }
 
 function usrCargarPermisos(idUsuario, rolId) {
-    usrPermisos = { permisos: [], heredados: [], efectivos: [], verTodosFlujos: false };
+    usrPermisos = { permisos: [], heredados: [], efectivos: [] };
     $('#usr_permisos_lista').html('<div class="text-center text-muted py-3"><i class="fa fa-spinner fa-spin mr-1"></i>Cargando permisos...</div>');
 
     axios.get('/usuario/' + idUsuario + '/permisos', { params: { rol_id: rolId || '' } })
@@ -266,7 +263,6 @@ function usrCargarPermisos(idUsuario, rolId) {
                 permisos: response.data.permisos || [],
                 heredados: (response.data.heredados || []).map(Number),
                 efectivos: (response.data.efectivos || []).map(Number),
-                verTodosFlujos: !!response.data.ver_todos_flujos,
                 cargado: true
             };
             usrRenderPermisos();
@@ -285,28 +281,36 @@ function usrEscapeHtml(value) {
     return $('<div>').text(value || '').html();
 }
 
+// Submenús cuyas opciones están desplegadas (se conserva entre renders).
+var usrOpcionesAbiertas = {};
+
 function usrRenderPermisos() {
     var termino = ($('#usr_permisos_buscar').val() || '').trim().toLowerCase();
     var grupos = {};
-    var GRUPO_FLUJO = 'Flujo de Venta';
-    var etiquetaVerFlujos = 'Permite ver todos los flujos';
-
-    usrPermisos.permisos.forEach(function (permiso) {
+    var opciones = {};
+    var idsActivos = {};
+    var coincide = function (permiso) {
         var texto = ((permiso.menu_nombre || '') + ' ' + (permiso.nombre || '') + ' ' + (permiso.ruta || '')).toLowerCase();
-        if (termino && texto.indexOf(termino) === -1) return;
+        return !termino || texto.indexOf(termino) !== -1;
+    };
+
+    usrPermisos.permisos.forEach(function (permiso) { idsActivos[Number(permiso.id)] = true; });
+    usrPermisos.permisos.forEach(function (permiso) {
+        var padre = Number(permiso.padre_id);
+        if (padre && idsActivos[padre]) {
+            (opciones[padre] = opciones[padre] || []).push(permiso);
+        }
+    });
+    usrPermisos.permisos.forEach(function (permiso) {
+        var padre = Number(permiso.padre_id);
+        if (padre && idsActivos[padre]) return;
+        var hijos = opciones[Number(permiso.id)] || [];
+        var hijosVisibles = coincide(permiso) ? hijos : hijos.filter(coincide);
+        if (!coincide(permiso) && !hijosVisibles.length) return;
         var grupo = permiso.menu_nombre || 'Sin menú';
         if (!grupos[grupo]) grupos[grupo] = [];
-        grupos[grupo].push(permiso);
+        grupos[grupo].push({ permiso: permiso, opciones: hijosVisibles });
     });
-
-    // Opción individual del usuario (no del rol): se muestra dentro de "Flujo de Venta".
-    var grupoFlujo = Object.keys(grupos).find(function (g) { return g.trim().toLowerCase() === GRUPO_FLUJO.toLowerCase(); })
-        || (usrPermisos.permisos.find(function (p) { return (p.menu_nombre || '').trim().toLowerCase() === GRUPO_FLUJO.toLowerCase(); }) || {}).menu_nombre
-        || GRUPO_FLUJO;
-    if (usrPermisos.cargado && (!termino || (grupoFlujo + ' ' + etiquetaVerFlujos + ' usuario').toLowerCase().indexOf(termino) !== -1)) {
-        if (!grupos[grupoFlujo]) grupos[grupoFlujo] = [];
-        grupos[grupoFlujo].push({ especial: 'ver_todos_flujos' });
-    }
 
     $('#usr_permisos_resumen').text(usrPermisos.efectivos.length + ' seleccionados');
     if (!Object.keys(grupos).length) {
@@ -314,27 +318,35 @@ function usrRenderPermisos() {
         return;
     }
 
+    var itemHtml = function (permiso) {
+        var id = Number(permiso.id);
+        var inputId = 'usr-permiso-' + id;
+        var heredado = usrPermisos.heredados.includes(id);
+        var otorgado = usrPermisos.efectivos.includes(id) && !heredado;
+        var revocado = heredado && !usrPermisos.efectivos.includes(id);
+        var origen = otorgado ? 'Directo' : (revocado ? 'Revocado' : (heredado ? 'Por rol' : ''));
+        return '<div class="usr-permiso-item custom-control custom-checkbox">' +
+            '<input type="checkbox" class="custom-control-input usr-permiso-toggle" id="' + inputId + '" data-id="' + id + '" ' + (usrPermisoSeleccionado(id) ? 'checked' : '') + '>' +
+            '<label class="custom-control-label" for="' + inputId + '" title="' + usrEscapeHtml(permiso.ruta) + '">' + usrEscapeHtml(permiso.nombre) + ' <span class="usr-permiso-origen">' + origen + '</span></label>' +
+            '</div>';
+    };
+
     var html = '';
-    Object.keys(grupos).sort().forEach(function (nombreGrupo, index) {
+    Object.keys(grupos).sort().forEach(function (nombreGrupo) {
         html += '<section class="usr-permiso-grupo"><div class="usr-permiso-grupo-titulo">' + usrEscapeHtml(nombreGrupo) + '</div><div class="usr-permiso-grupo-items">';
-        grupos[nombreGrupo].forEach(function (permiso) {
-            if (permiso.especial === 'ver_todos_flujos') {
-                html += '<div class="usr-permiso-item custom-control custom-checkbox">' +
-                    '<input type="checkbox" class="custom-control-input usr-ver-todos-flujos" id="usr-ver-todos-flujos" ' + (usrPermisos.verTodosFlujos ? 'checked' : '') + '>' +
-                    '<label class="custom-control-label" for="usr-ver-todos-flujos" title="En Ventas, este usuario ve los flujos de todos los usuarios (aplica solo a este usuario, no al rol)."><strong>' + etiquetaVerFlujos + '</strong> <span class="usr-permiso-origen">Usuario</span></label>' +
-                    '</div>';
+        grupos[nombreGrupo].forEach(function (nodo) {
+            if (!nodo.opciones.length) {
+                html += itemHtml(nodo.permiso);
                 return;
             }
-            var id = Number(permiso.id);
-            var inputId = 'usr-permiso-' + id;
-            var heredado = usrPermisos.heredados.includes(id);
-            var otorgado = usrPermisos.efectivos.includes(id) && !heredado;
-            var revocado = heredado && !usrPermisos.efectivos.includes(id);
-            var origen = otorgado ? 'Directo' : (revocado ? 'Revocado' : (heredado ? 'Por rol' : ''));
-            html += '<div class="usr-permiso-item custom-control custom-checkbox">' +
-                '<input type="checkbox" class="custom-control-input usr-permiso-toggle" id="' + inputId + '" data-id="' + id + '" ' + (usrPermisoSeleccionado(id) ? 'checked' : '') + '>' +
-                '<label class="custom-control-label" for="' + inputId + '" title="' + usrEscapeHtml(permiso.ruta) + '">' + usrEscapeHtml(permiso.nombre) + ' <span class="usr-permiso-origen">' + origen + '</span></label>' +
-                '</div>';
+            var id = Number(nodo.permiso.id);
+            var abierto = !!termino || !!usrOpcionesAbiertas[id];
+            html += '<div class="usr-permiso-nodo' + (abierto ? ' abierto' : '') + '">' +
+                '<div class="usr-permiso-fila">' + itemHtml(nodo.permiso) +
+                '<button type="button" class="usr-permiso-expandir" data-id="' + id + '" title="' + (abierto ? 'Ocultar' : 'Ver') + ' opciones de ' + usrEscapeHtml(nodo.permiso.nombre) + '">' +
+                '<i class="fa ' + (abierto ? 'fa-minus' : 'fa-plus') + '"></i></button></div>' +
+                '<div class="usr-permiso-opciones"' + (abierto ? '' : ' style="display:none"') + '>' +
+                nodo.opciones.map(itemHtml).join('') + '</div></div>';
         });
         html += '</div></section>';
     });
@@ -342,8 +354,10 @@ function usrRenderPermisos() {
 }
 
 $(document).on('input', '#usr_permisos_buscar', usrRenderPermisos);
-$(document).on('change', '.usr-ver-todos-flujos', function () {
-    usrPermisos.verTodosFlujos = this.checked;
+$(document).on('click', '.usr-permiso-expandir', function () {
+    var id = Number($(this).data('id'));
+    usrOpcionesAbiertas[id] = !usrOpcionesAbiertas[id];
+    usrRenderPermisos();
 });
 $(document).on('change', '.usr-permiso-toggle', function () {
     var id = Number($(this).data('id'));

@@ -418,15 +418,17 @@
 
     {{-- ══ ACTION BAR ═══════════════════════════════════════════════ --}}
     <div class="prod-action-bar">
-        @if (Auth::user()->rol_id == '1')
+        @if ($permisos['crear'])
         <button class="btn-register" data-toggle="modal" data-target="#modal_producto_crear">
             <i class="fa fa-plus mr-1"></i> Nuevo Producto
         </button>
+        @endif
+        @if ($permisos['cargaMasiva'])
         <button class="btn-excel" data-toggle="modal" data-target="#modal_producto_carga_masiva">
             <i class="fa fa-upload mr-1"></i> Carga Masiva
         </button>
         @endif
-        @if (Auth::user()->rol_id == '1' || Auth::user()->rol_id == '7')
+        @if ($permisos['exportar'])
         <button class="btn-excel" onclick="exportarExcel()">
             <i class="fa fa-file-excel-o mr-1"></i> Exportar Excel
         </button>
@@ -960,7 +962,7 @@
         </div>
     </div>
 
-    @if (Auth::user()->rol_id == '1')
+    @if ($permisos['cargaMasiva'])
     {{-- ══ MODAL: CARGA MASIVA DE PRODUCTOS ═══════════════════════ --}}
     <div class="modal fade" id="modal_producto_carga_masiva" tabindex="-1" role="dialog" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered" role="document">
@@ -1071,7 +1073,7 @@
         });
     </script>
     <script src="{{ asset('js/js_proyecto/inventario/producto.js') }}"></script>
-    @if (Auth::user()->rol_id == '1')
+    @if ($permisos['cargaMasiva'])
     <script src="{{ asset('js/js_proyecto/inventario/producto-carga-masiva.js') }}"></script>
     @endif
     @endpush

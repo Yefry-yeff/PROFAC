@@ -7,14 +7,35 @@ dashboard (facturas y clientes), sin otorgarle acceso a cobros ni inventario.
 Las tarjetas solo muestran la accion de detalle cuando el usuario tiene acceso
 al area correspondiente; la apertura y la exportacion verifican ese mismo acceso.
 
-### Ver todos los flujos en Ventas por usuario
+### Opciones de submenu: ver todos los flujos en Ventas
 
-En Usuarios > Editar > Permisos, grupo "Flujo de Venta", la opcion "Permite ver
-todos los flujos" se guarda en `users.ver_todos_flujos` (migracion
-`2026_11_04_000001`). Es individual: no se hereda ni se asigna por rol. Con ella
-marcada, el listado de Ventas (`Flujo\ListarVentas`) muestra todos los flujos
-igual que a los roles 1 y 16 (`User::puedeVerTodosLosFlujos()`); sin ella, el
-usuario solo ve los flujos donde participa.
+Un submenu puede tener opciones: filas de `sub_menu` con `padre_id` que no
+aparecen en la navegacion, pero se asignan como cualquier permiso por rol
+(`rol_submenu`) o por usuario (`usuario_submenu`, otorgar o revocar). En Roles y
+en Usuarios > Editar > Permisos se despliegan con el boton "+" junto al submenu.
+
+"Permite ver todos los flujos" es opcion de Ventas
+(`SubMenu::OPCION_VER_TODOS_FLUJOS`, migracion `2026_11_04_000002`, que la asigna
+a los roles 1 y 16 y a los usuarios que tenian `users.ver_todos_flujos`). Con
+ella, el listado de Ventas (`Flujo\ListarVentas`) muestra todos los flujos
+(`User::puedeVerTodosLosFlujos()`); sin ella, el usuario solo ve los flujos donde
+participa. La columna `users.ver_todos_flujos` ya no se usa.
+
+### Opciones de los catalogos de productos
+
+Catalogo de Productos (`producto/registro`) se segmenta en opciones
+(`SubMenu::OPCION_PRODUCTOS_*`, migracion `2026_11_04_000003`): ver detalle,
+editar producto, subir fotografia, crear producto, carga masiva, exportar Excel,
+inactivar/activar y editar unidades de medida para la venta. Catalogo Apoyo solo
+tiene "Subir fotografia" (`SubMenu::OPCION_APOYO_SUBIR_FOTO`); el resto sigue en
+solo lectura. Cada opcion oculta su boton (listado, `Producto::render`,
+`DetalleProducto::mount`) y se valida en su endpoint con
+`User::tienePermiso()` (403 sin la opcion). La migracion asigna las opciones a
+los roles que ya tenian el catalogo, respetando los limites que antes estaban
+fijos en codigo (crear y carga masiva: rol 1; exportar: roles 1 y 7; unidades:
+roles 1 y 5); la de Apoyo no se asigna a nadie. `/producto/detalle/{id}` sigue
+abierto porque se enlaza desde cotizaciones y facturacion; sin opciones se ve en
+solo lectura.
 
 ### Rendimiento del Reporte Expo
 
