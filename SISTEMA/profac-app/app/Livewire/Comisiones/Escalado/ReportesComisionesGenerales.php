@@ -22,6 +22,7 @@ use App\Services\Comisiones\GeneradorFacturasComision;
 use App\Services\Comisiones\AplicadorRetencionesMora;
 use App\Services\Comisiones\ProcesadorComisiones;
 use App\Support\Comisiones\CategoriaComisionPorPrecio;
+use App\Support\Comisiones\PrecioComisionProyeccion;
 use App\Support\Comisiones\ProyeccionEspecial15;
 
 class ReportesComisionesGenerales extends Component
@@ -1527,6 +1528,7 @@ class ReportesComisionesGenerales extends Component
                          vhp.unidad_medida_venta_id,
                          p.nombre as producto,
                          COALESCE(SUM(vhp.cantidad_s), SUM(vhp.cantidad)) as cantidad,
+                         SUM(vhp.sub_total_s) as subtotal_facturado,
                          vhp.precio_unidad,
                          vhp.precioSeleccionado,
                          vhp.idPrecioSeleccionado,
@@ -1534,8 +1536,39 @@ class ReportesComisionesGenerales extends Component
                          ppc.categoria_precios_id,
                          cp.nombre as categoria_precio,
                          cp.cliente_categoria_escala_id as categoria_cliente_precio_id")
+            ->get();
+
+        $categoriasExpoPorFactura = DB::table('prefactura_auditoria as pa')
+            ->join('prefactura as pf', 'pf.id', '=', 'pa.prefactura_id')
+            ->join('expo_cotizacion as ec', 'ec.cotizacion_id', '=', 'pf.cotizacion_id')
+            ->join('expo_escala as ee', 'ee.expo_id', '=', 'ec.expo_id')
+            ->whereIn('pa.factura_id', $facturaIds)
+            ->select('pa.factura_id', 'ee.escala_id')
+            ->distinct()
             ->get()
-            ->groupBy('factura_id');
+            ->concat(
+                DB::table('venta_has_producto as vhp')
+                    ->join('cotizacion_has_producto as chp', 'chp.id', '=', 'vhp.cotizacion_has_producto_id')
+                    ->join('expo_cotizacion as ec', 'ec.cotizacion_id', '=', 'chp.cotizacion_id')
+                    ->join('expo_escala as ee', 'ee.expo_id', '=', 'ec.expo_id')
+                    ->whereIn('vhp.factura_id', $facturaIds)
+                    ->select('vhp.factura_id', 'ee.escala_id')
+                    ->distinct()
+                    ->get()
+            )
+            ->mapWithKeys(fn($fila) => [
+                (int) $fila->factura_id . '|' . (int) $fila->escala_id => true,
+            ]);
+
+        $lineasFactura->each(function ($linea) use ($categoriasExpoPorFactura) {
+            $clave = (int) $linea->factura_id . '|' . (int) $linea->categoria_precios_id;
+            $linea->es_categoria_expo = isset($categoriasExpoPorFactura[$clave]);
+            $cantidadFacturada = (float) ($linea->cantidad ?? 0);
+            $linea->precio_facturado_unitario = $cantidadFacturada > 0 && $linea->subtotal_facturado !== null
+                ? (float) $linea->subtotal_facturado / $cantidadFacturada
+                : null;
+        });
+        $lineasFactura = $lineasFactura->groupBy('factura_id');
 
         $cantidadesDevueltas = DB::table('nota_credito_has_producto as ncp')
             ->join('nota_credito as nc', 'nc.id', '=', 'ncp.nota_credito_id')
@@ -1929,9 +1962,20 @@ class ReportesComisionesGenerales extends Component
 
                 foreach ($lineas as $linea) {
                     $cantidad = (float) ($linea->cantidad ?? 0);
-                    $precioUnitario = (float) ($linea->precio_unidad ?? 0);
+                    $precioUnitarioOriginal = (float) ($linea->precio_unidad ?? 0);
                     $precioSeleccionado = (float) ($linea->precioSeleccionado ?? 0);
-                    $precioParaComision = $precioSeleccionado > 0 ? $precioSeleccionado : $precioUnitario;
+                    $precioResuelto = PrecioComisionProyeccion::resolver(
+                        $cantidad,
+                        $precioUnitarioOriginal,
+                        $precioSeleccionado,
+                        $linea->precio_facturado_unitario !== null
+                            ? (float) $linea->precio_facturado_unitario
+                            : null,
+                        (bool) ($linea->es_categoria_expo ?? false)
+                    );
+                    $precioUnitario = $precioResuelto['precio_unitario'];
+                    $precioParaComision = $precioResuelto['precio_comision'];
+                    $fuenteBaseComisionable = $precioResuelto['fuente'];
 
                     $baseUnitaria = round($cantidad * $precioUnitario, 4);
                     $baseComisionable = round($cantidad * $precioParaComision, 4);
@@ -2027,9 +2071,7 @@ class ReportesComisionesGenerales extends Component
                                     'base_comisionable' => round($baseComisionable, 4),
                                     'porcentaje' => 0.0,
                                     'comision_linea' => 0.0,
-                                    'fuente_base_comisionable' => $precioSeleccionado > 0
-                                        ? 'Cantidad x precioSeleccionado'
-                                        : 'Cantidad x precio_unidad (fallback)',
+                                    'fuente_base_comisionable' => $fuenteBaseComisionable,
                                 ],
                             ],
                         ];
@@ -2112,9 +2154,7 @@ class ReportesComisionesGenerales extends Component
                                     'base_comisionable' => round($baseComisionable, 4),
                                     'porcentaje' => round($porcentaje, 4),
                                     'comision_linea' => 0.0,
-                                    'fuente_base_comisionable' => $precioSeleccionado > 0
-                                        ? 'Cantidad x precioSeleccionado'
-                                        : 'Cantidad x precio_unidad (fallback)',
+                                    'fuente_base_comisionable' => $fuenteBaseComisionable,
                                 ],
                             ],
                         ];
@@ -2160,9 +2200,7 @@ class ReportesComisionesGenerales extends Component
                                 'porcentaje' => round($porcentaje, 4),
                                 'comision_linea' => round($comisionLinea, 4),
                                 'retencion_mora' => round($retencionMoraAplicada, 4),
-                                'fuente_base_comisionable' => $precioSeleccionado > 0
-                                    ? 'Cantidad x precioSeleccionado'
-                                    : 'Cantidad x precio_unidad (fallback)',
+                                'fuente_base_comisionable' => $fuenteBaseComisionable,
                             ],
                         ],
                     ];
