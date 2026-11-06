@@ -10,6 +10,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use DataTables;
 use Auth;
 use Validator;
@@ -460,7 +461,11 @@ class Cotizacion extends Component
             'nombre_cliente_ventas' => 'required',
             'vendedor' => 'required|integer|exists:users,id',
             'tele_asesor' => 'required|integer|exists:users,id',
-            'zone_group_id' => 'nullable|integer|exists:zone_groups,id',
+            'zone_group_id' => [
+                'required',
+                'integer',
+                Rule::exists('zone_groups', 'id')->where(fn ($query) => $query->where('status', 1)),
+            ],
             'direccion_entrega' => 'nullable|string|max:255',
             'direccion_departamento_id' => 'nullable|integer|exists:departamento,id',
             'direccion_municipio_id' => 'nullable|integer|exists:municipio,id',
@@ -468,6 +473,10 @@ class Cotizacion extends Component
             // no son datos a guardar — los productos reales vienen en bodega{idx}, idProducto{idx}, etc.
 
 
+        ], [
+            'zone_group_id.required' => 'Debe seleccionar una zona de reparto para guardar la oferta.',
+            'zone_group_id.integer' => 'La zona de reparto seleccionada no es válida.',
+            'zone_group_id.exists' => 'La zona de reparto seleccionada no está activa o ya no existe.',
         ]);
 
 
@@ -476,7 +485,7 @@ class Cotizacion extends Component
             return response()->json([
                 'icon' => 'error',
                 'title' => 'error',
-                'text' => 'Por favor, verificar que todos los campos esten completados.',
+                'text' => $validator->errors()->first(),
                 'mensaje' => 'Ha ocurrido un error al crear la compra.',
                 'errors' => $validator->errors()
             ], 401);
@@ -914,45 +923,7 @@ class Cotizacion extends Component
             $cotizacion->vendedor = $request->vendedor;
             $cotizacion->tele_asesor = $request->tele_asesor;
             $cotizacion->direccion_entrega = $request->input('direccion_entrega') ?: null;
-            $zonaPorDireccion = null;
-            $departamentoDireccionId = (int) $request->input('direccion_departamento_id', 0);
-            $municipioDireccionId = (int) $request->input('direccion_municipio_id', 0);
-            if ($departamentoDireccionId > 0) {
-                $zonaPorDireccion = DB::table('zone_group_details as zgd')
-                    ->join('zone_groups as zg', function ($join) {
-                        $join->on('zg.id', '=', 'zgd.zone_group_id')->where('zg.status', 1);
-                    })
-                    ->where('zgd.department_id', $departamentoDireccionId)
-                    ->where('zgd.status', 1)
-                    ->where(function ($query) use ($municipioDireccionId) {
-                        if ($municipioDireccionId > 0) {
-                            $query->where('zgd.municipality_id', $municipioDireccionId);
-                        }
-                        $query->orWhereNull('zgd.municipality_id');
-                    })
-                    ->orderByRaw('zgd.municipality_id IS NULL ASC')
-                    ->value('zg.id');
-            }
-            if ($cotizacion->direccion_entrega) {
-                $zonaPorDireccion = $zonaPorDireccion ?: DB::table('cliente_direccion as cd')
-                    ->join('zone_group_details as zgd', function ($join) {
-                        $join->on('zgd.department_id', '=', 'cd.departamento_id')
-                            ->where('zgd.status', 1)
-                            ->where(function ($query) {
-                                $query->whereColumn('zgd.municipality_id', 'cd.municipio_id')
-                                    ->orWhereNull('zgd.municipality_id');
-                            });
-                    })
-                    ->join('zone_groups as zg', function ($join) {
-                        $join->on('zg.id', '=', 'zgd.zone_group_id')->where('zg.status', 1);
-                    })
-                    ->where('cd.cliente_id', $cotizacion->cliente_id)
-                    ->where('cd.activo', 1)
-                    ->where('cd.direccion', $cotizacion->direccion_entrega)
-                    ->orderByRaw('zgd.municipality_id IS NULL ASC')
-                    ->value('zg.id');
-            }
-            $cotizacion->zone_group_id = $zonaPorDireccion ?: ($request->input('zone_group_id') ?: null);
+            $cotizacion->zone_group_id = (int) $request->input('zone_group_id');
             $cotizacion->users_id = Auth::user()->id;
             $cotizacion->arregloIdInputs = json_encode($request->arregloIdInputs);
             $cotizacion->numeroInputs = $request->numeroInputs;
@@ -2094,4 +2065,3 @@ class Cotizacion extends Component
     }
 
 }
-

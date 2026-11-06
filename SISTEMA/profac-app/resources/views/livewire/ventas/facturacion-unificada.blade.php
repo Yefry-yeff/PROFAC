@@ -1385,8 +1385,12 @@
                                 </div>
                                 <div id="oferta_zona_entrega" class="oferta-zona-entrega" style="display:none;">
                                     <i class="fa-solid fa-route mr-1"></i>
-                                    Zona de reparto: <strong id="oferta_zona_entrega_nombre">—</strong>
+                                    Zona sugerida: <strong id="oferta_zona_entrega_nombre">—</strong>
                                 </div>
+                                <label class="ofr-label mt-2 mb-1">Zona de reparto <span class="req">*</span></label>
+                                <select id="zona_reparto_oferta_modal" class="form-control form-control-sm" style="width:100%;">
+                                    <option value="">-- Seleccionar zona de reparto --</option>
+                                </select>
                             </div>
                         </div>
                         <div class="modal-footer">
@@ -6240,7 +6244,10 @@
         var teleHidden = document.getElementById('tele_asesor_hidden');
         var teleIdActual = teleHidden ? teleHidden.value : '';
         var direccionHidden = document.getElementById('direccion_entrega_hidden');
+        var zonaHidden = document.getElementById('zone_group_id_hidden');
+        var zonaActual = zonaHidden ? zonaHidden.value : '';
         $('#tele_asesor_oferta_modal').empty().append(new Option('-- Seleccionar tele asesor --', ''));
+        $('#zona_reparto_oferta_modal').empty().append(new Option('-- Seleccionar zona de reparto --', ''));
         $('#direcciones_oferta_modal').html('<div class="text-muted small text-center py-2">Cargando direcciones del cliente...</div>');
         $('#btn_confirmar_envio_oferta').prop('disabled', true);
         var cargaDirecciones = $.get('/clientes/form/datos/' + clienteId).done(function(data) {
@@ -6273,8 +6280,19 @@
             });
             $('#tele_asesor_oferta_modal').trigger('change');
         });
-        $.when(cargaDirecciones, cargaTeleasesores).always(function() {
-            $('#btn_confirmar_envio_oferta').prop('disabled', false);
+        var cargaZonas = $.get('/logistica/zonas/activas').done(function(data) {
+            (data.zonas || []).forEach(function(zona) {
+                var seleccionada = String(zona.id) === String(zonaActual);
+                $('#zona_reparto_oferta_modal').append(
+                    new Option(zona.name, zona.id, seleccionada, seleccionada)
+                );
+            });
+            if ($('.oferta-direccion-opcion.seleccionada').length) {
+                actualizarZonaDireccionSeleccionada();
+            }
+        });
+        $.when(cargaDirecciones, cargaTeleasesores, cargaZonas).always(function() {
+            actualizarEstadoConfirmacionEnvioOferta();
         });
         $('#modal_envio_oferta').modal('show');
     }
@@ -6393,12 +6411,23 @@
     });
 
     var ofertaZonaRequestActual = null;
+    function actualizarEstadoConfirmacionEnvioOferta() {
+        var teleId = $('#tele_asesor_oferta_modal').val() || '';
+        var direccionSeleccionada = $('.oferta-direccion-opcion.seleccionada').length > 0;
+        var zonaId = $('#zona_reparto_oferta_modal').val() || '';
+        $('#btn_confirmar_envio_oferta').prop('disabled', !(teleId && direccionSeleccionada && zonaId));
+    }
+
+    $(document).on('change', '#tele_asesor_oferta_modal, #zona_reparto_oferta_modal', actualizarEstadoConfirmacionEnvioOferta);
+
     function actualizarZonaDireccionSeleccionada() {
         var seleccionada = $('.oferta-direccion-opcion.seleccionada');
         var departamentoId = seleccionada.attr('data-departamento-id') || '';
         var municipioId = seleccionada.attr('data-municipio-id') || '';
         var zonaBox = $('#oferta_zona_entrega');
         var zonaNombre = $('#oferta_zona_entrega_nombre');
+        $('#zona_reparto_oferta_modal').val('');
+        actualizarEstadoConfirmacionEnvioOferta();
         if (!seleccionada.length || !departamentoId) {
             zonaBox.hide();
             return;
@@ -6414,14 +6443,17 @@
             if (zona && zona.nombre) {
                 zonaBox.removeClass('sin-zona');
                 zonaNombre.text(zona.nombre);
+                $('#zona_reparto_oferta_modal').val(String(zona.id));
             } else {
                 zonaBox.addClass('sin-zona');
-                zonaNombre.text('Sin zona asignada para esta ubicación');
+                zonaNombre.text('Sin coincidencia automática; seleccione una zona');
             }
+            actualizarEstadoConfirmacionEnvioOferta();
         }).fail(function(xhr) {
             if (xhr.statusText === 'abort') return;
             zonaBox.addClass('sin-zona');
-            zonaNombre.text('No se pudo determinar la zona');
+            zonaNombre.text('No se pudo sugerir una zona; seleccione una manualmente');
+            actualizarEstadoConfirmacionEnvioOferta();
         });
     }
 
@@ -6429,6 +6461,7 @@
         var teleId = $('#tele_asesor_oferta_modal').val() || '';
         var direccionSeleccionadaEl = $('.oferta-direccion-opcion.seleccionada');
         var direccionSeleccionada = direccionSeleccionadaEl.data('direccion') || '';
+        var zonaId = $('#zona_reparto_oferta_modal').val() || '';
         if (!teleId) {
             Swal.fire({ icon: 'warning', title: 'Tele asesor requerido', text: 'Debe seleccionar un tele asesor para la oferta.', customClass: { container: 'swal-sobre-modal' } });
             return;
@@ -6437,13 +6470,17 @@
             Swal.fire({ icon: 'warning', title: 'Dirección requerida', text: 'Debe seleccionar una dirección de entrega para la oferta.', customClass: { container: 'swal-sobre-modal' } });
             return;
         }
+        if (!zonaId) {
+            Swal.fire({ icon: 'warning', title: 'Zona de reparto requerida', text: 'Debe seleccionar una zona de reparto para guardar la oferta.', customClass: { container: 'swal-sobre-modal' } });
+            return;
+        }
         var teleHidden = document.getElementById('tele_asesor_hidden');
         var zonaHidden = document.getElementById('zone_group_id_hidden');
         var direccionHidden = document.getElementById('direccion_entrega_hidden');
         var departamentoHidden = document.getElementById('direccion_departamento_id_hidden');
         var municipioHidden = document.getElementById('direccion_municipio_id_hidden');
         if (teleHidden) teleHidden.value = teleId;
-        if (zonaHidden) zonaHidden.value = '';
+        if (zonaHidden) zonaHidden.value = zonaId;
         if (direccionHidden) direccionHidden.value = direccionSeleccionada;
         if (departamentoHidden) departamentoHidden.value = direccionSeleccionadaEl.attr('data-departamento-id') || '';
         if (municipioHidden) municipioHidden.value = direccionSeleccionadaEl.attr('data-municipio-id') || '';
