@@ -21,7 +21,7 @@ class DistribucionEntrega extends Component
 {
     private function condicionFechaFacturas(string $alias = 'f'): string
     {
-        return FacturasDistribucion::condicionFecha($alias);
+        return FacturasDistribucion::condicionFechaNuevaDistribucion($alias);
     }
 
     // rol_id: 10=Picking, 11=Equipo de Entregas, 17=Motoristas, 21=Ayudante de Entrega
@@ -110,14 +110,14 @@ class DistribucionEntrega extends Component
 
             $fueraDeRango = DB::table('factura as f')
                 ->whereIn('f.id', $data['facturas'])
-                ->whereRaw('NOT (' . FacturasDistribucion::condicionFecha() . ')')
+                ->whereRaw('NOT (' . FacturasDistribucion::condicionFechaNuevaDistribucion() . ')')
                 ->exists();
 
             if ($fueraDeRango) {
                 return response()->json([
                     'icon' => 'error',
                     'title' => 'Facturas fuera de rango',
-                    'text' => 'Solo se pueden distribuir facturas emitidas desde el 19/05/2026 hasta hoy.',
+                    'text' => 'Solo se pueden distribuir facturas emitidas desde el 01/10/2026 hasta hoy.',
                 ], 422);
             }
 
@@ -832,10 +832,10 @@ class DistribucionEntrega extends Component
                             'success' => false,
                             'message' => 'Esta factura ya fue entregada'
                         ], 422);
-                    } elseif ($facturaInfo[0]->fecha_emision < FacturasDistribucion::FECHA_INICIO) {
+                    } elseif ($facturaInfo[0]->fecha_emision < FacturasDistribucion::FECHA_INICIO_NUEVA_DISTRIBUCION) {
                         return response()->json([
                             'success' => false,
-                            'message' => 'Esta factura es anterior al 19/05/2026 y no está disponible para distribución (GLPI-330)'
+                            'message' => 'Esta factura es anterior al 01/10/2026 y no está disponible para una nueva distribución'
                         ], 422);
                     }
 

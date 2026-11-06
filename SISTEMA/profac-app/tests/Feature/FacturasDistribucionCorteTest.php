@@ -79,18 +79,18 @@ class FacturasDistribucionCorteTest extends TestCase
         return require database_path('migrations/2026_10_13_000001_completar_facturas_historicas_glpi_330.php');
     }
 
-    public function test_rango_incluye_el_corte_y_todo_hoy_pero_no_manana(): void
+    public function test_nueva_distribucion_incluye_desde_octubre_y_excluye_fechas_anteriores_y_futuras(): void
     {
-        $this->factura(1, '2026-05-18 23:59:59');
-        $this->factura(2, '2026-05-19 00:00:00');
+        $this->factura(1, '2026-09-30 23:59:59');
+        $this->factura(2, '2026-10-01 00:00:00');
         $this->factura(3, '2026-10-13 23:59:59');
         $this->factura(4, '2026-10-14 00:00:00');
 
-        $this->assertSame([2, 3], DB::table('factura as f')
+        $this->assertSame([1, 2, 3], DB::table('factura as f')
             ->whereRaw(FacturasDistribucion::condicionFecha())
             ->orderBy('id')->pluck('id')->all());
         $this->assertSame([2, 3], DB::table('factura as f2')
-            ->whereRaw(FacturasDistribucion::condicionFecha('f2'))
+            ->whereRaw(FacturasDistribucion::condicionFechaNuevaDistribucion('f2'))
             ->orderBy('id')->pluck('id')->all());
 
         $distribucion = new DistribucionEntrega();
@@ -173,10 +173,10 @@ class FacturasDistribucionCorteTest extends TestCase
         $this->assertStringContainsString('Pendiente', $historial['historial'][0]['observaciones']);
     }
 
-    public function test_busqueda_por_numero_no_rechaza_factura_antigua_dentro_del_rango(): void
+    public function test_busqueda_por_numero_respeta_el_corte_del_primero_de_octubre(): void
     {
-        $this->factura(1, '2026-05-18');
-        $this->factura(2, '2026-05-19');
+        $this->factura(1, '2026-09-30 23:59:59');
+        $this->factura(2, '2026-10-01 00:00:00');
         $this->factura(3, '2026-10-14');
         $componente = new DistribucionEntrega();
         $this->assertSame(422, $componente->obtenerFacturaPorNumero(new Request(['numero' => 'FAC-1']))->getStatusCode());
@@ -186,7 +186,7 @@ class FacturasDistribucionCorteTest extends TestCase
 
     public function test_guardado_rechaza_facturas_anteriores_y_futuras(): void
     {
-        $this->factura(1, '2026-05-18');
+        $this->factura(1, '2026-09-30 23:59:59');
         $this->factura(2, '2026-10-14');
         foreach ([1, 2] as $id) {
             $request = new Request([

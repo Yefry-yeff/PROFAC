@@ -46,7 +46,7 @@ class AgrupacionesDeEntregas extends Component
      */
     private function condicionFacturaPendiente(): string
     {
-        $fecha = FacturasDistribucion::condicionFecha();
+        $fecha = FacturasDistribucion::condicionFechaNuevaDistribucion();
 
         return "
             f.estado_factura_id IN (1, 2)

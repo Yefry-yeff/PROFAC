@@ -1975,9 +1975,15 @@ class ReportesComisionesGenerales extends Component
                     );
                     $precioUnitario = $precioResuelto['precio_unitario'];
                     $precioParaComision = $precioResuelto['precio_comision'];
+                    $precioParaCategoria = $precioResuelto['precio_categoria'];
                     $fuenteBaseComisionable = $precioResuelto['fuente'];
 
-                    $baseUnitaria = round($cantidad * $precioUnitario, 4);
+                    $baseUnitaria = round(
+                        $cantidad * ((bool) ($linea->es_categoria_expo ?? false)
+                            ? $precioParaComision
+                            : $precioUnitario),
+                        4
+                    );
                     $baseComisionable = round($cantidad * $precioParaComision, 4);
                     $categoriaAjustada = $resolverCategoriaComision->resolver(
                         (int) ($factura->cliente_categoria_escala_id ?? 0),
@@ -1986,7 +1992,7 @@ class ReportesComisionesGenerales extends Component
                         (int) ($linea->categoria_cliente_precio_id ?? 0),
                         (string) ($linea->categoria_precio ?? 'N/A'),
                         (string) ($linea->idPrecioSeleccionado ?? ''),
-                        $precioParaComision
+                        $precioParaCategoria
                     );
                     $categoriaPrecioId = $categoriaAjustada['categoria_precios_id'];
                     $categoriaPrecioNombre = $categoriaAjustada['categoria_precio'];
@@ -2007,7 +2013,7 @@ class ReportesComisionesGenerales extends Component
                         $precioRefKey = $productoId . '_' . $catForzada;
                         $precioRef = $precioRefSRMap[$precioRefKey] ?? null;
                         // Penalizar con categoría más baja SOLO si vendió por DEBAJO del precio de esa categoría.
-                        if ($precioRef !== null && $precioParaComision < $precioRef) {
+                        if ($precioRef !== null && $precioParaCategoria < $precioRef) {
                             $categoriaPrecioId = $catForzada;
                         }
                         // Si vendió igual o por encima, comisiona por la categoría real

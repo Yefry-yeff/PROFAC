@@ -13,6 +13,7 @@ class PrecioComisionProyeccionTest extends TestCase
 
         $this->assertSame(72.83, $precio['precio_unitario']);
         $this->assertSame(72.83, $precio['precio_comision']);
+        $this->assertSame(72.83, $precio['precio_categoria']);
         $this->assertSame('Subtotal neto facturado EXPO', $precio['fuente']);
     }
 
@@ -30,5 +31,20 @@ class PrecioComisionProyeccionTest extends TestCase
         $this->assertSame(72.83, $precio['precio_unitario']);
         $this->assertSame(121.38, $precio['precio_comision']);
         $this->assertSame('Cantidad x precioSeleccionado', $precio['fuente']);
+    }
+
+    public function test_categoria_expo_usa_centavos_visibles_para_resolver_la_escala(): void
+    {
+        $precio = PrecioComisionProyeccion::resolver(
+            44,
+            63.58,
+            63.58,
+            1678.51 / 44,
+            true
+        );
+
+        $this->assertSame(38.15, $precio['precio_unitario']);
+        $this->assertSame(38.15, $precio['precio_categoria']);
+        $this->assertEqualsWithDelta(38.1479545, $precio['precio_comision'], 0.0000001);
     }
 }
