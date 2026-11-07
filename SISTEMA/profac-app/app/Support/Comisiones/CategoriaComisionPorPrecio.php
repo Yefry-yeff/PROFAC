@@ -112,17 +112,31 @@ class CategoriaComisionPorPrecio
         }
 
         $candidatos = collect($this->candidatos[$productoId . '|' . $clienteCategoriaEscalaId] ?? [])
-            ->filter(fn(array $candidato) => $candidato[$columna] !== null
-                && $candidato[$columna] <= $precioVendido + 0.0001)
+            ->filter(fn(array $candidato) => $candidato[$columna] !== null);
+
+        $categoria = $candidatos
+            ->filter(fn(array $candidato) => $candidato[$columna] <= $precioVendido + 0.0001)
             ->sort(function (array $a, array $b) use ($columna) {
                 $porPrecio = $b[$columna] <=> $a[$columna];
 
                 return $porPrecio !== 0
                     ? $porPrecio
                     : $a['categoria_precios_id'] <=> $b['categoria_precios_id'];
-            });
+            })
+            ->first();
 
-        $categoria = $candidatos->first();
+        if (!$categoria) {
+            $categoria = $candidatos
+                ->sort(function (array $a, array $b) use ($columna) {
+                    $porPrecio = $a[$columna] <=> $b[$columna];
+
+                    return $porPrecio !== 0
+                        ? $porPrecio
+                        : $a['categoria_precios_id'] <=> $b['categoria_precios_id'];
+                })
+                ->first();
+        }
+
         if (!$categoria) {
             return $sinAjuste;
         }

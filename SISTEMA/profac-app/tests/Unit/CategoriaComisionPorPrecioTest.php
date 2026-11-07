@@ -36,16 +36,17 @@ class CategoriaComisionPorPrecioTest extends TestCase
         );
     }
 
-    public function test_conserva_categoria_original_si_el_precio_no_alcanza_la_escala_minima(): void
+    public function test_usa_categoria_minima_del_cliente_si_el_precio_no_alcanza_la_escala_minima(): void
     {
         $resolver = CategoriaComisionPorPrecio::desdeFilas([
             $this->candidato(1, 36, 2, 'A', 100),
+            $this->candidato(1, 36, 3, 'B', 110),
         ]);
 
         $resultado = $resolver->resolver(36, 1, 26, 38, 'C', 'p1', 99);
 
         $this->assertSame(
-            ['categoria_precios_id' => 26, 'categoria_precio' => 'C', 'ajustada' => false],
+            ['categoria_precios_id' => 2, 'categoria_precio' => 'A', 'ajustada' => true],
             $resultado
         );
     }
