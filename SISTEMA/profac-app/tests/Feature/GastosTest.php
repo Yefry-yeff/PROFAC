@@ -632,6 +632,9 @@ class GastosTest extends TestCase
     public function test_excel_compras_formato_fiscal_importes_por_producto_y_ceros_iniciales(): void
     {
         $this->crearCompraDePrueba();
+        DB::table('compra_has_producto')->where('compra_id', 1)->update([
+            'isv' => 36, 'precio_total' => 276,
+        ]);
         $detalle = (array) DB::table('compra_has_producto')->first();
         foreach ([2 => 0, 3 => 18] as $id => $tasa) {
             $producto = (array) DB::table('producto')->find(1);
@@ -738,6 +741,79 @@ class GastosTest extends TestCase
         } finally {
             unlink($ruta);
         }
+    }
+
+    public function test_excel_compras_alca_presenta_total_como_exento(): void
+    {
+        DB::table('proveedores')->insert([
+            'id' => 2, 'nombre' => 'ALCA', 'rtn' => '08019020234099', 'estado_id' => 1,
+        ]);
+        $compraId = DB::table('compra')->insertGetId([
+            'numero_factura' => '000-001-01-00001911',
+            'codigo_cai' => 'CAI-ALCA',
+            'fecha_vencimiento' => '2026-10-12',
+            'fecha_emision' => '2026-10-12',
+            'fecha_recepcion' => '2026-10-12',
+            'numero_orden' => '2026-2699',
+            'isv_compra' => 15,
+            'sub_total' => 100,
+            'total' => 115,
+            'debito' => 115,
+            'monto_retencion' => 0,
+            'proveedores_id' => 2,
+            'users_id' => 1,
+            'tipo_compra_id' => 1,
+            'estado_compra_id' => 1,
+            'retenciones_id' => 1,
+        ]);
+        DB::table('compra_has_producto')->insert([
+            'compra_id' => $compraId,
+            'producto_id' => 1,
+            'precio_unidad' => 100,
+            'cantidad_ingresada' => 1,
+            'cantidad_sin_asignar' => 1,
+            'sub_total_producto' => 100,
+            'isv' => 15,
+            'precio_total' => 115,
+            'cantidad_disponible' => 0,
+            'unidades_compra' => 1,
+            'unidad_compra_id' => 1,
+        ]);
+
+        $row = (new ComprasMesExport('2026-10'))->collection()->first();
+
+        $this->assertSame('08019020234099', $row['rtn']);
+        $this->assertSame(115.0, $row['importe_exento']);
+        $this->assertSame(0, $row['base_15']);
+        $this->assertSame(115.0, $row['monto_al_costo']);
+    }
+
+    public function test_excel_compra_reclasificada_exenta_conserva_total_sin_cambiar_catalogo(): void
+    {
+        $this->crearCompraDePrueba();
+        DB::table('compra')->where('id', 1)->update([
+            'numero_factura' => '000-001-01-00001911',
+            'sub_total' => 23434.81, 'isv_compra' => 3515.23,
+            'total' => 26950.04, 'debito' => 26950.04,
+        ]);
+        DB::table('compra_has_producto')->where('compra_id', 1)->update([
+            'sub_total_producto' => 23434.81, 'isv' => 3515.23, 'precio_total' => 26950.04,
+        ]);
+        $export = new ComprasMesExport('2026-10');
+        $gravada = $export->collection()->first();
+        $this->assertSame(0.0, $gravada['importe_exento']);
+        $this->assertSame(23434.81, $gravada['base_15']);
+
+        DB::statement('UPDATE compra_has_producto SET sub_total_producto = precio_total, isv = 0 WHERE compra_id = 1');
+        DB::statement('UPDATE compra SET sub_total = total, isv_compra = 0 WHERE id = 1');
+
+        $exenta = $export->collection()->first();
+        $this->assertSame('08011999000001', $exenta['rtn']);
+        $this->assertSame(26950.04, $exenta['importe_exento']);
+        $this->assertSame(0.0, $exenta['base_15']);
+        $this->assertSame(26950.04, $exenta['monto_al_costo']);
+        $this->assertEquals(26950.04, DB::table('compra')->find(1)->total);
+        $this->assertEquals(15, DB::table('producto')->find(1)->isv);
     }
 
     public function test_excel_gastos_incluye_estados_auditoria_y_filtro(): void
