@@ -240,14 +240,17 @@ El Excel de compras incluye logo y membrete de Distribuciones Valencia,
 fecha/usuario de generacion y filtros aplicados. Los encabezados son naranja,
 las filas alternan blanco/naranja claro y los montos al costo/gasto son verdes.
 Conserva las 11 columnas, anchos legibles, filtros de Excel y paneles inmovilizados.
-La fecha contable es igual a la emision. Los importes suman los subtotales netos
-de los productos, sin ISV: tasa 0 para exento y tasa 15 para base 15%.
-En compras se usa la tasa del producto del catalogo y el subtotal persistido del
-detalle; en gastos, la tasa y el subtotal neto persistidos por linea.
-La base del 18% se excluye de todos estos importes. Exento + base 15%, sin
-sumar el impuesto, se coloca solo en Monto al costo para compras y solo en
-Monto al gasto para gastos incluidos en compras. La columna que no corresponde
-al origen queda vacia; un importe aplicable de cero se conserva como numero.
+La fecha contable es igual a la emision. Los importes exentos usan el total de
+las partidas exentas; la base 15% suma los subtotales netos gravados. Para
+compras del RTN 08019020234099, el reporte presenta el total de cada compra
+como importe exento y no reporta base 15%, segun la regla solicitada. Para los
+demas proveedores, las lineas con ISV persistido en cero se reportan como
+exentas, aunque el catalogo del producto siga gravado. Las lineas con ISV
+positivo usan la tasa del producto y el subtotal persistido; la base del 18%
+se excluye. Exento + base 15% se coloca en Monto al
+costo para compras y en Monto al gasto para gastos incluidos en compras. La
+columna que no corresponde al origen queda vacia; un importe aplicable de cero
+se conserva como numero.
 RTN, CAI y factura se conservan como texto; los cuatro importes son numericos
 con dos decimales. Este formato sustituye las columnas anteriores del Excel
 de compras, no modifica el Excel independiente de gastos ni la auditoria.

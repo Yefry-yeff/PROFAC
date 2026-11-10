@@ -53,18 +53,19 @@ class ComprasMesExport extends DefaultValueBinder implements FromCollection, Wit
         $importesCompras = DB::table('compra_has_producto as detalle')
             ->join('producto', 'producto.id', '=', 'detalle.producto_id')
             ->select('detalle.compra_id')
-            ->selectRaw('SUM(CASE WHEN producto.isv = 0 THEN detalle.sub_total_producto ELSE 0 END) AS importe_exento')
-            ->selectRaw('SUM(CASE WHEN producto.isv = 15 THEN detalle.sub_total_producto ELSE 0 END) AS base_15')
+            ->selectRaw('SUM(CASE WHEN detalle.isv = 0 THEN detalle.precio_total ELSE 0 END) AS importe_exento')
+            ->selectRaw('SUM(CASE WHEN detalle.isv > 0 AND producto.isv = 15 THEN detalle.sub_total_producto ELSE 0 END) AS base_15')
             ->groupBy('detalle.compra_id');
         $importesGastos = DB::table('gasto_detalles')->select('gasto_id')
-            ->selectRaw('SUM(CASE WHEN isv_porcentaje = 0 THEN subtotal ELSE 0 END) AS importe_exento')
+            ->selectRaw('SUM(CASE WHEN isv_porcentaje = 0 THEN total ELSE 0 END) AS importe_exento')
             ->selectRaw('SUM(CASE WHEN isv_porcentaje = 15 THEN subtotal ELSE 0 END) AS base_15')
             ->groupBy('gasto_id');
         $compras = FiltrosCompras::aplicar(DB::table('compra')
             ->join('proveedores', 'proveedores.id', '=', 'compra.proveedores_id')
             ->leftJoinSub($importesCompras, 'importes', 'importes.compra_id', '=', 'compra.id')
             ->select('proveedores.rtn', 'proveedores.nombre', 'compra.codigo_cai as cai',
-                'compra.numero_factura', 'compra.fecha_emision', 'importes.importe_exento', 'importes.base_15')
+                'compra.numero_factura', 'compra.fecha_emision', 'compra.total as total_compra',
+                'importes.importe_exento', 'importes.base_15')
             ->selectRaw("'compra' AS origen")
             ->where('compra.estado_compra_id', 1), $this->filtros, 'compra', 'proveedores_id')
             ->orderBy('compra.id')->get();
@@ -87,6 +88,10 @@ class ComprasMesExport extends DefaultValueBinder implements FromCollection, Wit
     {
         $exento = round((float) $documento->importe_exento, 2);
         $base15 = round((float) $documento->base_15, 2);
+        if ($documento->origen === 'compra' && $documento->rtn === '08019020234099') {
+            $exento = round((float) $documento->total_compra, 2);
+            $base15 = 0;
+        }
         $fecha = \Carbon\Carbon::parse($documento->fecha_emision)->format('d/m/Y');
         return [
             'rtn' => $documento->rtn,

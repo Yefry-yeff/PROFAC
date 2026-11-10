@@ -33,7 +33,7 @@ $(document).ready(function() {
 
         pageLength: 10,
         responsive: true,
-        dom: 'lrtip',
+        dom: 'lfrtip',
 
 
         "ajax": function (data, callback) {
