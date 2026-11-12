@@ -606,6 +606,7 @@ class Librocobrosrep extends Component
                 c.nombre_cliente AS cliente,
                 COALESCE(u.name, '') AS asesor_comercial,
                 COALESCE(tele.name, '') AS teleasesor,
+                COALESCE(gestor.name, '') AS gestor_entrega,
                 COALESCE(NULLIF(TRIM(c.cai), ''), c.numero_secuencia_cai) AS factura,
                 c.monto_cobrado,
                 CASE
@@ -758,6 +759,7 @@ class Librocobrosrep extends Component
             LEFT JOIN pagos_no_identificados pni ON pni.id = pnia.pago_id
             LEFT JOIN users u ON u.id = c.vendedor
             LEFT JOIN users tele ON tele.id = c.users_id
+            LEFT JOIN users gestor ON gestor.id = c.gestor_entrega
             WHERE c.fecha_pago BETWEEN ? AND ?
                             AND c.orden_tipo = 1
         ";
@@ -800,7 +802,7 @@ class Librocobrosrep extends Component
             ->selectRaw("
                 NULL AS fecha_venta, NULL AS fecha_vencimiento,
                 p.fecha_pago, COALESCE(cliente.nombre, '') AS cliente,
-                '' AS asesor_comercial, '' AS teleasesor, '' AS factura,
+                '' AS asesor_comercial, '' AS teleasesor, '' AS gestor_entrega, '' AS factura,
                 p.saldo_disponible AS monto_cobrado,
                 CASE WHEN EXISTS (SELECT 1 FROM pni_aplicaciones pa WHERE pa.pago_id = p.id)
                     THEN 0 ELSE p.monto_original END AS monto_recibido,
