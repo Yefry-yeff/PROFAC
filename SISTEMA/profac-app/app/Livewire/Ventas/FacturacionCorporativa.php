@@ -5,6 +5,7 @@ namespace App\Livewire\Ventas;
 use App\Support\ExpoConfig;
 use App\Support\ClienteActoresAsignados;
 use App\Support\Logistica\FacturaEnvioHelper;
+use App\Services\Expo\CondicionesPagoPrefactura;
 use App\Services\Expo\LiquidacionOfertaExpo;
 use App\Services\Expo\RecalculadorFacturaExpo;
 use App\Services\Expo\SaldoLineasOferta;
@@ -1113,18 +1114,20 @@ class FacturacionCorporativa extends Component
             if ($facturacionExpoDesdePrefactura) {
                 $prefacturaExpo = DB::table('prefactura')
                     ->where('id', $prefacturaExcluirId)
-                    ->first(['fecha_emision', 'fecha_vencimiento']);
-
-                if ($prefacturaExpo) {
-                    $fechaEmisionPrefactura = \Carbon\Carbon::parse($prefacturaExpo->fecha_emision);
-                    $fechaVencimientoPrefactura = \Carbon\Carbon::parse($prefacturaExpo->fecha_vencimiento);
-                    $diasCreditoPrefacturaExpo = max(0, (int) $fechaEmisionPrefactura
-                        ->diffInDays($fechaVencimientoPrefactura, false));
-                    $request->merge([
-                        'fecha_emision' => $fechaEmisionPrefactura->toDateString(),
-                        'fecha_vencimiento' => $fechaVencimientoPrefactura->toDateString(),
+                    ->first(['cotizacion_id', 'fecha_emision', 'fecha_vencimiento']);
+                if (!$prefacturaExpo) {
+                    throw ValidationException::withMessages([
+                        'condiciones_pago_expo' => 'La prefactura Expo ya no está disponible.',
                     ]);
                 }
+
+                $condicionesExpo = app(CondicionesPagoPrefactura::class)->resolver($prefacturaExpo);
+                $diasCreditoPrefacturaExpo = $condicionesExpo['dias_credito'];
+                $request->merge([
+                    'fecha_emision' => $condicionesExpo['fecha_emision'],
+                    'fecha_vencimiento' => $condicionesExpo['fecha_vencimiento'],
+                    'tipoPagoVenta' => $condicionesExpo['tipo_pago_id'],
+                ]);
             }
             $request->attributes->set('facturacion_expo_desde_prefactura', $facturacionExpoDesdePrefactura);
             $request->attributes->set('dias_credito_prefactura_expo', $diasCreditoPrefacturaExpo);
@@ -1586,6 +1589,18 @@ class FacturacionCorporativa extends Component
                 );
             }
 
+            if ($facturacionExpoDesdePrefactura) {
+                $factura->refresh();
+                if ((string) $factura->fecha_emision !== $condicionesExpo['fecha_emision']
+                    || (string) $factura->fecha_vencimiento !== $condicionesExpo['fecha_vencimiento']
+                    || (int) $factura->tipo_pago_id !== $condicionesExpo['tipo_pago_id']
+                    || (int) $factura->dias_credito !== $condicionesExpo['dias_credito']) {
+                    throw ValidationException::withMessages([
+                        'condiciones_pago_expo' => 'La factura no conservó las condiciones de pago de la prefactura Expo. No se completó la facturación.',
+                    ]);
+                }
+            }
+
             DB::commit();
 
             if (($request->modo ?? null) === 'editar_factura' && !empty($request->prefactura_id) && !empty($request->autorizacion_id)) {
@@ -1626,6 +1641,7 @@ class FacturacionCorporativa extends Component
             $esPrecioExpoMenor = array_key_exists('precio_expo_menor', $errores);
             $esPrecioExpoDistinto = array_key_exists('precio_expo_distinto', $errores);
             $esAutorizacionSr = array_key_exists('autorizacion_sr', $errores);
+            $esCondicionesPago = array_key_exists('condiciones_pago_expo', $errores);
 
             return response()->json([
                 'icon' => 'warning',
@@ -1633,7 +1649,9 @@ class FacturacionCorporativa extends Component
                     ? 'Precio menor al pactado'
                     : ($esPrecioExpoDistinto
                         ? 'Precio diferente al pactado'
-                        : ($esAutorizacionSr ? 'Autorización SR requerida' : 'Cantidad Expo no disponible')),
+                        : ($esAutorizacionSr
+                            ? 'Autorización SR requerida'
+                            : ($esCondicionesPago ? 'Condiciones de pago Expo inválidas' : 'Cantidad Expo no disponible'))),
                 'text' => collect($errores)->flatten()->first(),
                 'errors' => $errores,
             ], 422);

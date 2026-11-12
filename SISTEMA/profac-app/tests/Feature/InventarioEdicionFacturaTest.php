@@ -85,6 +85,7 @@ class InventarioEdicionFacturaTest extends TestCase
         });
         Schema::create('expo_oferta_seccion', function (Blueprint $t) { $t->id(); $t->integer('prefactura_id'); });
         Schema::create('expo_cotizacion', function (Blueprint $t) { $t->id(); $t->integer('cotizacion_id'); });
+        Schema::create('cotizacion', function (Blueprint $t) { $t->id(); $t->integer('tipo_pago_id'); });
         Schema::create('unidad_medida', function (Blueprint $t) { $t->id(); $t->string('nombre'); });
         Schema::create('unidad_medida_venta', function (Blueprint $t) {
             $t->id(); $t->integer('unidad_medida_id');
@@ -131,6 +132,7 @@ class InventarioEdicionFacturaTest extends TestCase
             ]);
         }
         DB::table('expo_cotizacion')->insert(['cotizacion_id' => 1]);
+        DB::table('cotizacion')->insert(['id' => 1, 'tipo_pago_id' => 1]);
         DB::table('users')->insert(['id' => 7, 'name' => 'Usuario de pruebas']);
         DB::table('cliente_usuario')->insert([
             ['cliente_id' => 1, 'usuario_id' => 7, 'rol_id' => 2],
