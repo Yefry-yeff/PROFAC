@@ -16,6 +16,9 @@ class SubMenu extends Model
     /** Opción de Ventas: ver los flujos de todos los usuarios. */
     public const OPCION_VER_TODOS_FLUJOS = 'flujo/ventas/opcion/ver-todos-flujos';
 
+    public const URL_EXPO_LISTA_ASISTENCIA = 'expo/lista_de_asistencia';
+    public const OPCION_EXPO_EDITAR_DESCUENTOS_CERRADA = self::URL_EXPO_LISTA_ASISTENCIA . '/opcion/editar-descuentos-cerrada';
+
     public const URL_CATALOGO_PRODUCTOS = 'producto/registro';
     public const OPCION_PRODUCTOS_VER_DETALLE = 'producto/registro/opcion/ver-detalle';
     public const OPCION_PRODUCTOS_EDITAR = 'producto/registro/opcion/editar';
