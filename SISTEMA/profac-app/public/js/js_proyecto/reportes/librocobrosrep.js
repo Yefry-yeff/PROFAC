@@ -89,6 +89,7 @@ function cargarTablaLC() {
             { data: 'cliente' },
             { data: 'asesor_comercial' },
             { data: 'teleasesor' },
+            { data: 'gestor_entrega' },
             { data: 'factura', render: function(d) { return '<strong>' + escHtmlLC(d) + '</strong>'; } },
             { data: 'monto_cobrado', className: 'text-right', render: function(d) { return fmtLpsLC(d); } },
             { data: 'estado_factura', render: function(d) {

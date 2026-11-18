@@ -46,6 +46,7 @@ class ComisionDepositoPromericaTest extends TestCase
                 'monto_cobrado' => '1172.99',
                 'monto_movimiento' => '1177.68',
                 'otro' => '4.69',
+                'gestor_entrega' => 'Gestor Uno',
             ],
             [
                 'banco' => 'PROMERICA PAPERLAND',
@@ -60,34 +61,36 @@ class ComisionDepositoPromericaTest extends TestCase
 
         $this->assertSame('Todos', $sheets[0]->title());
         $todosRows = $sheets[0]->array();
-        $this->assertCount(19, $todosRows[3]);
-        $this->assertSame('OTRO', $todosRows[3][18]);
-        $this->assertEquals(4.69, $todosRows[4][18]);
-        $this->assertEquals(4.69, $todosRows[count($todosRows) - 1][18]);
+        $this->assertCount(20, $todosRows[3]);
+        $this->assertSame('GESTOR DE ENTREGAS', $todosRows[3][6]);
+        $this->assertSame('Gestor Uno', $todosRows[4][6]);
+        $this->assertSame('OTRO', $todosRows[3][19]);
+        $this->assertEquals(4.69, $todosRows[4][19]);
+        $this->assertEquals(4.69, $todosRows[count($todosRows) - 1][19]);
         $this->assertCount(3, $sheets);
         $this->assertSame('Promerica - 80000000578176', $sheets[1]->title());
         $this->assertSame('PROMERICA PAPERLAND - 100000012', $sheets[2]->title());
         $promericaRows = $sheets[1]->array();
-        $this->assertCount(22, $promericaRows[3]);
-        $this->assertSame('N° FACTURA', $promericaRows[3][6]);
-        $this->assertSame('MOVIMIENTO', $promericaRows[3][7]);
-        $this->assertSame('COMISIÓN COBRADA (3%)', $promericaRows[3][8]);
-        $this->assertSame('COMISIÓN DEL BANCO (2.6%)', $promericaRows[3][9]);
-        $this->assertSame('MONTO MOVIMIENTO', $promericaRows[3][10]);
-        $this->assertEquals(1172.99, $promericaRows[4][7]);
-        $this->assertEquals(35.19, $promericaRows[4][8]);
-        $this->assertEquals(30.5, $promericaRows[4][9]);
-        $this->assertEquals(1177.68, $promericaRows[4][10]);
-        $this->assertEquals(4.69, $promericaRows[4][21]);
-        $this->assertEquals(1177.68, $sheets[0]->array()[4][7]);
-        $this->assertSame(19, count($sheets[2]->array()[3]));
+        $this->assertCount(23, $promericaRows[3]);
+        $this->assertSame('N° FACTURA', $promericaRows[3][7]);
+        $this->assertSame('MOVIMIENTO', $promericaRows[3][8]);
+        $this->assertSame('COMISIÓN COBRADA (3%)', $promericaRows[3][9]);
+        $this->assertSame('COMISIÓN DEL BANCO (2.6%)', $promericaRows[3][10]);
+        $this->assertSame('MONTO MOVIMIENTO', $promericaRows[3][11]);
+        $this->assertEquals(1172.99, $promericaRows[4][8]);
+        $this->assertEquals(35.19, $promericaRows[4][9]);
+        $this->assertEquals(30.5, $promericaRows[4][10]);
+        $this->assertEquals(1177.68, $promericaRows[4][11]);
+        $this->assertEquals(4.69, $promericaRows[4][22]);
+        $this->assertEquals(1177.68, $sheets[0]->array()[4][8]);
+        $this->assertSame(20, count($sheets[2]->array()[3]));
 
         $worksheet = new \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet();
-        $accountCell = $worksheet->getCell('N5');
+        $accountCell = $worksheet->getCell('O5');
         $sheets[1]->bindValue($accountCell, '80000000578176');
         $this->assertSame(\PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING, $accountCell->getDataType());
         $this->assertSame('80000000578176', $accountCell->getValue());
-        $todosAccountCell = $worksheet->getCell('K5');
+        $todosAccountCell = $worksheet->getCell('L5');
         $sheets[0]->bindValue($todosAccountCell, '80000000578176');
         $this->assertSame(\PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING, $todosAccountCell->getDataType());
         $this->assertSame('80000000578176', $todosAccountCell->getValue());
