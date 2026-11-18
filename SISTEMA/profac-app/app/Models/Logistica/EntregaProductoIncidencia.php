@@ -13,10 +13,12 @@ class EntregaProductoIncidencia extends Model
         'entrega_producto_id',
         'tipo',
         'descripcion',
+        'cantidad_devolucion',
         'user_id_registro',
     ];
 
     protected $casts = [
+        'cantidad_devolucion' => 'decimal:2',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];

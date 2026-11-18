@@ -10,12 +10,15 @@ use App\Models\Logistica\EntregaProductoIncidencia;
 use App\Models\Logistica\EntregaEvidencia;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use DataTables;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 
 class ConfirmacionEntrega extends Component
 {
+    private const REGLA_CANTIDAD_DEVOLUCION = 'required|numeric|decimal:0,2|min:0.01|max:99999999.99';
+
     public function render()
     {
         return view('livewire.logistica.confirmacion-entrega');
@@ -207,6 +210,9 @@ class ConfirmacionEntrega extends Component
                 'incidencias.*.producto_id' => 'required|exists:entregas_productos,id',
                 'incidencias.*.tipo' => 'required|string',
                 'incidencias.*.descripcion' => 'required|string|min:5',
+                'incidencias.*.cantidad_devolucion' => self::REGLA_CANTIDAD_DEVOLUCION,
+            ], [], [
+                'incidencias.*.cantidad_devolucion' => 'cantidad a devolver',
             ]);
 
             // Validar que haya al menos productos o incidencias
@@ -244,6 +250,7 @@ class ConfirmacionEntrega extends Component
             $fechaRegistro = Carbon::now()->setTime((int) $hora, (int) $minuto);
 
             DB::beginTransaction();
+            $this->validarCantidadesDevolucion($request->input('incidencias') ?? [], $productosIds ?? []);
 
             // Actualizar productos solo si existen
             if (!empty($request->productos)) {
@@ -281,6 +288,7 @@ class ConfirmacionEntrega extends Component
                     $incidencia->entrega_producto_id = $incidenciaData['producto_id'];
                     $incidencia->tipo = $incidenciaData['tipo'];
                     $incidencia->descripcion = $incidenciaData['descripcion'];
+                    $incidencia->cantidad_devolucion = $incidenciaData['cantidad_devolucion'];
                     $incidencia->user_id_registro = Auth::id();
                     $incidencia->save();
 
@@ -356,6 +364,9 @@ class ConfirmacionEntrega extends Component
                 'text' => 'Los productos han sido actualizados correctamente',
             ], 200);
 
+        } catch (ValidationException $e) {
+            DB::rollBack();
+            return $this->respuestaValidacionIncidencia($e);
         } catch (\Exception $e) {
             DB::rollback();
             return response()->json([
@@ -419,18 +430,29 @@ class ConfirmacionEntrega extends Component
     public function listarIncidenciasProducto($productoId)
     {
         try {
-            $producto = EntregaProducto::findOrFail($productoId);
+            $producto = EntregaProducto::with(['producto', 'distribucionFactura'])->findOrFail($productoId);
+            $unidad = DB::table('venta_has_producto as v')
+                ->leftJoin('unidad_medida_venta as uv', 'uv.id', '=', 'v.unidad_medida_venta_id')
+                ->leftJoin('unidad_medida as u', 'u.id', '=', 'uv.unidad_medida_id')
+                ->where('v.factura_id', $producto->distribucionFactura->factura_id)
+                ->where('v.producto_id', $producto->producto_id)
+                ->orderBy('v.indice')
+                ->value('u.nombre');
 
             $incidencias = EntregaProductoIncidencia::where('entrega_producto_id', $productoId)
+                ->select('id', 'tipo', 'descripcion', 'cantidad_devolucion', 'created_at')
                 ->withCount('evidencias')
                 ->orderByDesc('created_at')
-                ->get(['id', 'tipo', 'descripcion', 'created_at']);
+                ->get();
 
             return response()->json([
                 'success' => true,
                 'producto' => [
                     'id' => $producto->id,
                     'producto_id' => $producto->producto_id,
+                    'descripcion' => $producto->producto?->nombre,
+                    'unidad_medida' => $unidad,
+                    'cantidad_entrega' => $producto->cantidad_facturada,
                 ],
                 'incidencias' => $incidencias,
             ], 200);
@@ -449,29 +471,31 @@ class ConfirmacionEntrega extends Component
     public function registrarIncidenciaProducto(Request $request, $productoId)
     {
         try {
-            $producto = EntregaProducto::findOrFail($productoId);
-
-            $request->validate([
+            $datos = $request->validate([
                 'tipo' => 'required|string|max:60',
                 'descripcion' => 'required|string|min:5',
+                'cantidad_devolucion' => self::REGLA_CANTIDAD_DEVOLUCION,
+            ], [], [
+                'cantidad_devolucion' => 'cantidad a devolver',
             ]);
 
-            $incidencia = EntregaProductoIncidencia::create([
-                'entrega_producto_id' => $productoId,
-                'tipo' => $request->tipo,
-                'descripcion' => $request->descripcion,
-                'user_id_registro' => Auth::id(),
-            ]);
+            $incidencia = DB::transaction(function () use ($productoId, $datos) {
+                $this->validarCantidadesDevolucion([['producto_id' => $productoId] + $datos]);
+                $producto = EntregaProducto::findOrFail($productoId);
+                $incidencia = $producto->incidencias()->create($datos + ['user_id_registro' => Auth::id()]);
+                $producto->update([
+                    'tiene_incidencia' => true,
+                    'tipo_incidencia' => $datos['tipo'],
+                    'descripcion_incidencia' => $datos['descripcion'],
+                    'user_id_registro' => Auth::id(),
+                ]);
 
-            $producto->tiene_incidencia = 1;
-            $producto->tipo_incidencia = $request->tipo;
-            $producto->descripcion_incidencia = $request->descripcion;
-            $producto->user_id_registro = Auth::id();
-            $producto->save();
+                return $incidencia;
+            });
 
             $incidencias = EntregaProductoIncidencia::where('entrega_producto_id', $productoId)
                 ->orderByDesc('created_at')
-                ->get(['id', 'tipo', 'descripcion', 'created_at']);
+                ->get(['id', 'tipo', 'descripcion', 'cantidad_devolucion', 'created_at']);
 
             return response()->json([
                 'icon' => 'success',
@@ -482,6 +506,8 @@ class ConfirmacionEntrega extends Component
                 ],
                 'incidencias' => $incidencias,
             ], 201);
+        } catch (ValidationException $e) {
+            return $this->respuestaValidacionIncidencia($e);
         } catch (\Exception $e) {
             return response()->json([
                 'icon' => 'error',
@@ -489,6 +515,46 @@ class ConfirmacionEntrega extends Component
                 'text' => 'No se pudo registrar la incidencia: ' . $e->getMessage(),
             ], 500);
         }
+    }
+
+    private function validarCantidadesDevolucion(array $incidencias, iterable $otrosProductos = []): void
+    {
+        if ($incidencias === []) {
+            return;
+        }
+
+        $solicitadas = collect($incidencias)->groupBy('producto_id');
+        $productos = EntregaProducto::whereKey($solicitadas->keys()->merge($otrosProductos)->unique()->all())
+            ->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+        $registradas = EntregaProductoIncidencia::whereIn('entrega_producto_id', $solicitadas->keys())
+            ->selectRaw('entrega_producto_id, SUM(cantidad_devolucion) AS total')
+            ->groupBy('entrega_producto_id')->pluck('total', 'entrega_producto_id');
+
+        foreach ($solicitadas as $id => $grupo) {
+            $producto = $productos->get($id);
+            if ($producto === null) {
+                throw ValidationException::withMessages(['cantidad_devolucion' => 'El producto ya no está en la entrega.']);
+            }
+            $limite = (int) round($producto->cantidad_facturada * 100);
+            $acumulado = (int) round(($registradas[$id] ?? 0) * 100)
+                + $grupo->sum(fn ($incidencia) => (int) round($incidencia['cantidad_devolucion'] * 100));
+
+            if ($acumulado > $limite) {
+                throw ValidationException::withMessages([
+                    'cantidad_devolucion' => "La devolución acumulada del producto {$producto->producto_id} no puede superar {$producto->cantidad_facturada}, la cantidad de la entrega.",
+                ]);
+            }
+        }
+    }
+
+    private function respuestaValidacionIncidencia(ValidationException $e)
+    {
+        return response()->json([
+            'icon' => 'warning',
+            'title' => 'Revisa los datos',
+            'text' => collect($e->errors())->flatten()->first(),
+            'errors' => $e->errors(),
+        ], 422);
     }
 
     /**

@@ -223,28 +223,50 @@
         </div>
     </div>
 
+    <style>
+        #modalIncidencia .ce-producto-incidencia { font-size: 1rem; overflow-wrap: anywhere; }
+        #modalIncidencia .list-group-item p { overflow-wrap: anywhere; }
+        @media (max-width: 575.98px) {
+            #modalIncidencia .modal-body { padding: .875rem; }
+            #modalIncidencia .form-control { font-size: 16px; }
+            #modalIncidencia .ce-incidencia-acciones .btn { min-height: 44px; }
+        }
+    </style>
     <!-- Modal: Incidencias -->
     <div class="modal fade" id="modalIncidencia" tabindex="-1" role="dialog">
-        <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable" role="document">
             <div class="modal-content">
                 <div class="modal-header ce-modal-header">
                     <div>
                         <h5 class="mb-0 modal-title">Incidencias del producto</h5>
-                        <small id="tituloProductoIncidencia">Selecciona un producto de la tabla.</small>
                     </div>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
                 <div class="modal-body">
-                    <div class="alert alert-warning small">
+                    <dl class="ce-producto-incidencia row mx-0 mb-3 p-3 border rounded bg-light">
+                        <div class="col-6 px-0 pr-2">
+                            <dt>Código del producto</dt>
+                            <dd class="mb-2" id="codigoProductoIncidencia">—</dd>
+                        </div>
+                        <div class="col-6 px-0">
+                            <dt>Unidad de medida</dt>
+                            <dd class="mb-2" id="unidadProductoIncidencia">—</dd>
+                        </div>
+                        <div class="col-12 px-0">
+                            <dt>Descripción del producto</dt>
+                            <dd class="mb-0" id="descripcionProductoIncidencia">—</dd>
+                        </div>
+                    </dl>
+                    <div class="alert alert-warning small" id="avisoIncidencia">
                         Cada incidencia registrada bloquea el producto hasta que logística la gestione.
                     </div>
                     <form id="formIncidencia" class="mb-3">
                         <input type="hidden" id="productoIncidenciaId">
                         <div class="form-row">
                             <div class="form-group col-md-5">
-                                <label class="small text-muted">Tipo de incidencia</label>
+                                <label for="tipoIncidencia">Tipo de incidencia</label>
                                 <select class="form-control" id="tipoIncidencia">
                                     <option value="producto_danado">Producto dañado</option>
                                     <option value="cantidad_incorrecta">Cantidad incorrecta</option>
@@ -254,7 +276,12 @@
                                 </select>
                             </div>
                             <div class="form-group col-md-7">
-                                <label class="small text-muted">Descripción</label>
+                                <label for="cantidadDevolucion">Cantidad a devolver</label>
+                                <input type="number" class="form-control" id="cantidadDevolucion" min="0.01" step="0.01" inputmode="decimal" aria-describedby="ayudaCantidadDevolucion" required disabled>
+                                <small class="form-text text-muted" id="ayudaCantidadDevolucion" aria-live="polite"></small>
+                            </div>
+                            <div class="form-group col-12">
+                                <label for="descripcionIncidencia">Descripción de la incidencia</label>
                                 <textarea class="form-control" id="descripcionIncidencia" rows="4" placeholder="Describe lo sucedido..." required minlength="5"></textarea>
                             </div>
                         </div>
@@ -273,7 +300,7 @@
                         </div>
                         <div id="previewEvidencias" class="flex-wrap d-flex"></div>
                     </div>
-                    <div class="text-right">
+                    <div class="text-right ce-incidencia-acciones">
                         <button type="button" class="mr-2 btn btn-outline-secondary btn-sm" data-dismiss="modal">Cerrar</button>
                         <button type="submit" class="btn btn-primary btn-sm" id="btnIncidenciaGuardar" form="formIncidencia">
                             <i class="mr-1 fas fa-plus-circle"></i>Agregar incidencia
@@ -371,6 +398,9 @@
                     productosPendientes: [],
                     productoIncidencia: null,
                     productoIncidenciaNombre: '',
+                    cantidadEntregaIncidencia: null,
+                    devolucionesGuardadas: 0,
+                    incidenciaSoloLectura: false,
                     incidenciasPendientes: [], // Incidencias que se guardarán al confirmar
                     incidenciaEditando: null // ID temporal de incidencia en edición
                 };
@@ -1059,6 +1089,7 @@
                             producto_id: inc.producto_id,
                             tipo: inc.tipo,
                             descripcion: inc.descripcion,
+                            cantidad_devolucion: inc.cantidad_devolucion,
                             evidencias: []
                         };
 
@@ -1135,20 +1166,20 @@
                     confirmacionState.productoIncidencia = productoId;
                     confirmacionState.productoIncidenciaNombre = decodeURIComponent(nombreCodificado);
                     $('#productoIncidenciaId').val(productoId);
-                    $('#tituloProductoIncidencia').text(confirmacionState.productoIncidenciaNombre || `Producto #${productoId}`);
+                    $('#codigoProductoIncidencia, #unidadProductoIncidencia').text('—');
+                    $('#descripcionProductoIncidencia').text(confirmacionState.productoIncidenciaNombre || '—');
+                    confirmacionState.cantidadEntregaIncidencia = null;
+                    confirmacionState.devolucionesGuardadas = 0;
+                    confirmacionState.incidenciaSoloLectura = facturaBloqueada;
+                    $('#cantidadDevolucion').val('').prop('disabled', true);
 
                     // Deshabilitar el formulario si la factura está bloqueada
-                    if (facturaBloqueada) {
-                        $('#tipoIncidencia').prop('disabled', true);
-                        $('#descripcionIncidencia').prop('disabled', true);
-                        $('#btnIncidenciaGuardar').prop('disabled', true);
-                        $('.alert-warning').html('<i class="mr-2 fas fa-lock"></i>Esta factura ya fue confirmada. Solo puedes consultar las incidencias existentes.').removeClass('alert-warning').addClass('alert-info');
-                    } else {
-                        $('#tipoIncidencia').prop('disabled', false);
-                        $('#descripcionIncidencia').prop('disabled', false);
-                        $('#btnIncidenciaGuardar').prop('disabled', false);
-                        $('.alert-info').html('Cada incidencia registrada bloquea el producto hasta que logística la gestione.').removeClass('alert-info').addClass('alert-warning');
-                    }
+                    $('#tipoIncidencia, #descripcionIncidencia').prop('disabled', facturaBloqueada);
+                    $('#btnIncidenciaGuardar').prop('disabled', true);
+                    $('#avisoIncidencia').toggleClass('alert-info', facturaBloqueada).toggleClass('alert-warning', !facturaBloqueada)
+                        .text(facturaBloqueada
+                            ? 'Esta factura ya fue confirmada. Solo puedes consultar las incidencias existentes.'
+                            : 'Cada incidencia registrada bloquea el producto hasta que logística la gestione.');
 
                     $('#modalIncidencia').modal('show');
                     evidenciasPendientes = [];
@@ -1159,6 +1190,27 @@
                     $('#btnIncidenciaGuardar').html('<i class="mr-1 fas fa-plus-circle"></i>Agregar incidencia');
                     // Cargar incidencias existentes de la BD + las pendientes locales
                     window.cargarIncidenciasProducto(productoId);
+                }
+
+                function centesimasCantidad(cantidad) {
+                    return Math.round(Number(cantidad) * 100);
+                }
+
+                function cantidadDisponibleIncidencia() {
+                    const pendientes = confirmacionState.incidenciasPendientes
+                        .filter(i => i.producto_id === confirmacionState.productoIncidencia && i.id !== confirmacionState.incidenciaEditando)
+                        .reduce((total, i) => total + centesimasCantidad(i.cantidad_devolucion), 0);
+                    return Math.max(0, confirmacionState.cantidadEntregaIncidencia - confirmacionState.devolucionesGuardadas - pendientes);
+                }
+
+                function actualizarLimiteDevolucion() {
+                    const disponible = cantidadDisponibleIncidencia();
+                    const habilitado = confirmacionState.cantidadEntregaIncidencia !== null && !confirmacionState.incidenciaSoloLectura && disponible > 0;
+                    $('#cantidadDevolucion').attr('max', (disponible / 100).toFixed(2)).prop('disabled', !habilitado);
+                    $('#btnIncidenciaGuardar').prop('disabled', !habilitado);
+                    $('#ayudaCantidadDevolucion').text(confirmacionState.cantidadEntregaIncidencia === null
+                        ? 'Cargando la cantidad de la entrega…'
+                        : `Cantidad en la entrega: ${confirmacionState.cantidadEntregaIncidencia / 100}. Disponible para devolver: ${disponible / 100}.`);
                 }
 
                 function renderListaIncidencias(incidencias) {
@@ -1356,6 +1408,14 @@
 
                     const tipo = $('#tipoIncidencia').val();
                     const descripcion = $('#descripcionIncidencia').val().trim();
+                    const cantidad = document.getElementById('cantidadDevolucion');
+                    if (cantidad.disabled) {
+                        Swal.fire('Cantidad no disponible', 'Verifica la cantidad disponible para devolver antes de agregar la incidencia.', 'warning');
+                        return;
+                    }
+                    if (!cantidad.reportValidity()) {
+                        return;
+                    }
                     if (!descripcion.length) {
                         Swal.fire('Descripción requerida', 'Escribe los detalles de la incidencia.', 'warning');
                         return;
@@ -1368,6 +1428,7 @@
                         producto_nombre: confirmacionState.productoIncidenciaNombre,
                         tipo: tipo,
                         descripcion: descripcion,
+                        cantidad_devolucion: cantidad.value,
                         evidencias: evidenciasPendientes.slice(), // Clonar array de evidencias
                         estado: 'pendiente' // Marca que está pendiente de guardar
                     };
@@ -1388,6 +1449,7 @@
 
                     // Limpiar formulario
                     $('#descripcionIncidencia').val('');
+                    $('#cantidadDevolucion').val('');
                     $('#tipoIncidencia').val('producto_danado');
                     evidenciasPendientes = [];
                     $('#previewEvidencias').empty();
@@ -1453,10 +1515,12 @@
                     // Cargar datos en el formulario
                     $('#tipoIncidencia').val(incidencia.tipo);
                     $('#descripcionIncidencia').val(incidencia.descripcion);
+                    $('#cantidadDevolucion').val(incidencia.cantidad_devolucion);
                     evidenciasPendientes = incidencia.evidencias.slice();
                     
                     // Marcar como editando
                     confirmacionState.incidenciaEditando = incidenciaId;
+                    actualizarLimiteDevolucion();
                     
                     // Actualizar bot\u00f3n
                     $('#btnIncidenciaGuardar').html('<i class="mr-1 fas fa-save"></i>Actualizar incidencia');
@@ -1630,13 +1694,25 @@
                 // Redefinir cargarIncidenciasProducto para incluir guardadas
                 window.cargarIncidenciasProducto = function(productoId) {
                     $('#listaIncidenciasProducto').html(skeleton('Cargando incidencias...'));
+                    confirmacionState.cantidadEntregaIncidencia = null;
+                    actualizarLimiteDevolucion();
                     
                     $.get(`${rutasConfirmacion.incidencias}/${productoId}/incidencias`)
                         .done(resp => {
+                            if (confirmacionState.productoIncidencia !== productoId) return;
                             const incidenciasGuardadas = resp.incidencias || [];
+                            const producto = resp.producto;
+                            $('#codigoProductoIncidencia').text(producto.producto_id);
+                            $('#descripcionProductoIncidencia').text(producto.descripcion);
+                            $('#unidadProductoIncidencia').text(producto.unidad_medida || 'No registrada');
+                            confirmacionState.cantidadEntregaIncidencia = centesimasCantidad(producto.cantidad_entrega);
+                            confirmacionState.devolucionesGuardadas = incidenciasGuardadas.reduce((sum, i) => sum + centesimasCantidad(i.cantidad_devolucion), 0);
+                            actualizarLimiteDevolucion();
                             renderTodasIncidencias(productoId, incidenciasGuardadas);
                         })
                         .fail(() => {
+                            if (confirmacionState.productoIncidencia !== productoId) return;
+                            $('#ayudaCantidadDevolucion').text('No se pudo verificar la cantidad de la entrega.');
                             $('#listaIncidenciasProducto').html('<div class="mb-0 alert alert-danger">No se pudieron cargar las incidencias.</div>');
                         });
                 };
@@ -1676,7 +1752,8 @@
                                         <span class="badge badge-warning">${tipoLabel}</span>
                                         <small class="ml-2 text-muted"><i class="fas fa-lock"></i> No editable</small>
                                     </div>
-                                    <p class="mt-2 mb-1">${inc.descripcion || ''}</p>
+                                    <p class="mt-2 mb-1">${$('<span>').text(inc.descripcion || '').html()}</p>
+                                    <p class="mb-1"><strong>Cantidad a devolver:</strong> ${inc.cantidad_devolucion == null ? 'No registrada' : Number(inc.cantidad_devolucion)}</p>
                                     ${evidenciasCount > 0 ? `<a href="#" onclick="window.verImagenesIncidencia(${inc.id}); return false;" class="btn btn-sm btn-link p-0"><i class="fas fa-images"></i> ${evidenciasCount} evidencia(s)</a>` : '<small class="text-muted">Sin evidencias</small>'}
                                 </div>
                             </div>
@@ -1701,7 +1778,8 @@
                                         <span class="badge badge-info">Pendiente</span>
                                         <span class="badge badge-warning">${tipoLabel}</span>
                                     </div>
-                                    <p class="mt-2 mb-1">${inc.descripcion}</p>
+                                    <p class="mt-2 mb-1">${$('<span>').text(inc.descripcion).html()}</p>
+                                    <p class="mb-1"><strong>Cantidad a devolver:</strong> ${Number(inc.cantidad_devolucion)}</p>
                                     ${inc.evidencias && inc.evidencias.length > 0 ? `<small class="text-muted"><i class="fas fa-images"></i> ${inc.evidencias.length} evidencia(s)</small>` : ''}
                                 </div>
                                 <div class="ml-2 btn-group-vertical btn-group-sm">

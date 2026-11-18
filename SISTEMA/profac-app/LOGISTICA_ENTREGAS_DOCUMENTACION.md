@@ -330,6 +330,10 @@ ORDER BY e.nombre_equipo, df.orden_entrega;
 
 ### Incidencias del día
 
+En **Confirmación de entregas**, el modal de incidencias muestra el código, la descripción y la unidad de medida del producto. La **cantidad a devolver** es obligatoria, mayor que cero y admite hasta dos decimales. La suma de las incidencias del producto no puede exceder su cantidad en esa entrega, incluidas las incidencias ya guardadas. Las incidencias anteriores al cambio conservan su cantidad como «No registrada».
+
+**Agregar incidencia** la deja en la lista como pendiente de guardar; el registro se guarda al pulsar **Confirmar entrega**.
+
 ```sql
 SELECT 
     ep.tipo_incidencia,
