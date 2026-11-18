@@ -104,15 +104,15 @@
             $p = explode('-', $d);
             return count($p) === 3 ? $p[2].'/'.$p[1].'/'.$p[0] : $d;
         };
-        $grandCobrado = $grandExon = $grandGrav = $grandExen = $grandIsv = $grandFact = 0.0;
+        $grandCobrado = $grandRetencion = $grandExon = $grandGrav = $grandExen = $grandIsv = $grandFact = 0.0;
     @endphp
 
     @foreach($grouped as $gKey => $group)
         @php
             $esPaperland = ComisionDepositoPromerica::esPaperland($group['banco']);
             $esPromerica = $esPaperland || ComisionDepositoPromerica::esPromerica($group['banco']);
-            $cantidadColumnas = $esPaperland ? 20 : ($esPromerica ? 19 : 15);
-            $gCobrado = $gExon = $gGrav = $gExen = $gIsv = $gFact = 0.0;
+            $cantidadColumnas = $esPaperland ? 21 : ($esPromerica ? 20 : 16);
+            $gCobrado = $gRetencion = $gExon = $gGrav = $gExen = $gIsv = $gFact = 0.0;
             $gRecibido = $gComision = $gBanco = $gPago = $gOtro = 0.0;
         @endphp
         <table style="margin-bottom:0;">
@@ -142,6 +142,7 @@
                         @if($esPaperland)<th>PAGO PORCENTAJE</th>@endif
                     @endif
                     <th>MONTO MOVIMIENTO</th>
+                    <th>RETENCIÓN SIN APLICAR</th>
                     <th>ESTADO</th>
                     <th>DETALLE DEL MOVIMIENTO</th>
                     <th>EXONERADO</th>
@@ -157,6 +158,7 @@
                     @php
                         $neto = (float)($row['monto_movimiento'] ?? $row['monto_cobrado'] ?? 0);
                         $gCobrado += $neto;
+                        $gRetencion += (float)($row['retencion_sin_aplicar'] ?? 0);
                         $gExon    += (float)($row['exonerado']     ?? 0);
                         $gGrav    += (float)($row['gravado']       ?? 0);
                         $gExen    += (float)($row['excento']       ?? 0);
@@ -183,6 +185,7 @@
                             @if($esPaperland)<td style="text-align:right;">{{ $fmtL($pago) }}</td>@endif
                         @endif
                         <td style="text-align:right;">{{ $fmtL($neto) }}</td>
+                        <td style="text-align:right;">{{ isset($row['retencion_sin_aplicar']) ? $fmtL($row['retencion_sin_aplicar']) : '' }}</td>
                         <td>{{ ($row['estado_factura'] ?? '') === 'PAGADA' ? 'COMPLETO' : ($row['estado_factura'] ?? '') }}</td>
                         <td style="text-align:left;">{{ $row['observaciones'] ?? '' }}</td>
                         <td style="text-align:right;">{{ isset($row['exonerado']) ? $fmtL($row['exonerado']) : '' }}</td>
@@ -197,6 +200,7 @@
             <tfoot>
                 @php
                     $grandCobrado += $gCobrado;
+                    $grandRetencion += $gRetencion;
                     $grandExon    += $gExon;
                     $grandGrav    += $gGrav;
                     $grandExen    += $gExen;
@@ -212,6 +216,7 @@
                         @if($esPaperland)<td style="text-align:right;">{{ $fmtL($gPago) }}</td>@endif
                     @endif
                     <td style="text-align:right;">{{ $fmtL($gCobrado) }}</td>
+                    <td style="text-align:right;">{{ $fmtL($gRetencion) }}</td>
                     <td></td>
                     <td></td>
                     <td style="text-align:right;">{{ $fmtL($gExon) }}</td>
@@ -228,7 +233,7 @@
 
     <table>
         <colgroup>
-            @foreach([5, 5, 5, 12, 7, 7, 8, 8, 6, 12, 5, 5, 5, 5, 5] as $ancho)
+            @foreach([5, 5, 5, 10, 6, 6, 8, 8, 7, 6, 9, 5, 5, 5, 5, 5] as $ancho)
                 <col style="width:{{ $ancho }}%;">
             @endforeach
         </colgroup>
@@ -236,6 +241,7 @@
             <tr style="background:#c05000;color:#fff;font-weight:bold;">
                 <td colspan="7" style="text-align:right;font-weight:bold;">TOTAL GENERAL:</td>
                 <td style="text-align:right;">{{ $fmtL($grandCobrado) }}</td>
+                <td style="text-align:right;">{{ $fmtL($grandRetencion) }}</td>
                 <td></td>
                 <td></td>
                 <td style="text-align:right;">{{ $fmtL($grandExon) }}</td>

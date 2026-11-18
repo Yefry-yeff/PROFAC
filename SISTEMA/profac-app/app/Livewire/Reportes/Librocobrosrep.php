@@ -611,6 +611,19 @@ class Librocobrosrep extends Component
                 COALESCE(NULLIF(TRIM(c.cai), ''), c.numero_secuencia_cai) AS factura,
                 c.monto_cobrado,
                 CASE
+                    WHEN c.tipo_venta_id <> 3
+                        AND COALESCE(ap.estado_cerrado, 0) <> 2
+                        AND COALESCE(ap.estado_retencion_isv, 0) <> 2
+                        AND COALESCE(ap.retencion_aplicada, 0) = 0
+                        AND ROUND(ap.retencion_isv_factura, 2) > 0
+                        AND ROUND(ap.saldo, 2) = ROUND(ap.retencion_isv_factura, 2)
+                        AND ROW_NUMBER() OVER (
+                            PARTITION BY c.factura_id
+                            ORDER BY c.fecha_orden DESC, c.movimiento_id DESC
+                        ) = 1
+                    THEN ROUND(ap.retencion_isv_factura, 2)
+                END AS retencion_sin_aplicar,
+                CASE
                     WHEN ac_reporte.monto_recibido IS NOT NULL THEN ac_reporte.monto_recibido
                     WHEN pnia.id = primera.id THEN pni.monto_original
                     ELSE COALESCE(ac_reporte.monto_abonado, 0)
@@ -658,6 +671,10 @@ class Librocobrosrep extends Component
                 c.orden_tipo AS _orden_tipo,
                 c.movimiento_id AS _movimiento_id
             FROM calculados c
+            LEFT JOIN aplicacion_pagos ap ON ap.id = (
+                SELECT MAX(ap_activa.id) FROM aplicacion_pagos ap_activa
+                WHERE ap_activa.factura_id = c.factura_id AND ap_activa.estado = 1
+            )
             LEFT JOIN abonos_creditos ac_reporte ON ac_reporte.id = c.movimiento_id AND c.orden_tipo = 1
             LEFT JOIN pni_aplicaciones pnia ON pnia.abono_id = ac_reporte.id
             LEFT JOIN pagos_no_identificados pni ON pni.id = pnia.pago_id
@@ -714,6 +731,7 @@ class Librocobrosrep extends Component
                 p.fecha_pago, COALESCE(cliente.nombre, '') AS cliente,
                 '' AS asesor_comercial, '' AS teleasesor, '' AS gestor_entrega, '' AS factura,
                 p.saldo_disponible AS monto_cobrado,
+                NULL AS retencion_sin_aplicar,
                 CASE WHEN EXISTS (SELECT 1 FROM pni_aplicaciones pa WHERE pa.pago_id = p.id)
                     THEN 0 ELSE p.monto_original END AS monto_recibido,
                 CASE WHEN EXISTS (SELECT 1 FROM pni_aplicaciones pa WHERE pa.pago_id = p.id)

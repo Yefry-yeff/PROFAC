@@ -46,6 +46,7 @@ class ComisionDepositoPromericaTest extends TestCase
                 'comision_banco' => '8.49',
                 'monto_cobrado' => '316.93',
                 'monto_movimiento' => '317.95',
+                'retencion_sin_aplicar' => '40.00',
                 'otro' => '1.02',
                 'gestor_entrega' => 'Gestor Uno',
             ],
@@ -65,44 +66,47 @@ class ComisionDepositoPromericaTest extends TestCase
 
         $this->assertSame('Todos', $sheets[0]->title());
         $todosRows = $sheets[0]->array();
-        $this->assertCount(20, $todosRows[3]);
+        $this->assertCount(21, $todosRows[3]);
         $this->assertSame('GESTOR DE ENTREGAS', $todosRows[3][6]);
         $this->assertSame('Gestor Uno', $todosRows[4][6]);
-        $this->assertSame('OTRO', $todosRows[3][19]);
-        $this->assertEquals(1.02, $todosRows[4][19]);
-        $this->assertEquals(1.02, end($todosRows)[19]);
+        $this->assertSame('OTRO', $todosRows[3][20]);
+        $this->assertEquals(1.02, $todosRows[4][20]);
+        $this->assertEquals(1.02, end($todosRows)[20]);
         $this->assertEquals(412.74, end($todosRows)[8]);
         $this->assertCount(3, $sheets);
         $this->assertSame('Promerica - 80000000578176', $sheets[1]->title());
         $this->assertSame('PROMERICA PAPERLAND - 100000012', $sheets[2]->title());
         $promericaRows = $sheets[1]->array();
-        $this->assertCount(23, $promericaRows[3]);
+        $this->assertCount(24, $promericaRows[3]);
         $this->assertSame('N° FACTURA', $promericaRows[3][7]);
         $this->assertSame('MOVIMIENTO', $promericaRows[3][8]);
         $this->assertSame('COMISIÓN COBRADA (3%)', $promericaRows[3][9]);
         $this->assertSame('COMISIÓN DEL BANCO (2.6%)', $promericaRows[3][10]);
         $this->assertSame('MONTO MOVIMIENTO', $promericaRows[3][11]);
         $this->assertEquals([316.93, 9.51, 8.49, 317.95], array_slice($promericaRows[4], 8, 4));
-        $this->assertEquals(1.02, $promericaRows[4][22]);
-        $this->assertEquals(1.02, end($promericaRows)[22]);
+        $this->assertSame('RETENCIÓN SIN APLICAR', $promericaRows[3][12]);
+        $this->assertEquals(40, $promericaRows[4][12]);
+        $this->assertEquals(1.02, $promericaRows[4][23]);
+        $this->assertEquals(1.02, end($promericaRows)[23]);
         $this->assertEquals(317.95, $todosRows[4][8]);
 
         $paperlandRows = $sheets[2]->array();
-        $this->assertCount(24, $paperlandRows[3]);
+        $this->assertCount(25, $paperlandRows[3]);
+        $this->assertSame('RETENCIÓN SIN APLICAR', $paperlandRows[3][13]);
         $this->assertSame(['COMISIÓN DEL BANCO (2.6%)', 'PAGO PORCENTAJE', 'MONTO MOVIMIENTO'], array_slice($paperlandRows[3], 10, 3));
         $this->assertEquals([100.00, 3.00, 2.68, 5.53, 94.79], array_slice($paperlandRows[4], 8, 5));
         $this->assertEquals([5.53, 94.79], array_slice(end($paperlandRows), 11, 2));
 
         $worksheet = new \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet();
-        $accountCell = $worksheet->getCell('O5');
+        $accountCell = $worksheet->getCell('P5');
         $sheets[1]->bindValue($accountCell, '80000000578176');
         $this->assertSame(\PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING, $accountCell->getDataType());
         $this->assertSame('80000000578176', $accountCell->getValue());
-        $todosAccountCell = $worksheet->getCell('L5');
+        $todosAccountCell = $worksheet->getCell('M5');
         $sheets[0]->bindValue($todosAccountCell, '80000000578176');
         $this->assertSame(\PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING, $todosAccountCell->getDataType());
         $this->assertSame('80000000578176', $todosAccountCell->getValue());
-        $paperlandAccountCell = $worksheet->getCell('P5');
+        $paperlandAccountCell = $worksheet->getCell('Q5');
         $sheets[2]->bindValue($paperlandAccountCell, '10000001211337');
         $this->assertSame(\PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING, $paperlandAccountCell->getDataType());
         $this->assertSame('10000001211337', $paperlandAccountCell->getValue());

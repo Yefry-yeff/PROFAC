@@ -526,6 +526,8 @@ Al hacer clic en la factura vinculada se descarga su PDF sin cerrar el detalle. 
 
 ### 16.6 Integración con Libro de Cobros
 
+La columna **Retención sin aplicar**, después de **Monto Movimiento**, muestra el ISV pendiente solo si este es el único saldo actual de una factura y la retención no se ha gestionado. Si la factura tiene varios abonos en el reporte filtrado, el importe se muestra una sola vez, en el último abono incluido. Los depósitos sin factura dejan la columna vacía.
+
 En Promerica y Promerica Paperland, el Libro de Cobros suma el 3 % al movimiento y aplica la comisión bancaria del 2.6 % sobre esa suma. Los importes se redondean a centavos. Paperland muestra y descuenta además un **Pago Porcentaje** fijo de L 5.53.
 
 Para un depósito no identificado se usa el importe completo una sola vez: en la fila del saldo si aún no tiene aplicaciones activas, o en la primera aplicación activa. Las demás filas del depósito mantienen sus importes aplicados o pendientes, pero no duplican el monto de conciliación ni sus comisiones. El cálculo del reporte no modifica los saldos registrados ni el indicador de total cobrado.

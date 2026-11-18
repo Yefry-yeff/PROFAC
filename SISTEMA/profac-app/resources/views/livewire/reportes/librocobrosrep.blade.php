@@ -57,11 +57,11 @@
     .lc-ds-btn { font-size:.72rem; padding:3px 10px; border-radius:12px; border:1px solid #e8d5bf;
         background:#fff; color:#7d3f00; cursor:pointer; font-weight:600; transition:background .15s; }
     .lc-ds-btn:hover, .lc-ds-btn.active { background:linear-gradient(135deg,#f39c12,#e05a00); color:#fff; border-color:transparent; }
-    #tbl_libro_cobros tbody tr.lc-row-pagada td:nth-child(n+11) { background:#f0fdf4!important; }
-    #tbl_libro_cobros tbody tr.lc-row-parcial td:nth-child(n+11) { background:#fafafa; }
+    #tbl_libro_cobros tbody tr.lc-row-pagada td:nth-child(n+12) { background:#f0fdf4!important; }
+    #tbl_libro_cobros tbody tr.lc-row-parcial td:nth-child(n+12) { background:#fafafa; }
     /* Separador visual entre datos del cobro y detalle de factura */
-    #tbl_libro_cobros thead th:nth-child(14),
-    #tbl_libro_cobros tbody td:nth-child(14) { border-left:3px solid #f2d49a!important; }
+    #tbl_libro_cobros thead th:nth-child(15),
+    #tbl_libro_cobros tbody td:nth-child(15) { border-left:3px solid #f2d49a!important; }
     </style>
     @endpush
 
@@ -136,6 +136,7 @@
                                         <th>Gestor de Entregas</th>
                                         <th>N&deg; Factura</th>
                                         <th>Monto Movimiento</th>
+                                        <th>Retención sin aplicar</th>
                                         <th>Estado</th>
                                         <th>Banco</th>
                                         <th>Cuenta</th>

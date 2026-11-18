@@ -92,6 +92,7 @@ function cargarTablaLC() {
             { data: 'gestor_entrega' },
             { data: 'factura', render: function(d) { return '<strong>' + escHtmlLC(d) + '</strong>'; } },
             { data: 'monto_movimiento', className: 'text-right', render: function(d) { return fmtLpsLC(d); } },
+            { data: 'retencion_sin_aplicar', className: 'text-right', render: function(d, type) { return type === 'display' ? (d == null ? '' : fmtLpsLC(d)) : d; } },
             { data: 'estado_factura', render: function(d) {
                 if (!d) return '';
                 var completa = d === 'PAGADA';

@@ -73,6 +73,7 @@ class PagosNoIdentificadosTest extends TestCase
             $t->decimal('saldo', 12, 2); $t->decimal('credito_abonos', 12, 2)->default(0);
             $t->decimal('total_factura_cargo', 12, 2)->default(800);
             $t->decimal('retencion_isv_factura', 12, 2)->default(0);
+            $t->integer('estado_retencion_isv')->default(0); $t->integer('retencion_aplicada')->default(0);
             $t->integer('estado')->default(1); $t->integer('estado_cerrado')->default(0);
             $t->integer('ultimo_usr_actualizo')->nullable(); $t->integer('usr_cerro')->nullable();
             $t->timestamp('fecha_cierre_factura')->nullable(); $t->timestamps();
@@ -329,6 +330,51 @@ class PagosNoIdentificadosTest extends TestCase
         $this->assertCount(1, $this->libroCobros(['fecha_desde' => '2026-01-31'])['data']);
     }
 
+    public function test_book_shows_unapplied_withholding_only_on_the_last_included_payment(): void
+    {
+        $this->prepararLibroCobros();
+        $primero = $this->registrar('600.00', 1, '2026-01-05');
+        $segundo = $this->registrar('100.00', 1, '2026-01-10', 2);
+        $this->registrar('50.00', null, '2026-01-12');
+        app(Pagos::class)->aplicar($this->solicitud([$primero], '600.00'));
+        app(Pagos::class)->aplicar($this->solicitud([$segundo], '100.00'));
+
+        $ap = DB::table('aplicacion_pagos')->where('id', 1);
+        $ap->update(['retencion_isv_factura' => 80]);
+        $this->assertSame([null, null, null], array_column($this->libroCobros()['data'], 'retencion_sin_aplicar'));
+
+        $ap->update(['retencion_isv_factura' => 100]);
+        $data = $this->libroCobros()['data'];
+        $this->assertCount(3, $data);
+        $this->assertNull($data[0]['retencion_sin_aplicar']);
+        $this->assertEquals(100, $data[1]['retencion_sin_aplicar']);
+        $this->assertNull($data[2]['retencion_sin_aplicar']);
+        $this->assertEquals(100, $this->libroCobros(['banco' => '1'])['data'][0]['retencion_sin_aplicar']);
+
+        $excel = new \App\Exports\LibroCobrosExport($data, '2026-01-01', '2026-01-31');
+        $rows = $excel->sheets()[0]->array();
+        $this->assertSame(['MONTO MOVIMIENTO', 'RETENCIÓN SIN APLICAR'], array_slice($rows[3], 8, 2));
+        $this->assertEquals(100, $rows[5][9]);
+        $this->assertEquals(100, end($rows)[9]);
+
+        $html = view('pdf.librocobrosrep', [
+            'data' => $data, 'tipo' => 3, 'fechaInicio' => '2026-01-01', 'fechaFinal' => '2026-01-31',
+            'grouped' => [
+                ['banco' => 'Banco A', 'cuenta' => '123', 'rows' => [$data[0], $data[2]]],
+                ['banco' => 'Banco B', 'cuenta' => '456', 'rows' => [$data[1]]],
+            ],
+        ])->render();
+        $dom = new \DOMDocument();
+        @$dom->loadHTML('<?xml encoding="UTF-8">' . $html);
+        $xpath = new \DOMXPath($dom);
+        $this->assertSame('RETENCIÓN SIN APLICAR', trim($xpath->evaluate('string((//th[text()="MONTO MOVIMIENTO"])[1]/following-sibling::th[1])')));
+        $this->assertSame('L 100.00', trim($xpath->evaluate('string((//table)[2]/tbody/tr/td[9])')));
+        $this->assertSame('L 100.00', trim($xpath->evaluate('string((//tfoot/tr)[last()]/td[3])')));
+
+        $ap->update(['estado_retencion_isv' => 2, 'retencion_aplicada' => 1]);
+        $this->assertSame([null, null, null], array_column($this->libroCobros()['data'], 'retencion_sin_aplicar'));
+    }
+
     public function test_book_exports_keep_pending_deposits_out_of_invoice_and_tax_totals(): void
     {
         $this->prepararLibroCobros();
@@ -343,10 +389,11 @@ class PagosNoIdentificadosTest extends TestCase
             $pendiente = collect(array_slice($rows, 4, -1))->first(fn ($row) => $row[7] === '');
             $this->assertSame('2026-01-01', $pendiente[2]);
             $this->assertEquals(700, $pendiente[8]);
-            $this->assertSame('123', $pendiente[11]);
-            $this->assertSame([null, null, null, null, null, null], array_slice($pendiente, 13, 6));
+            $this->assertNull($pendiente[9]);
+            $this->assertSame('123', $pendiente[12]);
+            $this->assertSame([null, null, null, null, null, null], array_slice($pendiente, 14, 6));
             $this->assertEquals(1000, end($rows)[8]);
-            $this->assertEquals(700, end($rows)[19]);
+            $this->assertEquals(700, end($rows)[20]);
         }
         $html = view('pdf.librocobrosrep', [
             'data' => $data, 'tipo' => 3, 'fechaInicio' => '2026-01-01', 'fechaFinal' => '2026-01-31',
@@ -367,7 +414,7 @@ class PagosNoIdentificadosTest extends TestCase
         foreach ($rows as $row) {
             $cells = $row->getElementsByTagName('td');
             if (trim($cells->item(6)->textContent) === '') {
-                foreach ([0, 1, 8, 10, 11, 12, 13, 14] as $index) {
+                foreach ([0, 1, 8, 9, 11, 12, 13, 14, 15] as $index) {
                     $this->assertSame('', trim($cells->item($index)->textContent));
                 }
             }

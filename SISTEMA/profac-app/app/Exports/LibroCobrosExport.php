@@ -25,14 +25,15 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 /**
  * Libro de Cobros — Conciliación Bancaria
  *
- * Columnas (A–S, 19 cols):
+ * Columnas base (A–U, 21 cols):
  *  A  Fecha Venta     B  Fecha Vcto.     C  Fecha Pago
  *  D  Cliente         E  Asesor Comercial F Teleasesor
- *  G  Gestor Entregas  H  N° Factura      I  Monto Cobrado
- *  J  Estado           K  Banco           L  Cuenta
- *  M  Observaciones    N  Exonerado       O  Gravado
- *  P  Exento           Q  Sub Total       R  ISV
- *  S  Total Factura
+ *  G  Gestor Entregas  H  N° Factura      I  Monto Movimiento
+ *  J  Retención sin aplicar               K  Estado
+ *  L  Banco           M  Cuenta          N  Observaciones
+ *  O  Exonerado       P  Gravado         Q  Exento
+ *  R  Sub Total       S  ISV             T  Total Factura
+ *  U  Otro
  */
 class LibroCobrosExport implements Export, WithMultipleSheets
 {
@@ -139,7 +140,7 @@ class LibroCobrosSheet extends DefaultValueBinder implements FromArray, WithStyl
 
     public function bindValue(Cell $cell, mixed $value): bool
     {
-        $accountColumn = $this->column('L');
+        $accountColumn = $this->column('M');
         if ($cell->getRow() >= 5 && $cell->getColumn() === $accountColumn && $value !== null) {
             $cell->setValueExplicit((string) $value, DataType::TYPE_STRING);
 
@@ -161,7 +162,7 @@ class LibroCobrosSheet extends DefaultValueBinder implements FromArray, WithStyl
         $out = [];
 
         /* ── Fila 1 — empresa ── */
-        $columnCount = Coordinate::columnIndexFromString($this->column('T'));
+        $columnCount = Coordinate::columnIndexFromString($this->column('U'));
         $r1 = array_fill(0, $columnCount, '');
         $r1[0] = 'DISTRIBUCIONES VALENCIA   |   RTN: 08011986138652';
         $out[] = $r1;
@@ -181,7 +182,7 @@ class LibroCobrosSheet extends DefaultValueBinder implements FromArray, WithStyl
         $headers = [
             'FECHA VENTA', 'FECHA VCTO.', 'FECHA PAGO',
             'CLIENTE', 'ASESOR COMERCIAL', 'TELEASESOR', 'GESTOR DE ENTREGAS', 'N° FACTURA',
-            'MONTO MOVIMIENTO', 'ESTADO',
+            'MONTO MOVIMIENTO', 'RETENCIÓN SIN APLICAR', 'ESTADO',
             'BANCO', 'CUENTA', 'OBSERVACIONES',
             'EXONERADO', 'GRAVADO', 'EXENTO',
             'SUB TOTAL', 'ISV', 'TOTAL FACTURA',
@@ -195,13 +196,14 @@ class LibroCobrosSheet extends DefaultValueBinder implements FromArray, WithStyl
         }
         $out[] = [...$headers, 'OTRO'];
 
-        $grandCobrado = $grandExon = $grandGrav = $grandExen = $grandSub = $grandIsv = $grandFact = 0.0;
+        $grandCobrado = $grandRetencion = $grandExon = $grandGrav = $grandExen = $grandSub = $grandIsv = $grandFact = 0.0;
         $grandRecibido = $grandComision = $grandBanco = $grandPago = $grandOtro = 0.0;
 
         foreach ($this->data as $item) {
             $r = (array) $item;
             $cobrado = (float)($r['monto_cobrado'] ?? 0);
             $montoMovimiento = (float) ($r['monto_movimiento'] ?? $cobrado);
+            $retencion = isset($r['retencion_sin_aplicar']) ? (float) $r['retencion_sin_aplicar'] : null;
             $exon    = (float)($r['exonerado']     ?? 0);
             $grav    = (float)($r['gravado']       ?? 0);
             $exen    = (float)($r['excento']       ?? 0);
@@ -210,6 +212,7 @@ class LibroCobrosSheet extends DefaultValueBinder implements FromArray, WithStyl
             $fact    = (float)($r['total_factura'] ?? 0);
 
             $grandCobrado += $montoMovimiento;
+            $grandRetencion += $retencion ?? 0;
             $grandExon    += $exon;
             $grandGrav    += $grav;
             $grandExen    += $exen;
@@ -229,6 +232,7 @@ class LibroCobrosSheet extends DefaultValueBinder implements FromArray, WithStyl
                 $r['gestor_entrega']    ?? '',
                 $r['factura']           ?? '',
                 $montoMovimiento,
+                $retencion,
                 ($r['estado_factura'] ?? '') === 'PAGADA' ? 'COMPLETO' : ($r['estado_factura'] ?? ''),
                 $r['banco']             ?? '',
                 $r['cuenta_banco']      ?? '',
@@ -260,16 +264,17 @@ class LibroCobrosSheet extends DefaultValueBinder implements FromArray, WithStyl
         }
 
         /* ── Fila totales generales ── */
-        $totRow     = array_fill(0, 20, '');
+        $totRow     = array_fill(0, 21, '');
         $totRow[0]  = 'TOTALES';
         $totRow[8]  = $grandCobrado;
-        $totRow[13] = $grandExon;
-        $totRow[14] = $grandGrav;
-        $totRow[15] = $grandExen;
-        $totRow[16] = $grandSub;
-        $totRow[17] = $grandIsv;
-        $totRow[18] = $grandFact;
-        $totRow[19] = $grandOtro;
+        $totRow[9]  = $grandRetencion;
+        $totRow[14] = $grandExon;
+        $totRow[15] = $grandGrav;
+        $totRow[16] = $grandExen;
+        $totRow[17] = $grandSub;
+        $totRow[18] = $grandIsv;
+        $totRow[19] = $grandFact;
+        $totRow[20] = $grandOtro;
         if ($this->promerica) {
             $detalle = [$grandRecibido, $grandComision, $grandBanco];
             if ($this->paperland) {
@@ -286,9 +291,9 @@ class LibroCobrosSheet extends DefaultValueBinder implements FromArray, WithStyl
     {
         $baseWidths = [
             'A' => 12, 'B' => 12, 'C' => 12, 'D' => 32, 'E' => 20,
-            'F' => 20, 'G' => 20, 'H' => 20, 'I' => 14, 'J' => 10,
-            'K' => 20, 'L' => 18, 'M' => 28, 'N' => 13, 'O' => 13,
-            'P' => 13, 'Q' => 13, 'R' => 12, 'S' => 14, 'T' => 14,
+            'F' => 20, 'G' => 20, 'H' => 20, 'I' => 14, 'J' => 18, 'K' => 10,
+            'L' => 20, 'M' => 18, 'N' => 28, 'O' => 13, 'P' => 13,
+            'Q' => 13, 'R' => 13, 'S' => 12, 'T' => 14, 'U' => 14,
         ];
         $widths = [];
         foreach ($baseWidths as $column => $width) {
@@ -306,7 +311,7 @@ class LibroCobrosSheet extends DefaultValueBinder implements FromArray, WithStyl
 
     public function styles(Worksheet $sheet): ?array
     {
-        $lc = $this->column('T');
+        $lc = $this->column('U');
         $sheet->mergeCells("A1:{$lc}1");
         $sheet->mergeCells("A2:{$lc}2");
         $sheet->mergeCells("A3:{$lc}3");
@@ -342,19 +347,19 @@ class LibroCobrosSheet extends DefaultValueBinder implements FromArray, WithStyl
             AfterSheet::class => function (AfterSheet $event) {
                 $sheet   = $event->sheet->getDelegate();
                 $lastRow = $sheet->getHighestRow();
-                $lc = $this->column('T');
-                $moneyColumns = array_map($this->column(...), ['I', 'N', 'O', 'P', 'Q', 'R', 'S', 'T']);
+                $lc = $this->column('U');
+                $moneyColumns = array_map($this->column(...), ['I', 'J', 'O', 'P', 'Q', 'R', 'S', 'T', 'U']);
                 if ($this->promerica) {
                     array_push($moneyColumns, 'I', 'J', 'K');
                 }
                 if ($this->paperland) {
                     $moneyColumns[] = 'L';
                 }
-                $textColumns = array_map($this->column(...), ['D', 'E', 'F', 'G', 'H', 'K', 'L', 'M']);
-                $stateColumn = $this->column('J');
-                $accountColumn = $this->column('L');
+                $textColumns = array_map($this->column(...), ['D', 'E', 'F', 'G', 'H', 'L', 'M', 'N']);
+                $stateColumn = $this->column('K');
+                $accountColumn = $this->column('M');
                 $netColumn = $this->column('I');
-                $separatorColumn = $this->column('N');
+                $separatorColumn = $this->column('O');
 
                 if ($lastRow < 5) return;
 
@@ -438,7 +443,7 @@ class LibroCobrosSheet extends DefaultValueBinder implements FromArray, WithStyl
 
                     $estado = (string)($sheet->getCell("{$stateColumn}{$row}")->getValue() ?? '');
                     if (in_array(strtoupper($estado), ['PAGADA', 'COMPLETO'], true)) {
-                        $sheet->getStyle("A{$row}:" . $this->column('M') . "{$row}")->getFill()
+                        $sheet->getStyle("A{$row}:" . $this->column('N') . "{$row}")->getFill()
                             ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('F0FDF4');
                         $sheet->getStyle("{$separatorColumn}{$row}:{$lc}{$row}")->getFill()
                             ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('DCFCE7');
