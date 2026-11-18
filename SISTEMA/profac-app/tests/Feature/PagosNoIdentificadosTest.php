@@ -145,8 +145,9 @@ class PagosNoIdentificadosTest extends TestCase
         $this->assertEquals(300, $movimientos[0]['monto_recibido']);
         $this->assertEquals(9, $movimientos[0]['comision_cobrada']);
         $this->assertEquals(291, $movimientos[0]['monto_cobrado']);
-        $this->assertEquals(292.2, $movimientos[0]['monto_movimiento']);
-        $this->assertEquals(1.2, $movimientos[0]['otro']);
+        $this->assertEquals(8.03, $movimientos[0]['comision_banco']);
+        $this->assertEquals(300.97, $movimientos[0]['monto_movimiento']);
+        $this->assertEquals(9.97, $movimientos[0]['otro']);
         $filtradosPorBanco = $this->libroCobros(['banco' => '13'])['data'];
         $this->assertCount(1, $filtradosPorBanco);
         Livewire::test(\App\Livewire\Reportes\Librocobrosrep::class)
@@ -154,7 +155,7 @@ class PagosNoIdentificadosTest extends TestCase
             ->assertSee('PROMERICA PAPERLAND');
     }
 
-    public function test_historical_promerica_abonos_reconstruct_missing_gross_movement_and_three_percent(): void
+    public function test_promerica_direct_payments_calculate_fees_from_the_payment_amount(): void
     {
         $this->prepararLibroCobros();
         DB::table('abonos_creditos')->insert([
@@ -163,7 +164,9 @@ class PagosNoIdentificadosTest extends TestCase
             'banco_id' => 13,
             'estado_abono' => 1,
             'id_tipo_pago_cobro' => 2,
-            'monto_abonado' => '970.00',
+            'monto_abonado' => '316.93',
+            'monto_recibido' => '326.73',
+            'comision_cobrada' => '9.80',
             'usr_registro' => 1,
             'comentario' => 'Abono histórico Promerica',
             'fecha_pago' => '2026-01-15',
@@ -175,13 +178,45 @@ class PagosNoIdentificadosTest extends TestCase
         $movimientos = $this->libroCobros()['data'];
 
         $this->assertCount(1, $movimientos);
-        $this->assertEquals(970, $movimientos[0]['monto_recibido']);
-        $this->assertEquals(30, $movimientos[0]['comision_cobrada']);
-        $this->assertEquals(974.78, $movimientos[0]['monto_movimiento']);
-        $this->assertEquals(4.78, $movimientos[0]['otro']);
+        $this->assertEquals(316.93, $movimientos[0]['monto_recibido']);
+        $this->assertEquals(9.51, $movimientos[0]['comision_cobrada']);
+        $this->assertEquals(8.49, $movimientos[0]['comision_banco']);
+        $this->assertEquals(317.95, $movimientos[0]['monto_movimiento']);
+        $this->assertEquals(1.02, $movimientos[0]['otro']);
         $excel = new \App\Exports\LibroCobrosExport($movimientos, '2026-01-01', '2026-01-31');
-        $this->assertEquals(974.78, $excel->sheets()[0]->array()[4][7]);
-        $this->assertEquals(974.78, $excel->sheets()[1]->array()[4][10]);
+        $this->assertEquals(317.95, $excel->sheets()[0]->array()[4][8]);
+        $this->assertEquals(317.95, $excel->sheets()[1]->array()[4][11]);
+    }
+
+    public function test_paperland_deposit_is_reconciled_once_when_split_across_invoices_and_a_pending_balance(): void
+    {
+        $this->prepararLibroCobros();
+        $pago = $this->registrar('300.00', 1, '2026-01-01', 12);
+        $pendiente = $this->libroCobros()['data'][0];
+        $this->assertEquals(5.53, $pendiente['pago_porcentaje']);
+        $this->assertEquals(295.44, $pendiente['monto_movimiento']);
+
+        app(Pagos::class)->aplicar($this->solicitud([$pago], '100.00'));
+        app(Pagos::class)->aplicar($this->solicitud([$pago], '100.00', 2));
+        $reporte = $this->libroCobros();
+        $data = $reporte['data'];
+        $this->assertCount(3, $data);
+        $this->assertEquals(300, $reporte['kpi_total_cobrado']);
+        $this->assertEquals(5.53, array_sum(array_column($data, 'pago_porcentaje')));
+        $this->assertEquals(295.44, array_sum(array_column($data, 'monto_movimiento')));
+        $this->assertEquals(0, $this->libroCobros(['factura' => 'F-002'])['data'][0]['pago_porcentaje']);
+
+        $html = view('pdf.librocobrosrep', [
+            'data' => $data, 'tipo' => 3, 'fechaInicio' => '2026-01-01', 'fechaFinal' => '2026-01-31',
+            'grouped' => [['banco' => 'PROMERICA PAPERLAND', 'cuenta' => '10000001211337', 'rows' => $data]],
+        ])->render();
+        $dom = new \DOMDocument();
+        @$dom->loadHTML('<?xml encoding="UTF-8">' . $html);
+        $xpath = new \DOMXPath($dom);
+        $this->assertSame('PAGO PORCENTAJE', trim($xpath->evaluate('string((//thead/tr/th[text()="MONTO MOVIMIENTO"])[1]/preceding-sibling::th[1])')));
+        $this->assertSame('L 5.53', trim($xpath->evaluate('string((//tfoot/tr)[1]/td[5])')));
+        $this->assertSame('L 295.44', trim($xpath->evaluate('string((//tfoot/tr)[1]/td[6])')));
+        $this->assertSame('L 295.44', trim($xpath->evaluate('string((//tfoot/tr)[2]/td[2])')));
     }
 
     private function solicitud(array $ids, string $monto, int $factura = 1, int $cliente = 1): array
@@ -305,13 +340,13 @@ class PagosNoIdentificadosTest extends TestCase
         $this->assertCount(2, $sheets);
         foreach ($sheets as $sheet) {
             $rows = $sheet->array();
-            $pendiente = collect(array_slice($rows, 4, -1))->first(fn ($row) => $row[6] === '');
+            $pendiente = collect(array_slice($rows, 4, -1))->first(fn ($row) => $row[7] === '');
             $this->assertSame('2026-01-01', $pendiente[2]);
-            $this->assertEquals(700, $pendiente[7]);
-            $this->assertSame('123', $pendiente[10]);
-            $this->assertSame([null, null, null, null, null, null], array_slice($pendiente, 12));
-            $this->assertEquals(1000, end($rows)[7]);
-            $this->assertEquals(300, end($rows)[17]);
+            $this->assertEquals(700, $pendiente[8]);
+            $this->assertSame('123', $pendiente[11]);
+            $this->assertSame([null, null, null, null, null, null], array_slice($pendiente, 13, 6));
+            $this->assertEquals(1000, end($rows)[8]);
+            $this->assertEquals(700, end($rows)[19]);
         }
         $html = view('pdf.librocobrosrep', [
             'data' => $data, 'tipo' => 3, 'fechaInicio' => '2026-01-01', 'fechaFinal' => '2026-01-31',
@@ -359,8 +394,8 @@ class PagosNoIdentificadosTest extends TestCase
         $this->assertStringContainsString('OTRO', $html);
         $this->assertStringContainsString('L 300.00', $html);
         $this->assertStringContainsString('L 9.00', $html);
-        $this->assertStringContainsString('L 7.80', $html);
-        $this->assertStringContainsString('L 292.20', $html);
+        $this->assertStringContainsString('L 8.03', $html);
+        $this->assertStringContainsString('L 300.97', $html);
         $this->assertStringContainsString('L 291.00', $html);
     }
 

@@ -109,10 +109,11 @@
 
     @foreach($grouped as $gKey => $group)
         @php
-            $esPromerica = ComisionDepositoPromerica::esPromerica($group['banco']);
-            $cantidadColumnas = $esPromerica ? 19 : 15;
+            $esPaperland = ComisionDepositoPromerica::esPaperland($group['banco']);
+            $esPromerica = $esPaperland || ComisionDepositoPromerica::esPromerica($group['banco']);
+            $cantidadColumnas = $esPaperland ? 20 : ($esPromerica ? 19 : 15);
             $gCobrado = $gExon = $gGrav = $gExen = $gIsv = $gFact = 0.0;
-            $gRecibido = $gComision = $gBanco = $gNeto = $gOtro = 0.0;
+            $gRecibido = $gComision = $gBanco = $gPago = $gOtro = 0.0;
         @endphp
         <table style="margin-bottom:0;">
             <colgroup>
@@ -138,6 +139,7 @@
                         <th>MOVIMIENTO</th>
                         <th>COMISIÓN COBRADA (3%)</th>
                         <th>COMISIÓN DEL BANCO (2.6%)</th>
+                        @if($esPaperland)<th>PAGO PORCENTAJE</th>@endif
                     @endif
                     <th>MONTO MOVIMIENTO</th>
                     <th>ESTADO</th>
@@ -153,22 +155,18 @@
             <tbody>
                 @foreach($group['rows'] as $row)
                     @php
-                        $gCobrado += (float)($row['monto_cobrado'] ?? 0);
+                        $neto = (float)($row['monto_movimiento'] ?? $row['monto_cobrado'] ?? 0);
+                        $gCobrado += $neto;
                         $gExon    += (float)($row['exonerado']     ?? 0);
                         $gGrav    += (float)($row['gravado']       ?? 0);
                         $gExen    += (float)($row['excento']       ?? 0);
                         $gIsv     += (float)($row['isv']           ?? 0);
                         $gFact    += (float)($row['total_factura'] ?? 0);
-                        $recibidoCentavos = ComisionDepositoPromerica::centavos(number_format((float)($row['monto_recibido'] ?? 0), 2, '.', ''));
-                        $comisionCentavos = ComisionDepositoPromerica::centavos(number_format((float)($row['comision_cobrada'] ?? 0), 2, '.', ''));
-                        $bancoCentavos = ComisionDepositoPromerica::comisionBancoCentavos($recibidoCentavos);
-                        $netoCentavos = ComisionDepositoPromerica::centavos(number_format((float)($row['monto_movimiento'] ?? $row['monto_recibido'] ?? 0), 2, '.', ''));
-                        $otroCentavos = ComisionDepositoPromerica::centavos(number_format((float)($row['otro'] ?? 0), 2, '.', ''));
-                        $gRecibido += $recibidoCentavos / 100;
-                        $gComision += $comisionCentavos / 100;
-                        $gBanco += $bancoCentavos / 100;
-                        $gNeto += $netoCentavos / 100;
-                        $gOtro += $otroCentavos / 100;
+                        $gRecibido += $recibido = (float)($row['monto_recibido'] ?? 0);
+                        $gComision += $comision = (float)($row['comision_cobrada'] ?? 0);
+                        $gBanco += $banco = (float)($row['comision_banco'] ?? 0);
+                        $gPago += $pago = (float)($row['pago_porcentaje'] ?? 0);
+                        $gOtro += $otro = (float)($row['otro'] ?? 0);
                     @endphp
                     <tr>
                         <td>{{ isset($row['fecha_venta']) ? $fmtF($row['fecha_venta']) : '' }}</td>
@@ -179,13 +177,12 @@
                         <td style="text-align:left;">{{ $row['teleasesor'] ?? '' }}</td>
                         <td>{{ $row['factura'] ?? '' }}</td>
                         @if($esPromerica)
-                            <td style="text-align:right;">{{ $fmtL($recibidoCentavos / 100) }}</td>
-                            <td style="text-align:right;">{{ $fmtL($comisionCentavos / 100) }}</td>
-                            <td style="text-align:right;">{{ $fmtL($bancoCentavos / 100) }}</td>
-                            <td style="text-align:right;">{{ $fmtL($netoCentavos / 100) }}</td>
-                        @else
-                            <td style="text-align:right;">{{ $fmtL($row['monto_movimiento'] ?? $row['monto_cobrado'] ?? 0) }}</td>
+                            <td style="text-align:right;">{{ $fmtL($recibido) }}</td>
+                            <td style="text-align:right;">{{ $fmtL($comision) }}</td>
+                            <td style="text-align:right;">{{ $fmtL($banco) }}</td>
+                            @if($esPaperland)<td style="text-align:right;">{{ $fmtL($pago) }}</td>@endif
                         @endif
+                        <td style="text-align:right;">{{ $fmtL($neto) }}</td>
                         <td>{{ ($row['estado_factura'] ?? '') === 'PAGADA' ? 'COMPLETO' : ($row['estado_factura'] ?? '') }}</td>
                         <td style="text-align:left;">{{ $row['observaciones'] ?? '' }}</td>
                         <td style="text-align:right;">{{ isset($row['exonerado']) ? $fmtL($row['exonerado']) : '' }}</td>
@@ -193,7 +190,7 @@
                         <td style="text-align:right;">{{ isset($row['excento']) ? $fmtL($row['excento']) : '' }}</td>
                         <td style="text-align:right;">{{ isset($row['isv']) ? $fmtL($row['isv']) : '' }}</td>
                         <td style="text-align:right;font-weight:bold;">{{ isset($row['total_factura']) ? $fmtL($row['total_factura']) : '' }}</td>
-                        @if($esPromerica)<td style="text-align:right;">{{ $fmtL($otroCentavos / 100) }}</td>@endif
+                        @if($esPromerica)<td style="text-align:right;">{{ $fmtL($otro) }}</td>@endif
                     </tr>
                 @endforeach
             </tbody>
@@ -207,14 +204,12 @@
                     $grandFact    += $gFact;
                 @endphp
                 <tr style="background:#FFF3E0;font-weight:bold;">
+                    <td colspan="7" style="text-align:right;font-weight:bold;">Subtotal {{ strtoupper($group['banco']) }}:</td>
                     @if($esPromerica)
-                        <td colspan="7" style="text-align:right;font-weight:bold;">Subtotal {{ strtoupper($group['banco']) }}:</td>
                         <td style="text-align:right;">{{ $fmtL($gRecibido) }}</td>
                         <td style="text-align:right;">{{ $fmtL($gComision) }}</td>
                         <td style="text-align:right;">{{ $fmtL($gBanco) }}</td>
-                        <td style="text-align:right;">{{ $fmtL($gNeto) }}</td>
-                    @else
-                        <td colspan="7" style="text-align:right;font-weight:bold;">Subtotal {{ strtoupper($group['banco']) }}:</td>
+                        @if($esPaperland)<td style="text-align:right;">{{ $fmtL($gPago) }}</td>@endif
                     @endif
                     <td style="text-align:right;">{{ $fmtL($gCobrado) }}</td>
                     <td></td>

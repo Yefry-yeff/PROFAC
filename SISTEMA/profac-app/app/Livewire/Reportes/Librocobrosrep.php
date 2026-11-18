@@ -9,6 +9,7 @@ use Yajra\DataTables\DataTables;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use App\Exports\LibroCobrosExport;
+use App\Services\ComisionDepositoPromerica;
 use Maatwebsite\Excel\Facades\Excel;
 
 class Librocobrosrep extends Component
@@ -610,121 +611,24 @@ class Librocobrosrep extends Component
                 COALESCE(NULLIF(TRIM(c.cai), ''), c.numero_secuencia_cai) AS factura,
                 c.monto_cobrado,
                 CASE
-                    WHEN ac_reporte.id IS NULL THEN 0
-                    WHEN c.banco = 'PROMERICA' AND c.cuenta_banco = '80000000578176'
-                        AND pni.id IS NULL THEN c.monto_cobrado
                     WHEN ac_reporte.monto_recibido IS NOT NULL THEN ac_reporte.monto_recibido
-                    WHEN pni.id IS NOT NULL AND ROW_NUMBER() OVER (PARTITION BY pni.id ORDER BY pnia.id) = 1
-                        THEN pni.monto_original
-                    WHEN c.banco = 'PROMERICA' AND c.cuenta_banco = '80000000578176'
-                        THEN ROUND(ac_reporte.monto_abonado / 0.97, 2)
+                    WHEN pnia.id = primera.id THEN pni.monto_original
                     ELSE COALESCE(ac_reporte.monto_abonado, 0)
                 END AS monto_recibido,
                 CASE
-                    WHEN ac_reporte.id IS NULL THEN 0
-                    WHEN c.banco = 'PROMERICA' AND c.cuenta_banco = '80000000578176'
-                        AND pni.id IS NULL
-                        THEN COALESCE(
-                            NULLIF(ac_reporte.comision_cobrada, 0),
-                            CASE
-                                WHEN ac_reporte.monto_recibido IS NOT NULL
-                                    THEN ROUND(ac_reporte.monto_recibido * 0.03, 2)
-                                ELSE ROUND(ROUND(ac_reporte.monto_abonado / 0.97, 2) * 0.03, 2)
-                            END
-                        )
-                    WHEN c.banco = 'PROMERICA' AND c.cuenta_banco = '80000000578176'
-                        THEN COALESCE(
-                            NULLIF(ac_reporte.comision_cobrada, 0),
-                            CASE
-                                WHEN pni.id IS NOT NULL AND ROW_NUMBER() OVER (PARTITION BY pni.id ORDER BY pnia.id) = 1
-                                    THEN COALESCE(NULLIF(pni.comision_cobrada, 0), ROUND(pni.monto_original * 0.03, 2))
-                                WHEN ac_reporte.monto_recibido IS NOT NULL
-                                    THEN ROUND(ac_reporte.monto_recibido * 0.03, 2)
-                                ELSE ROUND(ROUND(ac_reporte.monto_abonado / 0.97, 2) * 0.03, 2)
-                            END
-                        )
                     WHEN ac_reporte.comision_cobrada IS NOT NULL THEN ac_reporte.comision_cobrada
-                    WHEN pni.id IS NOT NULL AND ROW_NUMBER() OVER (PARTITION BY pni.id ORDER BY pnia.id) = 1
-                        THEN COALESCE(pni.comision_cobrada, 0)
+                    WHEN pnia.id = primera.id THEN COALESCE(pni.comision_cobrada, 0)
                     ELSE 0
                 END AS comision_cobrada,
                 CASE
-                    WHEN c.banco = 'PROMERICA' AND c.cuenta_banco = '80000000578176'
-                        AND pni.id IS NULL
-                        THEN ROUND(
-                            c.monto_cobrado
-                            + COALESCE(
-                                NULLIF(ac_reporte.comision_cobrada, 0),
-                                CASE
-                                    WHEN ac_reporte.monto_recibido IS NOT NULL
-                                        THEN ROUND(ac_reporte.monto_recibido * 0.03, 2)
-                                    ELSE ROUND(ROUND(ac_reporte.monto_abonado / 0.97, 2) * 0.03, 2)
-                                END
-                            )
-                            - ROUND(c.monto_cobrado * 0.026, 2),
-                            2
-                        )
-                    WHEN c.banco = 'PROMERICA' AND c.cuenta_banco = '80000000578176'
-                        THEN ROUND(
-                            CASE
-                                WHEN ac_reporte.monto_recibido IS NOT NULL THEN ac_reporte.monto_recibido
-                                WHEN pni.id IS NOT NULL AND ROW_NUMBER() OVER (PARTITION BY pni.id ORDER BY pnia.id) = 1
-                                    THEN pni.monto_original
-                                ELSE ROUND(ac_reporte.monto_abonado / 0.97, 2)
-                            END
-                            - ROUND((
-                                CASE
-                                    WHEN ac_reporte.monto_recibido IS NOT NULL THEN ac_reporte.monto_recibido
-                                    WHEN pni.id IS NOT NULL AND ROW_NUMBER() OVER (PARTITION BY pni.id ORDER BY pnia.id) = 1
-                                        THEN pni.monto_original
-                                    ELSE ROUND(ac_reporte.monto_abonado / 0.97, 2)
-                                END
-                            ) * 0.026, 2),
-                            2
-                        )
-                    ELSE c.monto_cobrado
-                END AS monto_movimiento,
+                    WHEN pni.id IS NULL THEN c.monto_cobrado
+                    WHEN pnia.id = primera.id THEN pni.monto_original
+                END AS _base_movimiento,
                 CASE
-                    WHEN c.banco = 'PROMERICA' AND c.cuenta_banco = '80000000578176'
-                        AND pni.id IS NULL
-                        THEN GREATEST(
-                            ROUND(
-                                c.monto_cobrado
-                                + COALESCE(
-                                    NULLIF(ac_reporte.comision_cobrada, 0),
-                                    CASE
-                                        WHEN ac_reporte.monto_recibido IS NOT NULL
-                                            THEN ROUND(ac_reporte.monto_recibido * 0.03, 2)
-                                        ELSE ROUND(ROUND(ac_reporte.monto_abonado / 0.97, 2) * 0.03, 2)
-                                    END
-                                )
-                                - ROUND(c.monto_cobrado * 0.026, 2)
-                                - c.monto_cobrado,
-                                2
-                            ),
-                            0
-                        )
-                    WHEN c.banco = 'PROMERICA' AND c.cuenta_banco = '80000000578176'
-                        AND pni.id IS NOT NULL
-                        AND ROW_NUMBER() OVER (PARTITION BY pni.id ORDER BY pnia.id) = 1
-                        THEN GREATEST(
-                            ROUND(
-                                CASE
-                                    WHEN ac_reporte.monto_recibido IS NOT NULL THEN ac_reporte.monto_recibido
-                                    ELSE pni.monto_original
-                                END
-                                - ROUND((
-                                    CASE
-                                        WHEN ac_reporte.monto_recibido IS NOT NULL THEN ac_reporte.monto_recibido
-                                        ELSE pni.monto_original
-                                    END
-                                ) * 0.026, 2)
-                                - (SELECT COALESCE(SUM(pa.monto), 0) FROM pni_aplicaciones pa WHERE pa.pago_id = pni.id)
-                                - pni.saldo_disponible,
-                                2
-                            ),
-                            0
-                        )
+                    WHEN pni.id IS NULL THEN c.monto_cobrado
+                    WHEN pnia.id = primera.id THEN primera.monto_aplicado + pni.saldo_disponible
+                END AS _base_otro,
+                CASE
                     WHEN pni.id IS NULL THEN GREATEST(
                         COALESCE(ac_reporte.monto_recibido, ac_reporte.monto_abonado, 0)
                         - COALESCE(ac_reporte.comision_cobrada, 0) - c.monto_cobrado, 0
@@ -757,6 +661,12 @@ class Librocobrosrep extends Component
             LEFT JOIN abonos_creditos ac_reporte ON ac_reporte.id = c.movimiento_id AND c.orden_tipo = 1
             LEFT JOIN pni_aplicaciones pnia ON pnia.abono_id = ac_reporte.id
             LEFT JOIN pagos_no_identificados pni ON pni.id = pnia.pago_id
+            LEFT JOIN (
+                SELECT pa.pago_id, MIN(pa.id) AS id, SUM(pa.monto) AS monto_aplicado
+                FROM pni_aplicaciones pa
+                INNER JOIN abonos_creditos aplicado ON aplicado.id = pa.abono_id AND aplicado.estado_abono = 1
+                GROUP BY pa.pago_id
+            ) primera ON primera.pago_id = pni.id
             LEFT JOIN users u ON u.id = c.vendedor
             LEFT JOIN users tele ON tele.id = c.users_id
             LEFT JOIN users gestor ON gestor.id = c.gestor_entrega
@@ -808,11 +718,12 @@ class Librocobrosrep extends Component
                     THEN 0 ELSE p.monto_original END AS monto_recibido,
                 CASE WHEN EXISTS (SELECT 1 FROM pni_aplicaciones pa WHERE pa.pago_id = p.id)
                     THEN 0 ELSE p.comision_cobrada END AS comision_cobrada,
-                CASE
-                    WHEN b.nombre = 'PROMERICA' AND p.cuenta_bancaria = '80000000578176'
-                        THEN ROUND(p.monto_original - ROUND(p.monto_original * 0.026, 2), 2)
-                    ELSE p.saldo_disponible
-                END AS monto_movimiento,
+                CASE WHEN NOT EXISTS (
+                    SELECT 1 FROM pni_aplicaciones pa
+                    INNER JOIN abonos_creditos aplicado ON aplicado.id = pa.abono_id AND aplicado.estado_abono = 1
+                    WHERE pa.pago_id = p.id
+                ) THEN p.monto_original END AS _base_movimiento,
+                NULL AS _base_otro,
                 p.saldo_disponible AS otro, 1 AS impacta_kpi,
                 NULL AS saldo_pendiente, '' AS estado_factura,
                 b.nombre AS banco, p.cuenta_bancaria AS cuenta_banco,
@@ -825,7 +736,25 @@ class Librocobrosrep extends Component
             . ' ORDER BY _fecha_orden ASC, _orden_tipo ASC, _movimiento_id ASC';
         $bindings = array_merge($bindings, $depositos->getBindings());
 
-        return DB::select($sql, $bindings);
+        $rows = DB::select($sql, $bindings);
+        foreach ($rows as $row) {
+            $row->monto_movimiento = $row->monto_cobrado;
+            $esPaperland = ComisionDepositoPromerica::esPaperland($row->banco);
+            if ($esPaperland || ComisionDepositoPromerica::esPromerica($row->banco)) {
+                // Un depósito se concilia en su primera aplicación activa, o en el saldo si aún no se aplicó.
+                $base = $row->_base_movimiento === null ? null : (int) round($row->_base_movimiento * 100);
+                $desglose = ComisionDepositoPromerica::desgloseLibroCobros($base, $esPaperland);
+                foreach ($desglose as $campo => $centavos) {
+                    $row->$campo = $centavos / 100;
+                }
+                if ($row->_base_otro !== null) {
+                    $row->otro = max($desglose['monto_movimiento'] - (int) round($row->_base_otro * 100), 0) / 100;
+                }
+            }
+            unset($row->_base_movimiento, $row->_base_otro);
+        }
+
+        return $rows;
     }
 
     private function queryTipo3DataAnterior(

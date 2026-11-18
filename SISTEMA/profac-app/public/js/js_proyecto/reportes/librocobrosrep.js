@@ -91,7 +91,7 @@ function cargarTablaLC() {
             { data: 'teleasesor' },
             { data: 'gestor_entrega' },
             { data: 'factura', render: function(d) { return '<strong>' + escHtmlLC(d) + '</strong>'; } },
-            { data: 'monto_cobrado', className: 'text-right', render: function(d) { return fmtLpsLC(d); } },
+            { data: 'monto_movimiento', className: 'text-right', render: function(d) { return fmtLpsLC(d); } },
             { data: 'estado_factura', render: function(d) {
                 if (!d) return '';
                 var completa = d === 'PAGADA';

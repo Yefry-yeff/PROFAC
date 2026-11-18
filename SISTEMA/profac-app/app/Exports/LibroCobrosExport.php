@@ -15,6 +15,7 @@ use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
 use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Cell\Cell;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Cell\DefaultValueBinder;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
@@ -67,13 +68,15 @@ class LibroCobrosExport implements Export, WithMultipleSheets
         foreach ($groups as $group) {
             $label = $group['bank'] . ' - ' . $group['account'];
             $title = $this->uniqueSheetTitle($label, $usedTitles);
+            $paperland = ComisionDepositoPromerica::esPaperland($group['bank']);
             $sheets[] = new LibroCobrosSheet(
                 $group['rows'],
                 $this->fechaInicio,
                 $this->fechaFinal,
                 $title,
                 $label,
-                ComisionDepositoPromerica::esPromerica($group['bank'])
+                $paperland || ComisionDepositoPromerica::esPromerica($group['bank']),
+                $paperland
             );
         }
 
@@ -117,7 +120,8 @@ class LibroCobrosSheet extends DefaultValueBinder implements FromArray, WithStyl
         string $fechaFinal,
         string $sheetTitle,
         string $label,
-        bool $promerica = false
+        bool $promerica = false,
+        protected bool $paperland = false
     )
     {
         $this->data       = is_array($data) ? $data : json_decode(json_encode($data), true);
@@ -135,7 +139,7 @@ class LibroCobrosSheet extends DefaultValueBinder implements FromArray, WithStyl
 
     public function bindValue(Cell $cell, mixed $value): bool
     {
-        $accountColumn = $this->promerica ? 'O' : 'L';
+        $accountColumn = $this->column('L');
         if ($cell->getRow() >= 5 && $cell->getColumn() === $accountColumn && $value !== null) {
             $cell->setValueExplicit((string) $value, DataType::TYPE_STRING);
 
@@ -145,12 +149,19 @@ class LibroCobrosSheet extends DefaultValueBinder implements FromArray, WithStyl
         return parent::bindValue($cell, $value);
     }
 
+    private function column(string $base): string
+    {
+        return $this->promerica && $base >= 'I'
+            ? Coordinate::stringFromColumnIndex(Coordinate::columnIndexFromString($base) + ($this->paperland ? 4 : 3))
+            : $base;
+    }
+
     public function array(): array
     {
         $out = [];
 
         /* ── Fila 1 — empresa ── */
-        $columnCount = $this->promerica ? 23 : 20;
+        $columnCount = Coordinate::columnIndexFromString($this->column('T'));
         $r1 = array_fill(0, $columnCount, '');
         $r1[0] = 'DISTRIBUCIONES VALENCIA   |   RTN: 08011986138652';
         $out[] = $r1;
@@ -175,17 +186,17 @@ class LibroCobrosSheet extends DefaultValueBinder implements FromArray, WithStyl
             'EXONERADO', 'GRAVADO', 'EXENTO',
             'SUB TOTAL', 'ISV', 'TOTAL FACTURA',
         ];
-        $out[] = $this->promerica
-            ? array_merge(
-                array_slice($headers, 0, 8),
-                ['MOVIMIENTO', 'COMISIÓN COBRADA (3%)', 'COMISIÓN DEL BANCO (2.6%)'],
-                array_slice($headers, 8),
-                ['OTRO']
-            )
-            : array_merge($headers, ['OTRO']);
+        if ($this->promerica) {
+            $detalle = ['MOVIMIENTO', 'COMISIÓN COBRADA (3%)', 'COMISIÓN DEL BANCO (2.6%)'];
+            if ($this->paperland) {
+                $detalle[] = 'PAGO PORCENTAJE';
+            }
+            array_splice($headers, 8, 0, $detalle);
+        }
+        $out[] = [...$headers, 'OTRO'];
 
         $grandCobrado = $grandExon = $grandGrav = $grandExen = $grandSub = $grandIsv = $grandFact = 0.0;
-        $grandRecibido = $grandComision = $grandBanco = $grandNeto = $grandOtro = 0.0;
+        $grandRecibido = $grandComision = $grandBanco = $grandPago = $grandOtro = 0.0;
 
         foreach ($this->data as $item) {
             $r = (array) $item;
@@ -205,10 +216,8 @@ class LibroCobrosSheet extends DefaultValueBinder implements FromArray, WithStyl
             $grandSub     += $sub;
             $grandIsv     += $isv;
             $grandFact    += $fact;
-            $otroCentavos = ComisionDepositoPromerica::centavos(
-                number_format((float) ($r['otro'] ?? 0), 2, '.', '')
-            );
-            $grandOtro += $otroCentavos / 100;
+            $otro = (float) ($r['otro'] ?? 0);
+            $grandOtro += $otro;
 
             $row = [
                 $r['fecha_venta']       ?? '',
@@ -230,66 +239,43 @@ class LibroCobrosSheet extends DefaultValueBinder implements FromArray, WithStyl
                 isset($r['subtotal']) ? $sub : null,
                 isset($r['isv']) ? $isv : null,
                 isset($r['total_factura']) ? $fact : null,
+                $otro,
             ];
-            if (!$this->promerica) {
-                $row[] = $otroCentavos / 100;
-            }
             if ($this->promerica) {
-                $recibidoCentavos = ComisionDepositoPromerica::centavos(
-                    number_format((float) ($r['monto_recibido'] ?? 0), 2, '.', '')
-                );
-                $comisionCentavos = ComisionDepositoPromerica::centavos(
-                    number_format((float) ($r['comision_cobrada'] ?? 0), 2, '.', '')
-                );
-                $bancoCentavos = ComisionDepositoPromerica::comisionBancoCentavos($recibidoCentavos);
-                $netoCentavos = ComisionDepositoPromerica::centavos(
-                    number_format((float) ($r['monto_movimiento'] ?? ($r['monto_recibido'] ?? 0)), 2, '.', '')
-                );
-                $grandRecibido += $recibidoCentavos / 100;
-                $grandComision += $comisionCentavos / 100;
-                $grandBanco += $bancoCentavos / 100;
-                $grandNeto += $netoCentavos / 100;
-                $grandOtro += $otroCentavos / 100;
-                $row = array_merge(
-                    array_slice($row, 0, 8),
-                    [
-                        $recibidoCentavos / 100,
-                        $comisionCentavos / 100,
-                        $bancoCentavos / 100,
-                    ],
-                    [$netoCentavos / 100],
-                    array_slice($row, 9),
-                    [$otroCentavos / 100]
-                );
+                $detalle = [
+                    $recibido = (float) ($r['monto_recibido'] ?? 0),
+                    $comision = (float) ($r['comision_cobrada'] ?? 0),
+                    $banco = (float) ($r['comision_banco'] ?? 0),
+                ];
+                $grandRecibido += $recibido;
+                $grandComision += $comision;
+                $grandBanco += $banco;
+                if ($this->paperland) {
+                    $detalle[] = $pago = (float) ($r['pago_porcentaje'] ?? 0);
+                    $grandPago += $pago;
+                }
+                array_splice($row, 8, 0, $detalle);
             }
             $out[] = $row;
         }
 
         /* ── Fila totales generales ── */
-        $totRow     = array_fill(0, $columnCount, '');
+        $totRow     = array_fill(0, 20, '');
         $totRow[0]  = 'TOTALES';
+        $totRow[8]  = $grandCobrado;
+        $totRow[13] = $grandExon;
+        $totRow[14] = $grandGrav;
+        $totRow[15] = $grandExen;
+        $totRow[16] = $grandSub;
+        $totRow[17] = $grandIsv;
+        $totRow[18] = $grandFact;
+        $totRow[19] = $grandOtro;
         if ($this->promerica) {
-            $totRow[0] = 'TOTALES';
-            $totRow[8] = $grandRecibido;
-            $totRow[9] = $grandComision;
-            $totRow[10] = $grandBanco;
-            $totRow[11] = $grandNeto;
-            $totRow[16] = $grandExon;
-            $totRow[17] = $grandGrav;
-            $totRow[18] = $grandExen;
-            $totRow[19] = $grandSub;
-            $totRow[20] = $grandIsv;
-            $totRow[21] = $grandFact;
-            $totRow[22] = $grandOtro;
-        } else {
-            $totRow[8]  = $grandCobrado;
-            $totRow[13] = $grandExon;
-            $totRow[14] = $grandGrav;
-            $totRow[15] = $grandExen;
-            $totRow[16] = $grandSub;
-            $totRow[17] = $grandIsv;
-            $totRow[18] = $grandFact;
-            $totRow[19] = $grandOtro;
+            $detalle = [$grandRecibido, $grandComision, $grandBanco];
+            if ($this->paperland) {
+                $detalle[] = $grandPago;
+            }
+            array_splice($totRow, 8, 0, $detalle);
         }
         $out[]      = $totRow;
 
@@ -298,27 +284,29 @@ class LibroCobrosSheet extends DefaultValueBinder implements FromArray, WithStyl
 
     public function columnWidths(): array
     {
-        if ($this->promerica) {
-            return [
-                'A' => 12, 'B' => 12, 'C' => 12, 'D' => 32, 'E' => 20,
-                'F' => 20, 'G' => 20, 'H' => 20, 'I' => 14, 'J' => 16,
-                'K' => 18, 'L' => 14, 'M' => 10, 'N' => 20, 'O' => 18,
-                'P' => 28, 'Q' => 13, 'R' => 13, 'S' => 13, 'T' => 13,
-                'U' => 12, 'V' => 14, 'W' => 14,
-            ];
-        }
-
-        return [
+        $baseWidths = [
             'A' => 12, 'B' => 12, 'C' => 12, 'D' => 32, 'E' => 20,
             'F' => 20, 'G' => 20, 'H' => 20, 'I' => 14, 'J' => 10,
             'K' => 20, 'L' => 18, 'M' => 28, 'N' => 13, 'O' => 13,
             'P' => 13, 'Q' => 13, 'R' => 12, 'S' => 14, 'T' => 14,
         ];
+        $widths = [];
+        foreach ($baseWidths as $column => $width) {
+            $widths[$this->column($column)] = $width;
+        }
+        if ($this->promerica) {
+            $widths += ['I' => 14, 'J' => 16, 'K' => 18];
+        }
+        if ($this->paperland) {
+            $widths['L'] = 16;
+        }
+
+        return $widths;
     }
 
     public function styles(Worksheet $sheet): ?array
     {
-        $lc = $this->promerica ? 'W' : 'T';
+        $lc = $this->column('T');
         $sheet->mergeCells("A1:{$lc}1");
         $sheet->mergeCells("A2:{$lc}2");
         $sheet->mergeCells("A3:{$lc}3");
@@ -354,14 +342,19 @@ class LibroCobrosSheet extends DefaultValueBinder implements FromArray, WithStyl
             AfterSheet::class => function (AfterSheet $event) {
                 $sheet   = $event->sheet->getDelegate();
                 $lastRow = $sheet->getHighestRow();
-                $lc = $this->promerica ? 'W' : 'T';
-                $moneyColumns = $this->promerica
-                    ? ['I', 'J', 'K', 'L', 'Q', 'R', 'S', 'T', 'U', 'V', 'W']
-                    : ['I', 'N', 'O', 'P', 'Q', 'R', 'S', 'T'];
-                $textColumns = $this->promerica
-                    ? ['D', 'E', 'F', 'G', 'H', 'N', 'O', 'P']
-                    : ['D', 'E', 'F', 'G', 'H', 'K', 'L', 'M'];
-                $stateColumn = $this->promerica ? 'M' : 'J';
+                $lc = $this->column('T');
+                $moneyColumns = array_map($this->column(...), ['I', 'N', 'O', 'P', 'Q', 'R', 'S', 'T']);
+                if ($this->promerica) {
+                    array_push($moneyColumns, 'I', 'J', 'K');
+                }
+                if ($this->paperland) {
+                    $moneyColumns[] = 'L';
+                }
+                $textColumns = array_map($this->column(...), ['D', 'E', 'F', 'G', 'H', 'K', 'L', 'M']);
+                $stateColumn = $this->column('J');
+                $accountColumn = $this->column('L');
+                $netColumn = $this->column('I');
+                $separatorColumn = $this->column('N');
 
                 if ($lastRow < 5) return;
 
@@ -437,7 +430,6 @@ class LibroCobrosSheet extends DefaultValueBinder implements FromArray, WithStyl
                     foreach ($textColumns as $c) {
                         $sheet->getStyle("{$c}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
                     }
-                    $accountColumn = $this->promerica ? 'O' : 'L';
                     $sheet->getStyle("{$accountColumn}{$row}")->getNumberFormat()->setFormatCode('@');
                     foreach ($moneyColumns as $c) {
                         $sheet->getStyle("{$c}{$row}")->getNumberFormat()->setFormatCode($currency);
@@ -446,18 +438,18 @@ class LibroCobrosSheet extends DefaultValueBinder implements FromArray, WithStyl
 
                     $estado = (string)($sheet->getCell("{$stateColumn}{$row}")->getValue() ?? '');
                     if (in_array(strtoupper($estado), ['PAGADA', 'COMPLETO'], true)) {
-                        $sheet->getStyle("A{$row}:" . ($this->promerica ? 'P' : 'M') . "{$row}")->getFill()
+                        $sheet->getStyle("A{$row}:" . $this->column('M') . "{$row}")->getFill()
                             ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('F0FDF4');
-                        $sheet->getStyle(($this->promerica ? 'Q' : 'N') . "{$row}:{$lc}{$row}")->getFill()
+                        $sheet->getStyle("{$separatorColumn}{$row}:{$lc}{$row}")->getFill()
                             ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('DCFCE7');
-                        $sheet->getStyle(($this->promerica ? 'L' : 'I') . "{$row}")->getFont()->setBold(true)->getColor()->setRGB('1a7a4e');
+                        $sheet->getStyle("{$netColumn}{$row}")->getFont()->setBold(true)->getColor()->setRGB('1a7a4e');
                         $sheet->getStyle("{$stateColumn}{$row}")->getFill()
                             ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('bbf7d0');
                         $sheet->getStyle("{$stateColumn}{$row}")->getFont()->setBold(true)->getColor()->setRGB('065f46');
                     } else {
                         $sheet->getStyle("A{$row}:{$lc}{$row}")->getFill()
                             ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFFBEB');
-                        $sheet->getStyle(($this->promerica ? 'L' : 'I') . "{$row}")->getFont()->setBold(true)->getColor()->setRGB('92400e');
+                        $sheet->getStyle("{$netColumn}{$row}")->getFont()->setBold(true)->getColor()->setRGB('92400e');
                         $sheet->getStyle("{$stateColumn}{$row}")->getFill()
                             ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('fef3c7');
                         $sheet->getStyle("{$stateColumn}{$row}")->getFont()->setBold(true)->getColor()->setRGB('92400e');
@@ -466,7 +458,6 @@ class LibroCobrosSheet extends DefaultValueBinder implements FromArray, WithStyl
                 }
 
                 // Separador visual en la primera columna de datos fiscales
-                $separatorColumn = $this->promerica ? 'Q' : 'N';
                 $sheet->getStyle("{$separatorColumn}4:{$separatorColumn}{$lastRow}")->getBorders()->getLeft()
                     ->setBorderStyle(Border::BORDER_MEDIUM)->getColor()->setRGB('f2a630');
 

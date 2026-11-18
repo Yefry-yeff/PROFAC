@@ -6,10 +6,32 @@ class ComisionDepositoPromerica
 {
     public const PORCENTAJE_COMISION_COBRADA = 3;
     public const PORCENTAJE_COMISION_BANCO = 2.6;
+    private const PAGO_PAPERLAND_CENTAVOS = 553;
 
     public static function esPromerica(?string $nombreBanco): bool
     {
         return strtolower(trim((string) $nombreBanco)) === 'promerica';
+    }
+
+    public static function esPaperland(?string $nombreBanco): bool
+    {
+        return strtolower(trim((string) $nombreBanco)) === 'promerica paperland';
+    }
+
+    public static function desgloseLibroCobros(?int $movimiento, bool $esPaperland): array
+    {
+        $comision = self::desgloseMontoAplicadoCentavos($movimiento ?? 0, true);
+        $bruto = $comision['monto_recibido'];
+        $banco = self::comisionBancoCentavos($bruto);
+        $pago = $esPaperland && $movimiento !== null ? self::PAGO_PAPERLAND_CENTAVOS : 0;
+
+        return [
+            'monto_recibido' => $movimiento ?? 0,
+            'comision_cobrada' => $comision['comision_cobrada'],
+            'comision_banco' => $banco,
+            'pago_porcentaje' => $pago,
+            'monto_movimiento' => $bruto - $banco - $pago,
+        ];
     }
 
     public static function desgloseCentavos(int $montoRecibido, bool $esPromerica): array
