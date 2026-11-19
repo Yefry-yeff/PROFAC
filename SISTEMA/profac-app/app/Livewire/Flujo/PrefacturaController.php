@@ -12,6 +12,7 @@ use App\Models\PrefacturaAuditoria;
 use App\Models\CreditoRevision;
 use App\Livewire\Ventas\FacturacionCorporativa;
 use App\Events\FlujoAvanzadoEvent;
+use App\Services\Expo\CondicionesPagoPrefactura;
 use App\Services\Expo\SaldoLineasOferta;
 use App\Services\Expo\SeccionadorOfertaExpo;
 use Carbon\Carbon;
@@ -1295,18 +1296,13 @@ class PrefacturaController
                 }
             }
 
-        // ── Ofertas Expo: las fechas de la factura son literalmente las de la prefactura ──
-        // No se recalculan desde credito_revision (que guarda el plazo solicitado
-        // originalmente, no el vigente al momento de facturar).
+        // Expo conserva las fechas pactadas, incluso si el vencimiento ya paso.
         if ($esOfertaExpo) {
-            $fechaEmisionExpo = \Carbon\Carbon::parse($pf->fecha_emision);
-            $fechaVencimientoExpo = \Carbon\Carbon::parse($pf->fecha_vencimiento);
-            $diasCreditoExpo = max(0, (int) $fechaEmisionExpo->diffInDays($fechaVencimientoExpo, false));
-
-            $tipoPago = $diasCreditoExpo > 0 ? 2 : 1;
-            $fechaEmision = $fechaEmisionExpo->toDateString();
-            $diasCredito = $diasCreditoExpo;
-            $fechaVencimiento = $fechaVencimientoExpo->toDateString();
+            $condicionesExpo = app(CondicionesPagoPrefactura::class)->resolver($pf);
+            $tipoPago = $condicionesExpo['tipo_pago_id'];
+            $fechaEmision = $condicionesExpo['fecha_emision'];
+            $diasCredito = $condicionesExpo['dias_credito'];
+            $fechaVencimiento = $condicionesExpo['fecha_vencimiento'];
         } else {
 
         // ── Determinar tipo_pago desde revisión de crédito aprobada ──────
@@ -1729,7 +1725,13 @@ class PrefacturaController
             $id,
             $facturaId,
             ['prefactura_id' => $id, 'estado' => 'activo', 'total' => $pf->total],
-            ['factura_id' => $facturaId, 'tipo_pago' => $tipoPago],
+            [
+                'factura_id' => $facturaId,
+                'tipo_pago' => $tipoPago,
+                'fecha_emision' => $fechaEmision,
+                'fecha_vencimiento' => $fechaVencimiento,
+                'dias_credito' => $diasCredito,
+            ],
             $request->input('motivo'),
             $autorizacionId
         );

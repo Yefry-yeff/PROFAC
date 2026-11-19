@@ -6184,7 +6184,7 @@
                 return;
             }
             cambiosPrecioExpoConfirmados = true;
-            guardarVenta();
+            $('#crear_venta').submit();
         });
     }
 
@@ -6637,6 +6637,11 @@
     }
 
     function guardarVenta(confirmarPrecioBajoEscala = false) {
+        if (codigoActual === 'cotizacion_clientes_a' && !ofertaEnvioConfirmado) {
+            document.getElementById('btn_venta_coorporativa').disabled = false;
+            mostrarModalEnvioOferta();
+            return;
+        }
         var ultimaFactura = document.getElementById('ultima_factura');
         var motivoCierre = document.getElementById('motivo_cierre');
         if (ultimaFactura && ultimaFactura.checked && (!motivoCierre || !motivoCierre.value.trim())) {

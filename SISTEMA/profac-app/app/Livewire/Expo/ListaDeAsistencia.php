@@ -3,6 +3,7 @@
 namespace App\Livewire\Expo;
 
 use App\Exports\ArrayExport;
+use App\Models\SubMenu;
 use Livewire\Component;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -31,6 +32,9 @@ class ListaDeAsistencia extends Component
         $expos = $this->exposDisponibles();
         $expo = $expos->firstWhere('id', (int) $this->expoId);
         $expoActiva = $expo ? $this->expoEstaActiva($expo) : false;
+        $puedeEditarDescuentos = $expo && (
+            $expoActiva || Auth::user()?->tienePermiso(SubMenu::OPCION_EXPO_EDITAR_DESCUENTOS_CERRADA)
+        );
         $asistentes = collect();
         $clientesEncontrados = collect();
         $categoriasDescuento = collect();
@@ -62,7 +66,7 @@ class ListaDeAsistencia extends Component
 
         return view('livewire.expo.listadeasistencia', compact(
             'expos', 'expo', 'asistentes', 'clientesEncontrados', 'categoriasDescuento',
-            'clienteDescuento', 'expoActiva'
+            'clienteDescuento', 'expoActiva', 'puedeEditarDescuentos'
         ));
     }
 
@@ -154,7 +158,7 @@ class ListaDeAsistencia extends Component
 
     public function abrirDescuentos(int $clienteId): void
     {
-        $expo = $this->expoActivaSeleccionada();
+        $expo = $this->expoEditableParaDescuentos();
         abort_unless(DB::table('expo_asistencia')->where('expo_id', $expo->id)
             ->where('cliente_id', $clienteId)->exists(), 404, 'El cliente no está registrado en esta Expo.');
         $this->clienteDescuentoId = $clienteId;
@@ -167,7 +171,7 @@ class ListaDeAsistencia extends Component
 
     public function actualizarMaximoGeneral(int $clienteId, bool $activo): void
     {
-        $expo = $this->expoActivaSeleccionada();
+        $expo = $this->expoEditableParaDescuentos();
         $asistencia = DB::table('expo_asistencia')
             ->where('expo_id', $expo->id)
             ->where('cliente_id', $clienteId)
@@ -215,7 +219,7 @@ class ListaDeAsistencia extends Component
 
     public function actualizarDescuentoEscala(int $clienteId, int $escalaId, string $seleccion): void
     {
-        $expo = $this->expoActivaSeleccionada();
+        $expo = $this->expoEditableParaDescuentos();
         $asistencia = DB::table('expo_asistencia')
             ->where('expo_id', $expo->id)
             ->where('cliente_id', $clienteId)
@@ -343,6 +347,27 @@ class ListaDeAsistencia extends Component
         $expo = $this->expoSeleccionada();
         abort_unless($this->expoEstaActiva($expo), 404, 'La exposición no está activa.');
         return $expo;
+    }
+
+    private function expoEditableParaDescuentos(): object
+    {
+        $expo = $this->expoSeleccionada();
+        abort_unless(
+            $this->puedeEditarDescuentosEn($expo),
+            403,
+            'No tiene permiso para editar descuentos en una Expo cerrada.'
+        );
+
+        return $expo;
+    }
+
+    private function puedeEditarDescuentosEn(object $expo): bool
+    {
+        if ($this->expoEstaActiva($expo)) {
+            return true;
+        }
+
+        return Auth::user()?->tienePermiso(SubMenu::OPCION_EXPO_EDITAR_DESCUENTOS_CERRADA) ?? false;
     }
 
     private function actualizarAsistencia(int $clienteId, array $valores): void
