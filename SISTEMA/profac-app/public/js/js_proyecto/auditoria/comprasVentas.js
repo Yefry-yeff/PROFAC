@@ -30,11 +30,12 @@
             processing: true,
             serverSide: true,
             pageLength: 25,
-            order: [[1, 'desc']],
+            ordering: false,
             scrollX: true,
             language: { url: '/js/plugins/dataTables/i18n/Spanish.json' },
             ajax: { url: '/auditoria/compras-ventas/listar', data: function (data) { $.extend(data, filtros()); } },
             columns: [
+                { data: 'DT_RowIndex', searchable: false },
                 { data: 'tipo_movimiento' }, { data: 'fecha_movimiento' }, { data: 'fecha_ingreso_compra' },
                 { data: 'fecha_creacion_factura' }, { data: 'fecha_emision_factura' }, { data: 'factura_id' },
                 { data: 'compra_id' }, { data: 'numero_documento' }, { data: 'cai' },

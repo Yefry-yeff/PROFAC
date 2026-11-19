@@ -25,8 +25,9 @@
 
     <div class="wrapper wrapper-content animated fadeInRight">
         <div class="alert alert-info">
-            <strong>Alcance actual:</strong> compras de los productos <strong>5830</strong> y <strong>2794</strong>,
-            más todas las líneas de las facturas A o B que contengan al menos uno de esos productos.
+            <strong>Alcance actual:</strong> exclusivamente líneas de compra y venta de los productos
+            <strong>5830</strong> y <strong>2794</strong>. No se incluyen otros productos de las facturas.
+            Los movimientos se presentan en secuencia cronológica, del más antiguo al más reciente.
         </div>
         <div class="acv-card mb-3">
             <div class="acv-header d-flex justify-content-between align-items-center">
@@ -72,7 +73,7 @@
                 <div class="table-responsive">
                     <table id="tbl_auditoria_cv" class="table table-bordered table-hover w-100">
                         <thead><tr>
-                            <th>Movimiento</th><th>Fecha movimiento</th><th>Ingreso compra</th>
+                            <th>Secuencia</th><th>Movimiento</th><th>Fecha movimiento</th><th>Ingreso compra</th>
                             <th>Creación factura</th><th>Emisión factura</th><th>Factura ID</th>
                             <th>Compra ID</th><th>Documento</th><th>CAI</th><th>A/B</th><th>Estado</th>
                             <th>Producto ID</th><th>Producto</th><th>Lote</th><th>Bodega</th><th>Sección</th>

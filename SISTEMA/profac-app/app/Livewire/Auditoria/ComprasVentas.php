@@ -21,9 +21,12 @@ class ComprasVentas extends Component
     public function listar(Request $request, ConsultaComprasVentas $consulta)
     {
         $filtros = $consulta->filtros($request->all());
-        $query = $consulta->construir($filtros)->select('a.*');
+        $query = $consulta->ordenarCronologicamente(
+            $consulta->construir($filtros)->select('a.*')
+        );
 
         return DataTables::of($query)
+            ->addIndexColumn()
             ->editColumn('cantidad_documento', fn ($fila) => number_format((float) $fila->cantidad_documento, 4, '.', ''))
             ->editColumn('cantidad_base', fn ($fila) => number_format((float) $fila->cantidad_base, 4, '.', ''))
             ->editColumn('cantidad_movimiento_base', fn ($fila) => number_format((float) $fila->cantidad_movimiento_base, 4, '.', ''))
@@ -70,7 +73,7 @@ class ComprasVentas extends Component
             fwrite($salida, "\xEF\xBB\xBF");
             fwrite($salida, "sep=;\r\n");
             fputcsv($salida, [
-                'Movimiento', 'Fecha movimiento', 'Fecha ingreso compra',
+                'Secuencia', 'Movimiento', 'Fecha movimiento', 'Fecha ingreso compra',
                 'Fecha creación factura', 'Fecha emisión factura', 'Factura ID', 'Compra ID',
                 'Documento', 'CAI', 'Clasificación', 'Estado', 'Producto ID', 'Producto',
                 'Lote', 'Bodega', 'Sección', 'Unidad compra', 'Factor compra',
@@ -78,12 +81,13 @@ class ComprasVentas extends Component
                 'Movimiento base', 'Cliente', 'Proveedor', 'Usuario',
             ], ';');
 
-            $consulta->construir($filtros)
-                ->select('a.*')
-                ->orderBy('a.id')
-                ->chunkById(2000, function ($filas) use ($salida) {
+            $secuencia = 0;
+            $consulta->ordenarCronologicamente(
+                $consulta->construir($filtros)->select('a.*')
+            )->chunk(2000, function ($filas) use ($salida, &$secuencia) {
                     foreach ($filas as $fila) {
                         fputcsv($salida, [
+                            ++$secuencia,
                             $fila->tipo_movimiento,
                             $fila->fecha_movimiento,
                             $fila->fecha_ingreso_compra,
@@ -118,7 +122,7 @@ class ComprasVentas extends Component
                         ob_flush();
                     }
                     flush();
-                }, 'a.id', 'id');
+                });
 
             fclose($salida);
         }, $nombre, [

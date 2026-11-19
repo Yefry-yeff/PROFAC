@@ -12,21 +12,8 @@ class ConsultaComprasVentas
     public function construir(array $filtros): Builder
     {
         $query = DB::table('auditoria_compras_ventas as a')
-            ->where(function (Builder $alcance) {
-                $alcance->where(function (Builder $compras) {
-                    $compras->where('a.tipo_movimiento', 'COMPRA')
-                        ->whereIn('a.producto_id', self::PRODUCTOS_AUDITADOS);
-                })->orWhere(function (Builder $ventas) {
-                    $ventas->where('a.tipo_movimiento', 'VENTA')
-                        ->whereExists(function ($facturaConProducto) {
-                            $facturaConProducto->selectRaw('1')
-                                ->from('auditoria_compras_ventas as objetivo')
-                                ->whereColumn('objetivo.factura_id', 'a.factura_id')
-                                ->where('objetivo.tipo_movimiento', 'VENTA')
-                                ->whereIn('objetivo.producto_id', self::PRODUCTOS_AUDITADOS);
-                        });
-                });
-            });
+            ->whereIn('a.producto_id', self::PRODUCTOS_AUDITADOS)
+            ->whereIn('a.tipo_movimiento', ['COMPRA', 'VENTA']);
 
         if (!empty($filtros['desde'])) {
             $query->whereDate('a.fecha_movimiento', '>=', $filtros['desde']);
@@ -88,6 +75,17 @@ class ConsultaComprasVentas
             'documento' => mb_substr(trim((string) ($entrada['documento'] ?? '')), 0, 100),
             'lote' => mb_substr(trim((string) ($entrada['lote'] ?? '')), 0, 20),
         ];
+    }
+
+    public function ordenarCronologicamente(Builder $query): Builder
+    {
+        return $query
+            ->orderBy('a.fecha_movimiento')
+            ->orderByRaw("CASE WHEN a.tipo_movimiento = 'COMPRA' THEN 0 ELSE 1 END")
+            ->orderBy('a.numero_documento')
+            ->orderBy('a.producto_id')
+            ->orderBy('a.lote_id')
+            ->orderBy('a.id');
     }
 
     private function fecha(?string $fecha): ?string
