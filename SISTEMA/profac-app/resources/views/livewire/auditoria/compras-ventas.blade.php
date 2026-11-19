@@ -25,8 +25,10 @@
 
     <div class="wrapper wrapper-content animated fadeInRight">
         <div class="alert alert-info">
-            <strong>Alcance actual:</strong> exclusivamente líneas de compra y venta de los productos
-            <strong>5830</strong> y <strong>2794</strong>. No se incluyen otros productos de las facturas.
+            <strong>Alcance actual:</strong> exclusivamente líneas de compra y venta de los
+            <strong>{{ count(\App\Services\Auditoria\ConsultaComprasVentas::PRODUCTOS_AUDITADOS) }} productos seleccionados</strong>.
+            No se incluyen otros productos de las facturas.
+            Las facturas <strong>B</strong> creadas o emitidas durante <strong>2026</strong> están excluidas.
             Los movimientos se presentan en secuencia cronológica, del más antiguo al más reciente.
         </div>
         <div class="acv-card mb-3">

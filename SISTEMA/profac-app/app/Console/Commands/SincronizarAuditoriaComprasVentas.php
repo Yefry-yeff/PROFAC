@@ -23,8 +23,13 @@ class SincronizarAuditoriaComprasVentas extends Command
         }
 
         $this->table(
-            ['Modo', 'Compras afectadas', 'Ventas afectadas'],
-            [[$resultado['modo'], $resultado['compras'], $resultado['ventas']]]
+            ['Modo', 'Compras afectadas', 'Traslados excluidos', 'Ventas afectadas'],
+            [[
+                $resultado['modo'],
+                $resultado['compras'],
+                $resultado['compras_derivadas_eliminadas'],
+                $resultado['ventas'],
+            ]]
         );
         $this->info('Sincronización completada.');
 

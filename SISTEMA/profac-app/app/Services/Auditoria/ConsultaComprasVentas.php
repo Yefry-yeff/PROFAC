@@ -7,13 +7,43 @@ use Illuminate\Support\Facades\DB;
 
 class ConsultaComprasVentas
 {
-    public const PRODUCTOS_AUDITADOS = [5830, 2794];
+    public const PRODUCTOS_AUDITADOS = [
+        7498, 7505, 7510, 7517, 7494, 7501, 7515, 7508, 5591, 7512,
+        7518, 3685, 4138, 2795, 4139, 8069, 5830, 1947, 1948, 1946,
+        4030, 7927, 2527, 3577, 3578, 5823, 5812, 5816, 5814, 5919,
+        5802, 5824, 5803, 5821, 5817, 5822, 5818, 5815, 5804, 5808,
+        5805, 5807, 5809, 5806, 5820, 5811, 5810, 5813, 5801, 1945,
+        1956, 1959, 1952, 1962, 4097, 4022, 5108, 1940, 1950, 1957,
+        1953, 2301, 4346, 1954, 1963, 1951, 1958, 1949, 4354, 4355,
+        4357, 2326, 2325, 3080, 5678, 4591, 4136, 2794, 4347, 4662,
+        5764, 4459, 5143,
+    ];
+    private const INICIO_FACTURAS_B_EXCLUIDAS = '2026-01-01';
+    private const FIN_FACTURAS_B_EXCLUIDAS = '2027-01-01';
 
     public function construir(array $filtros): Builder
     {
         $query = DB::table('auditoria_compras_ventas as a')
             ->whereIn('a.producto_id', self::PRODUCTOS_AUDITADOS)
-            ->whereIn('a.tipo_movimiento', ['COMPRA', 'VENTA']);
+            ->whereIn('a.tipo_movimiento', ['COMPRA', 'VENTA'])
+            ->whereNot(function (Builder $facturasB2026) {
+                $facturasB2026
+                    ->where('a.tipo_movimiento', 'VENTA')
+                    ->where('a.clasificacion_factura', 'B')
+                    ->where(function (Builder $fechas2026) {
+                        $fechas2026
+                            ->where(function (Builder $creacion2026) {
+                                $creacion2026
+                                    ->where('a.fecha_creacion_factura', '>=', self::INICIO_FACTURAS_B_EXCLUIDAS)
+                                    ->where('a.fecha_creacion_factura', '<', self::FIN_FACTURAS_B_EXCLUIDAS);
+                            })
+                            ->orWhere(function (Builder $emision2026) {
+                                $emision2026
+                                    ->where('a.fecha_emision_factura', '>=', self::INICIO_FACTURAS_B_EXCLUIDAS)
+                                    ->where('a.fecha_emision_factura', '<', self::FIN_FACTURAS_B_EXCLUIDAS);
+                            });
+                    });
+            });
 
         if (!empty($filtros['desde'])) {
             $query->whereDate('a.fecha_movimiento', '>=', $filtros['desde']);

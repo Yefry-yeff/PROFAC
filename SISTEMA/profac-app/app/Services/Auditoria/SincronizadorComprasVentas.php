@@ -31,6 +31,7 @@ class SincronizadorComprasVentas
         ]);
 
         try {
+            $comprasDerivadasEliminadas = $this->eliminarComprasDerivadasDeTraslados();
             $compras = $this->sincronizarCompras($desde, $inicio);
             $ventas = $this->sincronizarVentas($desde, $inicio);
 
@@ -45,6 +46,7 @@ class SincronizadorComprasVentas
             return [
                 'modo' => $completa ? 'COMPLETA' : 'INCREMENTAL',
                 'compras' => $compras,
+                'compras_derivadas_eliminadas' => $comprasDerivadasEliminadas,
                 'ventas' => $ventas,
             ];
         } catch (Throwable $error) {
@@ -76,7 +78,13 @@ class SincronizadorComprasVentas
                 $join->on('chp.compra_id', '=', 'rb.compra_id')
                     ->on('chp.producto_id', '=', 'rb.producto_id');
             })
-            ->whereNotNull('rb.compra_id');
+            ->whereNotNull('rb.compra_id')
+            ->whereNotExists(function ($query) {
+                $query->selectRaw('1')
+                    ->from('log_translado as lt')
+                    ->whereColumn('lt.destino', 'rb.id')
+                    ->whereNotNull('lt.translado_id');
+            });
         if ($desde) {
             $candidatos->where(function ($query) use ($desde) {
                 $query->where('c.updated_at', '>=', $desde)
@@ -132,6 +140,12 @@ class SincronizadorComprasVentas
             LEFT JOIN proveedores pr ON pr.id = c.proveedores_id
             LEFT JOIN users u ON u.id = c.users_id
             WHERE rb.compra_id IS NOT NULL
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM log_translado lt
+                  WHERE lt.destino = rb.id
+                    AND lt.translado_id IS NOT NULL
+              )
             $filtro
             ON DUPLICATE KEY UPDATE
                 fecha_movimiento = VALUES(fecha_movimiento),
@@ -162,6 +176,17 @@ class SincronizadorComprasVentas
         ", $bindings);
 
         return $totalCandidatos;
+    }
+
+    private function eliminarComprasDerivadasDeTraslados(): int
+    {
+        return DB::affectingStatement("
+            DELETE a
+            FROM auditoria_compras_ventas a
+            INNER JOIN log_translado lt ON lt.destino = a.origen_id
+            WHERE a.tipo_movimiento = 'COMPRA'
+              AND lt.translado_id IS NOT NULL
+        ");
     }
 
     private function sincronizarVentas(?CarbonImmutable $desde, CarbonImmutable $inicio): int
