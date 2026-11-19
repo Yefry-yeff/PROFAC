@@ -112,6 +112,7 @@ use App\Livewire\Ventas\ListarVale;
 use App\Livewire\NotaDebito\NotaDebito;
 use App\Livewire\Inventario\AjusteIngresoProducto;
 use App\Livewire\Cardex\CardexGeneral;
+use App\Livewire\Auditoria\ComprasVentas as AuditoriaComprasVentas;
 use App\Livewire\NotaCredito\ListadoNotasND;
 use App\Livewire\NotaDebito\ListadoNotasDebito;
 use App\Livewire\NotaDebito\ListadoNotasDebitoND;
@@ -1113,6 +1114,14 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
 
     Route::get('/cardex/general', CardexGeneral::class);
     Route::get('/listado/cardex/general/{fecha_inicio}/{fecha_final}', [CardexGeneral::class, 'listarCardex']);
+
+    Route::middleware('auditoria.compras-ventas')->group(function () {
+        Route::get('/auditoria/compras-ventas', AuditoriaComprasVentas::class);
+        Route::get('/auditoria/compras-ventas/listar', [AuditoriaComprasVentas::class, 'listar']);
+        Route::get('/auditoria/compras-ventas/resumen', [AuditoriaComprasVentas::class, 'resumen']);
+        Route::get('/auditoria/compras-ventas/exportar', [AuditoriaComprasVentas::class, 'exportar']);
+        Route::post('/auditoria/compras-ventas/sincronizar', [AuditoriaComprasVentas::class, 'sincronizar']);
+    });
 
     Route::get('/cardex/com',  Cardextres::class);
 

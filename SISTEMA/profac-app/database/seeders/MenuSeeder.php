@@ -328,6 +328,7 @@ class MenuSeeder extends Seeder
                 'submenus' => [
                     ['nombre' => 'Gestionar Cardex', 'url' => 'cardex', 'icono' => 'fa fa-clipboard', 'orden' => 1, 'roles' => [1, 5, 7]],
                     ['nombre' => 'Cardex General', 'url' => 'cardex/general', 'icono' => 'fa fa-clipboard-list', 'orden' => 2, 'roles' => [1, 5, 7]],
+                    ['nombre' => 'Auditoría Compras y Ventas', 'url' => 'auditoria/compras-ventas', 'icono' => 'fa fa-balance-scale', 'orden' => 3, 'roles' => []],
                 ]
             ],
 
@@ -416,6 +417,18 @@ class MenuSeeder extends Seeder
                 $submenu->roles()->attach($submenuData['roles']);
                 $totalSubmenus++;
             }
+        }
+
+        $auditoriaSubmenuId = SubMenu::where('url', 'auditoria/compras-ventas')->value('id');
+        $auditoriaUsuarioId = DB::table('users')
+            ->where('estado_id', 1)
+            ->whereRaw('LOWER(TRIM(email)) = ?', ['yefryyo@gmail.com'])
+            ->value('id');
+        if ($auditoriaSubmenuId && $auditoriaUsuarioId) {
+            DB::table('usuario_submenu')->updateOrInsert(
+                ['usuario_id' => $auditoriaUsuarioId, 'sub_menu_id' => $auditoriaSubmenuId],
+                ['permitido' => 1, 'created_at' => now(), 'updated_at' => now()]
+            );
         }
 
         $this->command->info('✓ Sistema de menús completo creado exitosamente');
