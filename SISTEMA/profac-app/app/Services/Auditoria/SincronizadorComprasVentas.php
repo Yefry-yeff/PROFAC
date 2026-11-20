@@ -229,7 +229,7 @@ class SincronizadorComprasVentas
                 COALESCE(CONCAT(f.fecha_emision, ' 00:00:00'), f.created_at, v.created_at),
                 NULL, f.created_at, f.fecha_emision,
                 f.id, NULL, COALESCE(f.numero_factura, f.cai), f.cai,
-                CASE f.estado_factura_id WHEN 1 THEN 'A' WHEN 2 THEN 'B' ELSE NULL END,
+                CASE f.tipo_venta_id WHEN 1 THEN 'B' WHEN 2 THEN 'A' ELSE NULL END,
                 CASE WHEN f.estado_venta_id = 2 THEN 'ANULADO' ELSE 'ACTIVO' END,
                 v.producto_id, p.nombre, v.lote,
                 b.id, b.nombre, s.id, s.descripcion,

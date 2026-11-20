@@ -28,7 +28,8 @@
             <strong>Alcance actual:</strong> exclusivamente líneas de compra y venta de los
             <strong>{{ count(\App\Services\Auditoria\ConsultaComprasVentas::PRODUCTOS_AUDITADOS) }} productos seleccionados</strong>.
             No se incluyen otros productos de las facturas.
-            Las facturas <strong>B</strong> creadas o emitidas durante <strong>2026</strong> están excluidas.
+            La clasificación usa el tipo de venta: <strong>corporativo = B</strong> y <strong>estatal = A</strong>.
+            Cada compra se consolida por documento y producto; las ventas permanecen desglosadas por factura y lote.
             Los movimientos se presentan en secuencia cronológica, del más antiguo al más reciente.
         </div>
         <div class="acv-card mb-3">
@@ -59,7 +60,7 @@
         <div class="row mb-3">
             <div class="col-md-3"><div class="acv-kpi"><small>Compras (documentos)</small><strong id="acvKpiCompras">0</strong></div></div>
             <div class="col-md-3"><div class="acv-kpi"><small>Ventas (facturas)</small><strong id="acvKpiVentas">0</strong></div></div>
-            <div class="col-md-3"><div class="acv-kpi"><small>Lotes de compra</small><strong id="acvKpiLotesCompras">0</strong></div></div>
+            <div class="col-md-3"><div class="acv-kpi"><small>Líneas de compra consolidadas</small><strong id="acvKpiLotesCompras">0</strong></div></div>
             <div class="col-md-3"><div class="acv-kpi"><small>Lotes de venta</small><strong id="acvKpiLotesVentas">0</strong></div></div>
         </div>
         <div class="row mb-3">

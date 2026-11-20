@@ -18,32 +18,70 @@ class ConsultaComprasVentas
         4357, 2326, 2325, 3080, 5678, 4591, 4136, 2794, 4347, 4662,
         5764, 4459, 5143,
     ];
-    private const INICIO_FACTURAS_B_EXCLUIDAS = '2026-01-01';
-    private const FIN_FACTURAS_B_EXCLUIDAS = '2027-01-01';
-
     public function construir(array $filtros): Builder
     {
-        $query = DB::table('auditoria_compras_ventas as a')
+        $base = DB::table('auditoria_compras_ventas as a')
             ->whereIn('a.producto_id', self::PRODUCTOS_AUDITADOS)
-            ->whereIn('a.tipo_movimiento', ['COMPRA', 'VENTA'])
-            ->whereNot(function (Builder $facturasB2026) {
-                $facturasB2026
-                    ->where('a.tipo_movimiento', 'VENTA')
-                    ->where('a.clasificacion_factura', 'B')
-                    ->where(function (Builder $fechas2026) {
-                        $fechas2026
-                            ->where(function (Builder $creacion2026) {
-                                $creacion2026
-                                    ->where('a.fecha_creacion_factura', '>=', self::INICIO_FACTURAS_B_EXCLUIDAS)
-                                    ->where('a.fecha_creacion_factura', '<', self::FIN_FACTURAS_B_EXCLUIDAS);
-                            })
-                            ->orWhere(function (Builder $emision2026) {
-                                $emision2026
-                                    ->where('a.fecha_emision_factura', '>=', self::INICIO_FACTURAS_B_EXCLUIDAS)
-                                    ->where('a.fecha_emision_factura', '<', self::FIN_FACTURAS_B_EXCLUIDAS);
-                            });
-                    });
-            });
+            ->whereIn('a.tipo_movimiento', ['COMPRA', 'VENTA']);
+
+        $compras = (clone $base)
+            ->where('a.tipo_movimiento', 'COMPRA')
+            ->groupBy('a.compra_id', 'a.producto_id')
+            ->selectRaw("
+                MIN(a.id) AS id,
+                'COMPRA' AS tipo_movimiento,
+                NULL AS origen_id,
+                CONCAT('COMPRA:', a.compra_id, ':', a.producto_id) AS clave_origen,
+                MIN(a.fecha_movimiento) AS fecha_movimiento,
+                MIN(a.fecha_ingreso_compra) AS fecha_ingreso_compra,
+                NULL AS fecha_creacion_factura,
+                NULL AS fecha_emision_factura,
+                NULL AS factura_id,
+                a.compra_id,
+                MAX(a.numero_documento) AS numero_documento,
+                MAX(a.cai) AS cai,
+                NULL AS clasificacion_factura,
+                MAX(a.estado_documento) AS estado_documento,
+                a.producto_id,
+                MAX(a.producto_nombre) AS producto_nombre,
+                NULL AS lote_id,
+                NULL AS bodega_id,
+                CASE
+                    WHEN COUNT(DISTINCT a.bodega_id) = 1 THEN MAX(a.bodega_nombre)
+                    WHEN COUNT(DISTINCT a.bodega_id) > 1 THEN 'VARIAS'
+                    ELSE NULL
+                END AS bodega_nombre,
+                NULL AS seccion_id,
+                CASE
+                    WHEN COUNT(DISTINCT a.seccion_id) = 1 THEN MAX(a.seccion_nombre)
+                    WHEN COUNT(DISTINCT a.seccion_id) > 1 THEN 'VARIAS'
+                    ELSE NULL
+                END AS seccion_nombre,
+                MAX(a.unidad_compra_id) AS unidad_compra_id,
+                MAX(a.unidad_compra_nombre) AS unidad_compra_nombre,
+                MAX(a.factor_unidad_compra) AS factor_unidad_compra,
+                NULL AS unidad_venta_id,
+                NULL AS unidad_venta_nombre,
+                NULL AS factor_unidad_venta,
+                MAX(a.cantidad_documento) AS cantidad_documento,
+                SUM(a.cantidad_base) AS cantidad_base,
+                SUM(a.cantidad_movimiento_base) AS cantidad_movimiento_base,
+                NULL AS cliente_id,
+                NULL AS cliente_nombre,
+                MAX(a.proveedor_id) AS proveedor_id,
+                MAX(a.proveedor_nombre) AS proveedor_nombre,
+                MAX(a.usuario_id) AS usuario_id,
+                MAX(a.usuario_nombre) AS usuario_nombre,
+                MAX(a.sincronizado_at) AS sincronizado_at,
+                MIN(a.created_at) AS created_at,
+                MAX(a.updated_at) AS updated_at
+            ");
+
+        $ventas = (clone $base)
+            ->where('a.tipo_movimiento', 'VENTA')
+            ->select('a.*');
+
+        $query = DB::query()->fromSub($compras->unionAll($ventas), 'a');
 
         if (!empty($filtros['desde'])) {
             $query->whereDate('a.fecha_movimiento', '>=', $filtros['desde']);
