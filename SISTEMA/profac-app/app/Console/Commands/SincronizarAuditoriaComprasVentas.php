@@ -9,7 +9,7 @@ use Throwable;
 class SincronizarAuditoriaComprasVentas extends Command
 {
     protected $signature = 'auditoria:sincronizar-compras-ventas {--completa : Reprocesa todo el universo histórico}';
-    protected $description = 'Sincroniza manualmente la auditoría independiente de compras y ventas por lote';
+    protected $description = 'Sincroniza compras, ventas, comprobantes y ajustes de la auditoría de inventario';
 
     public function handle(SincronizadorComprasVentas $sincronizador): int
     {
@@ -23,12 +23,23 @@ class SincronizarAuditoriaComprasVentas extends Command
         }
 
         $this->table(
-            ['Modo', 'Compras afectadas', 'Traslados excluidos', 'Ventas afectadas'],
+            [
+                'Modo',
+                'Compras',
+                'Traslados excluidos',
+                'Ventas',
+                'Comprobantes',
+                'Ajustes',
+                'Reversas de ajustes',
+            ],
             [[
                 $resultado['modo'],
                 $resultado['compras'],
                 $resultado['compras_derivadas_eliminadas'],
                 $resultado['ventas'],
+                $resultado['comprobantes'],
+                $resultado['ajustes'],
+                $resultado['anulaciones_ajustes'],
             ]]
         );
         $this->info('Sincronización completada.');

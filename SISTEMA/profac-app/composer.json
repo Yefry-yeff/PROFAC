@@ -17,6 +17,7 @@
         "livewire/livewire": "^4.0",
         "luecano/numero-a-letras": "*",
         "maatwebsite/excel": "*",
+        "openspout/openspout": "^4.0",
         "psr/simple-cache": "^2.0|^3.0",
         "yajra/laravel-datatables-oracle": "*"
     },

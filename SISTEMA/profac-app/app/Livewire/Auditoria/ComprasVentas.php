@@ -3,12 +3,14 @@
 namespace App\Livewire\Auditoria;
 
 use App\Services\Auditoria\ConsultaComprasVentas;
+use App\Services\Auditoria\ExportadorMovimientosXlsx;
 use App\Services\Auditoria\SincronizadorComprasVentas;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Yajra\DataTables\Facades\DataTables;
 
 class ComprasVentas extends Component
@@ -41,10 +43,26 @@ class ComprasVentas extends Component
             COUNT(*) as filas,
             COUNT(DISTINCT CASE WHEN tipo_movimiento = 'COMPRA' THEN compra_id END) as compras,
             COUNT(DISTINCT CASE WHEN tipo_movimiento = 'VENTA' THEN factura_id END) as ventas,
+            COUNT(DISTINCT CASE WHEN tipo_movimiento = 'COMPROBANTE' THEN comprobante_id END) as comprobantes,
+            COUNT(DISTINCT CASE WHEN tipo_movimiento IN ('AJUSTE', 'ANULACION_AJUSTE') THEN ajuste_id END) as ajustes,
             SUM(CASE WHEN tipo_movimiento = 'COMPRA' THEN 1 ELSE 0 END) as lotes_compras,
             SUM(CASE WHEN tipo_movimiento = 'VENTA' THEN 1 ELSE 0 END) as lotes_ventas,
-            SUM(CASE WHEN tipo_movimiento = 'COMPRA' THEN cantidad_base ELSE 0 END) as entradas,
-            SUM(CASE WHEN tipo_movimiento = 'VENTA' AND estado_documento = 'ACTIVO' THEN ABS(cantidad_base) ELSE 0 END) as salidas_activas,
+            SUM(CASE WHEN tipo_movimiento = 'COMPROBANTE' THEN 1 ELSE 0 END) as lineas_comprobantes,
+            SUM(CASE WHEN tipo_movimiento IN ('AJUSTE', 'ANULACION_AJUSTE') THEN 1 ELSE 0 END) as lineas_ajustes,
+            SUM(CASE
+                WHEN afecta_inventario = 1
+                    AND cantidad_movimiento_base > 0
+                    AND NOT (tipo_movimiento IN ('COMPRA', 'VENTA') AND estado_documento = 'ANULADO')
+                THEN cantidad_movimiento_base
+                ELSE 0
+            END) as entradas,
+            SUM(CASE
+                WHEN afecta_inventario = 1
+                    AND cantidad_movimiento_base < 0
+                    AND NOT (tipo_movimiento IN ('COMPRA', 'VENTA') AND estado_documento = 'ANULADO')
+                THEN ABS(cantidad_movimiento_base)
+                ELSE 0
+            END) as salidas_activas,
             SUM(CASE WHEN estado_documento = 'ANULADO' THEN 1 ELSE 0 END) as anulados
         ")->first();
 
@@ -75,10 +93,11 @@ class ComprasVentas extends Component
             fputcsv($salida, [
                 'Secuencia', 'Movimiento', 'Fecha movimiento', 'Fecha ingreso compra',
                 'Fecha creación factura', 'Fecha emisión factura', 'Factura ID', 'Compra ID',
-                'Documento', 'CAI', 'Clasificación', 'Estado', 'Producto ID', 'Producto',
+                'Comprobante ID', 'Ajuste ID', 'Documento', 'CAI', 'Clasificación', 'Estado',
+                'Motivo', 'Comentario', 'Producto ID', 'Producto',
                 'Lote', 'Bodega', 'Sección', 'Unidad compra', 'Factor compra',
                 'Unidad venta', 'Factor venta', 'Cantidad documento', 'Cantidad base',
-                'Movimiento base', 'Cliente', 'Proveedor', 'Usuario',
+                'Movimiento base', 'Afecta inventario', 'Cliente', 'Proveedor', 'Usuario',
             ], ';');
 
             $secuencia = 0;
@@ -95,10 +114,14 @@ class ComprasVentas extends Component
                             $fila->fecha_emision_factura,
                             $fila->factura_id,
                             $fila->compra_id,
+                            $fila->comprobante_id,
+                            $fila->ajuste_id,
                             $this->valorCsv($fila->numero_documento),
                             $this->valorCsv($fila->cai),
                             $fila->clasificacion_factura,
                             $fila->estado_documento,
+                            $this->valorCsv($fila->motivo_documento),
+                            $this->valorCsv($fila->comentario_documento),
                             $fila->producto_id,
                             $this->valorCsv($fila->producto_nombre),
                             $fila->lote_id,
@@ -111,6 +134,7 @@ class ComprasVentas extends Component
                             $fila->cantidad_documento,
                             $fila->cantidad_base,
                             $fila->cantidad_movimiento_base,
+                            $fila->afecta_inventario ? 'SI' : 'NO',
                             $this->valorCsv($fila->cliente_nombre),
                             $this->valorCsv($fila->proveedor_nombre),
                             $this->valorCsv($fila->usuario_nombre),
@@ -130,6 +154,37 @@ class ComprasVentas extends Component
             'Cache-Control' => 'no-store, no-cache',
             'X-Accel-Buffering' => 'no',
         ]);
+    }
+
+    public function exportarExcel(ExportadorMovimientosXlsx $exportador): BinaryFileResponse
+    {
+        $ruta = $exportador->generar();
+
+        return response()
+            ->download(
+                $ruta,
+                'Auditoria_Movimientos_A_B_' . now()->format('Ymd_His') . '.xlsx',
+                ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
+            )
+            ->deleteFileAfterSend(true);
+    }
+
+    public function exportarExcelPorProducto(
+        string $clasificacion,
+        ExportadorMovimientosXlsx $exportador
+    ): BinaryFileResponse {
+        $clasificacion = strtoupper($clasificacion);
+        abort_unless(in_array($clasificacion, ['A', 'B'], true), 404);
+
+        $ruta = $exportador->generarPorProducto($clasificacion);
+
+        return response()
+            ->download(
+                $ruta,
+                "Auditoria_Facturas_{$clasificacion}_Por_Producto_" . now()->format('Ymd_His') . '.xlsx',
+                ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
+            )
+            ->deleteFileAfterSend(true);
     }
 
     public function ultimaSincronizacion(): ?object

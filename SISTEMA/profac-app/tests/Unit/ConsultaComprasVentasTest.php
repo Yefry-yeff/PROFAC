@@ -12,7 +12,7 @@ class ConsultaComprasVentasTest extends TestCase
         $filtros = (new ConsultaComprasVentas)->filtros([
             'desde' => '2022-09-01',
             'hasta' => '2026-11-19',
-            'tipo' => 'VENTA',
+            'tipo' => 'ANULACION_AJUSTE',
             'clasificacion' => 'B',
             'estado' => 'ANULADO',
             'producto' => '  Papel bond  ',
@@ -23,7 +23,7 @@ class ConsultaComprasVentasTest extends TestCase
         $this->assertSame([
             'desde' => '2022-09-01',
             'hasta' => '2026-11-19',
-            'tipo' => 'VENTA',
+            'tipo' => 'ANULACION_AJUSTE',
             'clasificacion' => 'B',
             'estado' => 'ANULADO',
             'producto' => 'Papel bond',
@@ -37,7 +37,7 @@ class ConsultaComprasVentasTest extends TestCase
         $filtros = (new ConsultaComprasVentas)->filtros([
             'desde' => '01/09/2022',
             'hasta' => 'todo',
-            'tipo' => 'AJUSTE',
+            'tipo' => 'TRASLADO',
             'clasificacion' => 'C',
             'estado' => 'PENDIENTE',
         ]);

@@ -34,12 +34,17 @@ class SincronizadorComprasVentas
             $comprasDerivadasEliminadas = $this->eliminarComprasDerivadasDeTraslados();
             $compras = $this->sincronizarCompras($desde, $inicio);
             $ventas = $this->sincronizarVentas($desde, $inicio);
+            $comprobantes = $this->sincronizarComprobantes($desde, $inicio);
+            $ajustes = $this->sincronizarAjustes($desde, $inicio);
+            $anulacionesAjustes = $this->sincronizarAnulacionesAjustes($desde, $inicio);
 
             DB::table('auditoria_compras_ventas_sync')->where('id', $syncId)->update([
                 'estado' => 'COMPLETADA',
                 'finalizado_at' => now(),
                 'filas_compras' => $compras,
                 'filas_ventas' => $ventas,
+                'filas_comprobantes' => $comprobantes,
+                'filas_ajustes' => $ajustes + $anulacionesAjustes,
                 'updated_at' => now(),
             ]);
 
@@ -48,6 +53,9 @@ class SincronizadorComprasVentas
                 'compras' => $compras,
                 'compras_derivadas_eliminadas' => $comprasDerivadasEliminadas,
                 'ventas' => $ventas,
+                'comprobantes' => $comprobantes,
+                'ajustes' => $ajustes,
+                'anulaciones_ajustes' => $anulacionesAjustes,
             ];
         } catch (Throwable $error) {
             DB::table('auditoria_compras_ventas_sync')->where('id', $syncId)->update([
@@ -279,6 +287,363 @@ class SincronizadorComprasVentas
                 cantidad_movimiento_base = VALUES(cantidad_movimiento_base),
                 cliente_id = VALUES(cliente_id),
                 cliente_nombre = VALUES(cliente_nombre),
+                usuario_id = VALUES(usuario_id),
+                usuario_nombre = VALUES(usuario_nombre),
+                sincronizado_at = VALUES(sincronizado_at),
+                updated_at = VALUES(updated_at)
+        ", $bindings);
+
+        return $totalCandidatos;
+    }
+
+    private function sincronizarComprobantes(?CarbonImmutable $desde, CarbonImmutable $inicio): int
+    {
+        $candidatos = DB::table('comprovante_has_producto as chp')
+            ->join('comprovante_entrega as ce', 'ce.id', '=', 'chp.comprovante_id');
+        if ($desde) {
+            $candidatos->where(function ($query) use ($desde) {
+                $query->where('ce.updated_at', '>=', $desde)
+                    ->orWhere('chp.updated_at', '>=', $desde);
+            });
+        }
+        $totalCandidatos = $candidatos
+            ->distinct()
+            ->count(DB::raw("CONCAT(chp.comprovante_id, ':', chp.producto_id)"));
+
+        $filtro = $desde
+            ? 'WHERE (ce.updated_at >= ? OR chp.updated_at >= ?)'
+            : '';
+        $bindings = [$inicio, $inicio, $inicio];
+        if ($desde) {
+            array_push($bindings, $desde, $desde);
+        }
+
+        DB::affectingStatement("
+            INSERT INTO auditoria_compras_ventas (
+                tipo_movimiento, origen_id, clave_origen, fecha_movimiento,
+                fecha_ingreso_compra, fecha_creacion_factura, fecha_emision_factura,
+                factura_id, compra_id, comprobante_id, ajuste_id,
+                numero_documento, cai, clasificacion_factura,
+                estado_documento, motivo_documento, comentario_documento,
+                producto_id, producto_nombre, lote_id,
+                bodega_id, bodega_nombre, seccion_id, seccion_nombre,
+                unidad_compra_id, unidad_compra_nombre, factor_unidad_compra,
+                unidad_venta_id, unidad_venta_nombre, factor_unidad_venta,
+                cantidad_documento, cantidad_base, cantidad_movimiento_base,
+                afecta_inventario, cliente_id, cliente_nombre,
+                proveedor_id, proveedor_nombre, usuario_id, usuario_nombre,
+                sincronizado_at, created_at, updated_at
+            )
+            SELECT
+                'COMPROBANTE', ce.id,
+                CONCAT('COMPROBANTE:', ce.id, ':', chp.producto_id),
+                COALESCE(ce.created_at, CONCAT(ce.fecha_emision, ' 00:00:00')),
+                NULL, NULL, NULL,
+                NULL, NULL, ce.id, NULL,
+                ce.numero_comprovante, NULL, NULL,
+                CASE WHEN ce.estado_id = 2 THEN 'ANULADO' ELSE 'ACTIVO' END,
+                NULL,
+                CASE
+                    WHEN ce.estado_id = 2 AND ce.comentarioAnulado IS NOT NULL
+                        THEN CONCAT(ce.comentario, ' | ', ce.comentarioAnulado)
+                    ELSE ce.comentario
+                END,
+                chp.producto_id, p.nombre, NULL,
+                NULL,
+                CASE
+                    WHEN COUNT(DISTINCT b.id) = 1 THEN MAX(b.nombre)
+                    WHEN COUNT(DISTINCT b.id) > 1 THEN 'VARIAS'
+                    ELSE NULL
+                END,
+                NULL,
+                CASE
+                    WHEN COUNT(DISTINCT s.id) = 1 THEN MAX(s.descripcion)
+                    WHEN COUNT(DISTINCT s.id) > 1 THEN 'VARIAS'
+                    ELSE NULL
+                END,
+                p.unidad_medida_compra_id, uc.nombre, p.unidadad_compra,
+                MAX(chp.unidad_medida_venta_id), MAX(uv.nombre), MAX(umv.unidad_venta),
+                SUM(chp.cantidad_s),
+                SUM(chp.numero_unidades_resta_inventario),
+                0,
+                0,
+                ce.cliente_id, COALESCE(cl.nombre, ce.nombre_cliente),
+                NULL, NULL, ce.users_id, u.name,
+                ?, ?, ?
+            FROM comprovante_has_producto chp
+            INNER JOIN comprovante_entrega ce ON ce.id = chp.comprovante_id
+            INNER JOIN producto p ON p.id = chp.producto_id
+            LEFT JOIN seccion s ON s.id = chp.seccion_id
+            LEFT JOIN segmento sg ON sg.id = s.segmento_id
+            LEFT JOIN bodega b ON b.id = sg.bodega_id
+            LEFT JOIN unidad_medida uc ON uc.id = p.unidad_medida_compra_id
+            LEFT JOIN unidad_medida_venta umv ON umv.id = chp.unidad_medida_venta_id
+            LEFT JOIN unidad_medida uv ON uv.id = umv.unidad_medida_id
+            LEFT JOIN cliente cl ON cl.id = ce.cliente_id
+            LEFT JOIN users u ON u.id = ce.users_id
+            $filtro
+            GROUP BY
+                ce.id, ce.created_at, ce.fecha_emision, ce.numero_comprovante,
+                ce.estado_id, ce.comentario, ce.comentarioAnulado,
+                ce.cliente_id, cl.nombre, ce.nombre_cliente, ce.users_id, u.name,
+                chp.producto_id, p.nombre, p.unidad_medida_compra_id,
+                uc.nombre, p.unidadad_compra
+            ON DUPLICATE KEY UPDATE
+                fecha_movimiento = VALUES(fecha_movimiento),
+                comprobante_id = VALUES(comprobante_id),
+                numero_documento = VALUES(numero_documento),
+                estado_documento = VALUES(estado_documento),
+                comentario_documento = VALUES(comentario_documento),
+                producto_nombre = VALUES(producto_nombre),
+                bodega_nombre = VALUES(bodega_nombre),
+                seccion_nombre = VALUES(seccion_nombre),
+                unidad_compra_id = VALUES(unidad_compra_id),
+                unidad_compra_nombre = VALUES(unidad_compra_nombre),
+                factor_unidad_compra = VALUES(factor_unidad_compra),
+                unidad_venta_id = VALUES(unidad_venta_id),
+                unidad_venta_nombre = VALUES(unidad_venta_nombre),
+                factor_unidad_venta = VALUES(factor_unidad_venta),
+                cantidad_documento = VALUES(cantidad_documento),
+                cantidad_base = VALUES(cantidad_base),
+                cantidad_movimiento_base = VALUES(cantidad_movimiento_base),
+                afecta_inventario = VALUES(afecta_inventario),
+                cliente_id = VALUES(cliente_id),
+                cliente_nombre = VALUES(cliente_nombre),
+                usuario_id = VALUES(usuario_id),
+                usuario_nombre = VALUES(usuario_nombre),
+                sincronizado_at = VALUES(sincronizado_at),
+                updated_at = VALUES(updated_at)
+        ", $bindings);
+
+        return $totalCandidatos;
+    }
+
+    private function sincronizarAjustes(?CarbonImmutable $desde, CarbonImmutable $inicio): int
+    {
+        $candidatos = DB::table('ajuste_has_producto as ahp')
+            ->join('ajuste as a', 'a.id', '=', 'ahp.ajuste_id');
+        if ($desde) {
+            $candidatos->where(function ($query) use ($desde) {
+                $query->where('a.updated_at', '>=', $desde)
+                    ->orWhere('ahp.updated_at', '>=', $desde);
+            });
+        }
+        $totalCandidatos = $candidatos
+            ->distinct()
+            ->count(DB::raw("CONCAT(ahp.ajuste_id, ':', ahp.producto_id, ':', ahp.tipo_aritmetica)"));
+
+        $filtro = $desde
+            ? 'WHERE (a.updated_at >= ? OR ahp.updated_at >= ?)'
+            : '';
+        $bindings = [$inicio, $inicio, $inicio];
+        if ($desde) {
+            array_push($bindings, $desde, $desde);
+        }
+
+        DB::affectingStatement("
+            INSERT INTO auditoria_compras_ventas (
+                tipo_movimiento, origen_id, clave_origen, fecha_movimiento,
+                fecha_ingreso_compra, fecha_creacion_factura, fecha_emision_factura,
+                factura_id, compra_id, comprobante_id, ajuste_id,
+                numero_documento, cai, clasificacion_factura,
+                estado_documento, motivo_documento, comentario_documento,
+                producto_id, producto_nombre, lote_id,
+                bodega_id, bodega_nombre, seccion_id, seccion_nombre,
+                unidad_compra_id, unidad_compra_nombre, factor_unidad_compra,
+                unidad_venta_id, unidad_venta_nombre, factor_unidad_venta,
+                cantidad_documento, cantidad_base, cantidad_movimiento_base,
+                afecta_inventario, cliente_id, cliente_nombre,
+                proveedor_id, proveedor_nombre, usuario_id, usuario_nombre,
+                sincronizado_at, created_at, updated_at
+            )
+            SELECT
+                'AJUSTE', a.id,
+                CONCAT('AJUSTE:', a.id, ':', ahp.producto_id, ':', ahp.tipo_aritmetica),
+                COALESCE(CONCAT(a.fecha, ' 00:00:00'), a.created_at),
+                NULL, NULL, NULL,
+                NULL, NULL, NULL, a.id,
+                a.numero_ajuste, NULL, NULL,
+                CASE WHEN a.anulado = 1 THEN 'ANULADO' ELSE 'ACTIVO' END,
+                ta.nombre, a.comentario,
+                ahp.producto_id, p.nombre, NULL,
+                NULL,
+                CASE
+                    WHEN COUNT(DISTINCT b.id) = 1 THEN MAX(b.nombre)
+                    WHEN COUNT(DISTINCT b.id) > 1 THEN 'VARIAS'
+                    ELSE NULL
+                END,
+                NULL,
+                CASE
+                    WHEN COUNT(DISTINCT s.id) = 1 THEN MAX(s.descripcion)
+                    WHEN COUNT(DISTINCT s.id) > 1 THEN 'VARIAS'
+                    ELSE NULL
+                END,
+                p.unidad_medida_compra_id, uc.nombre, p.unidadad_compra,
+                MAX(ahp.unidad_medida_venta_id), MAX(uv.nombre), MAX(umv.unidad_venta),
+                SUM(ahp.cantidad),
+                SUM(ahp.cantidad_total),
+                SUM(CASE
+                    WHEN ahp.tipo_aritmetica = 1 THEN ahp.cantidad_total
+                    ELSE -1 * ahp.cantidad_total
+                END),
+                1,
+                NULL, NULL, NULL, NULL, a.users_id, u.name,
+                ?, ?, ?
+            FROM ajuste_has_producto ahp
+            INNER JOIN ajuste a ON a.id = ahp.ajuste_id
+            INNER JOIN tipo_ajuste ta ON ta.id = a.tipo_ajuste_id
+            INNER JOIN producto p ON p.id = ahp.producto_id
+            LEFT JOIN recibido_bodega rb ON rb.id = ahp.recibido_bodega_id
+            LEFT JOIN seccion s ON s.id = rb.seccion_id
+            LEFT JOIN segmento sg ON sg.id = s.segmento_id
+            LEFT JOIN bodega b ON b.id = sg.bodega_id
+            LEFT JOIN unidad_medida uc ON uc.id = p.unidad_medida_compra_id
+            LEFT JOIN unidad_medida_venta umv ON umv.id = ahp.unidad_medida_venta_id
+            LEFT JOIN unidad_medida uv ON uv.id = umv.unidad_medida_id
+            LEFT JOIN users u ON u.id = a.users_id
+            $filtro
+            GROUP BY
+                a.id, a.fecha, a.created_at, a.numero_ajuste, a.anulado,
+                ta.nombre, a.comentario, a.users_id, u.name,
+                ahp.producto_id, ahp.tipo_aritmetica, p.nombre,
+                p.unidad_medida_compra_id, uc.nombre, p.unidadad_compra
+            ON DUPLICATE KEY UPDATE
+                fecha_movimiento = VALUES(fecha_movimiento),
+                ajuste_id = VALUES(ajuste_id),
+                numero_documento = VALUES(numero_documento),
+                estado_documento = VALUES(estado_documento),
+                motivo_documento = VALUES(motivo_documento),
+                comentario_documento = VALUES(comentario_documento),
+                producto_nombre = VALUES(producto_nombre),
+                bodega_nombre = VALUES(bodega_nombre),
+                seccion_nombre = VALUES(seccion_nombre),
+                unidad_compra_id = VALUES(unidad_compra_id),
+                unidad_compra_nombre = VALUES(unidad_compra_nombre),
+                factor_unidad_compra = VALUES(factor_unidad_compra),
+                unidad_venta_id = VALUES(unidad_venta_id),
+                unidad_venta_nombre = VALUES(unidad_venta_nombre),
+                factor_unidad_venta = VALUES(factor_unidad_venta),
+                cantidad_documento = VALUES(cantidad_documento),
+                cantidad_base = VALUES(cantidad_base),
+                cantidad_movimiento_base = VALUES(cantidad_movimiento_base),
+                afecta_inventario = VALUES(afecta_inventario),
+                usuario_id = VALUES(usuario_id),
+                usuario_nombre = VALUES(usuario_nombre),
+                sincronizado_at = VALUES(sincronizado_at),
+                updated_at = VALUES(updated_at)
+        ", $bindings);
+
+        return $totalCandidatos;
+    }
+
+    private function sincronizarAnulacionesAjustes(?CarbonImmutable $desde, CarbonImmutable $inicio): int
+    {
+        $candidatos = DB::table('log_translado as lt')
+            ->join('ajuste as a', 'a.id', '=', 'lt.ajuste_id')
+            ->where('lt.descripcion', 'like', 'Anulación ajuste%');
+        if ($desde) {
+            $candidatos->where(function ($query) use ($desde) {
+                $query->where('a.updated_at', '>=', $desde)
+                    ->orWhere('lt.updated_at', '>=', $desde);
+            });
+        }
+        $totalCandidatos = $candidatos
+            ->distinct()
+            ->count(DB::raw("CONCAT(lt.ajuste_id, ':', lt.origen)"));
+
+        $filtro = $desde
+            ? 'AND (a.updated_at >= ? OR lt.updated_at >= ?)'
+            : '';
+        $bindings = [$inicio, $inicio, $inicio];
+        if ($desde) {
+            array_push($bindings, $desde, $desde);
+        }
+
+        DB::affectingStatement("
+            INSERT INTO auditoria_compras_ventas (
+                tipo_movimiento, origen_id, clave_origen, fecha_movimiento,
+                fecha_ingreso_compra, fecha_creacion_factura, fecha_emision_factura,
+                factura_id, compra_id, comprobante_id, ajuste_id,
+                numero_documento, cai, clasificacion_factura,
+                estado_documento, motivo_documento, comentario_documento,
+                producto_id, producto_nombre, lote_id,
+                bodega_id, bodega_nombre, seccion_id, seccion_nombre,
+                unidad_compra_id, unidad_compra_nombre, factor_unidad_compra,
+                unidad_venta_id, unidad_venta_nombre, factor_unidad_venta,
+                cantidad_documento, cantidad_base, cantidad_movimiento_base,
+                afecta_inventario, cliente_id, cliente_nombre,
+                proveedor_id, proveedor_nombre, usuario_id, usuario_nombre,
+                sincronizado_at, created_at, updated_at
+            )
+            SELECT
+                'ANULACION_AJUSTE', a.id,
+                CONCAT('ANULACION_AJUSTE:', a.id, ':', rb.producto_id),
+                COALESCE(a.anulado_at, MAX(lt.created_at)),
+                NULL, NULL, NULL,
+                NULL, NULL, NULL, a.id,
+                a.numero_ajuste, NULL, NULL,
+                'ANULADO', ta.nombre, COALESCE(a.motivo_anulacion, MAX(lt.comentario)),
+                rb.producto_id, p.nombre, NULL,
+                NULL,
+                CASE
+                    WHEN COUNT(DISTINCT b.id) = 1 THEN MAX(b.nombre)
+                    WHEN COUNT(DISTINCT b.id) > 1 THEN 'VARIAS'
+                    ELSE NULL
+                END,
+                NULL,
+                CASE
+                    WHEN COUNT(DISTINCT s.id) = 1 THEN MAX(s.descripcion)
+                    WHEN COUNT(DISTINCT s.id) > 1 THEN 'VARIAS'
+                    ELSE NULL
+                END,
+                p.unidad_medida_compra_id, uc.nombre, p.unidadad_compra,
+                MAX(lt.unidad_medida_venta_id), MAX(uv.nombre), MAX(umv.unidad_venta),
+                SUM(lt.cantidad),
+                SUM(lt.cantidad),
+                SUM(CASE
+                    WHEN lt.descripcion LIKE '%suma (-)%' THEN -1 * lt.cantidad
+                    WHEN lt.descripcion LIKE '%resta (+)%' THEN lt.cantidad
+                    ELSE 0
+                END),
+                1,
+                NULL, NULL, NULL, NULL, MAX(lt.users_id), MAX(u.name),
+                ?, ?, ?
+            FROM log_translado lt
+            INNER JOIN ajuste a ON a.id = lt.ajuste_id
+            INNER JOIN tipo_ajuste ta ON ta.id = a.tipo_ajuste_id
+            INNER JOIN recibido_bodega rb ON rb.id = lt.origen
+            INNER JOIN producto p ON p.id = rb.producto_id
+            LEFT JOIN seccion s ON s.id = rb.seccion_id
+            LEFT JOIN segmento sg ON sg.id = s.segmento_id
+            LEFT JOIN bodega b ON b.id = sg.bodega_id
+            LEFT JOIN unidad_medida uc ON uc.id = p.unidad_medida_compra_id
+            LEFT JOIN unidad_medida_venta umv ON umv.id = lt.unidad_medida_venta_id
+            LEFT JOIN unidad_medida uv ON uv.id = umv.unidad_medida_id
+            LEFT JOIN users u ON u.id = lt.users_id
+            WHERE lt.descripcion LIKE 'Anulación ajuste%'
+            $filtro
+            GROUP BY
+                a.id, a.anulado_at, a.numero_ajuste, ta.nombre,
+                a.motivo_anulacion, rb.producto_id, p.nombre,
+                p.unidad_medida_compra_id, uc.nombre, p.unidadad_compra
+            ON DUPLICATE KEY UPDATE
+                fecha_movimiento = VALUES(fecha_movimiento),
+                ajuste_id = VALUES(ajuste_id),
+                numero_documento = VALUES(numero_documento),
+                motivo_documento = VALUES(motivo_documento),
+                comentario_documento = VALUES(comentario_documento),
+                producto_nombre = VALUES(producto_nombre),
+                bodega_nombre = VALUES(bodega_nombre),
+                seccion_nombre = VALUES(seccion_nombre),
+                unidad_compra_id = VALUES(unidad_compra_id),
+                unidad_compra_nombre = VALUES(unidad_compra_nombre),
+                factor_unidad_compra = VALUES(factor_unidad_compra),
+                unidad_venta_id = VALUES(unidad_venta_id),
+                unidad_venta_nombre = VALUES(unidad_venta_nombre),
+                factor_unidad_venta = VALUES(factor_unidad_venta),
+                cantidad_documento = VALUES(cantidad_documento),
+                cantidad_base = VALUES(cantidad_base),
+                cantidad_movimiento_base = VALUES(cantidad_movimiento_base),
                 usuario_id = VALUES(usuario_id),
                 usuario_nombre = VALUES(usuario_nombre),
                 sincronizado_at = VALUES(sincronizado_at),

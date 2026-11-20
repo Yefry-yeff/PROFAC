@@ -11,7 +11,7 @@ class ConsultaComprasVentas
         7498, 7505, 7510, 7517, 7494, 7501, 7515, 7508, 5591, 7512,
         7518, 3685, 4138, 2795, 4139, 8069, 5830, 1947, 1948, 1946,
         4030, 7927, 2527, 3577, 3578, 5823, 5812, 5816, 5814, 5919,
-        5802, 5824, 5803, 5821, 5817, 5822, 5818, 5815, 5804, 5808,
+        5802, 1960, 5824, 5803, 5821, 5817, 5822, 5818, 5815, 5804, 5808,
         5805, 5807, 5809, 5806, 5820, 5811, 5810, 5813, 5801, 1945,
         1956, 1959, 1952, 1962, 4097, 4022, 5108, 1940, 1950, 1957,
         1953, 2301, 4346, 1954, 1963, 1951, 1958, 1949, 4354, 4355,
@@ -22,7 +22,13 @@ class ConsultaComprasVentas
     {
         $base = DB::table('auditoria_compras_ventas as a')
             ->whereIn('a.producto_id', self::PRODUCTOS_AUDITADOS)
-            ->whereIn('a.tipo_movimiento', ['COMPRA', 'VENTA']);
+            ->whereIn('a.tipo_movimiento', [
+                'COMPRA',
+                'VENTA',
+                'COMPROBANTE',
+                'AJUSTE',
+                'ANULACION_AJUSTE',
+            ]);
 
         $compras = (clone $base)
             ->where('a.tipo_movimiento', 'COMPRA')
@@ -38,10 +44,14 @@ class ConsultaComprasVentas
                 NULL AS fecha_emision_factura,
                 NULL AS factura_id,
                 a.compra_id,
+                NULL AS comprobante_id,
+                NULL AS ajuste_id,
                 MAX(a.numero_documento) AS numero_documento,
                 MAX(a.cai) AS cai,
                 NULL AS clasificacion_factura,
                 MAX(a.estado_documento) AS estado_documento,
+                NULL AS motivo_documento,
+                NULL AS comentario_documento,
                 a.producto_id,
                 MAX(a.producto_nombre) AS producto_nombre,
                 NULL AS lote_id,
@@ -66,6 +76,7 @@ class ConsultaComprasVentas
                 MAX(a.cantidad_documento) AS cantidad_documento,
                 SUM(a.cantidad_base) AS cantidad_base,
                 SUM(a.cantidad_movimiento_base) AS cantidad_movimiento_base,
+                MAX(a.afecta_inventario) AS afecta_inventario,
                 NULL AS cliente_id,
                 NULL AS cliente_nombre,
                 MAX(a.proveedor_id) AS proveedor_id,
@@ -77,11 +88,11 @@ class ConsultaComprasVentas
                 MAX(a.updated_at) AS updated_at
             ");
 
-        $ventas = (clone $base)
-            ->where('a.tipo_movimiento', 'VENTA')
+        $otrosMovimientos = (clone $base)
+            ->where('a.tipo_movimiento', '<>', 'COMPRA')
             ->select('a.*');
 
-        $query = DB::query()->fromSub($compras->unionAll($ventas), 'a');
+        $query = DB::query()->fromSub($compras->unionAll($otrosMovimientos), 'a');
 
         if (!empty($filtros['desde'])) {
             $query->whereDate('a.fecha_movimiento', '>=', $filtros['desde']);
@@ -114,7 +125,9 @@ class ConsultaComprasVentas
                     ->orWhere('a.cai', 'like', "%{$documento}%");
                 if (ctype_digit($documento)) {
                     $subquery->orWhere('a.factura_id', (int) $documento)
-                        ->orWhere('a.compra_id', (int) $documento);
+                        ->orWhere('a.compra_id', (int) $documento)
+                        ->orWhere('a.comprobante_id', (int) $documento)
+                        ->orWhere('a.ajuste_id', (int) $documento);
                 }
             });
         }
@@ -130,7 +143,13 @@ class ConsultaComprasVentas
         return [
             'desde' => $this->fecha($entrada['desde'] ?? null),
             'hasta' => $this->fecha($entrada['hasta'] ?? null),
-            'tipo' => in_array($entrada['tipo'] ?? null, ['COMPRA', 'VENTA'], true)
+            'tipo' => in_array($entrada['tipo'] ?? null, [
+                'COMPRA',
+                'VENTA',
+                'COMPROBANTE',
+                'AJUSTE',
+                'ANULACION_AJUSTE',
+            ], true)
                 ? $entrada['tipo']
                 : null,
             'clasificacion' => in_array($entrada['clasificacion'] ?? null, ['A', 'B'], true)
@@ -149,7 +168,16 @@ class ConsultaComprasVentas
     {
         return $query
             ->orderBy('a.fecha_movimiento')
-            ->orderByRaw("CASE WHEN a.tipo_movimiento = 'COMPRA' THEN 0 ELSE 1 END")
+            ->orderByRaw("
+                CASE a.tipo_movimiento
+                    WHEN 'COMPRA' THEN 0
+                    WHEN 'COMPROBANTE' THEN 1
+                    WHEN 'VENTA' THEN 2
+                    WHEN 'AJUSTE' THEN 3
+                    WHEN 'ANULACION_AJUSTE' THEN 4
+                    ELSE 5
+                END
+            ")
             ->orderBy('a.numero_documento')
             ->orderBy('a.producto_id')
             ->orderBy('a.lote_id')

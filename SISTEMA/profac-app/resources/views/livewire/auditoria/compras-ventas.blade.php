@@ -15,21 +15,23 @@
 
     <div class="row wrapper border-bottom white-bg page-heading">
         <div class="col-lg-12">
-            <h2><i class="fa fa-balance-scale mr-2" style="color:#e67e22"></i>Auditoría de Compras y Ventas</h2>
+            <h2><i class="fa fa-balance-scale mr-2" style="color:#e67e22"></i>Auditoría de Movimientos de Inventario</h2>
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Inicio</a></li>
-                <li class="breadcrumb-item active"><strong>Auditoría Compras y Ventas</strong></li>
+                <li class="breadcrumb-item active"><strong>Auditoría de Movimientos</strong></li>
             </ol>
         </div>
     </div>
 
     <div class="wrapper wrapper-content animated fadeInRight">
         <div class="alert alert-info">
-            <strong>Alcance actual:</strong> exclusivamente líneas de compra y venta de los
+            <strong>Alcance actual:</strong> compras, ventas, comprobantes de entrega y ajustes de los
             <strong>{{ count(\App\Services\Auditoria\ConsultaComprasVentas::PRODUCTOS_AUDITADOS) }} productos seleccionados</strong>.
             No se incluyen otros productos de las facturas.
             La clasificación usa el tipo de venta: <strong>corporativo = B</strong> y <strong>estatal = A</strong>.
-            Cada compra se consolida por documento y producto; las ventas permanecen desglosadas por factura y lote.
+            Compras, comprobantes y ajustes se consolidan por documento y producto; las ventas permanecen desglosadas por factura y lote.
+            Para evitar duplicar salidas históricas sin vínculo comprobante-factura, los comprobantes son informativos y muestran
+            <strong>Afecta inventario = NO</strong>. Las anulaciones de ajustes provienen exclusivamente de reversas reales en el log de inventario.
             Los movimientos se presentan en secuencia cronológica, del más antiguo al más reciente.
         </div>
         <div class="acv-card mb-3">
@@ -37,6 +39,9 @@
                 <h5><i class="fa fa-filter mr-1"></i> Filtros</h5>
                 <div>
                     <button id="btnAcvSincronizar" class="btn btn-sm btn-light"><i class="fa fa-refresh mr-1"></i>Sincronizar</button>
+                    <button id="btnAcvExportarExcel" class="btn btn-sm btn-light"><i class="fa fa-file-excel-o mr-1"></i>Excel Kardex A/B</button>
+                    <button id="btnAcvExportarExcelProductosA" class="btn btn-sm btn-light"><i class="fa fa-file-excel-o mr-1"></i>Excel A por producto</button>
+                    <button id="btnAcvExportarExcelProductosB" class="btn btn-sm btn-light"><i class="fa fa-file-excel-o mr-1"></i>Excel B por producto</button>
                     <button id="btnAcvExportar" class="btn btn-sm btn-light"><i class="fa fa-file-excel-o mr-1"></i>CSV completo (Excel)</button>
                 </div>
             </div>
@@ -44,30 +49,30 @@
                 <div class="row">
                     <div class="col-md-2"><label>Desde</label><input id="acvDesde" type="date" class="form-control form-control-sm"></div>
                     <div class="col-md-2"><label>Hasta</label><input id="acvHasta" type="date" class="form-control form-control-sm"></div>
-                    <div class="col-md-2"><label>Movimiento</label><select id="acvTipo" class="form-control form-control-sm"><option value="">Todos</option><option>COMPRA</option><option>VENTA</option></select></div>
+                    <div class="col-md-2"><label>Movimiento</label><select id="acvTipo" class="form-control form-control-sm"><option value="">Todos</option><option>COMPRA</option><option>VENTA</option><option>COMPROBANTE</option><option>AJUSTE</option><option value="ANULACION_AJUSTE">ANULACIÓN AJUSTE</option></select></div>
                     <div class="col-md-2"><label>Clasificación</label><select id="acvClasificacion" class="form-control form-control-sm"><option value="">Todas</option><option>A</option><option>B</option></select></div>
                     <div class="col-md-2"><label>Estado</label><select id="acvEstado" class="form-control form-control-sm"><option value="">Todos</option><option>ACTIVO</option><option>ANULADO</option></select></div>
                     <div class="col-md-2"><label>Lote</label><input id="acvLote" class="form-control form-control-sm" placeholder="ID lote"></div>
                 </div>
                 <div class="row mt-2">
                     <div class="col-md-5"><label>Producto</label><input id="acvProducto" class="form-control form-control-sm" placeholder="ID o nombre"></div>
-                    <div class="col-md-5"><label>Documento</label><input id="acvDocumento" class="form-control form-control-sm" placeholder="Factura ID, compra ID, número o CAI"></div>
+                    <div class="col-md-5"><label>Documento</label><input id="acvDocumento" class="form-control form-control-sm" placeholder="ID, correlativo, factura, compra, comprobante, ajuste o CAI"></div>
                     <div class="col-md-2 d-flex align-items-end"><button id="btnAcvBuscar" class="btn btn-primary btn-sm btn-block"><i class="fa fa-search mr-1"></i>Consultar</button></div>
                 </div>
             </div>
         </div>
 
         <div class="row mb-3">
-            <div class="col-md-3"><div class="acv-kpi"><small>Compras (documentos)</small><strong id="acvKpiCompras">0</strong></div></div>
-            <div class="col-md-3"><div class="acv-kpi"><small>Ventas (facturas)</small><strong id="acvKpiVentas">0</strong></div></div>
-            <div class="col-md-3"><div class="acv-kpi"><small>Líneas de compra consolidadas</small><strong id="acvKpiLotesCompras">0</strong></div></div>
-            <div class="col-md-3"><div class="acv-kpi"><small>Lotes de venta</small><strong id="acvKpiLotesVentas">0</strong></div></div>
+            <div class="col-md-3"><div class="acv-kpi"><small>Compras</small><strong id="acvKpiCompras">0</strong></div></div>
+            <div class="col-md-3"><div class="acv-kpi"><small>Facturas</small><strong id="acvKpiVentas">0</strong></div></div>
+            <div class="col-md-3"><div class="acv-kpi"><small>Comprobantes</small><strong id="acvKpiComprobantes">0</strong></div></div>
+            <div class="col-md-3"><div class="acv-kpi"><small>Ajustes</small><strong id="acvKpiAjustes">0</strong></div></div>
         </div>
         <div class="row mb-3">
-            <div class="col-md-3"><div class="acv-kpi"><small>Total de filas</small><strong id="acvKpiFilas">0</strong></div></div>
+            <div class="col-md-3"><div class="acv-kpi"><small>Filas cronológicas</small><strong id="acvKpiFilas">0</strong></div></div>
             <div class="col-md-3"><div class="acv-kpi"><small>Unidades de entrada base</small><strong id="acvKpiEntradas">0</strong></div></div>
-            <div class="col-md-3"><div class="acv-kpi"><small>Unidades de salida activa</small><strong id="acvKpiSalidas">0</strong></div></div>
-            <div class="col-md-3"><div class="acv-kpi"><small>Lotes/filas anulados</small><strong id="acvKpiAnulados">0</strong></div></div>
+            <div class="col-md-3"><div class="acv-kpi"><small>Unidades de salida base</small><strong id="acvKpiSalidas">0</strong></div></div>
+            <div class="col-md-3"><div class="acv-kpi"><small>Filas anuladas/reversas</small><strong id="acvKpiAnulados">0</strong></div></div>
         </div>
 
         <div class="acv-card">
@@ -78,11 +83,12 @@
                         <thead><tr>
                             <th>Secuencia</th><th>Movimiento</th><th>Fecha movimiento</th><th>Ingreso compra</th>
                             <th>Creación factura</th><th>Emisión factura</th><th>Factura ID</th>
-                            <th>Compra ID</th><th>Documento</th><th>CAI</th><th>A/B</th><th>Estado</th>
+                            <th>Compra ID</th><th>Comprobante ID</th><th>Ajuste ID</th>
+                            <th>Documento</th><th>CAI</th><th>A/B</th><th>Estado</th><th>Motivo</th><th>Comentario</th>
                             <th>Producto ID</th><th>Producto</th><th>Lote</th><th>Bodega</th><th>Sección</th>
                             <th>Unidad compra</th><th>Factor compra</th><th>Unidad venta</th><th>Factor venta</th>
                             <th>Cant. documento</th><th>Cant. base</th><th>Movimiento base</th>
-                            <th>Cliente</th><th>Proveedor</th><th>Usuario</th>
+                            <th>Afecta inventario</th><th>Cliente</th><th>Proveedor</th><th>Usuario</th>
                         </tr></thead>
                     </table>
                 </div>

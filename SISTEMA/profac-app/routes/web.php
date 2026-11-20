@@ -1120,6 +1120,9 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
         Route::get('/auditoria/compras-ventas/listar', [AuditoriaComprasVentas::class, 'listar']);
         Route::get('/auditoria/compras-ventas/resumen', [AuditoriaComprasVentas::class, 'resumen']);
         Route::get('/auditoria/compras-ventas/exportar', [AuditoriaComprasVentas::class, 'exportar']);
+        Route::get('/auditoria/compras-ventas/exportar-excel', [AuditoriaComprasVentas::class, 'exportarExcel']);
+        Route::get('/auditoria/compras-ventas/exportar-excel-productos/{clasificacion}', [AuditoriaComprasVentas::class, 'exportarExcelPorProducto'])
+            ->whereIn('clasificacion', ['A', 'B']);
         Route::post('/auditoria/compras-ventas/sincronizar', [AuditoriaComprasVentas::class, 'sincronizar']);
     });
 
