@@ -37,6 +37,13 @@ class SincronizadorComprasVentas
             $comprobantes = $this->sincronizarComprobantes($desde, $inicio);
             $ajustes = $this->sincronizarAjustes($desde, $inicio);
             $anulacionesAjustes = $this->sincronizarAnulacionesAjustes($desde, $inicio);
+            $desdeNotasCredito = DB::table('auditoria_compras_ventas')
+                ->whereIn('tipo_movimiento', ['NOTA_CREDITO', 'ANULACION_NOTA_CREDITO'])
+                ->exists()
+                    ? $desde
+                    : null;
+            $notasCredito = $this->sincronizarNotasCredito($desdeNotasCredito, $inicio);
+            $anulacionesNotasCredito = $this->sincronizarAnulacionesNotasCredito($desdeNotasCredito, $inicio);
 
             DB::table('auditoria_compras_ventas_sync')->where('id', $syncId)->update([
                 'estado' => 'COMPLETADA',
@@ -45,6 +52,7 @@ class SincronizadorComprasVentas
                 'filas_ventas' => $ventas,
                 'filas_comprobantes' => $comprobantes,
                 'filas_ajustes' => $ajustes + $anulacionesAjustes,
+                'filas_notas_credito' => $notasCredito + $anulacionesNotasCredito,
                 'updated_at' => now(),
             ]);
 
@@ -56,6 +64,8 @@ class SincronizadorComprasVentas
                 'comprobantes' => $comprobantes,
                 'ajustes' => $ajustes,
                 'anulaciones_ajustes' => $anulacionesAjustes,
+                'notas_credito' => $notasCredito,
+                'anulaciones_notas_credito' => $anulacionesNotasCredito,
             ];
         } catch (Throwable $error) {
             DB::table('auditoria_compras_ventas_sync')->where('id', $syncId)->update([
@@ -644,6 +654,228 @@ class SincronizadorComprasVentas
                 cantidad_documento = VALUES(cantidad_documento),
                 cantidad_base = VALUES(cantidad_base),
                 cantidad_movimiento_base = VALUES(cantidad_movimiento_base),
+                usuario_id = VALUES(usuario_id),
+                usuario_nombre = VALUES(usuario_nombre),
+                sincronizado_at = VALUES(sincronizado_at),
+                updated_at = VALUES(updated_at)
+        ", $bindings);
+
+        return $totalCandidatos;
+    }
+
+    private function sincronizarNotasCredito(?CarbonImmutable $desde, CarbonImmutable $inicio): int
+    {
+        $candidatos = DB::table('log_translado as lt')
+            ->join('nota_credito as nc', 'nc.id', '=', 'lt.nota_credito_id')
+            ->where('lt.descripcion', 'Devolucion de producto');
+        if ($desde) {
+            $candidatos->where(function ($query) use ($desde) {
+                $query->where('nc.updated_at', '>=', $desde)
+                    ->orWhere('lt.updated_at', '>=', $desde);
+            });
+        }
+        $totalCandidatos = $candidatos->count();
+
+        $filtro = $desde
+            ? 'AND (nc.updated_at >= ? OR lt.updated_at >= ?)'
+            : '';
+        $bindings = [$inicio, $inicio, $inicio];
+        if ($desde) {
+            array_push($bindings, $desde, $desde);
+        }
+
+        DB::affectingStatement("
+            INSERT INTO auditoria_compras_ventas (
+                tipo_movimiento, origen_id, clave_origen, fecha_movimiento,
+                fecha_ingreso_compra, fecha_creacion_factura, fecha_emision_factura,
+                factura_id, compra_id, comprobante_id, ajuste_id, nota_credito_id,
+                numero_documento, cai, clasificacion_factura,
+                estado_documento, motivo_documento, comentario_documento,
+                producto_id, producto_nombre, lote_id,
+                bodega_id, bodega_nombre, seccion_id, seccion_nombre,
+                unidad_compra_id, unidad_compra_nombre, factor_unidad_compra,
+                unidad_venta_id, unidad_venta_nombre, factor_unidad_venta,
+                cantidad_documento, cantidad_base, cantidad_movimiento_base,
+                afecta_inventario, cliente_id, cliente_nombre,
+                proveedor_id, proveedor_nombre, usuario_id, usuario_nombre,
+                sincronizado_at, created_at, updated_at
+            )
+            SELECT
+                'NOTA_CREDITO', lt.id, CONCAT('NOTA_CREDITO:', lt.id),
+                COALESCE(nc.fecha, nc.created_at, lt.created_at),
+                NULL, f.created_at, f.fecha_emision,
+                f.id, NULL, NULL, NULL, nc.id,
+                nc.numero_nota, nc.cai,
+                CASE f.tipo_venta_id WHEN 1 THEN 'B' WHEN 2 THEN 'A' ELSE NULL END,
+                CASE WHEN nc.estado_nota_id = 2 THEN 'ANULADO' ELSE 'ACTIVO' END,
+                mnc.descripcion, nc.comentario,
+                rb.producto_id, p.nombre, rb.id,
+                b.id, b.nombre, s.id, s.descripcion,
+                p.unidad_medida_compra_id, uc.nombre, p.unidadad_compra,
+                lt.unidad_medida_venta_id, uv.nombre, umv.unidad_venta,
+                lt.cantidad / COALESCE(NULLIF(umv.unidad_venta, 0), 1),
+                lt.cantidad, lt.cantidad,
+                1,
+                f.cliente_id, COALESCE(cl.nombre, f.nombre_cliente),
+                NULL, NULL, nc.users_id, u.name,
+                ?, ?, ?
+            FROM log_translado lt
+            INNER JOIN nota_credito nc ON nc.id = lt.nota_credito_id
+            INNER JOIN factura f ON f.id = nc.factura_id
+            INNER JOIN recibido_bodega rb ON rb.id = lt.destino
+            INNER JOIN producto p ON p.id = rb.producto_id
+            LEFT JOIN motivo_nota_credito mnc ON mnc.id = nc.motivo_nota_credito_id
+            LEFT JOIN seccion s ON s.id = rb.seccion_id
+            LEFT JOIN segmento sg ON sg.id = s.segmento_id
+            LEFT JOIN bodega b ON b.id = sg.bodega_id
+            LEFT JOIN unidad_medida uc ON uc.id = p.unidad_medida_compra_id
+            LEFT JOIN unidad_medida_venta umv ON umv.id = lt.unidad_medida_venta_id
+            LEFT JOIN unidad_medida uv ON uv.id = umv.unidad_medida_id
+            LEFT JOIN cliente cl ON cl.id = f.cliente_id
+            LEFT JOIN users u ON u.id = nc.users_id
+            WHERE lt.descripcion = 'Devolucion de producto'
+            $filtro
+            ON DUPLICATE KEY UPDATE
+                fecha_movimiento = VALUES(fecha_movimiento),
+                fecha_creacion_factura = VALUES(fecha_creacion_factura),
+                fecha_emision_factura = VALUES(fecha_emision_factura),
+                factura_id = VALUES(factura_id),
+                nota_credito_id = VALUES(nota_credito_id),
+                numero_documento = VALUES(numero_documento),
+                cai = VALUES(cai),
+                clasificacion_factura = VALUES(clasificacion_factura),
+                estado_documento = VALUES(estado_documento),
+                motivo_documento = VALUES(motivo_documento),
+                comentario_documento = VALUES(comentario_documento),
+                producto_id = VALUES(producto_id),
+                producto_nombre = VALUES(producto_nombre),
+                lote_id = VALUES(lote_id),
+                bodega_id = VALUES(bodega_id),
+                bodega_nombre = VALUES(bodega_nombre),
+                seccion_id = VALUES(seccion_id),
+                seccion_nombre = VALUES(seccion_nombre),
+                unidad_compra_id = VALUES(unidad_compra_id),
+                unidad_compra_nombre = VALUES(unidad_compra_nombre),
+                factor_unidad_compra = VALUES(factor_unidad_compra),
+                unidad_venta_id = VALUES(unidad_venta_id),
+                unidad_venta_nombre = VALUES(unidad_venta_nombre),
+                factor_unidad_venta = VALUES(factor_unidad_venta),
+                cantidad_documento = VALUES(cantidad_documento),
+                cantidad_base = VALUES(cantidad_base),
+                cantidad_movimiento_base = VALUES(cantidad_movimiento_base),
+                afecta_inventario = VALUES(afecta_inventario),
+                cliente_id = VALUES(cliente_id),
+                cliente_nombre = VALUES(cliente_nombre),
+                usuario_id = VALUES(usuario_id),
+                usuario_nombre = VALUES(usuario_nombre),
+                sincronizado_at = VALUES(sincronizado_at),
+                updated_at = VALUES(updated_at)
+        ", $bindings);
+
+        return $totalCandidatos;
+    }
+
+    private function sincronizarAnulacionesNotasCredito(?CarbonImmutable $desde, CarbonImmutable $inicio): int
+    {
+        $candidatos = DB::table('log_translado as lt')
+            ->join('nota_credito as nc', 'nc.id', '=', 'lt.nota_credito_id')
+            ->where('lt.descripcion', 'Nota credito anulado');
+        if ($desde) {
+            $candidatos->where(function ($query) use ($desde) {
+                $query->where('nc.updated_at', '>=', $desde)
+                    ->orWhere('lt.updated_at', '>=', $desde);
+            });
+        }
+        $totalCandidatos = $candidatos->count();
+
+        $filtro = $desde
+            ? 'AND (nc.updated_at >= ? OR lt.updated_at >= ?)'
+            : '';
+        $bindings = [$inicio, $inicio, $inicio];
+        if ($desde) {
+            array_push($bindings, $desde, $desde);
+        }
+
+        DB::affectingStatement("
+            INSERT INTO auditoria_compras_ventas (
+                tipo_movimiento, origen_id, clave_origen, fecha_movimiento,
+                fecha_ingreso_compra, fecha_creacion_factura, fecha_emision_factura,
+                factura_id, compra_id, comprobante_id, ajuste_id, nota_credito_id,
+                numero_documento, cai, clasificacion_factura,
+                estado_documento, motivo_documento, comentario_documento,
+                producto_id, producto_nombre, lote_id,
+                bodega_id, bodega_nombre, seccion_id, seccion_nombre,
+                unidad_compra_id, unidad_compra_nombre, factor_unidad_compra,
+                unidad_venta_id, unidad_venta_nombre, factor_unidad_venta,
+                cantidad_documento, cantidad_base, cantidad_movimiento_base,
+                afecta_inventario, cliente_id, cliente_nombre,
+                proveedor_id, proveedor_nombre, usuario_id, usuario_nombre,
+                sincronizado_at, created_at, updated_at
+            )
+            SELECT
+                'ANULACION_NOTA_CREDITO', lt.id,
+                CONCAT('ANULACION_NOTA_CREDITO:', lt.id),
+                lt.created_at,
+                NULL, f.created_at, f.fecha_emision,
+                f.id, NULL, NULL, NULL, nc.id,
+                nc.numero_nota, nc.cai,
+                CASE f.tipo_venta_id WHEN 1 THEN 'B' WHEN 2 THEN 'A' ELSE NULL END,
+                'ANULADO',
+                'Anulación de nota de crédito', lt.comentario,
+                rb.producto_id, p.nombre, rb.id,
+                b.id, b.nombre, s.id, s.descripcion,
+                p.unidad_medida_compra_id, uc.nombre, p.unidadad_compra,
+                lt.unidad_medida_venta_id, uv.nombre, umv.unidad_venta,
+                lt.cantidad / COALESCE(NULLIF(umv.unidad_venta, 0), 1),
+                lt.cantidad, -1 * lt.cantidad,
+                1,
+                f.cliente_id, COALESCE(cl.nombre, f.nombre_cliente),
+                NULL, NULL, lt.users_id, u.name,
+                ?, ?, ?
+            FROM log_translado lt
+            INNER JOIN nota_credito nc ON nc.id = lt.nota_credito_id
+            INNER JOIN factura f ON f.id = nc.factura_id
+            INNER JOIN recibido_bodega rb ON rb.id = lt.origen
+            INNER JOIN producto p ON p.id = rb.producto_id
+            LEFT JOIN seccion s ON s.id = rb.seccion_id
+            LEFT JOIN segmento sg ON sg.id = s.segmento_id
+            LEFT JOIN bodega b ON b.id = sg.bodega_id
+            LEFT JOIN unidad_medida uc ON uc.id = p.unidad_medida_compra_id
+            LEFT JOIN unidad_medida_venta umv ON umv.id = lt.unidad_medida_venta_id
+            LEFT JOIN unidad_medida uv ON uv.id = umv.unidad_medida_id
+            LEFT JOIN cliente cl ON cl.id = f.cliente_id
+            LEFT JOIN users u ON u.id = lt.users_id
+            WHERE lt.descripcion = 'Nota credito anulado'
+            $filtro
+            ON DUPLICATE KEY UPDATE
+                fecha_movimiento = VALUES(fecha_movimiento),
+                fecha_creacion_factura = VALUES(fecha_creacion_factura),
+                fecha_emision_factura = VALUES(fecha_emision_factura),
+                factura_id = VALUES(factura_id),
+                nota_credito_id = VALUES(nota_credito_id),
+                numero_documento = VALUES(numero_documento),
+                cai = VALUES(cai),
+                clasificacion_factura = VALUES(clasificacion_factura),
+                comentario_documento = VALUES(comentario_documento),
+                producto_id = VALUES(producto_id),
+                producto_nombre = VALUES(producto_nombre),
+                lote_id = VALUES(lote_id),
+                bodega_id = VALUES(bodega_id),
+                bodega_nombre = VALUES(bodega_nombre),
+                seccion_id = VALUES(seccion_id),
+                seccion_nombre = VALUES(seccion_nombre),
+                unidad_compra_id = VALUES(unidad_compra_id),
+                unidad_compra_nombre = VALUES(unidad_compra_nombre),
+                factor_unidad_compra = VALUES(factor_unidad_compra),
+                unidad_venta_id = VALUES(unidad_venta_id),
+                unidad_venta_nombre = VALUES(unidad_venta_nombre),
+                factor_unidad_venta = VALUES(factor_unidad_venta),
+                cantidad_documento = VALUES(cantidad_documento),
+                cantidad_base = VALUES(cantidad_base),
+                cantidad_movimiento_base = VALUES(cantidad_movimiento_base),
+                afecta_inventario = VALUES(afecta_inventario),
+                cliente_id = VALUES(cliente_id),
+                cliente_nombre = VALUES(cliente_nombre),
                 usuario_id = VALUES(usuario_id),
                 usuario_nombre = VALUES(usuario_nombre),
                 sincronizado_at = VALUES(sincronizado_at),

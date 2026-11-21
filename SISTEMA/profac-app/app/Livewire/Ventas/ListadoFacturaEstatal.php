@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Ventas;
 
+use App\Support\AccesoFacturas;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Livewire\Component;
 
@@ -43,7 +44,16 @@ class ListadoFacturaEstatal extends Component
             $filtroHasta      = trim(request()->input('filtroHasta', ''));
             $whereFilters = '';
             $bindings     = [];
-            if ($filtroCai)        { $whereFilters .= " AND factura.cai LIKE ? ";                                             $bindings[] = "%{$filtroCai}%"; }
+            if ($filtroCai) {
+                $whereFilters .= " AND (factura.cai LIKE ? OR factura.numero_factura LIKE ?";
+                $bindings[] = "%{$filtroCai}%";
+                $bindings[] = "%{$filtroCai}%";
+                if (ctype_digit($filtroCai)) {
+                    $whereFilters .= " OR factura.id = ?";
+                    $bindings[] = (int) $filtroCai;
+                }
+                $whereFilters .= ") ";
+            }
             if ($filtroCliente)    { $whereFilters .= " AND factura.nombre_cliente LIKE ? ";                                  $bindings[] = "%{$filtroCliente}%"; }
             if ($filtroVendedor)   { $whereFilters .= " AND users.name LIKE ? ";                                              $bindings[] = "%{$filtroVendedor}%"; }
             if ($filtroFacturador) { $whereFilters .= " AND (SELECT name FROM users WHERE id = factura.users_id) LIKE ? ";    $bindings[] = "%{$filtroFacturador}%"; }
@@ -52,8 +62,13 @@ class ListadoFacturaEstatal extends Component
             elseif ($filtroHasta)  { $whereFilters .= " AND DATE(factura.created_at) <= ? "; $bindings[] = $filtroHasta; }
 
             $esAdmin = in_array((int) Auth::user()->rol_id, self::ADMIN_ROLES, true);
+            $historialCompleto = AccesoFacturas::permiteHistorialCompleto(Auth::user());
+            $puedeVerTodo = $esAdmin || $historialCompleto;
+            $filtroHistorico = $historialCompleto
+                ? ''
+                : 'YEAR(factura.created_at) >= (YEAR(NOW())-2) and ';
 
-            if ($esAdmin) {
+            if ($puedeVerTodo) {
                 $listaFacturas = DB::SELECT("
                 select
                     factura.id as id,
@@ -84,7 +99,7 @@ class ListadoFacturaEstatal extends Component
                     inner join users
                     on factura.vendedor = users.id
                     cross join (select @i := 0) r
-                where YEAR(factura.created_at) >= (YEAR(NOW())-2) and factura.estado_venta_id<>2 and factura.tipo_venta_id = 2 {$whereFilters}
+                where {$filtroHistorico}factura.estado_venta_id<>2 and factura.tipo_venta_id = 2 {$whereFilters}
                 order by factura.created_at desc
                 ", $bindings);
 
@@ -262,7 +277,6 @@ class ListadoFacturaEstatal extends Component
             ->join('tipo_pago_venta as tp', 'tp.id', '=', 'f.tipo_pago_id')
             ->join('users as vendedor', 'vendedor.id', '=', 'f.vendedor')
             ->leftJoin('users as facturador', 'facturador.id', '=', 'f.users_id')
-            ->whereRaw('YEAR(f.created_at) >= YEAR(NOW()) - 2')
             ->where('f.estado_venta_id', '<>', 2)
             ->whereIn('f.tipo_venta_id', $tipoVentaIds)
             ->select([
@@ -272,14 +286,26 @@ class ListadoFacturaEstatal extends Component
                 'vendedor.name as vendedor', 'facturador.name as facturador',
             ]);
 
-        if (!in_array((int) Auth::user()->rol_id, self::ADMIN_ROLES, true)) {
+        $historialCompleto = AccesoFacturas::permiteHistorialCompleto(Auth::user());
+        if (!$historialCompleto) {
+            $query->whereRaw('YEAR(f.created_at) >= YEAR(NOW()) - 2');
+        }
+        if (!in_array((int) Auth::user()->rol_id, self::ADMIN_ROLES, true) && !$historialCompleto) {
             $query->where(function ($actor) {
                 $actor->where('f.vendedor', Auth::id())
                     ->orWhere('f.users_id', Auth::id())
                     ->orWhere('f.gestor_entrega', Auth::id());
             });
         }
-        if ($filtroCai !== '') $query->where('f.cai', 'LIKE', "%{$filtroCai}%");
+        if ($filtroCai !== '') {
+            $query->where(function ($numero) use ($filtroCai) {
+                $numero->where('f.cai', 'LIKE', "%{$filtroCai}%")
+                    ->orWhere('f.numero_factura', 'LIKE', "%{$filtroCai}%");
+                if (ctype_digit($filtroCai)) {
+                    $numero->orWhere('f.id', (int) $filtroCai);
+                }
+            });
+        }
         if ($filtroCliente !== '') $query->where('f.nombre_cliente', 'LIKE', "%{$filtroCliente}%");
         if ($filtroVendedor !== '') $query->where('vendedor.name', 'LIKE', "%{$filtroVendedor}%");
         if ($filtroFacturador !== '') $query->where('facturador.name', 'LIKE', "%{$filtroFacturador}%");

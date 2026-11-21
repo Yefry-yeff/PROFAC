@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Ventas;
 
+use App\Support\AccesoFacturas;
 use Livewire\Component;
 use Illuminate\Support\Facades\Auth;
 
@@ -19,7 +20,8 @@ class ListadoFacturasUnificado extends Component
         // Leer de route defaults si no viene como parámetro de URL
         $tipo = $tipo ?? request()->route()->defaults['tipo'] ?? 'corporativo';
         $this->tipoVenta = $tipo;
-        $this->esVendedor = !in_array(Auth::user()->rol_id, self::ADMIN_ROLES);
+        $this->esVendedor = !in_array(Auth::user()->rol_id, self::ADMIN_ROLES)
+            && !AccesoFacturas::permiteHistorialCompleto(Auth::user());
 
         switch ($tipo) {
             case 'corporativo':

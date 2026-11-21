@@ -29,6 +29,9 @@ class ExportadorMovimientosXlsx
         'CANTIDAD INICIAL',
         'COMPRA',
         'VENTA',
+        'COMPROBANTE',
+        'AJUSTE',
+        'NOTA DE CRÉDITO',
         'SALDO / EXISTENCIA',
         'COSTOS',
         'NÚMERO DE DECLARACIÓN',
@@ -37,7 +40,7 @@ class ExportadorMovimientosXlsx
     private const ENCABEZADOS_COMPLETO = [
         'Secuencia', 'Movimiento', 'Fecha movimiento', 'Fecha ingreso compra',
         'Fecha creación factura', 'Fecha emisión factura', 'Factura ID', 'Compra ID',
-        'Comprobante ID', 'Ajuste ID', 'Documento', 'CAI', 'Clasificación', 'Estado',
+        'Comprobante ID', 'Ajuste ID', 'Nota crédito ID', 'Documento', 'CAI', 'Clasificación', 'Estado',
         'Motivo', 'Comentario', 'Producto ID', 'Producto', 'Lote', 'Bodega', 'Sección',
         'Unidad compra', 'Factor compra', 'Unidad venta', 'Factor venta',
         'Cantidad documento', 'Cantidad base', 'Movimiento base', 'Afecta inventario',
@@ -177,15 +180,19 @@ class ExportadorMovimientosXlsx
                 'desde' => self::FECHA_INICIO,
                 'hasta' => self::FECHA_FIN,
             ]))
+            ->leftJoin('factura as f_kardex', 'f_kardex.id', '=', 'a.factura_id')
             ->where('a.estado_documento', 'ACTIVO')
             ->where(function ($query) {
                 $query->whereIn('a.tipo_movimiento', ['COMPRA', 'COMPROBANTE', 'AJUSTE'])
-                    ->orWhere(function ($ventas) {
-                        $ventas->where('a.tipo_movimiento', 'VENTA')
-                            ->whereIn('a.clasificacion_factura', ['A', 'B']);
+                    ->orWhere(function ($movimientosFactura) {
+                        $movimientosFactura->whereIn('a.tipo_movimiento', ['VENTA', 'NOTA_CREDITO'])
+                            ->where(function ($clasificacion) {
+                                $clasificacion->whereIn('a.clasificacion_factura', ['A', 'B'])
+                                    ->orWhere('f_kardex.tipo_venta_id', 3);
+                            });
                     });
             })
-            ->select('a.*')
+            ->select('a.*', 'f_kardex.tipo_venta_id as tipo_venta_id_factura')
             ->orderBy('a.producto_id')
             ->orderBy('a.fecha_movimiento')
             ->orderByRaw("
@@ -193,8 +200,9 @@ class ExportadorMovimientosXlsx
                     WHEN 'COMPRA' THEN 0
                     WHEN 'COMPROBANTE' THEN 1
                     WHEN 'VENTA' THEN 2
-                    WHEN 'AJUSTE' THEN 3
-                    ELSE 4
+                    WHEN 'NOTA_CREDITO' THEN 3
+                    WHEN 'AJUSTE' THEN 4
+                    ELSE 5
                 END
             ")
             ->orderBy('a.numero_documento')
@@ -207,7 +215,7 @@ class ExportadorMovimientosXlsx
 
     private function configurarHojaKardex(Sheet $sheet): void
     {
-        $anchos = [17, 31, 11, 56, 22, 18, 16, 16, 20, 15, 24];
+        $anchos = [17, 31, 11, 56, 22, 18, 16, 16, 18, 16, 20, 20, 15, 24];
         foreach ($anchos as $indice => $ancho) {
             $sheet->setColumnWidth($ancho, $indice + 1);
         }
@@ -250,7 +258,7 @@ class ExportadorMovimientosXlsx
                 $tituloStyle
             )->setHeight(25)
         );
-        $options->mergeCells(0, $fila, 10, $fila, $sheetIndex);
+        $options->mergeCells(0, $fila, 13, $fila, $sheetIndex);
         $fila++;
 
         $writer->addRow(
@@ -260,10 +268,10 @@ class ExportadorMovimientosXlsx
                 . 'Cantidades y saldos expresados en unidad base',
             ], $subtituloStyle)->setHeight(22)
         );
-        $options->mergeCells(0, $fila, 10, $fila, $sheetIndex);
+        $options->mergeCells(0, $fila, 13, $fila, $sheetIndex);
         $fila++;
 
-        $writer->addRow(Row::fromValues(array_fill(0, 11, null)));
+        $writer->addRow(Row::fromValues(array_fill(0, 14, null)));
         $fila++;
         $writer->addRow(Row::fromValues(self::ENCABEZADOS_KARDEX, $encabezadoStyle)->setHeight(32));
         $fila++;
@@ -280,19 +288,49 @@ class ExportadorMovimientosXlsx
                 0,
                 null,
                 null,
+                null,
+                null,
+                null,
                 $saldo,
                 null,
                 null,
             ], $saldoInicialStyle, [
                 5 => $numeroStyle,
-                8 => $numeroStyle,
+                11 => $numeroStyle,
             ]));
             $fila++;
 
-            $movimientosProducto = $this->movimientosDesdePrimeraCompra(
+            $movimientosProducto = $this->movimientosKardex(
                 $movimientos->get($producto->id, collect()),
                 $clasificacion
             );
+            $compensatorio = $this->saldoInicialCompensatorio($movimientosProducto);
+
+            if ($compensatorio > 0) {
+                $saldo = $compensatorio;
+                $writer->addRow(Row::fromValuesWithStyles([
+                    '01/11/2022',
+                    'AJUSTE INICIAL COMPENSATORIO - HISTORIAL PREVIO INCOMPLETO',
+                    $producto->id,
+                    $this->seguro($producto->nombre),
+                    $this->seguro($producto->unidad_base),
+                    0,
+                    null,
+                    null,
+                    null,
+                    $compensatorio,
+                    null,
+                    $saldo,
+                    null,
+                    null,
+                ], $saldoInicialStyle, [
+                    5 => $numeroStyle,
+                    9 => $numeroStyle,
+                    10 => $numeroStyle,
+                    11 => $numeroStyle,
+                ]));
+                $fila++;
+            }
 
             foreach ($movimientosProducto as $movimiento) {
                 $impacto = (float) $movimiento->cantidad_movimiento_base;
@@ -305,8 +343,13 @@ class ExportadorMovimientosXlsx
                     $this->seguro($producto->nombre),
                     $this->seguro($producto->unidad_base),
                     0,
-                    $impacto > 0 ? $impacto : null,
-                    $impacto < 0 ? abs($impacto) : null,
+                    $movimiento->tipo_movimiento === 'COMPRA' ? $impacto : null,
+                    $movimiento->tipo_movimiento === 'VENTA' ? abs($impacto) : null,
+                    $movimiento->tipo_movimiento === 'COMPROBANTE'
+                        ? (float) $movimiento->cantidad_base
+                        : null,
+                    $movimiento->tipo_movimiento === 'AJUSTE' ? $impacto : null,
+                    $movimiento->tipo_movimiento === 'NOTA_CREDITO' ? $impacto : null,
                     $saldo,
                     null,
                     null,
@@ -315,12 +358,15 @@ class ExportadorMovimientosXlsx
                     6 => $numeroStyle,
                     7 => $numeroStyle,
                     8 => $numeroStyle,
+                    9 => $numeroStyle,
+                    10 => $numeroStyle,
+                    11 => $numeroStyle,
                 ]));
                 $fila++;
             }
         }
 
-        $sheet->setAutoFilter(new AutoFilter(0, 4, 10, $fila - 1));
+        $sheet->setAutoFilter(new AutoFilter(0, 4, 13, $fila - 1));
     }
 
     private function escribirKardexProducto(
@@ -361,7 +407,7 @@ class ExportadorMovimientosXlsx
                 $tituloStyle
             )->setHeight(25)
         );
-        $options->mergeCells(0, $fila, 10, $fila, $sheetIndex);
+        $options->mergeCells(0, $fila, 13, $fila, $sheetIndex);
         $fila++;
 
         $writer->addRow(
@@ -372,10 +418,10 @@ class ExportadorMovimientosXlsx
                 . 'Cantidades y saldos expresados en unidad base',
             ], $subtituloStyle)->setHeight(22)
         );
-        $options->mergeCells(0, $fila, 10, $fila, $sheetIndex);
+        $options->mergeCells(0, $fila, 13, $fila, $sheetIndex);
         $fila++;
 
-        $writer->addRow(Row::fromValues(array_fill(0, 11, null)));
+        $writer->addRow(Row::fromValues(array_fill(0, 14, null)));
         $fila++;
         $writer->addRow(Row::fromValues(self::ENCABEZADOS_KARDEX, $encabezadoStyle)->setHeight(32));
         $fila++;
@@ -389,25 +435,65 @@ class ExportadorMovimientosXlsx
             0,
             null,
             null,
+            null,
+            null,
+            null,
             0,
             null,
             null,
         ], $saldoInicialStyle, [
             5 => $numeroStyle,
-            8 => $numeroStyle,
+            11 => $numeroStyle,
         ]));
         $fila++;
 
         $saldo = 0.0;
-        $totalEntradas = 0.0;
-        $totalSalidas = 0.0;
+        $movimientosProducto = $this->movimientosKardex($movimientos, $clasificacion);
+        $compensatorio = $this->saldoInicialCompensatorio($movimientosProducto);
+        $totalCompras = 0.0;
+        $totalVentas = 0.0;
+        $totalComprobantes = 0.0;
+        $totalAjustes = $compensatorio;
+        $totalNotasCredito = 0.0;
         $ultimaFilaMovimiento = $fila - 1;
 
-        foreach ($this->movimientosDesdePrimeraCompra($movimientos, $clasificacion) as $movimiento) {
+        if ($compensatorio > 0) {
+            $saldo = $compensatorio;
+            $writer->addRow(Row::fromValuesWithStyles([
+                '01/11/2022',
+                'AJUSTE INICIAL COMPENSATORIO - HISTORIAL PREVIO INCOMPLETO',
+                $producto->id,
+                $this->seguro($producto->nombre),
+                $this->seguro($producto->unidad_base),
+                0,
+                null,
+                null,
+                null,
+                $compensatorio,
+                null,
+                $saldo,
+                null,
+                null,
+            ], $saldoInicialStyle, [
+                5 => $numeroStyle,
+                9 => $numeroStyle,
+                10 => $numeroStyle,
+                11 => $numeroStyle,
+            ]));
+            $fila++;
+            $ultimaFilaMovimiento = $fila - 1;
+        }
+
+        foreach ($movimientosProducto as $movimiento) {
             $impacto = (float) $movimiento->cantidad_movimiento_base;
             $saldo += $impacto;
-            $totalEntradas += max($impacto, 0);
-            $totalSalidas += abs(min($impacto, 0));
+            $totalCompras += $movimiento->tipo_movimiento === 'COMPRA' ? $impacto : 0;
+            $totalVentas += $movimiento->tipo_movimiento === 'VENTA' ? abs($impacto) : 0;
+            $totalComprobantes += $movimiento->tipo_movimiento === 'COMPROBANTE'
+                ? (float) $movimiento->cantidad_base
+                : 0;
+            $totalAjustes += $movimiento->tipo_movimiento === 'AJUSTE' ? $impacto : 0;
+            $totalNotasCredito += $movimiento->tipo_movimiento === 'NOTA_CREDITO' ? $impacto : 0;
 
             $writer->addRow(Row::fromValuesWithStyles([
                 $this->fecha($movimiento->fecha_movimiento),
@@ -416,8 +502,13 @@ class ExportadorMovimientosXlsx
                 $this->seguro($producto->nombre),
                 $this->seguro($producto->unidad_base),
                 0,
-                $impacto > 0 ? $impacto : null,
-                $impacto < 0 ? abs($impacto) : null,
+                $movimiento->tipo_movimiento === 'COMPRA' ? $impacto : null,
+                $movimiento->tipo_movimiento === 'VENTA' ? abs($impacto) : null,
+                $movimiento->tipo_movimiento === 'COMPROBANTE'
+                    ? (float) $movimiento->cantidad_base
+                    : null,
+                $movimiento->tipo_movimiento === 'AJUSTE' ? $impacto : null,
+                $movimiento->tipo_movimiento === 'NOTA_CREDITO' ? $impacto : null,
                 $saldo,
                 null,
                 null,
@@ -426,14 +517,17 @@ class ExportadorMovimientosXlsx
                 6 => $numeroStyle,
                 7 => $numeroStyle,
                 8 => $numeroStyle,
+                9 => $numeroStyle,
+                10 => $numeroStyle,
+                11 => $numeroStyle,
             ]));
             $fila++;
             $ultimaFilaMovimiento = $fila - 1;
         }
 
-        $sheet->setAutoFilter(new AutoFilter(0, 4, 10, $ultimaFilaMovimiento));
+        $sheet->setAutoFilter(new AutoFilter(0, 4, 13, $ultimaFilaMovimiento));
 
-        $writer->addRow(Row::fromValues(array_fill(0, 11, null)));
+        $writer->addRow(Row::fromValues(array_fill(0, 14, null)));
         $writer->addRow(Row::fromValuesWithStyles([
             null,
             'TOTALES CONSOLIDADOS',
@@ -441,8 +535,11 @@ class ExportadorMovimientosXlsx
             $this->seguro($producto->nombre),
             $this->seguro($producto->unidad_base),
             0,
-            $totalEntradas,
-            $totalSalidas,
+            $totalCompras,
+            $totalVentas,
+            $totalComprobantes,
+            $totalAjustes,
+            $totalNotasCredito,
             $saldo,
             null,
             null,
@@ -451,25 +548,45 @@ class ExportadorMovimientosXlsx
             6 => $numeroStyle,
             7 => $numeroStyle,
             8 => $numeroStyle,
+            9 => $numeroStyle,
+            10 => $numeroStyle,
+            11 => $numeroStyle,
         ]));
     }
 
-    private function movimientosDesdePrimeraCompra(
+    private function movimientosKardex(
         Collection $movimientos,
         string $clasificacion
     ): Collection {
         return $movimientos
-            ->filter(fn ($movimiento) => $movimiento->tipo_movimiento !== 'VENTA'
-                || $movimiento->clasificacion_factura === $clasificacion)
+            ->filter(fn ($movimiento) => ! in_array(
+                $movimiento->tipo_movimiento,
+                ['VENTA', 'NOTA_CREDITO'],
+                true
+            )
+                || $movimiento->clasificacion_factura === $clasificacion
+                || ($clasificacion === 'A' && (int) $movimiento->tipo_venta_id_factura === 3))
             ->values()
-            ->skipUntil(fn ($movimiento) => $movimiento->tipo_movimiento === 'COMPRA')
             ->values();
+    }
+
+    private function saldoInicialCompensatorio(Collection $movimientos): float
+    {
+        $saldo = 0.0;
+        $saldoMinimo = 0.0;
+
+        foreach ($movimientos as $movimiento) {
+            $saldo += (float) $movimiento->cantidad_movimiento_base;
+            $saldoMinimo = min($saldoMinimo, $saldo);
+        }
+
+        return abs(min($saldoMinimo, 0.0));
     }
 
     private function configurarHojaCompleta(Sheet $sheet): void
     {
         $anchos = [
-            12, 22, 21, 20, 23, 21, 13, 13, 17, 12, 24, 24, 14, 13, 28, 48,
+            12, 22, 21, 20, 23, 21, 13, 13, 17, 12, 18, 24, 24, 14, 13, 28, 48,
             13, 55, 11, 23, 23, 19, 16, 19, 16, 20, 18, 19, 19, 42, 42, 28,
         ];
         foreach ($anchos as $indice => $ancho) {
@@ -509,6 +626,7 @@ class ExportadorMovimientosXlsx
                 $fila->compra_id,
                 $fila->comprobante_id,
                 $fila->ajuste_id,
+                $fila->nota_credito_id,
                 $this->seguro($fila->numero_documento),
                 $this->seguro($fila->cai),
                 $fila->clasificacion_factura,
@@ -531,10 +649,10 @@ class ExportadorMovimientosXlsx
                 $this->seguro($fila->cliente_nombre),
                 $this->seguro($fila->proveedor_nombre),
                 $this->seguro($fila->usuario_nombre),
-            ], null, [25 => $numeroStyle, 26 => $numeroStyle, 27 => $numeroStyle]));
+            ], null, [26 => $numeroStyle, 27 => $numeroStyle, 28 => $numeroStyle]));
         }
 
-        $sheet->setAutoFilter(new AutoFilter(0, 1, 31, $secuencia + 1));
+        $sheet->setAutoFilter(new AutoFilter(0, 1, 32, $secuencia + 1));
     }
 
     private function numeroComercial(object $movimiento): ?string
@@ -543,6 +661,7 @@ class ExportadorMovimientosXlsx
             'VENTA' => $movimiento->cai ?: $movimiento->numero_documento,
             'COMPROBANTE' => 'COMPROBANTE ' . $movimiento->numero_documento,
             'AJUSTE' => 'AJUSTE ' . $movimiento->numero_documento,
+            'NOTA_CREDITO' => 'NOTA DE CRÉDITO ' . $movimiento->numero_documento,
             default => $movimiento->numero_documento,
         };
     }

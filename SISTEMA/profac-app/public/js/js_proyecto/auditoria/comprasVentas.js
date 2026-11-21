@@ -39,6 +39,7 @@
                 { data: 'tipo_movimiento' }, { data: 'fecha_movimiento' }, { data: 'fecha_ingreso_compra' },
                 { data: 'fecha_creacion_factura' }, { data: 'fecha_emision_factura' }, { data: 'factura_id' },
                 { data: 'compra_id' }, { data: 'comprobante_id' }, { data: 'ajuste_id' },
+                { data: 'nota_credito_id' },
                 { data: 'numero_documento' }, { data: 'cai' },
                 { data: 'clasificacion_factura' }, { data: 'estado_documento' },
                 { data: 'motivo_documento' }, { data: 'comentario_documento' }, { data: 'producto_id' },

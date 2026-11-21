@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Ventas;
 
+use App\Support\AccesoFacturas;
 use Livewire\Component;
 use Illuminate\Http\Request;
 use App\Exports\FacturasUnificadasExport;
@@ -40,7 +41,16 @@ class ListadoFacturas extends Component
             $filtroHasta      = trim(request()->input('filtroHasta', ''));
             $whereFilters = '';
             $bindings     = [];
-            if ($filtroCai)        { $whereFilters .= " AND A.cai LIKE ? ";                                              $bindings[] = "%{$filtroCai}%"; }
+            if ($filtroCai) {
+                $whereFilters .= " AND (factura.cai LIKE ? OR factura.numero_factura LIKE ?";
+                $bindings[] = "%{$filtroCai}%";
+                $bindings[] = "%{$filtroCai}%";
+                if (ctype_digit($filtroCai)) {
+                    $whereFilters .= " OR factura.id = ?";
+                    $bindings[] = (int) $filtroCai;
+                }
+                $whereFilters .= ") ";
+            }
             if ($filtroCliente)    { $whereFilters .= " AND factura.nombre_cliente LIKE ? ";                             $bindings[] = "%{$filtroCliente}%"; }
             if ($filtroVendedor)   { $whereFilters .= " AND users.name LIKE ? ";                                         $bindings[] = "%{$filtroVendedor}%"; }
             if ($filtroFacturador) { $whereFilters .= " AND (SELECT name FROM users WHERE id = factura.users_id) LIKE ? "; $bindings[] = "%{$filtroFacturador}%"; }
@@ -48,7 +58,17 @@ class ListadoFacturas extends Component
             elseif ($filtroDesde)  { $whereFilters .= " AND DATE(factura.created_at) >= ? "; $bindings[] = $filtroDesde; }
             elseif ($filtroHasta)  { $whereFilters .= " AND DATE(factura.created_at) <= ? "; $bindings[] = $filtroHasta; }
 
-            if(Auth::user()->rol_id  == '1' || Auth::user()->rol_id  == '5' || Auth::user()->rol_id == '3' || Auth::user()->rol_id == '16'){
+            $esAdmin = in_array((int) Auth::user()->rol_id, self::ADMIN_ROLES, true);
+            $historialCompleto = AccesoFacturas::permiteHistorialCompleto(Auth::user());
+            $puedeVerTodo = $esAdmin || $historialCompleto;
+            $filtroHistorico = $historialCompleto
+                ? ''
+                : '(YEAR(factura.created_at) >= (YEAR(NOW())-2)) and ';
+            $filtroEstadoFactura = $historialCompleto
+                ? ''
+                : ' and factura.estado_factura_id=1';
+
+            if ($puedeVerTodo) {
 
             $listaFacturas = DB::SELECT("
             select
@@ -84,7 +104,7 @@ class ListadoFacturas extends Component
             inner join cai A
             on factura.cai_id= A.id
             cross join (select @i := 0) r
-        where ( YEAR(factura.created_at) >= (YEAR(NOW())-2) )and factura.estado_factura_id=1 and factura.estado_venta_id<>2 and (factura.tipo_venta_id = 1) {$whereFilters}
+        where {$filtroHistorico}factura.estado_venta_id<>2 and (factura.tipo_venta_id = 1){$filtroEstadoFactura} {$whereFilters}
         order by factura.created_at desc
             ", $bindings);
 
@@ -243,6 +263,8 @@ class ListadoFacturas extends Component
 
             $adminRoles = [1, 3, 5, 16];
             $esAdmin    = in_array((int) Auth::user()->rol_id, $adminRoles);
+            $historialCompleto = AccesoFacturas::permiteHistorialCompleto(Auth::user());
+            $puedeVerTodo = $esAdmin || $historialCompleto;
 
             $query = DB::table('factura as f')
                 ->join('cliente as c',          'c.id',   '=', 'f.cliente_id')
@@ -268,18 +290,28 @@ class ListadoFacturas extends Component
                     DB::raw('u.name                                                             AS vendedor'),
                     DB::raw('COALESCE((SELECT ap.saldo FROM aplicacion_pagos ap WHERE ap.estado=1 AND ap.factura_id=f.id LIMIT 1), -1) AS saldo_cobro'),
                 ])
-                ->where('f.fecha_emision', '>=', DB::raw("DATE_SUB(CURDATE(), INTERVAL 2 YEAR)"))
                 ->where('f.estado_venta_id',  '<>', 2)
                 ->whereIn('f.tipo_venta_id', $tipoVentaIds);
 
-            if (!$esAdmin) {
+            if (!$historialCompleto) {
+                $query->where('f.fecha_emision', '>=', DB::raw("DATE_SUB(CURDATE(), INTERVAL 2 YEAR)"));
+            }
+            if (!$puedeVerTodo) {
                 $query->where(function ($actor) {
                     $actor->where('f.vendedor', Auth::id())
                         ->orWhere('f.users_id', Auth::id())
                         ->orWhere('f.gestor_entrega', Auth::id());
                 });
             }
-            if ($filtroCai)     { $query->where('f.cai',           'LIKE', "%{$filtroCai}%"); }
+            if ($filtroCai) {
+                $query->where(function ($numero) use ($filtroCai) {
+                    $numero->where('f.cai', 'LIKE', "%{$filtroCai}%")
+                        ->orWhere('f.numero_factura', 'LIKE', "%{$filtroCai}%");
+                    if (ctype_digit($filtroCai)) {
+                        $numero->orWhere('f.id', (int) $filtroCai);
+                    }
+                });
+            }
             if ($filtroCliente) { $query->where('f.nombre_cliente','LIKE', "%{$filtroCliente}%"); }
             if ($filtroVendedor){ $query->where('u.name',          'LIKE', "%{$filtroVendedor}%"); }
             if ($filtroDesde && $filtroHasta) {
@@ -326,6 +358,8 @@ class ListadoFacturas extends Component
 
             $adminRoles = [1, 3, 5, 16];
             $esAdmin    = in_array((int) Auth::user()->rol_id, $adminRoles);
+            $historialCompleto = AccesoFacturas::permiteHistorialCompleto(Auth::user());
+            $puedeVerTodo = $esAdmin || $historialCompleto;
 
             $query = DB::table('factura as f')
                 ->join('cliente as c',          'c.id',   '=', 'f.cliente_id')
@@ -357,11 +391,13 @@ class ListadoFacturas extends Component
                 ])
                 ->addSelect(['pendiente_correo' => DB::query()->fromSub(app(\App\Services\SaldoCobro::class)->pendientes(), 'correo_pendiente')
                     ->selectRaw('1')->whereColumn('correo_pendiente.id', 'f.id')->limit(1)])
-                ->where('f.fecha_emision', '>=', DB::raw("DATE_SUB(CURDATE(), INTERVAL 2 YEAR)"))
                 ->where('f.estado_venta_id',  '<>', 2)
                 ->whereIn('f.tipo_venta_id', [1, 2, 3]);
 
-            if (!$esAdmin) {
+            if (!$historialCompleto) {
+                $query->where('f.fecha_emision', '>=', DB::raw("DATE_SUB(CURDATE(), INTERVAL 2 YEAR)"));
+            }
+            if (!$puedeVerTodo) {
                 $query->where(function ($actor) {
                     $actor->where('f.vendedor', Auth::id())
                         ->orWhere('f.users_id', Auth::id())
@@ -369,7 +405,15 @@ class ListadoFacturas extends Component
                 });
             }
 
-            if ($filtroCai)     { $query->where('f.cai',           'LIKE', "%{$filtroCai}%"); }
+            if ($filtroCai) {
+                $query->where(function ($numero) use ($filtroCai) {
+                    $numero->where('f.cai', 'LIKE', "%{$filtroCai}%")
+                        ->orWhere('f.numero_factura', 'LIKE', "%{$filtroCai}%");
+                    if (ctype_digit($filtroCai)) {
+                        $numero->orWhere('f.id', (int) $filtroCai);
+                    }
+                });
+            }
             if ($filtroCliente) { $query->where('f.nombre_cliente', 'LIKE', "%{$filtroCliente}%"); }
             if ($filtroVendedor){ $query->where('u.name',           'LIKE', "%{$filtroVendedor}%"); }
             if ($filtroDesde && $filtroHasta) {

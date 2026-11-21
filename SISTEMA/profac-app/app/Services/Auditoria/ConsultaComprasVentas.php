@@ -28,6 +28,8 @@ class ConsultaComprasVentas
                 'COMPROBANTE',
                 'AJUSTE',
                 'ANULACION_AJUSTE',
+                'NOTA_CREDITO',
+                'ANULACION_NOTA_CREDITO',
             ]);
 
         $compras = (clone $base)
@@ -46,6 +48,7 @@ class ConsultaComprasVentas
                 a.compra_id,
                 NULL AS comprobante_id,
                 NULL AS ajuste_id,
+                NULL AS nota_credito_id,
                 MAX(a.numero_documento) AS numero_documento,
                 MAX(a.cai) AS cai,
                 NULL AS clasificacion_factura,
@@ -127,7 +130,8 @@ class ConsultaComprasVentas
                     $subquery->orWhere('a.factura_id', (int) $documento)
                         ->orWhere('a.compra_id', (int) $documento)
                         ->orWhere('a.comprobante_id', (int) $documento)
-                        ->orWhere('a.ajuste_id', (int) $documento);
+                        ->orWhere('a.ajuste_id', (int) $documento)
+                        ->orWhere('a.nota_credito_id', (int) $documento);
                 }
             });
         }
@@ -149,6 +153,8 @@ class ConsultaComprasVentas
                 'COMPROBANTE',
                 'AJUSTE',
                 'ANULACION_AJUSTE',
+                'NOTA_CREDITO',
+                'ANULACION_NOTA_CREDITO',
             ], true)
                 ? $entrada['tipo']
                 : null,
@@ -173,9 +179,11 @@ class ConsultaComprasVentas
                     WHEN 'COMPRA' THEN 0
                     WHEN 'COMPROBANTE' THEN 1
                     WHEN 'VENTA' THEN 2
-                    WHEN 'AJUSTE' THEN 3
-                    WHEN 'ANULACION_AJUSTE' THEN 4
-                    ELSE 5
+                    WHEN 'NOTA_CREDITO' THEN 3
+                    WHEN 'AJUSTE' THEN 4
+                    WHEN 'ANULACION_NOTA_CREDITO' THEN 5
+                    WHEN 'ANULACION_AJUSTE' THEN 6
+                    ELSE 7
                 END
             ")
             ->orderBy('a.numero_documento')

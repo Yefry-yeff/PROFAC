@@ -2,6 +2,7 @@
 
 namespace App\Livewire\VentasExoneradas;
 
+use App\Support\AccesoFacturas;
 use Livewire\Component;
 
 
@@ -40,7 +41,16 @@ class ListadoFacturasExonerads extends Component
             $filtroHasta      = trim(request()->input('filtroHasta', ''));
             $whereFilters = '';
             $bindings     = [];
-            if ($filtroCai)        { $whereFilters .= " AND factura.cai LIKE ? ";                                              $bindings[] = "%{$filtroCai}%"; }
+            if ($filtroCai) {
+                $whereFilters .= " AND (factura.cai LIKE ? OR factura.numero_factura LIKE ?";
+                $bindings[] = "%{$filtroCai}%";
+                $bindings[] = "%{$filtroCai}%";
+                if (ctype_digit($filtroCai)) {
+                    $whereFilters .= " OR factura.id = ?";
+                    $bindings[] = (int) $filtroCai;
+                }
+                $whereFilters .= ") ";
+            }
             if ($filtroCliente)    { $whereFilters .= " AND factura.nombre_cliente LIKE ? ";                                   $bindings[] = "%{$filtroCliente}%"; }
             if ($filtroVendedor)   { $whereFilters .= " AND users.name LIKE ? ";                                               $bindings[] = "%{$filtroVendedor}%"; }
             if ($filtroFacturador) { $whereFilters .= " AND (SELECT name FROM users WHERE id = factura.users_id) LIKE ? ";     $bindings[] = "%{$filtroFacturador}%"; }
@@ -48,7 +58,14 @@ class ListadoFacturasExonerads extends Component
             elseif ($filtroDesde)  { $whereFilters .= " AND DATE(factura.created_at) >= ? "; $bindings[] = $filtroDesde; }
             elseif ($filtroHasta)  { $whereFilters .= " AND DATE(factura.created_at) <= ? "; $bindings[] = $filtroHasta; }
 
-            if (in_array((int) Auth::user()->rol_id, self::ADMIN_ROLES, true)) {
+            $historialCompleto = AccesoFacturas::permiteHistorialCompleto(Auth::user());
+            $puedeVerTodo = in_array((int) Auth::user()->rol_id, self::ADMIN_ROLES, true)
+                || $historialCompleto;
+            $filtroHistorico = $historialCompleto
+                ? ''
+                : 'YEAR(factura.created_at) >= (YEAR(NOW())-2) and ';
+
+            if ($puedeVerTodo) {
                 $listaFacturas = DB::SELECT("
                 select
                     factura.id as id,
@@ -79,7 +96,7 @@ class ListadoFacturasExonerads extends Component
                     inner join users
                     on factura.vendedor = users.id
                     cross join (select @i := 0) r
-                where YEAR(factura.created_at) >= (YEAR(NOW())-2) and factura.estado_venta_id<>2 and factura.tipo_venta_id = 3 {$whereFilters}
+                where {$filtroHistorico}factura.estado_venta_id<>2 and factura.tipo_venta_id = 3 {$whereFilters}
                 order by factura.created_at desc
                 ", $bindings);
 

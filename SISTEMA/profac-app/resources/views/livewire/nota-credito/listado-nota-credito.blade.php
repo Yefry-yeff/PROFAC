@@ -110,6 +110,7 @@
                                 <thead>
                                     <tr>
                                         <th>ID Nota</th>
+                                        <th>N° Nota</th>
                                         <th>Secuencia CAI</th>
                                         <th>Cliente</th>
                                         <th>N° Factura</th>
@@ -206,9 +207,10 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label>Número de secuencia CAI de la nota</label>
+                                    <label>Número, CAI o ID de la nota</label>
                                     <input type="text" id="nc_fil_secuencia_cai" class="form-control form-control-sm"
-                                        autocomplete="off" placeholder="Buscar secuencia CAI">
+                                        autocomplete="off" placeholder="Ej. 2024-153, 1589, CAI o ID">
+                                    <small class="text-muted">Esta búsqueda ignora el rango de fechas.</small>
                                 </div>
                             </div>
                             <div class="col-md-6">
@@ -283,6 +285,7 @@
             },
             columns: [
                 { data: 'codigo' },
+                { data: 'numero_nota' },
                 { data: 'numero_secuencia_cai' },
                 { data: 'cliente' },
                 { data: 'factura' },
@@ -361,7 +364,7 @@
         if (ncFiltros.cliente_id)  badges.push({ lbl:'Cliente', val:$('#nc_fil_cliente option:selected').text() });
         if (ncFiltros.motivo_id)   badges.push({ lbl:'Motivo',  val:$('#nc_fil_motivo option:selected').text() });
         if (ncFiltros.user_id)     badges.push({ lbl:'Usuario', val:$('#nc_fil_usuario option:selected').text() });
-        if (ncFiltros.numero_secuencia_cai) badges.push({ lbl:'Secuencia CAI nota', val:ncFiltros.numero_secuencia_cai });
+        if (ncFiltros.numero_secuencia_cai) badges.push({ lbl:'Nota', val:ncFiltros.numero_secuencia_cai });
         if (ncFiltros.numero_secuencia_cai_factura) badges.push({ lbl:'CAI factura (sin fechas)', val:ncFiltros.numero_secuencia_cai_factura });
         if (badges.length) {
             bar.show();

@@ -46,7 +46,8 @@ class FiltrosNotasCreditoTest extends TestCase
             $t->date('fecha_emision');
         });
         Schema::create('nota_credito', function (Blueprint $t) {
-            $t->id(); $t->integer('factura_id'); $t->integer('numero_secuencia_cai'); $t->string('cai');
+            $t->id(); $t->integer('factura_id'); $t->string('numero_nota');
+            $t->integer('numero_secuencia_cai'); $t->string('cai');
             $t->integer('users_id')->default(1); $t->integer('motivo_nota_credito_id')->default(1);
             $t->integer('estado_nota_id')->default(1); $t->string('comentario')->default('Prueba');
             $t->decimal('sub_total')->default(100); $t->decimal('isv')->default(15);
@@ -75,7 +76,8 @@ class FiltrosNotasCreditoTest extends TestCase
                     'fecha_emision' => $fecha,
                 ]);
                 DB::table('nota_credito')->insert([
-                    'id' => $id, 'factura_id' => $id, 'numero_secuencia_cai' => 2000 + $id,
+                    'id' => $id, 'factura_id' => $id, 'numero_nota' => '2025-' . $id,
+                    'numero_secuencia_cai' => 2000 + $id,
                     'cai' => 'NC-' . $id, 'fecha' => $fecha, 'created_at' => $fecha . ' 12:00:00',
                 ]);
             }
@@ -98,6 +100,7 @@ class FiltrosNotasCreditoTest extends TestCase
             $cases["tipo-$tipo-motivo"] = [$tipo, ['numero_secuencia_cai_factura' => (string) (45000 + $anterior), 'motivo_id' => 999], []];
             $cases["tipo-$tipo-usuario"] = [$tipo, ['numero_secuencia_cai_factura' => (string) (45000 + $anterior), 'user_id' => 999], []];
             $cases["tipo-$tipo-nota"] = [$tipo, ['numero_secuencia_cai' => (string) (2000 + $actual)], [$actual]];
+            $cases["tipo-$tipo-nota-comercial-antigua"] = [$tipo, ['numero_secuencia_cai' => '2025-' . $anterior], [$anterior]];
             $cases["tipo-$tipo-nota-no-es-factura"] = [$tipo, ['numero_secuencia_cai_factura' => (string) (2000 + $actual)], []];
             $cases["tipo-$tipo-ambas-secuencias"] = [$tipo, [
                 'numero_secuencia_cai_factura' => (string) (45000 + $anterior),

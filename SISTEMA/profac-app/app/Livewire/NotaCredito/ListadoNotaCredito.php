@@ -65,6 +65,7 @@ class ListadoNotaCredito extends Component
             select
             fa.id as idFactura,
             A.id as codigo,
+            A.numero_nota,
             A.cai,
             A.numero_secuencia_cai,
             cli.nombre as cliente,

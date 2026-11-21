@@ -26,9 +26,16 @@
     <div class="wrapper wrapper-content animated fadeInRight">
         <div class="alert alert-info">
             <strong>Alcance actual:</strong> compras, ventas, comprobantes de entrega y ajustes de los
+            notas de crédito con devolución de producto de los
             <strong>{{ count(\App\Services\Auditoria\ConsultaComprasVentas::PRODUCTOS_AUDITADOS) }} productos seleccionados</strong>.
             No se incluyen otros productos de las facturas.
-            La clasificación usa el tipo de venta: <strong>corporativo = B</strong> y <strong>estatal = A</strong>.
+            La clasificación usa el tipo de venta: <strong>corporativo = B</strong> y <strong>estatal = A</strong>;
+            en los Excel Kardex, las facturas <strong>exoneradas también se incluyen en A</strong>.
+            Cuando existen salidas anteriores a la primera compra registrada, el Excel agrega un
+            <strong>ajuste inicial compensatorio</strong> identificado, manteniendo Cantidad inicial en cero y evitando omitir facturas.
+            En el Kardex, <strong>Comprobante</strong> muestra su cantidad base sin afectar el saldo y
+            <strong>Ajuste</strong> muestra la cantidad firmada: positiva para entradas y negativa para salidas.
+            <strong>Nota de crédito</strong> muestra el reingreso físico del producto; las notas solo por descuento no generan cantidad.
             Compras, comprobantes y ajustes se consolidan por documento y producto; las ventas permanecen desglosadas por factura y lote.
             Para evitar duplicar salidas históricas sin vínculo comprobante-factura, los comprobantes son informativos y muestran
             <strong>Afecta inventario = NO</strong>. Las anulaciones de ajustes provienen exclusivamente de reversas reales en el log de inventario.
@@ -49,14 +56,14 @@
                 <div class="row">
                     <div class="col-md-2"><label>Desde</label><input id="acvDesde" type="date" class="form-control form-control-sm"></div>
                     <div class="col-md-2"><label>Hasta</label><input id="acvHasta" type="date" class="form-control form-control-sm"></div>
-                    <div class="col-md-2"><label>Movimiento</label><select id="acvTipo" class="form-control form-control-sm"><option value="">Todos</option><option>COMPRA</option><option>VENTA</option><option>COMPROBANTE</option><option>AJUSTE</option><option value="ANULACION_AJUSTE">ANULACIÓN AJUSTE</option></select></div>
+                    <div class="col-md-2"><label>Movimiento</label><select id="acvTipo" class="form-control form-control-sm"><option value="">Todos</option><option>COMPRA</option><option>VENTA</option><option>COMPROBANTE</option><option>AJUSTE</option><option value="ANULACION_AJUSTE">ANULACIÓN AJUSTE</option><option value="NOTA_CREDITO">NOTA DE CRÉDITO</option><option value="ANULACION_NOTA_CREDITO">ANULACIÓN NOTA DE CRÉDITO</option></select></div>
                     <div class="col-md-2"><label>Clasificación</label><select id="acvClasificacion" class="form-control form-control-sm"><option value="">Todas</option><option>A</option><option>B</option></select></div>
                     <div class="col-md-2"><label>Estado</label><select id="acvEstado" class="form-control form-control-sm"><option value="">Todos</option><option>ACTIVO</option><option>ANULADO</option></select></div>
                     <div class="col-md-2"><label>Lote</label><input id="acvLote" class="form-control form-control-sm" placeholder="ID lote"></div>
                 </div>
                 <div class="row mt-2">
                     <div class="col-md-5"><label>Producto</label><input id="acvProducto" class="form-control form-control-sm" placeholder="ID o nombre"></div>
-                    <div class="col-md-5"><label>Documento</label><input id="acvDocumento" class="form-control form-control-sm" placeholder="ID, correlativo, factura, compra, comprobante, ajuste o CAI"></div>
+                    <div class="col-md-5"><label>Documento</label><input id="acvDocumento" class="form-control form-control-sm" placeholder="ID, correlativo, factura, compra, comprobante, ajuste, nota de crédito o CAI"></div>
                     <div class="col-md-2 d-flex align-items-end"><button id="btnAcvBuscar" class="btn btn-primary btn-sm btn-block"><i class="fa fa-search mr-1"></i>Consultar</button></div>
                 </div>
             </div>
@@ -83,7 +90,7 @@
                         <thead><tr>
                             <th>Secuencia</th><th>Movimiento</th><th>Fecha movimiento</th><th>Ingreso compra</th>
                             <th>Creación factura</th><th>Emisión factura</th><th>Factura ID</th>
-                            <th>Compra ID</th><th>Comprobante ID</th><th>Ajuste ID</th>
+                            <th>Compra ID</th><th>Comprobante ID</th><th>Ajuste ID</th><th>Nota crédito ID</th>
                             <th>Documento</th><th>CAI</th><th>A/B</th><th>Estado</th><th>Motivo</th><th>Comentario</th>
                             <th>Producto ID</th><th>Producto</th><th>Lote</th><th>Bodega</th><th>Sección</th>
                             <th>Unidad compra</th><th>Factor compra</th><th>Unidad venta</th><th>Factor venta</th>
