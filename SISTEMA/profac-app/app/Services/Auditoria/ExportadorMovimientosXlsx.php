@@ -24,7 +24,7 @@ class ExportadorMovimientosXlsx
         'FECHA DE REGISTRO',
         'NÚMERO DE FACTURA COMERCIAL',
         'CÓDIGO',
-        'DESCRIPCIÓN DE MERCANCÍA',
+        'NOMBRE DEL PRODUCTO',
         'UNIDAD DE MEDIDA',
         'CANTIDAD INICIAL',
         'COMPRA',
@@ -35,6 +35,8 @@ class ExportadorMovimientosXlsx
         'SALDO / EXISTENCIA',
         'COSTOS',
         'NÚMERO DE DECLARACIÓN',
+        'NOMBRE DEL CLIENTE',
+        'TOTAL DE LA FACTURA',
     ];
 
     private const ENCABEZADOS_COMPLETO = [
@@ -192,7 +194,11 @@ class ExportadorMovimientosXlsx
                             });
                     });
             })
-            ->select('a.*', 'f_kardex.tipo_venta_id as tipo_venta_id_factura')
+            ->select(
+                'a.*',
+                'f_kardex.tipo_venta_id as tipo_venta_id_factura',
+                'f_kardex.total as total_factura'
+            )
             ->orderBy('a.producto_id')
             ->orderBy('a.fecha_movimiento')
             ->orderByRaw("
@@ -215,7 +221,7 @@ class ExportadorMovimientosXlsx
 
     private function configurarHojaKardex(Sheet $sheet): void
     {
-        $anchos = [17, 31, 11, 56, 22, 18, 16, 16, 18, 16, 20, 20, 15, 24];
+        $anchos = [17, 58, 11, 56, 22, 18, 16, 16, 18, 16, 20, 20, 15, 24, 42, 22];
         foreach ($anchos as $indice => $ancho) {
             $sheet->setColumnWidth($ancho, $indice + 1);
         }
@@ -250,6 +256,7 @@ class ExportadorMovimientosXlsx
             ->setShouldWrapText();
         $saldoInicialStyle = (new Style())->setBackgroundColor('D9EAF7');
         $numeroStyle = (new Style())->setFormat('#,##0.0000');
+        $monedaStyle = (new Style())->setFormat('"L" #,##0.00');
 
         $fila = 1;
         $writer->addRow(
@@ -258,7 +265,7 @@ class ExportadorMovimientosXlsx
                 $tituloStyle
             )->setHeight(25)
         );
-        $options->mergeCells(0, $fila, 13, $fila, $sheetIndex);
+        $options->mergeCells(0, $fila, 15, $fila, $sheetIndex);
         $fila++;
 
         $writer->addRow(
@@ -268,10 +275,10 @@ class ExportadorMovimientosXlsx
                 . 'Cantidades y saldos expresados en unidad base',
             ], $subtituloStyle)->setHeight(22)
         );
-        $options->mergeCells(0, $fila, 13, $fila, $sheetIndex);
+        $options->mergeCells(0, $fila, 15, $fila, $sheetIndex);
         $fila++;
 
-        $writer->addRow(Row::fromValues(array_fill(0, 14, null)));
+        $writer->addRow(Row::fromValues(array_fill(0, 16, null)));
         $fila++;
         $writer->addRow(Row::fromValues(self::ENCABEZADOS_KARDEX, $encabezadoStyle)->setHeight(32));
         $fila++;
@@ -291,7 +298,10 @@ class ExportadorMovimientosXlsx
                 null,
                 null,
                 null,
+                null,
                 $saldo,
+                null,
+                null,
                 null,
                 null,
             ], $saldoInicialStyle, [
@@ -321,6 +331,7 @@ class ExportadorMovimientosXlsx
                     $compensatorio,
                     null,
                     $saldo,
+                    null,
                     null,
                     null,
                 ], $saldoInicialStyle, [
@@ -353,6 +364,10 @@ class ExportadorMovimientosXlsx
                     $saldo,
                     null,
                     null,
+                    $this->seguro($movimiento->cliente_nombre),
+                    $movimiento->tipo_movimiento === 'VENTA'
+                        ? (float) $movimiento->total_factura
+                        : null,
                 ], null, [
                     5 => $numeroStyle,
                     6 => $numeroStyle,
@@ -361,12 +376,13 @@ class ExportadorMovimientosXlsx
                     9 => $numeroStyle,
                     10 => $numeroStyle,
                     11 => $numeroStyle,
+                    15 => $monedaStyle,
                 ]));
                 $fila++;
             }
         }
 
-        $sheet->setAutoFilter(new AutoFilter(0, 4, 13, $fila - 1));
+        $sheet->setAutoFilter(new AutoFilter(0, 4, 15, $fila - 1));
     }
 
     private function escribirKardexProducto(
@@ -399,6 +415,7 @@ class ExportadorMovimientosXlsx
             ->setFontBold()
             ->setBackgroundColor('E2F0D9');
         $numeroStyle = (new Style())->setFormat('#,##0.0000');
+        $monedaStyle = (new Style())->setFormat('"L" #,##0.00');
 
         $fila = 1;
         $writer->addRow(
@@ -407,7 +424,7 @@ class ExportadorMovimientosXlsx
                 $tituloStyle
             )->setHeight(25)
         );
-        $options->mergeCells(0, $fila, 13, $fila, $sheetIndex);
+        $options->mergeCells(0, $fila, 15, $fila, $sheetIndex);
         $fila++;
 
         $writer->addRow(
@@ -418,10 +435,10 @@ class ExportadorMovimientosXlsx
                 . 'Cantidades y saldos expresados en unidad base',
             ], $subtituloStyle)->setHeight(22)
         );
-        $options->mergeCells(0, $fila, 13, $fila, $sheetIndex);
+        $options->mergeCells(0, $fila, 15, $fila, $sheetIndex);
         $fila++;
 
-        $writer->addRow(Row::fromValues(array_fill(0, 14, null)));
+        $writer->addRow(Row::fromValues(array_fill(0, 16, null)));
         $fila++;
         $writer->addRow(Row::fromValues(self::ENCABEZADOS_KARDEX, $encabezadoStyle)->setHeight(32));
         $fila++;
@@ -438,7 +455,10 @@ class ExportadorMovimientosXlsx
             null,
             null,
             null,
+            null,
             0,
+            null,
+            null,
             null,
             null,
         ], $saldoInicialStyle, [
@@ -472,6 +492,7 @@ class ExportadorMovimientosXlsx
                 $compensatorio,
                 null,
                 $saldo,
+                null,
                 null,
                 null,
             ], $saldoInicialStyle, [
@@ -512,6 +533,10 @@ class ExportadorMovimientosXlsx
                 $saldo,
                 null,
                 null,
+                $this->seguro($movimiento->cliente_nombre),
+                $movimiento->tipo_movimiento === 'VENTA'
+                    ? (float) $movimiento->total_factura
+                    : null,
             ], null, [
                 5 => $numeroStyle,
                 6 => $numeroStyle,
@@ -520,14 +545,15 @@ class ExportadorMovimientosXlsx
                 9 => $numeroStyle,
                 10 => $numeroStyle,
                 11 => $numeroStyle,
+                15 => $monedaStyle,
             ]));
             $fila++;
             $ultimaFilaMovimiento = $fila - 1;
         }
 
-        $sheet->setAutoFilter(new AutoFilter(0, 4, 13, $ultimaFilaMovimiento));
+        $sheet->setAutoFilter(new AutoFilter(0, 4, 15, $ultimaFilaMovimiento));
 
-        $writer->addRow(Row::fromValues(array_fill(0, 14, null)));
+        $writer->addRow(Row::fromValues(array_fill(0, 16, null)));
         $writer->addRow(Row::fromValuesWithStyles([
             null,
             'TOTALES CONSOLIDADOS',
@@ -541,6 +567,8 @@ class ExportadorMovimientosXlsx
             $totalAjustes,
             $totalNotasCredito,
             $saldo,
+            null,
+            null,
             null,
             null,
         ], $totalesStyle, [
@@ -661,7 +689,8 @@ class ExportadorMovimientosXlsx
             'VENTA' => $movimiento->cai ?: $movimiento->numero_documento,
             'COMPROBANTE' => 'COMPROBANTE ' . $movimiento->numero_documento,
             'AJUSTE' => 'AJUSTE ' . $movimiento->numero_documento,
-            'NOTA_CREDITO' => 'NOTA DE CRÉDITO ' . $movimiento->numero_documento,
+            'NOTA_CREDITO' => 'NOTA DE CRÉDITO ' . $movimiento->numero_documento
+                . ($movimiento->cai ? ' | CAI ' . $movimiento->cai : ''),
             default => $movimiento->numero_documento,
         };
     }

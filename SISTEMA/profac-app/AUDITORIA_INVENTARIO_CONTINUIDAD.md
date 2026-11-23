@@ -51,7 +51,7 @@ controlado de productos. Los reportes principales son:
 1. Fecha de registro.
 2. Número de factura comercial/documento.
 3. Código.
-4. Descripción de mercancía.
+4. Nombre del producto.
 5. Unidad de medida.
 6. Cantidad inicial.
 7. Compra.
@@ -62,14 +62,19 @@ controlado de productos. Los reportes principales son:
 12. Saldo / existencia.
 13. Costos.
 14. Número de declaración.
+15. Nombre del cliente.
+16. Total de la factura, repetido en cada línea de venta; vacío en los demás movimientos.
 
 Reglas:
 
 - `Compra`: cantidad de compras.
+- Una recepción original conserva su condición de compra aunque después sea origen de traslados.
+- Los lotes creados como destino de traslados internos se excluyen y las recepciones originales se consolidan por compra y producto.
 - `Venta`: cantidad de facturas, expresada positiva en su columna y restada del saldo.
 - `Comprobante`: cantidad documental; no afecta el saldo para evitar duplicar la salida con la factura.
 - `Ajuste`: cantidad firmada; positiva para entrada y negativa para salida.
 - `Nota de crédito`: devolución física de producto que incrementa inventario.
+- Las notas de crédito muestran juntos el número comercial y el CAI para facilitar su búsqueda.
 - `Saldo = Compra - Venta + Ajuste + Nota de crédito`.
 
 ## Ajuste inicial compensatorio
