@@ -149,6 +149,26 @@ Usan SQLite en memoria; los casos de listados requieren una base MySQL
 vacia y aislada en `ANULACION_TEST_MYSQL_DATABASE`, con nombre
 `profac_anulacion_<hex>_testing`. Con esa variable se recrean sus tablas.
 
+### Vencimiento de facturas desde prefacturas Expo
+
+La facturacion directa y el formulario corporativo conservan literalmente
+las fechas de la prefactura Expo, incluso si su vencimiento es anterior
+a la emision. No se vuelve a sumar el plazo aprobado o el del cliente.
+El tipo de pago se toma de la oferta vinculada: una seccion de credito
+vencida no se convierte en contado por tener cero dias restantes.
+Las ofertas antiguas sin tipo explicito mantienen la inferencia por fechas.
+
+Antes de confirmar la factura se comprueban las condiciones efectivamente
+guardadas; una diferencia revierte el guardado con un error. La auditoria
+de facturacion directa incluye las fechas y los dias usados. Esto no
+modifica automaticamente las facturas emitidas anteriormente.
+
+Pruebas: `php artisan test tests\Feature\ExpoFechasFacturaTest.php`.
+Requieren una base MySQL vacia y aislada en `EXPO_FECHAS_TEST_MYSQL_DATABASE`,
+con nombre `profac_expo_fechas_<hex>_testing`. Se recrean sus tablas y se
+prueba el guardado real de facturas sin mover inventario ni credito.
+Sin esa variable se omiten para no tocar la base de la aplicacion.
+
 ### Correo de codigos de autorizacion
 
 `POST /ventas/solicitud/codigo` envia el correo antes de confirmar el registro

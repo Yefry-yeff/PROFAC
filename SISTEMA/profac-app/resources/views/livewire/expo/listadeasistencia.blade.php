@@ -214,7 +214,7 @@
                             @endif
                         </div>
                         @else
-                        <div class="attendance-readonly"><i class="fa fa-lock mr-1"></i>Esta Expo está cerrada. La asistencia permanece disponible en modo de consulta.</div>
+                        <div class="attendance-readonly"><i class="fa fa-lock mr-1"></i>Esta Expo está cerrada. La asistencia permanece en consulta; los descuentos se pueden editar únicamente con permiso.</div>
                         @endif
 
                         <div class="attendance-actions">
@@ -277,10 +277,12 @@
                                         </td>
                                         <td class="text-center">
                                             <div class="attendance-row-actions">
-                                                @if($expoActiva)
+                                                @if($puedeEditarDescuentos)
                                                 <button type="button" wire:click="abrirDescuentos({{ $cliente->id }})" wire:loading.attr="disabled" class="attendance-discount-open" title="Configurar descuento por categoría para {{ $cliente->nombre }}"><i class="fa fa-sliders mr-1"></i>Descuento por categoría</button>
+                                                @endif
+                                                @if($expoActiva)
                                                 <button type="button" wire:click="eliminarCliente({{ $cliente->id }})" wire:loading.attr="disabled" onclick="return confirm('¿Eliminar este cliente de la asistencia?')" class="attendance-remove" title="Eliminar de asistencia" aria-label="Eliminar de asistencia"><i class="fa fa-trash"></i></button>
-                                                @else
+                                                @elseif(!$puedeEditarDescuentos)
                                                 <span class="badge badge-secondary"><i class="fa fa-lock mr-1"></i>Solo lectura</span>
                                                 @endif
                                             </div>
@@ -294,7 +296,7 @@
                         </table>
                     </div>
 
-                    @if($clienteDescuento)
+                    @if($clienteDescuento && $puedeEditarDescuentos)
                         <div class="attendance-modal-backdrop" wire:click.self="cerrarDescuentos" wire:key="descuentos-cliente-{{ $clienteDescuento->id }}">
                             <div class="attendance-modal" role="dialog" aria-modal="true" aria-labelledby="titulo-descuentos-categoria">
                                 <div class="attendance-modal-head">
@@ -363,4 +365,3 @@
     </div>
 
 </div>
-
