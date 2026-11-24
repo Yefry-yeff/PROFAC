@@ -118,6 +118,13 @@ class AnalisisDeNegocioTest extends TestCase
         $this->assertFalse(AnalisisDeNegocio::esModuloIntegrado());
     }
 
+    public function test_embedded_module_ignores_asset_load_errors_but_keeps_runtime_error_detection(): void
+    {
+        $this->view('layouts.partials.analisis-modulo')
+            ->assertSee("evento instanceof ErrorEvent", false)
+            ->assertSee("window.addEventListener('unhandledrejection'", false);
+    }
+
     public function test_administrator_can_access_all_business_reports_even_without_individual_permissions(): void
     {
         DB::table('users')->where('id', 1)->update(['rol_id' => 1]);

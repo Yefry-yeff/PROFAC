@@ -39,7 +39,9 @@
             try { return enviar.apply(this, args); }
             catch (e) { finalizar(true); throw e; }
         };
-        window.addEventListener('error', () => { error = true; }, true);
+        window.addEventListener('error', (evento) => {
+            if (evento instanceof ErrorEvent) error = true;
+        }, true);
         window.addEventListener('unhandledrejection', () => { error = true; });
         window.addEventListener('load', () => { cargado = true; comprobar(); }, { once: true });
     })();
