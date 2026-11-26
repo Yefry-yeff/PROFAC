@@ -450,6 +450,7 @@ class Translados extends Component
        try {
 
         $contadorTranslados = 0;
+        $posLogIds = [];
 
 
         $arrayTemporal = $request->arregloIdInputs;
@@ -461,6 +462,10 @@ class Translados extends Component
         $text2 = "<p>Los siguientes productos exceden la cantidad disponible para translado: <p><ul>";
 
         DB::beginTransaction();
+        if (\Illuminate\Support\Facades\Schema::hasTable('integration_runtime')) {
+            DB::table('integration_runtime')->where('id', 1)->lockForUpdate()->first();
+            app(\App\Services\PosIntegration\Settings::class)->reload();
+        }
 
         $trasladoID = new ModelTranslado();
         $trasladoID->comentario = $request->motivo ?? '';
@@ -505,25 +510,34 @@ class Translados extends Component
 
                     $unidadesLote = min($loteOrigen->cantidad_disponible, $unidadesPendientes);
 
-                $transladarBodega = new ModelRecibirBodega();
-                $transladarBodega->compra_id = $loteOrigen->compra_id;
-                $transladarBodega->producto_id = $loteOrigen->producto_id;
-                $transladarBodega->seccion_id = $idSeccion;
-                $transladarBodega->cantidad_compra_lote = $loteOrigen->cantidad_compra_lote;
-                $transladarBodega->cantidad_inicial_seccion = $unidadesLote;
-                $transladarBodega->cantidad_disponible = $unidadesLote;
-                $transladarBodega->fecha_recibido = now();
-                $transladarBodega->fecha_expiracion = $loteOrigen->fecha_expiracion;
-                $transladarBodega->estado_recibido = 4;
-                $transladarBodega->recibido_por = Auth::user()->id;
-                $transladarBodega->unidad_compra_id = $loteOrigen->unidad_compra_id;
-                $transladarBodega->unidades_compra = $loteOrigen->unidades_compra;
-                $transladarBodega->save();
+                $destinoPos = config('pos_integration.enabled') && (int) $idSeccion === 433;
+                if ($destinoPos && \Illuminate\Support\Facades\Schema::hasTable('integration_runtime')
+                    && !DB::table('integration_runtime')->where('id', 1)->value('bound_peer_instance_id')) {
+                    throw new \RuntimeException('Active el perfil y verifique la instancia POS antes de despachar.');
+                }
+                $destinoId = null;
+                if (!$destinoPos) {
+                    $transladarBodega = new ModelRecibirBodega();
+                    $transladarBodega->compra_id = $loteOrigen->compra_id;
+                    $transladarBodega->producto_id = $loteOrigen->producto_id;
+                    $transladarBodega->seccion_id = $idSeccion;
+                    $transladarBodega->cantidad_compra_lote = $loteOrigen->cantidad_compra_lote;
+                    $transladarBodega->cantidad_inicial_seccion = $unidadesLote;
+                    $transladarBodega->cantidad_disponible = $unidadesLote;
+                    $transladarBodega->fecha_recibido = now();
+                    $transladarBodega->fecha_expiracion = $loteOrigen->fecha_expiracion;
+                    $transladarBodega->estado_recibido = 4;
+                    $transladarBodega->recibido_por = Auth::user()->id;
+                    $transladarBodega->unidad_compra_id = $loteOrigen->unidad_compra_id;
+                    $transladarBodega->unidades_compra = $loteOrigen->unidades_compra;
+                    $transladarBodega->save();
+                    $destinoId = $transladarBodega->id;
+                }
 
 
                 $logTranslados = new ModelLogTranslados;
                 $logTranslados->origen = $loteOrigen->id;
-                $logTranslados->destino = $transladarBodega->id;
+                $logTranslados->destino = $destinoId;
                 $logTranslados->cantidad = $unidadesLote;
                 $logTranslados->unidad_medida_venta_id =  $unidadMedidaId;
                 $logTranslados->users_id= Auth::user()->id;
@@ -533,6 +547,9 @@ class Translados extends Component
                 $logTranslados->created_at = now();
                 $logTranslados->updated_at = now();
                 $logTranslados->save();
+                if ($destinoPos) {
+                    $posLogIds[] = $logTranslados->id;
+                }
 
 
                 $loteOrigen->cantidad_disponible -= $unidadesLote;
@@ -555,6 +572,7 @@ class Translados extends Component
         $updateCodeTrasnlado->codigo = date('Y')."-".$IDtraslado;
         $updateCodeTrasnlado->save();
 
+        app(\App\Services\PosIntegration\Outbox::class)->captureTransfer($IDtraslado, Auth::id(), $posLogIds);
         DB::commit();
 
         if($flagError){
@@ -581,13 +599,14 @@ class Translados extends Component
 
 
 
-       } catch (QueryException $e) {
+       } catch (\Throwable $e) {
         DB::rollback();
+        \Log::error('Error al registrar traslado', ['exception' => get_class($e)]);
         return response()->json([
             "text" => "Ha ocurrido un error, al intentar transladar el producto",
             "icon" => "error",
             "title"=>"Error!",
-            'error' => $e
+            'error' => 'No se pudo completar el traslado.'
         ], 402);
        }
     }
@@ -661,7 +680,7 @@ class Translados extends Component
                H.nombre as medida,
                CONCAT(F.nombre,' - ',D.descripcion)as origen,
 
-               (        select
+               COALESCE((        select
                CONCAT(E.nombre,' - ',C.descripcion)
                from translado F
                inner join log_translado A
@@ -674,7 +693,7 @@ class Translados extends Component
                on D.id = C.segmento_id
                inner join bodega E
                on E.id = D.bodega_id
-               where A.descripcion ='Translado de bodega' and B.id = AA.destino and F.id = ".$idTranslado.") as destino,
+               where A.descripcion ='Translado de bodega' and B.id = AA.destino and F.id = ".$idTranslado."), 'Sin destino local') as destino,
                AA.cantidad
                from translado I
                inner join log_translado AA
@@ -699,7 +718,7 @@ class Translados extends Component
                //dd($idTranslado);
         $datos = DB::SELECTONE("
         select
-        CONCAT(A.origen,A.destino,'-' ,A.id) as codigo,
+        CONCAT(A.origen,COALESCE(A.destino, 'SIN DESTINO'),'-' ,A.id) as codigo,
         DATE_FORMAT(tr.created_at,'%d/%m/%Y') as fecha,
         B.name,
         A.descripcion,

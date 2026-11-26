@@ -76,6 +76,31 @@ $('#tbl_lotes_listar').DataTable({
 
 });
 
+if (document.getElementById('tbl_paperland_disponibilidad')) {
+    $('#tbl_paperland_disponibilidad').DataTable({
+        language: { url: '/js/plugins/dataTables/i18n/Spanish.json' },
+        pageLength: 10,
+        responsive: true,
+        dom: '<"html5buttons"B>lTfgitp',
+        buttons: [{
+            extend: 'excelHtml5',
+            title: 'Cantidad en Paperland - Solo consulta - ' + codigoProducto,
+            filename: 'Paperland_Disponibilidad_Producto_' + codigoProducto,
+            text: '<i class="fa-solid fa-file-excel"></i> Exportar a Excel',
+            className: 'btn btn-success btn-sm'
+        }]
+    });
+}
+
+$('#inventario-bodegas-link, #inventario-paperland-link').on('shown.bs.tab', function () {
+    var enBodegas = this.id === 'inventario-bodegas-link';
+    $('#total_lotes').toggle(enBodegas);
+    var tabla = enBodegas ? '#tbl_lotes_listar' : '#tbl_paperland_disponibilidad';
+    var api = $(tabla).DataTable();
+    api.columns.adjust();
+    if (api.responsive) api.responsive.recalc();
+});
+
 var tablaUnidades = document.getElementById('tbl_unidades_listar');
 var columnasUnidades = [{ data: 'contador' }, { data: 'nombre' }, { data: 'unidad_venta' }];
 if (tablaUnidades.dataset.soloLectura !== '1') {

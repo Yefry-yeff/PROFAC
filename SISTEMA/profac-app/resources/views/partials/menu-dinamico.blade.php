@@ -2,6 +2,12 @@
 @php
     use App\Http\Controllers\MenuHelper;
     $menusUsuario = MenuHelper::getMenusUsuario();
+    $menusConfiguracion = $menusUsuario->filter(fn ($menu) =>
+        in_array(mb_strtolower(trim($menu->nombre_menu)), ['configuración', 'configuracion'], true)
+    );
+    $submenusConfiguracion = $menusConfiguracion->flatMap(fn ($menu) => $menu->submenus);
+    $menusUsuario = $menusUsuario->diff($menusConfiguracion);
+    $esAdministrador = Auth::user()->esAdministrador();
 @endphp
 
 @foreach($menusUsuario as $menu)
@@ -36,10 +42,12 @@
     </li>
 @endforeach
 
-{{-- ── Sección Configuración: solo para Administrador (principal o adicional) ── --}}
-@if(Auth::user()->esAdministrador())
+@if($esAdministrador || $submenusConfiguracion->isNotEmpty())
 @php
-    $configActivo = request()->is('configuracion/*');
+    $configActivo = request()->is('configuracion/*') || $submenusConfiguracion->contains(function ($submenu) {
+        $url = ltrim($submenu->url, '/');
+        return request()->is($url) || request()->is($url . '/*');
+    });
 @endphp
 <li class="{{ $configActivo ? 'active' : '' }}">
     <a href="#">
@@ -48,6 +56,7 @@
         <span class="fa arrow"></span>
     </a>
     <ul class="nav nav-second-level {{ $configActivo ? 'in' : '' }}">
+        @if($esAdministrador)
         <li class="{{ request()->routeIs('configuracion.notificaciones.flujo') ? 'active' : '' }}">
             <a href="{{ route('configuracion.notificaciones.flujo') }}" style="color:#ffffff;">
                 <i class="fa fa-bell"></i> Notificaciones
@@ -58,6 +67,21 @@
                 <i class="fa fa-key"></i> Códigos de Autorización
             </a>
         </li>
+        @endif
+        @foreach($submenusConfiguracion as $submenu)
+            @php
+                $url = ltrim($submenu->url, '/');
+                $submenuActivo = request()->is($url) || request()->is($url . '/*');
+            @endphp
+            <li class="{{ $submenuActivo ? 'active' : '' }}">
+                <a href="/{{ $submenu->url }}" style="color:#ffffff;">
+                    @if($submenu->icono)
+                        <i class="{{ $submenu->icono }}"></i>
+                    @endif
+                    {{ $submenu->nombre }}
+                </a>
+            </li>
+        @endforeach
     </ul>
 </li>
 @endif

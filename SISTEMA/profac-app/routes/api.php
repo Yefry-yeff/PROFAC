@@ -17,3 +17,10 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
+
+Route::middleware(\App\Http\Middleware\AuthenticatePosIntegration::class)->prefix('pos-integration')->group(function () {
+    Route::post('/events', [\App\Http\Controllers\PosIntegrationController::class, 'event']);
+    Route::get('/catalog/{entity}', [\App\Http\Controllers\PosIntegrationController::class, 'catalog']);
+});
+Route::middleware(\App\Http\Middleware\AuthenticatePosIntegration::class.':health')
+    ->get('/pos-integration/health', [\App\Http\Controllers\PosIntegrationController::class, 'health']);

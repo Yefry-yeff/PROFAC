@@ -190,6 +190,17 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 });
 
 Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(function () {
+    Route::get('/configuracion/api-paperland', [\App\Http\Controllers\PaperlandSettingsController::class, 'index']);
+    Route::post('/configuracion/api-paperland/guardar', [\App\Http\Controllers\PaperlandSettingsController::class, 'save']);
+    Route::post('/configuracion/api-paperland/generar-clave', [\App\Http\Controllers\PaperlandSettingsController::class, 'generate']);
+    Route::post('/configuracion/api-paperland/probar', [\App\Http\Controllers\PaperlandSettingsController::class, 'testConnection']);
+    Route::post('/configuracion/api-paperland/perfiles', [\App\Http\Controllers\PaperlandConnectionsController::class, 'save']);
+    Route::post('/configuracion/api-paperland/perfiles/probar', [\App\Http\Controllers\PaperlandConnectionsController::class, 'testProfile']);
+    Route::post('/configuracion/api-paperland/perfiles/{id}/activar', [\App\Http\Controllers\PaperlandConnectionsController::class, 'activate']);
+    Route::post('/configuracion/api-paperland/perfiles/{id}/eliminar', [\App\Http\Controllers\PaperlandConnectionsController::class, 'delete']);
+    Route::post('/configuracion/api-paperland/desactivar', [\App\Http\Controllers\PaperlandConnectionsController::class, 'deactivate']);
+    Route::post('/configuracion/api-paperland/control/{action}', [\App\Http\Controllers\PaperlandConnectionsController::class, 'control']);
+    Route::get('/configuracion/api-paperland/servicio', [\App\Http\Controllers\PaperlandConnectionsController::class, 'systemd']);
 
     //---------------------------------------FLUJO DE VENTAS-------------------------------//
     Route::get('/flujo/ventas', \App\Livewire\Flujo\Ventas::class)->name('flujo.ventas');
@@ -794,6 +805,12 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::post('/translados/obtener/listado',      [HistorialTranslados::class, 'historialTranslados']);
     Route::post('/translados/obtener/por-traslado', [HistorialTranslados::class, 'historialPorTraslado']);
     Route::get('/translados/bodegas',               [HistorialTranslados::class, 'listarBodegas']);
+    Route::get('/translados/pos', [\App\Http\Controllers\PosIntegrationHistoryController::class, 'index']);
+    Route::get('/translados/pos/{uuid}', [\App\Http\Controllers\PosIntegrationHistoryController::class, 'detail']);
+    Route::get('/translados/pos/{uuid}/imprimir', [\App\Http\Controllers\PosIntegrationHistoryController::class, 'print']);
+    Route::post('/translados/pos/{uuid}/aprobar', [\App\Http\Controllers\PosIntegrationHistoryController::class, 'approve']);
+    Route::post('/translados/pos/{uuid}/rechazar', [\App\Http\Controllers\PosIntegrationHistoryController::class, 'reject']);
+    Route::post('/translados/pos/{uuid}/retorno', [\App\Http\Controllers\PosIntegrationHistoryController::class, 'confirmReturn']);
 
 
     //---------------------------------------------------------------------VENTAS--------------------------------------------------------------------------------//

@@ -554,6 +554,20 @@
                 <span><i class="fa fa-cubes mr-2"></i> Disponibilidad de Producto</span>
                 <span class="stock-total-chip" id="total_lotes" style="font-size:.78rem; padding:4px 14px;"></span>
             </div>
+            <ul class="nav nav-tabs px-3 pt-3" role="tablist">
+                <li class="nav-item">
+                    <a class="nav-link active" id="inventario-bodegas-link" data-toggle="tab" href="#inventario-bodegas"
+                       role="tab" aria-controls="inventario-bodegas" aria-selected="true">Inventario en bodegas</a>
+                </li>
+                @if(config('pos_integration.enabled'))
+                <li class="nav-item">
+                    <a class="nav-link" id="inventario-paperland-link" data-toggle="tab" href="#inventario-paperland"
+                       role="tab" aria-controls="inventario-paperland" aria-selected="false">Inventario en Paperland</a>
+                </li>
+                @endif
+            </ul>
+            <div class="tab-content">
+            <div class="tab-pane show active" id="inventario-bodegas" role="tabpanel" aria-labelledby="inventario-bodegas-link">
             <div class="table-wrap">
                 <div class="table-responsive">
                     <table id="tbl_lotes_listar" class="table table-hover" style="width:100%"
@@ -623,6 +637,13 @@
                         </tbody>
                     </table>
                 </div>
+            </div>
+            </div>
+            @if(config('pos_integration.enabled'))
+            <div class="tab-pane" id="inventario-paperland" role="tabpanel" aria-labelledby="inventario-paperland-link">
+                @include('pos-integration.product-availability')
+            </div>
+            @endif
             </div>
         </div>
 

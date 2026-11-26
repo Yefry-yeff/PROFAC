@@ -18,6 +18,7 @@ use Auth;
 use App\Http\Controllers\MenuHelper;
 use App\Models\SubMenu;
 use Livewire\Attributes\Locked;
+use App\Services\PosIntegration\InventoryMirror;
 
 
 class DetalleProducto extends Component
@@ -279,7 +280,8 @@ class DetalleProducto extends Component
         $puedeEditar = $this->puedeEditar;
         $puedeSubirFoto = $this->puedeSubirFoto;
         $puedeEditarUnidades = $this->puedeEditarUnidades;
-        return view('livewire.inventario.detalle-producto',  compact('producto', 'precios', 'imagenes', 'lotes', 'categorias', 'unidades', 'marcas', 'esAdmin', 'soloLectura', 'puedeEditar', 'puedeSubirFoto', 'puedeEditarUnidades'));
+        $inventarioPaperland = app(InventoryMirror::class)->forProduct((int) $id);
+        return view('livewire.inventario.detalle-producto',  compact('producto', 'precios', 'imagenes', 'lotes', 'categorias', 'unidades', 'marcas', 'esAdmin', 'soloLectura', 'puedeEditar', 'puedeSubirFoto', 'puedeEditarUnidades', 'inventarioPaperland'));
     }
 
     private function prefacturaTieneReservaCompleta(int $prefacturaId, array &$cache): bool
