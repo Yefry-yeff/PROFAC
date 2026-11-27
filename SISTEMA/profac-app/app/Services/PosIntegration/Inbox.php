@@ -101,21 +101,54 @@ class Inbox
         }
         $transfer = DB::table('pos_integration_transfers')->where('transfer_uuid', $data['transfer_uuid'])
             ->where('direction', 'out')->lockForUpdate()->first();
-        abort_unless($transfer && $transfer->status === 'dispatched', 409, 'Unknown or finalized transfer');
+        abort_unless($transfer, 409, 'Unknown transfer');
+        $status = 'rejected';
         if ($event['type'] === 'transfer.received') {
+            $sequenced = isset($data['receipt_version']);
+            abort_unless(in_array($transfer->status, $sequenced ? ['dispatched', 'partial', 'received'] : ['dispatched'], true), 409, 'Finalized transfer');
+            if ($sequenced) {
+                abort_unless((int) $data['receipt_version'] === count($data['allocations'])
+                    && count(array_unique(array_column($data['allocations'], 'lot_id'))) === count($data['allocations']), 422, 'Invalid receipt version or repeated lot');
+            }
             $lines = DB::table('pos_integration_lines')->where('transfer_id', $transfer->id)->get()->keyBy('line_uuid');
             $totals = [];
             foreach ($data['allocations'] as $allocation) {
-                abort_unless(isset($lines[$allocation['line_uuid']]) && $allocation['quantity_base'] % $allocation['factor'] === 0, 422, 'Invalid allocation');
+                abort_unless(isset($lines[$allocation['line_uuid']]), 422, 'Invalid allocation');
+                if (isset($allocation['quantity_stock'], $allocation['quantity_base_pos'])) {
+                    abort_unless((int) $allocation['quantity_base_pos'] === (int) $allocation['quantity_stock'] * (int) $allocation['factor'], 422, 'Invalid POS stock conversion');
+                } else {
+                    abort_unless($allocation['quantity_base'] % $allocation['factor'] === 0, 422, 'Invalid allocation');
+                }
                 $totals[$allocation['line_uuid']] = ($totals[$allocation['line_uuid']] ?? 0) + $allocation['quantity_base'];
             }
+            $fullyReceived = true;
             foreach ($lines as $line) {
                 $snapshot = json_decode($line->snapshot, true);
-                abort_unless(($totals[$line->line_uuid] ?? 0) === $snapshot['quantity_base'], 422, 'Incomplete allocation');
+                $quantity = $totals[$line->line_uuid] ?? 0;
+                abort_unless($quantity <= $snapshot['quantity_base'], 422, 'Excess allocation');
+                $fullyReceived = $fullyReceived && $quantity === $snapshot['quantity_base'];
             }
+            $complete = (bool) ($data['complete'] ?? true);
+            abort_unless($complete === $fullyReceived, 422, 'Incorrect receipt completion');
+            if ($sequenced) {
+                $previous = DB::table('pos_integration_movements')->where('transfer_id', $transfer->id)
+                    ->where('type', 'transfer.received')->orderByDesc('id')->value('snapshot');
+                if ($previous) {
+                    $oldAllocations = json_decode($previous, true, 512, JSON_THROW_ON_ERROR)['allocations'];
+                    if (count($data['allocations']) <= count($oldAllocations)) {
+                        abort_unless(array_slice($oldAllocations, 0, count($data['allocations'])) === $data['allocations'], 409, 'Conflicting receipt progress');
+
+                        return;
+                    }
+                    abort_unless(array_slice($data['allocations'], 0, count($oldAllocations)) === $oldAllocations, 409, 'Receipt progress cannot replace previous distributions');
+                }
+            }
+            $status = $complete ? 'received' : 'partial';
+        } else {
+            abort_unless($transfer->status === 'dispatched', 409, 'Finalized or partially received transfer');
         }
         DB::table('pos_integration_transfers')->where('id', $transfer->id)->update([
-            'status' => $event['type'] === 'transfer.received' ? 'received' : 'rejected',
+            'status' => $status,
             'reason' => $data['reason'] ?? null, 'updated_at' => $now,
         ]);
         $this->movement($transfer->id, $event);

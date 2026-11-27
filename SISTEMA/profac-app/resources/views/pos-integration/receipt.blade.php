@@ -37,24 +37,24 @@
 </head>
 <body>
     @php
-        $labels = ['pending' => 'Pendiente de recepción', 'dispatched' => 'Enviado', 'received' => 'Recibido',
+        $labels =         ['pending' => 'Pendiente de recepción', 'dispatched' => 'Enviado', 'partial' => 'Parcialmente recibido', 'received' => 'Recibido',
             'rejected' => 'Rechazado', 'returned' => 'Devuelto'];
         $linesByUuid = collect($data['lines'])->keyBy('line_uuid');
     @endphp
-    <img src="{{ public_path('img/membrete/Logo3.png') }}" class="letterhead" alt="Profac">
+    <img src="{{ public_path('img/membrete/Logo3.png') }}" class="letterhead" alt="Distribuciones Valencia">
     <div class="header">
         <h1>Comprobante de traslado</h1>
-        <p class="subtitle">Paperland → Profac</p>
+        <p class="subtitle">Paperland → Distribuciones Valencia</p>
         <span class="status {{ $transfer->status === 'pending' ? 'status-pending' : ($transfer->status === 'received' ? 'status-received' : ($transfer->status === 'rejected' ? 'status-rejected' : '')) }}">{{ $labels[$transfer->status] ?? $transfer->status }}</span>
     </div>
     <table class="metadata">
         <tr><td colspan="2"><strong>Referencia:</strong> {{ $transfer->reference }}</td></tr>
-        <tr><td><strong>Origen:</strong> Paperland</td><td><strong>Destino:</strong> Profac</td></tr>
+        <tr><td><strong>Origen:</strong> Paperland</td><td><strong>Destino:</strong> Distribuciones Valencia</td></tr>
         <tr><td><strong>Fecha de registro:</strong> {{ \Carbon\Carbon::parse($transfer->created_at)->format('d/m/Y H:i') }}</td><td><strong>Productos:</strong> {{ count($data['lines']) }}</td></tr>
         <tr><td colspan="2" class="identifier"><strong>UUID:</strong> {{ $transfer->transfer_uuid }}</td></tr>
     </table>
     <table class="products">
-        <thead><tr><th class="code">Cód. Paperland</th><th class="code">Cód. Profac</th><th>Producto</th><th class="quantity">Unidades base</th><th class="lot">Lote origen</th><th class="expiration">Vencimiento</th></tr></thead>
+        <thead><tr><th class="code">Cód. Paperland</th><th class="code">Cód. Distribuciones Valencia</th><th>Producto</th><th class="quantity">Unidades base</th><th class="lot">Lote origen</th><th class="expiration">Vencimiento</th></tr></thead>
         <tbody>
             @foreach($data['lines'] as $line)
                 <tr>
@@ -72,7 +72,7 @@
     @if(!empty($data['comment']))<div class="observation"><strong>Comentario:</strong> {{ $data['comment'] }}</div>@endif
     @foreach($movements as $movement)
         @if($movement->type === 'transfer.received')
-            <h2>Distribución recibida en Profac</h2>
+            <h2>Distribución recibida en Distribuciones Valencia</h2>
             <table class="products">
                 <thead><tr><th>Producto</th><th>Lote destino</th><th>Presentación</th><th>Factor</th><th>Unidades base</th><th>Sección</th></tr></thead>
                 <tbody>
@@ -88,7 +88,7 @@
         @endif
     @endforeach
     @if($transfer->reason)<div class="observation"><strong>Motivo del rechazo:</strong> {{ $transfer->reason }}</div>@endif
-    <table class="signatures"><tr><td><div class="signature-line">Entrega · Paperland</div></td><td><div class="signature-line">Recepción · Profac</div></td></tr></table>
+    <table class="signatures"><tr><td><div class="signature-line">Entrega · Paperland</div></td><td><div class="signature-line">Recepción · Distribuciones Valencia</div></td></tr></table>
     <p class="note">Documento de movimiento de inventario. No es una factura de compra o venta.<br>
         La impresión no confirma la recepción ni modifica existencias.</p>
 </body>

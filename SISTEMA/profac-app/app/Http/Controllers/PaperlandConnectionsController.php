@@ -7,6 +7,7 @@ use App\Services\PosIntegration\Coordinator;
 use App\Services\PosIntegration\Settings;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -37,10 +38,30 @@ class PaperlandConnectionsController extends Controller
         $inboxPending = DB::table('pos_integration_inbox')->where('status', 'pending')->count();
         $lastOutboxError = DB::table('pos_integration_outbox')->whereNotNull('error')->orderByDesc('updated_at')->value('error');
         $lastInboxError = DB::table('pos_integration_inbox')->whereNotNull('error')->orderByDesc('updated_at')->value('error');
+        $active = $profiles->firstWhere('active_slot', 1);
+        $peerStatus = null;
+        if ($active && $active->peer_instance_id) {
+            $peerStatus = Cache::remember('paperland-peer-health-'.$active->id, 5, function () use ($active) {
+                try {
+                    $secret = DB::table('integration_connections')->where('id', $active->id)->value('secret');
+                    $peer = app(Connections::class)->probe($active->peer_url, Crypt::decryptString($secret));
+                    abort_unless($peer['instance_id'] === $active->peer_instance_id, 409, 'La instancia POS no coincide con la conexion guardada.');
+                    return $peer;
+                } catch (\Illuminate\Contracts\Encryption\DecryptException|\Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $e) {
+                    \Log::warning('Integracion: estado remoto no disponible', ['profile_id' => $active->id, 'exception' => get_class($e)]);
+                    return ['error' => 'No se pudo verificar el estado del POS. Use Probar conexion.'];
+                }
+            });
+        }
+        if ($request->expectsJson()) {
+            return $this->json(['online' => Coordinator::online($runtime), 'worker_state' => Coordinator::state($runtime),
+                'peer' => $peerStatus, 'connection_id' => $settings->connection_id, 'enabled' => (bool) $settings->enabled]);
+        }
         return response()->view('pos-integration.connections', [
             'profiles' => $profiles, 'settings' => $settings, 'runtime' => $runtime, 'operations' => $operations,
             'online' => Coordinator::online($runtime), 'workerState' => Coordinator::state($runtime),
             'outbox' => $outbox, 'inboxPending' => $inboxPending, 'lastOutboxError' => $lastOutboxError, 'lastInboxError' => $lastInboxError,
+            'peerStatus' => $peerStatus,
         ])->header('Cache-Control', 'no-store, private');
     }
 
@@ -168,6 +189,16 @@ class PaperlandConnectionsController extends Controller
     {
         $this->authorizeSettings($request);
         abort_unless(in_array($action, ['start', 'pause', 'workonce'], true), 404);
+        $input = $request->validate(['profile_id' => 'nullable|integer|min:1']);
+        if ($action === 'start') {
+            $settings = DB::table('integration_settings')->where('id', 1)->first();
+            $runtime = DB::table('integration_runtime')->where('id', 1)->first();
+            $profile = $settings?->connection_id ? DB::table('integration_connections')->where('id', $settings->connection_id)->where('active_slot', 1)->first() : null;
+            abort_unless($settings?->enabled && $profile && $runtime?->bound_peer_instance_id
+                && $profile->peer_instance_id === $runtime->bound_peer_instance_id, 409, 'Verifique y active el perfil antes de iniciar.');
+            abort_if(isset($input['profile_id']) && (int) $input['profile_id'] !== (int) $profile->id, 409, 'El perfil ya no es la conexion activa. Actualice la pantalla.');
+            app(\App\Services\PosIntegration\LocalSupervisor::class)->ensureOnline();
+        }
         DB::transaction(function () use ($request, $action) {
             $runtime = DB::table('integration_runtime')->where('id', 1)->lockForUpdate()->first();
             $settings = DB::table('integration_settings')->where('id', 1)->lockForUpdate()->first();
@@ -177,6 +208,11 @@ class PaperlandConnectionsController extends Controller
                 $profile = DB::table('integration_connections')->where('id', $settings->connection_id)->where('active_slot', 1)->first();
                 abort_unless($profile && $runtime->bound_peer_instance_id && $profile->peer_instance_id === $runtime->bound_peer_instance_id,
                     409, 'Verifique y active el perfil para vincular la instancia POS.');
+            }
+            if ($action === 'start') {
+                abort_unless(Coordinator::online($runtime), 409, 'El supervisor dejo de responder. No se inicio el worker.');
+                abort_if($request->filled('profile_id') && (int) $request->input('profile_id') !== (int) $settings->connection_id,
+                    409, 'La conexion activa cambio durante el inicio. Actualice la pantalla.');
             }
             if ($action === 'workonce') {
                 abort_if($runtime->worker_busy || DB::table('integration_operations')->whereIn('status', ['pending', 'running'])->exists(),
@@ -195,7 +231,7 @@ class PaperlandConnectionsController extends Controller
         \Log::info('Integración POS: control solicitado.', ['actor_id' => $request->user()->id, 'action' => $action]);
         return $this->json(['message' => $action === 'pause'
             ? 'Pausa solicitada; la ronda en curso termina antes de detenerse.'
-            : ($action === 'start' ? 'Inicio solicitado al coordinador.' : 'Ronda encolada.')]);
+            : ($action === 'start' ? 'Supervisor en linea. Procesamiento automatico activado; no necesita ejecutar rondas manuales.' : 'Ronda encolada.')]);
     }
 
     public function systemd(Request $request)

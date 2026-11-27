@@ -40,7 +40,7 @@ class Connections
     public function pending(): bool
     {
         return DB::table('integration_operations')->whereIn('status', ['pending', 'running'])->exists()
-            || DB::table('pos_integration_transfers')->whereIn('status', ['pending', 'dispatched', 'rejected'])->exists()
+            || DB::table('pos_integration_transfers')->whereIn('status',             ['pending', 'dispatched', 'partial', 'rejected'])->exists()
             || DB::table('pos_integration_inbox')->where('status', 'pending')->exists()
             || DB::table('pos_integration_outbox')->whereIn('status', ['pending', 'failed'])->exists();
     }

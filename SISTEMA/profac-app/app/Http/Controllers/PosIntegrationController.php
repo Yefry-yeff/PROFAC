@@ -94,6 +94,8 @@ class PosIntegrationController extends Controller
                 break;
             case 'transfer.received':
                 $rules += [
+                    'data.complete' => 'required_with:data.receipt_version|boolean',
+                    'data.receipt_version' => 'required_with:data.complete|integer|min:1|max:200',
                     'data.transfer_uuid' => 'required|uuid',
                     'data.actor_id' => 'nullable|integer|min:1',
                     'data.allocations' => 'required|array|min:1',
@@ -102,6 +104,8 @@ class PosIntegrationController extends Controller
                     'data.allocations.*.presentation_id' => 'required|integer|min:1',
                     'data.allocations.*.factor' => 'required|integer|min:1',
                     'data.allocations.*.quantity_base' => 'required|integer|min:1',
+                    'data.allocations.*.quantity_stock' => 'required_with:data.allocations.*.quantity_base_pos|integer|min:1|max:2147483647',
+                    'data.allocations.*.quantity_base_pos' => 'required_with:data.allocations.*.quantity_stock|integer|min:1|max:2147483647',
                     'data.allocations.*.seccion_id' => 'required|integer|min:1',
                 ];
                 break;

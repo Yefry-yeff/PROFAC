@@ -366,7 +366,13 @@ class PosIntegrationIsolatedTest extends TestCase
         $this->assertSame('HTTP 409', $row->error);
     }
 
-    public function test_dispatch_to_pos_is_in_transit_and_received_event_does_not_change_stock(): void
+    public static function receivedStockModes(): array
+    {
+        return ['legacy' => [false, false], 'manual set conversion' => [true, false], 'partial manual reception' => [true, true]];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('receivedStockModes')]
+    public function test_dispatch_to_pos_is_in_transit_and_received_event_does_not_change_stock(bool $manual, bool $partial): void
     {
         DB::table('producto')->where('id', 10)->update(['costo_promedio' => 3.25]);
         DB::table('recibido_bodega')->insert([
@@ -404,10 +410,50 @@ class PosIntegrationIsolatedTest extends TestCase
         $this->assertSame(12, $line['quantity_base']);
         $received = $this->event('transfer.received', ['transfer_uuid' => $event['data']['transfer_uuid'], 'actor_id' => 8,
             'allocations' => [['line_uuid' => $line['line_uuid'], 'lot_id' => 99, 'presentation_id' => 3,
-                'factor' => 12, 'quantity_base' => 12, 'seccion_id' => 4]]]);
+                'factor' => $manual ? 5 : 12, 'quantity_base' => 12, 'seccion_id' => 4]]]);
+        if ($manual) {
+            $received['data']['allocations'][0]['quantity_stock'] = 5;
+            $received['data']['allocations'][0]['quantity_base_pos'] = 24;
+            $this->sendEvent($received)->assertStatus(422);
+            $this->assertSame('dispatched', DB::table('pos_integration_transfers')->value('status'));
+            unset($received['data']['allocations'][0]['quantity_base_pos']);
+            $this->sendEvent($received)->assertStatus(422);
+            $received['data']['allocations'][0]['quantity_base_pos'] = 25;
+            $received['data']['allocations'][0]['quantity_base'] = 11;
+            $this->sendEvent($received)->assertStatus(422);
+            $received['data']['allocations'][0]['quantity_base'] = 12;
+        }
+        if ($partial) {
+            $received['data']['allocations'][0]['quantity_base'] = 4;
+            $received['data']['complete'] = false;
+            $received['data']['receipt_version'] = 1;
+            $this->sendEvent($received)->assertOk();
+            $this->sendEvent($received)->assertOk()->assertJsonPath('status', 'duplicate');
+            $this->assertSame('partial', DB::table('pos_integration_transfers')->value('status'));
+            $this->sendEvent($this->event('transfer.rejected', [
+                'transfer_uuid' => $event['data']['transfer_uuid'], 'reason' => 'Reject after partial receipt',
+            ]))->assertStatus(409);
+            $earlier = $received['data'];
+            $received = $this->event('transfer.received', $earlier);
+            $received['data']['allocations'][] = [
+                'line_uuid' => $line['line_uuid'], 'lot_id' => 100, 'presentation_id' => 3,
+                'factor' => 5, 'quantity_base' => 8, 'quantity_stock' => 6, 'quantity_base_pos' => 30, 'seccion_id' => 4,
+            ];
+            $received['data']['complete'] = true;
+            $received['data']['receipt_version'] = 2;
+            $conflicting = $received;
+            $conflicting['data']['allocations'][0]['quantity_base'] = 5;
+            $conflicting['data']['allocations'][1]['quantity_base'] = 7;
+            $this->sendEvent($conflicting)->assertStatus(409);
+        }
         $this->sendEvent($received)->assertOk();
         $this->sendEvent($received)->assertOk()->assertJsonPath('status', 'duplicate');
         $this->assertSame('received', DB::table('pos_integration_transfers')->value('status'));
+        if ($partial) {
+            $this->sendEvent($this->event('transfer.received', $earlier))->assertOk();
+            $this->assertSame('received', DB::table('pos_integration_transfers')->value('status'));
+            $this->assertSame(2, DB::table('pos_integration_movements')->where('type', 'transfer.received')->count());
+        }
         $this->assertSame(12, DB::table('recibido_bodega')->sum('cantidad_disponible'));
         $this->assertSame(0, DB::table('recibido_bodega')->where('seccion_id', 433)->count());
     }
@@ -554,12 +600,14 @@ class PosIntegrationIsolatedTest extends TestCase
         $this->assertEqualsWithDelta(612, (float) $box[1], .01);
         $this->assertEqualsWithDelta(792, (float) $box[2], .01);
         $html = view('pos-integration.receipt', $viewData)->render();
-        foreach (['Paperland → Profac', 'Pendiente de recepción', $data['reference'], $data['transfer_uuid'],
-            'Cód. Paperland', 'Cód. Profac', 'Artículo', 'Total unidades base: 25', 'Entrega · Paperland', 'Recepción · Profac'] as $text) {
+        foreach (['Paperland → Distribuciones Valencia', 'Pendiente de recepción', $data['reference'], $data['transfer_uuid'],
+            'Cód. Paperland', 'Cód. Distribuciones Valencia', 'Artículo', 'Total unidades base: 25', 'Entrega · Paperland', 'Recepción · Distribuciones Valencia',
+            'alt="Distribuciones Valencia"'] as $text) {
             $this->assertStringContainsString($text, $html);
         }
         $this->assertStringNotContainsString('POS hacia PROFAC', $html);
-        $this->assertStringNotContainsString('Distribución recibida en Profac', $html);
+        $this->assertStringNotContainsString('Distribución recibida en Distribuciones Valencia', $html);
+        $this->assertDoesNotMatchRegularExpression('/\bprofac\b/i', strip_tags($html));
         $this->assertDatabaseHas('pos_integration_transfers', ['transfer_uuid' => $data['transfer_uuid'], 'status' => 'pending']);
         $this->assertSame(0, DB::table('recibido_bodega')->count());
         $this->assertSame($initialEvents, DB::table('pos_integration_outbox')->count());
@@ -591,7 +639,8 @@ class PosIntegrationIsolatedTest extends TestCase
         $url = '/translados/pos/'.$data['transfer_uuid'].'/imprimir';
         $this->get($url)->assertOk()->assertHeader('Content-Type', 'application/pdf');
         $html = view('pos-integration.receipt', $viewData)->render();
-        $this->assertStringContainsString('Distribución recibida en Profac', $html);
+        $this->assertStringContainsString('Distribución recibida en Distribuciones Valencia', $html);
+        $this->assertDoesNotMatchRegularExpression('/\bprofac\b/i', strip_tags($html));
         $this->assertStringContainsString('Recibido', $html);
         $this->assertStringContainsString('<td>Artículo</td>', $html);
         $this->assertStringContainsString('<td>100</td>', $html);
@@ -1012,6 +1061,59 @@ class PosIntegrationIsolatedTest extends TestCase
             ->assertSee('pos-integration:manage')->assertSee('KillMode=mixed')->assertSee('User=www-data');
         $this->postJson('/configuracion/api-paperland/control/start')->assertStatus(409);
         $this->postJson('/configuracion/api-paperland/control/shell')->assertNotFound();
+    }
+
+    public function test_start_worker_requires_live_supervisor_on_vps_and_rejects_wrong_profile(): void
+    {
+        $this->installProfiles();
+        $allowed = true; $this->settingsUser($allowed);
+        $this->postJson('/configuracion/api-paperland/perfiles', ['id' => 1, 'name' => 'Local',
+            'peer_url' => 'http://pos.test', 'store_id' => 1, 'secret' => str_repeat('k', 32)])->assertOk();
+        Http::fake(['*' => Http::response($this->peerHealth((string) Str::uuid()), 200)]);
+        $this->postJson('/configuracion/api-paperland/perfiles/1/activar')->assertOk();
+        config(['app.env' => 'production']);
+        $this->postJson('/configuracion/api-paperland/control/start', ['profile_id' => 1])->assertUnprocessable();
+        $this->assertFalse((bool) DB::table('integration_runtime')->value('worker_requested'));
+        $coordinator = app(\App\Services\PosIntegration\Coordinator::class);
+        $token = (string) Str::uuid();
+        $this->assertTrue($coordinator->acquire($token));
+        $this->postJson('/configuracion/api-paperland/control/start', ['profile_id' => 2])->assertStatus(409);
+        $this->assertFalse((bool) DB::table('integration_runtime')->value('worker_requested'));
+        $this->postJson('/configuracion/api-paperland/control/start', ['profile_id' => 1])->assertOk();
+        $this->assertTrue((bool) DB::table('integration_runtime')->value('worker_requested'));
+        $this->postJson('/configuracion/api-paperland/control/pause')->assertOk();
+        $coordinator->release($token);
+    }
+
+    public function test_local_supervisor_launch_is_idempotent_and_not_allowed_on_vps(): void
+    {
+        $supervisor = new class extends \App\Services\PosIntegration\LocalSupervisor {
+            public bool $started = false;
+            public int $launches = 0;
+            protected function online(): bool { return $this->started; }
+            protected function launch(): void { $this->launches++; $this->started = true; }
+        };
+        config(['app.env' => 'production', 'cache.default' => 'array']);
+        $this->app->instance('env', 'production');
+        try {
+            $supervisor->ensureOnline();
+            $this->fail('Un VPS sin supervisor no debe confirmar el inicio.');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $this->assertSame(0, $supervisor->launches);
+        }
+        if (PHP_OS_FAMILY === 'Windows') {
+            config(['app.env' => 'local']);
+            $this->app->instance('env', 'local');
+            $supervisor->ensureOnline();
+            $supervisor->ensureOnline();
+            $this->assertSame(1, $supervisor->launches);
+        }
+        $supervisor->started = true;
+        config(['app.env' => 'production']);
+        $this->app->instance('env', 'production');
+        $before = $supervisor->launches;
+        $supervisor->ensureOnline();
+        $this->assertSame($before, $supervisor->launches);
     }
 
     public function test_environment_fallback_only_when_settings_row_is_absent(): void

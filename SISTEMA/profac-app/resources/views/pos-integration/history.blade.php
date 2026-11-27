@@ -46,7 +46,7 @@ $(function () {
         return link;
     };
     const statusBadge = status => {
-        const labels = {pending: 'Pendiente', dispatched: 'Enviado', received: 'Recibido', rejected: 'Rechazado', returned: 'Devuelto'};
+        const labels = {pending: 'Pendiente', dispatched: 'Enviado', partial: 'Parcialmente recibido', received: 'Recibido', rejected: 'Rechazado', returned: 'Devuelto'};
         const known = Object.prototype.hasOwnProperty.call(labels, status);
         const badge = text('span', known ? labels[status] : status);
         badge.className = 'history-status history-status-' + (known ? status : 'other');

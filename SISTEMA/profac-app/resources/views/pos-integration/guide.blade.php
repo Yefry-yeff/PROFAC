@@ -17,7 +17,7 @@
                 </g>
                 <path d="M280 70 H480 L467 62 M480 70 L467 78 M480 100 H280 L293 92 M280 100 L293 108" fill="none" stroke="#64748b" stroke-width="3"/>
             </svg>
-            <figcaption class="text-center text-muted">Diagrama ilustrativo, no estado actual. Local: dos procesos en terminal. VPS: dos servicios systemd.</figcaption>
+            <figcaption class="text-center text-muted">Diagrama ilustrativo, no estado actual. Local: dos supervisores en segundo plano. VPS: dos servicios systemd.</figcaption>
         </figure>
         <ul class="nav nav-tabs mb-3" role="tablist" aria-label="Entorno de la guía">
             <li class="nav-item"><a class="nav-link active" id="paperland-local-tab" data-toggle="tab" href="#paperland-local-guide" role="tab" aria-controls="paperland-local-guide" aria-selected="true">Local / Laragon</a></li>
@@ -28,7 +28,7 @@
                 <h4>Paso a paso en local</h4>
                 <ol>
                     <li class="mb-3"><strong>Abra ambos sistemas.</strong> POS: <code>http://127.0.0.1:8000</code>. Profac: <code>http://127.0.0.1:8001</code>. Mantenga ejecutándose sus servidores web.</li>
-                    <li class="mb-3"><strong>Levante un supervisor por proyecto.</strong> Si ya aparece En línea, no abra otro. Ejemplo Windows/Laragon: dos terminales PowerShell independientes; ajuste las rutas si su instalación es distinta.
+                    <li class="mb-3"><strong>Levante un supervisor por proyecto.</strong> En Windows local, Iniciar automático lo levanta si está apagado; POS también ofrece Levantar supervisor local para la preparación. Si ya aparece activo, no abra otro. Alternativa manual: dos terminales PowerShell independientes.
                         <pre class="mt-2"><code># Terminal Profac
 Set-Location "C:\laragon\www\PROFAC\SISTEMA\profac-app"
 &amp; "C:\laragon\bin\php\php-8.3.30-Win32-vs16-x64\php.exe" artisan pos-integration:manage
@@ -40,9 +40,9 @@ Set-Location "C:\laragon\www\mira_copan"
                     <li class="mb-3"><strong>Configure direcciones recíprocas.</strong> En API Paperland de Profac: <code>http://127.0.0.1:8000</code>. En Configuración → API → Conexión Valencia del POS: <code>http://127.0.0.1:8001</code>. Seleccione la tienda POS correcta, use la misma clave de al menos 32 caracteres y guarde. Campo de clave vacío conserva la guardada.</li>
                     <li class="mb-3"><strong>Pruebe y active los perfiles.</strong> Pause ambos workers y espere la ronda actual. Pulse Probar conexión y luego Activar perfil en Profac y Activar en POS. Activar no inicia el worker.</li>
                     <li class="mb-3"><strong>Prepare el POS</strong> con la lista de preparación de abajo. No ejecute esos tres pasos en Profac.</li>
-                    <li class="mb-3"><strong>Inicie ambos workers.</strong> En Profac pulse Iniciar y en POS Iniciar worker. Confirme supervisor En línea, worker Activo/running y ausencia de errores.</li>
+                    <li class="mb-3"><strong>Inicie ambos workers.</strong> Pulse Iniciar automático en ambas vistas. Confirme supervisores activos, workers en automático y ausencia de errores. No necesita procesar rondas manuales.</li>
                 </ol>
-                <p class="alert alert-info">No necesita VPS ni systemd en local. Puede cerrar el navegador, pero mantenga los procesos abiertos. Al cerrar las terminales o reiniciar Windows, levante nuevamente los supervisores.</p>
+                <p class="alert alert-info">En Windows con APP_ENV=local, Iniciar automático levanta el supervisor si está apagado y confirma su heartbeat. No necesita terminales ni rondas manuales. Puede cerrar el navegador; después de reiniciar Windows pulse Iniciar automático de nuevo. POS ofrece Levantar supervisor local para ejecutar la preparación inicial.</p>
             </div>
             <div class="tab-pane fade" id="paperland-vps-guide" role="tabpanel" aria-labelledby="paperland-vps-tab">
                 <h4>Paso a paso en VPS Linux</h4>
@@ -83,7 +83,7 @@ sudo journalctl -u pos-integration-pos.service -n 50 --no-pager</code></pre>
             <p>Pendiente no significa ejecutada. Un fallo puede dejar cambios parciales: revise antes de repetir. El archivo histórico debe estar disponible para la vinculación. Estos pasos se ejecutan en la API del POS, no en Profac.</p>
         </div>
         <dl>
-            <dt>Supervisor frente a worker</dt><dd>El supervisor atiende solicitudes y publica heartbeat. Iniciar/Pausar controla el worker; guardar perfiles o pulsar Iniciar no crea el proceso supervisor.</dd>
+            <dt>Supervisor frente a worker</dt><dd>El supervisor atiende solicitudes y publica heartbeat. Iniciar automático también lo levanta en Windows local; en VPS solo valida el servicio instalado. Pausar worker no apaga el supervisor y guardar un perfil no inicia procesos.</dd>
             <dt>Pausar frente a deshabilitar</dt><dd>Pausar termina la ronda actual y conserva eventos. Deshabilitar suspende el registro de eventos POS; al reactivar se debe republicar inventario.</dd>
             <dt>Traslados e inventario</dt><dd>Aparecer en el listado no ingresa stock: recepción física y distribución se confirman aparte.</dd>
             <dt>Pruebas y producción</dt><dd>Use bases independientes para inventarios distintos. No cambie perfiles con mensajes o traslados pendientes.</dd>
