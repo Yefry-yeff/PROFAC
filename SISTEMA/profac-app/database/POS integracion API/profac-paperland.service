@@ -1,0 +1,15 @@
+[Unit]
+Description=PROFAC Paperland integration coordinator
+After=network.target
+
+[Service]
+Type=simple
+User=distrib3
+WorkingDirectory=/home/distrib3/public_html/Valencia/PRUEBAS/PRUEBAS
+ExecStart=/opt/cpanel/ea-php83/root/usr/bin/php /home/distrib3/public_html/Valencia/PRUEBAS/PRUEBAS/artisan pos-integration:manageRestart=always
+RestartSec=5
+KillMode=mixed
+TimeoutStopSec=1860
+
+[Install]
+WantedBy=multi-user.target
