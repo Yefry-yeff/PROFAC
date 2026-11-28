@@ -1,5 +1,36 @@
 //*****comandos utiles****
 
+### Recuperar API Paperland despues de importar la estructura
+
+Una importacion del modelo sin sus datos de inicializacion puede dejar fuera
+el submenu **Configuracion > API Paperland** y los registros obligatorios
+`id = 1` de `integration_settings` e `integration_runtime`.
+
+En una base con las tablas de integracion vacias y sin estas migraciones
+registradas, aplicar unicamente:
+
+```powershell
+php artisan migrate --path=database\migrations\2026_11_24_210000_create_paperland_integration_settings.php
+php artisan migrate --path=database\migrations\2026_11_24_220000_create_paperland_connection_runtime.php
+```
+
+Estas migraciones respetan las tablas existentes, registran el acceso original
+para el rol Administrador (1) al crear el submenu y conservan los registros
+ya inicializados. Los registros nuevos quedan con la integracion deshabilitada
+y el worker sin solicitar; no modifican inventario ni ventas.
+
+Si ya existen mensajes o traslados de integracion, recuperar desde un respaldo
+la identidad original antes de reactivar: no generar otro UUID para procesar
+el historial. Si las migraciones ya figuran aplicadas, no borrar su historial
+para forzar una nueva ejecucion. Una importacion de estructura no recupera
+claves ni perfiles: configurar y verificar de nuevo la conexion con Paperland.
+Recargar la pagina e iniciar sesion de nuevo si el acceso anterior vencio.
+
+Si **Probar** devuelve HTTP 401, revisar la direccion y la clave compartida.
+Una clave guardada en cada sistema no garantiza que sean iguales: generar
+una sola vez y guardar exactamente la misma en ambos perfiles. Verificar
+y activar las conexiones no inicia los workers ni modifica inventario.
+
 ### Detalles del dashboard para Reporteria
 
 El rol Reporteria (20) puede abrir y exportar los detalles comerciales del
