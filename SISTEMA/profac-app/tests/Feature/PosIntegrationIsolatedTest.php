@@ -189,6 +189,39 @@ class PosIntegrationIsolatedTest extends TestCase
         ], '')->assertOk()->assertJsonPath('data.0.simbolo', 'u')->assertJsonPath('next_page', null);
     }
 
+    public function test_product_image_metadata_requires_signature_and_returns_only_safe_existing_images(): void
+    {
+        Schema::create('img_producto', function (Blueprint $table) {
+            $table->id(); $table->integer('producto_id'); $table->string('url_img');
+        });
+        $directory = sys_get_temp_dir().DIRECTORY_SEPARATOR.'profac-image-test-'.Str::uuid();
+        mkdir($directory);
+        mkdir($directory.DIRECTORY_SEPARATOR.'catalogo');
+        $file = $directory.DIRECTORY_SEPARATOR.'catalogo'.DIRECTORY_SEPARATOR.'producto.png';
+        file_put_contents($file, base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII='));
+        $previousPublicPath = public_path();
+        $this->app->usePublicPath($directory);
+        try {
+            DB::table('img_producto')->insert([
+                ['producto_id' => 10, 'url_img' => '../privado.png'],
+                ['producto_id' => 10, 'url_img' => 'no-existe.png'],
+                ['producto_id' => 10, 'url_img' => 'producto.png'],
+            ]);
+            $this->getJson('/api/pos-integration/products/10/image')->assertUnauthorized();
+            $timestamp = (string) time();
+            $headers = ['HTTP_ACCEPT' => 'application/json', 'HTTP_X_INTEGRATION_TIMESTAMP' => $timestamp,
+                'HTTP_X_INTEGRATION_SIGNATURE' => hash_hmac('sha256', $timestamp.'.', 'test-secret')];
+            $this->call('GET', '/api/pos-integration/products/10/image', [], [], [], $headers)
+                ->assertOk()->assertJsonPath('filename', 'producto.png');
+            $this->call('GET', '/api/pos-integration/products/11/image', [], [], [], $headers)->assertNotFound();
+        } finally {
+            $this->app->usePublicPath($previousPublicPath);
+            unlink($file);
+            rmdir($directory.DIRECTORY_SEPARATOR.'catalogo');
+            rmdir($directory);
+        }
+    }
+
     public function test_catalog_bulk_page_limit_preserves_pagination_and_default_size(): void
     {
         DB::table('unidad_medida')->insert(array_map(fn ($id) => [

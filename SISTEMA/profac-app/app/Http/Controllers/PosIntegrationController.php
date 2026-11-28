@@ -137,6 +137,22 @@ class PosIntegrationController extends Controller
         }
     }
 
+    public function productImage(int $product)
+    {
+        foreach (DB::table('img_producto')->where('producto_id', $product)->orderBy('id')->pluck('url_img') as $name) {
+            if (!is_string($name) || !preg_match('/\A[^\/\\\\\x00-\x1f]+\.(?:jpe?g|png|gif|webp)\z/iD', $name)) {
+                \Illuminate\Support\Facades\Log::warning('Ruta de imagen de producto Profac invalida.', ['product_id' => $product]);
+                continue;
+            }
+            $file = public_path('catalogo'.DIRECTORY_SEPARATOR.$name);
+            if (is_file($file) && in_array((new \finfo(FILEINFO_MIME_TYPE))->file($file), ['image/jpeg', 'image/png', 'image/gif', 'image/webp'], true)) {
+                return response()->json(['filename' => $name]);
+            }
+        }
+
+        return response()->json(['error' => 'Imagen no encontrada'], 404);
+    }
+
     public function catalog(Request $request, string $entity)
     {
         $entities = [

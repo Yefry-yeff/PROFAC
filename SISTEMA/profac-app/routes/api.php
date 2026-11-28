@@ -21,6 +21,7 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 Route::middleware(\App\Http\Middleware\AuthenticatePosIntegration::class)->prefix('pos-integration')->group(function () {
     Route::post('/events', [\App\Http\Controllers\PosIntegrationController::class, 'event']);
     Route::get('/catalog/{entity}', [\App\Http\Controllers\PosIntegrationController::class, 'catalog']);
+    Route::get('/products/{product}/image', [\App\Http\Controllers\PosIntegrationController::class, 'productImage'])->whereNumber('product');
 });
 Route::middleware(\App\Http\Middleware\AuthenticatePosIntegration::class.':health')
     ->get('/pos-integration/health', [\App\Http\Controllers\PosIntegrationController::class, 'health']);
